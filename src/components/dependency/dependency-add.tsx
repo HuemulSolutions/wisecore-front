@@ -63,6 +63,16 @@ export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = t
         [dependencies],
     );
 
+    // Lee la caché de React Query en el momento de la llamada en lugar de depender
+    // del estado `dependencies` derivado por render: tras un refetchQueries, la
+    // caché ya está actualizada aunque el componente todavía no haya re-renderizado,
+    // y handleLoadChildren se invoca desde fileTreeRef.refresh() antes de ese render.
+    const getFreshDepByDocId = () => {
+        const cached = queryClient.getQueryData<Dependency[]>(['documentDependencies', id]);
+        const source = cached ?? dependencies;
+        return new Map(source.map((dep) => [dep.document_id, dep]));
+    };
+
     const addDependencyMutation = useMutation({
         mutationFn: (body: { depends_on_document_id: string } & UpdateDependencyVersionRequest) =>
             addDocumentDependency(id, body, selectedOrganizationId!),
@@ -82,6 +92,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = t
         onSuccess: async () => {
             await queryClient.refetchQueries({ queryKey: ['documentDependencies', id] });
             toast.success(t('toast.versionUpdated'));
+            await fileTreeRef.current?.refresh();
         },
         onError: (error) => {
             handleApiError(error, { fallbackMessage: t('toast.updateFailed') });
@@ -133,6 +144,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = t
 
         try {
             const response = await getLibraryContent(selectedOrganizationId, folderId || undefined);
+            const freshDepByDocId = getFreshDepByDocId();
 
             const folderNodes: FileNode[] = response.folders.map((item) => ({
                 id: item.id,
@@ -151,7 +163,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = t
                 access_levels: item.access_levels,
                 hasChildren: false,
                 // Mark dependencies so menu actions and icons can identify them
-                isDependency: depByDocId.has(item.id),
+                isDependency: freshDepByDocId.has(item.id),
             }));
             return [...folderNodes, ...assetNodes];
         } catch (error) {

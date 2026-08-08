@@ -19,6 +19,13 @@ export interface HuemulTableColumn<T> {
   sortKey?: string
 }
 
+export interface HuemulTableActionItem<T> {
+  key: string
+  label: string
+  icon?: LucideIcon
+  onClick: (item: T) => void
+}
+
 export interface HuemulTableAction<T> {
   key: string
   label: string
@@ -30,6 +37,8 @@ export interface HuemulTableAction<T> {
   show?: (item: T) => boolean
   isLoading?: (item: T) => boolean
   disabled?: (item: T) => boolean
+  /** Subopciones del botón. Si devuelve 2+ items se abre un menú; si devuelve 0/1, se usa `onClick`. */
+  items?: (item: T) => HuemulTableActionItem<T>[]
 }
 
 export interface HuemulTableEmptyState {

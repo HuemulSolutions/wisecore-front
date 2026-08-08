@@ -1557,6 +1557,8 @@ export function HuemulField({
   multiple,
   onFileChange,
   rows = 3,
+  maxLength,
+  showCharCount,
   min,
   max,
   step,
@@ -1645,6 +1647,7 @@ export function HuemulField({
             disabled={disabled}
             readOnly={readOnly}
             rows={rows}
+            maxLength={maxLength}
             required={required}
             autoFocus={autoFocus}
             autoComplete="off"
@@ -2163,6 +2166,7 @@ export function HuemulField({
             min={min}
             max={max}
             step={step}
+            maxLength={maxLength}
             aria-invalid={baseInvalid || undefined}
             className={inputClassName}
           />
@@ -2248,7 +2252,7 @@ export function HuemulField({
       ) : (
         <>
           {/* ── Label row ──────────────────────────────────────── */}
-          {(label || required || helpText || labelAction) && (
+          {(label || required || helpText || labelAction || (showCharCount && maxLength != null)) && (
           <div className="flex items-center gap-1">
             {label && (
             <Label
@@ -2272,6 +2276,19 @@ export function HuemulField({
             {helpText && <FieldHelpButton helpText={helpText} />}
 
             {labelAction && <FieldLabelAction action={labelAction} />}
+
+            {showCharCount && maxLength != null && (
+              <span
+                className={cn(
+                  "ml-auto text-xs tabular-nums",
+                  String(value ?? "").length >= maxLength
+                    ? "text-destructive"
+                    : "text-muted-foreground",
+                )}
+              >
+                {String(value ?? "").length}/{maxLength}
+              </span>
+            )}
           </div>
           )}
 

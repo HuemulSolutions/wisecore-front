@@ -1,7 +1,8 @@
 import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { Image, RefreshCw, Plus } from "lucide-react"
+import { Image, RefreshCw, Plus, Sparkles } from "lucide-react"
+import { toast } from "sonner"
 
 import { useOrganization } from "@/contexts/organization-context"
 import { useMediaList, mediaQueryKeys } from "@/hooks/useMedia"
@@ -17,6 +18,7 @@ import { HuemulViewToggle } from "@/huemul/components/huemul-view-toggle"
 import { HuemulMediaGallery } from "@/huemul/components/huemul-media-gallery"
 import { HuemulMediaDetailSheet } from "@/huemul/components/huemul-media-detail-sheet"
 import { HuemulMediaUploadSheet } from "@/huemul/components/huemul-media-upload-sheet"
+import { HuemulMediaGenerateSheet } from "@/huemul/components/huemul-media-generate-sheet"
 import { useMediaFilters } from "@/hooks/useMediaFilters"
 import { useMediaViewMode } from "@/hooks/useMediaViewMode"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -60,6 +62,8 @@ export default function MediaPage() {
   const [selectedItem, setSelectedItem] = useState<Media | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [generateOpen, setGenerateOpen] = useState(false)
+  const [pinnedMediaIds, setPinnedMediaIds] = useState<string[]>([])
   const [viewMode, setViewMode] = useMediaViewMode()
 
   const {
@@ -77,7 +81,7 @@ export default function MediaPage() {
     onChipRemove: handleChipRemove,
     onClearAll: handleClearAll,
     onSelectedLabel,
-  } = useMediaFilters({ onChange: () => setPage(1) })
+  } = useMediaFilters({ onChange: () => { setPage(1); setPinnedMediaIds([]) } })
 
   const { data, isLoading, isFetching, isError, refetch } = useMediaList(
     selectedOrganizationId ?? "",
@@ -99,6 +103,7 @@ export default function MediaPage() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
+    setPinnedMediaIds([])
     try {
       await queryClient.invalidateQueries({ queryKey: mediaQueryKeys.listBase() })
       await refetch()
@@ -119,7 +124,17 @@ export default function MediaPage() {
     return <MediaPageSkeleton />
   }
 
-  const items = data?.data ?? []
+  const rawItems = data?.data ?? []
+  // Pin "solo ids": reordena filas que el backend ya devolvió, sin inventar
+  // datos sintéticos (la respuesta de /image-generation/generate no trae
+  // file_size/content_type/created_at).
+  const items = pinnedMediaIds.length
+    ? [...rawItems].sort((a, b) => {
+        const ra = pinnedMediaIds.indexOf(a.id)
+        const rb = pinnedMediaIds.indexOf(b.id)
+        return (ra === -1 ? Infinity : ra) - (rb === -1 ? Infinity : rb)
+      })
+    : rawItems
 
   const header = (
     <div className="flex items-center justify-between gap-2 px-4 py-3">
@@ -147,6 +162,15 @@ export default function MediaPage() {
           label={tCommon("refresh")}
           loading={isRefreshing || isFetching}
           onClick={handleRefresh}
+          className="h-8 text-xs px-2"
+        />
+        <HuemulButton
+          variant="outline"
+          size="sm"
+          icon={Sparkles}
+          iconClassName="w-3 h-3 mr-1"
+          label={t("generate.button")}
+          onClick={() => setGenerateOpen(true)}
           className="h-8 text-xs px-2"
         />
         <HuemulButton
@@ -218,10 +242,11 @@ export default function MediaPage() {
                       totalItems={data?.total}
                       hasNext={data?.has_next}
                       hasPrevious={page > 1}
-                      onPageChange={setPage}
+                      onPageChange={(p) => { setPage(p); setPinnedMediaIds([]) }}
                       onPageSizeChange={(size) => {
                         setPageSize(size)
                         setPage(1)
+                        setPinnedMediaIds([])
                       }}
                       pageSizeOptions={PAGE_SIZE_OPTIONS}
                     />
@@ -244,6 +269,21 @@ export default function MediaPage() {
       open={uploadOpen}
       onOpenChange={setUploadOpen}
       organizationId={selectedOrganizationId}
+    />
+
+    <HuemulMediaGenerateSheet
+      open={generateOpen}
+      onOpenChange={setGenerateOpen}
+      organizationId={selectedOrganizationId}
+      onGenerated={(img) => {
+        if (level !== "organization" && pinnedMediaIds.length === 0) {
+          toast.info(t("generate.hiddenByFilters"))
+        }
+        setPinnedMediaIds((prev) => [img.media_id, ...prev])
+      }}
+      onDiscarded={(mediaId) => {
+        setPinnedMediaIds((prev) => prev.filter((id) => id !== mediaId))
+      }}
     />
   </>
   )

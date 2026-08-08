@@ -5,9 +5,11 @@ import {
   createCustomField,
   updateCustomField,
   deleteCustomField,
+  parseCustomFieldUsageError,
   getCustomFieldDataTypes,
   getCustomFieldQuestionTypes,
 } from "@/services/custom-fields"
+import { handleApiError } from "@/lib/error-utils"
 import type {
   UpdateCustomFieldRequest,
   PaginationParams,
@@ -88,10 +90,22 @@ export function useCustomFieldMutations() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: deleteCustomField,
+    mutationFn: ({ id, force }: { id: string; force?: boolean }) => deleteCustomField(id, force),
     meta: { successMessage: 'Custom field deleted successfully' },
-    onSuccess: () => {
+    onError: (error) => {
+      // El caso "campo en uso" (400 con detail de templates/documentos) lo
+      // resuelve la UI escalando su propio diálogo de confirmación — no
+      // mostrar el toast genérico para ese caso.
+      if (parseCustomFieldUsageError(error)) return
+      handleApiError(error)
+    },
+    onSuccess: (_data, { force }) => {
       queryClient.invalidateQueries({ queryKey: customFieldsQueryKeys.lists() })
+      if (force) {
+        // Un borrado forzado desasocia el campo de templates y documentos.
+        queryClient.invalidateQueries({ queryKey: ['custom-field-templates'] })
+        queryClient.invalidateQueries({ queryKey: ['custom-field-documents'] })
+      }
     },
   })
 

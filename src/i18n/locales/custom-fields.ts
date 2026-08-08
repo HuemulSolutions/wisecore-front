@@ -35,7 +35,7 @@ const translations = {
   },
   actions: {
     editCustomField: { en: "Edit Custom Field", es: "Editar Campo Personalizado" },
-    deleteCustomField: { en: "Delete Custom Field", es: "Eliminar Campo Personalizado" },
+    deleteCustomField: { en: "Delete", es: "Eliminar" },
     createFirstCustomField: { en: "Create First Custom Field", es: "Crear Primer Campo Personalizado" },
     clearFilters: { en: "Clear Filters", es: "Limpiar Filtros" },
   },
@@ -52,14 +52,18 @@ const translations = {
   editDialog: {
     title: { en: "Edit Custom Field", es: "Editar Campo Personalizado" },
     description: { en: "Update the custom field details.", es: "Actualiza los detalles del campo personalizado." },
-    saveLabel: { en: "Update Custom Field", es: "Actualizar Campo Personalizado" },
+    saveLabel: { en: "Update field", es: "Actualizar campo" },
   },
   deleteDialog: {
     title: { en: "Delete Custom Field", es: "Eliminar Campo Personalizado" },
     description: { en: "Are you sure you want to delete this custom field? It will be removed from all assets that currently use it and any data stored in it will be lost permanently. This action cannot be undone.", es: "¿Estás seguro de que deseas eliminar este campo personalizado? Se quitará de todos los activos que actualmente lo usan y cualquier dato almacenado en él se perderá permanentemente. Esta acción no se puede deshacer." },
-  },
-  dangerZone: {
-    title: { en: "Danger Zone", es: "Zona de Peligro" },
+    inUseTemplates: { en: "{{count}} template", es: "{{count}} plantilla" },
+    inUseTemplatesPlural: { en: "{{count}} templates", es: "{{count}} plantillas" },
+    inUseDocuments: { en: "{{count}} document", es: "{{count}} documento" },
+    inUseDocumentsPlural: { en: "{{count}} documents", es: "{{count}} documentos" },
+    inUseAlertTitle: { en: "This field is in use", es: "Este campo está en uso" },
+    inUseAlertDescription: { en: "It is in use in {{usage}}. If you continue, it will be removed from them and its stored values will be lost.", es: "Está en uso en {{usage}}. Si continúas, se quitará de ellos y sus valores guardados se perderán." },
+    forceConfirm: { en: "Delete anyway", es: "Eliminar de todas formas" },
   },
   form: {
     eyebrow: { en: "Custom Field", es: "Campo Personalizado" },
@@ -95,7 +99,6 @@ const translations = {
     minMaxInvalid: { en: "Minimum value must be less than or equal to the maximum", es: "El valor mínimo debe ser menor o igual al máximo" },
     allowedTypesLabel: { en: "Allowed file types", es: "Tipos de archivo permitidos" },
     preview: {
-      label: { en: "Preview", es: "Vista previa" },
       unnamedLabel: { en: "Field preview", es: "Vista previa del campo" },
     },
   },

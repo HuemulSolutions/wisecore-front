@@ -49,6 +49,12 @@ export interface CustomFieldsListProps {
   uploadingImageFieldId?: string | null
   isRefreshing?: boolean
   canEdit?: boolean
+  /** Paginación del listado — si se omite onPageChange, no se muestra el footer de paginación. */
+  page?: number
+  pageSize?: number
+  totalItems?: number
+  hasNext?: boolean
+  onPageChange?: (page: number) => void
 }
 
 // ----------------------------------------

@@ -4,12 +4,12 @@ import { useState, useEffect, useMemo } from "react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
 import { Plus, Trash2 } from "lucide-react"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
 import { useTranslation } from "react-i18next"
 
 import { useCustomFieldQuestionTypes } from "@/hooks/useCustomFields"
+import { parseCustomFieldUsageError, type CustomFieldUsage } from "@/services/custom-fields"
 import {
   questionTypeLabel,
   readFieldConfig,
@@ -31,6 +31,9 @@ export function CreateEditCustomFieldSheet({
 }: CreateEditCustomFieldDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  // Seteado cuando el primer intento de borrado devuelve 400 "en uso" — escala
+  // el mismo HuemulAlertDialog a un texto de confirmación con los conteos.
+  const [usage, setUsage] = useState<CustomFieldUsage | null>(null)
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -93,6 +96,7 @@ export function CreateEditCustomFieldSheet({
         })
       }
       setErrors({})
+      setUsage(null)
     }
   }, [open, customField])
 
@@ -274,6 +278,20 @@ export function CreateEditCustomFieldSheet({
 
   const formatQuestionType = (questionType: string) => questionTypeLabel(questionType, tSections)
 
+  // Une "2 plantillas" y/o "5 documentos" con "y", omitiendo el lado con 0
+  // para no mostrar "0 documentos".
+  const buildUsageText = (fieldUsage: CustomFieldUsage) => {
+    const parts = [
+      fieldUsage.templates > 0
+        ? t(fieldUsage.templates === 1 ? 'deleteDialog.inUseTemplates' : 'deleteDialog.inUseTemplatesPlural', { count: fieldUsage.templates })
+        : null,
+      fieldUsage.documents > 0
+        ? t(fieldUsage.documents === 1 ? 'deleteDialog.inUseDocuments' : 'deleteDialog.inUseDocumentsPlural', { count: fieldUsage.documents })
+        : null,
+    ].filter(Boolean)
+    return parts.join(` ${t('common:and')} `)
+  }
+
   return (
     <>
       <HuemulSheet
@@ -290,6 +308,17 @@ export function CreateEditCustomFieldSheet({
           onClick: handleSave,
           closeOnSuccess: false,
         }}
+        footerLeft={isEditing ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10 hover:cursor-pointer"
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+            {t('actions.deleteCustomField')}
+          </Button>
+        ) : undefined}
       >
         <div className="space-y-4">
           <CustomFieldFormFields
@@ -318,39 +347,37 @@ export function CreateEditCustomFieldSheet({
             disabled={isSubmitting}
             loadingQuestionTypes={loadingQuestionTypes}
           />
-
-          {isEditing && (
-            <>
-              <Separator />
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  {t('dangerZone.title')}
-                </p>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="hover:cursor-pointer"
-                  onClick={() => setDeleteOpen(true)}
-                >
-                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                  {t('actions.deleteCustomField')}
-                </Button>
-              </div>
-            </>
-          )}
         </div>
       </HuemulSheet>
 
       {isEditing && (
         <HuemulAlertDialog
           open={deleteOpen}
-          onOpenChange={setDeleteOpen}
+          onOpenChange={(nextOpen) => {
+            setDeleteOpen(nextOpen)
+            if (!nextOpen) setUsage(null)
+          }}
           title={t('deleteDialog.title')}
           description={t('deleteDialog.description')}
-          actionLabel={t('actions.deleteCustomField')}
+          alert={usage ? {
+            title: t('deleteDialog.inUseAlertTitle'),
+            description: t('deleteDialog.inUseAlertDescription', { usage: buildUsageText(usage) }),
+          } : undefined}
+          actionLabel={usage ? t('deleteDialog.forceConfirm') : t('actions.deleteCustomField')}
           actionIcon={Trash2}
           onAction={async () => {
-            await customFieldMutations.delete.mutateAsync(customField!.id)
+            try {
+              await customFieldMutations.delete.mutateAsync({ id: customField!.id, force: Boolean(usage) })
+            } catch (error) {
+              const detectedUsage = parseCustomFieldUsageError(error)
+              // Primer intento sobre un campo en uso: no es un fallo terminal —
+              // se re-lanza para que HuemulAlertDialog vuelva a "idle" (sin
+              // cerrarse) y, con `usage` seteado, pida la confirmación reforzada.
+              if (detectedUsage && !usage) {
+                setUsage(detectedUsage)
+              }
+              throw error
+            }
             onOpenChange(false)
           }}
         />

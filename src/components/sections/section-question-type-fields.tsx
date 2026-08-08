@@ -324,7 +324,13 @@ export function SectionQuestionTypeFields({
               disabled={isPending}
             />
           </div>
-          <QuestionTypePreview questionType={qt} minValue={min} maxValue={max} />
+          <QuestionTypePreview
+            questionType={qt}
+            minValue={min}
+            maxValue={max}
+            minLabel={cfg.min_label}
+            maxLabel={cfg.max_label}
+          />
         </div>
       );
     }
@@ -368,6 +374,13 @@ export function SectionQuestionTypeFields({
 
     // ── Fallback: preview genérico por data_type (slug no contemplado) ───────
     default:
-      return <QuestionTypePreview questionType={qt} dataType={field.data_type} fieldName={field.field_name} />;
+      return (
+        <QuestionTypePreview
+          questionType={qt}
+          dataType={field.data_type}
+          fieldName={field.field_name}
+          required={field.required}
+        />
+      );
   }
 }

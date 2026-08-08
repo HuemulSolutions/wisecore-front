@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 import { handleApiError } from "@/lib/error-utils"
 import { withRefresh } from "@/lib/query-utils"
 import { useExternalReviewActions } from "@/hooks/useLifecycle"
+import { executionLifecycleQueryKeys } from "@/hooks/useExecutionLifecycle"
 import {
   completeExecutionLifecycleStep,
   rejectExecutionLifecycle,
@@ -74,6 +75,7 @@ export function useLifecycleActions({
     ),
     onSuccess: () => {
       setIsCheckDialogOpen(false)
+      queryClient.invalidateQueries({ queryKey: executionLifecycleQueryKeys.eventsBase() })
     },
     meta: { successMessage: t("lifecycle.successComplete") },
     onError: (error, variables: { comment?: string; run_external_review?: boolean } | undefined) => {
@@ -101,6 +103,7 @@ export function useLifecycleActions({
     ),
     onSuccess: () => {
       setIsRejectDialogOpen(false)
+      queryClient.invalidateQueries({ queryKey: executionLifecycleQueryKeys.eventsBase() })
     },
     meta: { successMessage: t("lifecycle.successReturn") },
     onError: (error) => {
@@ -127,6 +130,7 @@ export function useLifecycleActions({
     onSuccess: () => {
       setIsPublishDialogOpen(false)
       setIsArchiveDialogOpen(false)
+      queryClient.invalidateQueries({ queryKey: executionLifecycleQueryKeys.eventsBase() })
     },
     meta: { successMessage: t("lifecycle.successAdvance") },
     onError: (
@@ -187,6 +191,7 @@ export function useLifecycleActions({
     ),
     onSuccess: () => {
       setIsRestoreDialogOpen(false)
+      queryClient.invalidateQueries({ queryKey: executionLifecycleQueryKeys.eventsBase() })
     },
     meta: { successMessage: t("lifecycle.successRestore") },
     onError: (error) => {

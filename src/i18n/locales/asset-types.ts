@@ -84,6 +84,8 @@ const translations = {
     relationNamePlaceholder: { en: "e.g. main-contract", es: "ej. contrato-principal" },
     canCreateExpress: { en: "Allow express creation", es: "Permite creación exprés" },
     requireNameOnExpress: { en: "Require name on express", es: "Requiere nombre en exprés" },
+    namePlaceholder: { en: "Name placeholder", es: "Placeholder de nombre" },
+    namePlaceholderHint: { en: "e.g. Vacation request for John Doe", es: "Ej: Vacaciones de Juan Pérez" },
     mostrarEnWorkflow: { en: "Show in workflow", es: "Mostrar en workflow" },
     orden: { en: "Order", es: "Orden" },
     ordenPlaceholder: { en: "e.g. 1", es: "ej. 1" },

@@ -7,14 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import type { ModelDialogProps } from "@/types/models"
 export type { ModelDialogProps } from "@/types/models"
-
-const ALL_CAPABILITIES = [
-  'text_input',
-  'text_output',
-  'image_input',
-  'image_output',
-  'tool_use',
-] as const
+import { LLM_CAPABILITIES } from "@/lib/llm-capabilities"
 
 export function ModelDialog({
   open,
@@ -68,6 +61,10 @@ export function ModelDialog({
   }
 
   const resolvedProviderName = providerName ?? providers?.find(p => p.id === selectedProviderId)?.name
+  const resolvedProviderType = providers?.find(p => p.id === selectedProviderId)?.type ?? model?.provider?.type
+  const technicalNameHelp = resolvedProviderType
+    ? t(`modelDialog.technicalNameHelp.${resolvedProviderType}`, { defaultValue: t('modelDialog.technicalNameDescription') })
+    : t('modelDialog.technicalNameDescription')
 
   const isFormValid =
     displayName.trim() !== '' &&
@@ -120,7 +117,7 @@ export function ModelDialog({
           placeholder={t('modelDialog.technicalNamePlaceholder')}
           value={technicalName}
           onChange={(v) => setTechnicalName(String(v))}
-          description={t('modelDialog.technicalNameDescription')}
+          description={technicalNameHelp}
           disabled={isSubmitting}
           required
         />
@@ -129,7 +126,7 @@ export function ModelDialog({
             <Label className="text-sm font-medium">{t('modelDialog.capabilitiesLabel')}</Label>
             <p className="text-xs text-muted-foreground">{t('capabilitiesDialog.description')}</p>
             <div className="space-y-2 mt-1">
-              {ALL_CAPABILITIES.map((cap) => (
+              {LLM_CAPABILITIES.map((cap) => (
                 <div key={cap} className="flex items-center gap-3">
                   <Checkbox
                     id={`create-cap-${cap}`}

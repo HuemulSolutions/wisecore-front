@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Plus, Edit, Trash2, Settings, Radio, Star, Timer, Loader2, Building2 } from 'lucide-react'
+import { Plus, Edit, Trash2, Settings, Radio, Star, Timer, Loader2, Building2, MessageSquare, Image as ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HuemulButton } from '@/huemul/components/huemul-button'
 import { HuemulTable } from '@/huemul/components/huemul-table'
@@ -18,14 +18,16 @@ import {
   updateProvider, 
   deleteProvider,
 } from '@/services/llm-provider'
-import { 
-  getLLMs, 
-  createLLM, 
-  updateLLMModel, 
-  deleteLLM, 
+import {
+  getLLMs,
+  createLLM,
+  updateLLMModel,
+  deleteLLM,
   setDefaultLLM,
   testLLMConnection
 } from '@/services/llms'
+import { testImageGenerationConnection } from '@/services/image-generation'
+import { resolveConnectionTests, type ConnectionTestKind } from '@/lib/llm-capabilities'
 import {
   getSupportedEmbeddingProviders,
   getEmbeddingProvider,
@@ -34,6 +36,7 @@ import {
   deleteEmbeddingProvider,
   testEmbeddingProviderConnection,
 } from '@/services/embedding-provider'
+import { handleApiError } from '@/lib/error-utils'
 import { 
   ModelsHeader,
   ModelsLoadingState, 
@@ -210,9 +213,16 @@ export default function Models() {
     },
   })
 
-  const testLLMConnectionMutation = useMutation({
-    mutationFn: testLLMConnection,
+  // Si el modelo aplica a más de un test (multimodal), el usuario elige cuál
+  // correr desde el menú del botón; acá solo se ejecuta el `kind` elegido.
+  const testModelConnectionMutation = useMutation({
+    mutationFn: ({ model, kind }: { model: LLM; kind: ConnectionTestKind }) =>
+      kind === 'image' ? testImageGenerationConnection() : testLLMConnection(model.id),
     meta: { successMessage: t('toast.connectionSuccessful') },
+    onError: (error, { kind }) =>
+      handleApiError(error, {
+        fallbackMessage: t(kind === 'image' ? 'errors.imageConnectionFailed' : 'errors.chatConnectionFailed'),
+      }),
   })
 
   const createEmbeddingProviderMutation = useMutation({
@@ -248,6 +258,7 @@ export default function Models() {
   const testEmbeddingProviderMutation = useMutation({
     mutationFn: testEmbeddingProviderConnection,
     meta: { successMessage: t('toast.connectionSuccessful') },
+    onError: (error) => handleApiError(error, { fallbackMessage: t('errors.connectionFailed') }),
     onSettled: () => {
       setIsTestingEmbeddingProvider(false)
     },
@@ -358,9 +369,9 @@ export default function Models() {
     })
   }
 
-  const handleTestModel = (model: LLM) => {
+  const runConnectionTest = (model: LLM, kind: ConnectionTestKind) => {
     setTestingModelId(model.id)
-    testLLMConnectionMutation.mutate(model.id, {
+    testModelConnectionMutation.mutate({ model, kind }, {
       onSettled: () => setTestingModelId(null),
     })
   }
@@ -595,7 +606,14 @@ export default function Models() {
                     key: 'test',
                     label: t('modelActions.testConnection'),
                     icon: Radio,
-                    onClick: handleTestModel,
+                    onClick: (model) => runConnectionTest(model, resolveConnectionTests(model)[0] ?? 'chat'),
+                    items: (model) =>
+                      resolveConnectionTests(model).map((kind) => ({
+                        key: kind,
+                        label: t(kind === 'image' ? 'modelActions.testImageGeneration' : 'modelActions.testChat'),
+                        icon: kind === 'image' ? ImageIcon : MessageSquare,
+                        onClick: () => runConnectionTest(model, kind),
+                      })),
                     isLoading: (model) => testingModelId === model.id,
                     disabled: (model) => testingModelId !== null && testingModelId !== model.id,
                   },
@@ -829,7 +847,7 @@ export default function Models() {
           }
         }}
         model={editingModel}
-        providers={!editingModel ? allProvidersList.map((p: any) => ({ id: p.id, name: p.name })) : undefined}
+        providers={!editingModel ? allProvidersList.map((p: any) => ({ id: p.id, name: p.name, type: p.type })) : undefined}
         isCreating={createLLMMutation.isPending}
         isUpdating={updateLLMMutation.isPending}
         onSubmit={editingModel ? handleUpdateModel : handleCreateModel}

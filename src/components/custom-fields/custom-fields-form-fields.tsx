@@ -12,12 +12,14 @@ const FILE_TYPE_OPTIONS = ['pdf', 'docx', 'xlsx', 'png', 'jpg', 'csv'];
 
 export type { CustomFieldFormFieldsProps } from '@/types/custom-fields';
 
-function SectionHeader({ number, label }: { number: number; label: string }) {
+function SectionHeader({ number, label }: { number?: number; label: string }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[11px] font-semibold text-blue-700">
-        {number}
-      </span>
+      {number !== undefined && (
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[11px] font-semibold text-blue-700">
+          {number}
+        </span>
+      )}
       <span className="text-xs font-semibold uppercase tracking-wide text-blue-700">
         {label}
       </span>
@@ -76,6 +78,23 @@ export default function CustomFieldFormFields({
 
   return (
     <div className="space-y-6">
+      <div className="space-y-4">
+        <SectionHeader label={t('form.section.preview')} />
+        <CustomFieldPreview
+          name={name}
+          dataType={dataType}
+          questionType={questionType}
+          options={options}
+          minValue={minValue}
+          maxValue={maxValue}
+          minLabel={config.min_label}
+          maxLabel={config.max_label}
+          required={required}
+        />
+      </div>
+
+      <Separator />
+
       <div className="space-y-4">
         <SectionHeader number={1} label={t('form.section.definition')} />
         <HuemulField
@@ -328,20 +347,6 @@ export default function CustomFieldFormFields({
           onChange={(v) => onDescriptionChange(String(v))}
           disabled={disabled}
           error={errors.description}
-        />
-      </div>
-
-      <Separator />
-
-      <div className="space-y-4">
-        <SectionHeader number={3} label={t('form.section.preview')} />
-        <CustomFieldPreview
-          name={name}
-          dataType={dataType}
-          questionType={questionType}
-          options={options}
-          minValue={minValue}
-          maxValue={maxValue}
         />
       </div>
     </div>
