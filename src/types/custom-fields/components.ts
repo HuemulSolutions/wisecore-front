@@ -30,6 +30,8 @@ export interface CustomFieldFormFieldsProps {
   onMaxValueChange: (value: number | null) => void
   config: FormFieldConfig
   onConfigChange: (patch: Partial<FormFieldConfig>) => void
+  required: boolean
+  onRequiredChange: (value: boolean) => void
   errors?: {
     name?: string
     description?: string
@@ -87,7 +89,6 @@ export interface CustomFieldPageHeaderProps {
 export interface CustomFieldTableProps {
   customFields: CustomField[]
   onEditCustomField: (customField: CustomField) => void
-  onDeleteCustomField: (customField: CustomField) => void
   pagination?: HuemulTablePagination
   canManage?: boolean
   isLoading?: boolean

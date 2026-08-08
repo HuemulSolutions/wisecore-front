@@ -54,6 +54,7 @@ export function HuemulSheet({
   open,
   onOpenChange,
   title,
+  eyebrow,
   description,
   icon: Icon,
   iconClassName,
@@ -70,6 +71,7 @@ export function HuemulSheet({
   className,
   bodyClassName,
   headerExtra,
+  footerLeft,
   children,
 }: HuemulSheetProps) {
   // Shared helper — all close paths go through Radix's onOpenChange
@@ -132,7 +134,7 @@ export function HuemulSheet({
   const saveInFooter = saveAction && !saveInHeader;
 
   // Determine if footer has any content
-  const hasFooterContent = showFooter && (showCancelButton || saveInFooter || footerActions.length > 0);
+  const hasFooterContent = showFooter && (showCancelButton || saveInFooter || footerActions.length > 0 || !!footerLeft);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -147,6 +149,11 @@ export function HuemulSheet({
       >
         {/* ── Header ─────────────────────────────────────────────────── */}
         <SheetHeader className="px-6 pt-6 pb-4 space-y-1.5">
+          {eyebrow && (
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              {eyebrow}
+            </p>
+          )}
           <div className="flex items-center gap-2">
             {Icon && (
               <Icon
@@ -221,52 +228,58 @@ export function HuemulSheet({
 
         {/* ── Footer (sticky) ────────────────────────────────────────── */}
         {hasFooterContent && (
-          <div className="sticky bottom-0 border-t bg-background px-6 py-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            {showCancelButton && (
-              <SheetClose asChild>
-                <Button
-                  variant="outline"
-                  className="hover:cursor-pointer"
-                  onClick={() => onCancel?.()}
-                >
-                  {cancelLabel}
-                </Button>
-              </SheetClose>
+          <div className="sticky bottom-0 border-t bg-background px-6 py-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            {footerLeft && (
+              <div className="flex items-center gap-2">{footerLeft}</div>
             )}
 
-            {footerActions.map((action) => {
-              const globalIndex = extraActions!.indexOf(action);
-              return (
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:ml-auto">
+              {showCancelButton && (
+                <SheetClose asChild>
+                  <Button
+                    variant="outline"
+                    className="hover:cursor-pointer"
+                    onClick={() => onCancel?.()}
+                  >
+                    {cancelLabel}
+                  </Button>
+                </SheetClose>
+              )}
+
+              {footerActions.map((action) => {
+                const globalIndex = extraActions!.indexOf(action);
+                return (
+                  <ActionButton
+                    key={action.label}
+                    action={action}
+                    isLoading={extraLoading[globalIndex] ?? false}
+                    defaultVariant="secondary"
+                    onClickAction={() =>
+                      handleActionClick(
+                        action,
+                        (v) =>
+                          setExtraLoading((prev) => ({
+                            ...prev,
+                            [globalIndex]: v,
+                          })),
+                        false,
+                      )
+                    }
+                  />
+                );
+              })}
+
+              {saveInFooter && (
                 <ActionButton
-                  key={action.label}
-                  action={action}
-                  isLoading={extraLoading[globalIndex] ?? false}
-                  defaultVariant="secondary"
+                  action={saveAction!}
+                  isLoading={saveLoading}
+                  defaultVariant="default"
                   onClickAction={() =>
-                    handleActionClick(
-                      action,
-                      (v) =>
-                        setExtraLoading((prev) => ({
-                          ...prev,
-                          [globalIndex]: v,
-                        })),
-                      false,
-                    )
+                    handleActionClick(saveAction!, setSaveLoading, true)
                   }
                 />
-              );
-            })}
-
-            {saveInFooter && (
-              <ActionButton
-                action={saveAction!}
-                isLoading={saveLoading}
-                defaultVariant="default"
-                onClickAction={() =>
-                  handleActionClick(saveAction!, setSaveLoading, true)
-                }
-              />
-            )}
+              )}
+            </div>
           </div>
         )}
       </SheetContent>

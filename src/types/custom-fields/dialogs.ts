@@ -8,10 +8,3 @@ export interface CreateEditCustomFieldDialogProps {
   onSuccess: (created?: CustomField) => void
   customFieldMutations: ReturnType<typeof useCustomFieldMutations>
 }
-
-export interface DeleteCustomFieldDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  customField: CustomField | null
-  onConfirm: (customField: CustomField) => void
-}

@@ -21,7 +21,7 @@ export function CanvasPageHeader({
     <PageHeader
       icon={LayoutPanelTop}
       title={t('header.title')}
-      badges={[{ label: "", value: isLoading ? "..." : canvasCount }]}
+      badges={[{ label: "", value: canvasCount }]}
       onRefresh={onRefresh}
       isLoading={isLoading}
       primaryAction={canManage ? {

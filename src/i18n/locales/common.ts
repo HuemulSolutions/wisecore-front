@@ -27,6 +27,8 @@ const translations = {
   previous: { en: "Previous", es: "Anterior" },
   next: { en: "Next", es: "Siguiente" },
   actions: { en: "Actions", es: "Acciones" },
+  expandRow: { en: "Expand row", es: "Expandir fila" },
+  collapseRow: { en: "Collapse row", es: "Contraer fila" },
   name: { en: "Name", es: "Nombre" },
   created: { en: "Created", es: "Creado" },
   updated: { en: "Updated", es: "Actualizado" },
@@ -68,6 +70,7 @@ const translations = {
   loadingMore: { en: "Loading more...", es: "Cargando más..." },
   noMoreResults: { en: "No more results", es: "No hay más resultados" },
   retry: { en: "Try again", es: "Reintentar" },
+  and: { en: "and", es: "y" },
   pagination: {
     itemsPerPage: { en: "Items per page:", es: "Elementos por página:" },
     page: { en: "Page", es: "Página" },

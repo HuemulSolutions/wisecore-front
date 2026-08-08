@@ -19,7 +19,7 @@ export function DiagramsPageHeader({ diagramCount, isLoading = false, onRefresh,
     <PageHeader
       icon={Workflow}
       title={t('header.title')}
-      badges={[{ label: "", value: isLoading ? "..." : diagramCount }]}
+      badges={[{ label: "", value: diagramCount }]}
       onRefresh={onRefresh}
       isLoading={isLoading}
     >

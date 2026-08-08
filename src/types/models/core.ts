@@ -17,6 +17,9 @@ export interface LLM {
   };
   is_default?: boolean;
   capabilities?: string[];
+  /** USD por 1.000.000 de tokens de entrada. null si no tiene tarifa configurada. */
+  input_price_per_1m_tokens?: number | null;
+  output_price_per_1m_tokens?: number | null;
 }
 
 export interface CreateLLMRequest {
@@ -24,6 +27,8 @@ export interface CreateLLMRequest {
   internal_name: string;
   provider_id: string;
   capabilities: string[];
+  input_price_per_1m_tokens?: number | null;
+  output_price_per_1m_tokens?: number | null;
 }
 
 export interface LLMsResponse {

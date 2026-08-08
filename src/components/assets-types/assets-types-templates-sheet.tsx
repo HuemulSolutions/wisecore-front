@@ -88,6 +88,7 @@ function TemplateLinkFormSheet({
   const [relationName, setRelationName] = React.useState("")
   const [canCreateExpress, setCanCreateExpress] = React.useState(false)
   const [requireNameOnExpress, setRequireNameOnExpress] = React.useState(false)
+  const [namePlaceholder, setNamePlaceholder] = React.useState("")
   const [mostrarEnWorkflow, setMostrarEnWorkflow] = React.useState(false)
   const [orden, setOrden] = React.useState("")
 
@@ -99,12 +100,14 @@ function TemplateLinkFormSheet({
       setRelationName(template.relation_name ?? "")
       setCanCreateExpress(template.can_create_express)
       setRequireNameOnExpress(template.require_name_on_express)
+      setNamePlaceholder(template.name_placeholder ?? "")
       setMostrarEnWorkflow(template.mostrar_en_workflow)
       setOrden(template.orden !== null ? String(template.orden) : "")
     } else if (mode === "create") {
       setRelationName("")
       setCanCreateExpress(false)
       setRequireNameOnExpress(false)
+      setNamePlaceholder("")
       setMostrarEnWorkflow(false)
       setOrden("")
     }
@@ -116,6 +119,7 @@ function TemplateLinkFormSheet({
       (relationName !== (template.relation_name ?? "") ||
         canCreateExpress !== template.can_create_express ||
         requireNameOnExpress !== template.require_name_on_express ||
+        namePlaceholder !== (template.name_placeholder ?? "") ||
         mostrarEnWorkflow !== template.mostrar_en_workflow ||
         orden !== (template.orden !== null ? String(template.orden) : "")))
 
@@ -125,6 +129,7 @@ function TemplateLinkFormSheet({
       relation_name: relationName.trim() ? relationName.trim() : null,
       can_create_express: canCreateExpress,
       require_name_on_express: requireNameOnExpress,
+      name_placeholder: namePlaceholder.trim() ? namePlaceholder.trim() : null,
       mostrar_en_workflow: mostrarEnWorkflow,
       orden: trimmedOrden ? Number(trimmedOrden) : null,
     })
@@ -184,6 +189,18 @@ function TemplateLinkFormSheet({
             id="edit-require-name-on-express"
             checked={requireNameOnExpress}
             onCheckedChange={setRequireNameOnExpress}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="edit-name-placeholder" className="text-xs text-muted-foreground font-normal">
+            {t("templates.namePlaceholder")}
+          </Label>
+          <Input
+            id="edit-name-placeholder"
+            value={namePlaceholder}
+            onChange={(e) => setNamePlaceholder(e.target.value)}
+            placeholder={t("templates.namePlaceholderHint")}
           />
         </div>
 

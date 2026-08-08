@@ -41,6 +41,7 @@ export type PermissionResource =
   | 'external_parameter'
   | 'external_secret'
   | 'lifecycle_external_publish_action'
-  | 'lifecycle_external_review_action';
+  | 'lifecycle_external_review_action'
+  | 'token_usage';
 
 export type Permission = `${PermissionResource}:${PermissionAction}` | 'folder:manage_groups';

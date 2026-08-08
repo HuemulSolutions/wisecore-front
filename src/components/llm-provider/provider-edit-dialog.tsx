@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react"
-import { Edit } from "lucide-react"
+import { Edit, ExternalLink } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
-import type { CreateLLMProviderRequest, EditProviderDialogProps } from "@/types/llm-provider"
+import type { CreateLLMProviderRequest, EditProviderDialogProps, SupportedProvider } from "@/types/llm-provider"
+import { isMultilineKeyProvider, getProviderHelpUrl, isCredentialsHelpUrl } from "./provider-key-hints"
 export type { EditProviderDialogProps } from "@/types/llm-provider"
 
 export function EditProviderDialog({
@@ -81,6 +82,16 @@ export function EditProviderDialog({
     value: p.type,
   }))
 
+  const helpLinkAction = (supportedProvider: SupportedProvider | undefined) => {
+    const url = getProviderHelpUrl(supportedProvider)
+    if (!url) return undefined
+    return {
+      icon: ExternalLink,
+      onClick: () => window.open(url, '_blank', 'noopener,noreferrer'),
+      tooltip: isCredentialsHelpUrl(supportedProvider) ? t('createProviderDialog.getCredentials') : t('createProviderDialog.viewDocs'),
+    }
+  }
+
   if (!provider) return null
 
   return (
@@ -137,11 +148,13 @@ export function EditProviderDialog({
           <HuemulField
             label={t('createProviderDialog.apiKeyLabel')}
             name="apiKey"
-            type="password"
+            type={isMultilineKeyProvider(selectedProvider.type) ? "textarea" : "password"}
             placeholder={t('createProviderDialog.apiKeyPlaceholder')}
+            description={t(`createProviderDialog.keyHelp.${selectedProvider.type}`, { defaultValue: '' }) || undefined}
             value={apiKey}
             onChange={(v) => setApiKey(String(v))}
             required
+            {...(helpLinkAction(selectedProvider) ? { labelAction: helpLinkAction(selectedProvider) } : {})}
           />
         )}
 
@@ -154,6 +167,7 @@ export function EditProviderDialog({
             value={endpoint}
             onChange={(v) => setEndpoint(String(v))}
             required
+            {...(helpLinkAction(selectedProvider) ? { labelAction: helpLinkAction(selectedProvider) } : {})}
           />
         )}
 
@@ -166,6 +180,7 @@ export function EditProviderDialog({
             value={deployment}
             onChange={(v) => setDeployment(String(v))}
             required
+            {...(helpLinkAction(selectedProvider) ? { labelAction: helpLinkAction(selectedProvider) } : {})}
           />
         )}
       </HuemulFieldGroup>

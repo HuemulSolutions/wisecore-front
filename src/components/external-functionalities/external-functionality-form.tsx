@@ -129,6 +129,13 @@ export function ExternalFunctionalityForm({ formData, onChange }: ExternalFuncti
         onChange={(v) => onChange("body", v as string)}
         placeholder={t("form.bodyPlaceholder")}
       />
+      <p className="text-sm text-muted-foreground -mt-3">
+        <code>{'{{secret:key}}'}</code> {t("form.bodyHelpSecret")}
+        <br />
+        <code>{'{{input:key}}'}</code> {t("form.bodyHelpInput")}
+        <br />
+        <code>{'{{document:id}}'}</code> / <code>{'{{execution:id}}'}</code> {t("form.bodyHelpUnavailable")}
+      </p>
     </HuemulFieldGroup>
   )
 }

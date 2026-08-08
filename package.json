@@ -1,7 +1,7 @@
 {
   "name": "wisecore-front",
   "private": true,
-  "version": "1.0.82",
+  "version": "1.0.83",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -10,7 +10,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "changelog": "node scripts/generate-changelog.mjs",
+    "changelog:full": "node scripts/generate-changelog.mjs --full"
   },
   "dependencies": {
     "@ariakit/react": "^0.4.21",
@@ -100,6 +102,7 @@
     "react-resizable-panels": "^2.1.7",
     "react-router-dom": "^7.6.1",
     "react-tweet": "^3.3.0",
+    "recharts": "^3.10.1",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",

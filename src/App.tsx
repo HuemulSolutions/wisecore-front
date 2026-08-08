@@ -33,6 +33,7 @@ const DocumentTypeRelationshipsPage = lazy(() => import("./pages/document-type-r
 const MediaPage = lazy(() => import("./pages/media"));
 const HuemulLayoutDemoPage = lazy(() => import("./pages/huemul-layout-demo"));
 const WorkflowPage = lazy(() => import("./pages/workflow"));
+const TokenUsagePage = lazy(() => import("./pages/token-usage"));
 
 export default function App() {
   return (
@@ -152,6 +153,11 @@ export default function App() {
               </PermissionProtectedRoute>
             } />
             <Route path="media" element={<MediaPage />} />
+            <Route path="token-usage" element={
+              <PermissionProtectedRoute permissions={["token_usage:r", "token_usage:l"]}>
+                <TokenUsagePage />
+              </PermissionProtectedRoute>
+            } />
             <Route path="workflow" element={
               <PermissionProtectedRoute permissions={["asset:l"]}>
                 <WorkflowPage />

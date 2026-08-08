@@ -231,7 +231,7 @@ export function SectionQuestionTypeFields({
 
     // ── Carga de archivos ───────────────────────────────────────────────────
     case QUESTION_TYPE.fileUpload: {
-      const FILE_TYPE_OPTIONS = ["pdf", "docx", "xlsx", "png", "jpg", "csv"];
+      const FILE_TYPE_OPTIONS = ["pdf", "docx", "xlsx", "png", "jpg", "csv", "pptx", "txt"];
       const allowedTypes = cfg.allowed_types ?? [];
       const toggleType = (type: string) => {
         const next = allowedTypes.includes(type)
@@ -244,6 +244,7 @@ export function SectionQuestionTypeFields({
           <QuestionTypePreview questionType={qt} />
           <div className="space-y-2">
             <p className="text-xs font-medium text-gray-700">{t("form.formFields.allowedTypes")}</p>
+            <p className="text-xs text-muted-foreground">{t("form.formFields.allowedTypesHint")}</p>
             <div className="flex flex-wrap gap-2">
               {FILE_TYPE_OPTIONS.map((type) => (
                 <button
@@ -253,8 +254,8 @@ export function SectionQuestionTypeFields({
                   disabled={isPending}
                   className={`rounded px-2 py-0.5 text-xs border transition-colors ${
                     allowedTypes.includes(type)
-                      ? "border-blue-500 bg-blue-50 text-blue-700"
-                      : "border-gray-200 bg-white text-gray-500 hover:border-gray-400"
+                      ? "border-accent bg-accent text-accent-foreground"
+                      : "border-border bg-muted text-muted-foreground hover:border-primary/40"
                   }`}
                 >
                   {type}
@@ -323,7 +324,13 @@ export function SectionQuestionTypeFields({
               disabled={isPending}
             />
           </div>
-          <QuestionTypePreview questionType={qt} minValue={min} maxValue={max} />
+          <QuestionTypePreview
+            questionType={qt}
+            minValue={min}
+            maxValue={max}
+            minLabel={cfg.min_label}
+            maxLabel={cfg.max_label}
+          />
         </div>
       );
     }
@@ -339,7 +346,7 @@ export function SectionQuestionTypeFields({
             label={t("form.formFields.starCount")}
             value={String(stars)}
             onChange={(v) => onUpdate({ max_value: Number(v) })}
-            options={[3, 4, 5, 10].map((n) => ({ value: String(n), label: String(n) }))}
+            options={[3, 4, 5, 6, 7, 8, 9, 10].map((n) => ({ value: String(n), label: String(n) }))}
             selectSize="sm"
             disabled={isPending}
             className="max-w-[160px]"
@@ -367,6 +374,13 @@ export function SectionQuestionTypeFields({
 
     // ── Fallback: preview genérico por data_type (slug no contemplado) ───────
     default:
-      return <QuestionTypePreview questionType={qt} dataType={field.data_type} fieldName={field.field_name} />;
+      return (
+        <QuestionTypePreview
+          questionType={qt}
+          dataType={field.data_type}
+          fieldName={field.field_name}
+          required={field.required}
+        />
+      );
   }
 }

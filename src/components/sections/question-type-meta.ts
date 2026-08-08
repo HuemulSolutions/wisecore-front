@@ -115,6 +115,33 @@ export const customFieldDataTypeLabel = (dataType: string, t: TFunction): string
     ? t(`custom-fields:dataTypes.${dataType}`, { defaultValue: dataType })
     : "";
 
+// Placeholder de ejemplo por question_type — única fuente de verdad para que el
+// placeholder mostrado al responder (asset-form-section.tsx) y el de la vista previa
+// (question-type-preview.tsx) nunca diverjan.
+export function getQuestionTypePlaceholder(
+  questionType: string | null | undefined,
+  t: TFunction,
+): string | undefined {
+  switch (questionType) {
+    case QUESTION_TYPE.shortAnswer:
+      return t("form.formFields.previewShortAnswer");
+    case QUESTION_TYPE.paragraph:
+      return t("form.formFields.previewLongAnswer");
+    case QUESTION_TYPE.email:
+      return t("form.formFields.previewEmail");
+    case QUESTION_TYPE.number:
+      return "0";
+    case QUESTION_TYPE.decimal:
+      return "1.2";
+    case QUESTION_TYPE.dropdown:
+      return t("form.fill.selectOption");
+    case QUESTION_TYPE.dropdownMultiple:
+      return t("form.fill.selectOptions");
+    default:
+      return undefined;
+  }
+}
+
 // ── Config de UI alojada en default_value (JSONB) ───────────────────────────
 
 // Lee la config de un field de forma segura (objeto plano; {} si null/legacy/array).

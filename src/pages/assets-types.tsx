@@ -6,11 +6,10 @@ import { Edit2, Activity, Copy, Trash2 } from "lucide-react"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
 import { useAssetTypesWithRoles, useAssetTypeMutations } from "@/hooks/useAssetTypes"
-import { useDocumentTypes } from "@/hooks/useDocumentTypes"
+import { useDocumentTypes, documentTypeQueryKeys } from "@/hooks/useDocumentTypes"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useQueryClient } from "@tanstack/react-query"
 import { useOrganization } from "@/contexts/organization-context"
-import { toast } from "sonner"
 import type { CanvasNodeAction } from "@/types/document-type-relationships"
 
 // Components
@@ -75,7 +74,7 @@ export default function AssetTypesPage() {
   const assetTypeMutations = useAssetTypeMutations()
 
   // Fetch document types for the relationship canvas
-  const { data: docTypesResponse, isLoading: isLoadingDocTypes, isFetching: isFetchingDocTypes, refetch: refetchDocTypes } = useDocumentTypes({
+  const { data: docTypesResponse, isLoading: isLoadingDocTypes, isFetching: isFetchingDocTypes } = useDocumentTypes({
     search: relSearch || undefined,
     enabled: canListDocumentTypes && viewMode === 'relationships',
   })
@@ -178,8 +177,10 @@ export default function AssetTypesPage() {
     setIsRefreshing(true)
     setPinnedNewAssetType(null)
     try {
-      await queryClient.invalidateQueries({ queryKey: ['asset-types', 'list-with-roles'] })
-      toast.success('Data refreshed')
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['asset-types', 'list-with-roles'] }),
+        queryClient.invalidateQueries({ queryKey: documentTypeQueryKeys.all }),
+      ])
     } finally {
       setIsRefreshing(false)
     }
@@ -241,7 +242,7 @@ export default function AssetTypesPage() {
             assetTypeCount={assetTypes.length}
             onCreateAssetType={() => updateState({ showCreateDialog: true })}
             onRefresh={handleRefresh}
-            isLoading={isRefreshing}
+            isLoading={isRefreshing || isFetching || isFetchingDocTypes}
             hasError={!!error}
             searchTerm={state.searchTerm}
             onSearchChange={(value) => {
@@ -334,7 +335,6 @@ export default function AssetTypesPage() {
                 isFetching={isFetchingDocTypes}
                 page={relPage}
                 pageSize={RELATIONSHIP_PAGE_SIZE}
-                onRefresh={refetchDocTypes}
               />
             ),
             defaultSize: 20,

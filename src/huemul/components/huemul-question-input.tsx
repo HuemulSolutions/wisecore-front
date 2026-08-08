@@ -17,6 +17,8 @@ export interface HuemulQuestionInputProps {
   value: HuemulQuestionInputValue
   onChange: (value: HuemulQuestionInputValue) => void
   options?: HuemulQuestionInputOption[]
+  /** Ítem "sin valor" para dropdown/multipleChoice — solo lo pasan callers que quieran habilitarlo (ej. custom fields). */
+  noValueLabel?: string
   min?: number | null
   max?: number | null
   minLabel?: string
@@ -42,6 +44,7 @@ export function HuemulQuestionInput({
   value,
   onChange,
   options = [],
+  noValueLabel,
   min,
   max,
   minLabel,
@@ -136,6 +139,7 @@ export function HuemulQuestionInput({
           label={label}
           value={stringValue}
           options={mappedOptions}
+          emptyOptionLabel={noValueLabel}
           onChange={(v) => onChange(String(v))}
           disabled={disabled}
           error={error}
@@ -150,6 +154,7 @@ export function HuemulQuestionInput({
           placeholder={placeholder}
           value={stringValue}
           options={mappedOptions}
+          emptyOptionLabel={noValueLabel}
           onChange={(v) => onChange(String(v))}
           disabled={disabled}
           error={error}
@@ -335,6 +340,7 @@ export function HuemulQuestionInput({
           placeholder={placeholder}
           value={stringValue}
           options={mappedOptions}
+          emptyOptionLabel={noValueLabel}
           onChange={(v) => onChange(String(v))}
           disabled={disabled}
           error={error}

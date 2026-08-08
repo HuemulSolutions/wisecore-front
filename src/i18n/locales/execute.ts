@@ -86,6 +86,10 @@ const translations = {
     },
     importSuccess: { en: "Asset imported successfully!", es: "¡Activo importado exitosamente!" },
     generationFailed: { en: "Asset generation failed. Please try again.", es: "La generación del activo falló. Por favor inténtalo de nuevo." },
+    missingDependency: {
+      en: "Can't generate: a section this one depends on has no content yet. Generate or fill in that section first.",
+      es: "No se puede generar: una sección de la que depende aún no tiene contenido. Genera o completa esa sección primero.",
+    },
     importFailed: {
       en: "Asset import failed. Please try again.",
       es: "La importación del activo falló. Por favor inténtalo de nuevo.",
@@ -141,6 +145,10 @@ const translations = {
         en: "There was an error generating your asset. Please try again.",
         es: "Hubo un error al generar tu activo. Por favor inténtalo de nuevo.",
       },
+      missingDependency: {
+        en: "Generation stopped because one of the sections it depends on has no content yet. Generate or fill in that section and try again.",
+        es: "La generación se detuvo porque una de las secciones de las que depende aún no tiene contenido. Genera o completa esa sección y vuelve a intentar.",
+      },
       cancelled: {
         en: "Generation was cancelled.",
         es: "La generación fue cancelada.",
@@ -174,6 +182,10 @@ const translations = {
       doneFrom: { en: "This section has been regenerated. Click dismiss to remove this message.", es: "Esta sección se ha regenerado. Haz clic en descartar para quitar este mensaje." },
       default: { en: "Section is being processed", es: "La sección se está procesando" },
       failed: { en: "The section regeneration failed. Please try again.", es: "La regeneración de la sección falló. Por favor intenta de nuevo." },
+      missingDependency: {
+        en: "This section couldn't be generated because one of its dependencies has no content yet. Generate or fill in that section and try again.",
+        es: "Esta sección no se pudo generar porque una de sus dependencias aún no tiene contenido. Genera o completa esa sección y vuelve a intentar.",
+      },
     },
     sectionIs: { en: "Section is {{status}}", es: "La sección está {{status}}" },
     refreshStatus: { en: "Refresh status", es: "Actualizar estado" },
@@ -182,6 +194,9 @@ const translations = {
       successSingle: { en: "Section regenerated successfully!", es: "¡Sección regenerada exitosamente!" },
       successMultiple: { en: "Sections regenerated successfully!", es: "¡Secciones regeneradas exitosamente!" },
       failed: { en: "Section regeneration failed", es: "La regeneración de la sección falló" },
+      missingDependency: {
+        en: "A section this one depends on has no content", es: "Falta contenido en una sección de la que esta depende",
+      },
       cancelled: { en: "Section regeneration was cancelled", es: "La regeneración de la sección fue cancelada" },
     },
   },
@@ -200,6 +215,10 @@ const translations = {
       pending: { en: "Waiting in queue to start generation...", es: "Esperando en cola para iniciar la generación..." },
       completed: { en: "Generation completed successfully!", es: "¡Generación completada exitosamente!" },
       failed: { en: "Generation encountered an error.", es: "La generación encontró un error." },
+      missingDependency: {
+        en: "Generation stopped because one of the sections it depends on has no content yet. Generate or fill in that section and try again.",
+        es: "La generación se detuvo porque una de las secciones de las que depende aún no tiene contenido. Genera o completa esa sección y vuelve a intentar.",
+      },
       cancelled: { en: "Generation was cancelled.", es: "La generación fue cancelada." },
       paused: { en: "Generation is paused.", es: "La generación está pausada." },
     },

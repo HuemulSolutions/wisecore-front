@@ -190,6 +190,17 @@ export interface ImportAssetFromFileSheetProps {
 }
 
 // ----------------------------------------
+// Import from External System
+// ----------------------------------------
+
+export interface ImportAssetFromExternalSheetProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  folderId?: string
+  onAssetCreated?: (asset: { id: string; name: string; type: string }) => void
+}
+
+// ----------------------------------------
 // Import Configuration (JSON migration)
 // ----------------------------------------
 

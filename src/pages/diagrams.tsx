@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useDiagrams, diagramQueryKeys } from "@/hooks/useDiagrams"
@@ -162,14 +161,13 @@ export default function DiagramsPage() {
     setIsRefreshing(true)
     try {
       await queryClient.invalidateQueries({ queryKey: diagramQueryKeys.listBase() })
-      toast.success(t('common:dataRefreshed', 'Data refreshed'))
     } finally {
       setIsRefreshing(false)
     }
   }
 
   const header = (
-    <DiagramsPageHeader diagramCount={items.length} isLoading={isRefreshing} onRefresh={handleRefresh}>
+    <DiagramsPageHeader diagramCount={items.length} isLoading={isRefreshing || isFetching} onRefresh={handleRefresh}>
       <HuemulFilterButton
         count={activeCount}
         open={filtersOpen}

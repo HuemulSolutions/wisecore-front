@@ -41,6 +41,62 @@ const translations = {
     fileLabel: { en: "File", es: "Archivo" },
     fileDescription: { en: "Accepted formats: PDF, DOCX", es: "Formatos aceptados: PDF, DOCX" },
   },
+  importFromExternal: {
+    title: { en: "Create Asset from External System", es: "Crear Activo desde Sistema Externo" },
+    description: {
+      en: "Select an external functionality and provide its inputs. The asset will be generated and created automatically.",
+      es: "Selecciona una funcionalidad externa y completa sus entradas. El activo se generará y creará automáticamente.",
+    },
+    submitLabel: { en: "Generate Asset", es: "Generar Activo" },
+    systemLabel: { en: "External system", es: "Sistema externo" },
+    systemPlaceholder: { en: "Select a system", es: "Selecciona un sistema" },
+    functionalityLabel: { en: "Functionality", es: "Funcionalidad" },
+    functionalityPlaceholder: { en: "Select a functionality", es: "Selecciona una funcionalidad" },
+    noFunctionalities: {
+      en: "This system has no functionalities with objective \"Import asset\".",
+      es: "Este sistema no tiene funcionalidades con objetivo \"Importar activo\".",
+    },
+    inputsTitle: { en: "Inputs", es: "Entradas" },
+    genericInputsDescription: {
+      en: "This functionality declares no input placeholders. Add the key/value pairs it expects.",
+      es: "Esta funcionalidad no declara placeholders de entrada. Agrega los pares clave/valor que espera.",
+    },
+    addInput: { en: "Add field", es: "Agregar campo" },
+    inputKey: { en: "Key", es: "Clave" },
+    inputValue: { en: "Value", es: "Valor" },
+    slowWarning: {
+      en: "This process runs synchronously and may take up to 2 minutes. Keep this panel open.",
+      es: "Este proceso es síncrono y puede tardar hasta 2 minutos. Mantén este panel abierto.",
+    },
+    runningNotice: { en: "Generating the asset… Do not close this panel.", es: "Generando el activo… No cierres este panel." },
+    success: { en: "Asset \"{{name}}\" created from external system", es: "Activo \"{{name}}\" creado desde el sistema externo" },
+    errorSystemRequired: { en: "Select an external system", es: "Selecciona un sistema externo" },
+    errorFunctionalityRequired: { en: "Select a functionality", es: "Selecciona una funcionalidad" },
+    errorInputsRequired: { en: "Complete all input fields", es: "Completa todos los campos de entrada" },
+    errorTimeout: {
+      en: "The import took too long and was cancelled. The external system may still be processing it — check the asset list before retrying.",
+      es: "La importación tardó demasiado y se canceló. El sistema externo puede seguir procesándola: revisa la lista de activos antes de reintentar.",
+    },
+    errorNoExternalAccess: {
+      en: "You don't have permission to browse external systems. Ask an administrator.",
+      es: "No tienes permisos para consultar sistemas externos. Contacta a un administrador.",
+    },
+    errorInvalidObjective: {
+      en: "The selected functionality is not configured to import assets.",
+      es: "La funcionalidad seleccionada no está configurada para importar activos.",
+    },
+    errorInactiveSystem: { en: "The external system is inactive.", es: "El sistema externo está inactivo." },
+    errorInputNotFound: {
+      en: "The external system requires an input value that was not provided.",
+      es: "El sistema externo requiere un valor de entrada que no fue proporcionado.",
+    },
+    errorCallFailed: { en: "Could not reach the external system.", es: "No se pudo contactar al sistema externo." },
+    errorHttpError: { en: "The external system returned an error.", es: "El sistema externo devolvió un error." },
+    errorInvalidPayload: {
+      en: "The external system returned a response the platform could not interpret.",
+      es: "El sistema externo devolvió una respuesta que la plataforma no pudo interpretar.",
+    },
+  },
   importConfig: {
     title: { en: "Import portable configuration", es: "Importar configuración portable" },
     description: {
@@ -358,6 +414,7 @@ const translations = {
     editContent: { en: "Edit Content", es: "Editar Contenido" },
     editConfiguration: { en: "Edit Configuration", es: "Editar Configuración" },
     imagePreview: { en: "Image Preview", es: "Vista Previa de Imagen" },
+    ratingOutOf: { en: "{{value}} of {{max}}", es: "{{value}} de {{max}}" },
   },
   tableOfContents: {
     expand: { en: "Expand", es: "Expandir" },
@@ -555,6 +612,10 @@ const translations = {
     supportedFormats: { en: "Supported formats: PDF, DOCX", es: "Formatos admitidos: PDF, DOCX" },
     executionFailed: { en: "Execution Failed", es: "Ejecución Fallida" },
     executionFailedDescription: { en: "The AI couldn't generate content for this asset. Please try again or check your sections configuration.", es: "La IA no pudo generar contenido para este activo. Intenta de nuevo o verifica la configuración de tus secciones." },
+    executionFailedMissingDependencyDescription: {
+      en: "Generation failed because a section it depends on has no content yet. Generate or fill in that section and try again.",
+      es: "La generación falló porque una sección de la que depende aún no tiene contenido. Genera o completa esa sección y vuelve a intentar.",
+    },
     retrying: { en: "Retrying...", es: "Reintentando..." },
     retryExecution: { en: "Retry Execution", es: "Reintentar Ejecución" },
     editSections: { en: "Edit Sections", es: "Editar Secciones" },

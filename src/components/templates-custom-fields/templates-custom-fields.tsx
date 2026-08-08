@@ -4,7 +4,9 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { Plus, RefreshCw } from "lucide-react"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { useCustomFieldTemplatesByTemplate, useCustomFieldTemplateMutations } from "@/hooks/useCustomFieldTemplates"
+import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import { CustomFieldTemplateTable } from "./templates-custom-field-table"
 import { CustomFieldTemplateEmptyState } from "./templates-custom-field-empty-state"
@@ -21,13 +23,13 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedCustomFieldTemplate, setSelectedCustomFieldTemplate] = useState<CustomFieldTemplate | null>(null)
   const [customFieldEditMode, setCustomFieldEditMode] = useState<"content" | "configuration">("configuration")
-  const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
   const {
     data: customFieldTemplatesResponse,
     isLoading: isLoadingCustomFieldTemplates,
+    isFetching: isFetchingCustomFieldTemplates,
     error,
     refetch
   } = useCustomFieldTemplatesByTemplate(templateId, {
@@ -38,22 +40,20 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
 
   const customFieldTemplates = customFieldTemplatesResponse?.data || []
 
+  const { showPageLoader, isTableLoading, isTableFetching } = useTableLoadingState({
+    isLoading: isLoadingCustomFieldTemplates,
+    isFetching: isFetchingCustomFieldTemplates,
+    hasData: !!customFieldTemplatesResponse,
+  })
+
   const mutations = useCustomFieldTemplateMutations()
 
   const handleAddCustomFieldTemplate = () => {
     setIsAddDialogOpen(true)
   }
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true)
-    try {
-      await refetch()
-    } finally {
-      // Add a small delay to ensure the animation is visible
-      setTimeout(() => {
-        setIsRefreshing(false)
-      }, 500)
-    }
+  const handleRefresh = () => {
+    refetch()
   }
 
   const handleAddCustomFieldTemplateSubmit = async (data: any) => {
@@ -98,7 +98,7 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
     })
   }
 
-  if (isLoadingCustomFieldTemplates) {
+  if (showPageLoader) {
     return (
       <div className="px-4 py-6">
         <div className="flex items-center justify-between mb-6">
@@ -168,16 +168,16 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
         
         {hasCustomFieldTemplates && (
           <div className="flex items-center gap-2">
-            <Button
-              onClick={handleRefresh}
+            <HuemulButton
+              icon={RefreshCw}
+              iconClassName="mr-1.5 h-3.5 w-3.5"
+              label={t('common:refresh')}
               size="sm"
               variant="outline"
-              className="hover:cursor-pointer h-8 text-xs px-3"
-              disabled={isRefreshing}
-            >
-              <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-              {t('common:refresh')}
-            </Button>
+              className="h-8 text-xs px-3"
+              loading={isTableFetching}
+              onClick={handleRefresh}
+            />
             <Button
               onClick={handleAddCustomFieldTemplate}
               size="sm"
@@ -196,6 +196,8 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
           onEditCustomFieldTemplate={handleEditCustomFieldTemplate}
           onEditContentCustomFieldTemplate={handleEditCustomFieldTemplateContent}
           onDeleteCustomFieldTemplate={handleDeleteCustomFieldTemplate}
+          isLoading={isTableLoading}
+          isFetching={isTableFetching}
           pagination={{
             page: customFieldTemplatesResponse?.page || page,
             pageSize: customFieldTemplatesResponse?.page_size || pageSize,

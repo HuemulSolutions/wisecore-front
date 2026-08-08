@@ -71,7 +71,7 @@ import { toast } from "sonner";
 import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import SectionExecution from "./assets-section";
-import { formatApiDateTime, parseApiDate } from "@/lib/utils";
+import { formatApiDateTime, parseApiDate, cn } from "@/lib/utils";
 import { CustomWordExportDialog } from "@/components/assets/dialogs/assets-export-custom.word-dialog";
 import { useNavKnowledgeActions } from "@/contexts/nav-knowledge-context";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -89,6 +89,7 @@ import { useGlobalPanel } from '@/contexts/global-panel-context';
 // Utilities and hooks
 import { SectionSeparator } from './components/SectionSeparator';
 import { withRefresh } from '@/lib/query-utils';
+import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
 import { ContentErrorState } from './content-error-state';
 // TODO: Integrate these hooks gradually to replace inline mutations
 // import { useDocumentMutations } from './hooks/useDocumentMutations';
@@ -99,6 +100,9 @@ import { getExecutionDisplayLabel } from './utils/version-utils';
 import { VersionSelectorDropdown } from './assets-version-selector';
 import { ViewModeToggle } from './assets-view-mode-toggle';
 import { MoreOptionsDropdown } from './assets-more-options-dropdown';
+
+// Tamaño de página del listado de campos personalizados en el panel lateral (angosto).
+const CUSTOM_FIELDS_PAGE_SIZE = 100;
 
 /** Recursively extract all text from a Plate JSON node. */
 function extractPlateText(node: unknown): string {
@@ -529,6 +533,7 @@ export function AssetContent({
   useEffect(() => {
     setNeedsFullDocument(false);
     setNeedsDefaultLLM(false);
+    setCustomFieldsPage(1);
   }, [selectedFile?.id]);
   
   // ============================================================================
@@ -593,7 +598,8 @@ export function AssetContent({
   const [isDeletingCustomFieldDocument, setIsDeletingCustomFieldDocument] = useState(false);
   const [uploadingImageFieldId, setUploadingImageFieldId] = useState<string | null>(null);
   const [isRefreshingCustomFields, setIsRefreshingCustomFields] = useState(false);
-  
+  const [customFieldsPage, setCustomFieldsPage] = useState(1);
+
   // Restore scroll position after mode toggle causes layout shifts (sections/separators appear or disappear)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -917,14 +923,15 @@ export function AssetContent({
 
   // Fetch custom fields for the document
   const { data: customFieldsData, isLoading: isLoadingCustomFields } = useQuery({
-    queryKey: ['custom-field-documents', selectedFile?.id],
+    queryKey: ['custom-field-documents', selectedFile?.id, customFieldsPage, CUSTOM_FIELDS_PAGE_SIZE],
     queryFn: () => getCustomFieldDocumentsByDocument({
       document_id: selectedFile!.id,
-      page: 1,
-      page_size: 100
+      page: customFieldsPage,
+      page_size: CUSTOM_FIELDS_PAGE_SIZE
     }),
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && activeTab === 'custom-fields',
     staleTime: 60000, // Cache for 1 minute
+    placeholderData: (prev) => prev,
   });
 
   // Poll current execution status for 'single' and 'from' modes to detect completion
@@ -996,6 +1003,22 @@ export function AssetContent({
     if (snapshot === undefined) return false;
     return isFetchingContent || contentUpdatedAt <= snapshot;
   }, [isFetchingContent, contentUpdatedAt]);
+
+  // El polling de execution-sections-status se corta apenas el status GLOBAL
+  // (currentExecutionStatus) entra en un estado terminal, lo que puede dejar
+  // cacheado un status de sección no terminal (p.ej. 'generating') si la
+  // sección falló pero su status individual no llegó a reflejarlo a tiempo.
+  // Si el status global ya es failed/cancelled y la sección no tiene un
+  // status terminal propio, usamos el global para que el skeleton no quede
+  // colgado mientras el banner de fallo ya se muestra.
+  const getEffectiveSectionExecutionStatus = useCallback((index: number) => {
+    if (isAwaitingFreshContent(index)) return 'running';
+    const sectionStatus = getSectionExecutionStatus(index);
+    const overallStatus = currentExecutionStatus?.status;
+    if (sectionStatus === 'done' || sectionStatus === 'failed') return sectionStatus;
+    if (overallStatus === 'failed' || overallStatus === 'cancelled') return overallStatus;
+    return sectionStatus || overallStatus || 'running';
+  }, [isAwaitingFreshContent, getSectionExecutionStatus, currentExecutionStatus?.status]);
 
   // Poll approving execution status to detect when approval completes
   const { data: approvingExecutionStatus } = useQuery({
@@ -1558,7 +1581,6 @@ export function AssetContent({
     setIsRefreshingCustomFields(true);
     try {
       await queryClient.refetchQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
-      toast.success(t('mutations.customFieldsRefreshed'));
     } finally {
       setIsRefreshingCustomFields(false);
     }
@@ -2781,7 +2803,9 @@ export function AssetContent({
                                       
                                       {/* Description */}
                                       <p className="text-base text-red-800/90 mb-6 leading-relaxed max-w-full mx-auto">
-                                        {t('content.executionFailedDescription')}
+                                        {isMissingDependencyFailure(selectedExecutionInfo?.status_message)
+                                          ? t('content.executionFailedMissingDependencyDescription')
+                                          : t('content.executionFailedDescription')}
                                       </p>
                                       
                                       {/* Action Buttons */}
@@ -2996,9 +3020,7 @@ export function AssetContent({
                                   }
                                   executionStatus={
                                     isSectionInScope(index)
-                                      ? (isAwaitingFreshContent(index)
-                                          ? 'running'
-                                          : (getSectionExecutionStatus(index) || currentExecutionStatus?.status || 'running'))
+                                      ? getEffectiveSectionExecutionStatus(index)
                                       : selectedExecutionInfo?.status
                                   }
                                   executionMode={currentExecutionMode}
@@ -3118,52 +3140,60 @@ export function AssetContent({
         <>
           <ResizableHandle/>
           <ResizablePanel defaultSize={20}>
-            <div className="flex flex-col h-full bg-white border-l">
-              <div className="flex flex-col pt-3">
-                <div className="px-2 pb-2">
-                  <div className="grid w-full grid-cols-2 h-8 bg-gray-50 rounded-md p-0.5">
-                    <button 
+            <div className="flex flex-col h-full min-h-0 bg-card overflow-hidden">
+                {/* Header con tabs — banda gris a sangre */}
+                <div className="shrink-0 bg-muted/50 border-b border-border px-3 py-2.5">
+                  <div className="grid w-full grid-cols-2 gap-1">
+                    <button
                       onClick={() => setActiveTab('toc')}
-                      className={`text-xs py-1 px-1 h-6 rounded-sm transition-all truncate hover:cursor-pointer ${
-                        activeTab === 'toc' 
-                          ? 'bg-white shadow-sm text-gray-900' 
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
+                      className={cn(
+                        "flex items-center justify-center text-xs py-1.5 px-2 rounded-md transition-all hover:cursor-pointer",
+                        activeTab === 'toc'
+                          ? "bg-background border border-border shadow-sm text-foreground font-medium"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
                     >
-                      {t('content.contentTab')}
+                      <span className="line-clamp-2 text-center leading-tight">{t('content.contentTab')}</span>
                     </button>
-                    <button 
+                    <button
                       onClick={() => setActiveTab('custom-fields')}
-                      className={`text-xs py-1 px-1 h-6 rounded-sm transition-all truncate hover:cursor-pointer ${
-                        activeTab === 'custom-fields' 
-                          ? 'bg-white shadow-sm text-gray-900' 
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
+                      className={cn(
+                        "flex items-center justify-center text-xs py-1.5 px-2 rounded-md transition-all hover:cursor-pointer",
+                        activeTab === 'custom-fields'
+                          ? "bg-background border border-border shadow-sm text-foreground font-medium"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
                     >
-                      {t('content.customFieldsTab')}
+                      <span className="line-clamp-2 text-center leading-tight">{t('content.customFieldsTab')}</span>
                     </button>
                   </div>
                 </div>
-              </div>
-              <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">
                 {activeTab === 'toc' ? (
-                  <TableOfContents items={tocItems} />
+                  <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2 py-2">
+                    <TableOfContents items={tocItems} />
+                  </div>
                 ) : (
-                  <CustomFieldsList 
-                    customFields={customFieldsData?.data || []} 
-                    isLoading={isLoadingCustomFields}
-                    onAdd={handleAddCustomFieldDocument}
-                    onEdit={handleEditCustomFieldDocument}
-                    onEditContent={handleEditCustomFieldDocumentContent}
-                    onDelete={handleDeleteCustomFieldDocument}
-                    onRefresh={handleRefreshCustomFields}
-                    uploadingImageFieldId={uploadingImageFieldId}
-                    isRefreshing={isRefreshingCustomFields}
-                    canEdit={frontendPermissions.canEditSections}
-                  />
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <CustomFieldsList
+                      customFields={customFieldsData?.data || []}
+                      isLoading={isLoadingCustomFields}
+                      onAdd={handleAddCustomFieldDocument}
+                      onEdit={handleEditCustomFieldDocument}
+                      onEditContent={handleEditCustomFieldDocumentContent}
+                      onDelete={handleDeleteCustomFieldDocument}
+                      onRefresh={handleRefreshCustomFields}
+                      uploadingImageFieldId={uploadingImageFieldId}
+                      isRefreshing={isRefreshingCustomFields}
+                      canEdit={frontendPermissions.canEditSections}
+                      page={customFieldsPage}
+                      pageSize={CUSTOM_FIELDS_PAGE_SIZE}
+                      totalItems={customFieldsData?.total}
+                      hasNext={customFieldsData?.has_next}
+                      onPageChange={setCustomFieldsPage}
+                    />
+                  </div>
                 )}
               </div>
-            </div>
           </ResizablePanel>
         </>
       )}

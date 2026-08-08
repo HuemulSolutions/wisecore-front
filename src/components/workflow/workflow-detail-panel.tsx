@@ -257,7 +257,7 @@ export function WorkflowDetailPanel({
                 id="workflow-express-name"
                 value={nameValue}
                 onChange={(e) => setNameValue(e.target.value)}
-                placeholder={t("expressSheet.namePlaceholder")}
+                placeholder={template?.name_placeholder ?? t("expressSheet.namePlaceholder")}
               />
             </div>
             <div className="flex flex-col gap-1.5">

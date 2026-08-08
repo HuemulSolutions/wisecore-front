@@ -21,6 +21,8 @@ export interface CustomFieldDocument {
   value_identifier: string | null;
   value_list: string[] | null;
   options?: CustomFieldOption[];
+  selected_option?: CustomFieldOption | null;
+  selected_options?: CustomFieldOption[] | null;
   source: CustomFieldDocumentSource;
   /** true si el campo fue copiado desde un custom field del template al crear el documento. */
   from_template: boolean;
@@ -44,7 +46,15 @@ export interface CustomFieldDocumentByDocumentParams extends PaginationParams {
 }
 
 export type CustomFieldDocumentSourcesResponse = ApiResponse<CustomFieldDocumentSource[]>;
-export type CustomFieldDocumentsResponse = ApiResponse<CustomFieldDocument[]>;
+export interface CustomFieldDocumentsResponse {
+  data: CustomFieldDocument[];
+  transaction_id: string;
+  timestamp: string;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+  total?: number;
+}
 export type CustomFieldDocumentResponse = ApiResponse<CustomFieldDocument>;
 
 export interface CreateCustomFieldDocumentRequest {

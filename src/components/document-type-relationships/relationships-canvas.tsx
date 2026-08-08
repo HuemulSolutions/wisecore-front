@@ -346,7 +346,8 @@ function RelationshipsCanvasFlow({
       if (!relData?.data?.length) return
 
       // Flatten top-level + all sub-relationships (relationship_source / relationship_target)
-      // into a single deduplicated map so the full connected graph is rendered in one pass.
+      // into a single deduplicated map — used only to draw edges between nodes that end up
+      // on the canvas (e.g. siblings), never to decide which nodes get added.
       const allRelsMap = new Map<string, DocumentTypeRelationship>()
       relData.data.forEach((rel) => {
         allRelsMap.set(rel.id, rel) // top-level item takes precedence (has full callbacks)
@@ -362,11 +363,48 @@ function RelationshipsCanvasFlow({
       const newNodes: Node<AssetTypeNodeData>[] = []
       const newEdges: Edge[] = []
 
+      // "Children" are only the anchor's direct (level-1) relationships — relData.data before
+      // flattening. Sub-relationships describe siblings/grandchildren and must never spawn nodes.
+      const directChildIds = new Set<string>()
+      relData.data.forEach((rel) => {
+        const cfg = extractRelConfig(rel)
+        if (cfg.source_document_type_id === documentTypeId) directChildIds.add(cfg.target_document_type_id)
+        if (cfg.target_document_type_id === documentTypeId) directChildIds.add(cfg.source_document_type_id)
+      })
+
+      directChildIds.forEach((childId) => {
+        if (existingNodeIds.has(childId)) return
+        const childDocType = dtMap.get(childId)
+        if (!childDocType) return
+        newNodes.push({
+          id: childId,
+          type: "assetType",
+          position: { x: 0, y: 0 }, // will be overwritten by layout
+          data: {
+            id: childId,
+            name: childDocType.name,
+            color: childDocType.color,
+            onLoadRelationships: handleLoadRelationships,
+            onLoadRelationshipsCanvasOnly: handleLoadRelationshipsCanvasOnly,
+            onRemove: (id: string) => setNodes((nds) => nds.filter((n) => n.id !== id)),
+          },
+        })
+        existingNodeIds.add(childId)
+      })
+
+      // Final node set for this pass: existing nodes + the direct children just added.
+      // Edges only get drawn between nodes in this set — anything two hops away is skipped.
+      const finalNodeIds = existingNodeIds
+
       // Pre-count how many NEW edges will be added per pair in this batch
       const newEdgeCountPerPair = new Map<string, number>()
       allRels.forEach((rel) => {
         const cfg = extractRelConfig(rel)
-        if (!existingEdgeIds.has(`rel-${cfg.id}`)) {
+        if (
+          finalNodeIds.has(cfg.source_document_type_id) &&
+          finalNodeIds.has(cfg.target_document_type_id) &&
+          !existingEdgeIds.has(`rel-${cfg.id}`)
+        ) {
           const key = `${cfg.source_document_type_id}::${cfg.target_document_type_id}`
           newEdgeCountPerPair.set(key, (newEdgeCountPerPair.get(key) ?? 0) + 1)
         }
@@ -387,45 +425,8 @@ function RelationshipsCanvasFlow({
         const sourceId = cfg.source_document_type_id
         const targetId = cfg.target_document_type_id
 
-        if (!existingNodeIds.has(sourceId) && !newNodes.some((n) => n.id === sourceId)) {
-          const sourceDocType = dtMap.get(sourceId)
-          if (sourceDocType) {
-            newNodes.push({
-              id: sourceId,
-              type: "assetType",
-              position: { x: 0, y: 0 }, // will be overwritten by layout
-              data: {
-                id: sourceId,
-                name: sourceDocType.name,
-                color: sourceDocType.color,
-                onLoadRelationships: handleLoadRelationships,
-                onLoadRelationshipsCanvasOnly: handleLoadRelationshipsCanvasOnly,
-                onRemove: (id: string) => setNodes((nds) => nds.filter((n) => n.id !== id)),
-              },
-            })
-            existingNodeIds.add(sourceId)
-          }
-        }
-
-        if (!existingNodeIds.has(targetId) && !newNodes.some((n) => n.id === targetId)) {
-          const targetDocType = dtMap.get(targetId)
-          if (targetDocType) {
-            newNodes.push({
-              id: targetId,
-              type: "assetType",
-              position: { x: 0, y: 0 }, // will be overwritten by layout
-              data: {
-                id: targetId,
-                name: targetDocType.name,
-                color: targetDocType.color,
-                onLoadRelationships: handleLoadRelationships,
-                onLoadRelationshipsCanvasOnly: handleLoadRelationshipsCanvasOnly,
-                onRemove: (id: string) => setNodes((nds) => nds.filter((n) => n.id !== id)),
-              },
-            })
-            existingNodeIds.add(targetId)
-          }
-        }
+        // Only connect nodes that are already on the canvas (existing + newly added children)
+        if (!finalNodeIds.has(sourceId) || !finalNodeIds.has(targetId)) return
 
         const edgeId = `rel-${cfg.id}`
         if (!existingEdgeIds.has(edgeId) && !newEdges.some((e) => e.id === edgeId)) {
@@ -1037,7 +1038,8 @@ function RelationshipsCanvasFlow({
       if (!relData?.data?.length) return
 
       // Flatten top-level + all sub-relationships (relationship_source / relationship_target)
-      // into a single deduplicated map by id so the full connected graph renders in one pass.
+      // into a single deduplicated map — used only to draw edges between nodes that end up on
+      // the canvas (e.g. siblings), never to decide which nodes get created.
       const allRelsMap = new Map<string, ExecutionRelationshipSubitem>()
       for (const item of relData.data) {
         if (!allRelsMap.has(item.id)) allRelsMap.set(item.id, item)
@@ -1055,7 +1057,8 @@ function RelationshipsCanvasFlow({
       const newNodes: Node<AssetTypeNodeData>[] = []
       const newEdges: Edge[] = []
 
-      // Helper: ensure a node exists for a given execution endpoint
+      // Helper: ensure a node exists for a given execution endpoint — may create a new node.
+      // Only called for the anchor's direct relationships (relData.data), never for sub-relationships.
       const ensureNode = (docId: string, execId: string, execName: string, docName: string, docTypeId: string, docTypeColor: string) => {
         // Already in canvas (by executionId or by doc id)
         const byExecId =
@@ -1104,12 +1107,24 @@ function RelationshipsCanvasFlow({
         return canvasId
       }
 
-      for (const rel of allRels) {
-        const srcDocId = rel.source_execution.document_id
-        const tgtDocId = rel.target_execution.document_id
+      // Helper: resolve an existing canvas node id for an execution — never creates one.
+      const resolveCanvasId = (execId: string): string | undefined =>
+        currentNodes.find((n) => (n.data as AssetTypeNodeData).executionId === execId)?.id ??
+        newNodes.find((n) => (n.data as AssetTypeNodeData).executionId === execId)?.id
 
-        const srcCanvasId = ensureNode(srcDocId, rel.source_execution.id, rel.source_execution.name, rel.source_execution.document_name, rel.source_execution.document_type_id, rel.source_execution.document_type_color ?? '')
-        const tgtCanvasId = ensureNode(tgtDocId, rel.target_execution.id, rel.target_execution.name, rel.target_execution.document_name, rel.target_execution.document_type_id, rel.target_execution.document_type_color ?? '')
+      // "Children" are only the anchor's direct relationships (relData.data, before flattening).
+      // Sub-relationships describe siblings/grandchildren and must never spawn nodes.
+      for (const rel of relData.data) {
+        ensureNode(rel.source_execution.document_id, rel.source_execution.id, rel.source_execution.name, rel.source_execution.document_name, rel.source_execution.document_type_id, rel.source_execution.document_type_color ?? '')
+        ensureNode(rel.target_execution.document_id, rel.target_execution.id, rel.target_execution.name, rel.target_execution.document_name, rel.target_execution.document_type_id, rel.target_execution.document_type_color ?? '')
+      }
+
+      for (const rel of allRels) {
+        const srcCanvasId = resolveCanvasId(rel.source_execution.id)
+        const tgtCanvasId = resolveCanvasId(rel.target_execution.id)
+
+        // Only connect nodes that are already on the canvas (existing + newly added children)
+        if (!srcCanvasId || !tgtCanvasId) continue
 
         const edgeId = `exec-rel-${rel.id}`
         if (!currentEdgeIds.has(edgeId) && !newEdges.some((e) => e.id === edgeId)) {

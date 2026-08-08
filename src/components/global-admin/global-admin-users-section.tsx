@@ -4,7 +4,6 @@ import { useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
-import { handleApiError } from "@/lib/error-utils"
 import { logger } from "@/lib/logger"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -108,9 +107,6 @@ export function GlobalAdminUsersSection() {
     try {
       await queryClient.invalidateQueries({ queryKey: ["global-users"] })
       await refetch()
-      toast.success(t('common:dataRefreshed'))
-    } catch (error) {
-      handleApiError(error, { fallbackMessage: t('common:refreshFailed') })
     } finally {
       setIsRefreshing(false)
     }
@@ -254,7 +250,7 @@ export function GlobalAdminUsersSection() {
             { label: "", value: t('header.usersCount', { count: usersResponse?.total ?? filteredUsers.length }) }
           ]}
           onRefresh={handleRefresh}
-          isLoading={isRefreshing}
+          isLoading={isRefreshing || isFetching}
           hasError={!!error}
           primaryAction={canCreateUser ? {
             label: t('header.addUser'),
