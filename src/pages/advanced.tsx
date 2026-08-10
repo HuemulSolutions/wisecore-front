@@ -41,10 +41,17 @@ export default function AdvancedPage() {
   const canAccessExports = canAccessExcelExport || canAccessWordExport
 
   const VALID_SECTIONS: AdvancedSection[] = ["home", "mass-execution", "change-history", "excel-export"]
-  const activeSection: AdvancedSection =
+  const requestedSection: AdvancedSection =
     VALID_SECTIONS.includes(sectionParam as AdvancedSection)
       ? (sectionParam as AdvancedSection)
       : "home"
+  const sectionAccess: Record<AdvancedSection, boolean> = {
+    home: true,
+    "mass-execution": canAccessMassExecution,
+    "excel-export": canAccessExports,
+    "change-history": canListExecutions,
+  }
+  const activeSection: AdvancedSection = sectionAccess[requestedSection] ? requestedSection : "home"
 
   const [selectedTemplateId, setSelectedTemplateId] = useState("")
   const [massExecutionConfig, setMassExecutionConfig] = useState<MassExecutionConfig | null>(null)
@@ -56,6 +63,13 @@ export default function AdvancedPage() {
   const [selectedExportTemplateId, setSelectedExportTemplateId] = useState("")
   const [combinedExportConfig, setCombinedExportConfig] = useState<CombinedExportConfig | null>(null)
   const [isExporting, setIsExporting] = useState(false)
+
+  // Redirigir a home si la sección de la URL no está permitida (bypass de permisos)
+  useEffect(() => {
+    if (requestedSection !== "home" && !sectionAccess[requestedSection]) {
+      navigate("/advanced/home")
+    }
+  }, [requestedSection, canAccessMassExecution, canAccessExports, canListExecutions, navigate])
 
   // Reset form state when leaving mass-execution
   useEffect(() => {
@@ -131,6 +145,8 @@ export default function AdvancedPage() {
 
   const handleExport = useCallback(async (executionIds: string[]) => {
     if (!combinedExportConfig || !selectedOrganizationId) return
+    if (combinedExportConfig.type === "excel" && !canAccessExcelExport) return
+    if (combinedExportConfig.type === "word" && !canAccessWordExport) return
     setIsExporting(true)
     try {
       if (combinedExportConfig.type === "excel") {
@@ -160,7 +176,7 @@ export default function AdvancedPage() {
     } finally {
       setIsExporting(false)
     }
-  }, [combinedExportConfig, selectedOrganizationId, t])
+  }, [combinedExportConfig, selectedOrganizationId, canAccessExcelExport, canAccessWordExport, t])
 
   const menuItems: { key: AdvancedSection; label: string; icon: React.ElementType; visible: boolean }[] = [
     { key: "home", label: t("menu.home"), icon: Home, visible: true },
@@ -252,6 +268,8 @@ export default function AdvancedPage() {
       <MassExecutionForm
         onTemplateChange={setSelectedTemplateId}
         onConfigChange={setMassExecutionConfig}
+        canListTemplates={canListTemplates}
+        canListLlms={canListLlms}
       />
     </div>
   )

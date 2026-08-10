@@ -41,7 +41,9 @@ export function CombinedExportForm({
     ? null
     : canAccessExcelExport
     ? "excel"
-    : "word"
+    : canAccessWordExport
+    ? "word"
+    : null
 
   const [templateId, setTemplateId] = useState("")
   const [exportType, setExportType] = useState<ExportType | null>(defaultType)

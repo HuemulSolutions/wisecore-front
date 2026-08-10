@@ -128,6 +128,17 @@ export const RBAC_PAGES = {
     route: "advanced/:section",
     routePermissions: ["section_execution:r", "section_execution:l"],
     nav: { title: "Advanced", orgScoped: true },
+    // NOTA: `canAccessMassExecution`/`canAccessExcelExport` en advanced.tsx son
+    // AND de varios de estos features (FeatureSpec no representa AND-de-OR),
+    // por eso se listan atómicos y la página los combina a mano.
+    features: {
+      listTemplates: ["template:l", "template:r"],
+      listTemplateSections: ["template_section:l", "template_section:r"],
+      listLlms: ["llm:l", "llm:r"],
+      createExecution: "section_execution:c",
+      listExecutions: ["section_execution:l", "section_execution:r"],
+      wordExport: "version:r",
+    },
   },
   "external-systems": {
     route: "external-systems",
