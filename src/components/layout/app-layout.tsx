@@ -686,7 +686,7 @@ export default function AppLayout() {
                         <DropdownMenuLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
                           {t('settings.assetManagement')}
                         </DropdownMenuLabel>
-                        {(canAccessDocumentTypes || isOrgAdmin) && (
+                        {(hasAnyPermission(RBAC_PAGES["asset-types"].routePermissions) || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/asset-types")} className={settingsItemClass('/asset-types')}>
                               <FileStack className={settingsIconClass('/asset-types')} />

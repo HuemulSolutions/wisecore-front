@@ -29,6 +29,7 @@ import {
   useLifecycleAccessRuleTypes,
 } from "@/hooks/useLifecycle"
 import { useRoles } from "@/hooks/useRbac"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -85,6 +86,7 @@ function EditStepCard({
   t,
   isDeleting,
   canDelete,
+  canManage,
   dragHandleProps,
   onEditingChange,
   organizationId,
@@ -145,6 +147,7 @@ function EditStepCard({
   }
 
   const handleCheckClick = async () => {
+    if (!canManage) return
     if (isEditing) {
       setIsSaving(true)
       try {
@@ -228,23 +231,27 @@ function EditStepCard({
               />
             </>
           ) : (
+            canManage && (
+              <HuemulButton
+                icon={Pencil}
+                label={t("common:edit")}
+                variant="ghost"
+                onClick={handleCheckClick}
+                className="text-muted-foreground"
+              />
+            )
+          )}
+          {canManage && (
             <HuemulButton
-              icon={Pencil}
-              label={t("common:edit")}
+              icon={Trash2}
               variant="ghost"
-              onClick={handleCheckClick}
-              className="text-muted-foreground"
+              size="icon"
+              onClick={onDelete}
+              disabled={isDeleting || !canDelete}
+              tooltip={t("lifecycle.deleteGroup")}
+              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             />
           )}
-          <HuemulButton
-            icon={Trash2}
-            variant="ghost"
-            size="icon"
-            onClick={onDelete}
-            disabled={isDeleting || !canDelete}
-            tooltip={t("lifecycle.deleteGroup")}
-            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          />
         </div>
         <ChevronDown
           className={cn(
@@ -532,6 +539,8 @@ function SortableEditStepCard(
 
 export function EditStepContent({ documentTypeId, stepType, onEditingChange, organizationId }: EditStepContentProps) {
   const { t } = useTranslation(["asset-types", "common"])
+  const { canUpdate } = useUserPermissions()
+  const canManage = canUpdate('asset_type')
   const { data, isLoading } = useLifecycleSteps(documentTypeId, stepType, true)
   const { data: allStepsData } = useAllLifecycleSteps(documentTypeId, true)
   const { data: rolesData } = useRoles(true, 1, 1000)
@@ -606,11 +615,13 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
   }
 
   const handleDelete = async (id: string) => {
+    if (!canManage) return
     await deleteStep.mutateAsync(id)
     setLocalSteps((prev) => prev.filter((c) => c.id !== id))
   }
 
   const handleAddGroup = async () => {
+    if (!canManage) return
     const isAutomatic =
       (stepType === "edit" || stepType === "review") && newGroupMode === "automatic"
     let access_type: string
@@ -665,24 +676,26 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
       {/* Groups label + Add group button — fixed, never scrolls */}
       <div className="shrink-0 flex items-center justify-between py-2 border-b border-border">
         <p className="text-sm font-semibold">{t("lifecycle.groups")}</p>
-        <button
-          type="button"
-          onClick={() => {
-            setNewGroupName("")
-            setNewGroupMode("manual")
-            setNewGroupHasSla(false)
-            setNewGroupSlaValue("")
-            setNewGroupSlaUnit("")
-            setNewGroupAccessType("all")
-            setNewGroupOwnerCanExecute(false)
-            setNewGroupRoleIds([])
-            setAddGroupOpen(true)
-          }}
-          className="flex items-center gap-1 text-sm text-primary font-medium hover:underline hover:cursor-pointer transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          {t("lifecycle.addGroup")}
-        </button>
+        {canManage && (
+          <button
+            type="button"
+            onClick={() => {
+              setNewGroupName("")
+              setNewGroupMode("manual")
+              setNewGroupHasSla(false)
+              setNewGroupSlaValue("")
+              setNewGroupSlaUnit("")
+              setNewGroupAccessType("all")
+              setNewGroupOwnerCanExecute(false)
+              setNewGroupRoleIds([])
+              setAddGroupOpen(true)
+            }}
+            className="flex items-center gap-1 text-sm text-primary font-medium hover:underline hover:cursor-pointer transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            {t("lifecycle.addGroup")}
+          </button>
+        )}
       </div>
 
       {/* Sortable card list — only this area scrolls */}
@@ -718,7 +731,9 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
                   onDelete={() => setDeleteConfirmId(card.id)}
                   canDelete={!((stepType === "edit" || stepType === "approve") && localSteps.length <= 1)}
                   onEditingChange={(editing) => onEditingChange?.(editing)}
+                  canManage={canManage}
                   onSave={async () => {
+                    if (!canManage) return
                     const currentCard = localSteps.find((c) => c.id === card.id)!
                     const cardIndex = localSteps.findIndex((c) => c.id === card.id)
                     const isAutomatic = currentCard.mode === "automatic"

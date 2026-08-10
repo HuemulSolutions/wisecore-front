@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next"
 import { useOrganization } from "@/contexts/organization-context"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import CreateDocumentType from "@/components/assets-types/assets-types-create"
-import RolePermissionsDialog from "@/components/roles/roles-permissions-dialog"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { CloneAssetTypeDialog } from "@/components/assets-types/assets-types-clone-dialog"
 import AssetTypeLifecycleDialog from "@/components/assets-types/assets-types-lifecycle-dialog"
@@ -25,9 +25,10 @@ export default function AssetTypePageDialogs({
 }: AssetTypePageDialogsProps) {
   const { t } = useTranslation(['asset-types', 'common'])
   const { selectedOrganizationId } = useOrganization()
+  const { canDelete, canCreate } = useUserPermissions()
 
   const handleDelete = async () => {
-    if (!state.deletingAssetType) return
+    if (!canDelete('asset_type') || !state.deletingAssetType) return
 
     const minDelay = new Promise(resolve => setTimeout(resolve, 800))
 
@@ -43,7 +44,7 @@ export default function AssetTypePageDialogs({
   }
 
   const handleClone = async (includeRelationships: boolean) => {
-    if (!state.cloningAssetType) return
+    if (!canCreate('asset_type') || !state.cloningAssetType) return
 
     const minDelay = new Promise(resolve => setTimeout(resolve, 800))
 
@@ -110,20 +111,6 @@ export default function AssetTypePageDialogs({
         }}
         assetTypeName={state.cloningAssetType?.document_type_name}
         onConfirm={handleClone}
-      />
-
-      {/* Role Permissions Dialog */}
-      <RolePermissionsDialog
-        documentType={state.rolePermissionsAssetType ? {
-          id: state.rolePermissionsAssetType.document_type_id,
-          name: state.rolePermissionsAssetType.document_type_name,
-        } as any : null}
-        open={!!state.rolePermissionsAssetType}
-        onOpenChange={(open) => {
-          if (!open) {
-            onCloseDialog('rolePermissionsAssetType')
-          }
-        }}
       />
 
       {/* Lifecycle Dialog */}

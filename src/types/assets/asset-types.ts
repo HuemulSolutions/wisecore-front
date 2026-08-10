@@ -71,7 +71,6 @@ export interface AssetTypePageState {
   showCreateDialog: boolean;
   deletingAssetType: AssetTypeWithRoles | null;
   cloningAssetType: AssetTypeWithRoles | null;
-  rolePermissionsAssetType: AssetTypeWithRoles | null;
   lifecycleAssetType: AssetTypeWithRoles | null;
   viewRelationshipsAssetType: AssetTypeWithRoles | null;
   templatesAssetType: AssetTypeWithRoles | null;

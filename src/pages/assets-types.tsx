@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Edit2, Activity, Copy, Trash2 } from "lucide-react"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
 import { useAssetTypesWithRoles, useAssetTypeMutations } from "@/hooks/useAssetTypes"
 import { useDocumentTypes, documentTypeQueryKeys } from "@/hooks/useDocumentTypes"
@@ -38,7 +38,6 @@ export default function AssetTypesPage() {
     showCreateDialog: false,
     deletingAssetType: null,
     cloningAssetType: null,
-    rolePermissionsAssetType: null,
     lifecycleAssetType: null,
     viewRelationshipsAssetType: null,
     templatesAssetType: null,
@@ -56,18 +55,21 @@ export default function AssetTypesPage() {
   const [pinnedNewAssetType, setPinnedNewAssetType] = useState<AssetTypeWithRoles | null>(null)
 
   // Permisos
-  const { isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
+  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('asset-types')
   const queryClient = useQueryClient()
   const { selectedOrganizationId } = useOrganization()
-  
+
   // Permisos específicos
-  const canListDocumentTypes = isRootAdmin || hasAnyPermission(['asset_type:l', 'asset_type:r'])
-  const canCreateDocumentType = isRootAdmin || hasPermission('asset_type:c')
-  const canUpdateDocumentType = isRootAdmin || hasPermission('asset_type:u')
-  const canDeleteDocumentType = isRootAdmin || hasPermission('asset_type:d')
-  const canExportDocumentTypes = isRootAdmin || hasPermission('asset_type:r')
-  const canImportDocumentTypes = isRootAdmin || (hasPermission('asset_type:c') && hasPermission('asset_type:u'))
-  const canListRelationships = isRootAdmin || hasAnyPermission(['asset_type_relationship:l', 'asset_type_relationship:r'])
+  const canListDocumentTypes = can('listAssetTypes')
+  const canCreateDocumentType = can('createAssetType')
+  const canUpdateDocumentType = can('updateAssetType')
+  const canDeleteDocumentType = can('deleteAssetType')
+  const canExportDocumentTypes = can('exportAssetTypes')
+  const canImportDocumentTypes = can('importAssetTypes')
+  const canListRelationships = can('listRelationships')
+  const canManageLifecycle = can('manageLifecycle')
+  const canManageTemplates = can('manageLinkedTemplates')
+  const canCloneDocumentType = can('cloneAssetType')
 
   // Fetch asset types and mutations - solo si tiene permisos
   const { data: assetTypesResponse, isLoading, isFetching, error } = useAssetTypesWithRoles(page, pageSize, canListDocumentTypes, state.searchTerm || undefined)
@@ -117,7 +119,7 @@ export default function AssetTypesPage() {
         updateState({ editingAssetType: toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8") })
       },
     }] : []),
-    ...(canUpdateDocumentType ? [{
+    ...(canManageLifecycle ? [{
       key: "lifecycle",
       label: t('actions.lifecycle'),
       icon: Activity,
@@ -126,7 +128,7 @@ export default function AssetTypesPage() {
         updateState({ lifecycleAssetType: toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8") })
       },
     }] : []),
-    ...(canCreateDocumentType ? [{
+    ...(canCloneDocumentType ? [{
       key: "clone",
       label: t('actions.cloneAssetType'),
       icon: Copy,
@@ -154,7 +156,7 @@ export default function AssetTypesPage() {
   }
 
   // Access check
-  if (!canListDocumentTypes) {
+  if (!canAccessPage) {
     return <AssetTypePageEmptyState type="access-denied" />
   }
 
@@ -272,7 +274,7 @@ export default function AssetTypesPage() {
             ) : assetTypes.length === 0 ? (
               <AssetTypeContentEmptyState
                 type="empty"
-                onCreateFirst={() => updateState({ showCreateDialog: true })}
+                onCreateFirst={canCreateDocumentType ? () => updateState({ showCreateDialog: true }) : undefined}
               />
             ) : (
               <AssetTypeTable
@@ -286,6 +288,9 @@ export default function AssetTypesPage() {
                 canUpdate={canUpdateDocumentType}
                 canDelete={canDeleteDocumentType}
                 canViewRelationships={canListRelationships}
+                canClone={canCloneDocumentType}
+                canManageLifecycle={canManageLifecycle}
+                canManageTemplates={canManageTemplates}
                 isLoading={isTableLoading}
                 isFetching={isTableFetching}
                 selectedIds={selectedExportIds}

@@ -15,6 +15,7 @@ import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { useDocumentTypeTemplates, useAssetTypeMutations } from "@/hooks/useAssetTypes"
 import { getAllTemplates } from "@/services/templates"
 import { useOrganization } from "@/contexts/organization-context"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import type { AssetTypeWithRoles, LinkedTemplate, DocumentTypeTemplateLinkBody } from "@/types/assets"
 import type { FetchOptionsParams } from "@/huemul/components/huemul-field"
 
@@ -29,40 +30,46 @@ function TemplateRow({
   onEdit,
   onRequestRemove,
   isRemoving,
+  canManage,
 }: {
   template: LinkedTemplate
   onEdit: (template: LinkedTemplate) => void
   onRequestRemove: (template: LinkedTemplate) => void
   isRemoving: boolean
+  canManage: boolean
 }) {
   const { t } = useTranslation("asset-types")
 
   return (
     <li className="flex items-center gap-2 border border-border rounded-lg p-3 hover:border-muted-foreground/30 transition-colors">
       <p className="flex-1 text-xs font-medium truncate min-w-0">{template.template_name}</p>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-7 w-7 shrink-0 hover:cursor-pointer"
-        onClick={() => onEdit(template)}
-        aria-label={t("templates.edit", { name: template.template_name })}
-      >
-        <Pencil className="h-3 w-3" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-7 w-7 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:cursor-pointer"
-        onClick={() => onRequestRemove(template)}
-        disabled={isRemoving}
-        aria-label={t("templates.remove", { name: template.template_name })}
-      >
-        {isRemoving ? (
-          <Loader2 className="h-3 w-3 animate-spin" />
-        ) : (
-          <Trash2 className="h-3 w-3" />
-        )}
-      </Button>
+      {canManage && (
+        <>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 hover:cursor-pointer"
+            onClick={() => onEdit(template)}
+            aria-label={t("templates.edit", { name: template.template_name })}
+          >
+            <Pencil className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:cursor-pointer"
+            onClick={() => onRequestRemove(template)}
+            disabled={isRemoving}
+            aria-label={t("templates.remove", { name: template.template_name })}
+          >
+            {isRemoving ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Trash2 className="h-3 w-3" />
+            )}
+          </Button>
+        </>
+      )}
     </li>
   )
 }
@@ -240,6 +247,8 @@ export function AssetTypeTemplatesSheet({
   const { t } = useTranslation(["asset-types", "common"])
   const { selectedOrganizationId } = useOrganization()
   const mutations = useAssetTypeMutations()
+  const { canUpdate } = useUserPermissions()
+  const canManage = canUpdate('asset_type')
 
   const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>("")
   const [isLinkFormOpen, setIsLinkFormOpen] = React.useState(false)
@@ -266,12 +275,12 @@ export function AssetTypeTemplatesSheet({
   )
 
   const handleLink = () => {
-    if (!selectedTemplateId || !documentTypeId) return
+    if (!canManage || !selectedTemplateId || !documentTypeId) return
     setIsLinkFormOpen(true)
   }
 
   const handleSaveNewLink = (body: DocumentTypeTemplateLinkBody) => {
-    if (!documentTypeId || !selectedTemplateId) return Promise.resolve()
+    if (!canManage || !documentTypeId || !selectedTemplateId) return Promise.resolve()
     return new Promise<void>((resolve, reject) => {
       mutations.linkTemplate.mutate(
         { documentTypeId, templateId: selectedTemplateId, body },
@@ -281,7 +290,7 @@ export function AssetTypeTemplatesSheet({
   }
 
   const handleSaveTemplate = (body: DocumentTypeTemplateLinkBody) => {
-    if (!documentTypeId || !editTarget) return Promise.resolve()
+    if (!canManage || !documentTypeId || !editTarget) return Promise.resolve()
     const templateId = editTarget.template_id
     return new Promise<void>((resolve, reject) => {
       mutations.updateTemplateLink.mutate(
@@ -292,7 +301,7 @@ export function AssetTypeTemplatesSheet({
   }
 
   const handleConfirmUnlink = () => {
-    if (!documentTypeId || !deleteTarget) return Promise.resolve()
+    if (!canManage || !documentTypeId || !deleteTarget) return Promise.resolve()
     const templateId = deleteTarget.template_id
     return new Promise<void>((resolve, reject) => {
       mutations.unlinkTemplate.mutate(
@@ -315,37 +324,39 @@ export function AssetTypeTemplatesSheet({
       >
         <div className="flex flex-col gap-5">
           {/* Add template */}
-          <section className="flex flex-col gap-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              {t("templates.addTemplate")}
-            </p>
-            <div className="flex gap-2">
-              <div className="flex-1 min-w-0">
-                <HuemulCombobox
-                  value={selectedTemplateId}
-                  onValueChange={(v) => setSelectedTemplateId(v as string)}
-                  fetchOptions={fetchTemplateOptions}
-                  placeholder={t("templates.searchPlaceholder")}
-                  searchPlaceholder={t("templates.searchPlaceholder")}
-                  emptyMessage={t("templates.noTemplatesAvailable")}
-                  disabled={!selectedOrganizationId || mutations.linkTemplate.isPending}
-                  pageSize={20}
-                />
+          {canManage && (
+            <section className="flex flex-col gap-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {t("templates.addTemplate")}
+              </p>
+              <div className="flex gap-2">
+                <div className="flex-1 min-w-0">
+                  <HuemulCombobox
+                    value={selectedTemplateId}
+                    onValueChange={(v) => setSelectedTemplateId(v as string)}
+                    fetchOptions={fetchTemplateOptions}
+                    placeholder={t("templates.searchPlaceholder")}
+                    searchPlaceholder={t("templates.searchPlaceholder")}
+                    emptyMessage={t("templates.noTemplatesAvailable")}
+                    disabled={!selectedOrganizationId || mutations.linkTemplate.isPending}
+                    pageSize={20}
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  onClick={handleLink}
+                  disabled={!selectedTemplateId || mutations.linkTemplate.isPending}
+                  className="shrink-0"
+                >
+                  {mutations.linkTemplate.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    t("templates.link")
+                  )}
+                </Button>
               </div>
-              <Button
-                size="sm"
-                onClick={handleLink}
-                disabled={!selectedTemplateId || mutations.linkTemplate.isPending}
-                className="shrink-0"
-              >
-                {mutations.linkTemplate.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  t("templates.link")
-                )}
-              </Button>
-            </div>
-          </section>
+            </section>
+          )}
 
           {/* Linked templates */}
           <section className="flex flex-col gap-2">
@@ -378,6 +389,7 @@ export function AssetTypeTemplatesSheet({
                     onEdit={setEditTarget}
                     onRequestRemove={setDeleteTarget}
                     isRemoving={mutations.unlinkTemplate.isPending && deleteTarget?.template_id === tpl.template_id}
+                    canManage={canManage}
                   />
                 ))}
               </ul>

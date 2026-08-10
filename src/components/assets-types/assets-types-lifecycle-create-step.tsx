@@ -6,6 +6,7 @@ import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { useLifecycleSteps, useLifecycleMutations, useLifecycleSlaUnits } from "@/hooks/useLifecycle"
 import { useRoles } from "@/hooks/useRbac"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LifecyclePublishActionsSection } from "./assets-types-lifecycle-publish-actions"
@@ -26,6 +27,8 @@ export function CreateStepContent({
   organizationId,
 }: CreateStepContentProps) {
   const { t } = useTranslation(["asset-types", "common"])
+  const { canUpdate } = useUserPermissions()
+  const canManage = canUpdate('asset_type')
   const { data, isLoading } = useLifecycleSteps(documentTypeId, stepType, true)
   const { data: rolesData } = useRoles(true, 1, 1000)
   const { updateStep } = useLifecycleMutations(documentTypeId, stepType)
@@ -60,6 +63,7 @@ export function CreateStepContent({
   const [slaUnit, setSlaUnit] = useState("")
 
   const handleEdit = () => {
+    if (!canManage) return
     setSnapshot({ accessType, ownerCanExecute, validFrom, validTo, roleIds, slaEnabled, slaValue, slaUnit })
     setIsEditing(true)
     onEditingChange?.(true)
@@ -177,18 +181,20 @@ export function CreateStepContent({
                 icon={Save}
                 label={t("common:save")}
                 variant="default"
-                onClick={async () => await saveFnRef.current?.()}
+                onClick={async () => { if (canManage) await saveFnRef.current?.() }}
                 loading={updateStep.isPending}
               />
             </>
           ) : (
-            <HuemulButton
-              icon={Pencil}
-              label={t("common:edit")}
-              variant="ghost"
-              onClick={handleEdit}
-              className="text-muted-foreground"
-            />
+            canManage && (
+              <HuemulButton
+                icon={Pencil}
+                label={t("common:edit")}
+                variant="ghost"
+                onClick={handleEdit}
+                className="text-muted-foreground"
+              />
+            )
           )}
         </div>
       </div>

@@ -25,6 +25,7 @@ export type PermissionResource =
   | 'folder'
   | 'context'
   | 'asset_type'
+  | 'asset_type_relationship'
   | 'docx_template'
   | 'template'
   | 'template_section'

@@ -47,10 +47,10 @@ export function AssetTypeRelationshipsSheet({
   const { data: docTypesResponse } = useDocumentTypes()
   const documentTypes = docTypesResponse?.data ?? []
   const mutations = useAssetTypeMutations()
-  const { isRootAdmin, hasPermission } = useUserPermissions()
-  const canCreateDocumentType = isRootAdmin || hasPermission('asset_type:c')
-  const canUpdateDocumentType = isRootAdmin || hasPermission('asset_type:u')
-  const canDeleteDocumentType = isRootAdmin || hasPermission('asset_type:d')
+  const { canCreate, canUpdate, canDelete } = useUserPermissions()
+  const canCreateDocumentType = canCreate('asset_type')
+  const canUpdateDocumentType = canUpdate('asset_type')
+  const canDeleteDocumentType = canDelete('asset_type')
 
   // Dialog state for actions triggered from the node panel
   const [editingAssetType, setEditingAssetType] = useState<AssetTypeWithRoles | null>(null)
@@ -59,7 +59,7 @@ export function AssetTypeRelationshipsSheet({
   const [deletingAssetType, setDeletingAssetType] = useState<AssetTypeWithRoles | null>(null)
 
   const handleClone = async () => {
-    if (!cloningAssetType) return
+    if (!canCreateDocumentType || !cloningAssetType) return
     const minDelay = new Promise((resolve) => setTimeout(resolve, 800))
     await Promise.all([
       new Promise<void>((resolve, reject) => {
@@ -73,7 +73,7 @@ export function AssetTypeRelationshipsSheet({
   }
 
   const handleDelete = async () => {
-    if (!deletingAssetType) return
+    if (!canDeleteDocumentType || !deletingAssetType) return
     const minDelay = new Promise((resolve) => setTimeout(resolve, 800))
     await Promise.all([
       new Promise<void>((resolve, reject) => {

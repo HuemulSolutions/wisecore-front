@@ -111,6 +111,9 @@ export interface AssetTypeTableProps {
   canUpdate?: boolean
   canDelete?: boolean
   canViewRelationships?: boolean
+  canClone?: boolean
+  canManageLifecycle?: boolean
+  canManageTemplates?: boolean
   isLoading?: boolean
   isFetching?: boolean
   selectedIds: Set<string>

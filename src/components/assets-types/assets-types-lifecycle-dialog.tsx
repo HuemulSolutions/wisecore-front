@@ -11,6 +11,7 @@ import {
   useLifecycleMutations,
 } from "@/hooks/useLifecycle"
 import { useRoles } from "@/hooks/useRbac"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CreateStepContent } from "./assets-types-lifecycle-create-step"
@@ -27,6 +28,8 @@ function DefaultStepContent({
   stepLabel,
 }: DefaultStepContentProps) {
   const { t } = useTranslation("asset-types")
+  const { canUpdate } = useUserPermissions()
+  const canManage = canUpdate('asset_type')
   const { data, isLoading } = useLifecycleSteps(documentTypeId, stepType, true)
   const { data: rolesData } = useRoles(true, 1, 1000)
   const { updateStep, addRole, removeRole } = useLifecycleMutations(
@@ -79,13 +82,14 @@ function DefaultStepContent({
           label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
           name="access-all"
           value={isAll}
-          onChange={(v) =>
+          onChange={(v) => {
+            if (!canManage) return
             updateStep.mutate({
               stepId: step.id,
               data: { access_type: v ? "all" : "owner" },
             })
-          }
-          disabled={isCustom || isMutating}
+          }}
+          disabled={!canManage || isCustom || isMutating}
           description={
             isAll
               ? t("lifecycle.allowAnyoneDescOn", { action: stepAction })
@@ -102,20 +106,21 @@ function DefaultStepContent({
           label={t("lifecycle.customRolesLabel")}
           name="access-custom"
           value={isCustom}
-          onChange={(v) =>
+          onChange={(v) => {
+            if (!canManage) return
             updateStep.mutate({
               stepId: step.id,
               data: { access_type: v ? "custom" : "owner" },
             })
-          }
-          disabled={isMutating}
+          }}
+          disabled={!canManage || isMutating}
           description={t("lifecycle.customRolesDesc", { action: stepAction })}
           labelFirst
         />
       </div>
 
       {/* Custom roles section */}
-      {isCustom && (
+      {isCustom && (canManage ? (
         <HuemulField
           type="combobox"
           label={t("lifecycle.addRole", { action: stepAction })}
@@ -124,7 +129,7 @@ function DefaultStepContent({
           value=""
           options={availableRoles.map((r) => ({ value: r.id, label: r.name }))}
           onChange={(roleId) => {
-            if (!roleId) return
+            if (!canManage || !roleId) return
             addRole.mutate({ stepId: step.id, roleId: roleId as string })
           }}
           disabled={addRole.isPending}
@@ -142,12 +147,13 @@ function DefaultStepContent({
                     type="button"
                     className="rounded-full hover:text-destructive hover:cursor-pointer transition-colors"
                     disabled={removeRole.isPending}
-                    onClick={() =>
+                    onClick={() => {
+                      if (!canManage) return
                       removeRole.mutate({
                         stepId: step.id,
                         roleId: sr.role_id,
                       })
-                    }
+                    }}
                     aria-label={`Remove ${sr.role_name ?? sr.role_id}`}
                   >
                     <X className="w-3 h-3" />
@@ -157,7 +163,17 @@ function DefaultStepContent({
             </div>
           )}
         </HuemulField>
-      )}
+      ) : (
+        step.step_roles.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {step.step_roles.map((sr) => (
+              <Badge key={sr.role_id} variant="secondary">
+                <span className="text-xs">{sr.role_name ?? sr.role_id}</span>
+              </Badge>
+            ))}
+          </div>
+        )
+      ))}
     </div>
   )
 }

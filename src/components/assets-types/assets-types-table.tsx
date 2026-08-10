@@ -25,9 +25,12 @@ export default function AssetTypeTable({
   onViewRelationships,
   onManageTemplates,
   pagination,
-  canUpdate = true,
-  canDelete = true,
-  canViewRelationships = true,
+  canUpdate = false,
+  canDelete = false,
+  canViewRelationships = false,
+  canClone = false,
+  canManageLifecycle = false,
+  canManageTemplates = false,
   isLoading = false,
   isFetching = false,
   selectedIds,
@@ -82,24 +85,24 @@ export default function AssetTypeTable({
       icon: GitMerge,
       onClick: onViewRelationships
     }] : []),
-    {
-      key: "manageTemplates",
+    ...(canManageTemplates ? [{
+      key: "manageTemplates" as const,
       label: t('actions.manageTemplates'),
       icon: LayoutTemplate,
       onClick: onManageTemplates
-    },
-    {
-      key: "lifecycle",
+    }] : []),
+    ...(canManageLifecycle ? [{
+      key: "lifecycle" as const,
       label: t('actions.lifecycle'),
       icon: Activity,
       onClick: onLifecycle
-    },
-    {
-      key: "clone",
+    }] : []),
+    ...(canClone ? [{
+      key: "clone" as const,
       label: t('actions.cloneAssetType'),
       icon: Copy,
       onClick: onCloneAssetType
-    },
+    }] : []),
     ...(canUpdate ? [{
       key: "edit" as const,
       label: t('actions.editAssetType'),

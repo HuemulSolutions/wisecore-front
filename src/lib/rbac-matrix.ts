@@ -108,6 +108,22 @@ export const RBAC_PAGES = {
   "asset-types": {
     route: "asset-types",
     routePermissions: ["asset_type:r", "asset_type:l"],
+    features: {
+      listAssetTypes: ["asset_type:l", "asset_type:r"],
+      createAssetType: "asset_type:c",
+      updateAssetType: "asset_type:u",
+      deleteAssetType: "asset_type:d",
+      cloneAssetType: "asset_type:c",
+      exportAssetTypes: "asset_type:r",
+      importAssetTypes: { all: ["asset_type:c", "asset_type:u"] },
+      // Lifecycle y vínculos template↔asset_type son sub-recursos del asset
+      // type: el endpoint que validan es /document_types/{id}/..., de ahí
+      // asset_type:u en vez de un recurso propio.
+      manageLifecycle: "asset_type:u",
+      listLinkedTemplates: ["asset_type:l", "asset_type:r"],
+      manageLinkedTemplates: "asset_type:u",
+      listRelationships: ["asset_type_relationship:l", "asset_type_relationship:r"],
+    },
   },
   "custom-fields": {
     route: "custom-fields",
@@ -147,6 +163,13 @@ export const RBAC_PAGES = {
   "asset-type-relationships": {
     route: "asset-type-relationships",
     routePermissions: ["asset_type:r", "asset_type:l"],
+    features: {
+      listRelationships: ["asset_type_relationship:l", "asset_type_relationship:r"],
+      updateAssetType: "asset_type:u",
+      deleteAssetType: "asset_type:d",
+      cloneAssetType: "asset_type:c",
+      manageLifecycle: "asset_type:u",
+    },
   },
   "token-usage": {
     route: "token-usage",

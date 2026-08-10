@@ -13,7 +13,7 @@ export default function AssetTypePageHeader({
   hasError,
   searchTerm,
   onSearchChange,
-  canCreate = true,
+  canCreate = false,
   viewMode,
   onViewModeChange,
   onExport,

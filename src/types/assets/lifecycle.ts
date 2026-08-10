@@ -111,6 +111,7 @@ export interface EditStepCardProps {
   t: (key: string, options?: Record<string, unknown>) => string
   isDeleting: boolean
   canDelete: boolean
+  canManage: boolean
   dragHandleProps?: HTMLAttributes<HTMLButtonElement>
   onEditingChange?: (isEditing: boolean) => void
   organizationId?: string
