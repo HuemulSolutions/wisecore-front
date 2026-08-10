@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useQueryClient } from "@tanstack/react-query"
-import { RefreshCw, Loader2, ShieldAlert } from "lucide-react"
+import { RefreshCw, Loader2 } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useWorkflows, workflowQueryKeys } from "@/hooks/useWorkflows"
@@ -12,6 +12,7 @@ import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useHuemulFilters } from "@/hooks/useHuemulFilters"
 import { useGridColumns } from "@/hooks/useGridColumns"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
+import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulFilterButton } from "@/huemul/components/huemul-filter-button"
 import { HuemulFilterChips } from "@/huemul/components/huemul-filter-chips"
@@ -282,10 +283,10 @@ export default function WorkflowPage() {
 
   if (!canAccessAssets) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-        <ShieldAlert className="h-8 w-8 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">{t("common:accessDenied", { defaultValue: "You don't have access to this page" })}</p>
-      </div>
+      <HuemulAccessDenied
+        variant="inline"
+        description={t("common:accessDenied", { defaultValue: "You don't have access to this page" })}
+      />
     )
   }
 

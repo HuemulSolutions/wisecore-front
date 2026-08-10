@@ -17,7 +17,7 @@ import { logger } from "@/lib/logger"
 import type { TemplateCustomFieldsProps } from '@/types/templates';
 export type { TemplateCustomFieldsProps } from '@/types/templates';
 
-export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) {
+export function TemplateCustomFields({ templateId, canCreate = false, canUpdate = false, canDelete = false }: TemplateCustomFieldsProps) {
   const { t } = useTranslation(['templates', 'common'])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -108,16 +108,18 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
               {t('templates:customFields.description')}
             </p>
           </div>
-          <Button
-            disabled
-            size="sm"
-            className="hover:cursor-pointer h-8 text-xs px-3"
-          >
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
-            {t('templates:customFields.addField')}
-          </Button>
+          {canCreate && (
+            <Button
+              disabled
+              size="sm"
+              className="hover:cursor-pointer h-8 text-xs px-3"
+            >
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              {t('templates:customFields.addField')}
+            </Button>
+          )}
         </div>
-        
+
         <div className="animate-pulse">
           <div className="h-32 bg-muted rounded"></div>
         </div>
@@ -178,14 +180,16 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
               loading={isTableFetching}
               onClick={handleRefresh}
             />
-            <Button
-              onClick={handleAddCustomFieldTemplate}
-              size="sm"
-              className="hover:cursor-pointer h-8 text-xs px-3"
-            >
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              {t('templates:customFields.addField')}
-            </Button>
+            {canCreate && (
+              <Button
+                onClick={handleAddCustomFieldTemplate}
+                size="sm"
+                className="hover:cursor-pointer h-8 text-xs px-3"
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                {t('templates:customFields.addField')}
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -198,6 +202,8 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
           onDeleteCustomFieldTemplate={handleDeleteCustomFieldTemplate}
           isLoading={isTableLoading}
           isFetching={isTableFetching}
+          canUpdate={canUpdate}
+          canDelete={canDelete}
           pagination={{
             page: customFieldTemplatesResponse?.page || page,
             pageSize: customFieldTemplatesResponse?.page_size || pageSize,
@@ -214,6 +220,7 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
       ) : (
         <CustomFieldTemplateEmptyState
           onAddCustomFieldTemplate={handleAddCustomFieldTemplate}
+          canCreate={canCreate}
         />
       )}
 

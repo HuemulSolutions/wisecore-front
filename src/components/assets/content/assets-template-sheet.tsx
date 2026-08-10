@@ -261,6 +261,12 @@ export function TemplateConfigSheet({
                               }}
                               isTemplateSection={true}
                               templateId={template!.id}
+                              // TODO(rbac-audit): este sheet no aplica gate de RBAC propio
+                              // (ver ia context/rbac-audit-guide.md); se preserva el
+                              // comportamiento previo explícitamente porque SortableSectionSheet
+                              // ahora es no-permisivo por defecto (canUpdate/canDelete = false).
+                              canUpdate
+                              canDelete
                             />
                           </div>
                         ))}

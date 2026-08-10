@@ -34,6 +34,7 @@ import { OrganizationSwitcher } from "@/components/organization/organization-swi
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useAuth } from "@/contexts/auth-context"
+import { RBAC_PAGES } from "@/lib/rbac-matrix"
 
 import { ChatbotProvider } from "@/contexts/chatbot-provider"
 import { NavKnowledgeProvider } from "@/contexts/nav-knowledge-provider"
@@ -225,15 +226,11 @@ export default function AppLayout() {
     canAccessRoles,
     canAccessModels,
     canAccessDocumentTypes,
-    canAccessAssets,
-    canAccessTemplates,
-    canAccessSectionExecutions,
     canAccessCanvas,
     canAccessDiagrams,
     canAccessExternalSystems,
     canAccessTokenUsage,
     canAccessNotifications,
-    // hasPermission,
     hasAnyPermission,
   } = useUserPermissions()
   
@@ -464,20 +461,26 @@ export default function AppLayout() {
       // No org token and user never had access — don't show
       if (!organizationToken) return null
 
+      // El permiso mostrado en el nav es EXACTAMENTE el que exige el guard de
+      // ruta correspondiente (misma fuente: RBAC_PAGES) — antes este switch
+      // usaba helpers `canAccessX` más amplios (cualquier acción c/r/u/d/l
+      // sobre el recurso) que el guard de ruta, así que un usuario podía ver
+      // el ítem de nav y aun así rebotar a /home al hacer click. Ver
+      // ia context/rbac-audit-guide.md.
       let shouldShowItem = true
-      
+
       switch (item.title) {
         case "Assets":
-          shouldShowItem = canAccessAssets || isOrgAdmin
+          shouldShowItem = hasAnyPermission(RBAC_PAGES.asset.routePermissions) || isOrgAdmin
           break
         case "Templates":
-          shouldShowItem = canAccessTemplates || isOrgAdmin
+          shouldShowItem = hasAnyPermission(RBAC_PAGES.templates.routePermissions) || isOrgAdmin
           break
         case "Advanced":
-          shouldShowItem = canAccessSectionExecutions || isOrgAdmin
+          shouldShowItem = hasAnyPermission(RBAC_PAGES.advanced.routePermissions) || isOrgAdmin
           break
         case "Workflow":
-          shouldShowItem = canAccessAssets || isOrgAdmin
+          shouldShowItem = hasAnyPermission(RBAC_PAGES.workflow.routePermissions) || isOrgAdmin
           break
         default:
           shouldShowItem = true
@@ -494,9 +497,7 @@ export default function AppLayout() {
   }, [
     organizationToken,
     permissionsLoading,
-    canAccessAssets,
-    canAccessTemplates,
-    canAccessSectionExecutions,
+    hasAnyPermission,
     isOrgAdmin,
     isRootAdmin,
     isSwitchingOrg

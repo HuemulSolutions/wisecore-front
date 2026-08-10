@@ -40,7 +40,7 @@ export const HuemulButton = React.forwardRef<HTMLButtonElement, HuemulButtonProp
     }: HuemulButtonProps,
     ref: React.Ref<HTMLButtonElement>,
   ) {
-    const { canCreate, canRead, canUpdate, canDelete, isRootAdmin } = useUserPermissions();
+    const { canCreate, canRead, canUpdate, canDelete } = useUserPermissions();
     const [asyncLoading, setAsyncLoading] = React.useState(false);
 
     // ── Permission guard ─────────────────────────────────────────────────
@@ -58,7 +58,7 @@ export const HuemulButton = React.forwardRef<HTMLButtonElement, HuemulButtonProp
       }
 
       // Global permissions check (when requested)
-      if (isAllowed && checkGlobalPermissions && resource && !isRootAdmin) {
+      if (isAllowed && checkGlobalPermissions && resource) {
         const globalChecks = accessArray.map((access) => {
           switch (access) {
             case "create": return canCreate(resource);

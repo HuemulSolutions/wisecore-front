@@ -1,9 +1,12 @@
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/auth-context';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useOrganization } from '@/contexts/organization-context';
 import { AuthPage } from '@/pages/auth';
 import { PageSkeleton } from '@/components/ui/page-skeleton';
+import { HuemulAccessDenied } from '@/huemul/components/huemul-access-denied';
+import { Button } from '@/components/ui/button';
 import type { Permission } from '@/lib/jwt-utils';
 import type { ProtectedRouteWithPermissionsProps as ProtectedRouteProps } from '@/types/auth'
 
@@ -175,51 +178,28 @@ export function ProtectedRoute({
   return <>{children}</>;
 }
 
-// Componente para mostrar página de acceso denegado
+// Componente para mostrar página de acceso denegado.
+// Delega en HuemulAccessDenied (ver ia context/rbac-permissions-guide.md) para
+// no duplicar el bloque de 403 que ya existe en el resto de las páginas.
 function AccessDeniedPage() {
+  const { t } = useTranslation('common');
+  const navigate = useNavigate();
+
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="text-center max-w-md">
-        <div className="mb-6">
-          <svg
-            className="w-16 h-16 text-muted-foreground mx-auto"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 15v2m0 0v2m0-2h2m-2 0H10m2-12a9 9 0 100 18 9 9 0 000-18z"
-            />
-          </svg>
-        </div>
-        
-        <h1 className="text-2xl font-bold text-foreground mb-2">
-          Access Denied
-        </h1>
-        
-        <p className="text-muted-foreground mb-6">
-          You don't have permission to access this page. Please contact your administrator if you believe this is an error.
-        </p>
-        
-        <div className="space-y-2">
-          <button
-            onClick={() => window.history.back()}
-            className="w-full px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
-          >
-            Go Back
-          </button>
-          
-          <a
-            href="/home"
-            className="block w-full px-4 py-2 border border-border rounded text-foreground hover:bg-accent transition-colors"
-          >
-            Go to Home
-          </a>
-        </div>
-      </div>
+    <div className="min-h-screen flex items-center justify-center">
+      <HuemulAccessDenied
+        variant="page"
+        action={
+          <div className="flex flex-col gap-2">
+            <Button variant="default" onClick={() => window.history.back()}>
+              {t('goBack')}
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/home')}>
+              {t('goToHome')}
+            </Button>
+          </div>
+        }
+      />
     </div>
   );
 }

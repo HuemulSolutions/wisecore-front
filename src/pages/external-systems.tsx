@@ -13,6 +13,7 @@ import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useDebounce } from "@/hooks/use-debounce"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
+import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { HuemulFileTree, type HuemulFileTreeRef } from "@/huemul/components/huemul-file-tree"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
@@ -293,13 +294,11 @@ export default function ExternalSystemsPage() {
 
   if (!canAccessExternalSystems) {
     return (
-      <div className="flex h-full items-center justify-center text-center p-6">
-        <div className="flex flex-col items-center gap-3">
-          <Globe className="size-10 opacity-25" />
-          <h2 className="text-base font-semibold">{t("common:accessDenied")}</h2>
-          <p className="text-sm text-muted-foreground">{t("accessDenied.description", "You don't have permission to access External Systems.")}</p>
-        </div>
-      </div>
+      <HuemulAccessDenied
+        variant="inline"
+        icon={Globe}
+        description={t("accessDenied.description", "You don't have permission to access External Systems.")}
+      />
     )
   }
 

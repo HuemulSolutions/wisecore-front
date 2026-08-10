@@ -12,6 +12,8 @@ export function TemplateHeader({
   templateInstructions,
   isMobile,
   isGenerating,
+  activeTab,
+  canCreateSection = false,
   onToggleSidebar,
   onAddSection,
   onInfo,
@@ -69,14 +71,16 @@ export function TemplateHeader({
             )}
           </div>
           <div className="flex items-center gap-1">
-            <HuemulButton
-              icon={Plus}
-              iconClassName="h-3.5 w-3.5"
-              size="sm"
-              disabled={isGenerating}
-              className="bg-[#4464f7] hover:bg-[#3451e6] h-7 shrink-0"
-              onClick={onAddSection}
-            />
+            {canCreateSection && activeTab === 'sections' && (
+              <HuemulButton
+                icon={Plus}
+                iconClassName="h-3.5 w-3.5"
+                size="sm"
+                disabled={isGenerating}
+                className="bg-[#4464f7] hover:bg-[#3451e6] h-7 shrink-0"
+                onClick={onAddSection}
+              />
+            )}
           </div>
         </div>
       </div>

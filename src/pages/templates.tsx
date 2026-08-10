@@ -9,6 +9,8 @@ import { TemplateContent } from "@/components/templates/templates-content";
 import { TemplatesSidebar } from "@/components/templates/templates-sidebar";
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
 import { HuemulPagination } from "@/huemul/components/huemul-pagination";
+import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 import type { TemplateItem } from "@/types/templates"
 
@@ -17,22 +19,52 @@ export default function Templates() {
     const navigate = useOrgNavigate();
   const { id: templateId } = useParams<{ id?: string }>();
   const { selectedOrganizationId } = useOrganization();
-  
+
   // Permisos
-  const { isRootAdmin, hasPermission, hasAnyPermission } = useUserPermissions();
-  
-  // Permisos específicos
-  const canListTemplates = isRootAdmin || hasAnyPermission(['template:l', 'template:r']);
-  const canCreateTemplate = isRootAdmin || hasPermission('template:c');
-  const canUpdateTemplate = isRootAdmin || hasPermission('template:u');
-  const canDeleteTemplate = isRootAdmin || hasPermission('template:d');
-  const canExportTemplate = isRootAdmin || hasPermission('template:r');
-  const canImportTemplate = isRootAdmin || (hasPermission('template:c') && hasPermission('template:u'));
-  const canListSections = isRootAdmin || hasAnyPermission(['template_section:l', 'template_section:r']);
-  const canCreateSection = isRootAdmin || hasPermission('template_section:c');
-  const canUpdateSection = isRootAdmin || hasPermission('template_section:u');
-  const canDeleteSection = isRootAdmin || hasPermission('template_section:d');
-  
+  // NOTA: NO usar isRootAdmin como bypass — solo isOrgAdmin hace bypass, y ese
+  // ya está aplicado dentro de canCreate/canRead/canUpdate/canDelete/canList
+  // (ver useUserPermissions.ts). Ver ia context/rbac-permissions-guide.md.
+  const {
+    hasAnyPermission,
+    canCreate,
+    canRead,
+    canUpdate,
+    canDelete,
+    canList,
+    isLoading: isLoadingPermissions,
+  } = useUserPermissions();
+
+  // Permisos específicos — template
+  const canListTemplates = hasAnyPermission(['template:l', 'template:r']);
+  const canCreateTemplate = canCreate('template');
+  const canUpdateTemplate = canUpdate('template');
+  const canDeleteTemplate = canDelete('template');
+  const canExportTemplate = canRead('template');
+  const canImportTemplate = canCreate('template') && canUpdate('template');
+
+  // Permisos específicos — template_section
+  const canListSections = hasAnyPermission(['template_section:l', 'template_section:r']);
+  const canCreateSection = canCreate('template_section');
+  const canUpdateSection = canUpdate('template_section');
+  const canDeleteSection = canDelete('template_section');
+
+  // Permisos específicos — custom_fields (tab "Campos personalizados")
+  const canListCustomFields = hasAnyPermission(['custom_fields:l', 'custom_fields:r']);
+  const canCreateCustomField = canCreate('custom_fields');
+  const canUpdateCustomField = canUpdate('custom_fields');
+  const canDeleteCustomField = canDelete('custom_fields');
+
+  // Permisos específicos — docx_template (tab "Plantillas DOCX")
+  const canListDocx = hasAnyPermission(['docx_template:l', 'docx_template:r']);
+  const canCreateDocx = canCreate('docx_template');
+  const canUpdateDocx = canUpdate('docx_template');
+  const canDeleteDocx = canDelete('docx_template');
+
+  // Permisos específicos — media (tab "Media")
+  const canListMedia = canList('media');
+  const canCreateMedia = canCreate('media');
+  const canDeleteMedia = canDelete('media');
+
   // Estados principales
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -76,6 +108,12 @@ export default function Templates() {
     hasRestoredRef.current = false;
     setPage(1);
   }, [selectedOrganizationId]);
+
+  // Loading de permisos
+  if (isLoadingPermissions) return <PageSkeleton />;
+
+  // Sin ningún permiso sobre la página -> 403 in-place (no depender solo del route guard)
+  if (!canListTemplates) return <HuemulAccessDenied />;
 
   return (
     <HuemulPageLayout
@@ -138,6 +176,17 @@ export default function Templates() {
               canCreateSection={canCreateSection}
               canUpdateSection={canUpdateSection}
               canDeleteSection={canDeleteSection}
+              canListCustomFields={canListCustomFields}
+              canCreateCustomField={canCreateCustomField}
+              canUpdateCustomField={canUpdateCustomField}
+              canDeleteCustomField={canDeleteCustomField}
+              canListDocx={canListDocx}
+              canCreateDocx={canCreateDocx}
+              canUpdateDocx={canUpdateDocx}
+              canDeleteDocx={canDeleteDocx}
+              canListMedia={canListMedia}
+              canCreateMedia={canCreateMedia}
+              canDeleteMedia={canDeleteMedia}
             />
           ),
           defaultSize: 85,

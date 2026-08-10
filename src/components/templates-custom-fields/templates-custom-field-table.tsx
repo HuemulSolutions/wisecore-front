@@ -57,6 +57,8 @@ export function CustomFieldTemplateTable({
   pagination,
   isLoading,
   isFetching,
+  canUpdate = false,
+  canDelete = false,
 }: CustomFieldTemplateTableProps) {
   const { t } = useTranslation(['templates', 'common', 'custom-fields'])
   const { t: tSections } = useTranslation('sections')
@@ -200,28 +202,34 @@ export function CustomFieldTemplateTable({
     },
   ]
 
-  // Define actions
+  // Define actions — filtradas por permiso: edición requiere custom_fields:u,
+  // eliminar requiere custom_fields:d. Si queda vacío, DataTable no renderiza
+  // la columna de acciones (ver data-table.tsx).
   const actions: TableAction<CustomFieldTemplate>[] = [
-    {
-      key: "edit-content",
-      label: t('customFields.table.editContent'),
-      icon: FileEdit,
-      onClick: onEditContentCustomFieldTemplate,
-    },
-    {
-      key: "edit-configuration",
-      label: t('customFields.table.editConfiguration'),
-      icon: Edit2,
-      onClick: onEditCustomFieldTemplate,
-    },
-    {
-      key: "delete",
-      label: t('common:delete'),
-      icon: Trash2,
-      onClick: handleDeleteClick,
-      destructive: true,
-      separator: true,
-    },
+    ...(canUpdate ? [
+      {
+        key: "edit-content",
+        label: t('customFields.table.editContent'),
+        icon: FileEdit,
+        onClick: onEditContentCustomFieldTemplate,
+      },
+      {
+        key: "edit-configuration",
+        label: t('customFields.table.editConfiguration'),
+        icon: Edit2,
+        onClick: onEditCustomFieldTemplate,
+      },
+    ] : []),
+    ...(canDelete ? [
+      {
+        key: "delete",
+        label: t('common:delete'),
+        icon: Trash2,
+        onClick: handleDeleteClick,
+        destructive: true,
+        separator: true,
+      },
+    ] : []),
   ]
 
   // Define footer stats

@@ -8,6 +8,7 @@ import { useTokenUsageSummary, tokenUsageQueryKeys } from "@/hooks/useTokenUsage
 import { organizationDailyModelTelemetryQueryKeys } from "@/hooks/useOrganizationDailyModelTelemetry"
 import { useHuemulFilters } from "@/hooks/useHuemulFilters"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
+import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { HuemulFilterButton } from "@/huemul/components/huemul-filter-button"
 import { HuemulFilterInline } from "@/huemul/components/huemul-filter-inline"
 import { HuemulFilterPanel } from "@/huemul/components/huemul-filter-panel"
@@ -72,7 +73,6 @@ function TokenUsagePageSkeleton() {
 
 export default function TokenUsagePage() {
   const { t } = useTranslation("token-usage")
-  const { t: tCommon } = useTranslation("common")
   const { t: tFilters } = useTranslation("huemul-filters")
   const queryClient = useQueryClient()
 
@@ -182,14 +182,7 @@ export default function TokenUsagePage() {
   }
 
   if (!canAccessTokenUsage) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4 md:p-6">
-        <div className="text-center">
-          <h1 className="mb-2 text-2xl font-semibold">{tCommon("accessDenied")}</h1>
-          <p className="text-muted-foreground">{tCommon("noPermission")}</p>
-        </div>
-      </div>
-    )
+    return <HuemulAccessDenied />
   }
 
   return (

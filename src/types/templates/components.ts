@@ -17,6 +17,17 @@ export interface TemplateContentProps {
   canCreateSection: boolean;
   canUpdateSection: boolean;
   canDeleteSection: boolean;
+  canListCustomFields: boolean;
+  canCreateCustomField: boolean;
+  canUpdateCustomField: boolean;
+  canDeleteCustomField: boolean;
+  canListDocx: boolean;
+  canCreateDocx: boolean;
+  canUpdateDocx: boolean;
+  canDeleteDocx: boolean;
+  canListMedia: boolean;
+  canCreateMedia: boolean;
+  canDeleteMedia: boolean;
 }
 
 export interface DocxTemplateCardProps {
@@ -51,6 +62,7 @@ export interface TemplateHeaderProps {
   hasNoSections: boolean;
   isGenerating: boolean;
   activeTab?: string;
+  canCreateSection?: boolean;
   onToggleSidebar?: () => void;
   onAddSection: () => void;
   onGenerateWithAI: () => void;
@@ -113,12 +125,18 @@ export interface CustomFieldTemplateTableProps {
   pagination?: PaginationConfig;
   isLoading?: boolean;
   isFetching?: boolean;
+  canUpdate?: boolean;
+  canDelete?: boolean;
 }
 
 export interface CustomFieldTemplateEmptyStateProps {
   onAddCustomFieldTemplate: () => void;
+  canCreate?: boolean;
 }
 
 export interface TemplateCustomFieldsProps {
   templateId: string;
+  canCreate?: boolean;
+  canUpdate?: boolean;
+  canDelete?: boolean;
 }

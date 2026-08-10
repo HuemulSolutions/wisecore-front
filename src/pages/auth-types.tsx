@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react"
-import { useTranslation } from "react-i18next"
 import { useAuthTypes } from "@/hooks/useAuthTypes"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
@@ -13,6 +12,7 @@ import { AuthTypesTable } from "@/components/auth-types/auth-types-table"
 import { AuthTypesLoadingState } from "@/components/auth-types/auth-types-loading-state"
 import { AuthTypesErrorState } from "@/components/auth-types/auth-types-error-state"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
+import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 
 /**
@@ -20,7 +20,6 @@ import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants
  * Provides interface for creating, editing, and managing authentication types
  */
 export default function AuthTypes() {
-  const { t } = useTranslation('common')
   const [inputSearch, setInputSearch] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
   const [page, setPage] = useState(1)
@@ -56,14 +55,7 @@ export default function AuthTypes() {
 
   // Verificar si el usuario es root admin
   if (!isRootAdmin) {
-    return (
-      <div className="min-h-screen bg-background p-4 md:p-6 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold mb-2">{t('accessDenied')}</h1>
-          <p className="text-muted-foreground">{t('noPermission')}</p>
-        </div>
-      </div>
-    )
+    return <HuemulAccessDenied />
   }
 
   if (showPageLoader) {

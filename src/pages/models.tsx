@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { useUserPermissions } from '@/hooks/useUserPermissions'
 import { HuemulPageLayout } from '@/huemul/components/huemul-page-layout'
+import { HuemulAccessDenied } from '@/huemul/components/huemul-access-denied'
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from '@/huemul/constants'
 import { 
   getSupportedProviders,
@@ -451,14 +452,7 @@ export default function Models() {
 
   // Si no tiene permisos para listar proveedores, mostrar mensaje
   if (!canListProviders) {
-    return (
-      <div className="min-h-screen bg-background p-4 md:p-6 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold mb-2">{t('common:accessDenied')}</h1>
-          <p className="text-muted-foreground">{t('common:noPermission')}</p>
-        </div>
-      </div>
-    )
+    return <HuemulAccessDenied />
   }
 
   // Only show full page error for providers

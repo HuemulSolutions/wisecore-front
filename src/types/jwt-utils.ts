@@ -43,6 +43,10 @@ export type PermissionResource =
   | 'lifecycle_external_publish_action'
   | 'lifecycle_external_review_action'
   | 'token_usage'
-  | 'notification';
+  | 'notification'
+  | 'custom_fields'
+  | 'media'
+  | 'canvas'
+  | 'discussion';
 
 export type Permission = `${PermissionResource}:${PermissionAction}` | 'folder:manage_groups';
