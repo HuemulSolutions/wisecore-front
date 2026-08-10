@@ -18,6 +18,7 @@ import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn, formatApiDateTime } from "@/lib/utils"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import {
   getNotifications,
   markNotificationRead,
@@ -152,6 +153,7 @@ export function NotificationsSheet({
   const { t } = useTranslation(["notifications"])
   const queryClient = useQueryClient()
   const navigate = useOrgNavigate()
+  const { canAccessNotifications } = useUserPermissions()
 
   const [notifFilter, setNotifFilter] = useState<"all" | "unread">("all")
   const [page, setPage] = useState(1)
@@ -175,7 +177,7 @@ export function NotificationsSheet({
         page,
         page_size: pageSize,
       }),
-    enabled: open && !!organizationId,
+    enabled: open && !!organizationId && canAccessNotifications,
     staleTime: 30000,
     refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,

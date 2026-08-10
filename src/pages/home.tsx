@@ -34,6 +34,7 @@ import { useUnreadNotificationsCount } from '@/hooks/useUnreadNotificationsCount
 import { NotificationsSheet } from '@/components/notifications/notifications-sheet';
 import { useOrganization } from '@/contexts/organization-context';
 import { useAuth } from '@/contexts/auth-context';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { getUsers } from '@/services/users';
 import { getDocumentTypes } from '@/services/document-types';
 import type { FetchOptionsParams, FetchOptionsResult } from '@/huemul/components/huemul-field';
@@ -59,6 +60,7 @@ export default function Home() {
   const { selectedOrganizationId } = useOrganization();
   const { user } = useAuth();
   const navigate = useOrgNavigate();
+  const { canAccessNotifications } = useUserPermissions();
 
   const unreadNotificationsCount = useUnreadNotificationsCount(selectedOrganizationId);
 
@@ -526,14 +528,19 @@ export default function Home() {
         </div>
       </div>
       <p className="text-sm text-muted-foreground">
-        {formattedDate} ·{' '}
-        <button
-          type="button"
-          onClick={() => setNotificationsSheetOpen(true)}
-          className="text-primary underline-offset-2 hover:underline transition-colors"
-        >
-          {t('greeting.unreadNotifications', { count: unreadNotificationsCount })}
-        </button>
+        {formattedDate}
+        {canAccessNotifications && (
+          <>
+            {' · '}
+            <button
+              type="button"
+              onClick={() => setNotificationsSheetOpen(true)}
+              className="text-primary underline-offset-2 hover:underline transition-colors"
+            >
+              {t('greeting.unreadNotifications', { count: unreadNotificationsCount })}
+            </button>
+          </>
+        )}
       </p>
     </div>
   );
