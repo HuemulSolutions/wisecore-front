@@ -23,6 +23,9 @@ export function useUserPermissions() {
       isRootAdmin: false,
       isOrgAdmin: false,
       isLoading: false,
+      // No provider in this tree (e.g. Plate editor portals) — don't block
+      // consumers waiting on this flag.
+      hasLoadedPermissionsOnce: true,
       hasPermission: () => false,
       hasAnyPermission: () => false,
       hasAllPermissions: () => false,
@@ -38,6 +41,7 @@ export function useUserPermissions() {
     isRootAdmin,
     isOrgAdmin,
     isLoading,
+    hasLoadedPermissionsOnce,
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
@@ -168,6 +172,10 @@ export function useUserPermissions() {
     return hasAnyPermission(['diagram:r', 'diagram:l', 'diagram:c', 'diagram:u', 'diagram:d']) || isOrgAdmin;
   }, [hasAnyPermission, isOrgAdmin]);
 
+  const canAccessTokenUsage = useMemo(() => {
+    return hasAnyPermission(['token_usage:r', 'token_usage:l']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
+
   // Función para verificar múltiples permisos de un recurso
   const hasResourceAccess = useMemo(() => {
     return (resource: string, actions: string[] = ['r']) => {
@@ -198,6 +206,7 @@ export function useUserPermissions() {
     isRootAdmin,
     isOrgAdmin,
     isLoading,
+    hasLoadedPermissionsOnce,
 
     // Funciones básicas
     hasPermission,
@@ -236,6 +245,7 @@ export function useUserPermissions() {
     canAccessExternalSecrets,
     canAccessCanvas,
     canAccessDiagrams,
+    canAccessTokenUsage,
 
     // Funciones de utilidad
     hasResourceAccess,

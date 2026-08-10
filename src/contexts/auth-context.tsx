@@ -42,6 +42,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         logger.error('Error parsing saved user data:', error);
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_user');
+        // httpClient ya se hidrató con este token al cargar el módulo (ver
+        // http-client.ts) — si el auth_user asociado está corrupto, limpiarlo también.
+        httpClient.setLoginToken(null);
       }
     }
 

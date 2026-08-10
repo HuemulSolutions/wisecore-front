@@ -27,6 +27,10 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
   // Track whether we have ever loaded a valid set of permissions.
   // Used to avoid wiping valid permissions during transient token-expiry windows.
   const hasLoadedValidPermissions = useRef(false);
+  // Versión en estado del ref anterior, para que los guards de ruta puedan
+  // distinguir "todavía no cargaron" de "cargaron y están vacíos" y no
+  // disparen un redirect a /home mientras la carga inicial está en curso.
+  const [hasLoadedPermissionsOnce, setHasLoadedPermissionsOnce] = useState(false);
 
   // Refs for polling comparison — avoids re-creating the interval when state changes
   const permissionsRef = useRef(permissions);
@@ -59,6 +63,7 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
       if (userInfo.isAuthenticated && hasValidData) {
         // Got real, non-empty data — update state.
         hasLoadedValidPermissions.current = true;
+        setHasLoadedPermissionsOnce(true);
         setPermissions(userInfo.permissions || []);
         setRoles(userInfo.roles || []);
         setIsRootAdminState(userInfo.isRootAdmin || false);
@@ -85,6 +90,10 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
         setRoles([]);
         setIsRootAdminState(false);
         setIsOrgAdminState(false);
+        if (forceClean) {
+          hasLoadedValidPermissions.current = false;
+          setHasLoadedPermissionsOnce(false);
+        }
         logger.log('Permissions cleared.', { forceClean, isAuthenticated: userInfo.isAuthenticated });
       }
     } catch (error) {
@@ -94,20 +103,23 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
         setRoles([]);
         setIsRootAdminState(false);
         setIsOrgAdminState(false);
+        hasLoadedValidPermissions.current = false;
+        setHasLoadedPermissionsOnce(false);
       }
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // Efecto para cargar permisos iniciales con un pequeño delay
+  // Efecto para cargar permisos iniciales.
+  // getCurrentUserInfo() lee el JWT desde httpClient (variables de módulo),
+  // no desde localStorage directamente. httpClient se hidrata sincrónicamente
+  // desde localStorage al cargar su módulo (ver http-client.ts) — sin eso,
+  // este efecto puede correr antes que los useEffect de restore de
+  // AuthProvider/OrganizationProvider (los hijos montan antes que los padres)
+  // y ver una sesión vacía en el primer render.
   useEffect(() => {
-    // Pequeño delay para asegurar que otros contextos estén listos
-    const timer = setTimeout(() => {
-      refreshPermissions();
-    }, 50);
-    
-    return () => clearTimeout(timer);
+    refreshPermissions();
   }, []);
 
   // Efecto para escuchar cambios en los tokens
@@ -196,13 +208,14 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
     isRootAdmin: isRootAdminState,
     isOrgAdmin: isOrgAdminState,
     isLoading,
+    hasLoadedPermissionsOnce,
     hasPermission: checkPermission,
     hasAnyPermission: checkAnyPermission,
     hasAllPermissions: checkAllPermissions,
     hasRole: checkRole,
     hasAnyRole: checkAnyRole,
     refreshPermissions,
-  }), [permissions, roles, isRootAdminState, isOrgAdminState, isLoading, checkPermission, checkAnyPermission, checkAllPermissions, checkRole, checkAnyRole, refreshPermissions]);
+  }), [permissions, roles, isRootAdminState, isOrgAdminState, isLoading, hasLoadedPermissionsOnce, checkPermission, checkAnyPermission, checkAllPermissions, checkRole, checkAnyRole, refreshPermissions]);
 
   return (
     <PermissionsContext.Provider value={value}>

@@ -4,11 +4,14 @@ import { useState, useRef, useCallback, useEffect, useMemo, forwardRef, useImper
 import type { Value } from 'platejs';
 import { Button } from '@/components/ui/button';
 import { Check, X, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { PlateRichEditor, type PlateRichEditorRef } from './plate-editor';
 import { useTranslation } from 'react-i18next';
 import type { SectionPlateEditorRef, SectionPlateEditorProps } from '@/types/section-plate-editor';
 export type { SectionPlateEditorRef, SectionPlateEditorProps } from '@/types/section-plate-editor';
 import { normalizePlateMediaForSave } from '@/lib/plate-media-utils';
+import { ensureMermaidSnapshots } from '@/lib/plate-mermaid-utils';
+import { uploadMedia } from '@/services/media';
 
 /**
  * Ensure every element node has an iterable `children` array so Slate never crashes.
@@ -103,8 +106,35 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
 }, ref) {
   const editorRef = useRef<PlateRichEditorRef>(null);
   const [dirty, setDirty] = useState(false);
+  const [isPreparingSave, setIsPreparingSave] = useState(false);
   const prevContentRef = useRef<string>(content);
   const { t } = useTranslation('common');
+  const { t: tEditor } = useTranslation('editor');
+
+  // Renders + uploads a fresh snapshot for every Mermaid diagram whose code changed
+  // since its last snapshot (see ensureMermaidSnapshots), writes the media reference
+  // back into the live editor, and returns the updated value. No-op when there's no
+  // organizationId to upload with (e.g. richtext form fields outside an asset).
+  const runEnsureMermaidSnapshots = useCallback(async (): Promise<{ value: Value; failed: number }> => {
+    const plateValue = editorRef.current?.getValue();
+    if (!plateValue || !organizationId) return { value: plateValue ?? [], failed: 0 };
+
+    const { value, failed } = await ensureMermaidSnapshots(plateValue, (file) =>
+      uploadMedia(organizationId, {
+        file,
+        level: mediaUploadTarget?.level ?? 'document',
+        parent_id: mediaUploadTarget?.parentId ?? documentId ?? null,
+        name: 'mermaid-diagram.png',
+        origin: 'mermaid_snapshot',
+      }),
+    );
+
+    if (failed > 0) {
+      toast.warning(tEditor('mermaid.snapshotFailed', { count: failed }));
+    }
+    editorRef.current?.resetValue(value as Value);
+    return { value: value as Value, failed };
+  }, [organizationId, mediaUploadTarget, documentId, tEditor]);
 
   // Expose editor methods via ref for use in parent forms
   useImperativeHandle(ref, () => ({
@@ -112,7 +142,8 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
     getValue: () => editorRef.current?.getValue() ?? [],
     resetContent: (markdown: string) => editorRef.current?.resetContent(markdown),
     resetValue: (value: Value) => editorRef.current?.resetValue(value),
-  }), [content]);
+    ensureMermaidSnapshots: runEnsureMermaidSnapshots,
+  }), [content, runEnsureMermaidSnapshots]);
 
   // Parse plate_content once per section load.
   // Priority: initialValue > plateContent (JSON) > content (markdown)
@@ -152,18 +183,25 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
     onValueChange?.(value);
   }, [dirty, onValueChange]);
 
-  const handleSave = useCallback(() => {
-    if (!dirty || isSaving) return;
-    const md = editorRef.current?.getMarkdown() ?? content;
-    const plateValue = editorRef.current?.getValue();
-    // Rewrite url/previewUrl back to {{MEDIA:<uuid>}} for every media node before
-    // persisting, so the backend always has a placeholder to re-resolve fresh on
-    // the next load (a resolved SAS previewUrl left in place would expire and
-    // never be refreshed again).
-    const normalized = plateValue ? normalizePlateMediaForSave(plateValue) : plateValue;
-    const newPlateContent = normalized?.map((node) => JSON.stringify(node));
-    onSave?.(sectionId, md, newPlateContent);
-  }, [dirty, isSaving, sectionId, content, onSave]);
+  const handleSave = useCallback(async () => {
+    if (!dirty || isSaving || isPreparingSave) return;
+    setIsPreparingSave(true);
+    try {
+      // Snapshot any changed Mermaid diagrams first – the markdown serialized right
+      // after depends on their `url` already pointing at the uploaded media.
+      const { value: plateValue } = await runEnsureMermaidSnapshots();
+      const md = editorRef.current?.getMarkdown() ?? content;
+      // Rewrite url/previewUrl back to {{MEDIA:<uuid>}} for every media node before
+      // persisting, so the backend always has a placeholder to re-resolve fresh on
+      // the next load (a resolved SAS previewUrl left in place would expire and
+      // never be refreshed again).
+      const normalized = plateValue.length ? normalizePlateMediaForSave(plateValue) : plateValue;
+      const newPlateContent = normalized?.map((node) => JSON.stringify(node));
+      await onSave?.(sectionId, md, newPlateContent);
+    } finally {
+      setIsPreparingSave(false);
+    }
+  }, [dirty, isSaving, isPreparingSave, sectionId, content, onSave, runEnsureMermaidSnapshots]);
 
   const handleCancel = useCallback(() => {
     if (isSaving) return;
@@ -187,7 +225,7 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
         onClick={handleCancel}
         className="hover:cursor-pointer"
         size="sm"
-        disabled={isSaving}
+        disabled={isSaving || isPreparingSave}
       >
         <X className="h-4 w-4 mr-1" />
         {t('cancel')}
@@ -196,14 +234,14 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
         onClick={handleSave}
         className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
         size="sm"
-        disabled={!dirty || isSaving}
+        disabled={!dirty || isSaving || isPreparingSave}
       >
-        {isSaving ? (
+        {isSaving || isPreparingSave ? (
           <Loader2 className="h-4 w-4 mr-1 animate-spin" />
         ) : (
           <Check className="h-4 w-4 mr-1" />
         )}
-        {isSaving ? t('saving') : t('save')}
+        {isSaving || isPreparingSave ? t('saving') : t('save')}
       </Button>
     </div>
   ) : undefined;

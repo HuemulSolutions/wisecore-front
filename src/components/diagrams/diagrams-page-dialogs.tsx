@@ -1,6 +1,6 @@
 "use client"
 
-import { DiagramEditSheet } from "./diagram-edit-sheet"
+import { DiagramViewSheet } from "./diagram-view-sheet"
 import { DiagramsDeleteDialog } from "./diagrams-delete-dialog"
 import type { Diagram } from "@/types/diagrams"
 
@@ -26,7 +26,7 @@ export function DiagramsPageDialogs({
 
   return (
     <>
-      <DiagramEditSheet
+      <DiagramViewSheet
         open={!!state.editingDiagramId}
         onOpenChange={closeDialog('editingDiagramId')}
         diagramId={state.editingDiagramId}

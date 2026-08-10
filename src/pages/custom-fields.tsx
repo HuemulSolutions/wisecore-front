@@ -6,7 +6,6 @@ import { type CustomField } from "@/types/custom-fields"
 import { useCustomFields, useCustomFieldMutations } from "@/hooks/useCustomFields"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 
@@ -26,7 +25,6 @@ export default function CustomFieldsPage() {
     searchTerm: "",
     editingCustomField: null,
     showCreateDialog: false,
-    deletingCustomField: null,
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
@@ -83,7 +81,6 @@ export default function CustomFieldsPage() {
     setIsRefreshing(true)
     try {
       await queryClient.invalidateQueries({ queryKey: ['custom-fields'] })
-      toast.success('Data refreshed')
     } finally {
       setIsRefreshing(false)
     }
@@ -92,10 +89,6 @@ export default function CustomFieldsPage() {
   // Custom field action handlers
   const handleEditCustomField = (customField: CustomField) => {
     updateState({ editingCustomField: customField })
-  }
-
-  const handleDeleteCustomField = (customField: CustomField) => {
-    updateState({ deletingCustomField: customField })
   }
 
   const handleClearFilters = () => {
@@ -110,7 +103,7 @@ export default function CustomFieldsPage() {
             customFieldCount={filteredCustomFields.length}
             onCreateCustomField={() => updateState({ showCreateDialog: true })}
             onRefresh={handleRefresh}
-            isLoading={isRefreshing}
+            isLoading={isRefreshing || isFetching}
             searchTerm={state.searchTerm}
             onSearchChange={(value: string) => {
               updateState({ searchTerm: value })
@@ -142,7 +135,6 @@ export default function CustomFieldsPage() {
               <CustomFieldTable
                 customFields={filteredCustomFields}
                 onEditCustomField={handleEditCustomField}
-                onDeleteCustomField={handleDeleteCustomField}
                 canManage={isRootAdmin}
                 isLoading={isTableLoading}
                 isFetching={isTableFetching}

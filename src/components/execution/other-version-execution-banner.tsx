@@ -6,6 +6,7 @@ import { getExecutionStatus } from '@/services/executions';
 import { useOrganization } from '@/contexts/organization-context';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/logger';
+import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
 import { Button } from '@/components/ui/button';
 import type { OtherVersionExecutionBannerProps } from '@/types/other-version-execution-banner';
 
@@ -152,7 +153,11 @@ export function OtherVersionExecutionBanner({
               {execution.status === 'running' && t('otherVersionBanner.description.running')}
               {execution.status === 'pending' && t('otherVersionBanner.description.pending')}
               {execution.status === 'completed' && t('otherVersionBanner.description.completed')}
-              {execution.status === 'failed' && t('otherVersionBanner.description.failed')}
+              {execution.status === 'failed' && (
+                isMissingDependencyFailure(execution.status_message)
+                  ? t('otherVersionBanner.description.missingDependency')
+                  : t('otherVersionBanner.description.failed')
+              )}
               {execution.status === 'cancelled' && t('otherVersionBanner.description.cancelled')}
               {execution.status === 'paused' && t('otherVersionBanner.description.paused')}
             </p>

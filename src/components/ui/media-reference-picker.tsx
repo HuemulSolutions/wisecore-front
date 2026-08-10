@@ -137,7 +137,7 @@ export function MediaReferencePicker({
       </div>
 
       {/* Body: optional filter panel + results */}
-      <div className="flex gap-4 h-[460px]">
+      <div className="flex gap-4 h-115">
         {filtersOpen && (
           <div className="w-64 shrink-0 rounded-lg border overflow-hidden">
             <HuemulFilterPanel

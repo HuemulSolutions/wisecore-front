@@ -195,6 +195,7 @@ function RelationshipsCanvasFlow({
   initialRelationships,
   initialElements,
   editingDiagram: editingDiagramProp,
+  readOnly = false,
 }: RelationshipsCanvasProps) {
   const { t } = useTranslation("document-type-relationships")
   const { screenToFlowPosition, getNodes, getEdges, fitView } = useReactFlow()
@@ -204,15 +205,17 @@ function RelationshipsCanvasFlow({
   const containerRef = useRef<HTMLDivElement>(null)
 
   // ─── Relationship permissions ───────────────────────────────────────────────
+  // `readOnly` overrides every write permission below — the viewer never mutates
+  // canvas or backend state regardless of what the user is actually allowed to do.
   const canListRelationships = isOrgAdmin || hasAnyPermission(['asset_type_relationship:l', 'asset_type_relationship:r'])
-  const canCreateRelationship = isOrgAdmin || hasPermission('asset_type_relationship:c')
-  const canUpdateRelationship = isOrgAdmin || hasPermission('asset_type_relationship:u')
-  const canDeleteRelationship = isOrgAdmin || hasPermission('asset_type_relationship:d')
+  const canCreateRelationship = !readOnly && (isOrgAdmin || hasPermission('asset_type_relationship:c'))
+  const canUpdateRelationship = !readOnly && (isOrgAdmin || hasPermission('asset_type_relationship:u'))
+  const canDeleteRelationship = !readOnly && (isOrgAdmin || hasPermission('asset_type_relationship:d'))
 
   const canListExecRelationships = isOrgAdmin || hasAnyPermission(['execution_relationship:l', 'execution_relationship:r'])
-  const canCreateExecRelationship = isOrgAdmin || hasPermission('execution_relationship:c')
-  const canUpdateExecRelationship = isOrgAdmin || hasPermission('execution_relationship:u')
-  const canDeleteExecRelationship = isOrgAdmin || hasPermission('execution_relationship:d')
+  const canCreateExecRelationship = !readOnly && (isOrgAdmin || hasPermission('execution_relationship:c'))
+  const canUpdateExecRelationship = !readOnly && (isOrgAdmin || hasPermission('execution_relationship:u'))
+  const canDeleteExecRelationship = !readOnly && (isOrgAdmin || hasPermission('execution_relationship:d'))
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
@@ -343,7 +346,8 @@ function RelationshipsCanvasFlow({
       if (!relData?.data?.length) return
 
       // Flatten top-level + all sub-relationships (relationship_source / relationship_target)
-      // into a single deduplicated map so the full connected graph is rendered in one pass.
+      // into a single deduplicated map — used only to draw edges between nodes that end up
+      // on the canvas (e.g. siblings), never to decide which nodes get added.
       const allRelsMap = new Map<string, DocumentTypeRelationship>()
       relData.data.forEach((rel) => {
         allRelsMap.set(rel.id, rel) // top-level item takes precedence (has full callbacks)
@@ -359,11 +363,48 @@ function RelationshipsCanvasFlow({
       const newNodes: Node<AssetTypeNodeData>[] = []
       const newEdges: Edge[] = []
 
+      // "Children" are only the anchor's direct (level-1) relationships — relData.data before
+      // flattening. Sub-relationships describe siblings/grandchildren and must never spawn nodes.
+      const directChildIds = new Set<string>()
+      relData.data.forEach((rel) => {
+        const cfg = extractRelConfig(rel)
+        if (cfg.source_document_type_id === documentTypeId) directChildIds.add(cfg.target_document_type_id)
+        if (cfg.target_document_type_id === documentTypeId) directChildIds.add(cfg.source_document_type_id)
+      })
+
+      directChildIds.forEach((childId) => {
+        if (existingNodeIds.has(childId)) return
+        const childDocType = dtMap.get(childId)
+        if (!childDocType) return
+        newNodes.push({
+          id: childId,
+          type: "assetType",
+          position: { x: 0, y: 0 }, // will be overwritten by layout
+          data: {
+            id: childId,
+            name: childDocType.name,
+            color: childDocType.color,
+            onLoadRelationships: handleLoadRelationships,
+            onLoadRelationshipsCanvasOnly: handleLoadRelationshipsCanvasOnly,
+            onRemove: (id: string) => setNodes((nds) => nds.filter((n) => n.id !== id)),
+          },
+        })
+        existingNodeIds.add(childId)
+      })
+
+      // Final node set for this pass: existing nodes + the direct children just added.
+      // Edges only get drawn between nodes in this set — anything two hops away is skipped.
+      const finalNodeIds = existingNodeIds
+
       // Pre-count how many NEW edges will be added per pair in this batch
       const newEdgeCountPerPair = new Map<string, number>()
       allRels.forEach((rel) => {
         const cfg = extractRelConfig(rel)
-        if (!existingEdgeIds.has(`rel-${cfg.id}`)) {
+        if (
+          finalNodeIds.has(cfg.source_document_type_id) &&
+          finalNodeIds.has(cfg.target_document_type_id) &&
+          !existingEdgeIds.has(`rel-${cfg.id}`)
+        ) {
           const key = `${cfg.source_document_type_id}::${cfg.target_document_type_id}`
           newEdgeCountPerPair.set(key, (newEdgeCountPerPair.get(key) ?? 0) + 1)
         }
@@ -384,45 +425,8 @@ function RelationshipsCanvasFlow({
         const sourceId = cfg.source_document_type_id
         const targetId = cfg.target_document_type_id
 
-        if (!existingNodeIds.has(sourceId) && !newNodes.some((n) => n.id === sourceId)) {
-          const sourceDocType = dtMap.get(sourceId)
-          if (sourceDocType) {
-            newNodes.push({
-              id: sourceId,
-              type: "assetType",
-              position: { x: 0, y: 0 }, // will be overwritten by layout
-              data: {
-                id: sourceId,
-                name: sourceDocType.name,
-                color: sourceDocType.color,
-                onLoadRelationships: handleLoadRelationships,
-                onLoadRelationshipsCanvasOnly: handleLoadRelationshipsCanvasOnly,
-                onRemove: (id: string) => setNodes((nds) => nds.filter((n) => n.id !== id)),
-              },
-            })
-            existingNodeIds.add(sourceId)
-          }
-        }
-
-        if (!existingNodeIds.has(targetId) && !newNodes.some((n) => n.id === targetId)) {
-          const targetDocType = dtMap.get(targetId)
-          if (targetDocType) {
-            newNodes.push({
-              id: targetId,
-              type: "assetType",
-              position: { x: 0, y: 0 }, // will be overwritten by layout
-              data: {
-                id: targetId,
-                name: targetDocType.name,
-                color: targetDocType.color,
-                onLoadRelationships: handleLoadRelationships,
-                onLoadRelationshipsCanvasOnly: handleLoadRelationshipsCanvasOnly,
-                onRemove: (id: string) => setNodes((nds) => nds.filter((n) => n.id !== id)),
-              },
-            })
-            existingNodeIds.add(targetId)
-          }
-        }
+        // Only connect nodes that are already on the canvas (existing + newly added children)
+        if (!finalNodeIds.has(sourceId) || !finalNodeIds.has(targetId)) return
 
         const edgeId = `rel-${cfg.id}`
         if (!existingEdgeIds.has(edgeId) && !newEdges.some((e) => e.id === edgeId)) {
@@ -1034,7 +1038,8 @@ function RelationshipsCanvasFlow({
       if (!relData?.data?.length) return
 
       // Flatten top-level + all sub-relationships (relationship_source / relationship_target)
-      // into a single deduplicated map by id so the full connected graph renders in one pass.
+      // into a single deduplicated map — used only to draw edges between nodes that end up on
+      // the canvas (e.g. siblings), never to decide which nodes get created.
       const allRelsMap = new Map<string, ExecutionRelationshipSubitem>()
       for (const item of relData.data) {
         if (!allRelsMap.has(item.id)) allRelsMap.set(item.id, item)
@@ -1052,7 +1057,8 @@ function RelationshipsCanvasFlow({
       const newNodes: Node<AssetTypeNodeData>[] = []
       const newEdges: Edge[] = []
 
-      // Helper: ensure a node exists for a given execution endpoint
+      // Helper: ensure a node exists for a given execution endpoint — may create a new node.
+      // Only called for the anchor's direct relationships (relData.data), never for sub-relationships.
       const ensureNode = (docId: string, execId: string, execName: string, docName: string, docTypeId: string, docTypeColor: string) => {
         // Already in canvas (by executionId or by doc id)
         const byExecId =
@@ -1101,12 +1107,24 @@ function RelationshipsCanvasFlow({
         return canvasId
       }
 
-      for (const rel of allRels) {
-        const srcDocId = rel.source_execution.document_id
-        const tgtDocId = rel.target_execution.document_id
+      // Helper: resolve an existing canvas node id for an execution — never creates one.
+      const resolveCanvasId = (execId: string): string | undefined =>
+        currentNodes.find((n) => (n.data as AssetTypeNodeData).executionId === execId)?.id ??
+        newNodes.find((n) => (n.data as AssetTypeNodeData).executionId === execId)?.id
 
-        const srcCanvasId = ensureNode(srcDocId, rel.source_execution.id, rel.source_execution.name, rel.source_execution.document_name, rel.source_execution.document_type_id, rel.source_execution.document_type_color ?? '')
-        const tgtCanvasId = ensureNode(tgtDocId, rel.target_execution.id, rel.target_execution.name, rel.target_execution.document_name, rel.target_execution.document_type_id, rel.target_execution.document_type_color ?? '')
+      // "Children" are only the anchor's direct relationships (relData.data, before flattening).
+      // Sub-relationships describe siblings/grandchildren and must never spawn nodes.
+      for (const rel of relData.data) {
+        ensureNode(rel.source_execution.document_id, rel.source_execution.id, rel.source_execution.name, rel.source_execution.document_name, rel.source_execution.document_type_id, rel.source_execution.document_type_color ?? '')
+        ensureNode(rel.target_execution.document_id, rel.target_execution.id, rel.target_execution.name, rel.target_execution.document_name, rel.target_execution.document_type_id, rel.target_execution.document_type_color ?? '')
+      }
+
+      for (const rel of allRels) {
+        const srcCanvasId = resolveCanvasId(rel.source_execution.id)
+        const tgtCanvasId = resolveCanvasId(rel.target_execution.id)
+
+        // Only connect nodes that are already on the canvas (existing + newly added children)
+        if (!srcCanvasId || !tgtCanvasId) continue
 
         const edgeId = `exec-rel-${rel.id}`
         if (!currentEdgeIds.has(edgeId) && !newEdges.some((e) => e.id === edgeId)) {
@@ -1429,9 +1447,11 @@ function RelationshipsCanvasFlow({
           executionName: n.executionName,
           name: n.name,
           color: n.color,
-          onLoadRelationships: (id: string) => handleLoadExecRelRef.current?.(id),
-          onLoadRelationshipsCanvasOnly: (id: string) => handleLoadExecRelCanvasOnlyRef.current?.(id),
-          onRemove: handleRemoveNode,
+          ...(readOnly ? { readOnly: true } : {
+            onLoadRelationships: (id: string) => handleLoadExecRelRef.current?.(id),
+            onLoadRelationshipsCanvasOnly: (id: string) => handleLoadExecRelCanvasOnlyRef.current?.(id),
+            onRemove: handleRemoveNode,
+          }),
         },
       }
       return { canvasNodeId, node }
@@ -1439,7 +1459,7 @@ function RelationshipsCanvasFlow({
 
     setNodes((nds) => [...nds, ...seeded.map((s) => s.node)])
     pendingEdgeSeedRef.current = { seeded, relationships }
-  }, [setNodes, handleRemoveNode])
+  }, [setNodes, handleRemoveNode, readOnly])
 
   // Flush any pending edge seed once react-flow reports the current nodes are
   // initialized (measured). Depends on `nodes` too (not just the boolean) so a
@@ -1466,14 +1486,16 @@ function RelationshipsCanvasFlow({
           kind: el.kind,
           content: el.content,
           color: el.color,
-          onContentChange: handleUpdateElementContent,
-          onColorChange: handleUpdateElementColor,
-          onRemove: handleRemoveNode,
+          ...(readOnly ? { readOnly: true } : {
+            onContentChange: handleUpdateElementContent,
+            onColorChange: handleUpdateElementColor,
+            onRemove: handleRemoveNode,
+          }),
         },
       }
     })
     setNodes((nds) => [...nds, ...seeded])
-  }, [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRemoveNode])
+  }, [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRemoveNode, readOnly])
 
   // Guarded by a ref (not just the effect dep array) so it only seeds once even if
   // the parent re-renders and passes a new `initialNodes` array reference.
@@ -1517,9 +1539,9 @@ function RelationshipsCanvasFlow({
   const sourceDocType = pendingConnection ? docTypeMap.get(pendingConnection.sourceId) : undefined
   const targetDocType = pendingConnection ? docTypeMap.get(pendingConnection.targetId) : undefined
 
-  const canUpdateDiagram = isOrgAdmin || hasPermission('diagram:u')
-  const canCreateDiagram = isOrgAdmin || hasPermission('diagram:c')
-  const canLoadDiagram = isOrgAdmin || hasPermission('diagram:u')
+  const canUpdateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:u'))
+  const canCreateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:c'))
+  const canLoadDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:u'))
   const hasValidDiagramNodes = nodes.some((n) => {
     const d = n.data as AssetTypeNodeData
     return !!d.assetId && !!d.executionId
@@ -1533,18 +1555,20 @@ function RelationshipsCanvasFlow({
           edges={layeredEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onConnectEnd={onConnectEnd}
+          onConnect={readOnly ? undefined : onConnect}
+          onConnectEnd={readOnly ? undefined : onConnectEnd}
           onEdgeClick={onEdgeClick}
           onNodeClick={onNodeClick}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
+          onDrop={readOnly ? undefined : handleDrop}
+          onDragOver={readOnly ? undefined : handleDragOver}
           nodeTypes={NODE_TYPES}
           edgeTypes={EDGE_TYPES}
           connectionMode={ConnectionMode.Loose}
           elevateNodesOnSelect={false}
+          nodesDraggable={!readOnly}
+          nodesConnectable={!readOnly}
           fitView
-          deleteKeyCode="Delete"
+          deleteKeyCode={readOnly ? null : "Delete"}
           className="flex-1 h-full bg-muted/10"
         >
           <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
@@ -1555,26 +1579,28 @@ function RelationshipsCanvasFlow({
           />
 
           {/* Always available — not gated on the drag palette, which isn't mounted on every screen */}
-          <Panel position="top-left">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => addElementAtCenter("container")}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
-              >
-                <Square className="h-3.5 w-3.5" />
-                {t("canvas.addContainer")}
-              </button>
-              <button
-                onClick={() => addElementAtCenter("text")}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
-              >
-                <Type className="h-3.5 w-3.5" />
-                {t("canvas.addText")}
-              </button>
-            </div>
-          </Panel>
+          {!readOnly && (
+            <Panel position="top-left">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => addElementAtCenter("container")}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
+                >
+                  <Square className="h-3.5 w-3.5" />
+                  {t("canvas.addContainer")}
+                </button>
+                <button
+                  onClick={() => addElementAtCenter("text")}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
+                >
+                  <Type className="h-3.5 w-3.5" />
+                  {t("canvas.addText")}
+                </button>
+              </div>
+            </Panel>
+          )}
 
-          {nodes.length > 0 && (
+          {!readOnly && nodes.length > 0 && (
             <Panel position="top-right">
               <div className="flex items-center gap-2">
                 {mode === 'execution' && hasValidDiagramNodes && editingDiagram && canUpdateDiagram && (
@@ -1651,6 +1677,7 @@ function RelationshipsCanvasFlow({
               <ElementPanel
                 elementData={selectedNode.data as CanvasElementNodeData}
                 onClose={() => setSelectedNodeId(null)}
+                readOnly={readOnly}
               />
             )
           }
@@ -1675,6 +1702,7 @@ function RelationshipsCanvasFlow({
               executionId={nodeData.executionId}
               organizationId={organizationId}
               onSelectExecution={handleSelectExecution}
+              readOnly={readOnly}
             />
           )
         })()}

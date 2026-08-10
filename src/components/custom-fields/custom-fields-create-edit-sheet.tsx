@@ -2,11 +2,14 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
-import { PenLine, Plus } from "lucide-react"
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
+import { Button } from "@/components/ui/button"
+import { Plus, Trash2 } from "lucide-react"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
 import { useTranslation } from "react-i18next"
 
 import { useCustomFieldQuestionTypes } from "@/hooks/useCustomFields"
+import { parseCustomFieldUsageError, type CustomFieldUsage } from "@/services/custom-fields"
 import {
   questionTypeLabel,
   readFieldConfig,
@@ -27,6 +30,10 @@ export function CreateEditCustomFieldSheet({
   customFieldMutations,
 }: CreateEditCustomFieldDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  // Seteado cuando el primer intento de borrado devuelve 400 "en uso" — escala
+  // el mismo HuemulAlertDialog a un texto de confirmación con los conteos.
+  const [usage, setUsage] = useState<CustomFieldUsage | null>(null)
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -36,6 +43,7 @@ export function CreateEditCustomFieldSheet({
     min_value: null as number | null,
     max_value: null as number | null,
     config: {} as FormFieldConfig,
+    required: false,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -72,6 +80,7 @@ export function CreateEditCustomFieldSheet({
           min_value: typeof customField.min_value === 'number' ? customField.min_value : null,
           max_value: typeof customField.max_value === 'number' ? customField.max_value : null,
           config: readFieldConfig(customField),
+          required: customField.required,
         })
       } else {
         setFormData({
@@ -83,9 +92,11 @@ export function CreateEditCustomFieldSheet({
           min_value: null,
           max_value: null,
           config: {},
+          required: false,
         })
       }
       setErrors({})
+      setUsage(null)
     }
   }, [open, customField])
 
@@ -182,6 +193,7 @@ export function CreateEditCustomFieldSheet({
             name: formData.name,
             description: formData.description,
             masc: formData.masc || undefined,
+            required: formData.required,
             // Partial PATCH: only send question_type if the user picked one, so legacy
             // fields (question_type: null) keep their existing data_type untouched.
             ...(formData.question_type && { question_type: formData.question_type }),
@@ -195,6 +207,7 @@ export function CreateEditCustomFieldSheet({
           description: formData.description,
           masc: formData.masc || "",
           question_type: formData.question_type,
+          required: formData.required,
           ...getTypeSpecificPayload(),
         })
         onSuccess(created)
@@ -259,53 +272,116 @@ export function CreateEditCustomFieldSheet({
     setFormData(prev => ({ ...prev, config: { ...prev.config, ...patch } }))
   }
 
+  const handleRequiredChange = (value: boolean) => {
+    setFormData(prev => ({ ...prev, required: value }))
+  }
+
   const formatQuestionType = (questionType: string) => questionTypeLabel(questionType, tSections)
 
+  // Une "2 plantillas" y/o "5 documentos" con "y", omitiendo el lado con 0
+  // para no mostrar "0 documentos".
+  const buildUsageText = (fieldUsage: CustomFieldUsage) => {
+    const parts = [
+      fieldUsage.templates > 0
+        ? t(fieldUsage.templates === 1 ? 'deleteDialog.inUseTemplates' : 'deleteDialog.inUseTemplatesPlural', { count: fieldUsage.templates })
+        : null,
+      fieldUsage.documents > 0
+        ? t(fieldUsage.documents === 1 ? 'deleteDialog.inUseDocuments' : 'deleteDialog.inUseDocumentsPlural', { count: fieldUsage.documents })
+        : null,
+    ].filter(Boolean)
+    return parts.join(` ${t('common:and')} `)
+  }
+
   return (
-    <HuemulSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title={isEditing ? t('editDialog.title') : t('createDialog.title')}
-      description={
-        isEditing
-          ? t('editDialog.description')
-          : t('createDialog.description')
-      }
-      icon={isEditing ? PenLine : Plus}
-      maxWidth="sm:max-w-lg"
-      cancelLabel={t('common:cancel', 'Cancel')}
-      saveAction={{
-        label: isEditing ? t('editDialog.saveLabel') : t('createDialog.saveLabel'),
-        onClick: handleSave,
-        closeOnSuccess: false,
-      }}
-    >
-      <div className="space-y-4">
-        <CustomFieldFormFields
-          name={formData.name}
-          description={formData.description}
-          dataType={dataType}
-          masc={formData.masc}
-          questionType={formData.question_type}
-          options={formData.options}
-          minValue={formData.min_value}
-          maxValue={formData.max_value}
-          config={formData.config}
-          onNameChange={(value) => handleInputChange("name", value)}
-          onDescriptionChange={(value) => handleInputChange("description", value)}
-          onMascChange={(value) => handleInputChange("masc", value)}
-          onQuestionTypeChange={(value) => handleInputChange("question_type", value)}
-          onOptionsChange={handleOptionsChange}
-          onMinValueChange={(value) => handleNumericChange('min_value', value)}
-          onMaxValueChange={(value) => handleNumericChange('max_value', value)}
-          onConfigChange={handleConfigChange}
-          questionTypes={questionTypes}
-          formatQuestionType={formatQuestionType}
-          errors={errors}
-          disabled={isSubmitting}
-          loadingQuestionTypes={loadingQuestionTypes}
+    <>
+      <HuemulSheet
+        open={open}
+        onOpenChange={onOpenChange}
+        title={isEditing && customField ? customField.name : t('createDialog.title')}
+        eyebrow={t('form.eyebrow')}
+        description={isEditing ? undefined : t('createDialog.description')}
+        maxWidth="sm:max-w-xl"
+        cancelLabel={t('common:cancel', 'Cancel')}
+        saveAction={{
+          label: isEditing ? t('editDialog.saveLabel') : t('createDialog.saveLabel'),
+          icon: isEditing ? undefined : Plus,
+          onClick: handleSave,
+          closeOnSuccess: false,
+        }}
+        footerLeft={isEditing ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10 hover:cursor-pointer"
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+            {t('actions.deleteCustomField')}
+          </Button>
+        ) : undefined}
+      >
+        <div className="space-y-4">
+          <CustomFieldFormFields
+            name={formData.name}
+            description={formData.description}
+            dataType={dataType}
+            masc={formData.masc}
+            questionType={formData.question_type}
+            options={formData.options}
+            minValue={formData.min_value}
+            maxValue={formData.max_value}
+            config={formData.config}
+            required={formData.required}
+            onNameChange={(value) => handleInputChange("name", value)}
+            onDescriptionChange={(value) => handleInputChange("description", value)}
+            onMascChange={(value) => handleInputChange("masc", value)}
+            onQuestionTypeChange={(value) => handleInputChange("question_type", value)}
+            onOptionsChange={handleOptionsChange}
+            onMinValueChange={(value) => handleNumericChange('min_value', value)}
+            onMaxValueChange={(value) => handleNumericChange('max_value', value)}
+            onConfigChange={handleConfigChange}
+            onRequiredChange={handleRequiredChange}
+            questionTypes={questionTypes}
+            formatQuestionType={formatQuestionType}
+            errors={errors}
+            disabled={isSubmitting}
+            loadingQuestionTypes={loadingQuestionTypes}
+          />
+        </div>
+      </HuemulSheet>
+
+      {isEditing && (
+        <HuemulAlertDialog
+          open={deleteOpen}
+          onOpenChange={(nextOpen) => {
+            setDeleteOpen(nextOpen)
+            if (!nextOpen) setUsage(null)
+          }}
+          title={t('deleteDialog.title')}
+          description={t('deleteDialog.description')}
+          alert={usage ? {
+            title: t('deleteDialog.inUseAlertTitle'),
+            description: t('deleteDialog.inUseAlertDescription', { usage: buildUsageText(usage) }),
+          } : undefined}
+          actionLabel={usage ? t('deleteDialog.forceConfirm') : t('actions.deleteCustomField')}
+          actionIcon={Trash2}
+          onAction={async () => {
+            try {
+              await customFieldMutations.delete.mutateAsync({ id: customField!.id, force: Boolean(usage) })
+            } catch (error) {
+              const detectedUsage = parseCustomFieldUsageError(error)
+              // Primer intento sobre un campo en uso: no es un fallo terminal —
+              // se re-lanza para que HuemulAlertDialog vuelva a "idle" (sin
+              // cerrarse) y, con `usage` seteado, pida la confirmación reforzada.
+              if (detectedUsage && !usage) {
+                setUsage(detectedUsage)
+              }
+              throw error
+            }
+            onOpenChange(false)
+          }}
         />
-      </div>
-    </HuemulSheet>
+      )}
+    </>
   )
 }

@@ -87,6 +87,7 @@ import { DateKit } from '@/components/plate-editor/components/date-kit';
 import { TocKit } from '@/components/plate-editor/components/toc-kit';
 import { MarkdownKit } from '@/components/plate-editor/components/markdown-kit';
 import { CodeDrawingKit } from '@/components/plate-editor/components/code-drawing-kit';
+import { MermaidKit } from '@/components/plate-editor/components/mermaid-kit';
 
 import { Editor, EditorContainer } from '@/components/ui/editor';
 import { FloatingToolbarButtons } from '@/components/ui/floating-toolbar-buttons';
@@ -103,6 +104,7 @@ import { MediaToolbarButton } from '@/components/ui/media-toolbar-button';
 import { TurnIntoToolbarButton } from '@/components/ui/turn-into-toolbar-button';
 import { CommentToolbarButton } from '@/components/ui/comment-toolbar-button';
 import { CodeDrawingToolbarButton } from '@/components/ui/code-drawing-toolbar-button';
+import { MermaidToolbarButton } from '@/components/ui/mermaid-toolbar-button';
 import { ModeToolbarButton } from '@/components/ui/mode-toolbar-button';
 import { EmojiToolbarButton } from '@/components/ui/emoji-toolbar-button';
 import { FontSizeToolbarButton } from '@/components/ui/font-size-toolbar-button';
@@ -268,6 +270,7 @@ function EditorToolbar() {
           <ToggleToolbarButton />
           <MediaToolbarButton nodeType="img" />
           <CodeDrawingToolbarButton />
+          <MermaidToolbarButton />
           <EmojiToolbarButton />
           <MediaReferenceToolbarButton />
 
@@ -333,7 +336,7 @@ function EditorToolbar() {
               {t('markdownDialog.download')}
             </button>
           </div>
-          <pre className="flex-1 overflow-auto rounded-md border bg-muted p-4 text-sm font-mono whitespace-pre-wrap break-words">
+          <pre className="flex-1 overflow-auto rounded-md border bg-muted p-4 text-sm font-mono whitespace-pre-wrap wrap-break-word">
             {markdownOutput}
           </pre>
         </DialogContent>
@@ -409,6 +412,7 @@ function SectionEditorToolbar({ actions, topOffset }: { actions?: React.ReactNod
         <TableToolbarButton />
         <MediaToolbarButton nodeType="img" />
         <CodeDrawingToolbarButton />
+        <MermaidToolbarButton />
         <MediaReferenceToolbarButton />
 
       </div>
@@ -491,6 +495,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
       ...ToggleKit,
       ...MediaKit,
       ...CodeDrawingKit,
+      ...MermaidKit,
       discussionPlugin.configure({ render: { aboveNodes: BlockDiscussion } }),
       ...CommentKit,
       ...SuggestionKit,

@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { Loader2, Clock, RefreshCw, XCircle, CheckCircle } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { getExecutionStatus, getExecutionSectionsStatus } from '@/services/executions';
+import { getExecutionStatus } from '@/services/executions';
+import { useSectionsExecutionStatus } from '@/components/assets/content/hooks/useSectionsExecutionStatus';
 import { useOrganization } from '@/contexts/organization-context';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { logger } from '@/lib/logger';
+import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
 import { Button } from '@/components/ui/button';
 import type { SectionExecutionFeedbackProps } from '@/types/sections';
 
@@ -14,7 +15,6 @@ export type { SectionExecutionFeedbackProps } from '@/types/sections';
 
 export function SectionExecutionFeedback({
   executionId,
-  sectionId,
   sectionIndex,
   executionMode,
   onComplete,
@@ -29,119 +29,51 @@ export function SectionExecutionFeedback({
   const [isDismissed, setIsDismissed] = useState(false);
   const [executionFailed, setExecutionFailed] = useState(false);
 
-  logger.log('🎯 SectionExecutionFeedback rendered with:', { 
-    executionId, 
-    sectionId,
-    sectionIndex, 
+  // Passive subscriber: reads the same ['execution-sections-status', executionId]
+  // cache that AssetContent owns and polls (poll: true there). Not opening a second
+  // timer here avoids one extra request per rendered section every 2s in 'from' mode.
+  const { getSectionStatus, refetch } = useSectionsExecutionStatus({
+    executionId,
     executionMode,
-    selectedOrganizationId,
-    pollingInterval
+    startSectionIndex: sectionIndex,
+    poll: false,
+    enabled: !isDismissed,
   });
 
-  // Log when polling interval changes
-  useEffect(() => {
-    logger.log('⏱️ Polling interval changed to:', pollingInterval);
-  }, [pollingInterval]);
-
-  // Poll sections status
-  const queryEnabled = !!executionId && !!selectedOrganizationId && pollingInterval !== false;
-  logger.log('🔧 Query enabled check:', { 
-    queryEnabled,
-    hasExecutionId: !!executionId, 
-    hasOrgId: !!selectedOrganizationId, 
-    pollingActive: pollingInterval !== false 
-  });
-
-  const { data: sectionsStatus, refetch } = useQuery({
-    queryKey: ['execution-sections-status', executionId],
-    queryFn: () => {
-      logger.log('🔄 [SECTIONS_STATUS] Fetching sections status for execution:', executionId);
-      return getExecutionSectionsStatus(executionId!, selectedOrganizationId!);
-    },
-    enabled: queryEnabled && !isDismissed,
-    refetchInterval: pollingInterval,
-    refetchOnWindowFocus: false,
-  });
-
-  // Log sections data structure
-  useEffect(() => {
-    if (sectionsStatus?.sections) {
-      logger.log('📋 Sections array received:');
-      logger.log('  Total sections:', sectionsStatus.sections.length);
-      logger.log('  Looking for sectionIndex:', sectionIndex, '(0-based, so order should be', sectionIndex + 1, ')');
-      logger.log('  Section orders:', sectionsStatus.sections.map((s: any) => ({ order: s.order, name: s.name, status: s.status })));
-    }
-  }, [sectionsStatus, sectionIndex]);
-
-  // Find the current section's status using 'order' field
-  // Backend returns sections with order 1-based, so we add 1 to sectionIndex
-  const targetOrder = sectionIndex + 1;
-  const currentSectionStatus = sectionsStatus?.sections?.find(
-    (section: any) => section.order === targetOrder
-  );
-
-  // Log status changes
-  useEffect(() => {
-    if (currentSectionStatus) {
-      logger.log('✅ Section status found:', {
-        sectionIndex,
-        targetOrder,
-        status: currentSectionStatus.status,
-        name: currentSectionStatus.name
-      });
-    } else if (sectionsStatus?.sections) {
-      logger.log('⚠️ Could not find section with order:', {
-        targetOrder,
-        sectionIndex,
-        availableOrders: sectionsStatus.sections.map((s: any) => ({ order: s.order, name: s.name }))
-      });
-    }
-  }, [currentSectionStatus?.status, sectionIndex, currentSectionStatus?.name, sectionsStatus, targetOrder]);
+  const currentSectionStatus = { status: getSectionStatus(sectionIndex) };
 
   // Handle completion based on section status (not overall execution status)
   useEffect(() => {
-    if (!sectionsStatus || isDismissed) return;
+    if (isDismissed) return;
 
-    // Check completion based on execution mode:
-    // - 'single': only the target section needs to be done
-    // - 'from': all sections from the target order onwards must be done
-    let relevantSectionsDone: boolean;
-    if (executionMode === 'single') {
-      relevantSectionsDone = currentSectionStatus?.status === 'done';
-    } else {
-      const sectionsFromTarget = sectionsStatus.sections?.filter(
-        (s: any) => s.order >= targetOrder
-      ) ?? [];
-      relevantSectionsDone =
-        sectionsFromTarget.length > 0 &&
-        sectionsFromTarget.every((s: any) => s.status === 'done');
-    }
+    // Completion depends only on this section's own status, both in 'single' and
+    // 'from' mode: each section reveals its content and fires its own toast as
+    // soon as it individually finishes, without waiting on the rest of the batch.
+    const relevantSectionsDone = currentSectionStatus.status === 'done';
 
     if (relevantSectionsDone) {
-      logger.log(`🛑 Relevant sections completed (mode: ${executionMode}), stopping polling`);
       setPollingInterval(false);
 
-      // Show toast only once but don't dismiss banner automatically
+      // Show toast only once but don't dismiss banner automatically. Deduped by
+      // executionId so a 'from' batch with N sections finishing shows one toast,
+      // not N.
       if (!hasShownCompletedToast) {
-        logger.log('✅ Section execution completed!');
         toast.success(
-          executionMode === 'single' 
-            ? t('sectionFeedback.toast.successSingle') 
-            : t('sectionFeedback.toast.successMultiple')
+          executionMode === 'single'
+            ? t('sectionFeedback.toast.successSingle')
+            : t('sectionFeedback.toast.successMultiple'),
+          { id: `section-execution-${executionId}` },
         );
         setHasShownCompletedToast(true);
         onComplete?.();
       }
     }
-  }, [sectionsStatus, currentSectionStatus?.status, hasShownCompletedToast, executionMode, onComplete, isDismissed, targetOrder]);
+  }, [currentSectionStatus.status, hasShownCompletedToast, executionMode, onComplete, isDismissed, executionId, t]);
 
   // Separate effect to handle errors via overall execution status
   const { data: executionStatus } = useQuery({
     queryKey: ['execution-status', executionId],
-    queryFn: () => {
-      logger.log('🔄 [STATUS] Fetching overall execution status for:', executionId);
-      return getExecutionStatus(executionId!, selectedOrganizationId!);
-    },
+    queryFn: () => getExecutionStatus(executionId!, selectedOrganizationId!),
     enabled: !!executionId && !!selectedOrganizationId && pollingInterval !== false && !isDismissed,
     refetchInterval: pollingInterval,
     refetchOnWindowFocus: false,
@@ -155,18 +87,19 @@ export function SectionExecutionFeedback({
 
     // Only stop polling on errors, not on completion (sections handle completion)
     if (errorStates.includes(overallStatus)) {
-      logger.log(`❌ Execution ${overallStatus}, stopping polling`);
       setPollingInterval(false);
 
       if (!hasShownCompletedToast) {
         if (overallStatus === 'failed') {
-          logger.log('❌ Section execution failed!');
           setExecutionFailed(true);
-          toast.error(t('sectionFeedback.toast.failed'));
+          toast.error(
+            isMissingDependencyFailure(executionStatus?.status_message)
+              ? t('sectionFeedback.toast.missingDependency')
+              : t('sectionFeedback.toast.failed'),
+          );
           setHasShownCompletedToast(true);
           onComplete?.();
         } else if (overallStatus === 'cancelled') {
-          logger.log('🚫 Section execution cancelled!');
           toast.info(t('sectionFeedback.toast.cancelled'));
           setHasShownCompletedToast(true);
           onComplete?.();
@@ -176,35 +109,24 @@ export function SectionExecutionFeedback({
   }, [executionStatus?.status, hasShownCompletedToast, onComplete]);
 
   const handleRefresh = () => {
-    logger.log('🔄 Manual section refresh triggered');
     refetch();
     queryClient.invalidateQueries({ queryKey: ['execution-sections-status', executionId] });
     queryClient.invalidateQueries({ queryKey: ['execution-status', executionId] });
-    
+
     // Restart polling if it was stopped
     if (pollingInterval === false && !isDismissed) {
-      logger.log('🔄 Restarting section polling after manual refresh');
       setPollingInterval(2000);
     }
   };
 
   const handleDismiss = () => {
-    logger.log('❌ Section feedback dismissed by user');
     setIsDismissed(true);
     setPollingInterval(false);
     onDismiss?.();
   };
 
-  // Log section status
-  logger.log('📊 Section feedback decision:', {
-    currentSectionStatus: currentSectionStatus?.status,
-    isDismissed,
-    willShow: !isDismissed && currentSectionStatus && currentSectionStatus.status !== null
-  });
-
   // Don't show if dismissed or no status yet
-  if (isDismissed || !currentSectionStatus || currentSectionStatus.status === null) {
-    logger.log('❌ SectionExecutionFeedback: Not showing feedback - dismissed:', isDismissed, 'status:', currentSectionStatus?.status || 'no status');
+  if (isDismissed || currentSectionStatus.status === null || currentSectionStatus.status === undefined) {
     return null;
   }
 
@@ -213,7 +135,9 @@ export function SectionExecutionFeedback({
       return {
         icon: <XCircle className="h-5 w-5 text-red-600" />,
         text: t('sectionFeedback.status.failed'),
-        description: t('sectionFeedback.description.failed'),
+        description: isMissingDependencyFailure(executionStatus?.status_message)
+          ? t('sectionFeedback.description.missingDependency')
+          : t('sectionFeedback.description.failed'),
         bgColor: 'bg-red-50',
         borderColor: 'border-red-200',
         textColor: 'text-red-800'
@@ -276,7 +200,7 @@ export function SectionExecutionFeedback({
     )}>
       <div className="flex items-start justify-between">
         <div className="flex items-start space-x-3 flex-1">
-          <div className="flex-shrink-0 mt-0.5">
+          <div className="shrink-0 mt-0.5">
             {statusDisplay.icon}
           </div>
           <div className="flex-1 min-w-0">

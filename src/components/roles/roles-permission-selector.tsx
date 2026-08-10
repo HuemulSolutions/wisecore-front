@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
-import { Search, Shield, Users, Database, FileText, Settings, Brain, Lock, ChevronDown, ChevronRight, CheckSquare, Square } from "lucide-react"
+import { Search, Shield, Users, Database, FileText, Settings, Brain, Lock, Coins, ChevronDown, ChevronRight, CheckSquare, Square } from "lucide-react"
 import { type Permission, type PermissionWithStatus } from "@/services/rbac"
 import type { PermissionSelectorProps } from '@/types/roles'
 export type { PermissionSelectorProps } from '@/types/roles'
@@ -37,6 +37,8 @@ const getCategoryIcon = (category: string) => {
       return Brain
     case 'rbac':
       return Lock
+    case 'token_usage':
+      return Coins
     default:
       return Settings
   }

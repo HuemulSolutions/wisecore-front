@@ -186,7 +186,7 @@ export function SectionFormFieldCard({
                       onUpdate({ field_id: val });
                     }
                   }}
-                  placeholder="field_id"
+                  placeholder={t("form.formFields.fieldIdPlaceholder")}
                   className={`h-8 text-xs ${isDuplicate ? "border-red-400" : ""}`}
                   disabled={isPending}
                 />

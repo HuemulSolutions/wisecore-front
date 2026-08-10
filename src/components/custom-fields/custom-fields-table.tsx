@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge"
-import { Edit2, Trash2, FileText } from "lucide-react"
+import { Edit2, FileText } from "lucide-react"
 import type { CustomField, CustomFieldTableProps } from '@/types/custom-fields'
 export type { CustomFieldTableProps } from '@/types/custom-fields'
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
@@ -9,7 +9,6 @@ import { questionTypeLabel } from "@/components/sections/question-type-meta"
 export function CustomFieldTable({
   customFields,
   onEditCustomField,
-  onDeleteCustomField,
   pagination,
   canManage = false,
   isLoading = false,
@@ -88,14 +87,6 @@ export function CustomFieldTable({
       label: t('actions.editCustomField'),
       icon: Edit2,
       onClick: onEditCustomField,
-      separator: true
-    },
-    {
-      key: "delete",
-      label: t('actions.deleteCustomField'),
-      icon: Trash2,
-      onClick: onDeleteCustomField,
-      destructive: true
     }
   ] : []
 

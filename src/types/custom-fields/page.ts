@@ -5,7 +5,6 @@ export interface CustomFieldPageState {
   searchTerm: string
   editingCustomField: CustomField | null
   showCreateDialog: boolean
-  deletingCustomField: CustomField | null
 }
 
 export interface CustomFieldPageDialogsProps {

@@ -30,7 +30,9 @@ export interface TemplatesResponse {
     // Presentes solo cuando el listado se filtra por mostrar_en_workflow=true.
     document_type_id?: string;
     document_type_name?: string;
+    document_type_color?: string;
     require_name_on_express?: boolean;
+    name_placeholder?: string | null;
   }[];
   page: number;
   page_size: number;
@@ -50,7 +52,9 @@ export interface WorkflowTemplateItem {
   can_create_express?: boolean;
   document_type_id: string;
   document_type_name?: string;
+  document_type_color?: string;
   require_name_on_express?: boolean;
+  name_placeholder?: string | null;
 }
 
 // Filtros opcionales para GET /templates/

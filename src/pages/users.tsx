@@ -8,8 +8,6 @@ import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { type User, type UsersResponse } from "@/types/users"
 import { useUsers, useUserMutations, userQueryKeys } from "@/hooks/useUsers"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
-import { toast } from "sonner"
-import { handleApiError } from "@/lib/error-utils"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 
@@ -116,9 +114,6 @@ export default function UsersPage() {
       await queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       // Refetch to trigger the query execution
       await refetch()
-      toast.success(t('common:dataRefreshed'))
-    } catch (error) {
-      handleApiError(error, { fallbackMessage: t('common:refreshFailed') })
     } finally {
       setIsRefreshing(false)
     }
@@ -177,7 +172,7 @@ export default function UsersPage() {
             userCount={filteredUsers.length}
             onCreateUser={() => updateState({ showCreateDialog: true })}
             onRefresh={handleRefresh}
-            isLoading={isRefreshing}
+            isLoading={isRefreshing || isFetching}
             hasError={isError}
             searchTerm={state.searchTerm}
             onSearchChange={(value) => {

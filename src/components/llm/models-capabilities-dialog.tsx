@@ -6,14 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import type { ModelCapabilitiesDialogProps } from "@/types/models"
 export type { ModelCapabilitiesDialogProps } from "@/types/models"
-
-const ALL_CAPABILITIES = [
-  'text_input',
-  'text_output',
-  'image_input',
-  'image_output',
-  'tool_use',
-] as const
+import { LLM_CAPABILITIES } from "@/lib/llm-capabilities"
 
 export function ModelCapabilitiesDialog({
   open,
@@ -64,7 +57,7 @@ export function ModelCapabilitiesDialog({
       }}
     >
       <div className="space-y-3">
-        {ALL_CAPABILITIES.map((cap) => (
+        {LLM_CAPABILITIES.map((cap) => (
           <div key={cap} className="flex items-center gap-3">
             <Checkbox
               id={`cap-${cap}`}

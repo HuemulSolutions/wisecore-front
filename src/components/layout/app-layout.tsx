@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
-import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check, Image, Bell, BellRing, Workflow } from "lucide-react"
-import { useState, useMemo, useEffect, useRef, useCallback } from "react"
+import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check, Image, Bell, BellRing, Workflow, Coins, KeyRound } from "lucide-react"
+import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from "react"
 import { useTranslation } from "react-i18next"
 import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
 import { useQueryClient } from "@tanstack/react-query"
@@ -27,6 +27,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
+import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { OrganizationSelectionDialog } from "@/components/organization/organization-selection-dialog"
 import { OrganizationSwitcher } from "@/components/organization/organization-switcher"
@@ -35,7 +36,7 @@ import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useAuth } from "@/contexts/auth-context"
 
 import { ChatbotProvider } from "@/contexts/chatbot-provider"
-import { NavKnowledgeProvider } from "@/components/layout/nav-knowledge"
+import { NavKnowledgeProvider } from "@/contexts/nav-knowledge-provider"
 import { GlobalPanelProvider, useGlobalPanel } from "@/contexts/global-panel-context"
 import { WisyToggle } from "@/components/layout/global-panel-toggle"
 import { LlmConfigBanner } from "@/components/layout/llm-config-banner"
@@ -43,6 +44,7 @@ import { EditingGuardProvider, useOptionalEditingGuard } from "@/contexts/editin
 import EditUserSheet from "@/components/users/users-edit-sheet"
 import { SubscriptionsSheet } from "@/components/subscriptions/subscriptions-sheet"
 import { NotificationsSheet } from "@/components/notifications/notifications-sheet"
+import { TokensSheet } from "@/components/tokens/tokens-sheet"
 import { useUnreadNotificationsCount } from "@/hooks/useUnreadNotificationsCount"
 import { cn } from "@/lib/utils"
 import { logger } from "@/lib/logger"
@@ -98,7 +100,9 @@ function GlobalPanelOutlet() {
 
   const outletPanel = (
     <ResizablePanel order={side === "left" ? 2 : 1} defaultSize={isOpen ? 100 - defaultSize : 100} minSize={30} className="overflow-auto">
-      <Outlet />
+      <Suspense fallback={<PageSkeleton />}>
+        <Outlet />
+      </Suspense>
     </ResizablePanel>
   )
 
@@ -201,6 +205,7 @@ export default function AppLayout() {
   const [profileDialogOpen, setProfileDialogOpen] = useState(false)
   const [subscriptionsSheetOpen, setSubscriptionsSheetOpen] = useState(false)
   const [notificationsSheetOpen, setNotificationsSheetOpen] = useState(false)
+  const [tokensSheetOpen, setTokensSheetOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isInSelectionFlow, setIsInSelectionFlow] = useState(false)
   const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)
@@ -226,6 +231,7 @@ export default function AppLayout() {
     canAccessCanvas,
     canAccessDiagrams,
     canAccessExternalSystems,
+    canAccessTokenUsage,
     // hasPermission,
     hasAnyPermission,
   } = useUserPermissions()
@@ -390,7 +396,7 @@ export default function AppLayout() {
   // NOTA: isOrgAdmin hace bypass de permisos, isRootAdmin NO
   const hasAssetManagementAccess = canAccessDocumentTypes || isOrgAdmin || canAccessCanvas || canAccessDiagrams
   const canAccessOrganizations = isOrgAdmin || hasAnyPermission(['organization:l', 'organization:r'])
-  const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || canAccessOrganizations || canAccessExternalSystems || isOrgAdmin || isRootAdmin
+  const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || canAccessOrganizations || canAccessExternalSystems || canAccessTokenUsage || isOrgAdmin || isRootAdmin
   const hasSettingsAccess = hasAssetManagementAccess || hasAdministrationAccess || isRootAdmin || !!organizationToken
 
   // Generate initials from user name
@@ -419,6 +425,12 @@ export default function AppLayout() {
   const handleOpenNotifications = () => {
     setTimeout(() => {
       setNotificationsSheetOpen(true)
+    }, 0)
+  }
+
+  const handleOpenApiTokens = () => {
+    setTimeout(() => {
+      setTokensSheetOpen(true)
     }, 0)
   }
 
@@ -639,7 +651,7 @@ export default function AppLayout() {
                 const isSettingsActive = (path: string) => currentPath === path || currentPath.startsWith(path + '/')
                 const isAnySettingsActive = [
                   '/asset-types', '/custom-fields', '/canvas', '/diagrams', '/media',
-                  '/organizations', '/global-admin', '/users', '/roles', '/models', '/auth-types', '/external-systems'
+                  '/organizations', '/global-admin', '/users', '/roles', '/models', '/auth-types', '/external-systems', '/token-usage'
                 ].some(isSettingsActive)
 
                 const settingsItemClass = (path: string) => cn(
@@ -791,6 +803,15 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
+                        {(canAccessTokenUsage || isOrgAdmin) && (
+                          <DropdownMenuItem asChild>
+                            <Link to={buildPath("/token-usage")} className={settingsItemClass('/token-usage')}>
+                              <Coins className={settingsIconClass('/token-usage')} />
+                              <span className="flex-1">{t('settings.tokenUsage')}</span>
+                              {isSettingsActive('/token-usage') && <Check className="h-3.5 w-3.5 ml-auto" />}
+                            </Link>
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuGroup>
                     )}
                   </DropdownMenuContent>
@@ -854,6 +875,15 @@ export default function AppLayout() {
                         {t('header.mySubscriptions')}
                       </DropdownMenuItem>
                     )}
+                    {organizationToken && isOrgAdmin && (
+                      <DropdownMenuItem
+                        className="hover:cursor-pointer"
+                        onSelect={handleOpenApiTokens}
+                      >
+                        <KeyRound className="h-4 w-4 mr-2" />
+                        {t('header.apiTokens')}
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem className="hover:cursor-pointer text-red-600" onClick={handleSignOut}>
                       <LogOut className="h-4 w-4 mr-2" />
@@ -897,6 +927,15 @@ export default function AppLayout() {
           <NotificationsSheet
             open={notificationsSheetOpen}
             onOpenChange={setNotificationsSheetOpen}
+            organizationId={selectedOrganizationId}
+          />
+        )}
+
+        {/* API tokens sheet */}
+        {organizationToken && selectedOrganizationId && isOrgAdmin && (
+          <TokensSheet
+            open={tokensSheetOpen}
+            onOpenChange={setTokensSheetOpen}
             organizationId={selectedOrganizationId}
           />
         )}

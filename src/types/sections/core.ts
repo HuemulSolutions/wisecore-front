@@ -69,6 +69,26 @@ export interface FormValuesSectionPayload {
   form_fields: FormFieldValue[];
 }
 
+// Request de PATCH /section_executions/{id}/form_answer: una sola respuesta.
+// `id` es el FormFieldValue.id (snapshot), no el field_id. `value` puede ser null para vaciar.
+export interface FormAnswerRequest {
+  id: string;
+  value: unknown;
+}
+
+// Respuesta de PATCH /section_executions/{id}/form_answer. A diferencia de form_values,
+// es por sección: form_fields trae solo las preguntas de la section_execution respondida.
+export interface FormAnswerPayload {
+  answered_field: FormFieldValue;
+  // Próxima pregunta visible y respondible sin valor; null cuando no queda ninguna.
+  next_question: FormFieldValue | null;
+  is_complete: boolean;
+  // Cuentan solo preguntas visibles; pueden variar entre respuestas si se activan/desactivan dependientes.
+  total_questions: number;
+  answered_questions: number;
+  form_fields: FormFieldValue[];
+}
+
 // Una opción de opcion_multiple / lista_desplegable.
 // Se persiste como array directo en default_value: [{ id, label }, ...]
 export interface FormFieldOption {

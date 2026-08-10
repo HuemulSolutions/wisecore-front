@@ -4,6 +4,8 @@ import { logger } from '@/lib/logger'
 const AUTO_RECOVER_KEY = 'wisecore:auto-recovered-at'
 const AUTO_RECOVER_WINDOW_MS = 30_000
 
+const CHUNK_RECOVER_KEY = 'wisecore:chunk-recovered-at'
+
 /**
  * Errores lanzados desde la fase de mutación de React (commitDeletionEffects /
  * commitPlacement) cuando el DOM vivo ya no coincide con el árbol de fibers.
@@ -24,6 +26,22 @@ function isDomDesyncError(error: unknown): boolean {
   )
 }
 
+/**
+ * Fallo al descargar un chunk lazy (`React.lazy` / `import()`). Ocurre cuando
+ * el navegador tiene abierto un `index.html` de un build viejo y pide un
+ * chunk con un hash que un deploy posterior ya no sirve. La recuperación es
+ * recargar para obtener el `index.html` nuevo con las referencias correctas.
+ */
+function isChunkLoadError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  const message = error.message ?? ''
+  return (
+    message.includes('Failed to fetch dynamically imported module') ||
+    message.includes('error loading dynamically imported module') ||
+    message.includes('Importing a module script failed')
+  )
+}
+
 type Props = { children: ReactNode }
 type State = { error: Error | null }
 
@@ -41,6 +59,15 @@ export class AppErrorBoundary extends Component<Props, State> {
       logger.warn('[AppErrorBoundary] pagina traducida por el navegador detectada')
     }
 
+    if (isChunkLoadError(error)) {
+      // Un solo disparo: si tras recargar el chunk sigue fallando, no
+      // insistir en bucle — se muestra el fallback con botón manual.
+      if (sessionStorage.getItem(CHUNK_RECOVER_KEY)) return
+      sessionStorage.setItem(CHUNK_RECOVER_KEY, String(Date.now()))
+      window.location.reload()
+      return
+    }
+
     if (!isDomDesyncError(error)) return
 
     // Auto-recuperación de un solo disparo: nunca recargar dos veces dentro de
@@ -54,6 +81,7 @@ export class AppErrorBoundary extends Component<Props, State> {
 
   private handleReload = () => {
     sessionStorage.removeItem(AUTO_RECOVER_KEY)
+    sessionStorage.removeItem(CHUNK_RECOVER_KEY)
     window.location.reload()
   }
 

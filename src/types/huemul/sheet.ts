@@ -16,6 +16,7 @@ export interface HuemulSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
+  eyebrow?: string;
   description?: string;
   icon?: LucideIcon;
   iconClassName?: string;
@@ -32,5 +33,6 @@ export interface HuemulSheetProps {
   className?: string;
   bodyClassName?: string;
   headerExtra?: ReactNode;
+  footerLeft?: ReactNode;
   children: ReactNode;
 }

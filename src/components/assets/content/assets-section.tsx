@@ -48,8 +48,6 @@ function SectionExecutionInner({
     sectionType = 'ai',
     sectionName,
     status,
-    responderName,
-    respondedAt,
     canEditSections = false,
     onCreateSectionFromSelection,
     // onCopyLink,
@@ -774,8 +772,10 @@ function SectionExecutionInner({
                         sectionIndex={sectionIndex}
                         executionMode={executionMode}
                         onComplete={() => {
+                            // Content refresh is owned by AssetContent (a single invalidate per
+                            // polling tick, shared across all sections finishing together);
+                            // this banner only needs to know completion happened, not re-trigger it.
                             logger.log('🎯 Section execution feedback completed');
-                            onUpdate?.();
                         }}
                     />
                 </div>
@@ -819,8 +819,8 @@ function SectionExecutionInner({
                         canInteract={readyToEdit && canEditSections}
                         isEditing={isEditing}
                         onExitEditing={handleCancelEdit}
-                        responderName={responderName}
-                        respondedAt={respondedAt}
+                        reviewStatus={reviewStatus}
+                        onReviewStatusChange={setReviewStatus}
                         onUpdate={onUpdate}
                         onSavingChange={setIsFormSaving}
                     />

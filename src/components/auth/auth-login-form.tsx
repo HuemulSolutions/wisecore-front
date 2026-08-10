@@ -53,6 +53,7 @@ export function LoginForm({
             value={email}
             onChange={(v) => setEmail(v as string)}
             required
+            autoComplete="email"
           />
           <HuemulButton
             type="submit"

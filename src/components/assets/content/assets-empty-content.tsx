@@ -8,7 +8,7 @@ import { CreateTemplateDialog } from "@/components/templates/templates-create-di
 import { TemplateConfigSheet } from "@/components/assets/content/assets-template-sheet";
 import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
-import { useNavKnowledgeActions } from "@/components/layout/nav-knowledge";
+import { useNavKnowledgeActions } from "@/contexts/nav-knowledge-context";
 import { getTemplateById } from "@/services/templates";
 import type { AssetEmptyContentProps } from '@/types/assets';
 export type { AssetEmptyContentProps } from '@/types/assets';

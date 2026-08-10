@@ -49,6 +49,12 @@ export interface CustomFieldsListProps {
   uploadingImageFieldId?: string | null
   isRefreshing?: boolean
   canEdit?: boolean
+  /** Paginación del listado — si se omite onPageChange, no se muestra el footer de paginación. */
+  page?: number
+  pageSize?: number
+  totalItems?: number
+  hasNext?: boolean
+  onPageChange?: (page: number) => void
 }
 
 // ----------------------------------------
@@ -149,10 +155,6 @@ export interface SectionExecutionProps {
   sectionName?: string
   /** Estado de la sección (ej. "pending"). Para type="form" decide responder vs solo lectura */
   status?: string
-  /** Nombre del autor a mostrar en el footer de un formulario respondido (aprox. nivel documento) */
-  responderName?: string
-  /** Fecha (ISO) a mostrar en el footer de un formulario respondido */
-  respondedAt?: string
   canEditSections?: boolean
   onCreateSectionFromSelection?: (selectedMarkdown: string) => void
   onCopyLink?: () => void

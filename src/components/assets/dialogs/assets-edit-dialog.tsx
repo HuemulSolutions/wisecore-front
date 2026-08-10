@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { updateDocument, getDocumentById } from '@/services/assets';
 import { useOrganization } from '@/contexts/organization-context';
-import { HuemulDialog } from '@/huemul/components/huemul-dialog';
+import { HuemulSheet } from '@/huemul/components/huemul-sheet';
 import { HuemulField, HuemulFieldGroup, type FetchOptionsParams } from '@/huemul/components/huemul-field';
 import { getAssetTypes } from '@/services/asset-types';
 import { getUsers } from '@/services/users';
@@ -143,14 +143,14 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
   }, [name, description, internalCode, documentTypeId, createdBy, initialCreatedBy, mutation]);
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
       title={t('assets:edit.title')}
       description={t('assets:edit.description')}
       icon={Edit3}
+      side="right"
       maxWidth="sm:max-w-xl"
-      maxHeight="max-h-[90vh]"
       cancelLabel={t('common:cancel')}
       saveAction={{
         label: t('assets:edit.submitLabel'),
@@ -221,7 +221,7 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
           pageSize={20}
         />
       </HuemulFieldGroup>
-    </HuemulDialog>
+    </HuemulSheet>
   );
 });
 

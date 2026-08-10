@@ -19,6 +19,7 @@ import {
   Square,
   Table,
   TableOfContentsIcon,
+  Workflow,
 } from 'lucide-react';
 import { type TComboboxInputElement, KEYS } from 'platejs';
 import { PlateElement } from 'platejs/react';
@@ -30,6 +31,7 @@ import {
 } from '@/components/plate-editor/components/transforms';
 
 import { useMediaReference } from '@/contexts/media-reference-context';
+import { MERMAID_KEY } from '@/lib/plate-mermaid-utils';
 
 import {
   InlineCombobox,
@@ -130,6 +132,12 @@ export function SlashInputElement(
           keywords: ['image', 'img', 'photo', 'imagen', 'foto'],
           label: t('slash.items.image'),
           value: KEYS.img,
+        },
+        {
+          icon: <Workflow />,
+          keywords: ['mermaid', 'diagram', 'diagrama', 'flowchart', 'flujo'],
+          label: t('slash.items.mermaid'),
+          value: MERMAID_KEY,
         },
       ].map((item) => ({
         ...item,

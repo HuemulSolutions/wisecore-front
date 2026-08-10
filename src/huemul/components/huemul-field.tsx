@@ -68,6 +68,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { type DateRange } from "react-day-picker";
 
+// Sentinel para el ítem "sin valor" de type="select"/"radio" (Radix prohíbe value="").
+const EMPTY_OPTION_VALUE = "__huemul_empty__";
+
 // ── Browser locale helper ─────────────────────────────────────────────────
 
 const DATE_FNS_LOCALE_MAP: Record<string, Locale> = {
@@ -1549,10 +1552,13 @@ export function HuemulField({
   readOnly,
   options = [],
   groupedOptions,
+  emptyOptionLabel,
   accept,
   multiple,
   onFileChange,
   rows = 3,
+  maxLength,
+  showCharCount,
   min,
   max,
   step,
@@ -1569,6 +1575,7 @@ export function HuemulField({
   className,
   inputClassName,
   autoFocus,
+  autoComplete,
   inline,
   labelFirst,
   fetchOptions,
@@ -1618,7 +1625,7 @@ export function HuemulField({
 
   const handleSelectChange = React.useCallback(
     (val: string) => {
-      onChange?.(val);
+      onChange?.(val === EMPTY_OPTION_VALUE ? "" : val);
     },
     [onChange],
   );
@@ -1640,6 +1647,7 @@ export function HuemulField({
             disabled={disabled}
             readOnly={readOnly}
             rows={rows}
+            maxLength={maxLength}
             required={required}
             autoFocus={autoFocus}
             autoComplete="off"
@@ -1693,6 +1701,11 @@ export function HuemulField({
             >
               {selectTrigger}
               <SelectContent>
+                {emptyOptionLabel && (
+                  <SelectItem value={EMPTY_OPTION_VALUE} className="text-muted-foreground italic">
+                    {emptyOptionLabel}
+                  </SelectItem>
+                )}
                 {groupedOptions.map((group) => (
                   <SelectGroup key={group.groupLabel}>
                     {group.groupValue ? (
@@ -1743,6 +1756,11 @@ export function HuemulField({
             {selectTrigger}
             <SelectContent>
               <SelectGroup>
+                {emptyOptionLabel && (
+                  <SelectItem value={EMPTY_OPTION_VALUE} className="text-muted-foreground italic">
+                    {emptyOptionLabel}
+                  </SelectItem>
+                )}
                 {options.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
                     <span className="flex items-center gap-2">
@@ -1822,7 +1840,10 @@ export function HuemulField({
           />
         );
 
-      case "radio":
+      case "radio": {
+        const radioOptions = emptyOptionLabel
+          ? [...options, { value: EMPTY_OPTION_VALUE, label: emptyOptionLabel }]
+          : options;
         return (
           <RadioGroup
             id={fieldId}
@@ -1831,8 +1852,9 @@ export function HuemulField({
             disabled={disabled}
             className={cn("flex flex-row flex-wrap gap-4", inputClassName)}
           >
-            {options.map((opt) => {
+            {radioOptions.map((opt) => {
               const isSelected = String(value ?? "") === opt.value;
+              const isEmptyOption = opt.value === EMPTY_OPTION_VALUE;
               return (
                 <div key={opt.value} className="flex items-center">
                   <RadioGroupItem
@@ -1845,6 +1867,7 @@ export function HuemulField({
                     className={cn(
                       "inline-flex items-center gap-2 text-sm font-medium transition-colors hover:cursor-pointer select-none",
                       isSelected ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                      isEmptyOption && "italic",
                       disabled && "pointer-events-none opacity-50",
                     )}
                   >
@@ -1865,6 +1888,7 @@ export function HuemulField({
             })}
           </RadioGroup>
         );
+      }
 
       case "checkbox":
         return (
@@ -2138,10 +2162,11 @@ export function HuemulField({
             readOnly={readOnly}
             required={required}
             autoFocus={autoFocus}
-            autoComplete="off"
+            autoComplete={autoComplete ?? "off"}
             min={min}
             max={max}
             step={step}
+            maxLength={maxLength}
             aria-invalid={baseInvalid || undefined}
             className={inputClassName}
           />
@@ -2227,7 +2252,7 @@ export function HuemulField({
       ) : (
         <>
           {/* ── Label row ──────────────────────────────────────── */}
-          {(label || required || helpText || labelAction) && (
+          {(label || required || helpText || labelAction || (showCharCount && maxLength != null)) && (
           <div className="flex items-center gap-1">
             {label && (
             <Label
@@ -2251,6 +2276,19 @@ export function HuemulField({
             {helpText && <FieldHelpButton helpText={helpText} />}
 
             {labelAction && <FieldLabelAction action={labelAction} />}
+
+            {showCharCount && maxLength != null && (
+              <span
+                className={cn(
+                  "ml-auto text-xs tabular-nums",
+                  String(value ?? "").length >= maxLength
+                    ? "text-destructive"
+                    : "text-muted-foreground",
+                )}
+              >
+                {String(value ?? "").length}/{maxLength}
+              </span>
+            )}
           </div>
           )}
 

@@ -115,6 +115,33 @@ export const customFieldDataTypeLabel = (dataType: string, t: TFunction): string
     ? t(`custom-fields:dataTypes.${dataType}`, { defaultValue: dataType })
     : "";
 
+// Placeholder de ejemplo por question_type — única fuente de verdad para que el
+// placeholder mostrado al responder (asset-form-section.tsx) y el de la vista previa
+// (question-type-preview.tsx) nunca diverjan.
+export function getQuestionTypePlaceholder(
+  questionType: string | null | undefined,
+  t: TFunction,
+): string | undefined {
+  switch (questionType) {
+    case QUESTION_TYPE.shortAnswer:
+      return t("form.formFields.previewShortAnswer");
+    case QUESTION_TYPE.paragraph:
+      return t("form.formFields.previewLongAnswer");
+    case QUESTION_TYPE.email:
+      return t("form.formFields.previewEmail");
+    case QUESTION_TYPE.number:
+      return "0";
+    case QUESTION_TYPE.decimal:
+      return "1.2";
+    case QUESTION_TYPE.dropdown:
+      return t("form.fill.selectOption");
+    case QUESTION_TYPE.dropdownMultiple:
+      return t("form.fill.selectOptions");
+    default:
+      return undefined;
+  }
+}
+
 // ── Config de UI alojada en default_value (JSONB) ───────────────────────────
 
 // Lee la config de un field de forma segura (objeto plano; {} si null/legacy/array).
@@ -164,6 +191,30 @@ export const jsonbToInputValue = (v: unknown): string | number =>
 // llega desde el backend (ver normalizeSelectionValue).
 export const SINGLE_SELECT_QUESTION_TYPES: string[] = [QUESTION_TYPE.multipleChoice, QUESTION_TYPE.dropdown];
 export const MULTI_SELECT_QUESTION_TYPES: string[] = [QUESTION_TYPE.dropdownMultiple];
+
+// question_types cuyo valor se escribe carácter por carácter: el autoguardado espera a que
+// el campo pierda el foco (no hay "valor a medio hacer" en los demás, donde un click ya es
+// un valor completo). Ver ia context/question-type-input-guide.md.
+export const FREE_TEXT_QUESTION_TYPES: string[] = [
+  QUESTION_TYPE.shortAnswer,
+  QUESTION_TYPE.paragraph,
+  QUESTION_TYPE.email,
+  QUESTION_TYPE.number,
+  QUESTION_TYPE.decimal,
+];
+
+// data_types que HuemulQuestionInput resuelve con un widget atómico en su fallback
+// (question_type nulo/legacy) — todo lo demás del fallback es un input de texto.
+const ATOMIC_FALLBACK_DATA_TYPES = ["bool", "date", "time", "datetime", "list"];
+
+// Clasifica un campo como texto libre (guardado al blur) o atómico (guardado al cambiar).
+// Default para question_type desconocido/legacy: texto libre — es el camino seguro.
+export const isFreeTextField = (field: { question_type?: string | null; data_type?: string | null }): boolean =>
+  FREE_TEXT_QUESTION_TYPES.includes(field.question_type ?? "")
+    ? true
+    : !field.question_type || !Object.values(QUESTION_TYPE).includes(field.question_type as never)
+      ? !ATOMIC_FALLBACK_DATA_TYPES.includes(field.data_type ?? "")
+      : false;
 
 // Extrae los ids seleccionados de un value de selección, descartando los objetos-opción
 // (el backend inicializa value = default_value en campos sin responder, y default_value

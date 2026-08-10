@@ -1,13 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { Plus, File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, RefreshCw, Edit, Trash2, FileUp, FileJson, Search, X, FolderUp, ShieldCheck, Network, MoreVertical } from "lucide-react"
+import { Plus, File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, RefreshCw, Edit, Trash2, FileUp, FileJson, Search, X, FolderUp, ShieldCheck, Network, MoreVertical, Sparkles } from "lucide-react"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import type { MenuAction } from "@/types/menu-action"
-import { DEFAULT_PAGE_SIZE } from "@/huemul/constants"
 
 import {
   SidebarGroup,
@@ -21,32 +20,23 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Input } from "@/components/ui/input"
-import { FileTree, type FileTreeRef } from "@/components/assets/content/assets-file-tree"
+import { FileTree } from "@/components/assets/content/assets-file-tree"
 import type { FileNode } from "@/types/assets"
 import { useLocation } from "react-router-dom"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
-import { getLibraryContent, moveFolder, deleteFolder } from "@/services/folders"
+import { getLibraryContent, moveFolder } from "@/services/folders"
 import type { LibraryContent } from "@/types/folders"
-import { moveDocument, deleteDocument } from "@/services/assets"
-import { CreateAssetSheet } from "@/components/assets/dialogs/assets-create-sheet"
-import { ImportAssetFromFileSheet } from "@/components/assets/dialogs/assets-import-from-file-sheet"
-import { ImportConfigSheet } from "@/components/assets/dialogs/assets-import-config-sheet"
-import { CreateFolderSheet } from "@/components/assets/dialogs/assets-create-folder-sheet"
-import { DeleteFolderDialog } from "@/components/assets/dialogs/assets-delete-folder-dialog"
-import { DeleteDocumentDialog } from "@/components/assets/dialogs/assets-delete-dialog"
-import EditFolder from "@/components/assets/dialogs/assets-edit_folder"
-import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog"
-import AssetLifecycleSheet from "@/components/assets/dialogs/assets-lifecycle-sheet"
-import { FolderPermissionsSheet } from "@/components/folders/role-folder-permissions-sheet"
+import { moveDocument } from "@/services/assets"
 import { toast } from "sonner"
 import { useOptionalEditingGuard } from "@/contexts/editing-guard-context"
-import { handleApiError } from "@/lib/error-utils"
 import { ApiError } from "@/types/api-error"
 import { cn } from "@/lib/utils"
 import { logger } from "@/lib/logger"
-import type { LibraryContentFolderType } from "@/types/folders"
+import { useNavKnowledge } from "@/contexts/nav-knowledge-context"
+import { handleFolderActionError, isRootGroupFolderNode, buildFocusedTree } from "@/components/layout/nav-knowledge-utils"
 
 // Las áreas (subcarpetas de Grupal) se distinguen visualmente de una carpeta común.
 function renderKnowledgeFolderIcon(node: FileNode, isExpanded: boolean) {
@@ -63,510 +53,32 @@ function renderKnowledgeFolderIcon(node: FileNode, isExpanded: boolean) {
     : <Folder className="h-3.5 w-3.5 text-blue-500 shrink-0" />
 }
 
-// Mensajes traducidos para los códigos de error de la matriz de permisos de carpetas.
-// La UI ya oculta los botones correspondientes; esto es una defensa ante permisos que
-// cambiaron a mitad de sesión (el mensaje del backend igual se muestra para el resto de códigos).
-function handleFolderActionError(error: unknown, t: (key: string) => string, fallbackMessage: string) {
-  handleApiError(error, {
-    fallbackMessage,
-    onErrorCode: (code) => {
-      const key: Record<string, string> = {
-        FOLDER_NOT_DELETABLE: "knowledge.errors.folderNotDeletable",
-        FOLDER_NOT_MOVABLE: "knowledge.errors.folderNotMovable",
-        FOLDER_NOT_RENAMABLE: "knowledge.errors.folderNotRenamable",
-        FOLDER_ADMINISTER_REQUIRED: "knowledge.errors.folderAdministerRequired",
-        ORG_ADMIN_REQUIRED: "knowledge.errors.orgAdminRequired",
-        MANAGE_GROUPS_REQUIRED: "knowledge.errors.manageGroupsRequired",
-        FOLDER_NOT_GRANTABLE: "knowledge.errors.folderNotGrantable",
-      }
-      const messageKey = key[code]
-      if (!messageKey) return false
-      toast.error(t(messageKey))
-      return true
-    },
-  })
-}
-
-// Carpeta grupal custom: creada en la raíz real (parent_folder_id: "root"), sin folder_type,
-// hermana de Global/Forms/Grupal/Personal — distinta de las 5 carpetas fijas del sistema.
-function isRootGroupFolderNode(folderType: LibraryContentFolderType | null | undefined, parentFolderId: string | null | undefined): boolean {
-  return !folderType && parentFolderId === null
-}
-
-function buildFocusedTree(content: LibraryContent): FileNode[] {
-  const { folders, assets } = content
-
-  const folderMap = new Map<string, FileNode>()
-  for (const f of folders) {
-    folderMap.set(f.id, {
-      id: f.id,
-      name: f.name,
-      type: 'folder',
-      isExpanded: f.is_expanded,
-      hasChildren: true,
-      children: f.is_expanded ? [] : undefined,
-      isSystem: f.folder_type != null && f.folder_type !== 'area',
-      folder_type: f.folder_type,
-      isRootGroup: isRootGroupFolderNode(f.folder_type, f.parent_folder_id),
-      access_levels: f.access_levels,
-    })
-  }
-
-  for (const f of folders) {
-    if (!f.parent_folder_id) continue
-    const parent = folderMap.get(f.parent_folder_id)
-    if (parent?.isExpanded && parent.children) {
-      parent.children.push(folderMap.get(f.id)!)
-    }
-  }
-
-  // Assets de raíz, para devolverlos a nivel root
-  const rootAssetNodes: FileNode[] = []
-  for (const a of assets) {
-    const assetNode: FileNode = {
-      id: a.id,
-      name: a.name,
-      type: 'document' as const,
-      document_type: a.document_type,
-      access_levels: a.access_levels,
-    }
-    if (!a.folder_id) {
-      rootAssetNodes.push(assetNode)
-      continue
-    }
-    const parent = folderMap.get(a.folder_id)
-    if (parent?.isExpanded && parent.children) {
-      parent.children.push(assetNode)
-    }
-  }
-
-  // Una carpeta expandida por el backend refleja lo que realmente llegó:
-  // sin esto queda hasChildren:true con children:[] y refresh() la da por cargada.
-  for (const node of folderMap.values()) {
-    if (node.children) node.hasChildren = node.children.length > 0
-  }
-
-  const rootFolderNodes = folders
-    .filter(f => f.parent_folder_id === null)
-    .map(f => folderMap.get(f.id)!)
-    .filter(Boolean)
-
-  return [...rootFolderNodes, ...rootAssetNodes]
-}
-
-// Context para compartir el fileTreeRef entre header y content
-const NavKnowledgeContext = React.createContext<{
-  fileTreeRef: React.RefObject<FileTreeRef | null>
-  handleCreateAsset: (folderId?: string) => void
-  handleImportAsset: (folderId?: string) => void
-  handleImportConfig: () => void
-  handleCreateFolder: (folderId?: string) => void
-  handleCreateGroupFolder: () => void
-  handleShareFolder: (folder: { id: string; name: string }) => void
-  handleDeleteFolder: (folderId: string, folderName: string) => void
-  handleEditFolder: (folderId: string, currentName: string) => void
-  handleDeleteDocument: (documentId: string, documentName: string) => void
-  handleEditDocument: (documentId: string, currentName: string) => void
-  handleOpenAssetLifecycle: (documentId: string, documentName: string, documentTypeId: string | null) => void
-  refreshFileTree: () => void
-  isSearchOpen: boolean
-  setIsSearchOpen: (open: boolean) => void
-  searchTerm: string
-  setSearchTerm: (term: string) => void
-  committedSearch: string
-  setCommittedSearch: (term: string) => void
-  rootPage: number
-  rootPageSize: number
-  hasNextRootPage: boolean
-  setRootPage: (page: number) => void
-  setRootPageSize: (size: number) => void
-  setHasNextRootPage: (hasNext: boolean) => void
-  isRelationsMode: boolean
-  setIsRelationsMode: (mode: boolean) => void
-} | null>(null)
-
-export function NavKnowledgeProvider({ children }: { children: React.ReactNode }) {
-  const { t } = useTranslation('layout')
-  const navigate = useOrgNavigate()
-  const fileTreeRef = useRef<FileTreeRef>(null)
-  const [createAssetDialogOpen, setCreateAssetDialogOpen] = useState(false)
-  const [renderCreateAssetDialog, setRenderCreateAssetDialog] = useState(false)
-  const [importAssetDialogOpen, setImportAssetDialogOpen] = useState(false)
-  const [renderImportAssetDialog, setRenderImportAssetDialog] = useState(false)
-  const [importConfigDialogOpen, setImportConfigDialogOpen] = useState(false)
-  const [renderImportConfigDialog, setRenderImportConfigDialog] = useState(false)
-  const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false)
-  const [deleteFolderDialogOpen, setDeleteFolderDialogOpen] = useState(false)
-  const [deleteDocumentDialogOpen, setDeleteDocumentDialogOpen] = useState(false)
-  const [renderDeleteDocumentDialog, setRenderDeleteDocumentDialog] = useState(false)
-  const [editFolderDialogOpen, setEditFolderDialogOpen] = useState(false)
-  const [editDocumentDialogOpen, setEditDocumentDialogOpen] = useState(false)
-  const [assetLifecycleSheetOpen, setAssetLifecycleSheetOpen] = useState(false)
-  const [assetForLifecycle, setAssetForLifecycle] = useState<{ id: string; name: string; document_type_id: string | null } | null>(null)
-  const [currentFolderId, setCurrentFolderId] = useState<string | undefined>(undefined)
-  const [folderToDelete, setFolderToDelete] = useState<{ id: string; name: string } | null>(null)
-  const [documentToDelete, setDocumentToDelete] = useState<{ id: string; name: string } | null>(null)
-  const [folderToEdit, setFolderToEdit] = useState<{ id: string; name: string } | null>(null)
-  const [documentToEdit, setDocumentToEdit] = useState<{ id: string; name: string } | null>(null)
-  const [isDeletingDocument, setIsDeletingDocument] = useState(false)
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [committedSearch, setCommittedSearch] = useState('')
-  const [rootPage, setRootPage] = useState(1)
-  const [rootPageSize, setRootPageSize] = useState(DEFAULT_PAGE_SIZE)
-  const [hasNextRootPage, setHasNextRootPage] = useState(false)
-  const [isRelationsMode, setIsRelationsMode] = useState(false)
-  const [sharingFolder, setSharingFolder] = useState<{ id: string; name: string } | null>(null)
-  const { selectedOrganizationId } = useOrganization()
-  const { canAccessRoleFolders } = useUserPermissions()
-  // Marca que la carpeta en creación es una carpeta grupal custom de raíz, para encadenar
-  // el sheet de permisos al terminar (sin esto, quien solo tiene folder:manage_groups
-  // se queda sin acceso a lo que acaba de crear).
-  const pendingGroupFolderRef = useRef(false)
-
-  // Refs to keep callbacks stable across re-renders while accessing latest state
-  const navigateRef = useRef(navigate)
-  navigateRef.current = navigate
-  const documentToDeleteRef = useRef(documentToDelete)
-  documentToDeleteRef.current = documentToDelete
-  const selectedOrganizationIdRef = useRef(selectedOrganizationId)
-  selectedOrganizationIdRef.current = selectedOrganizationId
-  const isDeletingDocumentRef = useRef(isDeletingDocument)
-  isDeletingDocumentRef.current = isDeletingDocument
-
-  const handleCreateAsset = useCallback((folderId?: string) => {
-    setCurrentFolderId(folderId)
-    setRenderCreateAssetDialog(true)
-    setCreateAssetDialogOpen(true)
-  }, [])
-
-  const handleImportAsset = useCallback((folderId?: string) => {
-    setCurrentFolderId(folderId)
-    setRenderImportAssetDialog(true)
-    setImportAssetDialogOpen(true)
-  }, [])
-
-  const handleImportConfig = useCallback(() => {
-    setRenderImportConfigDialog(true)
-    setImportConfigDialogOpen(true)
-  }, [])
-
-  const handleCreateFolder = useCallback((folderId?: string) => {
-    pendingGroupFolderRef.current = false
-    setCurrentFolderId(folderId)
-    setCreateFolderDialogOpen(true)
-  }, [])
-
-  const handleCreateGroupFolder = useCallback(() => {
-    pendingGroupFolderRef.current = true
-    setCurrentFolderId('root')
-    setCreateFolderDialogOpen(true)
-  }, [])
-
-  const handleShareFolder = useCallback((folder: { id: string; name: string }) => {
-    setSharingFolder(folder)
-  }, [])
-
-  const handleAssetCreated = useCallback((createdAsset?: { id: string; name: string; type: string }) => {
-    logger.log('📥 [NAV-KNOWLEDGE] handleAssetCreated called:', createdAsset)
-
-    // Wait for the Radix exit animation (200 ms) to finish before
-    // triggering navigation, which causes a large re-render cascade
-    // through PermissionsProvider.  Navigating during the animation
-    // produces a visible "flash" of the dialog portal.
-    setTimeout(() => {
-      logger.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
-      fileTreeRef.current?.refresh()
-      // Navigate to the newly created asset
-      if (createdAsset) {
-        logger.log('🧭 [NAV-KNOWLEDGE] Navigating to asset:', `/asset/${createdAsset.id}`)
-        navigateRef.current(`/asset/${createdAsset.id}`, {
-          state: {
-            selectedDocumentId: createdAsset.id,
-            selectedDocumentName: createdAsset.name,
-            selectedDocumentType: createdAsset.type,
-            fromFileTree: true,
-          }
-        })
-        logger.log('✓ [NAV-KNOWLEDGE] Navigation initiated')
-      }
-    }, 300)
-  }, []) // stable — uses ref for navigate
-
-  const handleFolderCreated = useCallback((folder?: { id: string; name: string }) => {
-    fileTreeRef.current?.refresh()
-    if (pendingGroupFolderRef.current) {
-      pendingGroupFolderRef.current = false
-      // Sin un grant propio, quien solo tiene folder:manage_groups no verá esta carpeta
-      // después (queda 404 hasta que alguien con role_folder le otorgue acceso a un rol).
-      // Encadenamos el sheet de permisos en el mismo flujo de creación.
-      if (folder && canAccessRoleFolders) {
-        setSharingFolder(folder)
-      }
-    }
-  }, [canAccessRoleFolders])
-
-  const handleDeleteFolder = useCallback((folderId: string, folderName: string) => {
-    setFolderToDelete({ id: folderId, name: folderName })
-    setDeleteFolderDialogOpen(true)
-  }, [])
-
-  const handleEditFolder = useCallback((folderId: string, currentName: string) => {
-    setFolderToEdit({ id: folderId, name: currentName })
-    setEditFolderDialogOpen(true)
-  }, [])
-
-  const handleDeleteDocument = useCallback((documentId: string, documentName: string) => {
-    setDocumentToDelete({ id: documentId, name: documentName })
-    setRenderDeleteDocumentDialog(true)
-    setDeleteDocumentDialogOpen(true)
-  }, [])
-
-  const handleEditDocument = useCallback((documentId: string, currentName: string) => {
-    setDocumentToEdit({ id: documentId, name: currentName })
-    setEditDocumentDialogOpen(true)
-  }, [])
-
-  const handleFolderEdited = useCallback(() => {
-    fileTreeRef.current?.refresh()
-  }, [])
-
-  const handleDocumentEdited = useCallback(() => {
-    fileTreeRef.current?.refresh()
-  }, [])
-
-  const handleFolderDeleted = useCallback(async (deleteDocuments: boolean) => {
-    if (!folderToDelete || !selectedOrganizationId) return
-
-    try {
-      await deleteFolder(folderToDelete.id, selectedOrganizationId, deleteDocuments)
-      toast.success(t('knowledge.folderDeletedSuccess', { name: folderToDelete.name }))
-      setDeleteFolderDialogOpen(false)
-      setFolderToDelete(null)
-      fileTreeRef.current?.refresh()
-      if (deleteDocuments) {
-        // Navigate away from any open asset since it may have been deleted
-        setTimeout(() => {
-          navigateRef.current('/asset', { replace: true })
-        }, 300)
-      }
-    } catch (error) {
-      handleFolderActionError(error, t, t('knowledge.folderDeleteError'))
-      throw error
-    }
-  }, [folderToDelete, selectedOrganizationId, t])
-
-  // Stable callback for DeleteDocumentDialog onOpenChange.
-  // Uses ref to read isDeletingDocument without closing over it.
-  const deleteDocumentDialogOnOpenChange = useCallback((open: boolean) => {
-    if (!open && !isDeletingDocumentRef.current) {
-      setDeleteDocumentDialogOpen(false)
-      setDocumentToDelete(null)
-      // Unmount dialog after exit animation
-      setTimeout(() => setRenderDeleteDocumentDialog(false), 300)
-    }
-  }, [])
-
-  const handleDocumentDeleted = useCallback(async () => {
-    const doc = documentToDeleteRef.current
-    const orgId = selectedOrganizationIdRef.current
-    if (!doc || !orgId) return
-
-    setIsDeletingDocument(true)
-    try {
-      await deleteDocument(doc.id, orgId)
-      toast.success(t('knowledge.documentDeletedSuccess', { name: doc.name }))
-
-      // ONLY close the dialog — keep isDeletingDocument=true so:
-      //   1. ReusableAlertDialog's onOpenChange guard blocks any
-      //      Radix-initiated close event during the exit animation.
-      //   2. The dialog content (spinner / button label) doesn't
-      //      change mid-animation, avoiding a visual "flash".
-      setDeleteDocumentDialogOpen(false)
-
-      // Defer ALL remaining state resets, navigation, and tree refresh
-      // until after the Radix exit animation (200 ms) completes.
-      // Navigating during the animation causes a large re-render
-      // cascade (PermissionsProvider, Outlet swap) that interrupts
-      // the portal and produces a visible flash.
-      setTimeout(() => {
-        setIsDeletingDocument(false)
-        setDocumentToDelete(null)
-        setRenderDeleteDocumentDialog(false)
-        navigateRef.current('/asset', { replace: true })
-        fileTreeRef.current?.refresh()
-      }, 300)
-    } catch (error) {
-      handleApiError(error, { fallbackMessage: t('knowledge.documentDeleteError') })
-      setIsDeletingDocument(false)
-    }
-  }, []) // stable — uses refs for mutable values
-
-  const handleCreateAssetDialogChange = useCallback((open: boolean) => {
-    logger.log('🔄 [NAV-KNOWLEDGE] CreateAssetDialog onOpenChange:', open)
-    setCreateAssetDialogOpen(open)
-    if (!open) {
-      // Unmount the dialog component AFTER the Radix exit animation
-      // (200 ms) finishes. This guarantees that context-triggered
-      // re-renders (e.g. PermissionsProvider, useOrganization) that
-      // bypass React.memo cannot touch the portal and produce a flash.
-      setTimeout(() => setRenderCreateAssetDialog(false), 300)
-    }
-  }, [])
-
-  const handleImportAssetDialogChange = useCallback((open: boolean) => {
-    setImportAssetDialogOpen(open)
-    if (!open) {
-      setTimeout(() => setRenderImportAssetDialog(false), 300)
-    }
-  }, [])
-
-  const handleImportConfigDialogChange = useCallback((open: boolean) => {
-    setImportConfigDialogOpen(open)
-    if (!open) {
-      setTimeout(() => setRenderImportConfigDialog(false), 300)
-    }
-  }, [])
-
-  const handleOpenAssetLifecycle = useCallback((documentId: string, documentName: string, documentTypeId: string | null) => {
-    setAssetForLifecycle({ id: documentId, name: documentName, document_type_id: documentTypeId })
-    setAssetLifecycleSheetOpen(true)
-  }, [])
-
-  const refreshFileTree = useCallback(() => {
-    logger.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
-    fileTreeRef.current?.refresh()
-  }, [])
-
-  return (
-    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage, isRelationsMode, setIsRelationsMode }}>
-      {children}
-      {renderCreateAssetDialog && (
-        <CreateAssetSheet
-          open={createAssetDialogOpen}
-          onOpenChange={handleCreateAssetDialogChange}
-          folderId={currentFolderId}
-          onAssetCreated={handleAssetCreated}
-        />
-      )}
-      {renderImportAssetDialog && (
-        <ImportAssetFromFileSheet
-          open={importAssetDialogOpen}
-          onOpenChange={handleImportAssetDialogChange}
-          folderId={currentFolderId}
-          onAssetCreated={handleAssetCreated}
-        />
-      )}
-      {renderImportConfigDialog && (
-        <ImportConfigSheet
-          open={importConfigDialogOpen}
-          onOpenChange={handleImportConfigDialogChange}
-          onImported={refreshFileTree}
-        />
-      )}
-      <CreateFolderSheet
-        open={createFolderDialogOpen}
-        onOpenChange={setCreateFolderDialogOpen}
-        parentFolder={currentFolderId}
-        onFolderCreated={handleFolderCreated}
-      />
-      <DeleteFolderDialog
-        open={deleteFolderDialogOpen}
-        onOpenChange={setDeleteFolderDialogOpen}
-        folderName={folderToDelete?.name || ""}
-        onConfirm={handleFolderDeleted}
-      />
-      <EditFolder
-        open={editFolderDialogOpen}
-        onOpenChange={setEditFolderDialogOpen}
-        folderId={folderToEdit?.id || ""}
-        currentName={folderToEdit?.name || ""}
-        onFolderEdited={handleFolderEdited}
-      />
-      {renderDeleteDocumentDialog && (
-        <DeleteDocumentDialog
-          open={deleteDocumentDialogOpen}
-          onOpenChange={deleteDocumentDialogOnOpenChange}
-          documentName={documentToDelete?.name || ""}
-          onConfirm={handleDocumentDeleted}
-          isDeleting={isDeletingDocument}
-        />
-      )}
-      <EditDocumentDialog
-        open={editDocumentDialogOpen}
-        onOpenChange={setEditDocumentDialogOpen}
-        documentId={documentToEdit?.id || ""}
-        currentName={documentToEdit?.name || ""}
-        onUpdated={handleDocumentEdited}
-      />
-      <AssetLifecycleSheet
-        asset={assetForLifecycle}
-        open={assetLifecycleSheetOpen}
-        onOpenChange={setAssetLifecycleSheetOpen}
-      />
-      <FolderPermissionsSheet
-        folder={sharingFolder}
-        open={!!sharingFolder}
-        onOpenChange={(open: boolean) => { if (!open) setSharingFolder(null) }}
-      />
-    </NavKnowledgeContext.Provider>
-  )
-}
-
-function useNavKnowledge() {
-  const context = React.useContext(NavKnowledgeContext)
-  if (!context) {
-    throw new Error('useNavKnowledge must be used within NavKnowledgeProvider')
-  }
-  return context
-}
-
-// Export hook for external use
-export function useNavKnowledgeRefresh() {
-  const context = React.useContext(NavKnowledgeContext)
-  return context?.refreshFileTree || (() => {})
-}
-
-// Export hook for accessing dialog actions (create asset, create folder, etc.)
-export function useNavKnowledgeActions() {
-  const context = React.useContext(NavKnowledgeContext)
-  return {
-    handleCreateAsset: context?.handleCreateAsset || (() => {}),
-    handleCreateFolder: context?.handleCreateFolder || (() => {}),
-  }
-}
-
-// Export hook for accessing pagination state of the root file tree
-export function useNavKnowledgePagination() {
-  const context = React.useContext(NavKnowledgeContext)
-  return {
-    page: context?.rootPage ?? 1,
-    pageSize: context?.rootPageSize ?? 50,
-    hasNext: context?.hasNextRootPage ?? false,
-    hasPrevious: (context?.rootPage ?? 1) > 1,
-    setPage: context?.setRootPage ?? (() => {}),
-    setPageSize: context?.setRootPageSize ?? (() => {}),
-  }
-}
-
-export function useNavKnowledgeMode() {
-  const context = React.useContext(NavKnowledgeContext)
-  return {
-    isRelationsMode: context?.isRelationsMode ?? false,
-    setIsRelationsMode: context?.setIsRelationsMode ?? (() => {}),
-  }
-}
-
 export function NavKnowledgeHeader() {
   const { t } = useTranslation('layout')
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch, isRelationsMode, setIsRelationsMode } = useNavKnowledge()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch, isRelationsMode, setIsRelationsMode } = useNavKnowledge()
   const { canCreate, isOrgAdmin, hasAnyPermission, canManageGroupFolders } = useUserPermissions()
+  const [isRefreshingTree, setIsRefreshingTree] = useState(false)
+
+  const handleRefreshTree = async () => {
+    setIsRefreshingTree(true)
+    try {
+      await fileTreeRef.current?.refresh()
+    } finally {
+      setIsRefreshingTree(false)
+    }
+  }
 
   const canCreateAsset = canCreate('asset')
   const canCreateFolder = canCreate('folder')
   // POST /folder/ con parent_folder_id: "root" requiere folder:c y (is_org_admin o folder:manage_groups).
   const canCreateGroupFolder = canCreateFolder && canManageGroupFolders
+  // Requiere poder listar AMBOS catálogos: sin systems no hay cascada, sin functionalities no hay qué elegir.
+  const canBrowseExternalCatalog =
+    isOrgAdmin ||
+    (hasAnyPermission(['external_system:l', 'external_system:r']) &&
+      hasAnyPermission(['external_functionality:l', 'external_functionality:r']))
+  const canImportFromExternal = canCreateAsset && canBrowseExternalCatalog
   const hasAnyCreatePermission = canCreateAsset || canCreateFolder
   const canListExecRelationships = isOrgAdmin || hasAnyPermission(['execution_relationship:l', 'execution_relationship:r'])
 
@@ -595,14 +107,16 @@ export function NavKnowledgeHeader() {
           >
             {isSearchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
           </Button>
-          <Button
+          <HuemulButton
             variant="ghost"
             size="icon"
-            className="h-6 w-6 hover:cursor-pointer"
-            onClick={() => fileTreeRef.current?.refresh()}
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
+            className="h-6 w-6"
+            icon={RefreshCw}
+            iconClassName="h-4 w-4"
+            tooltip={t('common:refresh')}
+            loading={isRefreshingTree}
+            onClick={handleRefreshTree}
+          />
           {hasAnyCreatePermission && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -612,10 +126,10 @@ export function NavKnowledgeHeader() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {canCreateAsset && (
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onSelect={() => {
                       setTimeout(() => handleCreateAsset(), 0)
-                    }} 
+                    }}
                     className="hover:cursor-pointer"
                   >
                     <File className="mr-2 h-4 w-4" />
@@ -631,6 +145,17 @@ export function NavKnowledgeHeader() {
                   >
                     <FileUp className="mr-2 h-4 w-4" />
                     {t('knowledge.importAsset')}
+                  </DropdownMenuItem>
+                )}
+                {canImportFromExternal && (
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setTimeout(() => handleImportAssetFromExternal(), 0)
+                    }}
+                    className="hover:cursor-pointer"
+                  >
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    {t('knowledge.importAssetFromExternal')}
                   </DropdownMenuItem>
                 )}
                 {canCreateAsset && (
@@ -711,13 +236,18 @@ export function NavKnowledgeContent() {
   const navigate = useOrgNavigate()
   const location = useLocation()
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage, isRelationsMode } = useNavKnowledge()
+  const { fileTreeRef, pendingFocusAssetIdRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleCreateFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage, isRelationsMode } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
   const [documentTypeIds, setDocumentTypeIds] = useState<Map<string, string>>(new Map())
   const [nodeParentIds, setNodeParentIds] = useState<Map<string, string | null>>(new Map())
   const previousOrgId = React.useRef<string | null>(null)
-  const { canCreate, canUpdate, canDelete, isOrgAdmin, canAccessRoleFolders, canManageGroupFolders } = useUserPermissions()
+  const { canCreate, canUpdate, canDelete, isOrgAdmin, hasAnyPermission, canAccessRoleFolders, canManageGroupFolders } = useUserPermissions()
+  // Requiere poder listar AMBOS catálogos: sin systems no hay cascada, sin functionalities no hay qué elegir.
+  const canBrowseExternalCatalog =
+    isOrgAdmin ||
+    (hasAnyPermission(['external_system:l', 'external_system:r']) &&
+      hasAnyPermission(['external_functionality:l', 'external_functionality:r']))
   const { guardedAction } = useOptionalEditingGuard()
 
   // Refs so handleLoadChildren callback stays stable while always reading latest values
@@ -823,7 +353,7 @@ export function NavKnowledgeContent() {
       previousOrgId.current = selectedOrganizationId
       return
     }
-    
+
     // Only refresh if organization actually changed
     if (selectedOrganizationId && selectedOrganizationId !== previousOrgId.current) {
       previousOrgId.current = selectedOrganizationId
@@ -847,7 +377,10 @@ export function NavKnowledgeContent() {
 
       try {
         const isRoot = folderId === null
-        const focusAssetId = isRoot ? activeAssetIdRef.current : null
+        const focusAssetId = isRoot ? (pendingFocusAssetIdRef.current ?? activeAssetIdRef.current) : null
+        // Consumo único — no debe reusarse en refrescos posteriores no
+        // relacionados, ni siquiera si esta carga falla.
+        if (isRoot && pendingFocusAssetIdRef.current) pendingFocusAssetIdRef.current = null
         // Tracks whether the focused-tree branch actually ran. Starts optimistic
         // and gets demoted to false if the focus asset turns out to be invalid
         // (stale id, deleted asset, or leftover from another organization).
@@ -1030,6 +563,22 @@ export function NavKnowledgeContent() {
     [selectedOrganizationId, folderNames, t]
   )
 
+  // Debe declararse antes de cualquier early return (ver bug de "Rendered more
+  // hooks than during the previous render" cuando selectedOrganizationId pasa
+  // de null a un valor y este hook aparecía después del guard de abajo).
+  const handleDelete = useCallback(
+    async (nodeId: string, nodeType: "document" | "folder") => {
+      if (nodeType === "folder") {
+        const folderName = folderNames.get(nodeId) || "this folder"
+        handleDeleteFolder(nodeId, folderName)
+      } else if (nodeType === "document") {
+        const documentName = documentNames.get(nodeId) || "this document"
+        handleDeleteDocument(nodeId, documentName)
+      }
+    },
+    [folderNames, documentNames, handleDeleteFolder, handleDeleteDocument]
+  )
+
   const menuActions: MenuAction[] = [
     {
       label: t('knowledge.newAsset'),
@@ -1054,6 +603,20 @@ export function NavKnowledgeContent() {
       show: (node) => {
         if (node.type !== "folder") return false
         if (node.folder_type === 'grupal' || node.folder_type === 'forms') return false
+        return canCreate('asset') || node.access_levels?.includes('create') || false
+      },
+      variant: "default",
+    },
+    {
+      label: t('knowledge.importAssetFromExternal'),
+      icon: <Sparkles className="h-4 w-4" />,
+      onClick: async (nodeId) => {
+        handleImportAssetFromExternal(nodeId)
+      },
+      show: (node) => {
+        if (node.type !== "folder") return false
+        if (node.folder_type === 'grupal' || node.folder_type === 'forms') return false
+        if (!canBrowseExternalCatalog) return false
         return canCreate('asset') || node.access_levels?.includes('create') || false
       },
       variant: "default",
@@ -1207,19 +770,6 @@ export function NavKnowledgeContent() {
     return null
   }
 
-  const handleDelete = useCallback(
-    async (nodeId: string, nodeType: "document" | "folder") => {
-      if (nodeType === "folder") {
-        const folderName = folderNames.get(nodeId) || "this folder"
-        handleDeleteFolder(nodeId, folderName)
-      } else if (nodeType === "document") {
-        const documentName = documentNames.get(nodeId) || "this document"
-        handleDeleteDocument(nodeId, documentName)
-      }
-    },
-    [folderNames, documentNames, handleDeleteFolder, handleDeleteDocument]
-  )
-
   return (
     <>
     <SidebarGroup>
@@ -1294,6 +844,8 @@ export function NavKnowledgeContent() {
           showCreateButtons={false}
           initialFolderId={null}
           showBorder={false}
+          // El refresh ya lo ofrece el botón del header de la sección (NavKnowledgeHeader) —
+          // un solo control por contenedor.
           showRefreshButton={false}
           alwaysShowMenuActions={true}
           preserveExpandedOnRefresh={!activeAssetId}

@@ -35,6 +35,9 @@ export interface Execution {
   change_summary: string | null
   change_summary_error: string | null
   previous_execution_id: string | null
+  summary_status: 'pending' | 'completed' | 'failed' | null
+  summary: string | null
+  summary_error: string | null
 }
 
 export interface ExecutionsResponse {

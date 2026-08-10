@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Workflow, AlertCircle } from "lucide-react";
+import { Workflow, AlertCircle, Plus, RefreshCw } from "lucide-react";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
+import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDiagrams } from "@/hooks/useDiagrams";
-import { DiagramEditSheet } from "@/components/diagrams";
+import { DiagramViewSheet } from "@/components/diagrams";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useOrgPath } from "@/hooks/useOrgRouter";
 import { formatApiDateTime } from "@/lib/utils";
 import type { Diagram } from "@/types/diagrams";
 
@@ -15,6 +18,7 @@ export interface AssetDiagramsSheetProps {
   onOpenChange: (open: boolean) => void;
   documentId: string;
   organizationId: string;
+  executionId?: string;
 }
 
 function DiagramRow({ diagram, documentId, onClick }: { diagram: Diagram; documentId: string; onClick: () => void }) {
@@ -44,17 +48,28 @@ function ListSkeleton() {
   );
 }
 
-export function AssetDiagramsSheet({ open, onOpenChange, documentId, organizationId }: AssetDiagramsSheetProps) {
-  const { t } = useTranslation("diagrams");
+export function AssetDiagramsSheet({ open, onOpenChange, documentId, organizationId, executionId }: AssetDiagramsSheetProps) {
+  const { t } = useTranslation(["diagrams", "common"]);
   const [selectedDiagramId, setSelectedDiagramId] = useState<string | null>(null);
+  const { isOrgAdmin, hasPermission } = useUserPermissions();
+  const buildPath = useOrgPath();
 
-  const { data, isLoading, isError } = useDiagrams(organizationId, {
+  const { data, isLoading, isError, isFetching, refetch } = useDiagrams(organizationId, {
     enabled: open && !!documentId,
     documentId,
     pageSize: 100,
   });
 
   const diagrams = data?.data ?? [];
+
+  const canCreate = isOrgAdmin || hasPermission("diagram:c");
+
+  const handleCreate = () => {
+    if (!documentId) return;
+    const params = new URLSearchParams({ diagram: "new", seedAsset: documentId });
+    if (executionId) params.set("seedExecution", executionId);
+    window.open(buildPath(`/asset?${params}`), "_blank", "noopener,noreferrer");
+  };
 
   return (
     <>
@@ -65,38 +80,62 @@ export function AssetDiagramsSheet({ open, onOpenChange, documentId, organizatio
         description={t("relatedSheet.description")}
         icon={Workflow}
         showFooter={false}
+        maxWidth="sm:max-w-xl"
       >
-        {isLoading && <ListSkeleton />}
-
-        {!isLoading && isError && (
-          <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
-            <AlertCircle className="h-6 w-6 text-red-400" />
-            <p className="text-xs text-muted-foreground">{t("relatedSheet.loadingError")}</p>
+        <div className="flex flex-col h-full -mx-6">
+          <div className="flex items-center justify-between px-6 pb-3 mb-3 border-b border-gray-100">
+            {canCreate && documentId ? (
+              <HuemulButton size="sm" icon={Plus} onClick={handleCreate}>
+                {t("relatedSheet.createAction")}
+              </HuemulButton>
+            ) : (
+              <span />
+            )}
+            <HuemulButton
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              icon={RefreshCw}
+              tooltip={t("common:refresh")}
+              loading={isFetching}
+              onClick={() => refetch()}
+            />
           </div>
-        )}
 
-        {!isLoading && !isError && diagrams.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
-            <Workflow className="h-7 w-7 text-gray-200" />
-            <p className="text-xs text-muted-foreground">{t("relatedSheet.empty")}</p>
-          </div>
-        )}
+          <div className="flex-1 overflow-y-auto px-6 pb-4">
+            {isLoading && <ListSkeleton />}
 
-        {!isLoading && !isError && diagrams.length > 0 && (
-          <div className="space-y-2">
-            {diagrams.map((diagram) => (
-              <DiagramRow
-                key={diagram.id}
-                diagram={diagram}
-                documentId={documentId}
-                onClick={() => setSelectedDiagramId(diagram.id)}
-              />
-            ))}
+            {!isLoading && isError && (
+              <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
+                <AlertCircle className="h-6 w-6 text-red-400" />
+                <p className="text-xs text-muted-foreground">{t("relatedSheet.loadingError")}</p>
+              </div>
+            )}
+
+            {!isLoading && !isError && diagrams.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
+                <Workflow className="h-7 w-7 text-gray-200" />
+                <p className="text-xs text-muted-foreground">{t("relatedSheet.empty")}</p>
+              </div>
+            )}
+
+            {!isLoading && !isError && diagrams.length > 0 && (
+              <div className="space-y-2">
+                {diagrams.map((diagram) => (
+                  <DiagramRow
+                    key={diagram.id}
+                    diagram={diagram}
+                    documentId={documentId}
+                    onClick={() => setSelectedDiagramId(diagram.id)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </HuemulSheet>
 
-      <DiagramEditSheet
+      <DiagramViewSheet
         open={!!selectedDiagramId}
         onOpenChange={(o) => { if (!o) setSelectedDiagramId(null); }}
         diagramId={selectedDiagramId}

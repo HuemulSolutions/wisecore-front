@@ -65,10 +65,16 @@ export interface HuemulFieldProps {
   readOnly?: boolean;
   options?: HuemulFieldOption[];
   groupedOptions?: HuemulFieldOptionGroup[];
+  /** Si se define, agrega un ítem "sin valor" (select: primero; radio: último) que al elegirlo hace onChange(""). Solo aplica a type="select"/"radio". */
+  emptyOptionLabel?: string;
   accept?: string;
   multiple?: boolean;
   onFileChange?: (files: FileList | null) => void;
   rows?: number;
+  /** Límite duro de caracteres (aplica a type "text" y "textarea"). */
+  maxLength?: number;
+  /** Muestra contador "n/maxLength" a la derecha del label. Requiere maxLength. */
+  showCharCount?: boolean;
   min?: number;
   max?: number;
   step?: number;

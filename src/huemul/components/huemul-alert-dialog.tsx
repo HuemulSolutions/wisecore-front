@@ -3,6 +3,7 @@ import { Loader2, AlertTriangle, Check } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -31,6 +32,7 @@ export function HuemulAlertDialog({
   cancelLabel = "Cancel",
   successDelay = 600,
   className,
+  alert,
 }: HuemulAlertDialogProps) {
   const [actionState, setActionState] = React.useState<ActionState>("idle");
 
@@ -62,6 +64,7 @@ export function HuemulAlertDialog({
 
   const isProcessing = actionState !== "idle";
   const ActionIcon = actionIcon;
+  const AlertIcon = alert?.icon ?? AlertTriangle;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -77,6 +80,16 @@ export function HuemulAlertDialog({
             />
             <AlertDialogTitle>{title}</AlertDialogTitle>
           </div>
+          {alert && (
+            <Alert
+              variant="destructive"
+              className="mt-1 border-destructive/30 bg-destructive/10"
+            >
+              <AlertIcon className="size-4" />
+              {alert.title && <AlertTitle className="line-clamp-none">{alert.title}</AlertTitle>}
+              {alert.description && <AlertDescription>{alert.description}</AlertDescription>}
+            </Alert>
+          )}
           {description && (
             <AlertDialogDescription asChild={typeof description !== "string"}>
               {typeof description === "string" ? description : <div>{description}</div>}

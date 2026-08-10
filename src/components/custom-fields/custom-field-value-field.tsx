@@ -140,6 +140,7 @@ export function CustomFieldValueField({
       value={toQuestionInputValue()}
       onChange={handleChange}
       options={options}
+      noValueLabel={t("addDialog.noValueOption")}
       min={typeof minValue === "number" ? minValue : undefined}
       max={typeof maxValue === "number" ? maxValue : undefined}
       minLabel={minLabel}
