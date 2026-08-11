@@ -228,9 +228,14 @@ export default function AppLayout() {
     canAccessDocumentTypes,
     canAccessExternalSystems,
     canAccessTokenUsage,
-    canAccessNotifications,
     hasAnyPermission,
   } = useUserPermissions()
+
+  // Badge y entrada de notificaciones: ambas abren una LECTURA, así que se
+  // gatean con `notification:l|r` y no con el helper `canAccessNotifications`
+  // (cualquier acción sobre el recurso). Mismo gate en useUnreadNotificationsCount
+  // y en NotificationsSheet — una affordance, un solo criterio.
+  const canListNotifications = hasAnyPermission(['notification:l', 'notification:r'])
   
   // --- Sync URL orgId → organization context (shared URL / pasted link scenario) ---
   // Only triggers when the URL's orgId ACTUALLY changes (user navigated to a
@@ -832,7 +837,7 @@ export default function AppLayout() {
                           {getUserInitials(user.name, user.last_name)}
                         </AvatarFallback>
                       </Avatar>
-                      {organizationToken && canAccessNotifications && unreadNotificationsCount > 0 && (
+                      {organizationToken && canListNotifications &&unreadNotificationsCount > 0 && (
                         <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center h-4 min-w-[1rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-medium leading-none">
                           {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
                         </span>
@@ -854,7 +859,7 @@ export default function AppLayout() {
                       <User className="h-4 w-4 mr-2" />
                       {t('header.updateProfile')}
                     </DropdownMenuItem>
-                    {organizationToken && canAccessNotifications && (
+                    {organizationToken && canListNotifications &&(
                       <DropdownMenuItem
                         className="hover:cursor-pointer"
                         onSelect={handleOpenNotifications}

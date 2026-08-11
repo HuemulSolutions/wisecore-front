@@ -153,7 +153,10 @@ export function NotificationsSheet({
   const { t } = useTranslation(["notifications"])
   const queryClient = useQueryClient()
   const navigate = useOrgNavigate()
-  const { canAccessNotifications } = useUserPermissions()
+  // `notification:l|r` — el permiso del endpoint que dispara, no el helper
+  // `canAccessNotifications` (cualquier acción sobre el recurso).
+  const { hasAnyPermission } = useUserPermissions()
+  const canListNotifications = hasAnyPermission(["notification:l", "notification:r"])
 
   const [notifFilter, setNotifFilter] = useState<"all" | "unread">("all")
   const [page, setPage] = useState(1)
@@ -177,7 +180,7 @@ export function NotificationsSheet({
         page,
         page_size: pageSize,
       }),
-    enabled: open && !!organizationId && canAccessNotifications,
+    enabled: open && !!organizationId && canListNotifications,
     staleTime: 30000,
     refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,

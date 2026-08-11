@@ -327,6 +327,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
           onOpenChange={handleCreateAssetDialogChange}
           folderId={currentFolderId}
           onAssetCreated={handleAssetCreated}
+          canCreate={canAsset('createAsset')}
         />
       )}
       {renderImportAssetDialog && (
@@ -335,6 +336,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
           onOpenChange={handleImportAssetDialogChange}
           folderId={currentFolderId}
           onAssetCreated={handleAssetCreated}
+          canCreate={canAsset('createAsset')}
         />
       )}
       {renderImportExternalDialog && (

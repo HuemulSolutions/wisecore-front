@@ -9,6 +9,7 @@ import {
   GitBranch,
   ExternalLink,
   MessageCircle,
+  Loader2,
 } from 'lucide-react';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { HuemulPageLayout } from '@/huemul/components/huemul-page-layout';
@@ -23,6 +24,7 @@ import { HuemulFilterInline } from '@/huemul/components/huemul-filter-inline';
 import { HuemulCustomFieldFilter } from '@/huemul/components/huemul-custom-field-filter';
 import { HuemulStatCard } from '@/huemul/components/huemul-stat-card';
 import { HuemulLifecycleBadge } from '@/huemul/components/huemul-lifecycle-badge';
+import { HuemulAccessDenied } from '@/huemul/components/huemul-access-denied';
 import type { HuemulStatCardColor } from '@/huemul/components/huemul-stat-card';
 import { useHuemulFilters } from '@/hooks/useHuemulFilters';
 import { ImportAssetFromFileSheet } from '@/components/assets/dialogs/assets-import-from-file-sheet';
@@ -34,7 +36,7 @@ import { useUnreadNotificationsCount } from '@/hooks/useUnreadNotificationsCount
 import { NotificationsSheet } from '@/components/notifications/notifications-sheet';
 import { useOrganization } from '@/contexts/organization-context';
 import { useAuth } from '@/contexts/auth-context';
-import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { usePageAccess } from '@/hooks/usePageAccess';
 import { getUsers } from '@/services/users';
 import { getDocumentTypes } from '@/services/document-types';
 import type { FetchOptionsParams, FetchOptionsResult } from '@/huemul/components/huemul-field';
@@ -57,10 +59,15 @@ function getInitials(name: string): string {
 export default function Home() {
   const { t } = useTranslation('home');
   const { t: tAssets } = useTranslation('assets');
-  const { selectedOrganizationId } = useOrganization();
+  const { selectedOrganizationId, organizationToken } = useOrganization();
   const { user } = useAuth();
   const navigate = useOrgNavigate();
-  const { canAccessNotifications } = useUserPermissions();
+  // /home no tiene guard de ruta (es el destino de todo rebote), así que cada
+  // panel se gatea a sí mismo. Ver ia context/rbac-audit-guide.md.
+  const { can, isLoading: isLoadingPermissions } = usePageAccess('home');
+
+  const canListExecutions = can('listExecutions');
+  const canCreateAsset = can('createAsset');
 
   const unreadNotificationsCount = useUnreadNotificationsCount(selectedOrganizationId);
 
@@ -89,7 +96,7 @@ export default function Home() {
 
   const { data: stats, isLoading: statsLoading } = useDocumentStatistics(
     selectedOrganizationId ?? '',
-    !!selectedOrganizationId,
+    !!selectedOrganizationId && !!organizationToken && can('readStatistics'),
   );
 
   const fetchDocumentTypes = useCallback(
@@ -121,11 +128,18 @@ export default function Home() {
 
   const { t: tFilters } = useTranslation('huemul-filters');
 
+  const canListAssetTypes = can('listAssetTypes');
+  const canListUsers = can('listUsers');
+  const canListCustomFields = can('listCustomFields');
+
   const filterDefs = useMemo<HuemulFilterDef[]>(() => {
     const search = tFilters('groups.search');
     const classification = tFilters('groups.classification');
     const dates = tFilters('groups.dates');
     const other = tFilters('groups.other');
+    // Cada combobox asíncrono pega a su propio endpoint: se omite la entrada
+    // completa cuando falta el permiso, lo que además elimina su chip sin
+    // tocar useHuemulFilters (mismo mecanismo que /diagrams).
     return [
       {
         key: 'searchType',
@@ -167,52 +181,76 @@ export default function Home() {
           { value: 'archived', label: tAssets('lifecycle.stateLabels.archived') },
         ],
       },
-      {
-        key: 'documentTypeId',
-        type: 'async-combobox',
-        group: classification,
-        label: t('filters.documentType'),
-        placeholder: t('filters.allDocumentTypes'),
-        fetchOptions: fetchDocumentTypes,
-        pageSize: 50,
-        searchOnEnter: true,
-      },
-      {
-        key: 'ownerValue',
-        type: 'async-combobox',
-        group: classification,
-        label: t('filters.ownerScope'),
-        placeholder: t('filters.allOwners'),
-        fetchOptions: fetchUsers,
-        pageSize: 20,
-        searchOnEnter: true,
-        staticOptions: [
-          { value: '__me__', label: t('filters.ownerMe'), description: t('filters.ownerMeDescription') },
-        ],
-        staticOptionsLabel: t('filters.ownerScopeLabel'),
-        asyncResultsLabel: t('filters.ownerUsersLabel'),
-      },
+      ...(canListAssetTypes
+        ? [
+            {
+              key: 'documentTypeId',
+              type: 'async-combobox',
+              group: classification,
+              label: t('filters.documentType'),
+              placeholder: t('filters.allDocumentTypes'),
+              fetchOptions: fetchDocumentTypes,
+              pageSize: 50,
+              searchOnEnter: true,
+            } as HuemulFilterDef,
+          ]
+        : []),
+      // Sin `user:l|r` el filtro no se omite, se degrada: la opción "__me__"
+      // manda `owner_scope=me` (no lista usuarios) y además es lo que escribe
+      // el KPI "Propios". Omitir la entrada dejaría ese valor sin chip y fuera
+      // del alcance de "Limpiar todo" — ambos derivan de `filterDefs`.
+      canListUsers
+        ? ({
+            key: 'ownerValue',
+            type: 'async-combobox',
+            group: classification,
+            label: t('filters.ownerScope'),
+            placeholder: t('filters.allOwners'),
+            fetchOptions: fetchUsers,
+            pageSize: 20,
+            searchOnEnter: true,
+            staticOptions: [
+              { value: '__me__', label: t('filters.ownerMe'), description: t('filters.ownerMeDescription') },
+            ],
+            staticOptionsLabel: t('filters.ownerScopeLabel'),
+            asyncResultsLabel: t('filters.ownerUsersLabel'),
+          } as HuemulFilterDef)
+        : ({
+            key: 'ownerValue',
+            type: 'select',
+            group: classification,
+            label: t('filters.ownerScope'),
+            allValue: '',
+            options: [
+              { value: '', label: t('filters.allOwners') },
+              { value: '__me__', label: t('filters.ownerMe') },
+            ],
+          } as HuemulFilterDef),
       { key: 'expirationDate', type: 'date-range', group: dates, label: t('filters.expirationDate') },
       { key: 'estimatedPublicationDate', type: 'date-range', group: dates, label: t('filters.estimatedPublicationDate') },
       { key: 'reviewDate', type: 'date-range', group: dates, label: t('filters.reviewDate') },
       { key: 'auditDate', type: 'date-range', group: dates, label: t('filters.auditDate') },
-      {
-        key: 'customFieldFilter',
-        type: 'custom',
-        multiEntry: true,
-        group: t('filters.customFieldsGroup'),
-        label: t('filters.customFields'),
-        render: ({ value, setValue }) => (
-          <HuemulCustomFieldFilter
-            value={Array.isArray(value) ? (value as string[]) : []}
-            onChange={(next) => setValue(next)}
-          />
-        ),
-      },
+      ...(canListCustomFields
+        ? [
+            {
+              key: 'customFieldFilter',
+              type: 'custom',
+              multiEntry: true,
+              group: t('filters.customFieldsGroup'),
+              label: t('filters.customFields'),
+              render: ({ value, setValue }) => (
+                <HuemulCustomFieldFilter
+                  value={Array.isArray(value) ? (value as string[]) : []}
+                  onChange={(next) => setValue(next)}
+                />
+              ),
+            } as HuemulFilterDef,
+          ]
+        : []),
       { key: 'hasUnresolvedComments', type: 'boolean', group: other, label: t('filters.unresolvedComments') },
       { key: 'expiringSoon', type: 'boolean', group: other, label: t('filters.expiringSoon') },
     ];
-  }, [t, tAssets, tFilters, fetchDocumentTypes, fetchUsers]);
+  }, [t, tAssets, tFilters, fetchDocumentTypes, fetchUsers, canListAssetTypes, canListUsers, canListCustomFields]);
 
   const {
     values,
@@ -252,7 +290,7 @@ export default function Home() {
   const audit = (values.auditDate as HuemulDateRangeValue | undefined) ?? {};
 
   const { data, isLoading, isFetching, refetch, error } = useAllExecutions(selectedOrganizationId ?? '', {
-    enabled: !!selectedOrganizationId,
+    enabled: !!selectedOrganizationId && !!organizationToken && canListExecutions,
     page,
     pageSize: PAGE_SIZE,
     query: (values.query as string) || undefined,
@@ -285,17 +323,21 @@ export default function Home() {
 
   const executions = data?.data ?? [];
 
-  const tableActions: HuemulTableAction<Execution>[] = [
-    {
-      key: 'openAsset',
-      label: t('executionsTable.actions.openAsset'),
-      icon: ExternalLink,
-      onClick: (item) => {
-        const url = `${window.location.origin}/${selectedOrganizationId}/asset/${item.document_id}?execution=${item.id}`;
-        window.open(url, '_blank', 'noopener,noreferrer');
-      },
-    },
-  ];
+  // La acción abre /asset/{id}, cuya ruta exige asset:r|l: sin el permiso el
+  // usuario aterrizaría en un rebote del guard en vez de en el asset.
+  const tableActions: HuemulTableAction<Execution>[] = can('openAsset')
+    ? [
+        {
+          key: 'openAsset',
+          label: t('executionsTable.actions.openAsset'),
+          icon: ExternalLink,
+          onClick: (item) => {
+            const url = `${window.location.origin}/${selectedOrganizationId}/asset/${item.document_id}?execution=${item.id}`;
+            window.open(url, '_blank', 'noopener,noreferrer');
+          },
+        },
+      ]
+    : [];
 
   const columns: HuemulTableColumn<Execution>[] = [
     {
@@ -508,28 +550,34 @@ export default function Home() {
           {t(`greeting.${greetingPeriod}`, { name: user?.name ?? '' })}
         </h1>
         <div className="flex items-center gap-2">
-          <HuemulButton
-            variant="outline"
-            icon={FileUp}
-            label={t('actions.uploadDocument')}
-            onClick={() => setImportDialogOpen(true)}
-          />
-          <HuemulButton
-            variant="outline"
-            icon={ClipboardList}
-            label={t('actions.pendingReviews')}
-            onClick={() => setReviewsSheetOpen(true)}
-          />
-          <HuemulButton
-            icon={Plus}
-            label={t('actions.createAsset')}
-            onClick={() => setCreateDialogOpen(true)}
-          />
+          {canCreateAsset && (
+            <HuemulButton
+              variant="outline"
+              icon={FileUp}
+              label={t('actions.uploadDocument')}
+              onClick={() => setImportDialogOpen(true)}
+            />
+          )}
+          {can('listAssets') && (
+            <HuemulButton
+              variant="outline"
+              icon={ClipboardList}
+              label={t('actions.pendingReviews')}
+              onClick={() => setReviewsSheetOpen(true)}
+            />
+          )}
+          {canCreateAsset && (
+            <HuemulButton
+              icon={Plus}
+              label={t('actions.createAsset')}
+              onClick={() => setCreateDialogOpen(true)}
+            />
+          )}
         </div>
       </div>
       <p className="text-sm text-muted-foreground">
         {formattedDate}
-        {canAccessNotifications && (
+        {can('listNotifications') && (
           <>
             {' · '}
             <button
@@ -544,6 +592,16 @@ export default function Home() {
       </p>
     </div>
   );
+
+  // Nunca un 403 de página completa: /home es el destino de todo rebote, así
+  // que se degrada panel por panel y siempre queda algo alcanzable.
+  if (isLoadingPermissions) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -562,7 +620,9 @@ export default function Home() {
                 onClose={() => setFiltersOpen(false)}
               />
             ),
-            show: filtersOpen,
+            // Los filtros solo alimentan la query de ejecuciones: sin permiso
+            // para listarlas no hay nada que filtrar.
+            show: filtersOpen && canListExecutions,
             defaultSize: 22,
             minSize: 16,
             maxSize: 35,
@@ -588,70 +648,78 @@ export default function Home() {
                   </div>
                 )}
 
-                <div className="shrink-0 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <HuemulFilterButton
-                      count={activeCount}
-                      open={filtersOpen}
-                      onToggle={() => setFiltersOpen(!filtersOpen)}
-                    />
-                    <HuemulFilterInline
-                      filters={filterDefs}
-                      values={values}
-                      onChange={handleFilterChange}
-                      onSelectedLabel={setSelectedLabel}
-                    />
-                  </div>
-                  {!isLoading && (
-                    <p className="shrink-0 text-sm text-muted-foreground">
-                      {t('executionsTable.resultsCount', { count: executions.length })}
-                    </p>
-                  )}
-                </div>
+                {canListExecutions && (
+                  <>
+                    <div className="shrink-0 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <HuemulFilterButton
+                          count={activeCount}
+                          open={filtersOpen}
+                          onToggle={() => setFiltersOpen(!filtersOpen)}
+                        />
+                        <HuemulFilterInline
+                          filters={filterDefs}
+                          values={values}
+                          onChange={handleFilterChange}
+                          onSelectedLabel={setSelectedLabel}
+                        />
+                      </div>
+                      {!isLoading && (
+                        <p className="shrink-0 text-sm text-muted-foreground">
+                          {t('executionsTable.resultsCount', { count: executions.length })}
+                        </p>
+                      )}
+                    </div>
 
-                <HuemulFilterChips
-                  chips={chips}
-                  onRemove={handleChipRemove}
-                  onClearAll={handleClearAll}
-                />
+                    <HuemulFilterChips
+                      chips={chips}
+                      onRemove={handleChipRemove}
+                      onClearAll={handleClearAll}
+                    />
+                  </>
+                )}
 
                 <div className="flex-1 min-h-0">
-                  <HuemulTable
-                    data={executions}
-                    columns={columns}
-                    getRowKey={(item) => item.id}
-                    isLoading={isLoading}
-                    isFetching={isFetching}
-                    actions={tableActions}
-                    actionsMode="inline"
-                    resizable
-                    columnsStorageKey="wisecore:home-executions-col-widths"
-                    className="h-full"
-                    maxHeight=""
-                    sort={sort}
-                    onSortChange={(s) => { setSort(s); setPage(1); }}
-                    error={error as Error | null}
-                    onRetry={() => {
-                      if (ApiError.isApiError(error) && error.code === 'INVALID_SORT') {
-                        setSort(null);
-                        setPage(1);
-                      } else {
-                        refetch();
-                      }
-                    }}
-                    emptyState={{
-                      icon: GitBranch,
-                      title: t('executionsTable.empty.title'),
-                      description: t('executionsTable.empty.description'),
-                    }}
-                    pagination={{
-                      page,
-                      pageSize: PAGE_SIZE,
-                      hasNext: data?.has_next,
-                      hasPrevious: page > 1,
-                      onPageChange: setPage,
-                    }}
-                  />
+                  {!canListExecutions ? (
+                    <HuemulAccessDenied variant="inline" />
+                  ) : (
+                    <HuemulTable
+                      data={executions}
+                      columns={columns}
+                      getRowKey={(item) => item.id}
+                      isLoading={isLoading}
+                      isFetching={isFetching}
+                      actions={tableActions}
+                      actionsMode="inline"
+                      resizable
+                      columnsStorageKey="wisecore:home-executions-col-widths"
+                      className="h-full"
+                      maxHeight=""
+                      sort={sort}
+                      onSortChange={(s) => { setSort(s); setPage(1); }}
+                      error={error as Error | null}
+                      onRetry={() => {
+                        if (ApiError.isApiError(error) && error.code === 'INVALID_SORT') {
+                          setSort(null);
+                          setPage(1);
+                        } else {
+                          refetch();
+                        }
+                      }}
+                      emptyState={{
+                        icon: GitBranch,
+                        title: t('executionsTable.empty.title'),
+                        description: t('executionsTable.empty.description'),
+                      }}
+                      pagination={{
+                        page,
+                        pageSize: PAGE_SIZE,
+                        hasNext: data?.has_next,
+                        hasPrevious: page > 1,
+                        onPageChange: setPage,
+                      }}
+                    />
+                  )}
                 </div>
               </div>
             ),
@@ -663,6 +731,7 @@ export default function Home() {
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}
         onAssetCreated={handleAssetCreated}
+        canCreate={canCreateAsset}
       />
 
       <HuemulSheet
@@ -681,6 +750,7 @@ export default function Home() {
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         onAssetCreated={handleAssetCreated}
+        canCreate={canCreateAsset}
       />
 
       {selectedOrganizationId && (

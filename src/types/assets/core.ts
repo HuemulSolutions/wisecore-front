@@ -289,6 +289,12 @@ export interface CreateAssetSheetProps {
   onOpenChange: (open: boolean) => void;
   folderId?: string;
   onAssetCreated?: (asset: { id: string; name: string; type: "document" }) => void;
+  /**
+   * `asset:c` resuelto por el consumidor. Obligatoria a propósito (sin default):
+   * el sheet muta `POST /documents/`, y un call-site que se olvide de pasarla
+   * debe romper el build en vez de reabrir el hueco en silencio.
+   */
+  canCreate: boolean;
 }
 
 export interface CreateFolderSheetProps {

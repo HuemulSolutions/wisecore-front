@@ -24,6 +24,7 @@ export function ImportAssetFromFileSheet({
   onOpenChange,
   folderId,
   onAssetCreated,
+  canCreate,
 }: ImportAssetFromFileSheetProps) {
   const { selectedOrganizationId } = useOrganization()
   const { t } = useTranslation('assets')
@@ -110,6 +111,7 @@ export function ImportAssetFromFileSheet({
   })
 
   const handleImport = () => {
+    if (!canCreate) return
     if (!selectedOrganizationId) {
       toast.error(t('create.errorOrganizationRequired'))
       return
@@ -129,7 +131,11 @@ export function ImportAssetFromFileSheet({
     importMutation.mutate()
   }
 
-  const isValid = !!name.trim() && !!file && !!documentTypeId && !!selectedOrganizationId
+  const isValid = canCreate && !!name.trim() && !!file && !!documentTypeId && !!selectedOrganizationId
+
+  // Defensa en profundidad: aunque el trigger esté oculto, el sheet no se
+  // monta sin `asset:c`.
+  if (!canCreate) return null
 
   return (
     <HuemulSheet

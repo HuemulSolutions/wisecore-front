@@ -21,11 +21,11 @@ import type { CreateAssetRequest, CreateAssetSheetProps } from "@/types/assets"
 
 type ContentMode = "blank" | "template"
 
-function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated }: CreateAssetSheetProps) {
+function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated, canCreate }: CreateAssetSheetProps) {
   const { selectedOrganizationId } = useOrganization()
   const { t } = useTranslation('assets')
   const { t: tCommon } = useTranslation('common')
-  const { canCreate } = useUserPermissions()
+  const { canCreate: canCreateResource } = useUserPermissions()
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [internalCode, setInternalCode] = useState("")
@@ -127,6 +127,7 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated }:
   })
 
   const handleCreate = () => {
+    if (!canCreate) return
     if (!selectedOrganizationId) {
       toast.error(t('create.errorOrganizationRequired'))
       return
@@ -172,6 +173,10 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated }:
 
   const disabled = createAssetMutation.isPending
 
+  // Defensa en profundidad: aunque el trigger esté oculto, el sheet no se
+  // monta sin `asset:c`.
+  if (!canCreate) return null
+
   return (
     <>
       <HuemulSheet
@@ -188,6 +193,7 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated }:
           onClick: handleCreate,
           loading: createAssetMutation.isPending,
           disabled:
+            !canCreate ||
             !name.trim() ||
             !documentTypeId ||
             !selectedOrganizationId ||
@@ -228,7 +234,7 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated }:
               // Atajo "crear tipo de asset": se decide con el permiso del recurso
               // (asset_type:c) desde el contexto, no leyendo is_root_admin del JWT
               // a mano — root admin NO hace bypass de permisos, y org admin sí.
-              canCreate('asset_type')
+              canCreateResource('asset_type')
                 ? { icon: PlusCircle, onClick: () => setShowCreateDocTypeDialog(true), tooltip: t('form.newType') }
                 : undefined
             }
@@ -302,7 +308,7 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated }:
       {showCreateDocTypeDialog && (
         <CreateDocumentType
           trigger={<div />} // Empty trigger since we control it programmatically
-          canSave={canCreate('asset_type')}
+          canSave={canCreateResource('asset_type')}
           open={showCreateDocTypeDialog}
           onOpenChange={handleDocumentTypeDialogClose}
           onDocumentTypeCreated={handleNewDocumentTypeCreated}

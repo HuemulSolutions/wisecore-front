@@ -1813,6 +1813,7 @@ function RelationshipsCanvasFlow({
           open={!!pendingNewAssetConnection}
           onOpenChange={(o) => !o && setPendingNewAssetConnection(null)}
           onAssetCreated={handleNewAssetCreated}
+          canCreate={canCreate('asset')}
         />
       )}
 

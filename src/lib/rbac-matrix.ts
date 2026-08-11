@@ -46,6 +46,35 @@ export interface RbacPageSpec {
 }
 
 export const RBAC_PAGES = {
+  home: {
+    // Ruta NO org-scoped (vive fuera de `/:orgId`): es la landing de todo
+    // redirect — RootRedirect, el rebote de /advanced cuando falta el permiso
+    // de una sección, y el de cualquier guard de ruta.
+    //
+    // Sin `routePermissions` a propósito: /home nunca debe dar un 403 de
+    // página completa, o un usuario sin permisos queda sin ningún destino
+    // alcanzable. Todo su RBAC vive en `features` y se aplica panel por panel
+    // (tabla, KPIs, botones, filtros). Ver ia context/rbac-audit-guide.md.
+    route: "/home",
+    nav: { title: "Home", orgScoped: false },
+    features: {
+      // GET /execution/ — mismo permiso que `listExecutions` de `advanced` y
+      // de `diagrams`: mismo endpoint, mismo recurso.
+      listExecutions: ["section_execution:l", "section_execution:r"],
+      readStatistics: ["asset:l", "asset:r"], // GET /documents/statistics (KPIs)
+      listAssets: ["asset:l", "asset:r"], // GET /documents/ (panel de reseñas pendientes)
+      // La acción de fila abre /asset/{id}, cuyo guard exige asset:r|l — sin
+      // esto la acción existe pero aterriza en un rebote del guard de ruta.
+      openAsset: ["asset:r", "asset:l"],
+      createAsset: "asset:c", // crear asset + importar desde archivo
+      // Los filtros son superficie RBAC: cada combobox asíncrono pega a su
+      // propio endpoint y sin permiso se come un 403 mudo al abrirse.
+      listAssetTypes: ["asset_type:l", "asset_type:r"], // filtro documentTypeId
+      listUsers: ["user:l", "user:r"], // filtro ownerValue + nombres del panel de reseñas
+      listCustomFields: ["custom_fields:l", "custom_fields:r"], // filtro customFieldFilter
+      listNotifications: ["notification:l", "notification:r"],
+    },
+  },
   templates: {
     route: "templates",
     routePermissions: ["template:r", "template:l"],
