@@ -4,6 +4,7 @@ import {
   type Permission
 } from '@/lib/jwt-utils';
 import { logger } from '@/lib/logger';
+import { sessionEvents } from '@/lib/session-events';
 import type { PermissionsContextType, PermissionsProviderProps } from '@/types/permissions-context'
 export type { PermissionsContextType }
 
@@ -171,11 +172,25 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
     };
 
     window.addEventListener('storage', handleStorageChange);
-    
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
+
+  // Reset explícito en transiciones de sesión (login/logout) en ESTA pestaña.
+  // El listener de 'storage' arriba solo dispara desde OTRAS pestañas, y el
+  // polling de tokens solo actúa cuando hay datos nuevos VÁLIDOS — ninguno de
+  // los dos limpia el estado cuando un segundo usuario inicia sesión en la
+  // misma pestaña sin seleccionar organización todavía. Sin esto, isRootAdmin
+  // stale del usuario anterior sobrevive y abre rutas requireRootAdmin al
+  // usuario nuevo (ver ia context/rbac-audit-guide.md).
+  useEffect(() => {
+    return sessionEvents.subscribe(() => {
+      logger.log('Session reset, forcing permissions clean...');
+      refreshPermissions(true);
+    });
+  }, [refreshPermissions]);
 
   // Funciones de verificación que usan el estado local para mejor rendimiento
   // NOTA: isOrgAdmin hace bypass de permisos, isRootAdmin NO (solo da acceso a rutas admin)

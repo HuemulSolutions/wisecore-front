@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ArrowLeft } from "lucide-react"
 import { useMutation } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
@@ -20,11 +20,16 @@ import {
 } from "@/components/ui/input-otp"
 import { authService } from "@/services/auth"
 import { useAuth } from "@/contexts/auth-context"
-import { getErrorMessage } from "@/lib/error-utils"
-import packageJson from "../../../package.json"
+import { isStatusCode } from "@/lib/error-utils"
+import { AuthLegalFooter } from "@/components/auth/auth-legal-footer"
 import type { OTPFormProps } from "@/types/auth"
 
 export type { OTPFormProps } from "@/types/auth"
+
+// El primer código ya se acaba de enviar desde LoginForm — arrancar el
+// cooldown también al montar evita un reenvío inmediato que solo produciría
+// el mismo código o un rate-limit del backend.
+const RESEND_COOLDOWN_SECONDS = 60
 
 export function OTPForm({
   className,
@@ -35,6 +40,7 @@ export function OTPForm({
   ...props
 }: OTPFormProps) {
   const [code, setCode] = useState("")
+  const [resendCooldown, setResendCooldown] = useState(RESEND_COOLDOWN_SECONDS)
   const { login } = useAuth()
   const { t } = useTranslation('auth')
 
@@ -53,7 +59,39 @@ export function OTPForm({
 
   const resendMutation = useMutation({
     mutationFn: () => authService.requestCode({ email, purpose }),
+    onSuccess: () => {
+      setResendCooldown(RESEND_COOLDOWN_SECONDS)
+    },
   })
+
+  // Cuenta atrás de 1s; al llegar a 0 también limpia el mensaje de éxito del
+  // reenvío anterior (si no, "¡Código enviado!" queda visible indefinidamente).
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const interval = setInterval(() => {
+      setResendCooldown((seconds) => {
+        if (seconds <= 1) {
+          resendMutation.reset()
+          return 0
+        }
+        return seconds - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resendMutation es estable entre renders (react-query)
+  }, [resendCooldown])
+
+  const verifyError = verifyMutation.error
+    ? isStatusCode(verifyMutation.error, 429)
+      ? t('errors.tooManyRequests')
+      : t('errors.invalidCode')
+    : null
+
+  const resendError = resendMutation.error
+    ? isStatusCode(resendMutation.error, 429)
+      ? t('errors.tooManyRequests')
+      : t('errors.resendFailed')
+    : null
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -63,6 +101,7 @@ export function OTPForm({
   }
 
   const handleResend = () => {
+    if (resendCooldown > 0 || resendMutation.isPending) return
     resendMutation.mutate()
   }
 
@@ -118,28 +157,35 @@ export function OTPForm({
             </div>
             <FieldDescription className="text-center text-gray-600">
               {t('otp.didntReceiveCode')}{" "}
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault()
-                  handleResend()
-                }}
-                className="hover:cursor-pointer text-[#4464f7] hover:text-[#3451e6] font-medium transition-colors"
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resendCooldown > 0 || resendMutation.isPending}
+                className="text-[#4464f7] hover:text-[#3451e6] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-[#4464f7]"
               >
-                {resendMutation.isPending ? t('otp.sending') : t('otp.resend')}
-              </a>
+                {resendMutation.isPending
+                  ? t('otp.sending')
+                  : resendCooldown > 0
+                    ? t('otp.resendIn', { seconds: resendCooldown })
+                    : t('otp.resend')}
+              </button>
             </FieldDescription>
           </Field>
           <HuemulButton
             type="submit"
-            label={t('otp.verifyCode')}
+            label={verifyMutation.isPending ? t('otp.verifying') : t('otp.verifyCode')}
             loading={verifyMutation.isPending}
             disabled={code.length !== 6}
             className="w-full bg-[#4464f7] hover:bg-[#3451e6] text-white font-medium py-2.5 transition-colors"
           />
-          {verifyMutation.error && (
+          {verifyError && (
             <FieldDescription className="text-red-600 text-center">
-              {getErrorMessage(verifyMutation.error)}
+              {verifyError}
+            </FieldDescription>
+          )}
+          {resendError && (
+            <FieldDescription className="text-red-600 text-center">
+              {resendError}
             </FieldDescription>
           )}
           {resendMutation.isSuccess && (
@@ -149,19 +195,7 @@ export function OTPForm({
           )}
         </HuemulFieldGroup>
       </form>
-      <FieldDescription className="px-6 text-center text-sm text-gray-500">
-        {t('login.termsText')}{" "}
-        <a href="#" className="text-[#4464f7] hover:text-[#3451e6] hover:underline">
-          {t('login.termsOfService')}
-        </a>{" "}
-        {t('login.and')}{" "}
-        <a href="#" className="text-[#4464f7] hover:text-[#3451e6] hover:underline">
-          {t('login.privacyPolicy')}
-        </a>.
-      </FieldDescription>
-      <div className="text-center text-xs text-gray-400">
-        {t('login.version')} {packageJson.version}
-      </div>
+      <AuthLegalFooter />
     </div>
   )
 }

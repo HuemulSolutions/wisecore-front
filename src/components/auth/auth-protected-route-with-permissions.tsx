@@ -109,9 +109,15 @@ export function ProtectedRoute({
   }
 
   // Rutas que requieren root admin (rutas técnicas/administrativas)
-  // Solo isRootAdmin puede acceder, isOrgAdmin NO
+  // Solo isRootAdmin puede acceder, isOrgAdmin NO.
+  // hasLoadedPermissionsOnce en el AND es defensa en profundidad: todo root
+  // admin legítimo lo tiene en true (isRootAdmin viene del token de LOGIN,
+  // no del de organización, así que hasValidData es true sin necesidad de
+  // seleccionar org). Sin este flag, un isRootAdmin stale del usuario
+  // anterior en esta misma pestaña (ver session-events.ts) podría colarse
+  // aquí durante la ventana entre el logout y el primer refresh forzado.
   if (requireRootAdmin) {
-    if (isRootAdmin) {
+    if (isRootAdmin && hasLoadedPermissionsOnce) {
       return <>{children}</>;
     }
     return showErrorPage ? <AccessDeniedPage /> : <Navigate to={redirectTo} replace />;

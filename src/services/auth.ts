@@ -20,11 +20,8 @@ class AuthService {
   }
 
   async verifyCode(request: VerifyCodeRequest): Promise<AuthResponse> {
-    logger.log('AuthService: Verifying code to', `${this.baseUrl}/codes/verify`, 'with data:', { 
-      email: request.email.toLowerCase(), 
-      code: request.code 
-    });
-    
+    logger.log('AuthService: Verifying code to', `${this.baseUrl}/codes/verify`, 'for email:', request.email.toLowerCase());
+
     // Make request without auth token for public endpoint
     const response = await httpClient.post(`${this.baseUrl}/codes/verify`, {
       email: request.email.toLowerCase(),
@@ -32,14 +29,14 @@ class AuthService {
     });
 
     const responseData = await response.json();
-    logger.log('Raw verifyCode response:', responseData);
-    
+    logger.log('Raw verifyCode response, token present:', !!responseData?.data?.token);
+
     // Verificar si la respuesta tiene la estructura esperada
     if (!responseData.data || !responseData.data.token || !responseData.data.user) {
       logger.error('Invalid response structure:', responseData);
       throw new Error('Invalid response from server');
     }
-    
+
     return {
       token: responseData.data.token,
       user: responseData.data.user
