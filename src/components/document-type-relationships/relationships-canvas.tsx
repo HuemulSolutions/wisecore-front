@@ -1541,7 +1541,9 @@ function RelationshipsCanvasFlow({
 
   const canUpdateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:u'))
   const canCreateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:c'))
-  const canLoadDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:u'))
+  // Cargar un diagrama al canvas es una LECTURA: el guardado posterior ya está
+  // gateado aparte por canUpdateDiagram / canCreateDiagram.
+  const canLoadDiagram = !readOnly && (isOrgAdmin || hasAnyPermission(['diagram:l', 'diagram:r']))
   const hasValidDiagramNodes = nodes.some((n) => {
     const d = n.data as AssetTypeNodeData
     return !!d.assetId && !!d.executionId
@@ -1878,6 +1880,8 @@ function RelationshipsCanvasFlow({
           containerRef={containerRef}
           fitView={fitView}
           diagramId={saveAsNewDiagram ? undefined : editingDiagram?.id}
+          canCreate={canCreateDiagram}
+          canUpdate={canUpdateDiagram}
           initialValues={editingDiagram ? {
             name: editingDiagram.name,
             description: editingDiagram.description,

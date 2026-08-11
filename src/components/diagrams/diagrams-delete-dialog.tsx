@@ -12,6 +12,8 @@ export interface DiagramsDeleteDialogProps {
   onOpenChange: (open: boolean) => void
   diagram: Diagram | null
   organizationId: string
+  /** `diagram:d`. Obligatoria: sin default, olvidarse de pasarla rompe el build. */
+  canDelete: boolean
 }
 
 export function DiagramsDeleteDialog({
@@ -19,14 +21,21 @@ export function DiagramsDeleteDialog({
   onOpenChange,
   diagram,
   organizationId,
+  canDelete,
 }: DiagramsDeleteDialogProps) {
   const { t } = useTranslation(['diagrams', 'common'])
   const mutations = useDiagramMutations(organizationId)
 
-  if (!diagram) return null
+  // Defensa en profundidad: el diálogo no depende solo de que su trigger esté
+  // oculto en la tabla.
+  if (!diagram || !canDelete) return null
 
   const handleDelete = () =>
     new Promise<void>((resolve, reject) => {
+      if (!canDelete) {
+        reject(new Error('Missing diagram:d permission'))
+        return
+      }
       mutations.deleteDiagram.mutate(diagram.id, {
         onSuccess: () => { onOpenChange(false); resolve() },
         onError: (err) => {

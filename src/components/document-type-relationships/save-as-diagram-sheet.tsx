@@ -46,6 +46,10 @@ export interface SaveAsDiagramSheetProps {
     executionId: string
     snapshotMediaId?: string | null
   }
+  /** `diagram:c`. Obligatoria: sin default, olvidarse de pasarla rompe el build. */
+  canCreate: boolean
+  /** `diagram:u`. Obligatoria: sin default, olvidarse de pasarla rompe el build. */
+  canUpdate: boolean
 }
 
 export function SaveAsDiagramSheet({
@@ -58,12 +62,17 @@ export function SaveAsDiagramSheet({
   fitView,
   diagramId,
   initialValues,
+  canCreate,
+  canUpdate,
 }: SaveAsDiagramSheetProps) {
   const { t } = useTranslation(['document-type-relationships', 'common'])
   const navigate = useOrgNavigate()
   const { uploadMedia, uploadMediaVersion } = useMediaMutations(organizationId)
   const { createDiagram, updateDiagram } = useDiagramMutations(organizationId)
   const isEditing = !!diagramId
+  // Guardar cambios escribe con PUT (diagram:u); guardar como nuevo, con POST
+  // (diagram:c). El sheet no confía solo en que su trigger esté oculto.
+  const canSave = isEditing ? canUpdate : canCreate
 
   const [name, setName] = useState(initialValues?.name ?? "")
   const [description, setDescription] = useState(initialValues?.description ?? "")
@@ -102,6 +111,10 @@ export function SaveAsDiagramSheet({
 
   const handleSave = () =>
     new Promise<void>((resolve, reject) => {
+      if (!canSave) {
+        reject(new Error(`Missing diagram:${isEditing ? 'u' : 'c'} permission`))
+        return
+      }
       const run = async () => {
         try {
           fitView()
@@ -239,6 +252,8 @@ export function SaveAsDiagramSheet({
       }
       run()
     })
+
+  if (!canSave) return null
 
   return (
     <HuemulSheet

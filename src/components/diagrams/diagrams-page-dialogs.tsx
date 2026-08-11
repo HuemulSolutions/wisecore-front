@@ -13,12 +13,15 @@ export interface DiagramsPageDialogsProps {
   state: DiagramsPageState
   organizationId: string
   onCloseDialog: (dialog: keyof DiagramsPageState) => void
+  /** `diagram:d`. Obligatoria: sin default, olvidarse de pasarla rompe el build. */
+  canDelete: boolean
 }
 
 export function DiagramsPageDialogs({
   state,
   organizationId,
   onCloseDialog,
+  canDelete,
 }: DiagramsPageDialogsProps) {
   const closeDialog = (key: keyof DiagramsPageState) => (open: boolean) => {
     if (!open) onCloseDialog(key)
@@ -38,6 +41,7 @@ export function DiagramsPageDialogs({
         onOpenChange={closeDialog('deletingDiagram')}
         diagram={state.deletingDiagram}
         organizationId={organizationId}
+        canDelete={canDelete}
       />
     </>
   )

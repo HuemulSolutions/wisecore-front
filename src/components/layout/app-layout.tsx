@@ -226,7 +226,6 @@ export default function AppLayout() {
     canAccessRoles,
     canAccessModels,
     canAccessDocumentTypes,
-    canAccessDiagrams,
     canAccessExternalSystems,
     canAccessTokenUsage,
     canAccessNotifications,
@@ -391,7 +390,7 @@ export default function AppLayout() {
   
   // Filtrar opciones del menú de configuración basándose en permisos
   // NOTA: isOrgAdmin hace bypass de permisos, isRootAdmin NO
-  const hasAssetManagementAccess = canAccessDocumentTypes || isOrgAdmin || hasAnyPermission(RBAC_PAGES.canvas.routePermissions) || canAccessDiagrams || hasAnyPermission(RBAC_PAGES["custom-fields"].routePermissions)
+  const hasAssetManagementAccess = canAccessDocumentTypes || isOrgAdmin || hasAnyPermission(RBAC_PAGES.canvas.routePermissions) || hasAnyPermission(RBAC_PAGES.diagrams.routePermissions) || hasAnyPermission(RBAC_PAGES["custom-fields"].routePermissions)
   const canAccessOrganizations = isOrgAdmin || hasAnyPermission(['organization:l', 'organization:r'])
   const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || canAccessOrganizations || canAccessExternalSystems || canAccessTokenUsage || isOrgAdmin || isRootAdmin
   const hasSettingsAccess = hasAssetManagementAccess || hasAdministrationAccess || isRootAdmin || !!organizationToken
@@ -713,7 +712,7 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(canAccessDiagrams || isOrgAdmin) && (
+                        {(hasAnyPermission(RBAC_PAGES.diagrams.routePermissions) || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/diagrams")} className={settingsItemClass('/diagrams')}>
                               <Workflow className={settingsIconClass('/diagrams')} />

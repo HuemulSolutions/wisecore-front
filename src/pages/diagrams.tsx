@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useQueryClient } from "@tanstack/react-query"
 import { useOrganization } from "@/contexts/organization-context"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { useDiagrams, diagramQueryKeys } from "@/hooks/useDiagrams"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useHuemulFilters } from "@/hooks/useHuemulFilters"
@@ -41,11 +41,13 @@ export default function DiagramsPage() {
   const { t } = useTranslation(['diagrams', 'common'])
   const { t: tFilters } = useTranslation('huemul-filters')
   const { selectedOrganizationId, organizationToken } = useOrganization()
-  const { canAccessDiagrams, isOrgAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
+  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('diagrams')
   const queryClient = useQueryClient()
 
-  const canDelete = isOrgAdmin || hasPermission('diagram:d')
-  const canView = isOrgAdmin || hasAnyPermission(['diagram:r', 'diagram:u'])
+  const canList = can('listDiagrams')
+  const canView = can('viewDiagram')
+  const canDelete = can('deleteDiagram')
+  const canListExecutions = can('listExecutions')
 
   const fetchExecutionOptions = useCallback(
     async ({ search: s, page: p, pageSize: ps }: FetchOptionsParams): Promise<FetchOptionsResult> => {
@@ -66,7 +68,7 @@ export default function DiagramsPage() {
   )
 
   const filterDefs = useMemo<HuemulFilterDef[]>(() => {
-    return [
+    const defs: HuemulFilterDef[] = [
       {
         key: 'search',
         type: 'text',
@@ -76,7 +78,13 @@ export default function DiagramsPage() {
         placeholder: t('header.searchPlaceholder'),
         inputClassName: 'w-56',
       },
-      {
+    ]
+
+    // El combobox de ejecuciones pega a GET /execution/: sin permiso sobre ese
+    // recurso el filtro se omite (y con él su chip), en vez de dejar que el
+    // usuario dispare un 403 al abrirlo.
+    if (canListExecutions) {
+      defs.push({
         key: 'executionId',
         type: 'async-combobox',
         group: tFilters('groups.classification'),
@@ -85,9 +93,11 @@ export default function DiagramsPage() {
         fetchOptions: fetchExecutionOptions,
         pageSize: 50,
         searchOnEnter: true,
-      },
-    ]
-  }, [t, tFilters, fetchExecutionOptions])
+      })
+    }
+
+    return defs
+  }, [t, tFilters, fetchExecutionOptions, canListExecutions])
 
   const {
     values,
@@ -117,12 +127,12 @@ export default function DiagramsPage() {
   }, [clearAll])
 
   const searchTerm = (values.search as string) || undefined
-  const executionId = (values.executionId as string) || undefined
+  const executionId = canListExecutions ? (values.executionId as string) || undefined : undefined
 
   const { data: diagramsResponse, isLoading, isFetching, error } = useDiagrams(
     selectedOrganizationId ?? '',
     {
-      enabled: !!selectedOrganizationId && !!organizationToken && canAccessDiagrams,
+      enabled: !!selectedOrganizationId && !!organizationToken && canList,
       page,
       pageSize,
       search: searchTerm,
@@ -140,7 +150,7 @@ export default function DiagramsPage() {
   if (isLoadingPermissions) return <DiagramsPageSkeleton />
 
   // Access check
-  if (!canAccessDiagrams) return <DiagramsPageEmptyState type="access-denied" />
+  if (!canAccessPage) return <DiagramsPageEmptyState type="access-denied" />
 
   // Organization check
   if (!selectedOrganizationId || !organizationToken) return <DiagramsPageEmptyState type="no-organization" />
@@ -256,6 +266,7 @@ export default function DiagramsPage() {
         state={state}
         organizationId={selectedOrganizationId}
         onCloseDialog={closeDialog}
+        canDelete={canDelete}
       />
     </>
   )

@@ -193,6 +193,21 @@ export const RBAC_PAGES = {
   diagrams: {
     route: "diagrams",
     routePermissions: ["diagram:r", "diagram:l"],
+    features: {
+      listDiagrams: ["diagram:l", "diagram:r"],
+      // Ver = abrir el visor read-only del diagrama. Antes pedía `diagram:u`,
+      // un permiso de escritura gateando una lectura.
+      viewDiagram: ["diagram:r", "diagram:l"],
+      // No hay botón de crear en /diagrams: los diagramas se crean desde
+      // /asset en modo relaciones. Se declara igual porque el canvas
+      // (RelationshipsCanvas / SaveAsDiagramSheet) gatea con este permiso.
+      createDiagram: "diagram:c",
+      updateDiagram: "diagram:u", // acción "Editar" del sheet → /asset?diagram=id
+      deleteDiagram: "diagram:d",
+      // El filtro por ejecución pega a GET /execution/ — mismo permiso que
+      // `listExecutions` de `advanced`.
+      listExecutions: ["section_execution:l", "section_execution:r"],
+    },
   },
   advanced: {
     route: "advanced/:section",
