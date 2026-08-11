@@ -12,13 +12,14 @@ export function ExternalSystemDeleteDialog({
   onOpenChange,
   organizationId,
   system,
+  canDelete,
   onDeleted,
 }: ExternalSystemDeleteDialogProps) {
   const { t } = useTranslation(["external-systems", "common"])
   const { deleteExternalSystem } = useExternalSystemMutations(organizationId)
 
   const handleDelete = async () => {
-    if (!system) return
+    if (!canDelete || !system) return
     await new Promise<void>((resolve, reject) => {
       deleteExternalSystem.mutate(system.id, {
         onSuccess: () => {
@@ -29,6 +30,8 @@ export function ExternalSystemDeleteDialog({
       })
     })
   }
+
+  if (!canDelete) return null
 
   return (
     <HuemulAlertDialog

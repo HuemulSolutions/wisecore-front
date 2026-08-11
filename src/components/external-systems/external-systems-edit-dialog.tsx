@@ -19,6 +19,7 @@ export function ExternalSystemEditDialog({
   onOpenChange,
   organizationId,
   system,
+  canUpdate,
 }: ExternalSystemEditDialogProps) {
   const { t } = useTranslation(["external-systems", "common"])
   const [formData, setFormData] = useState<UpdateExternalSystemRequest>({
@@ -45,7 +46,7 @@ export function ExternalSystemEditDialog({
   ) => setFormData((prev) => ({ ...prev, [field]: value }))
 
   const handleSubmit = async () => {
-    if (!system) return
+    if (!canUpdate || !system) return
     await new Promise<void>((resolve, reject) => {
       updateExternalSystem.mutate(
         { systemId: system.id, body: formData },
@@ -53,6 +54,8 @@ export function ExternalSystemEditDialog({
       )
     })
   }
+
+  if (!canUpdate) return null
 
   return (
     <HuemulDialog

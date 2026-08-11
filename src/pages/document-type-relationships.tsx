@@ -224,6 +224,7 @@ export default function DocumentTypeRelationshipsPage() {
       <CreateDocumentType
         type="asset"
         documentType={editingAssetType}
+        canSave={canUpdateDocumentType}
         open={!!editingAssetType}
         onOpenChange={(o) => { if (!o) setEditingAssetType(null) }}
         onDocumentTypeCreated={() => setEditingAssetType(null)}

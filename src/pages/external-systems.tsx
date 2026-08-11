@@ -11,7 +11,7 @@ import { useOrganization } from "@/contexts/organization-context"
 import { useExternalSystems } from "@/hooks/useExternalSystems"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useDebounce } from "@/hooks/use-debounce"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { HuemulFileTree, type HuemulFileTreeRef } from "@/huemul/components/huemul-file-tree"
@@ -43,22 +43,17 @@ export default function ExternalSystemsPage() {
   const { selectedOrganizationId } = useOrganization()
   const orgId = selectedOrganizationId ?? ""
 
-  const {
-    isLoading: isLoadingPermissions,
-    isOrgAdmin,
-    hasPermission,
-    hasAnyPermission,
-    canAccessExternalSystems,
-  } = useUserPermissions()
+  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess("external-systems")
 
-  const canListSystems  = isOrgAdmin || hasAnyPermission(["external_system:l", "external_system:r"])
-  const canCreateSystem = isOrgAdmin || hasPermission("external_system:c")
-  const canEditSystem   = isOrgAdmin || hasPermission("external_system:u")
-  const canDeleteSystem = isOrgAdmin || hasPermission("external_system:d")
+  const canListSystems  = can("listSystems")
+  const canCreateSystem = can("createSystem")
+  const canEditSystem   = can("updateSystem")
+  const canDeleteSystem = can("deleteSystem")
 
-  const canCreateFunctionality = isOrgAdmin || hasPermission("external_functionality:c")
-  const canEditFunctionality   = isOrgAdmin || hasPermission("external_functionality:u")
-  const canDeleteFunctionality = isOrgAdmin || hasPermission("external_functionality:d")
+  const canListFunctionalities = can("listFunctionalities")
+  const canCreateFunctionality = can("createFunctionality")
+  const canEditFunctionality   = can("updateFunctionality")
+  const canDeleteFunctionality = can("deleteFunctionality")
 
   const [state, setState] = useState<ExternalSystemsPageState>({
     searchTerm: "",
@@ -104,15 +99,18 @@ export default function ExternalSystemsPage() {
 
   const handleLoadChildren = useCallback(
     async (parentId: string | null): Promise<HuemulTreeNode[]> => {
-      // Root level → return external systems as folder nodes
+      // Root level → return external systems as folder nodes.
+      // Sin permiso de listar funcionalidades, los sistemas no se anuncian como
+      // expandibles: el expand dispararía un GET que el backend va a rechazar.
       if (parentId === null) {
         return Array.from(systemsRef.current.values()).map((s) => ({
           id: s.id,
           name: s.name,
           type: "external-system",
-          hasChildren: true,
+          hasChildren: canListFunctionalities,
         }))
       }
+      if (!canListFunctionalities) return []
       // System level → fetch and return functionalities as leaf nodes
       try {
         const response = await getExternalFunctionalities(orgId, parentId, { page: 1, page_size: 200 })
@@ -128,7 +126,7 @@ export default function ExternalSystemsPage() {
         return []
       }
     },
-    [orgId],
+    [orgId, canListFunctionalities],
   )
 
   const handleFileClick = useCallback((node: HuemulTreeNode) => {
@@ -288,11 +286,9 @@ export default function ExternalSystemsPage() {
     )
   }
 
-  if (showPageLoader) return <ExternalSystemsLoadingState />
-
   if (isLoadingPermissions) return <ExternalSystemsLoadingState />
 
-  if (!canAccessExternalSystems) {
+  if (!canAccessPage) {
     return (
       <HuemulAccessDenied
         variant="inline"
@@ -301,6 +297,9 @@ export default function ExternalSystemsPage() {
       />
     )
   }
+
+  if (showPageLoader) return <ExternalSystemsLoadingState />
+
 
   // System that "+" should target for a new functionality: the selected system,
   // or the system owning the selected functionality.
@@ -444,6 +443,7 @@ export default function ExternalSystemsPage() {
         open={state.showCreateDialog}
         onOpenChange={(open) => setState((s) => ({ ...s, showCreateDialog: open }))}
         organizationId={orgId}
+        canCreate={canCreateSystem}
       />
 
       <ExternalSystemEditDialog
@@ -451,6 +451,7 @@ export default function ExternalSystemsPage() {
         onOpenChange={(open) => !open && setState((s) => ({ ...s, editingSystem: null }))}
         organizationId={orgId}
         system={state.editingSystem}
+        canUpdate={canEditSystem}
       />
 
       <ExternalSystemDeleteDialog
@@ -458,6 +459,7 @@ export default function ExternalSystemsPage() {
         onOpenChange={(open) => !open && setState((s) => ({ ...s, deletingSystem: null }))}
         organizationId={orgId}
         system={state.deletingSystem}
+        canDelete={canDeleteSystem}
         onDeleted={() => {
           setState((s) => ({
             ...s,
@@ -485,6 +487,7 @@ export default function ExternalSystemsPage() {
         }
         organizationId={orgId}
         systemId={state.createFunctionalitySystemId ?? ""}
+        canCreate={canCreateFunctionality}
         onSuccess={() => treeRef.current?.refresh()}
       />
 
@@ -497,6 +500,7 @@ export default function ExternalSystemsPage() {
         organizationId={orgId}
         systemId={state.editingFunctionalitySystemId ?? ""}
         functionality={state.editingFunctionality}
+        canUpdate={canEditFunctionality}
       />
 
       <ExternalFunctionalityDeleteDialog
@@ -512,6 +516,7 @@ export default function ExternalSystemsPage() {
         organizationId={orgId}
         systemId={state.deletingFunctionalitySystemId ?? ""}
         functionality={state.deletingFunctionality}
+        canDelete={canDeleteFunctionality}
         onDeleted={() => {
           setState((s) => ({
             ...s,

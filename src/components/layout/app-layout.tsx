@@ -794,7 +794,9 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(canAccessExternalSystems || isOrgAdmin) && (
+                        {/* Mismo permiso que el guard de ruta: `canAccessExternalSystems`
+                            (5 acciones) mostraba el ítem a roles que la ruta rebotaba. */}
+                        {hasAnyPermission([...RBAC_PAGES["external-systems"].routePermissions]) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/external-systems")} className={settingsItemClass('/external-systems')}>
                               <Network className={settingsIconClass('/external-systems')} />

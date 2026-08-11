@@ -27,6 +27,13 @@ export interface CreateDocumentTypeProps {
   onOpenChange?: (open: boolean) => void
   documentType?: AssetTypeWithRoles | null
   type?: 'document' | 'asset'
+  /**
+   * El mismo sheet hace POST (crear) o PUT (editar) según venga `documentType`,
+   * así que el consumidor debe resolver `asset_type:c` o `asset_type:u` y pasar
+   * el resultado. Obligatoria y sin default: ver punto 9 del checklist en
+   * ia context/rbac-audit-guide.md.
+   */
+  canSave: boolean
 }
 
 // ----------------------------------------

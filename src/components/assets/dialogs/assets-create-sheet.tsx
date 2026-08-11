@@ -302,6 +302,7 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated }:
       {showCreateDocTypeDialog && (
         <CreateDocumentType
           trigger={<div />} // Empty trigger since we control it programmatically
+          canSave={canCreate('asset_type')}
           open={showCreateDocTypeDialog}
           onOpenChange={handleDocumentTypeDialogClose}
           onDocumentTypeCreated={handleNewDocumentTypeCreated}

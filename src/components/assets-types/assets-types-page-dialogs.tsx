@@ -25,7 +25,7 @@ export default function AssetTypePageDialogs({
 }: AssetTypePageDialogsProps) {
   const { t } = useTranslation(['asset-types', 'common'])
   const { selectedOrganizationId } = useOrganization()
-  const { canDelete, canCreate } = useUserPermissions()
+  const { canDelete, canCreate, canUpdate } = useUserPermissions()
 
   const handleDelete = async () => {
     if (!canDelete('asset_type') || !state.deletingAssetType) return
@@ -65,9 +65,12 @@ export default function AssetTypePageDialogs({
   return (
     <>
       {/* Create/Edit Dialog */}
+      {/* El mismo sheet crea o edita según `editingAssetType`, así que el
+          permiso exigido cambia con el modo. */}
       <CreateDocumentType
         type="asset"
         documentType={state.editingAssetType}
+        canSave={state.editingAssetType ? canUpdate('asset_type') : canCreate('asset_type')}
         open={!!state.editingAssetType || state.showCreateDialog}
         onOpenChange={(open) => {
           if (!open) {

@@ -228,8 +228,41 @@ export const RBAC_PAGES = {
   "external-systems": {
     route: "external-systems",
     routePermissions: ["external_system:r", "external_system:l"],
+    features: {
+      listSystems: ["external_system:l", "external_system:r"],
+      createSystem: "external_system:c",
+      updateSystem: "external_system:u",
+      deleteSystem: "external_system:d",
+      // Las funcionalidades son un recurso propio que se lista al expandir un
+      // sistema en el árbol: sin este permiso no se dispara la llamada.
+      listFunctionalities: ["external_functionality:l", "external_functionality:r"],
+      createFunctionality: "external_functionality:c",
+      updateFunctionality: "external_functionality:u",
+      deleteFunctionality: "external_functionality:d",
+      listParameters: ["external_parameter:l", "external_parameter:r"],
+      createParameter: "external_parameter:c",
+      updateParameter: "external_parameter:u",
+      deleteParameter: "external_parameter:d",
+      listSecrets: ["external_secret:l", "external_secret:r"],
+      createSecret: "external_secret:c",
+      updateSecret: "external_secret:u",
+      deleteSecret: "external_secret:d",
+      // Los logs de ejecución no tienen recurso propio en PermissionResource:
+      // se gatean con la lectura de la funcionalidad que los produce (mismo
+      // criterio que `manageLifecycle` en asset-types). Antes se pedía
+      // `external_execution_log:l as never`, un recurso inexistente que dejaba
+      // el tab invisible para todos salvo org admin.
+      listLogs: ["external_functionality:l", "external_functionality:r"],
+      listPublishActions: "lifecycle_external_publish_action:l",
+      createPublishAction: "lifecycle_external_publish_action:c",
+      updatePublishAction: "lifecycle_external_publish_action:u",
+      deletePublishAction: "lifecycle_external_publish_action:d",
+    },
   },
   "asset-type-relationships": {
+    // Ruta sin entrada de nav ni link desde ninguna pantalla: solo se alcanza
+    // por URL directa. No lleva `nav` a propósito — si algún día se agrega al
+    // menú, gatearlo con `routePermissions` y no con un helper `canAccessX`.
     route: "asset-type-relationships",
     routePermissions: ["asset_type:r", "asset_type:l"],
     features: {
@@ -250,6 +283,15 @@ export const RBAC_PAGES = {
     nav: { title: "Workflow", orgScoped: true },
   },
   "global-admin": {
+    // Ruta técnica NO org-scoped (vive fuera de `/:orgId`): gestiona todas las
+    // organizaciones y todos los usuarios de la instalación.
+    //
+    // Sin `features` a propósito, mismo criterio que `auth-types`: `can()`
+    // resuelve vía hasPermission, que da bypass a isOrgAdmin pero NO a
+    // isRootAdmin, así que un feature con permisos org-scoped (`user:c`,
+    // `organization:u`) devolvería false justo para el root admin que la
+    // página existe para servir. Todas las affordances comparten el eje de
+    // `canAccessPage`. Ver ia context/rbac-audit-guide.md.
     route: "global-admin",
     requireRootAdmin: true,
   },

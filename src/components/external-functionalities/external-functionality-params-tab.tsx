@@ -5,7 +5,7 @@ import {
   useExternalFunctionalityParameters,
   useExternalFunctionalityParameterMutations,
 } from "@/hooks/useExternalParameters"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
@@ -37,11 +37,11 @@ export function ExternalFunctionalityParamsTab({
 }: ExternalFunctionalityParamsTabProps) {
   const { t } = useTranslation(["external-parameters", "common"])
 
-  const { isOrgAdmin, hasPermission } = useUserPermissions()
-  const canCreate = isOrgAdmin || hasPermission("external_parameter:c")
-  const canUpdate = isOrgAdmin || hasPermission("external_parameter:u")
-  const canDelete = isOrgAdmin || hasPermission("external_parameter:d")
-  const canList   = isOrgAdmin || hasPermission("external_parameter:l") || hasPermission("external_parameter:r")
+  const { can } = usePageAccess("external-systems")
+  const canCreate = can("createParameter")
+  const canUpdate = can("updateParameter")
+  const canDelete = can("deleteParameter")
+  const canList   = can("listParameters")
 
   const typeOptions = [
     { label: t("typeOptions.queryString"), value: "query_string" },

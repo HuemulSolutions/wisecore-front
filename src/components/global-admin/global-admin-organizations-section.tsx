@@ -7,7 +7,6 @@ import { useTranslation } from "react-i18next"
 import { Plus, Building2 } from "lucide-react"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { getAllOrganizations, addOrganization, updateOrganization, deleteOrganization } from "@/services/organizations"
 
@@ -24,7 +23,16 @@ import {
 } from "@/components/organization"
 import type { OrganizationPageState } from "@/types/global-admin"
 
-export function GlobalAdminOrganizationsSection() {
+interface GlobalAdminOrganizationsSectionProps {
+  /**
+   * Único eje de permisos de la sección: `/global-admin` es root-admin-only y
+   * NO org-scoped, así que `organization:u`/`organization:d` no aplican acá.
+   * Ver ia context/rbac-audit-guide.md.
+   */
+  canManage: boolean
+}
+
+export function GlobalAdminOrganizationsSection({ canManage }: GlobalAdminOrganizationsSectionProps) {
   const { t } = useTranslation(['organizations', 'global-admin'])
   const [state, setState] = useState<OrganizationPageState>({
     searchTerm: "",
@@ -38,18 +46,13 @@ export function GlobalAdminOrganizationsSection() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
-  const { isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
   const queryClient = useQueryClient()
-
-  const canListOrgs = isRootAdmin || hasAnyPermission(['organization:l', 'organization:r'])
-  const canUpdateOrg = isRootAdmin || hasPermission('organization:u')
-  const canDeleteOrg = isRootAdmin || hasPermission('organization:d')
 
   const { data: organizationsResponse, isLoading, isFetching, error } = useQuery({
     queryKey: ["organizations", page, pageSize, state.searchTerm],
     queryFn: () => getAllOrganizations(page, pageSize, state.searchTerm || undefined),
     placeholderData: (prev) => prev,
-    enabled: canListOrgs,
+    enabled: canManage,
   })
 
   const { showPageLoader, isTableLoading, isTableFetching } = useTableLoadingState({
@@ -59,7 +62,10 @@ export function GlobalAdminOrganizationsSection() {
   })
 
   const createMutation = useMutation({
-    mutationFn: (payload: { name: string; description?: string }) => addOrganization(payload),
+    mutationFn: (payload: { name: string; description?: string }) => {
+      if (!canManage) return Promise.reject(new Error("forbidden"))
+      return addOrganization(payload)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizations"] })
       closeDialog("showCreateDialog")
@@ -68,8 +74,10 @@ export function GlobalAdminOrganizationsSection() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { name: string; description?: string; max_users?: number | null; token_limit?: number | null } }) =>
-      updateOrganization(id, data),
+    mutationFn: ({ id, data }: { id: string; data: { name: string; description?: string; max_users?: number | null; token_limit?: number | null } }) => {
+      if (!canManage) return Promise.reject(new Error("forbidden"))
+      return updateOrganization(id, data)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizations"] })
       closeDialog("editingOrganization")
@@ -78,7 +86,10 @@ export function GlobalAdminOrganizationsSection() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteOrganization(id),
+    mutationFn: (id: string) => {
+      if (!canManage) return Promise.reject(new Error("forbidden"))
+      return deleteOrganization(id)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizations"] })
       closeDialog("deletingOrganization")
@@ -86,11 +97,7 @@ export function GlobalAdminOrganizationsSection() {
     },
   })
 
-  if (isLoadingPermissions) {
-    return <OrganizationPageSkeleton />
-  }
-
-  if (!canListOrgs) {
+  if (!canManage) {
     return <OrganizationPageEmptyState type="access-denied" />
   }
 
@@ -135,7 +142,7 @@ export function GlobalAdminOrganizationsSection() {
           ]}
           onRefresh={handleRefresh}
           isLoading={isRefreshing || isFetching}
-          primaryAction={isRootAdmin ? {
+          primaryAction={canManage ? {
             label: t('header.createOrganization'),
             icon: Plus,
             onClick: () => updateState({ showCreateDialog: true })
@@ -161,7 +168,7 @@ export function GlobalAdminOrganizationsSection() {
       ) : !isTableLoading && !isTableFetching && organizations.length === 0 && !state.searchTerm ? (
         <OrganizationContentEmptyState 
           type="empty"
-          onCreateFirst={() => updateState({ showCreateDialog: true })}
+          onCreateFirst={canManage ? () => updateState({ showCreateDialog: true }) : undefined}
         />
       ) : !isTableLoading && !isTableFetching && organizations.length === 0 ? (
         <OrganizationContentEmptyState 
@@ -189,10 +196,10 @@ export function GlobalAdminOrganizationsSection() {
             },
             pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS
           }}
-          canUpdate={canUpdateOrg}
-          canDelete={canDeleteOrg}
-          canSetAdmin={isRootAdmin}
-          isRootAdmin={true}
+          canUpdate={canManage}
+          canDelete={canManage}
+          canSetAdmin={canManage}
+          isRootAdmin={canManage}
         />
       )}
 
@@ -223,7 +230,7 @@ export function GlobalAdminOrganizationsSection() {
           }}
           isSaving={updateMutation.isPending}
           onOrgChange={(org: Organization) => updateState({ editingOrganization: org })}
-          isRootAdmin={true}
+          isRootAdmin={canManage}
         />
       )}
 

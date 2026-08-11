@@ -1570,7 +1570,15 @@ function RelationshipsCanvasFlow({
           nodesDraggable={!readOnly}
           nodesConnectable={!readOnly}
           fitView
-          deleteKeyCode={readOnly ? null : "Delete"}
+          // El borrado por tecla es una mutación sin botón: exige el permiso de
+          // borrado del modo activo. En `execution` la eliminación se persiste
+          // luego con "Guardar cambios", así que sin `execution_relationship:d`
+          // no debe poder seleccionarse y borrarse.
+          deleteKeyCode={
+            (mode === 'execution' ? canDeleteExecRelationship : canDeleteRelationship)
+              ? "Delete"
+              : null
+          }
           className="flex-1 h-full bg-muted/10"
         >
           <Background variant={BackgroundVariant.Dots} gap={16} size={1} />

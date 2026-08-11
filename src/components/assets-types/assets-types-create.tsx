@@ -18,7 +18,8 @@ export default function CreateDocumentType({
   open: externalOpen, 
   onOpenChange: externalOnOpenChange,
   documentType,
-  type = 'document'
+  type = 'document',
+  canSave
 }: CreateDocumentTypeProps) {
   const { t } = useTranslation(['asset-types', 'common'])
   const queryClient = useQueryClient();
@@ -89,6 +90,8 @@ export default function CreateDocumentType({
   };
 
   const handleAccept = () => {
+    if (!canSave) return
+
     if (!name.trim()) {
       setError(t('form.nameRequired'));
       return;
@@ -109,6 +112,8 @@ export default function CreateDocumentType({
   const dialogDescription = isEditing
     ? t(type === 'asset' ? 'edit.assetDescription' : 'edit.documentDescription')
     : t(type === 'asset' ? 'create.assetDescription' : 'create.documentDescription')
+
+  if (!canSave) return null
 
   return (
     <>

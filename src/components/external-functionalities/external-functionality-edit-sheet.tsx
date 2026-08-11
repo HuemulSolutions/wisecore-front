@@ -17,6 +17,7 @@ export function ExternalFunctionalityEditSheet({
   organizationId,
   systemId,
   functionality,
+  canUpdate,
 }: ExternalFunctionalityEditDialogProps) {
   const { t } = useTranslation(["external-functionalities", "common"])
   const [formData, setFormData] = useState<UpdateExternalFunctionalityRequest>({})
@@ -45,7 +46,7 @@ export function ExternalFunctionalityEditSheet({
   ) => setFormData((prev) => ({ ...prev, [field]: value }))
 
   const handleSubmit = async () => {
-    if (!functionality) return
+    if (!canUpdate || !functionality) return
     await new Promise<void>((resolve, reject) => {
       updateExternalFunctionality.mutate(
         { functionalityId: functionality.id, body: formData },
@@ -53,6 +54,8 @@ export function ExternalFunctionalityEditSheet({
       )
     })
   }
+
+  if (!canUpdate) return null
 
   return (
     <HuemulSheet
