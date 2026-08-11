@@ -7,12 +7,14 @@ import type { DeleteAuthTypeDialogProps } from '@/types/auth-types'
 
 export type { DeleteAuthTypeDialogProps } from '@/types/auth-types'
 
-export function DeleteAuthTypeDialog({ open, onOpenChange, authType }: DeleteAuthTypeDialogProps) {
+export function DeleteAuthTypeDialog({ open, onOpenChange, authType, canManage = false }: DeleteAuthTypeDialogProps) {
   const { t } = useTranslation(['auth-types', 'common'])
   const { deleteAuthType } = useAuthTypeMutations()
 
+  if (!canManage) return null
+
   const handleDelete = async () => {
-    if (!authType) return
+    if (!authType || !canManage) return
 
     await new Promise<void>((resolve, reject) => {
       deleteAuthType.mutate(authType.id, {

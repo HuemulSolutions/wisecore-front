@@ -131,9 +131,16 @@ export const RBAC_PAGES = {
   },
   "auth-types": {
     route: "auth-types",
-    routePermissions: ["asset_type:r", "asset_type:l"],
-    // NOTA: la página además exige isRootAdmin internamente
-    // (src/pages/auth-types.tsx) — no representado aquí todavía.
+    // Recurso técnico global: no existe `auth_type` en PermissionResource
+    // (src/types/jwt-utils.ts), por eso el guard de ruta pedía `asset_type:*`
+    // prestado mientras la página exigía isRootAdmin adentro. La página siempre
+    // fue root-admin-only; ahora la matriz lo declara y es la única fuente.
+    //
+    // Sin `features` a propósito: `can()` resuelve por hasPermission, que da
+    // bypass a isOrgAdmin pero NO a isRootAdmin — un feature con permisos de
+    // otro recurso devolvería false justo para el root admin. Todas las
+    // affordances comparten el eje de `canAccessPage`. Ver rbac-audit-guide.md.
+    requireRootAdmin: true,
   },
   users: {
     route: "users",

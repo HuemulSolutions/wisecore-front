@@ -95,7 +95,7 @@ export default function App() {
               </PermissionProtectedRoute>
             } />
             <Route path="auth-types" element={
-              <PermissionProtectedRoute permissions={[...RBAC_PAGES["auth-types"].routePermissions]}>
+              <PermissionProtectedRoute requireRootAdmin={RBAC_PAGES["auth-types"].requireRootAdmin} showErrorPage>
                 <AuthTypes />
               </PermissionProtectedRoute>
             } />

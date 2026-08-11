@@ -787,7 +787,7 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(canAccessDocumentTypes || isOrgAdmin) && (
+                        {isRootAdmin && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/auth-types")} className={settingsItemClass('/auth-types')}>
                               <Shield className={settingsIconClass('/auth-types')} />

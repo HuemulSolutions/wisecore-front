@@ -18,6 +18,8 @@ export interface AuthTypesSearchProps {
   onRefresh: () => void
   onCreateClick: () => void
   hasError?: boolean
+  /** Root admin (único eje de esta página, no existe recurso `auth_type` propio). Default `false`. */
+  canManage?: boolean
 }
 
 export interface AuthTypesTableProps {
@@ -27,4 +29,6 @@ export interface AuthTypesTableProps {
   isLoading?: boolean
   isFetching?: boolean
   pagination?: HuemulTablePagination
+  /** Root admin (único eje de esta página, no existe recurso `auth_type` propio). Default `false`. */
+  canManage?: boolean
 }

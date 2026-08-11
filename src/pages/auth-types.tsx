@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react"
 import { useAuthTypes } from "@/hooks/useAuthTypes"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { CreateAuthTypeDialog } from "@/components/auth-types/auth-types-create-dialog"
 import { EditAuthTypeDialog } from "@/components/auth-types/auth-types-edit-dialog"
@@ -29,11 +29,11 @@ export default function AuthTypes() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  const { isRootAdmin, isLoading: isLoadingPermissions } = useUserPermissions()
-  
-  // Solo hacer la llamada a la API si el usuario es admin
+  const { canAccessPage: canManageAuthTypes, isLoading: isLoadingPermissions } = usePageAccess('auth-types')
+
+  // Solo hacer la llamada a la API si el usuario es root admin
   const { data: authTypes = [], isLoading, isFetching, error, refetch } = useAuthTypes({
-    enabled: isRootAdmin,
+    enabled: canManageAuthTypes,
     search: searchTerm || undefined,
   })
 
@@ -54,7 +54,7 @@ export default function AuthTypes() {
   }
 
   // Verificar si el usuario es root admin
-  if (!isRootAdmin) {
+  if (!canManageAuthTypes) {
     return <HuemulAccessDenied />
   }
 
@@ -88,6 +88,7 @@ export default function AuthTypes() {
             onRefresh={handleRefresh}
             onCreateClick={() => setIsCreateDialogOpen(true)}
             hasError={!!error}
+            canManage={canManageAuthTypes}
           />
         }
         headerClassName="p-4 md:p-6 pb-0 md:pb-0"
@@ -100,6 +101,7 @@ export default function AuthTypes() {
                 authTypes={pagedAuthTypes}
                 onEdit={setEditingAuthType}
                 onDelete={setDeletingAuthType}
+                canManage={canManageAuthTypes}
                 isLoading={isTableLoading}
                 isFetching={isTableFetching}
                 pagination={{
@@ -120,18 +122,21 @@ export default function AuthTypes() {
       <CreateAuthTypeDialog
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
+        canManage={canManageAuthTypes}
       />
 
       <EditAuthTypeDialog
         open={!!editingAuthType}
         onOpenChange={(open) => !open && setEditingAuthType(null)}
         authType={editingAuthType}
+        canManage={canManageAuthTypes}
       />
 
       <DeleteAuthTypeDialog
         open={!!deletingAuthType}
         onOpenChange={(open) => !open && setDeletingAuthType(null)}
         authType={deletingAuthType}
+        canManage={canManageAuthTypes}
       />
     </>
   )
