@@ -72,6 +72,17 @@ interface MoreOptionsDropdownProps {
   selectedExecutionId?: string | null;
   hasTemplateName: boolean;
   canCreateTemplate: boolean;
+  // Capacidades RBAC del asset. Sin default a propósito (obligatorias): un
+  // default permisivo es indistinguible de "todavía no lo gatearon" — ver punto
+  // 9 del checklist en ia context/rbac-audit-guide.md.
+  /** asset:u — otorgar/revocar grants de lifecycle del asset */
+  canManageGrants: boolean;
+  /** asset:c — clonar versión / clonar a nuevo documento */
+  canCloneVersion: boolean;
+  /** asset:r — exportar en cualquier formato */
+  canExportVersion: boolean;
+  /** asset:d — borrar versión y borrar documento */
+  canDeleteVersion: boolean;
   isRefreshing: boolean;
   isLoadingContent: boolean;
   hasTocItems: boolean;
@@ -122,6 +133,10 @@ export function MoreOptionsDropdown({
   selectedExecutionId,
   hasTemplateName,
   canCreateTemplate,
+  canManageGrants,
+  canCloneVersion,
+  canExportVersion,
+  canDeleteVersion,
   isRefreshing,
   isLoadingContent,
   hasTocItems,
@@ -324,14 +339,16 @@ export function MoreOptionsDropdown({
           </DropdownMenuItem>
         )}
 
-        {/* ── Asset Permissions (always visible) ── */}
-        <DropdownMenuItem
-          onSelect={() => setTimeout(onOpenPermissions, 0)}
-          className="hover:cursor-pointer"
-        >
-          <ShieldCheck className="mr-2 h-4 w-4" />
-          {t("content.assetPermissions")}
-        </DropdownMenuItem>
+        {/* ── Asset Permissions (escritura sobre el asset: otorga/revoca grants) ── */}
+        {canManageGrants && (
+          <DropdownMenuItem
+            onSelect={() => setTimeout(onOpenPermissions, 0)}
+            className="hover:cursor-pointer"
+          >
+            <ShieldCheck className="mr-2 h-4 w-4" />
+            {t("content.assetPermissions")}
+          </DropdownMenuItem>
+        )}
 
         {/* ── Sections / Dependencies / Context ── */}
         {frontendPermissions.canAccessSectionSheet &&
@@ -378,7 +395,7 @@ export function MoreOptionsDropdown({
         )}
 
         {/* ── Clone ── */}
-        {lifecyclePermissions?.create && selectedExecutionId && (
+        {lifecyclePermissions?.create && canCloneVersion && selectedExecutionId && (
           <>
             {isViewMode && <DropdownMenuSeparator />}
             <DropdownMenuItem
@@ -413,7 +430,7 @@ export function MoreOptionsDropdown({
         )}
 
         {/* ── Export ── */}
-        {hasLifecyclePerms && (
+        {hasLifecyclePerms && canExportVersion && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="hover:cursor-pointer" onClick={onExportMarkdown}>
@@ -444,6 +461,7 @@ export function MoreOptionsDropdown({
 
         {/* ── Delete (edit stage only) ── */}
         {(lifecyclePermissions?.edit || lifecyclePermissions?.create) &&
+          canDeleteVersion &&
           lifecycleStatus?.stage === "edit" && (
             <>
               <DropdownMenuSeparator />

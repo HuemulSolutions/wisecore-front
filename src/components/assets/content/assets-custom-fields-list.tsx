@@ -29,7 +29,9 @@ export function CustomFieldsList({
   onRefresh,
   uploadingImageFieldId,
   isRefreshing,
-  canEdit = false,
+  canCreate = false,
+  canUpdate = false,
+  canDelete = false,
   page,
   pageSize,
   totalItems,
@@ -96,7 +98,7 @@ export function CustomFieldsList({
           <p className="text-sm font-medium text-foreground">{t('customFieldsList.noCustomFields')}</p>
           <p className="text-xs text-muted-foreground">{t('customFieldsList.noCustomFieldsHint')}</p>
         </div>
-        {canEdit && (
+        {canCreate && (
           <Button size="sm" onClick={onAdd} className="hover:cursor-pointer">
             <Plus className="h-4 w-4 mr-2" />
             {t('customFieldsList.addField')}
@@ -323,7 +325,7 @@ export function CustomFieldsList({
             loading={isRefreshing}
             onClick={onRefresh}
           />
-          {canEdit && (
+          {canCreate && (
             <Button
               size="sm"
               variant="outline"
@@ -382,7 +384,7 @@ export function CustomFieldsList({
                   )}
                 </div>
               </div>
-              {canEdit && (
+              {(canUpdate || canDelete) && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -393,15 +395,17 @@ export function CustomFieldsList({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => {
-                      setTimeout(() => {
-                        onEditContent(field)
-                      }, 0)
-                    }} className="hover:cursor-pointer">
-                      <Edit2 className="mr-2 h-3 w-3" />
-                      {t('customFieldsList.editContent')}
-                    </DropdownMenuItem>
-                    {field.source === "inferred" && (
+                    {canUpdate && (
+                      <DropdownMenuItem onSelect={() => {
+                        setTimeout(() => {
+                          onEditContent(field)
+                        }, 0)
+                      }} className="hover:cursor-pointer">
+                        <Edit2 className="mr-2 h-3 w-3" />
+                        {t('customFieldsList.editContent')}
+                      </DropdownMenuItem>
+                    )}
+                    {canUpdate && field.source === "inferred" && (
                       <DropdownMenuItem onSelect={() => {
                         setTimeout(() => {
                           onEdit(field)
@@ -411,15 +415,19 @@ export function CustomFieldsList({
                         {t('customFieldsList.editConfiguration')}
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => {
-                      setTimeout(() => {
-                        onDelete(field)
-                      }, 0)
-                    }} className="hover:cursor-pointer text-destructive focus:text-destructive">
-                      <Trash2 className="mr-2 h-3 w-3" />
-                      {t('common:delete')}
-                    </DropdownMenuItem>
+                    {canDelete && (
+                      <>
+                        {canUpdate && <DropdownMenuSeparator />}
+                        <DropdownMenuItem onSelect={() => {
+                          setTimeout(() => {
+                            onDelete(field)
+                          }, 0)
+                        }} className="hover:cursor-pointer text-destructive focus:text-destructive">
+                          <Trash2 className="mr-2 h-3 w-3" />
+                          {t('common:delete')}
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}

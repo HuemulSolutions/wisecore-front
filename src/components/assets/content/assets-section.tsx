@@ -170,6 +170,9 @@ function SectionExecutionInner({
      * Persists plate_content (with the new mark) without affecting edit mode.
      */
     const handleAutoSavePlateContent = async (sId: string, markdown: string, pContent: string[]) => {
+        // El autosave se dispara por marks de comentario, sin click: necesita su
+        // propio gate (capa (c) de los gestos sin botón).
+        if (!canEditSections) return;
         try {
             await modifyContent(sId, markdown, pContent);
         } catch {
@@ -178,6 +181,7 @@ function SectionExecutionInner({
     };
 
     const handleSave = async (sectionId: string, newContent: string, plateContent?: string[]) => {
+        if (!canEditSections) return;
         try {
             setIsSaving(true);
             await modifyContent(sectionId, newContent, plateContent);
@@ -246,6 +250,8 @@ function SectionExecutionInner({
     };
 
     const handleReviewStatusChange = async (newStatus: ReviewStatus) => {
+        // Es un select, no un botón: el `disabled` es solo la capa visual.
+        if (!canEditSections) return;
         try {
             setIsUpdatingReviewStatus(true);
             await updateReviewStatus(sectionExecution.id, newStatus, selectedOrganizationId ?? undefined);
@@ -584,37 +590,22 @@ function SectionExecutionInner({
                                     </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                    {/* <DocumentAccessControl
-                                        requiredAccess=""
-                                        checkGlobalPermissions={false}
-                                        resource="asset"
-                                    > */}
-                                        <DropdownMenuItem
-                                            className='hover:cursor-pointer'
-                                            onClick={handleCopy}
-                                        >
-                                            <Copy className="h-4 w-4 mr-2" />
-                                            {t('section.copy')}
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            className='hover:cursor-pointer'
-                                            onSelect={() => {
-                                                setTimeout(() => setIsHistorySheetOpen(true), 0);
-                                            }}
-                                        >
-                                            <History className="h-4 w-4 mr-2" />
-                                            {t('section.viewHistoryMenu')}
-                                        </DropdownMenuItem>
-                                        {/* {onCopyLink && (
-                                            <DropdownMenuItem
-                                                className='hover:cursor-pointer'
-                                                onClick={onCopyLink}
-                                            >
-                                                <Link2 className="h-4 w-4 mr-2" />
-                                                {t('section.copyLink')}
-                                            </DropdownMenuItem>
-                                        )} */}
-                                    {/* </DocumentAccessControl> */}
+                                    <DropdownMenuItem
+                                        className='hover:cursor-pointer'
+                                        onClick={handleCopy}
+                                    >
+                                        <Copy className="h-4 w-4 mr-2" />
+                                        {t('section.copy')}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        className='hover:cursor-pointer'
+                                        onSelect={() => {
+                                            setTimeout(() => setIsHistorySheetOpen(true), 0);
+                                        }}
+                                    >
+                                        <History className="h-4 w-4 mr-2" />
+                                        {t('section.viewHistoryMenu')}
+                                    </DropdownMenuItem>
                                     {documentId && executionId && sectionIdForExecution && !isExecutionApproved && canExecute && canEditSections && (
                                         <>
                                             <DropdownMenuItem
@@ -705,24 +696,6 @@ function SectionExecutionInner({
                     </>
                     )}
                     
-                    {/* Copy button - always visible */}
-                    {/* <ProtectedComponent resource="section_execution" resourceAction="r">
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer ml-2"
-                                    onClick={handleCopy}
-                                >
-                                    <Copy className="h-3.5 w-3.5 text-gray-600" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Copy content</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </ProtectedComponent> */}
                 </div>
             )}
             

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { DEFAULT_PAGE_SIZE } from "@/huemul/constants"
 import { deleteFolder } from "@/services/folders"
 import { deleteDocument } from "@/services/assets"
@@ -62,10 +63,22 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const [rootPage, setRootPage] = useState(1)
   const [rootPageSize, setRootPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [hasNextRootPage, setHasNextRootPage] = useState(false)
-  const [isRelationsMode, setIsRelationsMode] = useState(false)
+  const [isRelationsModeRequested, setIsRelationsModeRequested] = useState(false)
   const [sharingFolder, setSharingFolder] = useState<{ id: string; name: string } | null>(null)
   const { selectedOrganizationId } = useOrganization()
   const { canAccessRoleFolders } = useUserPermissions()
+  const { can: canAsset } = usePageAccess('asset')
+  const canListExecRelationships = canAsset('listExecutionRelationships')
+  // El modo relaciones es el único estado de este provider que habilita una
+  // superficie completa (canvas de relaciones / diagramas). Se resuelve acá —
+  // el único lugar donde vive — para que el toggle del kebab, el drag del árbol
+  // y la página de assets nunca puedan divergir: sin permiso de listar
+  // relaciones de ejecución queda apagado aunque alguien pida encenderlo
+  // (p.ej. el deep-link ?diagram=<id>).
+  const isRelationsMode = isRelationsModeRequested && canListExecRelationships
+  const setIsRelationsMode = useCallback((mode: boolean) => {
+    setIsRelationsModeRequested(canListExecRelationships ? mode : false)
+  }, [canListExecRelationships])
   // Marca que la carpeta en creación es una carpeta grupal custom de raíz, para encadenar
   // el sheet de permisos al terminar (sin esto, quien solo tiene folder:manage_groups
   // se queda sin acceso a lo que acaba de crear).

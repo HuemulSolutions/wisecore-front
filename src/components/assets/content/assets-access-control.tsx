@@ -17,7 +17,7 @@ export function DocumentAccessControl({
   resource,
   lifecyclePermissions,
 }: DocumentAccessControlProps) {
-  const { canCreate, canRead, canUpdate, canDelete, isRootAdmin } = useUserPermissions()
+  const { canCreate, canRead, canUpdate, canDelete } = useUserPermissions()
 
   // Verificar lifecycle permissions (si se proporcionan)
   if (lifecyclePermissions) {
@@ -29,8 +29,12 @@ export function DocumentAccessControl({
     if (!hasLifecyclePermission) return <>{fallback}</>
   }
 
-  // Si se requiere verificación de permisos globales
-  if (checkGlobalPermissions && resource && !isRootAdmin) {
+  // Si se requiere verificación de permisos globales.
+  // NO agregar `&& !isRootAdmin`: root admin NO hace bypass de permisos (solo
+  // abre rutas con requireRootAdmin). Un root admin sin rol en la organización
+  // activa no debe ver botones de escritura. Mismo fix ya aplicado en
+  // huemul-button.tsx — ver ia context/rbac-permissions-guide.md.
+  if (checkGlobalPermissions && resource) {
     const requiredAccessArray = Array.isArray(requiredAccess) ? requiredAccess : [requiredAccess]
 
     const globalPermissionChecks = requiredAccessArray.map(access => {
@@ -68,10 +72,11 @@ export function DocumentActionButton({
   resource,
   ...buttonProps
 }: DocumentActionButtonProps) {
-  const { canCreate, canRead, canUpdate, canDelete, isRootAdmin } = useUserPermissions()
+  const { canCreate, canRead, canUpdate, canDelete } = useUserPermissions()
 
-  // Si se requiere verificación de permisos globales
-  if (checkGlobalPermissions && resource && !isRootAdmin) {
+  // Si se requiere verificación de permisos globales.
+  // NO agregar `&& !isRootAdmin` — ver la nota en DocumentAccessControl.
+  if (checkGlobalPermissions && resource) {
     const requiredAccessArray = Array.isArray(requiredAccess) ? requiredAccess : [requiredAccess]
 
     const globalPermissionChecks = requiredAccessArray.map(access => {

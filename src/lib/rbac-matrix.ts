@@ -82,6 +82,44 @@ export const RBAC_PAGES = {
     route: "asset",
     routePermissions: ["asset:r", "asset:l"],
     nav: { title: "Assets", orgScoped: true },
+    features: {
+      // ── Árbol de conocimiento (NavKnowledgeHeader / NavKnowledgeContent) ──
+      listAssets: ["asset:l", "asset:r"],
+      listFolders: ["folder:l", "folder:r"],
+      createAsset: "asset:c",
+      updateAsset: "asset:u", // renombrar + mover (kebab y drag&drop)
+      deleteAsset: "asset:d",
+      createFolder: "folder:c",
+      createGroupFolder: { all: ["folder:c", "folder:manage_groups"] },
+      updateFolder: "folder:u",
+      deleteFolder: "folder:d",
+      // Grants de lifecycle por documento (POST /lifecycle/documents/{id}/grants).
+      // Mismo criterio que `manageLifecycle` en asset-types: el endpoint es del
+      // recurso padre, así que se valida con la acción de update del padre.
+      manageAssetLifecycleGrants: "asset:u",
+      listUsers: ["user:l", "user:r"], // picker de usuarios del sheet de grants
+
+      // ── Panel derecho: contenido del asset ──
+      // Granularidad gruesa: el eje RBAC del cruce lifecycle × RBAC es asset:*.
+      // La granularidad fina (section_execution:u, version:c, custom_fields:u,
+      // media:c) queda como paso 2 — ver ia context/rbac-audit-guide.md.
+      readAsset: ["asset:r", "asset:l"],
+      updateAssetContent: "asset:u", // secciones, formularios, autosave, IA, review status
+      createVersion: "asset:c", // crear ejecución, clonar versión / a nuevo documento
+      deleteVersion: "asset:d", // borrar versión y borrar documento
+      exportVersion: "asset:r",
+
+      // ── Recursos propios que se listan dentro de la página ──
+      listCustomFields: ["custom_fields:l", "custom_fields:r"],
+      listNotifications: ["notification:l", "notification:r"],
+      listAssetTypes: ["asset_type:l", "asset_type:r"], // paleta del canvas de relaciones
+      createTemplateFromAsset: "template:c",
+
+      // ── Modo relaciones / diagramas (RelationshipsCanvas mode="execution") ──
+      listExecutionRelationships: ["execution_relationship:l", "execution_relationship:r"],
+      listDiagrams: ["diagram:l", "diagram:r"],
+      createDiagram: "diagram:c",
+    },
   },
   search: {
     route: "search",

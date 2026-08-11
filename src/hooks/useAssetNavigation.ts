@@ -25,9 +25,10 @@ function purgeLegacyNavStorage() {
 /**
  * Hook to manage asset navigation, URL parsing, and state synchronization
  */
-export function useAssetNavigation({ 
-  selectedOrganizationId, 
-  organizationToken 
+export function useAssetNavigation({
+  selectedOrganizationId,
+  organizationToken,
+  canListLibrary
 }: UseAssetNavigationProps): UseAssetNavigationReturn {
   const navigate = useOrgNavigate();
   const location = useLocation();
@@ -73,7 +74,14 @@ export function useAssetNavigation({
     // Multi-segment case
     const possibleFileId = segments[segments.length - 1];
     const parentFolderPath = segments.slice(0, -1);
-    
+
+    // Sin permiso de listar la biblioteca no se resuelve la jerarquía: se cae
+    // al fallback "tratar el último segmento como documento" sin pegarle al
+    // backend. El acceso al documento en sí lo decide su propio query.
+    if (!canListLibrary) {
+      return { folderPath: parentFolderPath, selectedFileId: possibleFileId };
+    }
+
     // Approach 1: Check if last segment is a file by loading parent folder
     try {
       const parentFolderId = parentFolderPath.length > 0 
@@ -108,7 +116,7 @@ export function useAssetNavigation({
     
     // Fallback: treat as file
     return { folderPath: parentFolderPath, selectedFileId: possibleFileId };
-  }, [location.pathname, selectedOrganizationId]);
+  }, [location.pathname, selectedOrganizationId, canListLibrary]);
 
   /**
    * Build URL path from breadcrumb and selected file.
@@ -150,7 +158,10 @@ export function useAssetNavigation({
   const loadFolderHierarchy = useCallback(async (folderIds: string[]): Promise<BreadcrumbItem[]> => {
     const hierarchy: BreadcrumbItem[] = [];
     let currentFolderId: string | undefined = undefined;
-    
+
+    // Sin permiso de listar la biblioteca no se reconstruye el breadcrumb.
+    if (!canListLibrary) return hierarchy;
+
     for (let i = 0; i < folderIds.length; i++) {
       const targetFolderId = folderIds[i];
       
@@ -183,7 +194,7 @@ export function useAssetNavigation({
     }
     
     return hierarchy;
-  }, [selectedOrganizationId]);
+  }, [selectedOrganizationId, canListLibrary]);
 
   /**
    * Initialize from URL on mount and when URL changes
@@ -308,8 +319,10 @@ export function useAssetNavigation({
               // Defense in depth: the restored file may be stale (deleted, or
               // — pre-namespacing sessions — from a different org). Verify it
               // still exists in this org before trusting its name/content.
+              // Requiere permiso de listar la biblioteca: sin él no se dispara
+              // la verificación (y el documento restaurado se valida solo).
               const verifiedOrgId = selectedOrganizationId;
-              getLibraryContentByAsset(verifiedOrgId!, parsedFile.id).catch(() => {
+              if (canListLibrary) getLibraryContentByAsset(verifiedOrgId!, parsedFile.id).catch(() => {
                 setSelectedFile(null);
                 setBreadcrumb([]);
                 sessionStorage.removeItem(navStorageKey(verifiedOrgId, 'selectedFile'));
@@ -325,7 +338,7 @@ export function useAssetNavigation({
       isInitializingRef.current = true;
       initializeFromUrl().finally(() => { isInitializingRef.current = false; });
     }
-  }, [selectedOrganizationId, organizationToken, urlOrgId, location.pathname, location.search, location.state, parseUrlPath, loadFolderHierarchy, buildUrlPath, navigate]);
+  }, [selectedOrganizationId, organizationToken, urlOrgId, location.pathname, location.search, location.state, parseUrlPath, loadFolderHierarchy, buildUrlPath, navigate, canListLibrary]);
 
   /**
    * Sync sessionStorage when breadcrumb or selectedFile changes

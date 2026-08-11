@@ -15,7 +15,7 @@ import { useOrganization } from "@/contexts/organization-context"
 import type { FetchOptionsParams } from "@/huemul/components/huemul-field"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { isRootAdmin } from "@/lib/jwt-utils"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import CreateDocumentType from "@/components/assets-types/assets-types-create"
 import type { CreateAssetRequest, CreateAssetSheetProps } from "@/types/assets"
 
@@ -25,6 +25,7 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated }:
   const { selectedOrganizationId } = useOrganization()
   const { t } = useTranslation('assets')
   const { t: tCommon } = useTranslation('common')
+  const { canCreate } = useUserPermissions()
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [internalCode, setInternalCode] = useState("")
@@ -224,7 +225,10 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated }:
             description={t('create.assetTypeHint')}
             disabled={disabled}
             labelAction={
-              isRootAdmin()
+              // Atajo "crear tipo de asset": se decide con el permiso del recurso
+              // (asset_type:c) desde el contexto, no leyendo is_root_admin del JWT
+              // a mano — root admin NO hace bypass de permisos, y org admin sí.
+              canCreate('asset_type')
                 ? { icon: PlusCircle, onClick: () => setShowCreateDocTypeDialog(true), tooltip: t('form.newType') }
                 : undefined
             }

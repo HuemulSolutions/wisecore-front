@@ -13,11 +13,14 @@ import { NavKnowledgeHeader, NavKnowledgeContent } from "@/components/layout/nav
 import { useNavKnowledgeRefresh, useNavKnowledgePagination, useNavKnowledgeMode } from "@/contexts/nav-knowledge-context";
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
 import { HuemulPagination } from "@/huemul/components/huemul-pagination";
+import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useGlobalPanel } from "@/contexts/global-panel-context";
 import { RelationshipsCanvas } from "@/components/document-type-relationships";
 import { DiagramCanvas, NewDiagramCanvas } from "@/components/diagrams";
 import { useDocumentTypes } from "@/hooks/useDocumentTypes";
+import { usePageAccess } from "@/hooks/usePageAccess";
 
 /**
  * Main content component for the Assets page
@@ -29,9 +32,16 @@ function AssetsContent() {
   const refreshFileTree = useNavKnowledgeRefresh();
   const { isOpen: isWisyOpen } = useGlobalPanel();
   const { isRelationsMode, setIsRelationsMode } = useNavKnowledgeMode();
-  const { data: docTypesResponse } = useDocumentTypes();
+  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('asset');
+  // La paleta de tipos de asset solo la usa el canvas de relaciones: no
+  // dispararla si el modo está apagado o si falta el permiso de listarlos.
+  const { data: docTypesResponse } = useDocumentTypes({
+    enabled: isRelationsMode && can('listAssetTypes'),
+  });
   const documentTypes = docTypesResponse?.data ?? [];
   const { page, pageSize, hasNext, hasPrevious, setPage } = useNavKnowledgePagination();
+  const canListLibrary = can('listAssets') || can('listFolders');
+  const canListExecRelationships = can('listExecutionRelationships');
 
   // Deep-link into an existing diagram: /asset?diagram=<id> forces relations mode
   // on so the diagram opens in-place (with the asset tree available to edit it).
@@ -54,6 +64,17 @@ function AssetsContent() {
     const wasOn = wasRelationsModeRef.current;
     wasRelationsModeRef.current = isRelationsMode;
     if (!diagramParam) return;
+    // Sin permiso de listar relaciones de ejecución el deep-link no puede
+    // encender el modo relaciones: si lo hiciera, la URL sería un bypass del
+    // único gate (el toggle del kebab del árbol). Se descarta el param.
+    if (!canListExecRelationships) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('diagram');
+        return next;
+      }, { replace: true });
+      return;
+    }
     if (!isRelationsMode) {
       if (wasOn) {
         setSearchParams((prev) => {
@@ -65,7 +86,7 @@ function AssetsContent() {
         setIsRelationsMode(true);
       }
     }
-  }, [diagramParam, isRelationsMode, setIsRelationsMode, setSearchParams]);
+  }, [diagramParam, isRelationsMode, canListExecRelationships, setIsRelationsMode, setSearchParams]);
 
   // Asset navigation (URL parsing, breadcrumb, selected file)
   const {
@@ -78,7 +99,7 @@ function AssetsContent() {
     setSelectedExecutionId,
     setSelectedSectionId,
     currentFolderId,
-  } = useAssetNavigation({ selectedOrganizationId, organizationToken });
+  } = useAssetNavigation({ selectedOrganizationId, organizationToken, canListLibrary });
 
   // Scroll preservation
   const { scrollContainerRef, preserveScroll, restoreScrollPosition } = useScrollPreservation();
@@ -94,6 +115,17 @@ function AssetsContent() {
     queryClient.invalidateQueries({ queryKey: ['library', selectedOrganizationId] });
     refreshFileTree();
   };
+
+  // Loading de permisos
+  if (isLoadingPermissions) {
+    return <PageSkeleton />;
+  }
+
+  // Sin ningún permiso sobre la página -> 403 in-place (no depender solo del
+  // route guard, que redirige a /home y deja la superficie sin explicación)
+  if (!canAccessPage) {
+    return <HuemulAccessDenied />;
+  }
 
   // Empty states
   if (!selectedOrganizationId) {
@@ -137,18 +169,31 @@ function AssetsContent() {
           {
             content: (
               <div ref={scrollContainerRef} className="h-full bg-white">
-                {isRelationsMode && diagramId ? (
-                  <DiagramCanvas
-                    key={diagramId}
-                    organizationId={selectedOrganizationId}
-                    diagramId={diagramId}
-                  />
+                {isRelationsMode && !canListExecRelationships ? (
+                  // El provider ya fuerza el modo a false sin este permiso; esta
+                  // rama cubre el render intermedio y evita caer en silencio al
+                  // contenido del asset como si el modo no se hubiera pedido.
+                  <HuemulAccessDenied variant="inline" />
+                ) : isRelationsMode && diagramId ? (
+                  can('listDiagrams') ? (
+                    <DiagramCanvas
+                      key={diagramId}
+                      organizationId={selectedOrganizationId}
+                      diagramId={diagramId}
+                    />
+                  ) : (
+                    <HuemulAccessDenied variant="inline" />
+                  )
                 ) : isRelationsMode && isNewDiagram ? (
-                  <NewDiagramCanvas
-                    organizationId={selectedOrganizationId}
-                    seedAssetId={diagramSeed.assetId}
-                    seedExecutionId={diagramSeed.executionId}
-                  />
+                  can('createDiagram') ? (
+                    <NewDiagramCanvas
+                      organizationId={selectedOrganizationId}
+                      seedAssetId={diagramSeed.assetId}
+                      seedExecutionId={diagramSeed.executionId}
+                    />
+                  ) : (
+                    <HuemulAccessDenied variant="inline" />
+                  )
                 ) : isRelationsMode ? (
                   <RelationshipsCanvas
                     organizationId={selectedOrganizationId}

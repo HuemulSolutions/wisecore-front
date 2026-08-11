@@ -22,6 +22,8 @@ import { getExecutionDisplayLabel } from "@/components/assets/content/utils/vers
 import { parseApiDate } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
+import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
+import { usePageAccess } from "@/hooks/usePageAccess";
 import { HuemulPagination } from "@/huemul/components/huemul-pagination";
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants";
 import { Switch } from "@/components/ui/switch";
@@ -190,6 +192,10 @@ export function AssetsNotificationsSheet({
 }: AssetsNotificationsSheetProps) {
   const { t } = useTranslation(["assets"]);
   const queryClient = useQueryClient();
+  // Las notificaciones/suscripciones son un recurso propio (notification), no del
+  // asset: el sheet lleva su propio gate y no depende solo del trigger.
+  const { can } = usePageAccess('asset');
+  const canListNotifications = can('listNotifications');
 
   const [activeTab, setActiveTab] = useState<"notifications" | "subscriptions">(
     "notifications",
@@ -253,7 +259,7 @@ export function AssetsNotificationsSheet({
         page: notifPage,
         page_size: notifPageSize,
       }),
-    enabled: open && activeTab === "notifications",
+    enabled: open && activeTab === "notifications" && canListNotifications,
     staleTime: 30000,
     refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
@@ -272,7 +278,7 @@ export function AssetsNotificationsSheet({
     queryKey: ["subscriptions", documentId],
     queryFn: () =>
       getSubscriptions(organizationId, { document_id: documentId, page_size: 100 }),
-    enabled: open && activeTab === "subscriptions",
+    enabled: open && activeTab === "subscriptions" && canListNotifications,
     staleTime: 30000,
     refetchOnWindowFocus: false,
   });
@@ -371,6 +377,9 @@ export function AssetsNotificationsSheet({
       showFooter={false}
       maxWidth="sm:max-w-xl"
     >
+      {!canListNotifications ? (
+        <HuemulAccessDenied variant="inline" />
+      ) : (
       <Tabs
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as typeof activeTab)}
@@ -746,6 +755,7 @@ export function AssetsNotificationsSheet({
           )}
         </TabsContent>
       </Tabs>
+      )}
     </HuemulSheet>
   );
 }
