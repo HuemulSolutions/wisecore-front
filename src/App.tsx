@@ -74,7 +74,11 @@ export default function App() {
                 <Templates />
               </PermissionProtectedRoute>
             } />
-            <Route path="search" element={<SearchPage />} />
+            <Route path="search" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.search.routePermissions]}>
+                <SearchPage />
+              </PermissionProtectedRoute>
+            } />
             <Route path="asset" element={
               <PermissionProtectedRoute permissions={[...RBAC_PAGES.asset.routePermissions]}>
                 <Assets />

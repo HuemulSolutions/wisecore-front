@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { format, startOfMonth, endOfMonth, subMonths, parseISO } from "date-fns"
 import { useOrganization } from "@/contexts/organization-context"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { useTokenUsageSummary, tokenUsageQueryKeys } from "@/hooks/useTokenUsage"
 import { organizationDailyModelTelemetryQueryKeys } from "@/hooks/useOrganizationDailyModelTelemetry"
 import { useHuemulFilters } from "@/hooks/useHuemulFilters"
@@ -76,7 +76,7 @@ export default function TokenUsagePage() {
   const { t: tFilters } = useTranslation("huemul-filters")
   const queryClient = useQueryClient()
 
-  const { canAccessTokenUsage, isLoading: isLoadingPermissions } = useUserPermissions()
+  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess("token-usage")
   const { selectedOrganizationId, organizationToken } = useOrganization()
   const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -90,7 +90,8 @@ export default function TokenUsagePage() {
   )
   const periodLabel = useMemo(() => computePeriodLabel(preset, dateFrom, dateTo), [preset, dateFrom, dateTo])
 
-  const queriesEnabled = !!selectedOrganizationId && !!organizationToken && canAccessTokenUsage
+  const queriesEnabled = !!selectedOrganizationId && !!organizationToken && canAccessPage
+  const canListByUser = queriesEnabled && can("listByUser")
 
   const {
     data: summary,
@@ -119,19 +120,28 @@ export default function TokenUsagePage() {
     [selectedOrganizationId],
   )
 
+  // Sin filterByUser: se omite la entrada entera (elimina su chip sin tocar
+  // useHuemulFilters, mismo patrón que /diagrams) — hoy un rol con solo
+  // token_usage:l obtenía el listado de usuarios con roles vía este combobox.
+  const canFilterByUser = can("filterByUser")
+
   const filterDefs = useMemo<HuemulFilterDef[]>(
     () => [
-      {
-        key: "userId",
-        type: "async-combobox",
-        toolbar: true,
-        group: tFilters("groups.search"),
-        label: t("filters.user"),
-        placeholder: t("filters.userPlaceholder"),
-        fetchOptions: fetchUsers,
-        pageSize: 20,
-        searchOnEnter: true,
-      },
+      ...(canFilterByUser
+        ? [
+            {
+              key: "userId",
+              type: "async-combobox" as const,
+              toolbar: true,
+              group: tFilters("groups.search"),
+              label: t("filters.user"),
+              placeholder: t("filters.userPlaceholder"),
+              fetchOptions: fetchUsers,
+              pageSize: 20,
+              searchOnEnter: true,
+            },
+          ]
+        : []),
       {
         key: "llmId",
         type: "select",
@@ -144,7 +154,7 @@ export default function TokenUsagePage() {
         ],
       },
     ],
-    [t, tFilters, fetchUsers, activeLlms],
+    [t, tFilters, fetchUsers, activeLlms, canFilterByUser],
   )
 
   const {
@@ -181,7 +191,7 @@ export default function TokenUsagePage() {
     return <TokenUsagePageSkeleton />
   }
 
-  if (!canAccessTokenUsage) {
+  if (!canAccessPage) {
     return <HuemulAccessDenied />
   }
 
@@ -260,6 +270,7 @@ export default function TokenUsagePage() {
                     userId={userId}
                     llmId={llmId}
                     activeLlms={activeLlms}
+                    enabled={canListByUser}
                   />
                 </TabsContent>
                 <TabsContent value="by-document-type" className="mt-4 flex min-h-0 flex-1 flex-col">

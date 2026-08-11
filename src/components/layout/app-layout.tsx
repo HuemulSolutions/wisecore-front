@@ -492,6 +492,9 @@ export default function AppLayout() {
         case "Workflow":
           shouldShowItem = hasAnyPermission(RBAC_PAGES.workflow.routePermissions) || isOrgAdmin
           break
+        case "Search":
+          shouldShowItem = hasAnyPermission(RBAC_PAGES.search.routePermissions) || isOrgAdmin
+          break
         default:
           shouldShowItem = true
       }
@@ -817,7 +820,7 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(canAccessTokenUsage || isOrgAdmin) && (
+                        {(hasAnyPermission(RBAC_PAGES["token-usage"].routePermissions)) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/token-usage")} className={settingsItemClass('/token-usage')}>
                               <Coins className={settingsIconClass('/token-usage')} />

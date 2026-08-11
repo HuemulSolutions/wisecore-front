@@ -163,8 +163,21 @@ export const RBAC_PAGES = {
     },
   },
   search: {
+    // No existe recurso `search` en PermissionResource: GET /search/ devuelve
+    // documentos y cada resultado abre /asset/{id}, cuyo guard exige
+    // asset:l|r — se gatea con la lectura del recurso que sirve, mismo
+    // criterio que `listLogs: external_functionality:l|r`.
     route: "search",
+    routePermissions: ["asset:l", "asset:r"],
     nav: { title: "Search", orgScoped: true },
+    features: {
+      performSearch: ["asset:l", "asset:r"],
+      openAsset: ["asset:r", "asset:l"],
+      filterByAssetType: ["asset_type:l", "asset_type:r"],
+      filterByTemplate: ["template:l", "template:r"],
+      filterByUser: ["user:l", "user:r"],
+      filterByCustomField: ["custom_fields:l", "custom_fields:r"],
+    },
   },
   models: {
     // Vista plana con dos recursos propios (llm, llm_provider) más embedding
@@ -382,8 +395,16 @@ export const RBAC_PAGES = {
     },
   },
   "token-usage": {
+    // Sin `nav`: vive en el dropdown de Settings, no en navigationItems
+    // (mismo criterio que models/organizations/roles).
     route: "token-usage",
     routePermissions: ["token_usage:r", "token_usage:l"],
+    features: {
+      viewSummary: ["token_usage:r", "token_usage:l"],
+      listByUser: ["token_usage:r", "token_usage:l"],
+      viewDailySeries: ["token_usage:r", "token_usage:l"],
+      filterByUser: ["user:l", "user:r"],
+    },
   },
   workflow: {
     route: "workflow",
