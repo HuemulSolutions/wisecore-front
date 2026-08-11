@@ -226,7 +226,6 @@ export default function AppLayout() {
     canAccessRoles,
     canAccessModels,
     canAccessDocumentTypes,
-    canAccessCanvas,
     canAccessDiagrams,
     canAccessExternalSystems,
     canAccessTokenUsage,
@@ -392,7 +391,7 @@ export default function AppLayout() {
   
   // Filtrar opciones del menú de configuración basándose en permisos
   // NOTA: isOrgAdmin hace bypass de permisos, isRootAdmin NO
-  const hasAssetManagementAccess = canAccessDocumentTypes || isOrgAdmin || canAccessCanvas || canAccessDiagrams
+  const hasAssetManagementAccess = canAccessDocumentTypes || isOrgAdmin || hasAnyPermission(RBAC_PAGES.canvas.routePermissions) || canAccessDiagrams
   const canAccessOrganizations = isOrgAdmin || hasAnyPermission(['organization:l', 'organization:r'])
   const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || canAccessOrganizations || canAccessExternalSystems || canAccessTokenUsage || isOrgAdmin || isRootAdmin
   const hasSettingsAccess = hasAssetManagementAccess || hasAdministrationAccess || isRootAdmin || !!organizationToken
@@ -705,7 +704,7 @@ export default function AppLayout() {
                           </DropdownMenuItem>
                         )}
 
-                        {(canAccessCanvas || isOrgAdmin) && (
+                        {(hasAnyPermission(RBAC_PAGES.canvas.routePermissions) || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/canvas")} className={settingsItemClass('/canvas')}>
                               <LayoutPanelTop className={settingsIconClass('/canvas')} />

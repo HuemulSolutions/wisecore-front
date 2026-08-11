@@ -22,6 +22,7 @@ export function CanvasCreateEditDialog({
   onOpenChange,
   canvas,
   organizationId,
+  canSave = false,
 }: CanvasCreateEditDialogProps) {
   const { t } = useTranslation(['canvas', 'common'])
   const isEditing = !!canvas
@@ -58,6 +59,7 @@ export function CanvasCreateEditDialog({
 
   const handleSave = () =>
     new Promise<void>((resolve, reject) => {
+      if (!canSave) return reject(new Error("Forbidden"))
       if (!validate()) return reject(new Error("Validation failed"))
 
       if (isEditing) {
@@ -83,6 +85,8 @@ export function CanvasCreateEditDialog({
         })
       }
     })
+
+  if (!canSave) return null
 
   return (
     <HuemulDialog

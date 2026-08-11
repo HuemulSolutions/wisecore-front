@@ -180,6 +180,12 @@ export const RBAC_PAGES = {
   canvas: {
     route: "canvas",
     routePermissions: ["canvas:r", "canvas:l"],
+    features: {
+      listCanvas: ["canvas:l", "canvas:r"],
+      createCanvas: "canvas:c",
+      updateCanvas: "canvas:u",
+      deleteCanvas: "canvas:d",
+    },
   },
   diagrams: {
     route: "diagrams",
