@@ -31,7 +31,6 @@ const AdvancedPage = lazy(() => import("./pages/advanced"));
 const ExternalSystemsPage = lazy(() => import("./pages/external-systems"));
 const DocumentTypeRelationshipsPage = lazy(() => import("./pages/document-type-relationships"));
 const MediaPage = lazy(() => import("./pages/media"));
-const HuemulLayoutDemoPage = lazy(() => import("./pages/huemul-layout-demo"));
 const WorkflowPage = lazy(() => import("./pages/workflow"));
 const TokenUsagePage = lazy(() => import("./pages/token-usage"));
 
@@ -49,7 +48,6 @@ export default function App() {
           {/* Non-org-scoped routes (no orgId needed) */}
           <Route element={<AppLayout />}>
             <Route path="/home" element={<Home />} />
-            <Route path="/huemul-demo" element={<HuemulLayoutDemoPage />} />
             <Route path="/global-admin" element={
               <PermissionProtectedRoute requireRootAdmin={RBAC_PAGES["global-admin"].requireRootAdmin} showErrorPage>
                 <GlobalAdminPage />
