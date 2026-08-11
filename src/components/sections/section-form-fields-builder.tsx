@@ -298,6 +298,14 @@ export function SectionFormFieldsBuilder({
           setCreateCustomFieldIndex(null);
         }}
         customFieldMutations={customFieldMutations}
+        // TODO(rbac-audit): este builder no tiene su propia auditoría RBAC
+        // todavía (vive en el flujo de secciones de template/asset type).
+        // Solo crea campos nuevos desde acá (customField siempre null), así
+        // que se fija canCreate=true para no romper el flujo existente con
+        // el default seguro (false) de CreateEditCustomFieldSheet.
+        canCreate={true}
+        canUpdate={false}
+        canDelete={false}
       />
     </div>
   );

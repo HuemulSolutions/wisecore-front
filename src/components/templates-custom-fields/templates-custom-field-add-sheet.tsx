@@ -26,6 +26,12 @@ export function AddCustomFieldTemplateSheet({
       uploadImageFn={uploadCustomFieldTemplateValueBlob}
       sources={sources}
       isLoadingSources={isLoadingSources}
+      // TODO(rbac-audit): templates-custom-fields.tsx no cruza custom_fields:c
+      // para este flujo (grep de canManage|hasPermission|isOrgAdmin|isRootAdmin
+      // en ese archivo da 0 resultados). Se fija true explícito para no
+      // romper el flujo existente con el default seguro (false) de
+      // AddCustomFieldSheet.
+      canCreateCustomField={true}
     />
   )
 }

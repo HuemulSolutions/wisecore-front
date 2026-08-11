@@ -14,7 +14,7 @@ export function CustomFieldPageHeader({
   isLoading = false,
   searchTerm,
   onSearchChange,
-  canManage = false
+  canCreate = false
 }: CustomFieldPageHeaderProps) {
   const { t } = useTranslation('custom-fields')
 
@@ -27,7 +27,7 @@ export function CustomFieldPageHeader({
       ]}
       onRefresh={onRefresh}
       isLoading={isLoading}
-      primaryAction={canManage ? {
+      primaryAction={canCreate ? {
         label: t('header.createCustomField'),
         icon: Plus,
         onClick: onCreateCustomField

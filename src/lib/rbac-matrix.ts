@@ -172,10 +172,13 @@ export const RBAC_PAGES = {
   },
   "custom-fields": {
     route: "custom-fields",
-    // NOTA: preexistente — la página gestiona custom_fields pero el guard de
-    // ruta pide permisos de asset_type. No corregido en esta pasada (fuera
-    // de alcance de la auditoría de /templates); ver rbac-audit-guide.md.
-    routePermissions: ["asset_type:r", "asset_type:l"],
+    routePermissions: ["custom_fields:r", "custom_fields:l"],
+    features: {
+      listCustomFields: ["custom_fields:l", "custom_fields:r"],
+      createCustomField: "custom_fields:c",
+      updateCustomField: "custom_fields:u",
+      deleteCustomField: "custom_fields:d",
+    },
   },
   canvas: {
     route: "canvas",

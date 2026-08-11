@@ -391,7 +391,7 @@ export default function AppLayout() {
   
   // Filtrar opciones del menú de configuración basándose en permisos
   // NOTA: isOrgAdmin hace bypass de permisos, isRootAdmin NO
-  const hasAssetManagementAccess = canAccessDocumentTypes || isOrgAdmin || hasAnyPermission(RBAC_PAGES.canvas.routePermissions) || canAccessDiagrams
+  const hasAssetManagementAccess = canAccessDocumentTypes || isOrgAdmin || hasAnyPermission(RBAC_PAGES.canvas.routePermissions) || canAccessDiagrams || hasAnyPermission(RBAC_PAGES["custom-fields"].routePermissions)
   const canAccessOrganizations = isOrgAdmin || hasAnyPermission(['organization:l', 'organization:r'])
   const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || canAccessOrganizations || canAccessExternalSystems || canAccessTokenUsage || isOrgAdmin || isRootAdmin
   const hasSettingsAccess = hasAssetManagementAccess || hasAdministrationAccess || isRootAdmin || !!organizationToken
@@ -694,7 +694,7 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(canAccessDocumentTypes || isOrgAdmin) && (
+                        {(hasAnyPermission(RBAC_PAGES["custom-fields"].routePermissions) || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/custom-fields")} className={settingsItemClass('/custom-fields')}>
                               <Settings2 className={settingsIconClass('/custom-fields')} />

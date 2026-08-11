@@ -7,4 +7,7 @@ export interface CreateEditCustomFieldDialogProps {
   customField: CustomField | null
   onSuccess: (created?: CustomField) => void
   customFieldMutations: ReturnType<typeof useCustomFieldMutations>
+  canCreate?: boolean
+  canUpdate?: boolean
+  canDelete?: boolean
 }

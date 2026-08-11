@@ -35,6 +35,11 @@ export function AddCustomFieldDocumentSheet({
       isLoadingSources={isLoadingSources}
       onImageUploadStart={onImageUploadStart}
       onImageUploadComplete={onImageUploadComplete}
+      // TODO(rbac-audit): /asset todavía no cruza custom_fields:c para este
+      // flujo (ver "Granularidad fina" en rbac-audit-guide.md); se fija true
+      // explícito para no romper el flujo existente con el default seguro
+      // (false) de AddCustomFieldSheet.
+      canCreateCustomField={true}
     />
   )
 }
