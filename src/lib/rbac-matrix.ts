@@ -156,8 +156,28 @@ export const RBAC_PAGES = {
     nav: { title: "Search", orgScoped: true },
   },
   models: {
+    // Vista plana con dos recursos propios (llm, llm_provider) más embedding
+    // provider, que no existe como recurso propio en PermissionResource: se
+    // gatea con el CRUD de `llm_provider` (mismo criterio que
+    // `listLogs: external_functionality:l|r` en external-systems).
     route: "models",
-    routePermissions: ["llm:r", "llm_provider:r"],
+    routePermissions: ["llm:l", "llm:r", "llm_provider:l", "llm_provider:r"],
+    features: {
+      listModels: ["llm:l", "llm:r"],
+      createModel: "llm:c",
+      // Editar, capabilities y set_default (estrella de la tabla + botón del
+      // banner) comparten el mismo permiso: son formas distintas de mutar un LLM.
+      updateModel: "llm:u",
+      deleteModel: "llm:d",
+      // POST /llms/{id}/test_connection y /image-generation/test_connection
+      // hacen una llamada real al proveedor (consumen cuota): se gatean con
+      // la escritura del recurso que diagnostican, no con su lectura.
+      testModel: "llm:u",
+      listProviders: ["llm_provider:l", "llm_provider:r"],
+      createProvider: "llm_provider:c",
+      updateProvider: "llm_provider:u",
+      deleteProvider: "llm_provider:d",
+    },
   },
   "auth-types": {
     route: "auth-types",

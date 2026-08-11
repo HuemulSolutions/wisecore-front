@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Plus, Edit, Trash2, Settings, Radio, Star, Timer, Loader2, Building2, MessageSquare, Image as ImageIcon } from 'lucide-react'
@@ -8,7 +8,8 @@ import { HuemulTable } from '@/huemul/components/huemul-table'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
-import { useUserPermissions } from '@/hooks/useUserPermissions'
+import { usePageAccess } from '@/hooks/usePageAccess'
+import { useOrganization } from '@/contexts/organization-context'
 import { HuemulPageLayout } from '@/huemul/components/huemul-page-layout'
 import { HuemulAccessDenied } from '@/huemul/components/huemul-access-denied'
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from '@/huemul/constants'
@@ -69,13 +70,9 @@ function getProviderColor(name: string) {
 export default function Models() {
   const queryClient = useQueryClient()
   const { t } = useTranslation('models')
-  const { 
-    hasPermission, 
-    hasAnyPermission,
-    isOrgAdmin,
-    isLoading: isLoadingPermissions 
-  } = useUserPermissions()
-  
+  const { selectedOrganizationId, organizationToken } = useOrganization()
+  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('models')
+
   // State management
   const [editingProvider, setEditingProvider] = useState<any>(null)
   const [deletingProvider, setDeletingProvider] = useState<any>(null)
@@ -95,50 +92,61 @@ export default function Models() {
   const [isChangeDefaultOpen, setIsChangeDefaultOpen] = useState(false)
 
   // Verificar permisos
-  const canListProviders = isOrgAdmin || hasAnyPermission(['llm_provider:l', 'llm_provider:r'])
-  const canCreateProvider = isOrgAdmin || hasPermission('llm_provider:c')
-  const canUpdateProvider = isOrgAdmin || hasPermission('llm_provider:u')
-  const canDeleteProvider = isOrgAdmin || hasPermission('llm_provider:d')
-  const canListModels = isOrgAdmin || hasAnyPermission(['llm:l', 'llm:r'])
-  const canCreateModel = isOrgAdmin || hasPermission('llm:c')
-  const canUpdateModel = isOrgAdmin || hasPermission('llm:u')
-  const canDeleteModel = isOrgAdmin || hasPermission('llm:d')
+  const canListProviders = can('listProviders')
+  const canCreateProvider = can('createProvider')
+  const canUpdateProvider = can('updateProvider')
+  const canDeleteProvider = can('deleteProvider')
+  const canListModels = can('listModels')
+  const canCreateModel = can('createModel')
+  const canUpdateModel = can('updateModel')
+  const canDeleteModel = can('deleteModel')
+  const canTestModel = can('testModel')
+
+  const isOrgReady = !!selectedOrganizationId && !!organizationToken
+
+  // Tab activo: cae al primer tab disponible si el actual deja de estarlo
+  // (ej. el usuario solo tiene permisos de un recurso de los dos).
+  const [activeTab, setActiveTab] = useState<'models' | 'embeddings'>('models')
+  useEffect(() => {
+    if (activeTab === 'models' && !canListModels && canListProviders) setActiveTab('embeddings')
+    if (activeTab === 'embeddings' && !canListProviders && canListModels) setActiveTab('models')
+  }, [activeTab, canListModels, canListProviders])
 
   // Queries
   const { data: supportedResponse } = useQuery({
-    queryKey: ['supportedProviders'],
+    queryKey: ['supportedProviders', selectedOrganizationId],
     queryFn: getSupportedProviders,
     retry: 0,
-    enabled: canListProviders,
+    enabled: isOrgReady && canListProviders,
   })
 
   const { data: allProvidersResponse, isLoading: loadingProviders, error: errorProviders } = useQuery({
-    queryKey: ['allProviders'],
+    queryKey: ['allProviders', selectedOrganizationId],
     queryFn: () => getAllProviders(),
     retry: 0,
-    enabled: canListProviders,
+    enabled: isOrgReady && canListProviders,
   })
 
   const { data: llmsResponse, isLoading: loadingLLMs, isFetching: fetchingLLMs, error: errorLLMs } = useQuery({
-    queryKey: ['llms', page, pageSize],
+    queryKey: ['llms', selectedOrganizationId, page, pageSize],
     queryFn: () => getLLMs(page, pageSize),
     retry: 0,
-    enabled: canListModels,
+    enabled: isOrgReady && canListModels,
   })
   const llms: LLM[] = llmsResponse?.data || []
 
   const { data: embeddingSupportedResponse, error: errorEmbeddingSupportedProviders } = useQuery({
-    queryKey: ['embeddingSupportedProviders'],
+    queryKey: ['embeddingSupportedProviders', selectedOrganizationId],
     queryFn: () => getSupportedEmbeddingProviders(1, 1000),
     retry: 0,
-    enabled: canListProviders,
+    enabled: isOrgReady && canListProviders,
   })
 
   const { data: embeddingProviderResponse, error: errorEmbeddingProvider } = useQuery({
-    queryKey: ['embeddingProvider'],
+    queryKey: ['embeddingProvider', selectedOrganizationId],
     queryFn: getEmbeddingProvider,
     retry: 0,
-    enabled: canListProviders,
+    enabled: isOrgReady && canListProviders,
   })
 
   // Extract data from wrapped responses
@@ -308,11 +316,12 @@ export default function Models() {
 
   // Event handlers
   const handleUpdateProvider = (data: CreateLLMProviderRequest) => {
-    if (!editingProvider) return
+    if (!editingProvider || !canUpdateProvider) return
     updateProviderMutation.mutate({ id: editingProvider.id, data })
   }
 
   const handleCreateModel = (data: { name: string; internal_name: string; capabilities: string[]; provider_id?: string }) => {
+    if (!canCreateModel) return
     const payload: CreateLLMRequest = {
       name: data.name,
       internal_name: data.internal_name,
@@ -323,7 +332,7 @@ export default function Models() {
   }
 
   const handleUpdateModel = (data: { name: string; internal_name: string; capabilities: string[]; provider_id?: string }) => {
-    if (!editingModel) return
+    if (!editingModel || !canUpdateModel) return
     updateLLMMutation.mutate({ id: editingModel.id, data: { name: data.name, internal_name: data.internal_name, capabilities: data.capabilities, provider_id: editingModel.provider_id } })
   }
 
@@ -345,6 +354,7 @@ export default function Models() {
   }
 
   const handleCapabilitiesSubmit = (model: LLM, capabilities: string[]) => {
+    if (!canUpdateModel) return
     updateLLMMutation.mutate({
       id: model.id,
       data: {
@@ -361,7 +371,7 @@ export default function Models() {
   }
 
   const confirmDeleteModel = async () => {
-    if (!deletingModel) return
+    if (!deletingModel || !canDeleteModel) return
     await new Promise<void>((resolve, reject) => {
       deleteLLMMutation.mutate(deletingModel.id, {
         onSuccess: () => resolve(),
@@ -371,6 +381,7 @@ export default function Models() {
   }
 
   const runConnectionTest = (model: LLM, kind: ConnectionTestKind) => {
+    if (!canTestModel) return
     setTestingModelId(model.id)
     testModelConnectionMutation.mutate({ model, kind }, {
       onSettled: () => setTestingModelId(null),
@@ -378,7 +389,7 @@ export default function Models() {
   }
 
   const confirmDeleteProvider = async () => {
-    if (!deletingProvider) return
+    if (!deletingProvider || !canDeleteProvider) return
 
     await new Promise<void>((resolve, reject) => {
       deleteProviderMutation.mutate(deletingProvider.id, {
@@ -393,6 +404,7 @@ export default function Models() {
   }
 
   const handleTestEmbeddingProvider = () => {
+    if (!canUpdateProvider) return
     setIsTestingEmbeddingProvider(true)
     testEmbeddingProviderMutation.mutate()
   }
@@ -408,14 +420,16 @@ export default function Models() {
   const handleUpsertEmbeddingProvider = (data: { name: string; key?: string; endpoint?: string; deployment?: string }) => {
     if (!editingEmbeddingProvider) return
     if (editingEmbeddingProvider.isConfigured) {
+      if (!canUpdateProvider) return
       updateEmbeddingProviderMutation.mutate(data as any)
       return
     }
+    if (!canCreateProvider) return
     createEmbeddingProviderMutation.mutate(data as any)
   }
 
   const confirmDeleteEmbeddingProvider = async () => {
-    if (!deletingEmbeddingProvider) return
+    if (!deletingEmbeddingProvider || !canDeleteProvider) return
 
     setIsDeletingEmbeddingProvider(true)
     try {
@@ -445,14 +459,19 @@ export default function Models() {
     }
   }
 
-  // Mostrar loading mientras se cargan permisos o proveedores
-  if (isLoadingPermissions || loadingProviders) {
+  // 1. Esperar mientras se cargan los permisos
+  if (isLoadingPermissions) {
     return <ModelsLoadingState />
   }
 
-  // Si no tiene permisos para listar proveedores, mostrar mensaje
-  if (!canListProviders) {
+  // 2. Gate de página: ¿tiene algún permiso sobre llm o llm_provider?
+  if (!canAccessPage) {
     return <HuemulAccessDenied />
+  }
+
+  // 3. Esperar la query de proveedores
+  if (loadingProviders) {
+    return <ModelsLoadingState />
   }
 
   // Only show full page error for providers
@@ -478,13 +497,13 @@ export default function Models() {
         columns={[
           {
             content: (
-              <Tabs defaultValue="models" className="w-full flex-1 min-h-0">
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'models' | 'embeddings')} className="w-full flex-1 min-h-0">
         <TabsList className="shrink-0">
-          <TabsTrigger value="models" className="hover:cursor-pointer">{t('tabs.models')}</TabsTrigger>
-          <TabsTrigger value="embeddings" className="hover:cursor-pointer">{t('tabs.embeddings')}</TabsTrigger>
+          {canListModels && <TabsTrigger value="models" className="hover:cursor-pointer">{t('tabs.models')}</TabsTrigger>}
+          {canListProviders && <TabsTrigger value="embeddings" className="hover:cursor-pointer">{t('tabs.embeddings')}</TabsTrigger>}
         </TabsList>
 
-        <TabsContent value="models" className="mt-4 min-h-0 flex flex-col">
+        {canListModels && <TabsContent value="models" className="mt-4 min-h-0 flex flex-col">
           {/* Default model banner */}
           {!hasError && defaultModel && (
             <div className="mb-4 shrink-0">
@@ -533,19 +552,23 @@ export default function Models() {
                     label: t('table.displayName'),
                     render: (model) => (
                       <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => { if (!model.is_default) setDefaultMutation.mutate(model.id) }}
-                          disabled={model.is_default || setDefaultMutation.isPending}
-                          className={cn(
-                            'shrink-0 transition-colors hover:cursor-pointer',
-                            model.is_default
-                              ? 'text-yellow-400 cursor-default'
-                              : 'text-muted-foreground/30 hover:text-yellow-400'
-                          )}
-                        >
-                          <Star className={cn('h-4 w-4', model.is_default && 'fill-yellow-400')} />
-                        </button>
+                        {canUpdateModel ? (
+                          <button
+                            type="button"
+                            onClick={() => { if (!model.is_default && canUpdateModel) setDefaultMutation.mutate(model.id) }}
+                            disabled={model.is_default || setDefaultMutation.isPending}
+                            className={cn(
+                              'shrink-0 transition-colors hover:cursor-pointer',
+                              model.is_default
+                                ? 'text-yellow-400 cursor-default'
+                                : 'text-muted-foreground/30 hover:text-yellow-400'
+                            )}
+                          >
+                            <Star className={cn('h-4 w-4', model.is_default && 'fill-yellow-400')} />
+                          </button>
+                        ) : (
+                          <Star className={cn('h-4 w-4 shrink-0', model.is_default ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/30')} />
+                        )}
                         <div className="flex flex-col gap-0.5">
                           <span className="font-medium text-foreground">{model.name}</span>
                           {model.is_default && (
@@ -596,21 +619,21 @@ export default function Models() {
                 ]}
                 actionsMode="inline"
                 actions={[
-                  {
+                  ...(canTestModel ? [{
                     key: 'test',
                     label: t('modelActions.testConnection'),
                     icon: Radio,
-                    onClick: (model) => runConnectionTest(model, resolveConnectionTests(model)[0] ?? 'chat'),
-                    items: (model) =>
+                    onClick: (model: LLM) => runConnectionTest(model, resolveConnectionTests(model)[0] ?? 'chat'),
+                    items: (model: LLM) =>
                       resolveConnectionTests(model).map((kind) => ({
                         key: kind,
                         label: t(kind === 'image' ? 'modelActions.testImageGeneration' : 'modelActions.testChat'),
                         icon: kind === 'image' ? ImageIcon : MessageSquare,
                         onClick: () => runConnectionTest(model, kind),
                       })),
-                    isLoading: (model) => testingModelId === model.id,
-                    disabled: (model) => testingModelId !== null && testingModelId !== model.id,
-                  },
+                    isLoading: (model: LLM) => testingModelId === model.id,
+                    disabled: (model: LLM) => testingModelId !== null && testingModelId !== model.id,
+                  }] : []),
                   ...(canUpdateProvider ? [{
                     key: 'editProvider',
                     label: t('providerActions.editProvider'),
@@ -659,9 +682,11 @@ export default function Models() {
               />
             </div>
           )}
-        </TabsContent>
+        </TabsContent>}
 
-        <TabsContent value="embeddings" className="mt-4 min-h-0 overflow-auto">
+        {!canListModels && !canListProviders && <HuemulAccessDenied />}
+
+        {canListProviders && <TabsContent value="embeddings" className="mt-4 min-h-0 overflow-auto">
           {hasEmbeddingError ? (
             <ModelsContentEmptyState
               type="error"
@@ -795,7 +820,7 @@ export default function Models() {
               )}
             </div>
           )}
-        </TabsContent>
+        </TabsContent>}
       </Tabs>
             ),
             className: "p-6 md:p-8 pt-0 md:pt-0",
@@ -810,6 +835,7 @@ export default function Models() {
         supportedProviders={supportedProviders as any[]}
         onSubmit={(data: CreateLLMProviderRequest) => createProviderMutation.mutate(data)}
         isCreating={createProviderMutation.isPending}
+        canCreate={canCreateProvider}
       />
 
       {/* Edit Provider Dialog */}
@@ -820,6 +846,7 @@ export default function Models() {
         supportedProviders={supportedProviders as any[]}
         onSubmit={handleUpdateProvider}
         isUpdating={updateProviderMutation.isPending}
+        canUpdate={canUpdateProvider}
       />
 
       {/* Edit Embedding Provider Dialog */}
@@ -829,6 +856,8 @@ export default function Models() {
         provider={editingEmbeddingProvider}
         onSubmit={handleUpsertEmbeddingProvider}
         isSubmitting={updateEmbeddingProviderMutation.isPending || createEmbeddingProviderMutation.isPending}
+        canCreate={canCreateProvider}
+        canUpdate={canUpdateProvider}
       />
 
       {/* Create/Edit Model Dialog */}
@@ -845,6 +874,7 @@ export default function Models() {
         isCreating={createLLMMutation.isPending}
         isUpdating={updateLLMMutation.isPending}
         onSubmit={editingModel ? handleUpdateModel : handleCreateModel}
+        canSave={editingModel ? canUpdateModel : canCreateModel}
       />
 
       {/* Delete Provider Dialog */}
@@ -858,6 +888,7 @@ export default function Models() {
         }}
         provider={activeDeletingProvider}
         onAction={deletingProvider ? confirmDeleteProvider : confirmDeleteEmbeddingProvider}
+        canDelete={canDeleteProvider}
       />
 
       {/* Delete Model Dialog */}
@@ -870,6 +901,7 @@ export default function Models() {
         }}
         model={deletingModel}
         onAction={confirmDeleteModel}
+        canDelete={canDeleteModel}
       />
 
       {/* Model Capabilities Dialog */}
@@ -883,6 +915,7 @@ export default function Models() {
         model={capabilitiesModel}
         isUpdating={updateLLMMutation.isPending}
         onSubmit={handleCapabilitiesSubmit}
+        canUpdate={canUpdateModel}
       />
 
       {/* Change Default Model Dialog */}
@@ -893,6 +926,7 @@ export default function Models() {
         providers={allProvidersList.map((p: any) => ({ id: p.id, name: p.name }))}
         currentDefaultId={defaultModel?.id}
         isUpdating={setDefaultMutation.isPending}
+        canUpdate={canUpdateModel}
         onSubmit={(modelId) => {
           setDefaultMutation.mutate(modelId, {
             onSuccess: () => setIsChangeDefaultOpen(false),
