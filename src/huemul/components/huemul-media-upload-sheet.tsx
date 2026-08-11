@@ -23,6 +23,8 @@ export interface HuemulMediaUploadSheetProps {
    * and hides the level select. When omitted, the user picks the level.
    */
   fixedLevel?: { level: MediaLevel; parentId?: string | null }
+  /** `media:c`. Obligatoria (sin default) — ver punto 9 de rbac-audit-guide.md. */
+  canCreate: boolean
   onUploaded?: () => void
 }
 
@@ -31,6 +33,7 @@ export function HuemulMediaUploadSheet({
   onOpenChange,
   organizationId,
   fixedLevel,
+  canCreate,
   onUploaded,
 }: HuemulMediaUploadSheetProps) {
   const { t } = useTranslation("media")
@@ -59,6 +62,7 @@ export function HuemulMediaUploadSheet({
   }
 
   async function handleSave() {
+    if (!canCreate) return
     if (!file) throw new Error("No file selected")
     await uploadMedia.mutateAsync({
       file,
@@ -71,6 +75,8 @@ export function HuemulMediaUploadSheet({
     reset()
     onUploaded?.()
   }
+
+  if (!canCreate) return null
 
   return (
     <HuemulSheet

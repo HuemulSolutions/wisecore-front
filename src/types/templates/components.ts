@@ -27,6 +27,7 @@ export interface TemplateContentProps {
   canDeleteDocx: boolean;
   canListMedia: boolean;
   canCreateMedia: boolean;
+  canUpdateMedia: boolean;
   canDeleteMedia: boolean;
 }
 

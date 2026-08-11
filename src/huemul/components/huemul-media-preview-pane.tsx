@@ -15,6 +15,12 @@ export interface MediaPreviewPaneProps {
   nextVersionNumber: number
   uploading: boolean
   sheetOpen: boolean
+  /**
+   * Permite subir una versión nueva (`media:c`). Obligatoria a propósito: soltar
+   * un archivo en el lienzo dispara la mutación sin pasar por ningún botón, así
+   * que ocultar el botón no alcanza (ver punto 8 de rbac-audit-guide.md).
+   */
+  canUpload: boolean
   onDownload: () => void
   onPickFile: () => void
   onFileDropped: (file: File) => void
@@ -26,6 +32,7 @@ export function MediaPreviewPane({
   nextVersionNumber,
   uploading,
   sheetOpen,
+  canUpload,
   onDownload,
   onPickFile,
   onFileDropped,
@@ -43,12 +50,12 @@ export function MediaPreviewPane({
   const showImage = isImage(version?.content_type) && !!version?.download_url
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
-    if (uploading) return
+    if (uploading || !canUpload) return
     if (!e.dataTransfer.types.includes("Files")) return
     e.preventDefault()
     e.dataTransfer.dropEffect = "copy"
     setIsDragOver(true)
-  }, [uploading])
+  }, [uploading, canUpload])
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     if (e.currentTarget.contains(e.relatedTarget as Node)) return
@@ -58,10 +65,10 @@ export function MediaPreviewPane({
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragOver(false)
-    if (uploading) return
+    if (uploading || !canUpload) return
     const file = e.dataTransfer.files?.[0]
     if (file) onFileDropped(file)
-  }, [uploading, onFileDropped])
+  }, [uploading, canUpload, onFileDropped])
 
   return (
     <section
@@ -113,17 +120,19 @@ export function MediaPreviewPane({
           disabled={!version}
           onClick={onDownload}
         />
-        <HuemulButton
-          variant="outline"
-          size="sm"
-          icon={Upload}
-          label={t("detail.uploadVersion")}
-          loading={uploading}
-          onClick={onPickFile}
-        />
+        {canUpload && (
+          <HuemulButton
+            variant="outline"
+            size="sm"
+            icon={Upload}
+            label={t("detail.uploadVersion")}
+            loading={uploading}
+            onClick={onPickFile}
+          />
+        )}
       </div>
 
-      {isDragOver && (
+      {canUpload && isDragOver && (
         <div className="pointer-events-none absolute inset-3 z-20 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary bg-background/85 px-8 text-center backdrop-blur-sm">
           <UploadCloud className="size-8 text-primary" />
           <p className="text-sm font-medium text-primary">

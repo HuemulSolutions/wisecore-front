@@ -19,6 +19,7 @@ interface TemplateMediaTabProps {
   templateId: string
   organizationId: string
   canCreate: boolean
+  canUpdate: boolean
   canDelete: boolean
 }
 
@@ -26,6 +27,7 @@ export function TemplateMediaTab({
   templateId,
   organizationId,
   canCreate,
+  canUpdate,
   canDelete,
 }: TemplateMediaTabProps) {
   const { t } = useTranslation(["media", "common"])
@@ -146,6 +148,8 @@ export function TemplateMediaTab({
         open={detailOpen}
         onOpenChange={setDetailOpen}
         organizationId={organizationId}
+        canCreate={canCreate}
+        canUpdate={canUpdate}
         canDelete={canDelete}
       />
 
@@ -154,6 +158,7 @@ export function TemplateMediaTab({
         onOpenChange={setUploadOpen}
         organizationId={organizationId}
         fixedLevel={{ level: "template", parentId: templateId }}
+        canCreate={canCreate}
       />
     </div>
   )

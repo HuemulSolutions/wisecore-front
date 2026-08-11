@@ -63,6 +63,7 @@ export default function Templates() {
   // Permisos específicos — media (tab "Media")
   const canListMedia = canList('media');
   const canCreateMedia = canCreate('media');
+  const canUpdateMedia = canUpdate('media');
   const canDeleteMedia = canDelete('media');
 
   // Estados principales
@@ -186,6 +187,7 @@ export default function Templates() {
               canDeleteDocx={canDeleteDocx}
               canListMedia={canListMedia}
               canCreateMedia={canCreateMedia}
+              canUpdateMedia={canUpdateMedia}
               canDeleteMedia={canDeleteMedia}
             />
           ),

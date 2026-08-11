@@ -47,6 +47,7 @@ export function TemplateContent({
   canDeleteDocx,
   canListMedia,
   canCreateMedia,
+  canUpdateMedia,
   canDeleteMedia,
 }: TemplateContentProps) {
   const queryClient = useQueryClient();
@@ -404,6 +405,7 @@ export function TemplateContent({
                       templateId={selectedTemplate.id}
                       organizationId={selectedOrganizationId!}
                       canCreate={canCreateMedia}
+                      canUpdate={canUpdateMedia}
                       canDelete={canDeleteMedia}
                     />
                   )}

@@ -100,6 +100,7 @@ export const RBAC_PAGES = {
       deleteDocx: "docx_template:d",
       listMedia: "media:l",
       createMedia: "media:c",
+      updateMedia: "media:u",
       deleteMedia: "media:d",
     },
   },
@@ -236,6 +237,32 @@ export const RBAC_PAGES = {
       // El filtro por ejecución pega a GET /execution/ — mismo permiso que
       // `listExecutions` de `advanced`.
       listExecutions: ["section_execution:l", "section_execution:r"],
+    },
+  },
+  media: {
+    // Vista plana con recurso propio, gemela de `canvas` y `diagrams`. Sin
+    // `nav`: no está en `navigationItems`, vive en el dropdown de Settings.
+    route: "media",
+    routePermissions: ["media:r", "media:l"],
+    features: {
+      listMedia: ["media:l", "media:r"],
+      // Cubre subir archivo, subir versión nueva y `POST /image-generation/generate`:
+      // no existe un recurso `image_generation` en PermissionResource y ese
+      // endpoint persiste una Media real de la organización, así que se gatea
+      // con la escritura del recurso que produce (mismo criterio que
+      // `listLogs: external_functionality:l|r` en external-systems).
+      createMedia: "media:c",
+      updateMedia: "media:u", // editar nombre/descripción (PATCH /media/{id})
+      deleteMedia: "media:d", // borrar media, borrar versión, descartar generada
+      // El select de nivel del filtro decide a qué endpoint pega el selector de
+      // padre: cada nivel es una lectura de OTRO recurso, y sin permiso el
+      // combobox/tree-picker se come un 403 mudo al abrirse. Mismo criterio que
+      // el filtro de ejecuciones de /diagrams y los 3 comboboxes de /home.
+      listAssetTypes: ["asset_type:l", "asset_type:r"], // nivel document_type
+      listAssets: ["asset:l", "asset:r"], // nivel document (tree picker)
+      listFolders: ["folder:l", "folder:r"], // nivel document (tree picker)
+      listExecutions: ["section_execution:l", "section_execution:r"], // nivel execution
+      listTemplates: ["template:l", "template:r"], // nivel template
     },
   },
   advanced: {

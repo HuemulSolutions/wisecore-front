@@ -149,7 +149,11 @@ export default function App() {
                 <DocumentTypeRelationshipsPage />
               </PermissionProtectedRoute>
             } />
-            <Route path="media" element={<MediaPage />} />
+            <Route path="media" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.media.routePermissions]}>
+                <MediaPage />
+              </PermissionProtectedRoute>
+            } />
             <Route path="token-usage" element={
               <PermissionProtectedRoute permissions={[...RBAC_PAGES["token-usage"].routePermissions]}>
                 <TokenUsagePage />

@@ -30,6 +30,14 @@ export interface HuemulMediaGenerateSheetProps {
   open: boolean
   onOpenChange: (v: boolean) => void
   organizationId: string
+  /**
+   * `media:c`. `POST /image-generation/generate` persiste una Media real de la
+   * organización y no hay recurso propio en PermissionResource, así que se
+   * gatea con la escritura del recurso que produce. Obligatoria (sin default).
+   */
+  canCreate: boolean
+  /** `media:d` — descartar una imagen generada llama a `DELETE /media/{id}`. */
+  canDelete: boolean
   /** Se dispara tras cada generación exitosa (para fijar la imagen en la galería). */
   onGenerated?: (image: GeneratedImage) => void
   /**
@@ -44,6 +52,8 @@ export function HuemulMediaGenerateSheet({
   open,
   onOpenChange,
   organizationId,
+  canCreate,
+  canDelete,
   onGenerated,
   onDiscarded,
 }: HuemulMediaGenerateSheetProps) {
@@ -92,7 +102,7 @@ export function HuemulMediaGenerateSheet({
 
   async function handleGenerate() {
     const trimmed = prompt.trim()
-    if (!trimmed || isPending) return
+    if (!canCreate || !trimmed || isPending) return
     try {
       const img = await generateImage.mutateAsync({ prompt: trimmed, aspect_ratio: aspectRatio })
       if (!openRef.current) return // el usuario cerró el sheet mientras generaba
@@ -107,7 +117,7 @@ export function HuemulMediaGenerateSheet({
   }
 
   async function handleDiscard() {
-    if (!selected || deleteMedia.isPending) return
+    if (!canDelete || !selected || deleteMedia.isPending) return
     const mediaId = selected.media_id
     try {
       await deleteMedia.mutateAsync(mediaId)
@@ -156,6 +166,8 @@ export function HuemulMediaGenerateSheet({
     aspectRatio: `${rw} / ${rh}`,
     width: `min(100cqw, calc(100cqh * ${rw} / ${rh}))`,
   }
+
+  if (!canCreate) return null
 
   return (
     <HuemulSheet
@@ -290,15 +302,17 @@ export function HuemulMediaGenerateSheet({
                 label={t("generate.download")}
                 onClick={handleDownload}
               />
-              <HuemulButton
-                variant="ghost"
-                size="sm"
-                icon={Trash2}
-                label={t("generate.discard")}
-                loading={deleteMedia.isPending}
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                onClick={handleDiscard}
-              />
+              {canDelete && (
+                <HuemulButton
+                  variant="ghost"
+                  size="sm"
+                  icon={Trash2}
+                  label={t("generate.discard")}
+                  loading={deleteMedia.isPending}
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={handleDiscard}
+                />
+              )}
             </div>
           )}
         </div>
