@@ -4,16 +4,16 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
+import { useOrganization } from "@/contexts/organization-context"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useRoles, useRoleMutations } from "@/hooks/useRbac"
-import { useUsers } from "@/hooks/useUsers"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { type Role, exportRoles } from "@/services/rbac"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import CreateRoleSheet from "@/components/roles/roles-create-sheet"
 import EditRoleSheet from "@/components/roles/roles-edit-sheet"
-import AssignRolesSheet from "@/components/roles/roles-assign-sheet"
 import AssignRoleToUsersDialog from "@/components/roles/roles-assign-to-users-sheet"
 import {
   RolesLoadingState,
@@ -38,36 +38,41 @@ export default function Roles() {
   const [searchTerm, setSearchTerm] = useState("")
   const [editingRole, setEditingRole] = useState<Role | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [assigningUserId, setAssigningUserId] = useState<string | null>(null)
   const [assigningRoleToUsers, setAssigningRoleToUsers] = useState<Role | null>(null)
   const [deletingRole, setDeletingRole] = useState<Role | null>(null)
   const [cloningRole, setCloningRole] = useState<Role | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [isLoadingUsers] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [isExportingRoles, setIsExportingRoles] = useState(false)
   const [showImportSheet, setShowImportSheet] = useState(false)
   const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set())
 
-  // Permissions check
-  const { canAccessRoles, hasPermission, hasAnyPermission, isRootAdmin, isLoading: isLoadingPermissions } = useUserPermissions()
+  // Permisos: matriz declarativa (ver ia context/rbac-audit-guide.md, 14ª pasada)
+  const { isLoading: isLoadingPermissions } = useUserPermissions()
+  const { selectedOrganizationId, organizationToken } = useOrganization()
+  const { canAccessPage, can } = usePageAccess('roles')
 
-  // Permisos específicos
-  const canReadRbac = isRootAdmin || hasPermission('rbac:r')
-  const canManageRbac = isRootAdmin || hasAnyPermission(['rbac:c', 'rbac:u', 'rbac:d'])
-  const canExportRoles = isRootAdmin || hasPermission('rbac:r')
-  const canImportRoles = isRootAdmin || (hasPermission('rbac:c') && hasPermission('rbac:u'))
+  const canList = can('listRoles')
+  const canCreate = can('createRole')
+  const canUpdate = can('updateRole')
+  const canDelete = can('deleteRole')
+  const canClone = can('cloneRole')
+  const canAssign = can('assignRoleToUsers')
+  const canExportRoles = can('exportRoles')
+  const canImportRoles = can('importRoles')
 
-  // Data fetching - solo si tiene permisos de lectura
-  const { data: rolesResponse, isLoading, isFetching, error, refetch: refetchRoles } = useRoles(canReadRbac, page, pageSize, searchTerm)
+  // Data fetching - solo si tiene permisos de lectura y hay organización activa
+  const { data: rolesResponse, isLoading, isFetching, error, refetch: refetchRoles } = useRoles(
+    canList && !!selectedOrganizationId && !!organizationToken,
+    page,
+    pageSize,
+    searchTerm
+  )
   const { deleteRole, cloneRole } = useRoleMutations()
-  // Users data - we'll use refetch to load on demand, so disable automatic fetching
-  const { data: usersResponse } = useUsers(false)
 
   // Derived data
   const roles = rolesResponse?.data || []
-  const users = usersResponse?.data || []
 
   const { showPageLoader, isTableLoading, isTableFetching } = useTableLoadingState({
     isLoading,
@@ -87,6 +92,7 @@ export default function Roles() {
   }
 
   const handleExportRoles = async () => {
+    if (!canExportRoles) return
     if (selectedExportIds.size === 0) {
       toast.error(t('exportImport.exportSelectionRequired'))
       return
@@ -131,12 +137,11 @@ export default function Roles() {
     assignToUsers: () => setAssigningRoleToUsers(null),
     edit: () => setEditingRole(null),
     delete: () => setDeletingRole(null),
-    assignUser: () => setAssigningUserId(null),
     clone: () => setCloningRole(null)
   }
 
   const confirmDeleteRole = async () => {
-    if (!deletingRole) return
+    if (!deletingRole || !canDelete) return
 
     await new Promise<void>((resolve, reject) => {
       deleteRole.mutate(deletingRole.id, {
@@ -147,7 +152,7 @@ export default function Roles() {
   }
 
   const confirmCloneRole = async (copyUsers: boolean) => {
-    if (!cloningRole) return
+    if (!cloningRole || !canClone) return
 
     await new Promise<void>((resolve, reject) => {
       cloneRole.mutate({ roleId: cloningRole.id, copyUsers }, {
@@ -159,7 +164,7 @@ export default function Roles() {
 
   // Early returns for different states
   if (isLoadingPermissions) return <RolesLoadingState />
-  if (!canAccessRoles) return <RolesAccessDenied />
+  if (!canAccessPage) return <RolesAccessDenied />
   if (showPageLoader) return <RolesLoadingState />
 
   // const totalPermissions = error ? 0 : roles.reduce(
@@ -182,7 +187,7 @@ export default function Roles() {
             onRefresh={handleRefresh}
             onCreateRole={openDialog.create}
             hasError={!!error}
-            canManage={canManageRbac}
+            canCreate={canCreate}
             onExport={handleExportRoles}
             onImport={() => setShowImportSheet(true)}
             canExport={canExportRoles}
@@ -201,12 +206,13 @@ export default function Roles() {
                 roles={roles}
                 isTableLoading={isTableLoading}
                 isTableFetching={isTableFetching}
-                isLoadingUsers={isLoadingUsers}
                 onAssignToUsers={openDialog.assignToUsers}
                 onEditRole={openDialog.edit}
                 onDeleteRole={openDialog.delete}
                 onCloneRole={openDialog.clone}
-                canManage={canManageRbac}
+                canUpdate={canUpdate}
+                canDelete={canDelete}
+                canClone={canClone}
                 selectedIds={selectedExportIds}
                 onSelectionChange={setSelectedExportIds}
                 pagination={{
@@ -232,24 +238,21 @@ export default function Roles() {
       <CreateRoleSheet
         open={showCreateDialog}
         onOpenChange={(open) => !open && closeDialog.create()}
+        canCreate={canCreate}
       />
 
       <EditRoleSheet
         role={editingRole}
         open={!!editingRole}
         onOpenChange={(open) => !open && closeDialog.edit()}
-      />
-
-      <AssignRolesSheet
-        user={users.find(u => u.id === assigningUserId) || null}
-        open={!!assigningUserId}
-        onOpenChange={(open) => !open && closeDialog.assignUser()}
+        canUpdate={canUpdate}
       />
 
       <AssignRoleToUsersDialog
         role={assigningRoleToUsers}
         open={!!assigningRoleToUsers}
         onOpenChange={(open) => !open && closeDialog.assignToUsers()}
+        canAssign={canAssign}
       />
 
       <DeleteRoleDialog
@@ -261,6 +264,7 @@ export default function Roles() {
         }}
         role={deletingRole}
         onConfirm={confirmDeleteRole}
+        canDelete={canDelete}
       />
 
       <CloneRoleDialog
@@ -272,12 +276,14 @@ export default function Roles() {
         }}
         role={cloningRole}
         onConfirm={confirmCloneRole}
+        canClone={canClone}
       />
 
       <RolesImportSheet
         open={showImportSheet}
         onOpenChange={(open) => !open && setShowImportSheet(false)}
         onImportSuccess={handleRefresh}
+        canImport={canImportRoles}
       />
     </>
   )

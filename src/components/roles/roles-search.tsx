@@ -12,7 +12,7 @@ export function RolesSearch({
   onRefresh,
   onCreateRole,
   hasError,
-  canManage = false,
+  canCreate,
   onExport,
   onImport,
   canExport,
@@ -40,7 +40,7 @@ export function RolesSearch({
         }] : []),
         ...(canImport && onImport ? [{ label: t('exportImport.importButton'), icon: Download, onClick: onImport }] : []),
       ]}
-      primaryAction={canManage ? {
+      primaryAction={canCreate ? {
         label: t('header.createRole'),
         icon: Plus,
         onClick: onCreateRole

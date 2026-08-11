@@ -208,8 +208,29 @@ export const RBAC_PAGES = {
     routePermissions: ["user:r", "user:l"],
   },
   roles: {
+    // Vista plana org-scoped sobre un recurso propio (`rbac`, ya existente en
+    // PermissionResource). Sin `nav`: vive en el dropdown de Settings, igual
+    // que `organizations`/`models`/`media`.
     route: "roles",
     routePermissions: ["rbac:r", "rbac:l"],
+    features: {
+      listRoles: ["rbac:l", "rbac:r"],
+      createRole: "rbac:c",
+      // Incluye otorgar/revocar permisos del rol (PATCH add_permissions/remove_permissions).
+      updateRole: "rbac:u",
+      deleteRole: "rbac:d",
+      cloneRole: "rbac:c", // POST /rbac/roles/{id}/clone crea un rol nuevo
+      // POST /user_roles/{roleId}/bulk_users — no existe un recurso propio
+      // para asignaciones; se gatea con la escritura del rol asignado (mismo
+      // criterio que `manageLifecycle: asset_type:u`).
+      assignRoleToUsers: "rbac:u",
+      // GET /rbac/permissions — catálogo que alimenta el selector de permisos
+      // de los sheets de crear/editar.
+      listPermissionCatalog: ["rbac:l", "rbac:r"],
+      exportRoles: ["rbac:l", "rbac:r"],
+      // on_conflict=overwrite pisa roles existentes: exige crear y actualizar.
+      importRoles: { all: ["rbac:c", "rbac:u"] },
+    },
   },
   "asset-types": {
     route: "asset-types",

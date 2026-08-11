@@ -223,7 +223,6 @@ export default function AppLayout() {
     isRootAdmin,
     isOrgAdmin,
     canAccessUsers,
-    canAccessRoles,
     canAccessDocumentTypes,
     canAccessExternalSystems,
     canAccessTokenUsage,
@@ -399,7 +398,10 @@ export default function AppLayout() {
   // Antes usaba el helper canAccessModels (10 permisos, incluye llm:c/llm:d),
   // más ancho que el guard de ruta — ver ia context/rbac-audit-guide.md.
   const canAccessModelsPage = hasAnyPermission(RBAC_PAGES.models.routePermissions)
-  const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModelsPage || canAccessOrganizationsPage || canAccessExternalSystems || canAccessTokenUsage || isOrgAdmin || isRootAdmin
+  // Antes usaba el helper canAccessRoles (5 acciones), más ancho que el guard
+  // de ruta (rbac:r|l) — mismo criterio que canAccessModelsPage.
+  const canAccessRolesPage = hasAnyPermission(RBAC_PAGES.roles.routePermissions)
+  const hasAdministrationAccess = canAccessUsers || canAccessRolesPage || canAccessModelsPage || canAccessOrganizationsPage || canAccessExternalSystems || canAccessTokenUsage || isOrgAdmin || isRootAdmin
   // Antes terminaba en `|| !!organizationToken`, un OR que existía solo para
   // habilitar el ítem de Media (la única entrada sin permiso propio) y que
   // abría el dropdown entero a cualquier usuario con token de organización.
@@ -777,7 +779,7 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(canAccessRoles || isOrgAdmin) && (
+                        {(canAccessRolesPage || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/roles")} className={settingsItemClass('/roles')}>
                               <Shield className={settingsIconClass('/roles')} />
