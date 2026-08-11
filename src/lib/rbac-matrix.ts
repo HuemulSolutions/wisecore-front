@@ -19,9 +19,9 @@ import type { Permission } from "@/lib/jwt-utils";
  * `routePermissions` sigue la misma convención `Permission[]` (OR) que ya
  * usa `PermissionProtectedRoute` en App.tsx.
  *
- * `features` solo está completo para las páginas ya auditadas (por ahora,
- * `templates`). Para el resto, poblar `features` página por página es en sí
- * mismo el trabajo de auditoría — ver ia context/rbac-audit-guide.md.
+ * `features` solo está completo para las páginas ya auditadas. Para el resto,
+ * poblar `features` página por página es en sí mismo el trabajo de auditoría
+ * — ver ia context/rbac-audit-guide.md.
  */
 
 export type FeatureSpec = Permission | Permission[] | { all: Permission[] };
@@ -105,8 +105,19 @@ export const RBAC_PAGES = {
     },
   },
   organizations: {
+    // Vista plana org-scoped sobre un recurso propio (`organization`, ya
+    // existente en PermissionResource). Sin `nav`: vive en el dropdown de
+    // Settings, igual que `models`. `setOrganizationAdmin` NO se declara acá:
+    // la única pantalla que lo ofrece es /global-admin, root-admin-only y sin
+    // `features` a propósito.
     route: "organizations",
     routePermissions: ["organization:r", "organization:l"],
+    features: {
+      listOrganizations: ["organization:l", "organization:r"],
+      createOrganization: "organization:c",
+      updateOrganization: "organization:u",
+      deleteOrganization: "organization:d",
+    },
   },
   asset: {
     route: "asset",

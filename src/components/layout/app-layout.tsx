@@ -395,11 +395,11 @@ export default function AppLayout() {
   // Filtrar opciones del menú de configuración basándose en permisos
   // NOTA: isOrgAdmin hace bypass de permisos, isRootAdmin NO
   const hasAssetManagementAccess = canAccessDocumentTypes || isOrgAdmin || hasAnyPermission(RBAC_PAGES.canvas.routePermissions) || hasAnyPermission(RBAC_PAGES.diagrams.routePermissions) || hasAnyPermission(RBAC_PAGES["custom-fields"].routePermissions) || hasAnyPermission(RBAC_PAGES.media.routePermissions)
-  const canAccessOrganizations = isOrgAdmin || hasAnyPermission(['organization:l', 'organization:r'])
+  const canAccessOrganizationsPage = hasAnyPermission(RBAC_PAGES.organizations.routePermissions)
   // Antes usaba el helper canAccessModels (10 permisos, incluye llm:c/llm:d),
   // más ancho que el guard de ruta — ver ia context/rbac-audit-guide.md.
   const canAccessModelsPage = hasAnyPermission(RBAC_PAGES.models.routePermissions)
-  const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModelsPage || canAccessOrganizations || canAccessExternalSystems || canAccessTokenUsage || isOrgAdmin || isRootAdmin
+  const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModelsPage || canAccessOrganizationsPage || canAccessExternalSystems || canAccessTokenUsage || isOrgAdmin || isRootAdmin
   // Antes terminaba en `|| !!organizationToken`, un OR que existía solo para
   // habilitar el ítem de Media (la única entrada sin permiso propio) y que
   // abría el dropdown entero a cualquier usuario con token de organización.
@@ -750,7 +750,7 @@ export default function AppLayout() {
                         <DropdownMenuLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
                           {t('settings.administration')}
                         </DropdownMenuLabel>
-                        {(canAccessOrganizations || isOrgAdmin) && (
+                        {canAccessOrganizationsPage && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/organizations")} className={settingsItemClass('/organizations')}>
                               <Building2 className={settingsIconClass('/organizations')} />

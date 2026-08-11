@@ -94,6 +94,7 @@ const translations = {
     created: { en: "Organization created successfully", es: "Organización creada exitosamente" },
     updated: { en: "Organization updated successfully", es: "Organización actualizada exitosamente" },
     deleted: { en: "Organization deleted successfully", es: "Organización eliminada exitosamente" },
+    adminSet: { en: "Organization admin set successfully", es: "Admin de organización asignado exitosamente" },
   },
 }
 

@@ -199,7 +199,7 @@ export function GlobalAdminOrganizationsSection({ canManage }: GlobalAdminOrgani
           canUpdate={canManage}
           canDelete={canManage}
           canSetAdmin={canManage}
-          isRootAdmin={canManage}
+          canManageSystemLimits={canManage}
         />
       )}
 
@@ -208,6 +208,7 @@ export function GlobalAdminOrganizationsSection({ canManage }: GlobalAdminOrgani
         onOpenChange={(open) => updateState({ showCreateDialog: open })}
         onSubmit={(data) => createMutation.mutate(data)}
         isPending={createMutation.isPending}
+        canCreate={canManage}
       />
 
       {state.editingOrganization && (
@@ -230,7 +231,8 @@ export function GlobalAdminOrganizationsSection({ canManage }: GlobalAdminOrgani
           }}
           isSaving={updateMutation.isPending}
           onOrgChange={(org: Organization) => updateState({ editingOrganization: org })}
-          isRootAdmin={canManage}
+          canSave={canManage}
+          canManageSystemLimits={canManage}
         />
       )}
 
@@ -244,6 +246,7 @@ export function GlobalAdminOrganizationsSection({ canManage }: GlobalAdminOrgani
               deleteMutation.mutate(state.deletingOrganization.id)
             }
           }}
+          canDelete={canManage}
         />
       )}
 
@@ -254,6 +257,7 @@ export function GlobalAdminOrganizationsSection({ canManage }: GlobalAdminOrgani
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ["organizations"] })
         }}
+        canSetAdmin={canManage}
       />
     </div>
   )
