@@ -18,7 +18,6 @@ const SearchPage = lazy(() => import("./pages/search"));
 const Organizations = lazy(() => import("./pages/organizations"));
 // import Library from "./pages/library"; // Hidden - library functionality disabled
 const Assets = lazy(() => import("./pages/assets"));
-const Graph = lazy(() => import("./pages/graph"));
 const ModelsPage = lazy(() => import("./pages/models"));
 const AuthTypes = lazy(() => import("./pages/auth-types"));
 const UsersPage = lazy(() => import("./pages/users"));
@@ -88,7 +87,6 @@ export default function App() {
                 <Assets />
               </PermissionProtectedRoute>
             } />
-            <Route path="graph" element={<Graph />} />
             <Route path="models" element={
               <PermissionProtectedRoute permissions={[...RBAC_PAGES.models.routePermissions]}>
                 <ModelsPage />
