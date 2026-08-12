@@ -493,7 +493,8 @@ export default function AppLayout() {
           shouldShowItem = hasAnyPermission(RBAC_PAGES.advanced.routePermissions) || isOrgAdmin
           break
         case "Workflow":
-          shouldShowItem = hasAnyPermission(RBAC_PAGES.workflow.routePermissions) || isOrgAdmin
+          // Sin `|| isOrgAdmin`: ese bypass ya vive dentro de hasAnyPermission.
+          shouldShowItem = hasAnyPermission(RBAC_PAGES.workflow.routePermissions)
           break
         case "Search":
           shouldShowItem = hasAnyPermission(RBAC_PAGES.search.routePermissions) || isOrgAdmin

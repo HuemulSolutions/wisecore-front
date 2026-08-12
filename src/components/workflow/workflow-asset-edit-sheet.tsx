@@ -13,6 +13,11 @@ import { logger } from "@/lib/logger"
 interface WorkflowAssetEditSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /**
+   * `asset:u` — PUT /documents/{id}. Obligatoria (sin default) para que un
+   * call-site futuro no herede un default permisivo.
+   */
+  canSave: boolean
   documentId: string
   currentName: string
   currentInternalCode?: string
@@ -22,6 +27,7 @@ interface WorkflowAssetEditSheetProps {
 export function WorkflowAssetEditSheet({
   open,
   onOpenChange,
+  canSave,
   documentId,
   currentName,
   currentInternalCode,
@@ -38,7 +44,7 @@ export function WorkflowAssetEditSheet({
   useEffect(() => {
     let cancelled = false
     async function prefill() {
-      if (!open) return
+      if (!open || !canSave) return
       setName(currentName)
       setInternalCode(currentInternalCode || "")
       setDescription("")
@@ -58,7 +64,7 @@ export function WorkflowAssetEditSheet({
     return () => {
       cancelled = true
     }
-  }, [open, documentId, currentName, currentInternalCode, selectedOrganizationId])
+  }, [open, canSave, documentId, currentName, currentInternalCode, selectedOrganizationId])
 
   const mutation = useMutation({
     mutationFn: async (payload: { name: string; description?: string; internal_code?: string }) => {
@@ -75,6 +81,7 @@ export function WorkflowAssetEditSheet({
   })
 
   const handleSave = useCallback(() => {
+    if (!canSave) return
     if (!name.trim()) {
       toast.error(t("assets:edit.errorNameRequired"))
       return
@@ -87,7 +94,11 @@ export function WorkflowAssetEditSheet({
     if (internalCode.trim()) payload.internal_code = internalCode.trim()
 
     mutation.mutate(payload)
-  }, [name, description, internalCode, mutation])
+  }, [canSave, name, description, internalCode, mutation])
+
+  if (!canSave) {
+    return null
+  }
 
   return (
     <HuemulSheet
@@ -103,7 +114,7 @@ export function WorkflowAssetEditSheet({
         label: t("assets:edit.submitLabel"),
         onClick: handleSave,
         loading: mutation.isPending,
-        disabled: !name.trim(),
+        disabled: !canSave || !name.trim(),
       }}
     >
       <HuemulFieldGroup>

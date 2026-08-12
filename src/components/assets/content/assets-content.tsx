@@ -1177,6 +1177,7 @@ export function AssetContent({
   // que la política de "sin lifecycle configurado" se decida en un solo lugar.
   const {
     frontendPermissions,
+    rbac: assetRbac,
     canViewContent,
     isViewOnly,
     canSwitchToEditorMode,
@@ -1191,6 +1192,7 @@ export function AssetContent({
     organizationId: selectedOrganizationId,
     lifecycleStatus: documentContent?.lifecycle_status,
     lifecyclePermissions,
+    rbac: { canTransition: assetRbac.updateAssetContent },
     extraRefreshKeys: () => [['document', selectedFile?.id], ['executions', selectedFile?.id]],
     onBeforeAdvance: () => preserveScrollPosition(),
     onViewChanges: (previousExecutionId, currentExecutionId) => {

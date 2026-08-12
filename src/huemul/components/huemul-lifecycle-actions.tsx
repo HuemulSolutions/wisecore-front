@@ -19,9 +19,13 @@ export function HuemulLifecycleActions({
   className,
 }: HuemulLifecycleActionsProps) {
   const { t } = useTranslation(["assets", "common"])
-  const { status, permissions } = controller
+  const { status, permissions, canTransition } = controller
 
   if (!status) return null
+  // Cruce lifecycle × RBAC: sin `asset:u` ninguna transición se ofrece, aunque
+  // el grant del documento (o `status.can_advance`, que viene del backend y no
+  // del objeto de permisos) diga que sí. Ver ia context/rbac-audit-guide.md.
+  if (!canTransition) return null
 
   const isCompact = variant === "compact"
   const iconClassName = isCompact ? "h-3 w-3" : "h-3.5 w-3.5"

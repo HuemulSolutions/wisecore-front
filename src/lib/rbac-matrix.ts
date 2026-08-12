@@ -6,10 +6,11 @@ import type { Permission } from "@/lib/jwt-utils";
  * Antes de esta matriz, `src/App.tsx` (guard de ruta) y
  * `src/components/layout/app-layout.tsx` (filtro del nav) declaraban los
  * permisos de una misma página en dos lugares distintos, y ya divergían
- * (ej. la ruta `/workflow` pedía solo `asset:l` pero el nav ocultaba/mostraba
- * el ítem con `canAccessAssets`, que exige *cualquiera* de las 5 acciones de
- * `asset` — un usuario con únicamente `asset:c` veía el ítem de nav pero el
- * guard de ruta lo rebotaba a `/home`). Ver ia context/rbac-audit-guide.md.
+ * (ej. la ruta `/workflow` pedía solo `asset:l` mientras el nav ocultaba/
+ * mostraba el ítem con `canAccessAssets`, que exige *cualquiera* de las 5
+ * acciones de `asset` — un usuario con únicamente `asset:c` veía el ítem de
+ * nav pero el guard de ruta lo rebotaba a `/home`; ambos ya corregidos).
+ * Ver ia context/rbac-audit-guide.md.
  *
  * Cómo leer un `FeatureSpec`:
  * - `Permission` (string): requiere exactamente ese permiso.
@@ -428,9 +429,29 @@ export const RBAC_PAGES = {
     },
   },
   workflow: {
+    // Vista sobre el mismo recurso que /asset (`asset`), con otro envoltorio:
+    // tabla de workflows + panel derecho con el wizard de respuesta. Eje RBAC
+    // GRUESO (`asset:*`) a propósito, mismo criterio que RBAC_PAGES.asset —
+    // ver el cruce lifecycle × RBAC en ia context/rbac-audit-guide.md.
     route: "workflow",
-    routePermissions: ["asset:l"],
+    routePermissions: ["asset:l", "asset:r"],
     nav: { title: "Workflow", orgScoped: true },
+    features: {
+      listWorkflows: ["asset:l", "asset:r"], // GET /workflows/
+      readAsset: ["asset:r", "asset:l"], // GET /documents/{id}/content
+      // Responder formularios (PATCH /form_values), review_status, editar
+      // nombre/código (PUT /documents/{id}) y las 6 transiciones de lifecycle.
+      updateAssetContent: "asset:u",
+      // POST /document_types/{id}/templates/{id}/express crea un documento real.
+      createExpressAsset: "asset:c",
+      // Tarjetas de "iniciar" + filtro templateId (GET /templates/).
+      listTemplates: ["template:l", "template:r"],
+      // Los filtros son superficie RBAC: cada combobox asíncrono pega a su
+      // propio endpoint y sin permiso se come un 403 mudo al abrirse.
+      listAssetTypes: ["asset_type:l", "asset_type:r"], // filtro documentTypeId
+      listUsers: ["user:l", "user:r"], // filtro ownerValue
+      listCustomFields: ["custom_fields:l", "custom_fields:r"], // filtro customFieldFilter
+    },
   },
   "global-admin": {
     // Ruta técnica NO org-scoped (vive fuera de `/:orgId`): gestiona todas las
