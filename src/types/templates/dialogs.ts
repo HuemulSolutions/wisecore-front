@@ -40,6 +40,8 @@ export interface AddCustomFieldTemplateDialogProps {
   onClose: () => void;
   templateId: string;
   onAdd: (data: any) => Promise<any>;
+  /** `custom_fields:c`. Obligatoria y sin default (ver rbac-audit-guide.md, punto 9). */
+  canCreateCustomField: boolean;
 }
 
 export interface EditCustomFieldTemplateDialogProps {

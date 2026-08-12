@@ -11,6 +11,7 @@ export function AddCustomFieldDocumentSheet({
   onAdd,
   onImageUploadStart,
   onImageUploadComplete,
+  canCreateCustomField,
 }: AddCustomFieldDocumentDialogProps) {
   // Fetch custom field document sources (lazy loading: only when sheet is open)
   const { data: sources = [], isLoading: isLoadingSources } = useQuery({
@@ -35,11 +36,8 @@ export function AddCustomFieldDocumentSheet({
       isLoadingSources={isLoadingSources}
       onImageUploadStart={onImageUploadStart}
       onImageUploadComplete={onImageUploadComplete}
-      // TODO(rbac-audit): /asset todavía no cruza custom_fields:c para este
-      // flujo (ver "Granularidad fina" en rbac-audit-guide.md); se fija true
-      // explícito para no romper el flujo existente con el default seguro
-      // (false) de AddCustomFieldSheet.
-      canCreateCustomField={true}
+      // `custom_fields:c` resuelto por assets-content.tsx vía usePageAccess.
+      canCreateCustomField={canCreateCustomField}
     />
   )
 }

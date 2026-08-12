@@ -219,12 +219,11 @@ export default function AppLayout() {
   // the brief gap when the token/permissions are being refreshed.
   const hadOrgAccessRef = useRef(false)
   
+  // Sin helpers `canAccessX`: todo gate de nav sale de RBAC_PAGES, que es la
+  // misma fuente que el guard de ruta (ver ia context/rbac-audit-guide.md).
   const {
     isRootAdmin,
     isOrgAdmin,
-    canAccessDocumentTypes,
-    canAccessExternalSystems,
-    canAccessTokenUsage,
     hasAnyPermission,
   } = useUserPermissions()
 
@@ -392,7 +391,11 @@ export default function AppLayout() {
   
   // Filtrar opciones del menú de configuración basándose en permisos
   // NOTA: isOrgAdmin hace bypass de permisos, isRootAdmin NO
-  const hasAssetManagementAccess = canAccessDocumentTypes || isOrgAdmin || hasAnyPermission(RBAC_PAGES.canvas.routePermissions) || hasAnyPermission(RBAC_PAGES.diagrams.routePermissions) || hasAnyPermission(RBAC_PAGES["custom-fields"].routePermissions) || hasAnyPermission(RBAC_PAGES.media.routePermissions)
+  // Cada OR usa el MISMO permiso que el guard de ruta del ítem que habilita
+  // (antes `asset-types` entraba por el helper canAccessDocumentTypes, de 5
+  // acciones: un rol con solo asset_type:c abría el grupo sin ningún ítem
+  // dentro). El bypass de isOrgAdmin ya vive dentro de hasAnyPermission.
+  const hasAssetManagementAccess = hasAnyPermission(RBAC_PAGES["asset-types"].routePermissions) || hasAnyPermission(RBAC_PAGES.canvas.routePermissions) || hasAnyPermission(RBAC_PAGES.diagrams.routePermissions) || hasAnyPermission(RBAC_PAGES["custom-fields"].routePermissions) || hasAnyPermission(RBAC_PAGES.media.routePermissions)
   const canAccessOrganizationsPage = hasAnyPermission(RBAC_PAGES.organizations.routePermissions)
   // Antes usaba el helper canAccessModels (10 permisos, incluye llm:c/llm:d),
   // más ancho que el guard de ruta — ver ia context/rbac-audit-guide.md.
@@ -404,7 +407,11 @@ export default function AppLayout() {
   // de ruta (user:r|l) — mismo criterio que canAccessRolesPage. Con el helper,
   // un rol con solo user:c abría el grupo Administration sin ningún ítem.
   const canAccessUsersPage = hasAnyPermission(RBAC_PAGES.users.routePermissions)
-  const hasAdministrationAccess = canAccessUsersPage || canAccessRolesPage || canAccessModelsPage || canAccessOrganizationsPage || canAccessExternalSystems || canAccessTokenUsage || isOrgAdmin || isRootAdmin
+  // Antes usaba el helper canAccessExternalSystems (5 acciones), más ancho que
+  // el guard de ruta — mismo criterio que los cuatro anteriores.
+  const canAccessExternalSystemsPage = hasAnyPermission(RBAC_PAGES["external-systems"].routePermissions)
+  const canAccessTokenUsagePage = hasAnyPermission(RBAC_PAGES["token-usage"].routePermissions)
+  const hasAdministrationAccess = canAccessUsersPage || canAccessRolesPage || canAccessModelsPage || canAccessOrganizationsPage || canAccessExternalSystemsPage || canAccessTokenUsagePage || isRootAdmin
   // Antes terminaba en `|| !!organizationToken`, un OR que existía solo para
   // habilitar el ítem de Media (la única entrada sin permiso propio) y que
   // abría el dropdown entero a cualquier usuario con token de organización.
@@ -482,25 +489,29 @@ export default function AppLayout() {
       // ia context/rbac-audit-guide.md.
       let shouldShowItem = true
 
+      // Ningún `|| isOrgAdmin` en los cases: ese bypass ya vive dentro de
+      // hasAnyPermission (ver permissions-context.tsx).
       switch (item.title) {
         case "Assets":
-          shouldShowItem = hasAnyPermission(RBAC_PAGES.asset.routePermissions) || isOrgAdmin
+          shouldShowItem = hasAnyPermission(RBAC_PAGES.asset.routePermissions)
           break
         case "Templates":
-          shouldShowItem = hasAnyPermission(RBAC_PAGES.templates.routePermissions) || isOrgAdmin
+          shouldShowItem = hasAnyPermission(RBAC_PAGES.templates.routePermissions)
           break
         case "Advanced":
-          shouldShowItem = hasAnyPermission(RBAC_PAGES.advanced.routePermissions) || isOrgAdmin
+          shouldShowItem = hasAnyPermission(RBAC_PAGES.advanced.routePermissions)
           break
         case "Workflow":
-          // Sin `|| isOrgAdmin`: ese bypass ya vive dentro de hasAnyPermission.
           shouldShowItem = hasAnyPermission(RBAC_PAGES.workflow.routePermissions)
           break
         case "Search":
-          shouldShowItem = hasAnyPermission(RBAC_PAGES.search.routePermissions) || isOrgAdmin
+          shouldShowItem = hasAnyPermission(RBAC_PAGES.search.routePermissions)
           break
         default:
-          shouldShowItem = true
+          // Secure-by-default: un ítem nuevo sin `case` queda oculto en vez de
+          // visible para todos. `/search` vivió así hasta la 15ª pasada, y el
+          // mismo agujero por omisión sostuvo el ítem de Media.
+          shouldShowItem = false
       }
 
       return shouldShowItem ? { ...item, loading: false } : null
@@ -703,7 +714,7 @@ export default function AppLayout() {
                         <DropdownMenuLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
                           {t('settings.assetManagement')}
                         </DropdownMenuLabel>
-                        {(hasAnyPermission(RBAC_PAGES["asset-types"].routePermissions) || isOrgAdmin) && (
+                        {hasAnyPermission(RBAC_PAGES["asset-types"].routePermissions) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/asset-types")} className={settingsItemClass('/asset-types')}>
                               <FileStack className={settingsIconClass('/asset-types')} />
@@ -712,7 +723,7 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(hasAnyPermission(RBAC_PAGES["custom-fields"].routePermissions) || isOrgAdmin) && (
+                        {hasAnyPermission(RBAC_PAGES["custom-fields"].routePermissions) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/custom-fields")} className={settingsItemClass('/custom-fields')}>
                               <Settings2 className={settingsIconClass('/custom-fields')} />
@@ -722,7 +733,7 @@ export default function AppLayout() {
                           </DropdownMenuItem>
                         )}
 
-                        {(hasAnyPermission(RBAC_PAGES.canvas.routePermissions) || isOrgAdmin) && (
+                        {hasAnyPermission(RBAC_PAGES.canvas.routePermissions) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/canvas")} className={settingsItemClass('/canvas')}>
                               <LayoutPanelTop className={settingsIconClass('/canvas')} />
@@ -731,7 +742,7 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(hasAnyPermission(RBAC_PAGES.diagrams.routePermissions) || isOrgAdmin) && (
+                        {hasAnyPermission(RBAC_PAGES.diagrams.routePermissions) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/diagrams")} className={settingsItemClass('/diagrams')}>
                               <Workflow className={settingsIconClass('/diagrams')} />
@@ -740,7 +751,7 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(hasAnyPermission(RBAC_PAGES.media.routePermissions) || isOrgAdmin) && (
+                        {hasAnyPermission(RBAC_PAGES.media.routePermissions) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/media")} className={settingsItemClass('/media')}>
                               <Image className={settingsIconClass('/media')} />
@@ -786,7 +797,7 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(canAccessRolesPage || isOrgAdmin) && (
+                        {canAccessRolesPage && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/roles")} className={settingsItemClass('/roles')}>
                               <Shield className={settingsIconClass('/roles')} />

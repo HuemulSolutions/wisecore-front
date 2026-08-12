@@ -84,13 +84,13 @@ export function MassExecutionForm({
   const { data: availableLLMs = [], isLoading: isLoadingLLMs } = useQuery({
     queryKey: ["llms"],
     queryFn: getAllLLMs,
-    enabled: canListLlms,
+    enabled: !!selectedOrganizationId && canListLlms,
   })
 
   const { data: defaultLLM, isLoading: isLoadingDefaultLLM } = useQuery({
     queryKey: ["llms", "default"],
     queryFn: getDefaultLLM,
-    enabled: canListLlms,
+    enabled: !!selectedOrganizationId && canListLlms,
     retry: false,
   })
 

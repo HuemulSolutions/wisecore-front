@@ -512,6 +512,7 @@ export function AssetContent({
   // Los custom fields son un recurso propio (custom_fields), no del asset: el tab
   // y su query exigen el permiso de listarlos.
   const canListCustomFields = can('listCustomFields');
+  const canCreateCustomField = can('createCustomField');
   const canListNotifications = can('listNotifications');
   // El tab activo no puede quedar apuntando a un tab que el usuario no puede ver.
   useEffect(() => {
@@ -3371,6 +3372,7 @@ export function AssetContent({
         onAdd={handleCreateCustomFieldDocument}
         onImageUploadStart={handleImageUploadStart}
         onImageUploadComplete={handleImageUploadComplete}
+        canCreateCustomField={canCreateCustomField}
       />
 
       {/* Edit Custom Field Document Sheet (Unified) */}

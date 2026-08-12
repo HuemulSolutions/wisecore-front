@@ -9,6 +9,7 @@ export function AddCustomFieldTemplateSheet({
   onClose,
   templateId,
   onAdd,
+  canCreateCustomField,
 }: AddCustomFieldTemplateDialogProps) {
   // Fetch custom field template sources
   const {
@@ -26,12 +27,9 @@ export function AddCustomFieldTemplateSheet({
       uploadImageFn={uploadCustomFieldTemplateValueBlob}
       sources={sources}
       isLoadingSources={isLoadingSources}
-      // TODO(rbac-audit): templates-custom-fields.tsx no cruza custom_fields:c
-      // para este flujo (grep de canManage|hasPermission|isOrgAdmin|isRootAdmin
-      // en ese archivo da 0 resultados). Se fija true explícito para no
-      // romper el flujo existente con el default seguro (false) de
-      // AddCustomFieldSheet.
-      canCreateCustomField={true}
+      // `custom_fields:c` resuelto por /templates y propagado por el tab
+      // (templates.tsx → templates-content.tsx → TemplateCustomFields).
+      canCreateCustomField={canCreateCustomField}
     />
   )
 }

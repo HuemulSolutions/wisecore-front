@@ -34,7 +34,8 @@ interface SectionFormFieldCardProps {
   onUpdate: (patch: Partial<SectionFormField>) => void;
   onQuestionTypeChange: (questionType: string) => void;
   onCustomFieldChange: (customFieldId: string) => void;
-  onCreateCustomField: () => void;
+  /** Ausente sin `custom_fields:c`: el botón de crear no se renderiza. */
+  onCreateCustomField?: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
 }

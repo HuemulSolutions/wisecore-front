@@ -38,7 +38,9 @@ function getVersionModeBadgeLabel(dependency: Dependency, t: (key: string) => st
   return t('versionMode.badge.published');
 }
 
-export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = true }: AddDependencySheetProps) {
+// `canEdit` es secure-by-default (punto 9 del checklist): su único call-site
+// (assets-dependencies-sheet.tsx) ya lo pasa explícito desde el cruce lifecycle × RBAC.
+export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = false }: AddDependencySheetProps) {
     const { t } = useTranslation('dependencies')
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [dependencyToDelete, setDependencyToDelete] = useState<string | null>(null);

@@ -30,6 +30,7 @@ function StepHeader({ step, label }: StepHeaderProps) {
 export function CombinedExportForm({
   canAccessExcelExport,
   canAccessWordExport,
+  canListTemplates,
   onTemplateChange,
   onConfigChange,
 }: CombinedExportFormProps) {
@@ -63,16 +64,19 @@ export function CombinedExportForm({
   )
   const docxTemplates = docxTemplatesData?.data ?? []
 
+  // Las dos queries exigen el permiso de listar templates, igual que su gemelo
+  // `mass-execution-form.tsx`: sin `template:l|r` este formulario pegaba a
+  // /templates/ y se comía un 403 mudo al abrirse.
   const { data: templatesData, isLoading: isLoadingTemplates } = useQuery({
     queryKey: ["templates", selectedOrganizationId],
     queryFn: () => getAllTemplates(selectedOrganizationId!),
-    enabled: !!selectedOrganizationId,
+    enabled: !!selectedOrganizationId && canListTemplates,
   })
 
   const { data: templateDetail, isLoading: isLoadingSections } = useQuery({
     queryKey: ["template", templateId, selectedOrganizationId],
     queryFn: () => getTemplateById(templateId, selectedOrganizationId!),
-    enabled: !!templateId && !!selectedOrganizationId && exportType === "excel",
+    enabled: !!templateId && !!selectedOrganizationId && canListTemplates && exportType === "excel",
   })
 
   const templateOptions: HuemulFieldOption[] = (templatesData?.data ?? []).map((tmpl) => ({

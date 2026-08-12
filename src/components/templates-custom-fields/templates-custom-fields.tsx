@@ -230,6 +230,7 @@ export function TemplateCustomFields({ templateId, canCreate = false, canUpdate 
         onClose={() => setIsAddDialogOpen(false)}
         templateId={templateId}
         onAdd={handleAddCustomFieldTemplateSubmit}
+        canCreateCustomField={canCreate}
       />
 
       {/* Edit Custom Field Template Sheet */}

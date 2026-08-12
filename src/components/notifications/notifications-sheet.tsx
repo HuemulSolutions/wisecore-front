@@ -47,9 +47,11 @@ function NotificationItem({
   onNavigate,
 }: {
   notification: Notification
-  onMarkRead: (id: string) => void
-  onMarkUnread: (id: string) => void
-  onDelete: (id: string) => void
+  // Opcionales a propósito: sin `notification:u`/`:d` el consumidor no los pasa
+  // y la fila no renderiza el botón (mismo patrón que MediaVersionRow).
+  onMarkRead?: (id: string) => void
+  onMarkUnread?: (id: string) => void
+  onDelete?: (id: string) => void
   onNavigate: (notification: Notification) => void
 }) {
   const { t } = useTranslation(["notifications", "assets"])
@@ -106,30 +108,34 @@ function NotificationItem({
         className="flex items-center gap-1 shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
-        {notification.is_read ? (
+        {notification.is_read
+          ? onMarkUnread && (
+              <button
+                onClick={() => onMarkUnread(notification.id)}
+                className="p-1 text-gray-400 hover:text-blue-600 hover:cursor-pointer transition-colors rounded"
+                title={t("markUnread")}
+              >
+                <BellOff className="h-3.5 w-3.5" />
+              </button>
+            )
+          : onMarkRead && (
+              <button
+                onClick={() => onMarkRead(notification.id)}
+                className="p-1 text-gray-400 hover:text-green-600 hover:cursor-pointer transition-colors rounded"
+                title={t("markRead")}
+              >
+                <Check className="h-3.5 w-3.5" />
+              </button>
+            )}
+        {onDelete && (
           <button
-            onClick={() => onMarkUnread(notification.id)}
-            className="p-1 text-gray-400 hover:text-blue-600 hover:cursor-pointer transition-colors rounded"
-            title={t("markUnread")}
+            onClick={() => onDelete(notification.id)}
+            className="p-1 text-gray-400 hover:text-red-600 hover:cursor-pointer transition-colors rounded"
+            title={t("delete")}
           >
-            <BellOff className="h-3.5 w-3.5" />
-          </button>
-        ) : (
-          <button
-            onClick={() => onMarkRead(notification.id)}
-            className="p-1 text-gray-400 hover:text-green-600 hover:cursor-pointer transition-colors rounded"
-            title={t("markRead")}
-          >
-            <Check className="h-3.5 w-3.5" />
+            <Trash2 className="h-3.5 w-3.5" />
           </button>
         )}
-        <button
-          onClick={() => onDelete(notification.id)}
-          className="p-1 text-gray-400 hover:text-red-600 hover:cursor-pointer transition-colors rounded"
-          title={t("delete")}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
       </div>
     </div>
   )
@@ -155,8 +161,12 @@ export function NotificationsSheet({
   const navigate = useOrgNavigate()
   // `notification:l|r` — el permiso del endpoint que dispara, no el helper
   // `canAccessNotifications` (cualquier acción sobre el recurso).
-  const { hasAnyPermission } = useUserPermissions()
+  const { hasAnyPermission, hasPermission } = useUserPermissions()
   const canListNotifications = hasAnyPermission(["notification:l", "notification:r"])
+  // Marcar leída/no leída escribe la notificación; eliminar la borra. Antes las
+  // tres mutaciones quedaban abiertas para cualquiera que abriera el sheet.
+  const canUpdateNotifications = hasPermission("notification:u")
+  const canDeleteNotifications = hasPermission("notification:d")
 
   const [notifFilter, setNotifFilter] = useState<"all" | "unread">("all")
   const [page, setPage] = useState(1)
@@ -192,23 +202,34 @@ export function NotificationsSheet({
     queryClient.invalidateQueries({ queryKey: ["notifications"] })
 
   const markReadMutation = useMutation({
-    mutationFn: (id: string) => markNotificationRead(organizationId, id),
+    mutationFn: (id: string) => {
+      if (!canUpdateNotifications) return Promise.reject(new Error("Missing permission"))
+      return markNotificationRead(organizationId, id)
+    },
     onSuccess: invalidate,
   })
 
   const markUnreadMutation = useMutation({
-    mutationFn: (id: string) => markNotificationUnread(organizationId, id),
+    mutationFn: (id: string) => {
+      if (!canUpdateNotifications) return Promise.reject(new Error("Missing permission"))
+      return markNotificationUnread(organizationId, id)
+    },
     onSuccess: invalidate,
   })
 
   const deleteNotificationMutation = useMutation({
-    mutationFn: (id: string) => deleteNotification(organizationId, id),
+    mutationFn: (id: string) => {
+      if (!canDeleteNotifications) return Promise.reject(new Error("Missing permission"))
+      return deleteNotification(organizationId, id)
+    },
     onSuccess: invalidate,
   })
 
   const handleNavigate = (notification: Notification) => {
     if (!notification.document_id) return
-    if (!notification.is_read) markReadMutation.mutate(notification.id)
+    // Marcar leída al navegar es una mutación sin botón: necesita su propio
+    // chequeo aunque el botón de "marcar leída" ya esté oculto.
+    if (!notification.is_read && canUpdateNotifications) markReadMutation.mutate(notification.id)
     onOpenChange(false)
     navigate(`/asset/${notification.document_id}`)
   }
@@ -272,9 +293,9 @@ export function NotificationsSheet({
                 <NotificationItem
                   key={n.id}
                   notification={n}
-                  onMarkRead={(id) => markReadMutation.mutate(id)}
-                  onMarkUnread={(id) => markUnreadMutation.mutate(id)}
-                  onDelete={(id) => deleteNotificationMutation.mutate(id)}
+                  onMarkRead={canUpdateNotifications ? (id) => markReadMutation.mutate(id) : undefined}
+                  onMarkUnread={canUpdateNotifications ? (id) => markUnreadMutation.mutate(id) : undefined}
+                  onDelete={canDeleteNotifications ? (id) => deleteNotificationMutation.mutate(id) : undefined}
                   onNavigate={handleNavigate}
                 />
               ))}

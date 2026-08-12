@@ -14,6 +14,8 @@ export interface AddCustomFieldDocumentDialogProps {
   onAdd: (data: any) => Promise<any>
   onImageUploadStart?: (fieldId: string) => void
   onImageUploadComplete?: () => void
+  /** `custom_fields:c`. Obligatoria y sin default (ver rbac-audit-guide.md, punto 9). */
+  canCreateCustomField: boolean
 }
 
 // ----------------------------------------

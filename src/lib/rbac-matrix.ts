@@ -153,9 +153,27 @@ export const RBAC_PAGES = {
 
       // ── Recursos propios que se listan dentro de la página ──
       listCustomFields: ["custom_fields:l", "custom_fields:r"],
+      // Asociar un custom field a un asset puede crear el custom field mismo
+      // (`custom_field_document` no existe como recurso propio, ver hallazgos
+      // pendientes), así que se gatea con la creación del recurso que produce.
+      createCustomField: "custom_fields:c",
       listNotifications: ["notification:l", "notification:r"],
+      // Marcar leída/no leída escribe la notificación; eliminarla la borra. Las
+      // suscripciones (POST/DELETE /subscriptions) no tienen recurso propio en
+      // PermissionResource: se gatean con el CRUD de `notification`, que es lo
+      // que producen y consumen (mismo criterio que `listLogs` en
+      // external-systems). Pendiente de verificar contra backend.
+      updateNotification: "notification:u",
+      deleteNotification: "notification:d",
+      createSubscription: "notification:c",
+      deleteSubscription: "notification:d",
       listAssetTypes: ["asset_type:l", "asset_type:r"], // paleta del canvas de relaciones
       createTemplateFromAsset: "template:c",
+      // TemplateConfigSheet edita las secciones del template desde el flujo de
+      // creación de asset: el recurso que muta es `template_section`, no `asset`.
+      createTemplateSection: "template_section:c",
+      updateTemplateSection: "template_section:u",
+      deleteTemplateSection: "template_section:d",
 
       // ── Modo relaciones / diagramas (RelationshipsCanvas mode="execution") ──
       listExecutionRelationships: ["execution_relationship:l", "execution_relationship:r"],
