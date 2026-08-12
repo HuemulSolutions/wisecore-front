@@ -1,7 +1,7 @@
 // Lifecycle step component props for the asset type configuration module
 import type { HTMLAttributes } from 'react'
 import type { AssetTypeWithRoles } from './asset-types'
-import type { AccessRuleType, AccessRuleTypeOption } from '@/types/lifecycle'
+import type { AccessRuleType, AccessRuleTypeOption, LifecycleStep } from '@/types/lifecycle'
 
 // ----------------------------------------
 // Config Step
@@ -113,6 +113,28 @@ export interface EditStepCardProps {
   canDelete: boolean
   canManage: boolean
   dragHandleProps?: HTMLAttributes<HTMLButtonElement>
+  onEditingChange?: (isEditing: boolean) => void
+  organizationId?: string
+}
+
+// ----------------------------------------
+// Role permissions matrix
+// ----------------------------------------
+
+export interface AssetTypeLifecycleMatrixProps {
+  documentTypeId: string
+  /** Solo dispara el fetch de steps/roles cuando el tab/panel está visible. */
+  enabled?: boolean
+  /** Columna (step) actualmente abierta en el panel lateral, para resaltar su engranaje. */
+  activeStepId: string | null
+  /** El usuario pidió abrir el panel de configuración de esta columna (click en el engranaje). */
+  onConfigureStep: (stepId: string) => void
+}
+
+export interface LifecycleStepPanelProps {
+  documentTypeId: string
+  step: LifecycleStep
+  onClose: () => void
   onEditingChange?: (isEditing: boolean) => void
   organizationId?: string
 }

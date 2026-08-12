@@ -45,6 +45,10 @@ export const lifecycleQueryKeys = {
   accessRuleTypes: () => [...lifecycleQueryKeys.all, 'access-rule-types'] as const,
   steps: (documentTypeId: string, stepType: string | null) =>
     [...lifecycleQueryKeys.all, 'steps', documentTypeId, stepType] as const,
+  // Prefijo compartido por `steps(documentTypeId, stepType)` y `steps(documentTypeId, null)` —
+  // invalidar por este prefijo refresca tanto el step activo como la matriz de "todos los steps".
+  stepsByDocumentType: (documentTypeId: string) =>
+    [...lifecycleQueryKeys.all, 'steps', documentTypeId] as const,
   slaUnits: () => [...lifecycleQueryKeys.all, 'sla-units'] as const,
   documentStepGrants: (organizationId: string, documentId: string, stepId: string) =>
     [...lifecycleQueryKeys.all, 'document-step-grants', organizationId, documentId, stepId] as const,
@@ -122,12 +126,19 @@ export function useLifecycleSlaUnits(enabled: boolean = true) {
   })
 }
 
-export function useLifecycleMutations(documentTypeId: string, stepType: string | null) {
+// `stepType` ya no participa en la invalidación (ver `invalidateSteps`, que ahora
+// invalida por el prefijo `documentTypeId` completo), pero se mantiene en la firma
+// para no tocar los ~5 call sites existentes que lo pasan.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function useLifecycleMutations(documentTypeId: string, _stepType: string | null) {
   const queryClient = useQueryClient()
 
   const invalidateSteps = () => {
+    // Invalida por el prefijo compartido: refresca tanto la query del step type
+    // activo como `useAllLifecycleSteps` (key con stepType `null`), que alimenta
+    // la matriz de permisos por rol.
     queryClient.invalidateQueries({
-      queryKey: lifecycleQueryKeys.steps(documentTypeId, stepType),
+      queryKey: lifecycleQueryKeys.stepsByDocumentType(documentTypeId),
     })
   }
 

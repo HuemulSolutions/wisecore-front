@@ -4,10 +4,11 @@ import { Activity, X } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
+import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
-  useLifecycleStepTypes,
   useLifecycleSteps,
+  useAllLifecycleSteps,
   useLifecycleMutations,
 } from "@/hooks/useLifecycle"
 import { useRoles } from "@/hooks/useRbac"
@@ -16,6 +17,8 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CreateStepContent } from "./assets-types-lifecycle-create-step"
 import { EditStepContent } from "./assets-types-lifecycle-edit-step"
+import { AssetTypeLifecycleMatrix } from "./assets-types-lifecycle-matrix"
+import { LifecycleStepPanel } from "./assets-types-lifecycle-step-panel"
 import type { DefaultStepContentProps, StepContentProps, AssetTypeLifecycleDialogProps } from '@/types/assets'
 
 export type { AssetTypeLifecycleDialogProps } from '@/types/assets'
@@ -178,9 +181,11 @@ function DefaultStepContent({
   )
 }
 
-// Routes to the appropriate sub-component based on stepType.
+// Routes to the appropriate sub-component based on stepType. Exportado para que
+// el panel lateral de la matriz de permisos por rol (`LifecycleStepPanel`) lo
+// reutilice tal cual, sin duplicar el routing por step type.
 
-function StepContent({
+export function StepContent({
   documentTypeId,
   stepType,
   stepLabel,
@@ -228,7 +233,7 @@ function StepContent({
 interface AssetTypeLifecyclePanelProps {
   documentTypeId: string
   organizationId?: string
-  /** Solo dispara el fetch de step types cuando el panel está visible. */
+  /** Solo dispara el fetch de steps/roles cuando el panel está visible. */
   enabled?: boolean
   /** Informa al contenedor si el step activo tiene cambios sin guardar. */
   onEditingChange: (editing: boolean) => void
@@ -237,9 +242,14 @@ interface AssetTypeLifecyclePanelProps {
 }
 
 /**
- * Selector de step types + contenido del step activo. Se monta como tab dentro
- * del sheet de configuración (`AssetTypeConfigSheet`) y también dentro del
- * `AssetTypeLifecycleDialog` que usan las páginas de relaciones.
+ * Matriz de permisos por rol + panel lateral de configuración. Se monta como
+ * tab dentro del sheet de configuración (`AssetTypeConfigSheet`) y también
+ * dentro del `AssetTypeLifecycleDialog` que usan las páginas de relaciones.
+ *
+ * La matriz (`AssetTypeLifecycleMatrix`) lista roles × columnas (un
+ * `LifecycleStep` por columna); el engranaje de cada columna pide abrir el
+ * panel lateral (`LifecycleStepPanel`), que reutiliza el router `StepContent`
+ * para el detalle (SLA, modo, reglas de acceso, grupos).
  */
 export function AssetTypeLifecyclePanel({
   documentTypeId,
@@ -248,70 +258,57 @@ export function AssetTypeLifecyclePanel({
   onEditingChange,
   guardedAction,
 }: AssetTypeLifecyclePanelProps) {
-  const { t } = useTranslation("asset-types")
-  const { data, isLoading: loadingStepTypes } = useLifecycleStepTypes(enabled)
-  const stepTypes = data?.data ?? []
+  const { data } = useAllLifecycleSteps(documentTypeId, enabled)
+  const allSteps = data?.data?.steps ?? []
 
-  const [activeStep, setActiveStep] = useState<string | null>(null)
+  const [activeStepId, setActiveStepId] = useState<string | null>(null)
+  const activeStep = allSteps.find((s) => s.id === activeStepId) ?? null
 
-  // Select first step type once loaded
-  useEffect(() => {
-    if (stepTypes.length > 0 && !activeStep) {
-      setActiveStep(stepTypes[0].value)
-    }
-  }, [stepTypes, activeStep])
-
-  // Reset edit mode when switching step types
+  // Reset edit mode cada vez que cambia el step mostrado en el panel lateral —
+  // mismo contrato que antes: cada step activo administra su propio "sin guardar".
   useEffect(() => {
     onEditingChange(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeStep])
+  }, [activeStepId])
 
-  const activeStepLabel =
-    stepTypes.find((s) => s.value === activeStep)?.label ?? activeStep ?? ""
+  const handleConfigureStep = (stepId: string) => {
+    guardedAction(() => setActiveStepId(stepId))
+  }
+
+  const handleClosePanel = () => {
+    guardedAction(() => setActiveStepId(null))
+  }
 
   return (
-    <div className="flex flex-col gap-4 h-full py-2">
-      {/* Step type badge selector — fixed, never scrolls */}
-      <div className="shrink-0 bg-background pb-2 border-b border-border">
-        {loadingStepTypes ? (
-          <div className="flex flex-wrap gap-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-6 w-20 rounded-full" />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {stepTypes.map((step) => (
-              <Badge
-                key={step.value}
-                variant={activeStep === step.value ? "default" : "outline"}
-                className="cursor-pointer select-none text-sm px-4 py-1.5 transition-colors"
-                onClick={() => guardedAction(() => setActiveStep(step.value))}
-              >
-                {t(`lifecycle.stepTypes.${step.value}`, {
-                  defaultValue: step.label,
-                })}
-              </Badge>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Active step content */}
-      {activeStep && (
-        <div className="flex-1 min-h-0">
-          <StepContent
-            key={`${documentTypeId}-${activeStep}`}
-            documentTypeId={documentTypeId}
-            stepType={activeStep}
-            stepLabel={activeStepLabel}
-            onEditingChange={onEditingChange}
-            organizationId={organizationId}
-          />
-        </div>
-      )}
-    </div>
+    <HuemulPageLayout
+      columns={[
+        {
+          content: (
+            <AssetTypeLifecycleMatrix
+              documentTypeId={documentTypeId}
+              enabled={enabled}
+              activeStepId={activeStepId}
+              onConfigureStep={handleConfigureStep}
+            />
+          ),
+        },
+        {
+          content: activeStep ? (
+            <LifecycleStepPanel
+              key={activeStep.id}
+              documentTypeId={documentTypeId}
+              step={activeStep}
+              onClose={handleClosePanel}
+              onEditingChange={onEditingChange}
+              organizationId={organizationId}
+            />
+          ) : null,
+          defaultSize: 34,
+          minSize: 26,
+          show: activeStep != null,
+        },
+      ]}
+    />
   )
 }
 

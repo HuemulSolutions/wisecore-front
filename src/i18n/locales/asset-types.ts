@@ -30,7 +30,7 @@ const translations = {
     tabs: {
       general: { en: "General", es: "General" },
       templates: { en: "Templates", es: "Plantillas" },
-      lifecycle: { en: "Lifecycle", es: "Ciclo de vida" },
+      lifecycle: { en: "Role permissions", es: "Permisos por rol" },
     },
   },
   table: {
@@ -295,6 +295,21 @@ const translations = {
       confirmDelete: { en: "Delete this action?", es: "¿Eliminar esta acción?" },
       save: { en: "Save", es: "Guardar" },
       cancel: { en: "Cancel", es: "Cancelar" },
+    },
+    matrix: {
+      hint: { en: "Elaboration, Review and Approval support groups. The rest are simple permissions.", es: "Elaboración, Revisión y Aprobación soportan grupos. El resto son permisos simples." },
+      roleColumn: { en: "Role", es: "Rol" },
+      wholeOrganization: { en: "Whole organization", es: "Toda la organización" },
+      allListedRoles: { en: "All roles in the list", es: "Todos los roles de la lista" },
+      unassigned: { en: "Unassigned", es: "Sin asignar" },
+      groupPrefix: { en: "Group: {{name}}", es: "Grupo: {{name}}" },
+      configureStep: { en: "Configure {{step}}", es: "Configurar {{step}}" },
+      addRole: { en: "Add role", es: "Agregar rol" },
+      addRolePlaceholder: { en: "Select a role to add…", es: "Selecciona un rol para agregar…" },
+      removeRole: { en: "Remove role", es: "Quitar rol" },
+      removeRoleConfirm: { en: "This role has assigned permissions across one or more steps. Remove it from all of them?", es: "Este rol tiene permisos asignados en uno o más pasos. ¿Quitarlo de todos ellos?" },
+      automaticHint: { en: "Automatic step — roles don't apply.", es: "Paso automático — los roles no aplican." },
+      filterHint: { en: "Filter columns", es: "Filtrar columnas" },
     },
   },
 }
