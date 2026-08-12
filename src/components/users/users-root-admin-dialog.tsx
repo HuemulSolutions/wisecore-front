@@ -14,7 +14,8 @@ export default function RootAdminDialog({
   open,
   onOpenChange,
   onConfirm,
-  isLoading = false
+  isLoading = false,
+  canManage
 }: RootAdminDialogProps) {
   const { t } = useTranslation(['users'])
   const [isRootAdmin, setIsRootAdmin] = useState(false)
@@ -27,10 +28,11 @@ export default function RootAdminDialog({
   }, [user, open])
 
   const handleSave = () => {
+    if (!canManage) return
     if (user) onConfirm(user.id, isRootAdmin)
   }
 
-  if (!user) return null
+  if (!user || !canManage) return null
 
   return (
     <HuemulDialog
@@ -44,6 +46,7 @@ export default function RootAdminDialog({
       saveAction={{
         label: t('users:rootAdmin.updateButton'),
         onClick: handleSave,
+        disabled: !canManage,
         loading: isLoading,
         closeOnSuccess: false
       }}

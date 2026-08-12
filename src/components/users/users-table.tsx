@@ -58,16 +58,16 @@ export default function UserTable({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onSelectAll: _onSelectAll,
   onEditUser,
-  onViewOrganizations,
   onAssignRoles,
   onDeleteUser,
   onManageRootAdmin,
   onMakeOrganizationAdmin,
-  isCurrentUserRootAdmin = false,
+  canManageRootAdmin = false,
   userMutations,
   pagination,
   canUpdate = false,
   canDelete = false,
+  canAssignRoles = false,
   isLoading = false,
   isFetching = false
 }: UserTableProps) {
@@ -171,7 +171,12 @@ export default function UserTable({
       key: "approve",
       label: t('users:actions.approveUser'),
       icon: Check,
-      onClick: (user) => userMutations.approveUser.mutate(user.id),
+      // Aprobar/rechazar mutan directo desde el menú, sin diálogo de por medio:
+      // el early-return acá es su única defensa en profundidad.
+      onClick: (user) => {
+        if (!canUpdate) return
+        userMutations.approveUser.mutate(user.id)
+      },
       show: (user) => user.status === 'pending' && canUpdate,
       className: "text-green-600"
     },
@@ -179,7 +184,10 @@ export default function UserTable({
       key: "reject",
       label: t('users:actions.rejectUser'),
       icon: X,
-      onClick: (user) => userMutations.rejectUser.mutate(user.id),
+      onClick: (user) => {
+        if (!canUpdate) return
+        userMutations.rejectUser.mutate(user.id)
+      },
       show: (user) => user.status === 'pending' && canUpdate,
       separator: true,
       destructive: true
@@ -189,30 +197,24 @@ export default function UserTable({
       label: t('users:actions.assignRoles'),
       icon: UserPlus,
       onClick: onAssignRoles,
-      show: () => canUpdate
+      // El sheet muta POST /user_roles/{roleId}/bulk_users, gateado con rbac:u:
+      // mostrarlo con user:u abría un sheet que se renderiza en null.
+      show: () => canAssignRoles
     },
     {
       key: "manage-root-admin",
       label: t('users:actions.manageRootAdmin'),
       icon: ShieldCheck,
       onClick: onManageRootAdmin,
-      show: () => isCurrentUserRootAdmin
+      show: () => canManageRootAdmin
     },
     {
       key: "make-org-admin",
       label: t('users:actions.makeOrgAdmin'),
       icon: Building,
       onClick: (user) => onMakeOrganizationAdmin?.(user),
-      show: () => isCurrentUserRootAdmin && !!onMakeOrganizationAdmin,
+      show: () => canManageRootAdmin && !!onMakeOrganizationAdmin,
       separator: true
-    },
-    {
-      key: "view-orgs",
-      label: t('users:actions.viewOrganizations'),
-      icon: Building,
-      onClick: onViewOrganizations
-      ,
-      show: () => false
     },
     {
       key: "edit",

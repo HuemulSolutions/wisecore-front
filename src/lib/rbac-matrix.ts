@@ -217,8 +217,29 @@ export const RBAC_PAGES = {
     requireRootAdmin: true,
   },
   users: {
+    // Vista plana org-scoped sobre un recurso propio (`user`, ya existente en
+    // PermissionResource). Sin `nav`: vive en el dropdown de Settings, igual
+    // que `organizations`/`models`/`roles`.
+    //
+    // `manageRootAdmin` NO se declara acá: PATCH /users/{id}/root-admin muta
+    // un flag de sistema (no org-scoped) y su eje es isRootAdmin, que `can()`
+    // no resuelve (hasPermission da bypass a isOrgAdmin, pero no a
+    // isRootAdmin). Mismo criterio que `global-admin`/`auth-types`.
     route: "users",
     routePermissions: ["user:r", "user:l"],
+    features: {
+      // GET /user_roles/users_with_roles — el mismo endpoint que ya se gatea
+      // con user:l|r desde el filtro de /token-usage.
+      listUsers: ["user:l", "user:r"],
+      createUser: "user:c",
+      // Editar + aprobar/rechazar altas (POST /users/{id}/approve|reject):
+      // tres formas de mutar un usuario ya existente.
+      updateUser: "user:u",
+      deleteUser: "user:d",
+      // POST /user_roles/{roleId}/bulk_users — mismo endpoint y mismo permiso
+      // que RBAC_PAGES.roles.features.assignRoleToUsers.
+      assignRoles: "rbac:u",
+    },
   },
   roles: {
     // Vista plana org-scoped sobre un recurso propio (`rbac`, ya existente en

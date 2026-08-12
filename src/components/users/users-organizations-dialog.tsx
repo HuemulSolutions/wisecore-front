@@ -17,26 +17,31 @@ import { type Organization } from "@/components/organization"
 import type { UserOrganizationsDialogProps } from '@/types/users'
 export type { UserOrganizationsDialogProps } from '@/types/users'
 
-export default function UserOrganizationsDialog({ user, open, onOpenChange }: UserOrganizationsDialogProps) {
+export default function UserOrganizationsDialog({ user, open, onOpenChange, canManage }: UserOrganizationsDialogProps) {
   const { t } = useTranslation(['users'])
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<string>("")
   const [orgToRemove, setOrgToRemove] = useState<{ id: string; name: string } | null>(null)
   const queryClient = useQueryClient()
 
-  const { data: organizationsResponse, isLoading: isLoadingUserOrgs, error } = useUserOrganizations(user?.id)
-  
+  // Sin `canManage` no se dispara ninguna de las dos lecturas: GET
+  // /users/organizations y GET /organizations listan datos cross-org que solo
+  // corresponden al flujo root-admin-only de /global-admin.
+  const { data: organizationsResponse, isLoading: isLoadingUserOrgs, error } = useUserOrganizations(canManage ? user?.id : undefined)
+
   // Fetch all organizations to show available ones for assignment
   const { data: allOrgsResponse, isLoading: isLoadingAllOrgs } = useQuery({
     queryKey: ['organizations', 'all-for-assignment'],
     queryFn: () => getAllOrganizations(1, 1000),
-    enabled: !!user,
+    enabled: !!user && canManage,
   })
 
   const isLoading = isLoadingUserOrgs || isLoadingAllOrgs
 
   const assignMutation = useMutation({
-    mutationFn: (organizationId: string) => 
-      assignUserToOrganization(organizationId, { user_id: user!.id }),
+    mutationFn: (organizationId: string) => {
+      if (!canManage) return Promise.reject(new Error('Not allowed'))
+      return assignUserToOrganization(organizationId, { user_id: user!.id })
+    },
     meta: { successMessage: t('users:organizations.assignedSuccess') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users', 'organizations', user?.id] })
@@ -45,15 +50,17 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
   })
 
   const removeMutation = useMutation({
-    mutationFn: (organizationId: string) => 
-      removeUserFromOrganization(organizationId, user!.id),
+    mutationFn: (organizationId: string) => {
+      if (!canManage) return Promise.reject(new Error('Not allowed'))
+      return removeUserFromOrganization(organizationId, user!.id)
+    },
     meta: { successMessage: t('users:organizations.removedSuccess') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users', 'organizations', user?.id] })
     },
   })
 
-  if (!user) return null
+  if (!user || !canManage) return null
 
   const userOrganizations = organizationsResponse?.data || []
   const allOrganizations = (allOrgsResponse?.data || []) as Organization[]

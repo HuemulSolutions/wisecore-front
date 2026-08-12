@@ -38,6 +38,20 @@ export interface UserPageDialogsProps {
   userMutations: ReturnType<typeof useUserMutations>
   onUsersUpdated?: () => void
   createUserAddToOrganization?: boolean
+  /**
+   * Props de permiso obligatorias (sin default): cada diálogo montado acá
+   * muta, y ninguno tenía gate propio. Los consumidores las resuelven con su
+   * propio eje — `/users` con `usePageAccess('users')`, `/global-admin` con su
+   * único `canManage` root-admin-only.
+   */
+  canCreate: boolean
+  canUpdate: boolean
+  canDelete: boolean
+  canAssignRoles: boolean
+  /** PATCH /users/{id}/root-admin: flag de sistema, eje isRootAdmin. */
+  canManageRootAdmin: boolean
+  /** POST/DELETE /organizations/{id}/users: solo alcanzable desde /global-admin. */
+  canManageOrganizations: boolean
 }
 
 export interface EmptyStateProps {
@@ -64,12 +78,15 @@ export interface UserTableProps {
   onUserSelection: (userId: string) => void
   onSelectAll: () => void
   onEditUser: (user: User) => void
-  onViewOrganizations: (user: User) => void
   onAssignRoles: (user: User) => void
   onDeleteUser: (user: User) => void
   onManageRootAdmin: (user: User) => void
   onMakeOrganizationAdmin?: (user: User) => void
-  isCurrentUserRootAdmin?: boolean
+  /**
+   * Eje del flag de sistema `is_root_admin` (PATCH /users/{id}/root-admin).
+   * No es un bypass de RBAC: solo decide si se ofrece esa acción de fila.
+   */
+  canManageRootAdmin?: boolean
   userMutations: {
     approveUser: UseMutationResult<any, any, string, unknown>
     rejectUser: UseMutationResult<any, any, string, unknown>
@@ -78,6 +95,8 @@ export interface UserTableProps {
   pagination?: HuemulTablePagination
   canUpdate?: boolean
   canDelete?: boolean
+  /** Asignar roles muta vía `rbac:u`, no `user:u`: eje propio. */
+  canAssignRoles?: boolean
   isLoading?: boolean
   isFetching?: boolean
 }

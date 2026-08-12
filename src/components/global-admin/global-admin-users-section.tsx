@@ -332,6 +332,12 @@ export function GlobalAdminUsersSection({ canManage }: GlobalAdminUsersSectionPr
           void refetch()
         }}
         createUserAddToOrganization={false}
+        canCreate={canManage}
+        canUpdate={canManage}
+        canDelete={canManage}
+        canAssignRoles={canManage}
+        canManageRootAdmin={canManage}
+        canManageOrganizations={canManage}
       />
     </div>
   )

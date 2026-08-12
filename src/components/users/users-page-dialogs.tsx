@@ -5,25 +5,28 @@ import AssignRolesSheet from "@/components/roles/roles-assign-sheet"
 import UserDeleteDialog from "@/components/users/users-delete-dialog"
 import RootAdminDialog from "@/components/users/users-root-admin-dialog"
 import { logger } from "@/lib/logger"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
 import type { UserPageDialogsProps } from '@/types/users'
 export type { UserPageDialogsProps } from '@/types/users'
 
+/**
+ * Contenedor sin lógica de permisos propia: cada consumidor resuelve los seis
+ * ejes con el suyo (`/users` vía usePageAccess('users'), `/global-admin` vía su
+ * único `canManage` root-admin-only) y acá solo se propagan.
+ */
 export default function UserPageDialogs({
   state,
   onCloseDialog,
   onUpdateState,
   userMutations,
   onUsersUpdated,
-  createUserAddToOrganization
+  createUserAddToOrganization,
+  canCreate,
+  canUpdate,
+  canDelete,
+  canAssignRoles,
+  canManageRootAdmin,
+  canManageOrganizations
 }: UserPageDialogsProps) {
-  const { isOrgAdmin, hasPermission } = useUserPermissions()
-  // TODO(rbac-audit): /users todavía no tiene su propia pasada de auditoría
-  // (ver ia context/rbac-audit-guide.md, 14ª pasada de /roles). AssignRolesSheet
-  // muta vía RBAC_PAGES.roles.features.assignRoleToUsers = "rbac:u", así que se
-  // resuelve acá con el mismo permiso hasta que /users tenga su matriz propia.
-  const canAssignRoles = isOrgAdmin || hasPermission('rbac:u')
-
   return (
     <>
       <EditUserSheet
@@ -31,12 +34,14 @@ export default function UserPageDialogs({
         open={!!state.editingUser}
         onOpenChange={(open) => !open && onCloseDialog('editingUser')}
         onSuccess={onUsersUpdated}
+        canSave={canUpdate}
       />
 
       <UserOrganizationsDialog
         user={state.organizationUser}
         open={!!state.organizationUser}
         onOpenChange={(open) => !open && onCloseDialog('organizationUser')}
+        canManage={canManageOrganizations}
       />
 
       <CreateUserDialog
@@ -44,6 +49,7 @@ export default function UserPageDialogs({
         onOpenChange={(open) => !open && onUpdateState({ showCreateDialog: false })}
         onSuccess={onUsersUpdated}
         addToOrganization={createUserAddToOrganization}
+        canCreate={canCreate}
       />
 
       <AssignRolesSheet
@@ -60,8 +66,9 @@ export default function UserPageDialogs({
         user={state.deletingUser}
         open={!!state.deletingUser}
         onOpenChange={(open) => !open && onCloseDialog('deletingUser')}
+        canDelete={canDelete}
         onAction={async () => {
-          if (!state.deletingUser) return
+          if (!canDelete || !state.deletingUser) return
           await new Promise<void>((resolve, reject) => {
             userMutations.deleteUser.mutate(state.deletingUser!.id, {
               onSuccess: () => resolve(),
@@ -75,7 +82,9 @@ export default function UserPageDialogs({
         user={state.rootAdminUser}
         open={!!state.rootAdminUser}
         onOpenChange={(open) => !open && onCloseDialog('rootAdminUser')}
+        canManage={canManageRootAdmin}
         onConfirm={(userId, isRootAdmin) => {
+          if (!canManageRootAdmin) return
           userMutations.updateRootAdmin.mutate(
             { userId, isRootAdmin },
             {

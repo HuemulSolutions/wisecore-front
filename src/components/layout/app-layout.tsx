@@ -222,7 +222,6 @@ export default function AppLayout() {
   const {
     isRootAdmin,
     isOrgAdmin,
-    canAccessUsers,
     canAccessDocumentTypes,
     canAccessExternalSystems,
     canAccessTokenUsage,
@@ -401,7 +400,11 @@ export default function AppLayout() {
   // Antes usaba el helper canAccessRoles (5 acciones), más ancho que el guard
   // de ruta (rbac:r|l) — mismo criterio que canAccessModelsPage.
   const canAccessRolesPage = hasAnyPermission(RBAC_PAGES.roles.routePermissions)
-  const hasAdministrationAccess = canAccessUsers || canAccessRolesPage || canAccessModelsPage || canAccessOrganizationsPage || canAccessExternalSystems || canAccessTokenUsage || isOrgAdmin || isRootAdmin
+  // Antes usaba el helper canAccessUsers (5 acciones), más ancho que el guard
+  // de ruta (user:r|l) — mismo criterio que canAccessRolesPage. Con el helper,
+  // un rol con solo user:c abría el grupo Administration sin ningún ítem.
+  const canAccessUsersPage = hasAnyPermission(RBAC_PAGES.users.routePermissions)
+  const hasAdministrationAccess = canAccessUsersPage || canAccessRolesPage || canAccessModelsPage || canAccessOrganizationsPage || canAccessExternalSystems || canAccessTokenUsage || isOrgAdmin || isRootAdmin
   // Antes terminaba en `|| !!organizationToken`, un OR que existía solo para
   // habilitar el ítem de Media (la única entrada sin permiso propio) y que
   // abría el dropdown entero a cualquier usuario con token de organización.
@@ -773,7 +776,7 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(canAccessUsers || isOrgAdmin) && (
+                        {canAccessUsersPage && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/users")} className={settingsItemClass('/users')}>
                               <Users className={settingsIconClass('/users')} />
@@ -927,6 +930,9 @@ export default function AppLayout() {
             open={profileDialogOpen}
             onOpenChange={setProfileDialogOpen}
             showDailyDigest
+            // Editar el propio perfil no es una acción sobre el recurso `user`
+            // de la organización: no requiere `user:u`.
+            canSave={true}
           />
         )}
 
