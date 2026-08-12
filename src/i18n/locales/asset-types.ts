@@ -23,7 +23,15 @@ const translations = {
     editAssetType: { en: "Edit Asset Type", es: "Editar Tipo de Activo" },
     deleteAssetType: { en: "Delete Asset Type", es: "Eliminar Tipo de Activo" },
     viewRelationships: { en: "View Relationships", es: "Ver Relaciones" },
-    manageTemplates: { en: "Manage templates", es: "Gestionar plantillas" },
+    configureAssetType: { en: "Asset Type Settings", es: "Configuración Tipo de Activo" },
+  },
+  config: {
+    title: { en: "Asset type settings", es: "Configuración del tipo de activo" },
+    tabs: {
+      general: { en: "General", es: "General" },
+      templates: { en: "Templates", es: "Plantillas" },
+      lifecycle: { en: "Lifecycle", es: "Ciclo de vida" },
+    },
   },
   table: {
     showing: { en: "Showing {{count}} asset types", es: "Mostrando {{count}} tipos de activo" },

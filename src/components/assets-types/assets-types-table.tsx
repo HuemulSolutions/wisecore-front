@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
-import { Edit2, Trash2, FileStack, Activity, Copy, GitMerge, LayoutTemplate } from "lucide-react"
+import { Trash2, FileStack, Copy, GitMerge, Settings2 } from "lucide-react"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import type { AssetTypeTableProps } from '@/types/assets'
@@ -18,19 +18,15 @@ export const formatDate = (dateString: string) => {
 
 export default function AssetTypeTable({
   assetTypes,
-  onEditAssetType,
+  onConfigureAssetType,
   onDeleteAssetType,
   onCloneAssetType,
-  onLifecycle,
   onViewRelationships,
-  onManageTemplates,
   pagination,
-  canUpdate = false,
+  canConfigure = false,
   canDelete = false,
   canViewRelationships = false,
   canClone = false,
-  canManageLifecycle = false,
-  canManageTemplates = false,
   isLoading = false,
   isFetching = false,
   selectedIds,
@@ -79,23 +75,17 @@ export default function AssetTypeTable({
 
   // Define actions - construir condicionalmente
   const actions: HuemulTableAction<AssetTypeWithRoles>[] = [
+    ...(canConfigure ? [{
+      key: "configure" as const,
+      label: t('actions.configureAssetType'),
+      icon: Settings2,
+      onClick: onConfigureAssetType
+    }] : []),
     ...(canViewRelationships ? [{
       key: "viewRelationships" as const,
       label: t('actions.viewRelationships'),
       icon: GitMerge,
       onClick: onViewRelationships
-    }] : []),
-    ...(canManageTemplates ? [{
-      key: "manageTemplates" as const,
-      label: t('actions.manageTemplates'),
-      icon: LayoutTemplate,
-      onClick: onManageTemplates
-    }] : []),
-    ...(canManageLifecycle ? [{
-      key: "lifecycle" as const,
-      label: t('actions.lifecycle'),
-      icon: Activity,
-      onClick: onLifecycle
     }] : []),
     ...(canClone ? [{
       key: "clone" as const,
@@ -103,19 +93,13 @@ export default function AssetTypeTable({
       icon: Copy,
       onClick: onCloneAssetType
     }] : []),
-    ...(canUpdate ? [{
-      key: "edit" as const,
-      label: t('actions.editAssetType'),
-      icon: Edit2,
-      onClick: onEditAssetType,
-      separator: true
-    }] : []),
     ...(canDelete ? [{
       key: "delete" as const,
       label: t('actions.deleteAssetType'),
       icon: Trash2,
       onClick: onDeleteAssetType,
-      destructive: true
+      destructive: true,
+      separator: true
     }] : [])
   ]
 

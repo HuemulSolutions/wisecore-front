@@ -225,6 +225,96 @@ function StepContent({
   )
 }
 
+interface AssetTypeLifecyclePanelProps {
+  documentTypeId: string
+  organizationId?: string
+  /** Solo dispara el fetch de step types cuando el panel está visible. */
+  enabled?: boolean
+  /** Informa al contenedor si el step activo tiene cambios sin guardar. */
+  onEditingChange: (editing: boolean) => void
+  /** Envuelve las acciones que descartarían cambios sin guardar. */
+  guardedAction: (action: () => void) => void
+}
+
+/**
+ * Selector de step types + contenido del step activo. Se monta como tab dentro
+ * del sheet de configuración (`AssetTypeConfigSheet`) y también dentro del
+ * `AssetTypeLifecycleDialog` que usan las páginas de relaciones.
+ */
+export function AssetTypeLifecyclePanel({
+  documentTypeId,
+  organizationId,
+  enabled = true,
+  onEditingChange,
+  guardedAction,
+}: AssetTypeLifecyclePanelProps) {
+  const { t } = useTranslation("asset-types")
+  const { data, isLoading: loadingStepTypes } = useLifecycleStepTypes(enabled)
+  const stepTypes = data?.data ?? []
+
+  const [activeStep, setActiveStep] = useState<string | null>(null)
+
+  // Select first step type once loaded
+  useEffect(() => {
+    if (stepTypes.length > 0 && !activeStep) {
+      setActiveStep(stepTypes[0].value)
+    }
+  }, [stepTypes, activeStep])
+
+  // Reset edit mode when switching step types
+  useEffect(() => {
+    onEditingChange(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStep])
+
+  const activeStepLabel =
+    stepTypes.find((s) => s.value === activeStep)?.label ?? activeStep ?? ""
+
+  return (
+    <div className="flex flex-col gap-4 h-full py-2">
+      {/* Step type badge selector — fixed, never scrolls */}
+      <div className="shrink-0 bg-background pb-2 border-b border-border">
+        {loadingStepTypes ? (
+          <div className="flex flex-wrap gap-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-6 w-20 rounded-full" />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {stepTypes.map((step) => (
+              <Badge
+                key={step.value}
+                variant={activeStep === step.value ? "default" : "outline"}
+                className="cursor-pointer select-none text-sm px-4 py-1.5 transition-colors"
+                onClick={() => guardedAction(() => setActiveStep(step.value))}
+              >
+                {t(`lifecycle.stepTypes.${step.value}`, {
+                  defaultValue: step.label,
+                })}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Active step content */}
+      {activeStep && (
+        <div className="flex-1 min-h-0">
+          <StepContent
+            key={`${documentTypeId}-${activeStep}`}
+            documentTypeId={documentTypeId}
+            stepType={activeStep}
+            stepLabel={activeStepLabel}
+            onEditingChange={onEditingChange}
+            organizationId={organizationId}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AssetTypeLifecycleDialog({
   assetType,
   open,
@@ -232,10 +322,7 @@ export default function AssetTypeLifecycleDialog({
   organizationId,
 }: AssetTypeLifecycleDialogProps) {
   const { t } = useTranslation("asset-types")
-  const { data, isLoading: loadingStepTypes } = useLifecycleStepTypes(open)
-  const stepTypes = data?.data ?? []
 
-  const [activeStep, setActiveStep] = useState<string | null>(null)
   const [activeStepIsEditing, setActiveStepIsEditing] = useState(false)
 
   // Unsaved-changes guard
@@ -266,28 +353,12 @@ export default function AssetTypeLifecycleDialog({
   )
 
 
-  // Select first step type once loaded or when dialog opens
-  useEffect(() => {
-    if (open && stepTypes.length > 0 && !activeStep) {
-      setActiveStep(stepTypes[0].value)
-    }
-  }, [open, stepTypes, activeStep])
-
   // Reset when dialog closes
   useEffect(() => {
     if (!open) {
-      setActiveStep(null)
       setActiveStepIsEditing(false)
     }
   }, [open])
-
-  // Reset edit mode when switching step types
-  useEffect(() => {
-    setActiveStepIsEditing(false)
-  }, [activeStep])
-
-  const activeStepLabel =
-    stepTypes.find((s) => s.value === activeStep)?.label ?? activeStep ?? ""
 
   return (
     <>
@@ -317,47 +388,16 @@ export default function AssetTypeLifecycleDialog({
       maxWidth="sm:max-w-7xl"
       bodyClassName="flex flex-col overflow-hidden py-0"
     >
-      <div className="flex flex-col gap-4 h-full py-2">
-        {/* Step type badge selector — fixed, never scrolls */}
-        <div className="shrink-0 bg-background pb-2 border-b border-border">
-          {loadingStepTypes ? (
-            <div className="flex flex-wrap gap-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-6 w-20 rounded-full" />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {stepTypes.map((step) => (
-                <Badge
-                  key={step.value}
-                  variant={activeStep === step.value ? "default" : "outline"}
-                  className="cursor-pointer select-none text-sm px-4 py-1.5 transition-colors"
-                  onClick={() => guardedAction(() => setActiveStep(step.value))}
-                >
-                  {t(`lifecycle.stepTypes.${step.value}`, {
-                    defaultValue: step.label,
-                  })}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Active step content */}
-        {assetType && activeStep && (
-          <div className="flex-1 min-h-0">
-            <StepContent
-              key={`${assetType.document_type_id}-${activeStep}`}
-              documentTypeId={assetType.document_type_id}
-              stepType={activeStep}
-              stepLabel={activeStepLabel}
-              onEditingChange={setActiveStepIsEditing}
-              organizationId={organizationId}
-            />
-          </div>
-        )}
-      </div>
+      {assetType && (
+        <AssetTypeLifecyclePanel
+          key={assetType.document_type_id}
+          documentTypeId={assetType.document_type_id}
+          organizationId={organizationId}
+          enabled={open}
+          onEditingChange={setActiveStepIsEditing}
+          guardedAction={guardedAction}
+        />
+      )}
     </HuemulSheet>
     </>
   )

@@ -16,13 +16,13 @@ import { useDocumentTypeTemplates, useAssetTypeMutations } from "@/hooks/useAsse
 import { getAllTemplates } from "@/services/templates"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
-import type { AssetTypeWithRoles, LinkedTemplate, DocumentTypeTemplateLinkBody } from "@/types/assets"
+import type { LinkedTemplate, DocumentTypeTemplateLinkBody } from "@/types/assets"
 import type { FetchOptionsParams } from "@/huemul/components/huemul-field"
 
-interface AssetTypeTemplatesSheetProps {
-  assetType: AssetTypeWithRoles | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
+interface AssetTypeTemplatesPanelProps {
+  documentTypeId: string
+  /** Solo dispara el fetch cuando el tab/panel está visible. */
+  enabled?: boolean
 }
 
 function TemplateRow({
@@ -239,11 +239,14 @@ function TemplateLinkFormSheet({
   )
 }
 
-export function AssetTypeTemplatesSheet({
-  assetType,
-  open,
-  onOpenChange,
-}: AssetTypeTemplatesSheetProps) {
+/**
+ * Contenido de gestión de plantillas vinculadas a un tipo de activo. Se monta
+ * como tab dentro del sheet de configuración (`AssetTypeConfigSheet`).
+ */
+export function AssetTypeTemplatesPanel({
+  documentTypeId,
+  enabled = true,
+}: AssetTypeTemplatesPanelProps) {
   const { t } = useTranslation(["asset-types", "common"])
   const { selectedOrganizationId } = useOrganization()
   const mutations = useAssetTypeMutations()
@@ -255,8 +258,7 @@ export function AssetTypeTemplatesSheet({
   const [editTarget, setEditTarget] = React.useState<LinkedTemplate | null>(null)
   const [deleteTarget, setDeleteTarget] = React.useState<LinkedTemplate | null>(null)
 
-  const documentTypeId = assetType?.document_type_id ?? ""
-  const { data, isLoading } = useDocumentTypeTemplates(documentTypeId, open && !!assetType)
+  const { data, isLoading } = useDocumentTypeTemplates(documentTypeId, enabled && !!documentTypeId)
   const linked = data?.data ?? []
 
   const fetchTemplateOptions = React.useCallback(
@@ -313,90 +315,80 @@ export function AssetTypeTemplatesSheet({
 
   return (
     <>
-      <HuemulSheet
-        open={open}
-        onOpenChange={onOpenChange}
-        title={t("templates.title")}
-        description={assetType?.document_type_name}
-        icon={LayoutTemplate}
-        cancelLabel={t("common:close")}
-        maxWidth="sm:max-w-xl"
-      >
-        <div className="flex flex-col gap-5">
-          {/* Add template */}
-          {canManage && (
-            <section className="flex flex-col gap-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                {t("templates.addTemplate")}
-              </p>
-              <div className="flex gap-2">
-                <div className="flex-1 min-w-0">
-                  <HuemulCombobox
-                    value={selectedTemplateId}
-                    onValueChange={(v) => setSelectedTemplateId(v as string)}
-                    fetchOptions={fetchTemplateOptions}
-                    placeholder={t("templates.searchPlaceholder")}
-                    searchPlaceholder={t("templates.searchPlaceholder")}
-                    emptyMessage={t("templates.noTemplatesAvailable")}
-                    disabled={!selectedOrganizationId || mutations.linkTemplate.isPending}
-                    pageSize={20}
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  onClick={handleLink}
-                  disabled={!selectedTemplateId || mutations.linkTemplate.isPending}
-                  className="shrink-0"
-                >
-                  {mutations.linkTemplate.isPending ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    t("templates.link")
-                  )}
-                </Button>
-              </div>
-            </section>
-          )}
-
-          {/* Linked templates */}
+      <div className="flex flex-col gap-5">
+        {/* Add template */}
+        {canManage && (
           <section className="flex flex-col gap-2">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              {t("templates.linkedTemplates")}
+              {t("templates.addTemplate")}
             </p>
-
-            {isLoading ? (
-              <ul className="flex flex-col gap-2">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-11 rounded-lg" />
-                ))}
-              </ul>
-            ) : linked.length === 0 ? (
-              <div className="py-5 px-4 text-center border border-dashed border-border rounded-lg bg-muted/40">
-                <LayoutTemplate className="h-6 w-6 text-border mx-auto mb-2" />
-                <p className="text-xs font-medium text-muted-foreground">
-                  {t("templates.noLinkedTemplates")}
-                </p>
-                <p className="text-[11px] text-muted-foreground/70 mt-1 leading-relaxed">
-                  {t("templates.noLinkedTemplatesHint")}
-                </p>
+            <div className="flex gap-2">
+              <div className="flex-1 min-w-0">
+                <HuemulCombobox
+                  value={selectedTemplateId}
+                  onValueChange={(v) => setSelectedTemplateId(v as string)}
+                  fetchOptions={fetchTemplateOptions}
+                  placeholder={t("templates.searchPlaceholder")}
+                  searchPlaceholder={t("templates.searchPlaceholder")}
+                  emptyMessage={t("templates.noTemplatesAvailable")}
+                  disabled={!selectedOrganizationId || mutations.linkTemplate.isPending}
+                  pageSize={20}
+                />
               </div>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {linked.map((tpl) => (
-                  <TemplateRow
-                    key={tpl.template_id}
-                    template={tpl}
-                    onEdit={setEditTarget}
-                    onRequestRemove={setDeleteTarget}
-                    isRemoving={mutations.unlinkTemplate.isPending && deleteTarget?.template_id === tpl.template_id}
-                    canManage={canManage}
-                  />
-                ))}
-              </ul>
-            )}
+              <Button
+                size="sm"
+                onClick={handleLink}
+                disabled={!selectedTemplateId || mutations.linkTemplate.isPending}
+                className="shrink-0"
+              >
+                {mutations.linkTemplate.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  t("templates.link")
+                )}
+              </Button>
+            </div>
           </section>
-        </div>
-      </HuemulSheet>
+        )}
+
+        {/* Linked templates */}
+        <section className="flex flex-col gap-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            {t("templates.linkedTemplates")}
+          </p>
+
+          {isLoading ? (
+            <ul className="flex flex-col gap-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-11 rounded-lg" />
+              ))}
+            </ul>
+          ) : linked.length === 0 ? (
+            <div className="py-5 px-4 text-center border border-dashed border-border rounded-lg bg-muted/40">
+              <LayoutTemplate className="h-6 w-6 text-border mx-auto mb-2" />
+              <p className="text-xs font-medium text-muted-foreground">
+                {t("templates.noLinkedTemplates")}
+              </p>
+              <p className="text-[11px] text-muted-foreground/70 mt-1 leading-relaxed">
+                {t("templates.noLinkedTemplatesHint")}
+              </p>
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {linked.map((tpl) => (
+                <TemplateRow
+                  key={tpl.template_id}
+                  template={tpl}
+                  onEdit={setEditTarget}
+                  onRequestRemove={setDeleteTarget}
+                  isRemoving={mutations.unlinkTemplate.isPending && deleteTarget?.template_id === tpl.template_id}
+                  canManage={canManage}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
 
       <TemplateLinkFormSheet
         mode="create"

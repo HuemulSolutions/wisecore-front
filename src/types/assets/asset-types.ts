@@ -67,13 +67,12 @@ export interface CloneAssetTypeData {
 
 export interface AssetTypePageState {
   searchTerm: string;
-  editingAssetType: AssetTypeWithRoles | null;
   showCreateDialog: boolean;
+  /** Tipo de activo abierto en el sheet de configuración (general/plantillas/ciclo de vida). */
+  configAssetType: AssetTypeWithRoles | null;
   deletingAssetType: AssetTypeWithRoles | null;
   cloningAssetType: AssetTypeWithRoles | null;
-  lifecycleAssetType: AssetTypeWithRoles | null;
   viewRelationshipsAssetType: AssetTypeWithRoles | null;
-  templatesAssetType: AssetTypeWithRoles | null;
   showExportDialog: boolean;
   showImportSheet: boolean;
 }

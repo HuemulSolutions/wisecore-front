@@ -37,6 +37,25 @@ export interface CreateDocumentTypeProps {
 }
 
 // ----------------------------------------
+// Asset Type Config Sheet (tabs)
+// ----------------------------------------
+
+export type AssetTypeConfigTab = 'general' | 'templates' | 'lifecycle'
+
+export interface AssetTypeConfigSheetProps {
+  assetType: AssetTypeWithRoles | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  organizationId: string
+  /** `asset_type:u` — habilita el tab General y su botón Guardar. */
+  canUpdate: boolean
+  /** `manageLinkedTemplates` — habilita el tab Plantillas. */
+  canManageTemplates: boolean
+  /** `manageLifecycle` — habilita el tab Ciclo de vida. */
+  canManageLifecycle: boolean
+}
+
+// ----------------------------------------
 // Form Fields
 // ----------------------------------------
 
@@ -108,19 +127,17 @@ export interface AssetTypePageHeaderProps {
 
 export interface AssetTypeTableProps {
   assetTypes: AssetTypeWithRoles[]
-  onEditAssetType: (assetType: AssetTypeWithRoles) => void
+  /** Abre el sheet de configuración (general + plantillas + ciclo de vida). */
+  onConfigureAssetType: (assetType: AssetTypeWithRoles) => void
   onDeleteAssetType: (assetType: AssetTypeWithRoles) => void
   onCloneAssetType: (assetType: AssetTypeWithRoles) => void
-  onLifecycle: (assetType: AssetTypeWithRoles) => void
   onViewRelationships: (assetType: AssetTypeWithRoles) => void
-  onManageTemplates: (assetType: AssetTypeWithRoles) => void
   pagination?: HuemulTablePagination
-  canUpdate?: boolean
+  /** True si el usuario puede abrir al menos un tab del sheet de configuración. */
+  canConfigure?: boolean
   canDelete?: boolean
   canViewRelationships?: boolean
   canClone?: boolean
-  canManageLifecycle?: boolean
-  canManageTemplates?: boolean
   isLoading?: boolean
   isFetching?: boolean
   selectedIds: Set<string>

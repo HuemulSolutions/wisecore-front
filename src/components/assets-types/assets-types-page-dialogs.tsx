@@ -1,12 +1,12 @@
 import { useTranslation } from "react-i18next"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import CreateDocumentType from "@/components/assets-types/assets-types-create"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { CloneAssetTypeDialog } from "@/components/assets-types/assets-types-clone-dialog"
-import AssetTypeLifecycleDialog from "@/components/assets-types/assets-types-lifecycle-dialog"
+import { AssetTypeConfigSheet } from "@/components/assets-types/assets-types-config-sheet"
 import { AssetTypeRelationshipsSheet } from "@/components/assets-types/assets-types-relationships-sheet"
-import { AssetTypeTemplatesSheet } from "@/components/assets-types/assets-types-templates-sheet"
 import { AssetTypeExportDialog } from "@/components/assets-types/assets-types-export-dialog"
 import { AssetTypeImportSheet } from "@/components/assets-types/assets-types-import-sheet"
 import type { AssetTypePageDialogsProps } from '@/types/assets'
@@ -26,6 +26,7 @@ export default function AssetTypePageDialogs({
   const { t } = useTranslation(['asset-types', 'common'])
   const { selectedOrganizationId } = useOrganization()
   const { canDelete, canCreate, canUpdate } = useUserPermissions()
+  const { can } = usePageAccess('asset-types')
 
   const handleDelete = async () => {
     if (!canDelete('asset_type') || !state.deletingAssetType) return
@@ -64,28 +65,36 @@ export default function AssetTypePageDialogs({
 
   return (
     <>
-      {/* Create/Edit Dialog */}
-      {/* El mismo sheet crea o edita según `editingAssetType`, así que el
-          permiso exigido cambia con el modo. */}
+      {/* Create Dialog — la edición vive ahora en el tab General del sheet de configuración */}
       <CreateDocumentType
         type="asset"
-        documentType={state.editingAssetType}
-        canSave={state.editingAssetType ? canUpdate('asset_type') : canCreate('asset_type')}
-        open={!!state.editingAssetType || state.showCreateDialog}
+        documentType={null}
+        canSave={canCreate('asset_type')}
+        open={state.showCreateDialog}
         onOpenChange={(open) => {
           if (!open) {
-            onCloseDialog('editingAssetType')
             onUpdateState({ showCreateDialog: false })
           }
         }}
         onDocumentTypeCreated={(result) => {
-          const wasEditing = !!state.editingAssetType
-          onCloseDialog('editingAssetType')
           onUpdateState({ showCreateDialog: false })
-          if (!wasEditing) {
-            onAssetTypeCreated?.(result)
+          onAssetTypeCreated?.(result)
+        }}
+      />
+
+      {/* Config Sheet (general + plantillas + ciclo de vida) */}
+      <AssetTypeConfigSheet
+        assetType={state.configAssetType}
+        open={!!state.configAssetType}
+        onOpenChange={(open) => {
+          if (!open) {
+            onCloseDialog('configAssetType')
           }
         }}
+        organizationId={selectedOrganizationId ?? ""}
+        canUpdate={canUpdate('asset_type')}
+        canManageTemplates={can('manageLinkedTemplates')}
+        canManageLifecycle={can('manageLifecycle')}
       />
 
       {/* Delete Asset Type Dialog */}
@@ -116,18 +125,6 @@ export default function AssetTypePageDialogs({
         onConfirm={handleClone}
       />
 
-      {/* Lifecycle Dialog */}
-      <AssetTypeLifecycleDialog
-        assetType={state.lifecycleAssetType}
-        open={!!state.lifecycleAssetType}
-        onOpenChange={(open) => {
-          if (!open) {
-            onCloseDialog('lifecycleAssetType')
-          }
-        }}
-        organizationId={selectedOrganizationId ?? ""}
-      />
-
       {/* View Relationships Sheet */}
       <AssetTypeRelationshipsSheet
         assetType={state.viewRelationshipsAssetType}
@@ -135,17 +132,6 @@ export default function AssetTypePageDialogs({
         onOpenChange={(open) => {
           if (!open) {
             onCloseDialog('viewRelationshipsAssetType')
-          }
-        }}
-      />
-
-      {/* Manage Templates Sheet */}
-      <AssetTypeTemplatesSheet
-        assetType={state.templatesAssetType}
-        open={!!state.templatesAssetType}
-        onOpenChange={(open) => {
-          if (!open) {
-            onCloseDialog('templatesAssetType')
           }
         }}
       />
