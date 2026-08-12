@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge"
-import { Edit2, FileText } from "lucide-react"
+import { Edit, FileText } from "lucide-react"
 import type { CustomField, CustomFieldTableProps } from '@/types/custom-fields'
 export type { CustomFieldTableProps } from '@/types/custom-fields'
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
@@ -89,7 +89,7 @@ export function CustomFieldTable({
     {
       key: "edit",
       label: t('actions.editCustomField'),
-      icon: Edit2,
+      icon: Edit,
       onClick: onEditCustomField,
     }
   ] : []
@@ -99,6 +99,7 @@ export function CustomFieldTable({
       data={customFields}
       columns={columns}
       actions={actions}
+      actionsMode="inline"
       getRowKey={(customField) => customField.id}
       emptyState={{
         icon: FileText,
