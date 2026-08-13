@@ -180,9 +180,12 @@ const navigationItems = [
     orgScoped: true,
   },
   {
-    title: "Advanced",
-    url: "/advanced",
-    icon: Zap,
+    // El editor de diagramas (árbol de assets + canvas) vive en /diagrams: es
+    // una superficie de trabajo, no una pantalla de configuración, así que va
+    // en el nav central. `Advanced` bajó al dropdown de settings.
+    title: "Diagrams",
+    url: "/diagrams",
+    icon: Network,
     orgScoped: true,
   },
   {
@@ -395,7 +398,11 @@ export default function AppLayout() {
   // (antes `asset-types` entraba por el helper canAccessDocumentTypes, de 5
   // acciones: un rol con solo asset_type:c abría el grupo sin ningún ítem
   // dentro). El bypass de isOrgAdmin ya vive dentro de hasAnyPermission.
-  const hasAssetManagementAccess = hasAnyPermission(RBAC_PAGES["asset-types"].routePermissions) || hasAnyPermission(RBAC_PAGES.canvas.routePermissions) || hasAnyPermission(RBAC_PAGES.diagrams.routePermissions) || hasAnyPermission(RBAC_PAGES["custom-fields"].routePermissions) || hasAnyPermission(RBAC_PAGES.media.routePermissions)
+  // `diagrams` ya no está acá: dejó de ser un ítem del dropdown para pasar al
+  // nav central (ver navigationItems).
+  const hasAssetManagementAccess = hasAnyPermission(RBAC_PAGES["asset-types"].routePermissions) || hasAnyPermission(RBAC_PAGES.canvas.routePermissions) || hasAnyPermission(RBAC_PAGES["custom-fields"].routePermissions) || hasAnyPermission(RBAC_PAGES.media.routePermissions)
+  // Grupo "Herramientas": operación masiva (/advanced), no configuración.
+  const hasToolsAccess = hasAnyPermission(RBAC_PAGES.advanced.routePermissions)
   const canAccessOrganizationsPage = hasAnyPermission(RBAC_PAGES.organizations.routePermissions)
   // Antes usaba el helper canAccessModels (10 permisos, incluye llm:c/llm:d),
   // más ancho que el guard de ruta — ver ia context/rbac-audit-guide.md.
@@ -415,7 +422,7 @@ export default function AppLayout() {
   // Antes terminaba en `|| !!organizationToken`, un OR que existía solo para
   // habilitar el ítem de Media (la única entrada sin permiso propio) y que
   // abría el dropdown entero a cualquier usuario con token de organización.
-  const hasSettingsAccess = hasAssetManagementAccess || hasAdministrationAccess || isRootAdmin
+  const hasSettingsAccess = hasToolsAccess || hasAssetManagementAccess || hasAdministrationAccess || isRootAdmin
 
   // Generate initials from user name
   const getUserInitials = (firstName: string, lastName: string): string => {
@@ -498,8 +505,8 @@ export default function AppLayout() {
         case "Templates":
           shouldShowItem = hasAnyPermission(RBAC_PAGES.templates.routePermissions)
           break
-        case "Advanced":
-          shouldShowItem = hasAnyPermission(RBAC_PAGES.advanced.routePermissions)
+        case "Diagrams":
+          shouldShowItem = hasAnyPermission(RBAC_PAGES.diagrams.routePermissions)
           break
         case "Workflow":
           shouldShowItem = hasAnyPermission(RBAC_PAGES.workflow.routePermissions)
@@ -680,7 +687,8 @@ export default function AppLayout() {
                 const currentPath = stripOrgPrefix(location.pathname)
                 const isSettingsActive = (path: string) => currentPath === path || currentPath.startsWith(path + '/')
                 const isAnySettingsActive = [
-                  '/asset-types', '/custom-fields', '/canvas', '/diagrams', '/media',
+                  '/advanced',
+                  '/asset-types', '/custom-fields', '/canvas', '/media',
                   '/organizations', '/global-admin', '/users', '/roles', '/models', '/auth-types', '/external-systems', '/token-usage'
                 ].some(isSettingsActive)
 
@@ -709,6 +717,23 @@ export default function AppLayout() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-52">
+                    {hasToolsAccess && (
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
+                          {t('settings.tools')}
+                        </DropdownMenuLabel>
+                        <DropdownMenuItem asChild>
+                          <Link to={buildPath("/advanced")} className={settingsItemClass('/advanced')}>
+                            <Zap className={settingsIconClass('/advanced')} />
+                            <span className="flex-1">{t('settings.advanced')}</span>
+                            {isSettingsActive('/advanced') && <Check className="h-3.5 w-3.5 ml-auto" />}
+                          </Link>
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    )}
+
+                    {hasToolsAccess && (hasAssetManagementAccess || hasAdministrationAccess) && <DropdownMenuSeparator />}
+
                     {hasAssetManagementAccess && (
                       <DropdownMenuGroup>
                         <DropdownMenuLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
@@ -739,15 +764,6 @@ export default function AppLayout() {
                               <LayoutPanelTop className={settingsIconClass('/canvas')} />
                               <span className="flex-1">{t('settings.canvas')}</span>
                               {isSettingsActive('/canvas') && <Check className="h-3.5 w-3.5 ml-auto" />}
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
-                        {hasAnyPermission(RBAC_PAGES.diagrams.routePermissions) && (
-                          <DropdownMenuItem asChild>
-                            <Link to={buildPath("/diagrams")} className={settingsItemClass('/diagrams')}>
-                              <Workflow className={settingsIconClass('/diagrams')} />
-                              <span className="flex-1">{t('settings.diagrams')}</span>
-                              {isSettingsActive('/diagrams') && <Check className="h-3.5 w-3.5 ml-auto" />}
                             </Link>
                           </DropdownMenuItem>
                         )}

@@ -63,22 +63,10 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const [rootPage, setRootPage] = useState(1)
   const [rootPageSize, setRootPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [hasNextRootPage, setHasNextRootPage] = useState(false)
-  const [isRelationsModeRequested, setIsRelationsModeRequested] = useState(false)
   const [sharingFolder, setSharingFolder] = useState<{ id: string; name: string } | null>(null)
   const { selectedOrganizationId } = useOrganization()
   const { canAccessRoleFolders } = useUserPermissions()
   const { can: canAsset } = usePageAccess('asset')
-  const canListExecRelationships = canAsset('listExecutionRelationships')
-  // El modo relaciones es el único estado de este provider que habilita una
-  // superficie completa (canvas de relaciones / diagramas). Se resuelve acá —
-  // el único lugar donde vive — para que el toggle del kebab, el drag del árbol
-  // y la página de assets nunca puedan divergir: sin permiso de listar
-  // relaciones de ejecución queda apagado aunque alguien pida encenderlo
-  // (p.ej. el deep-link ?diagram=<id>).
-  const isRelationsMode = isRelationsModeRequested && canListExecRelationships
-  const setIsRelationsMode = useCallback((mode: boolean) => {
-    setIsRelationsModeRequested(canListExecRelationships ? mode : false)
-  }, [canListExecRelationships])
   // Marca que la carpeta en creación es una carpeta grupal custom de raíz, para encadenar
   // el sheet de permisos al terminar (sin esto, quien solo tiene folder:manage_groups
   // se queda sin acceso a lo que acaba de crear).
@@ -319,7 +307,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <NavKnowledgeContext.Provider value={{ fileTreeRef, pendingFocusAssetIdRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage, isRelationsMode, setIsRelationsMode }}>
+    <NavKnowledgeContext.Provider value={{ fileTreeRef, pendingFocusAssetIdRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage }}>
       {children}
       {renderCreateAssetDialog && (
         <CreateAssetSheet

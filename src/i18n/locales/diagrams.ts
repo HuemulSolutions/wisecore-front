@@ -14,7 +14,8 @@ const translations = {
     created: { en: "Created", es: "Creado" },
   },
   actions: {
-    view: { en: "View", es: "Ver" },
+    browseDiagrams: { en: "Diagrams", es: "Diagramas" },
+    view: { en: "Open", es: "Abrir" },
     deleteDiagram: { en: "Delete Diagram", es: "Eliminar Diagrama" },
     clearFilters: { en: "Clear Filters", es: "Limpiar Filtros" },
   },

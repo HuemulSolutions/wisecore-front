@@ -1,273 +1,221 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
+import { useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import { useQueryClient } from "@tanstack/react-query"
+import { List, Plus, Workflow } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
-import { useDiagrams, diagramQueryKeys } from "@/hooks/useDiagrams"
-import { useTableLoadingState } from "@/hooks/useTableLoadingState"
-import { useHuemulFilters } from "@/hooks/useHuemulFilters"
+import { useDocumentTypes } from "@/hooks/useDocumentTypes"
+import { useGlobalPanel } from "@/contexts/global-panel-context"
+import { ExpandedFoldersProvider } from "@/hooks/use-expanded-folders"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
-import { HuemulFilterButton } from "@/huemul/components/huemul-filter-button"
-import { HuemulFilterChips } from "@/huemul/components/huemul-filter-chips"
-import { HuemulFilterPanel } from "@/huemul/components/huemul-filter-panel"
-import { HuemulFilterInline } from "@/huemul/components/huemul-filter-inline"
-import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
-import { getAllExecutions } from "@/services/executions"
-import type { FetchOptionsParams, FetchOptionsResult } from "@/huemul/components/huemul-field"
-import type { HuemulFilterDef, HuemulFilterValue } from "@/types/huemul"
-
+import { HuemulPagination } from "@/huemul/components/huemul-pagination"
+import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
+import { HuemulButton } from "@/huemul/components/huemul-button"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { NavKnowledgeHeader, NavKnowledgeContent } from "@/components/layout/nav-knowledge"
+import { useNavKnowledgePagination } from "@/contexts/nav-knowledge-context"
+import { RelationshipsCanvas } from "@/components/document-type-relationships"
 import {
-  DiagramsPageHeader,
-  DiagramsTable,
+  DiagramCanvas,
+  NewDiagramCanvas,
+  DiagramsListSheet,
   DiagramsPageSkeleton,
   DiagramsPageEmptyState,
-  DiagramsContentEmptyState,
-  DiagramsPageDialogs,
-  type DiagramsPageState,
 } from "@/components/diagrams"
 import type { Diagram } from "@/types/diagrams"
 
-export default function DiagramsPage() {
-  const [state, setState] = useState<DiagramsPageState>({
-    editingDiagramId: null,
-    deletingDiagram: null,
-  })
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-
+/**
+ * Editor de diagramas: árbol de conocimiento a la izquierda (fuente de arrastre)
+ * y canvas de relaciones a la derecha. Antes esta página era solo la tabla y la
+ * edición vivía en /asset detrás del "modo relaciones"; el listado ahora se abre
+ * en un sheet (DiagramsListSheet).
+ *
+ * Qué se edita lo decide `?diagram=`: un id carga el diagrama guardado, `new`
+ * abre un canvas en blanco (opcionalmente sembrado con ?seedAsset=&seedExecution=,
+ * ver AssetDiagramsSheet) y sin param se trabaja sobre el canvas libre.
+ */
+function DiagramsContent() {
   const { t } = useTranslation(['diagrams', 'common'])
-  const { t: tFilters } = useTranslation('huemul-filters')
   const { selectedOrganizationId, organizationToken } = useOrganization()
   const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('diagrams')
-  const queryClient = useQueryClient()
+  const { isOpen: isWisyOpen } = useGlobalPanel()
+  const { page, pageSize, hasNext, hasPrevious, setPage } = useNavKnowledgePagination()
+
+  const [isListOpen, setIsListOpen] = useState(false)
 
   const canList = can('listDiagrams')
   const canView = can('viewDiagram')
   const canDelete = can('deleteDiagram')
+  const canCreate = can('createDiagram')
   const canListExecutions = can('listExecutions')
+  const canListExecRelationships = can('listExecutionRelationships')
 
-  const fetchExecutionOptions = useCallback(
-    async ({ search: s, page: p, pageSize: ps }: FetchOptionsParams): Promise<FetchOptionsResult> => {
-      const res = await getAllExecutions(selectedOrganizationId ?? '', {
-        query: s || undefined,
-        page: p,
-        page_size: ps,
-      })
-      return {
-        options: (res.data ?? []).map((execution) => ({
-          value: execution.id,
-          label: execution.name || execution.document_name,
-        })),
-        hasMore: res.has_next ?? false,
-      }
-    },
-    [selectedOrganizationId],
-  )
+  const [searchParams, setSearchParams] = useSearchParams()
+  const diagramParam = searchParams.get('diagram')
+  const isNewDiagram = diagramParam === 'new'
+  const diagramId = isNewDiagram ? null : diagramParam
+  // seedAsset/seedExecution solo importan en el primer render del deep-link de
+  // "nuevo diagrama": se capturan una vez en vez de releerse de searchParams.
+  const [diagramSeed] = useState(() => ({
+    assetId: searchParams.get('seedAsset') ?? undefined,
+    executionId: searchParams.get('seedExecution') ?? undefined,
+  }))
 
-  const filterDefs = useMemo<HuemulFilterDef[]>(() => {
-    const defs: HuemulFilterDef[] = [
-      {
-        key: 'search',
-        type: 'text',
-        group: tFilters('groups.search'),
-        toolbar: true,
-        label: t('common:search', 'Search'),
-        placeholder: t('header.searchPlaceholder'),
-        inputClassName: 'w-56',
-      },
-    ]
-
-    // El combobox de ejecuciones pega a GET /execution/: sin permiso sobre ese
-    // recurso el filtro se omite (y con él su chip), en vez de dejar que el
-    // usuario dispare un 403 al abrirlo.
-    if (canListExecutions) {
-      defs.push({
-        key: 'executionId',
-        type: 'async-combobox',
-        group: tFilters('groups.classification'),
-        label: t('filters.execution'),
-        placeholder: t('filters.executionPlaceholder'),
-        fetchOptions: fetchExecutionOptions,
-        pageSize: 50,
-        searchOnEnter: true,
-      })
-    }
-
-    return defs
-  }, [t, tFilters, fetchExecutionOptions, canListExecutions])
-
-  const {
-    values,
-    open: filtersOpen,
-    setOpen: setFiltersOpen,
-    setValue,
-    clearValue,
-    clearAll,
-    chips,
-    activeCount,
-    setSelectedLabel,
-  } = useHuemulFilters({ filters: filterDefs, defaultOpen: false })
-
-  const handleFilterChange = useCallback((key: string, value: HuemulFilterValue) => {
-    setValue(key, value)
-    setPage(1)
-  }, [setValue])
-
-  const handleChipRemove = useCallback((key: string) => {
-    clearValue(key)
-    setPage(1)
-  }, [clearValue])
-
-  const handleClearAll = useCallback(() => {
-    clearAll()
-    setPage(1)
-  }, [clearAll])
-
-  const searchTerm = (values.search as string) || undefined
-  const executionId = canListExecutions ? (values.executionId as string) || undefined : undefined
-
-  const { data: diagramsResponse, isLoading, isFetching, error } = useDiagrams(
-    selectedOrganizationId ?? '',
-    {
-      enabled: !!selectedOrganizationId && !!organizationToken && canList,
-      page,
-      pageSize,
-      search: searchTerm,
-      executionId,
-    }
-  )
-
-  const { showPageLoader, isTableLoading, isTableFetching } = useTableLoadingState({
-    isLoading,
-    isFetching,
-    hasData: !!diagramsResponse,
+  // La paleta de tipos solo la usa el canvas: sin permiso de listarlos no se pide.
+  const { data: docTypesResponse } = useDocumentTypes({
+    enabled: can('listAssetTypes'),
   })
+  const documentTypes = docTypesResponse?.data ?? []
 
-  // Loading permissions
-  if (isLoadingPermissions) return <DiagramsPageSkeleton />
-
-  // Access check
-  if (!canAccessPage) return <DiagramsPageEmptyState type="access-denied" />
-
-  // Organization check
-  if (!selectedOrganizationId || !organizationToken) return <DiagramsPageEmptyState type="no-organization" />
-
-  // Initial load
-  if (showPageLoader) return <DiagramsPageSkeleton />
-
-  const items = diagramsResponse?.data ?? []
-  const hasActiveFilters = activeCount > 0 || !!searchTerm
-
-  const updateState = (updates: Partial<DiagramsPageState>) =>
-    setState((prev) => ({ ...prev, ...updates }))
-
-  const closeDialog = (dialog: keyof DiagramsPageState) =>
-    setState((prev) => ({ ...prev, [dialog]: null }))
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true)
-    try {
-      await queryClient.invalidateQueries({ queryKey: diagramQueryKeys.listBase() })
-    } finally {
-      setIsRefreshing(false)
-    }
+  const openDiagram = (id: string | 'new' | null) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      // Las semillas son de un solo uso: pertenecen al canvas que se está
+      // abriendo ahora, no al siguiente.
+      next.delete('seedAsset')
+      next.delete('seedExecution')
+      if (id === null) next.delete('diagram')
+      else next.set('diagram', id)
+      return next
+    })
   }
 
-  const header = (
-    <DiagramsPageHeader diagramCount={items.length} isLoading={isRefreshing || isFetching} onRefresh={handleRefresh}>
-      <HuemulFilterButton
-        count={activeCount}
-        open={filtersOpen}
-        onToggle={() => setFiltersOpen(!filtersOpen)}
+  if (isLoadingPermissions) return <DiagramsPageSkeleton />
+
+  if (!canAccessPage) return <DiagramsPageEmptyState type="access-denied" />
+
+  if (!selectedOrganizationId || !organizationToken) return <DiagramsPageEmptyState type="no-organization" />
+
+  const renderCanvas = () => {
+    // El canvas en modo execution lee relaciones de ejecución: sin ese permiso
+    // no hay superficie que mostrar.
+    if (!canListExecRelationships) return <HuemulAccessDenied variant="inline" />
+
+    if (diagramId) {
+      return canList ? (
+        <DiagramCanvas
+          key={diagramId}
+          organizationId={selectedOrganizationId}
+          diagramId={diagramId}
+        />
+      ) : (
+        <HuemulAccessDenied variant="inline" />
+      )
+    }
+
+    if (isNewDiagram) {
+      return canCreate ? (
+        <NewDiagramCanvas
+          organizationId={selectedOrganizationId}
+          seedAssetId={diagramSeed.assetId}
+          seedExecutionId={diagramSeed.executionId}
+        />
+      ) : (
+        <HuemulAccessDenied variant="inline" />
+      )
+    }
+
+    return (
+      <RelationshipsCanvas
+        organizationId={selectedOrganizationId}
+        documentTypes={documentTypes}
+        mode="execution"
       />
-      <HuemulFilterInline
-        filters={filterDefs}
-        values={values}
-        onChange={handleFilterChange}
-        onSelectedLabel={setSelectedLabel}
-      />
-    </DiagramsPageHeader>
-  )
+    )
+  }
 
   return (
     <>
-      <HuemulPageLayout
-        header={header}
-        headerClassName="p-6 md:p-8 pb-0 md:pb-0"
-        columns={[
-          {
-            content: (
-              <HuemulFilterPanel
-                filters={filterDefs}
-                values={values}
-                onChange={handleFilterChange}
-                onSelectedLabel={setSelectedLabel}
-                onClose={() => setFiltersOpen(false)}
-              />
-            ),
-            show: filtersOpen,
-            defaultSize: 22,
-            minSize: 16,
-            maxSize: 35,
-            collapsible: true,
-          },
-          {
-            content: (
-              <div className="flex flex-col h-full gap-4">
-                <HuemulFilterChips
-                  chips={chips}
-                  onRemove={handleChipRemove}
-                  onClearAll={handleClearAll}
-                />
-                {error ? (
-                  <DiagramsContentEmptyState
-                    type="error"
-                    message={(error as Error).message}
-                    onRetry={handleRefresh}
+      <div className="relative h-full">
+        <HuemulPageLayout
+          className="bg-gray-50"
+          columns={[
+            {
+              content: (
+                <div className="flex flex-col h-full bg-white border-r">
+                  <div className="py-2">
+                    <NavKnowledgeHeader />
+                  </div>
+                  <ScrollArea className="flex-1 min-h-0" type="hover">
+                    <NavKnowledgeContent diagramMode />
+                  </ScrollArea>
+                </div>
+              ),
+              defaultSize: isWisyOpen ? 15 : 20,
+              minSize: isWisyOpen ? 10 : 12,
+              collapsible: true,
+              collapsedSize: 0,
+              className: "overflow-hidden [scrollbar-gutter:auto]",
+              footer: {
+                content: (
+                  <HuemulPagination
+                    page={page}
+                    pageSize={pageSize}
+                    hasNext={hasNext}
+                    hasPrevious={hasPrevious}
+                    onPageChange={setPage}
                   />
-                ) : items.length === 0 && !hasActiveFilters ? (
-                  <DiagramsContentEmptyState type="empty" />
-                ) : items.length === 0 && hasActiveFilters ? (
-                  <DiagramsContentEmptyState type="no-results" onClearFilters={handleClearAll} />
-                ) : (
-                  <DiagramsTable
-                    items={items}
-                    onView={(diagram: Diagram) => updateState({ editingDiagramId: diagram.id })}
-                    onDelete={(diagram: Diagram) => updateState({ deletingDiagram: diagram })}
-                    canView={canView}
-                    canDelete={canDelete}
-                    isLoading={isTableLoading}
-                    isFetching={isTableFetching}
-                    pagination={{
-                      page: diagramsResponse?.page ?? page,
-                      pageSize: diagramsResponse?.page_size ?? pageSize,
-                      hasNext: diagramsResponse?.has_next,
-                      hasPrevious: (diagramsResponse?.page ?? page) > 1,
-                      onPageChange: (newPage) => setPage(newPage),
-                      onPageSizeChange: (newPageSize) => {
-                        setPageSize(newPageSize)
-                        setPage(1)
-                      },
-                      pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS,
-                    }}
-                  />
-                )}
-              </div>
-            ),
-            className: "p-6 md:p-8 pt-0 md:pt-0",
-          },
-        ]}
-      />
+                ),
+              },
+            },
+            {
+              content: (
+                <div className="flex flex-col h-full bg-white">
+                  <div className="flex shrink-0 items-center gap-2 border-b px-4 py-2">
+                    <Workflow className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">{t('header.title')}</span>
+                    <div className="ml-auto flex items-center gap-2">
+                      {canList && (
+                        <HuemulButton size="sm" variant="outline" icon={List} onClick={() => setIsListOpen(true)}>
+                          {t('actions.browseDiagrams')}
+                        </HuemulButton>
+                      )}
+                      {canCreate && (
+                        <HuemulButton size="sm" icon={Plus} onClick={() => openDiagram('new')}>
+                          {t('relatedSheet.createAction')}
+                        </HuemulButton>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {renderCanvas()}
+                  </div>
+                </div>
+              ),
+              defaultSize: 80,
+              minSize: 50,
+            },
+          ]}
+        />
+      </div>
 
-      <DiagramsPageDialogs
-        state={state}
+      <DiagramsListSheet
+        open={isListOpen}
+        onOpenChange={setIsListOpen}
         organizationId={selectedOrganizationId}
-        onCloseDialog={closeDialog}
+        onSelect={(diagram: Diagram) => {
+          openDiagram(diagram.id)
+          setIsListOpen(false)
+        }}
+        onCreate={canCreate ? () => {
+          openDiagram('new')
+          setIsListOpen(false)
+        } : undefined}
+        canList={canList}
+        canView={canView}
         canDelete={canDelete}
+        canListExecutions={canListExecutions}
       />
     </>
+  )
+}
+
+export default function DiagramsPage() {
+  return (
+    <ExpandedFoldersProvider>
+      <DiagramsContent />
+    </ExpandedFoldersProvider>
   )
 }

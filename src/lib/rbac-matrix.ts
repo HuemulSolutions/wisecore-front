@@ -167,18 +167,14 @@ export const RBAC_PAGES = {
       deleteNotification: "notification:d",
       createSubscription: "notification:c",
       deleteSubscription: "notification:d",
-      listAssetTypes: ["asset_type:l", "asset_type:r"], // paleta del canvas de relaciones
       createTemplateFromAsset: "template:c",
       // TemplateConfigSheet edita las secciones del template desde el flujo de
       // creación de asset: el recurso que muta es `template_section`, no `asset`.
       createTemplateSection: "template_section:c",
       updateTemplateSection: "template_section:u",
       deleteTemplateSection: "template_section:d",
-
-      // ── Modo relaciones / diagramas (RelationshipsCanvas mode="execution") ──
-      listExecutionRelationships: ["execution_relationship:l", "execution_relationship:r"],
-      listDiagrams: ["diagram:l", "diagram:r"],
-      createDiagram: "diagram:c",
+      // El canvas de relaciones y los diagramas ya no viven acá: se movieron a
+      // la página /diagrams, que declara sus propias features.
     },
   },
   search: {
@@ -326,22 +322,33 @@ export const RBAC_PAGES = {
     },
   },
   diagrams: {
+    // Editor de diagramas: árbol de conocimiento a la izquierda + canvas de
+    // relaciones a la derecha. Antes esta página era solo la tabla y la edición
+    // vivía en /asset detrás del "modo relaciones"; por eso ahora declara
+    // también las features del árbol y del canvas.
     route: "diagrams",
     routePermissions: ["diagram:r", "diagram:l"],
+    nav: { title: "Diagrams", orgScoped: true },
     features: {
       listDiagrams: ["diagram:l", "diagram:r"],
       // Ver = abrir el visor read-only del diagrama. Antes pedía `diagram:u`,
       // un permiso de escritura gateando una lectura.
       viewDiagram: ["diagram:r", "diagram:l"],
-      // No hay botón de crear en /diagrams: los diagramas se crean desde
-      // /asset en modo relaciones. Se declara igual porque el canvas
-      // (RelationshipsCanvas / SaveAsDiagramSheet) gatea con este permiso.
       createDiagram: "diagram:c",
-      updateDiagram: "diagram:u", // acción "Editar" del sheet → /asset?diagram=id
+      updateDiagram: "diagram:u",
       deleteDiagram: "diagram:d",
       // El filtro por ejecución pega a GET /execution/ — mismo permiso que
       // `listExecutions` de `advanced`.
       listExecutions: ["section_execution:l", "section_execution:r"],
+
+      // ── Canvas de relaciones (RelationshipsCanvas mode="execution") ──
+      listExecutionRelationships: ["execution_relationship:l", "execution_relationship:r"],
+      listAssetTypes: ["asset_type:l", "asset_type:r"], // paleta / colores de nodos
+      // ── Árbol de conocimiento de la columna izquierda ──
+      // Mismos permisos que usa el árbol en /asset: es el mismo componente y
+      // pega a los mismos endpoints (GET /library).
+      listAssets: ["asset:l", "asset:r"],
+      listFolders: ["folder:l", "folder:r"],
     },
   },
   media: {
@@ -371,9 +378,10 @@ export const RBAC_PAGES = {
     },
   },
   advanced: {
+    // Sin `nav`: dejó de ser un tab del nav central y pasó al grupo
+    // "Herramientas" del dropdown de configuración (ver app-layout.tsx).
     route: "advanced/:section",
     routePermissions: ["section_execution:r", "section_execution:l"],
-    nav: { title: "Advanced", orgScoped: true },
     // NOTA: `canAccessMassExecution`/`canAccessExcelExport` en advanced.tsx son
     // AND de varios de estos features (FeatureSpec no representa AND-de-OR),
     // por eso se listan atómicos y la página los combina a mano.

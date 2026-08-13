@@ -45,11 +45,3 @@ export function useNavKnowledgePagination() {
     setPageSize: context?.setRootPageSize ?? (() => {}),
   }
 }
-
-export function useNavKnowledgeMode() {
-  const context = useContext(NavKnowledgeContext)
-  return {
-    isRelationsMode: context?.isRelationsMode ?? false,
-    setIsRelationsMode: context?.setIsRelationsMode ?? (() => {}),
-  }
-}

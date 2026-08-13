@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, RefreshCw, Edit, Trash2, FileUp, FileJson, Search, X, FolderUp, ShieldCheck, Network, MoreVertical, Sparkles } from "lucide-react"
+import { Plus, File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, RefreshCw, Edit, Trash2, FileUp, FileJson, Search, X, FolderUp, ShieldCheck, Sparkles } from "lucide-react"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -16,7 +16,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
@@ -57,7 +56,7 @@ function renderKnowledgeFolderIcon(node: FileNode, isExpanded: boolean) {
 export function NavKnowledgeHeader() {
   const { t } = useTranslation('layout')
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch, isRelationsMode, setIsRelationsMode } = useNavKnowledge()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch } = useNavKnowledge()
   const { canCreate, isOrgAdmin, hasAnyPermission, canManageGroupFolders } = useUserPermissions()
   const [isRefreshingTree, setIsRefreshingTree] = useState(false)
 
@@ -81,7 +80,6 @@ export function NavKnowledgeHeader() {
       hasAnyPermission(['external_functionality:l', 'external_functionality:r']))
   const canImportFromExternal = canCreateAsset && canBrowseExternalCatalog
   const hasAnyCreatePermission = canCreateAsset || canCreateFolder
-  const canListExecRelationships = isOrgAdmin || hasAnyPermission(['execution_relationship:l', 'execution_relationship:r'])
 
   if (!selectedOrganizationId) {
     return null
@@ -195,25 +193,6 @@ export function NavKnowledgeHeader() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-6 w-6 hover:cursor-pointer">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {canListExecRelationships && (
-                <DropdownMenuCheckboxItem
-                  checked={isRelationsMode}
-                  onCheckedChange={() => setIsRelationsMode(!isRelationsMode)}
-                  className="hover:cursor-pointer"
-                >
-                  <Network className="mr-2 h-4 w-4" />
-                  {t('knowledge.relationsModeTooltip')}
-                </DropdownMenuCheckboxItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
       {isSearchOpen && (
@@ -232,12 +211,21 @@ export function NavKnowledgeHeader() {
   )
 }
 
-export function NavKnowledgeContent() {
+export interface NavKnowledgeContentProps {
+  /**
+   * Modo editor de diagramas (/diagrams): los assets se arrastran al canvas en
+   * vez de abrirse. Es una prop y no un estado global porque el modo ya no es
+   * un toggle que viaja entre páginas: lo determina la página que monta el árbol.
+   */
+  diagramMode?: boolean
+}
+
+export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContentProps = {}) {
   const { t } = useTranslation('layout')
   const navigate = useOrgNavigate()
   const location = useLocation()
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, pendingFocusAssetIdRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleCreateFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage, isRelationsMode } = useNavKnowledge()
+  const { fileTreeRef, pendingFocusAssetIdRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleCreateFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
   const [documentTypeIds, setDocumentTypeIds] = useState<Map<string, string>>(new Map())
@@ -541,6 +529,9 @@ export function NavKnowledgeContent() {
 
   const handleFileClick = useCallback(
     async (node: FileNode) => {
+      // En el editor de diagramas el árbol es la fuente de arrastre: hacer clic
+      // en un asset no debe sacar al usuario del canvas que está editando.
+      if (diagramMode) return
       if (node.type === "document") {
         guardedAction(() => {
           // Navigate with full context to avoid redundant API calls
@@ -558,7 +549,7 @@ export function NavKnowledgeContent() {
         })
       }
     },
-    [navigate, guardedAction]
+    [navigate, guardedAction, diagramMode]
   )
 
   const handleMoveFolder = useCallback(
@@ -897,7 +888,7 @@ export function NavKnowledgeContent() {
             return <File className="h-3.5 w-3.5 shrink-0" style={{ color: color ?? undefined }} />
           }}
           renderFolderIcon={(node, isExpanded) => renderKnowledgeFolderIcon(node as FileNode, isExpanded)}
-          onNodeDragStart={isRelationsMode ? (e, node) => {
+          onNodeDragStart={diagramMode ? (e, node) => {
             const docType = node.document_type
             if (!docType) return
             e.dataTransfer.setData(

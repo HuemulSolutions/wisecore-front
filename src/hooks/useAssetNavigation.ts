@@ -121,10 +121,8 @@ export function useAssetNavigation({
   /**
    * Build URL path from breadcrumb and selected file.
    * Appends ?execution=<id> when both a file and an execution are provided.
-   * Preserves ?diagram=<id> when passed — it's independent of the selected
-   * file (deep-link into relations mode from the diagram viewer sheet).
    */
-  const buildUrlPath = useCallback((breadcrumb: BreadcrumbItem[], selectedFileId?: string, executionId?: string, sectionId?: string, diagramId?: string) => {
+  const buildUrlPath = useCallback((breadcrumb: BreadcrumbItem[], selectedFileId?: string, executionId?: string, sectionId?: string) => {
     let path = '/asset';
 
     if (breadcrumb.length > 0) {
@@ -142,9 +140,6 @@ export function useAssetNavigation({
     }
     if (sectionId && selectedFileId) {
       params.set('section', sectionId);
-    }
-    if (diagramId) {
-      params.set('diagram', diagramId);
     }
     const qs = params.toString();
     if (qs) path += '?' + qs;
@@ -253,8 +248,7 @@ export function useAssetNavigation({
               
               // Update URL if we only got a partial hierarchy
               if (hierarchy.length < folderPath.length) {
-                const urlDiagramId = urlSearchParams.get('diagram') || undefined;
-                const actualUrl = buildUrlPath(hierarchy, selectedFileId || undefined, undefined, undefined, urlDiagramId);
+                const actualUrl = buildUrlPath(hierarchy, selectedFileId || undefined);
                 navigate(actualUrl, { replace: true });
                 
                 setTimeout(async () => {
@@ -365,10 +359,7 @@ export function useAssetNavigation({
     // state (breadcrumb/selectedFile) hasn't settled yet.
     if (isInitializingRef.current) return;
     
-    // Preserve ?diagram=<id> across rewrites — it's not part of this hook's
-    // own state, it's a deep-link into relations mode (see DiagramViewSheet).
-    const urlDiagramId = new URLSearchParams(location.search).get('diagram') || undefined;
-    const newUrl = buildUrlPath(breadcrumb, selectedFile?.id, selectedExecutionId || undefined, selectedSectionId || undefined, urlDiagramId);
+    const newUrl = buildUrlPath(breadcrumb, selectedFile?.id, selectedExecutionId || undefined, selectedSectionId || undefined);
 
     // Don't update URL if navigation came from FileTree
     const navigationState = location.state as any;
