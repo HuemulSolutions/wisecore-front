@@ -1,7 +1,30 @@
 // Lifecycle step component props for the asset type configuration module
-import type { HTMLAttributes } from 'react'
+import type { HTMLAttributes, MutableRefObject } from 'react'
 import type { AssetTypeWithRoles } from './asset-types'
-import type { AccessRuleType, AccessRuleTypeOption, LifecycleStep } from '@/types/lifecycle'
+import type { AccessRuleType, AccessRuleTypeOption } from '@/types/lifecycle'
+
+// ----------------------------------------
+// Guardado batch de la etapa activa
+// ----------------------------------------
+
+/**
+ * Contrato que expone el contenido de una etapa (`EditStepContent` /
+ * `CreateStepContent`) hacia arriba: los controles quedan siempre editables y
+ * los cambios se acumulan en estado local; el footer del sheet dispara `save()`.
+ */
+export interface LifecycleEditorApi {
+  /** Persiste todo lo modificado en la etapa. */
+  save: () => Promise<void>
+  /** Hay cambios locales sin persistir. */
+  isDirty: boolean
+}
+
+/** API que `AssetTypeLifecyclePanel` publica en el ref del contenedor. */
+export interface LifecycleSaveApi extends LifecycleEditorApi {
+  isSaving: boolean
+}
+
+export type LifecycleSaveApiRef = MutableRefObject<LifecycleSaveApi | null>
 
 // ----------------------------------------
 // Config Step
@@ -28,7 +51,8 @@ export interface CreateStepContentProps {
   hasValidity?: boolean
   noOwner?: boolean
   useAllOrCustomOwner?: boolean
-  onEditingChange?: (isEditing: boolean) => void
+  /** Publica `save`/`isDirty` hacia el footer del sheet. `null` al desmontar. */
+  onRegisterEditor?: (api: LifecycleEditorApi | null) => void
   organizationId?: string
 }
 
@@ -46,8 +70,10 @@ export interface StepContentProps {
   documentTypeId: string
   stepType: string
   stepLabel: string
-  onEditingChange?: (isEditing: boolean) => void
+  onRegisterEditor?: (api: LifecycleEditorApi | null) => void
   organizationId?: string
+  /** Alta de grupo disparada desde el header del panel (solo etapas con grupos). */
+  addGroupSignal?: number
 }
 
 export interface AssetTypeLifecycleDialogProps {
@@ -93,8 +119,10 @@ export interface EditStepCardData {
 export interface EditStepContentProps {
   documentTypeId: string
   stepType: string
-  onEditingChange?: (isEditing: boolean) => void
+  onRegisterEditor?: (api: LifecycleEditorApi | null) => void
   organizationId?: string
+  /** Cada incremento abre el sheet de alta de grupo (lo dispara el header del panel). */
+  addGroupSignal?: number
 }
 
 export interface EditStepCardProps {
@@ -107,13 +135,10 @@ export interface EditStepCardProps {
   earlierStepOptions: { value: string; label: string }[]
   onChange: (updated: Partial<EditStepCardData>) => void
   onDelete: () => void
-  onSave: () => Promise<void>
   t: (key: string, options?: Record<string, unknown>) => string
-  isDeleting: boolean
   canDelete: boolean
   canManage: boolean
   dragHandleProps?: HTMLAttributes<HTMLButtonElement>
-  onEditingChange?: (isEditing: boolean) => void
   organizationId?: string
 }
 
@@ -125,16 +150,24 @@ export interface AssetTypeLifecycleMatrixProps {
   documentTypeId: string
   /** Solo dispara el fetch de steps/roles cuando el tab/panel está visible. */
   enabled?: boolean
-  /** Columna (step) actualmente abierta en el panel lateral, para resaltar su engranaje. */
-  activeStepId: string | null
-  /** El usuario pidió abrir el panel de configuración de esta columna (click en el engranaje). */
-  onConfigureStep: (stepId: string) => void
+  /** Etapa del flujo seleccionada: tinta sus columnas y abre el panel lateral. */
+  activeStageType: string | null
+  /**
+   * Etapa con cambios sin guardar en el panel: sus columnas quedan inertes para
+   * que un toggle en la matriz no pise lo que está por persistirse.
+   */
+  lockedStageType?: string | null
+  /** El usuario eligió una etapa (pastilla o engranaje de una de sus columnas). */
+  onSelectStage: (stepType: string) => void
 }
 
 export interface LifecycleStepPanelProps {
   documentTypeId: string
-  step: LifecycleStep
+  /** Tipo de etapa configurada (`edit`, `review`, `create`…). */
+  stageType: string
+  /** Cantidad de grupos (steps) de esta etapa, para el badge de la sección. */
+  groupCount: number
   onClose: () => void
-  onEditingChange?: (isEditing: boolean) => void
+  onRegisterEditor?: (api: LifecycleEditorApi | null) => void
   organizationId?: string
 }

@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useTranslation } from "react-i18next"
-import { X, GripVertical, Trash2, Plus, Pencil, Save, Ban, ChevronDown } from "lucide-react"
+import { toast } from "sonner"
+import { GripVertical, Trash2, Plus, Pencil, ChevronDown, Check, X } from "lucide-react"
 import {
   DndContext,
   closestCenter,
@@ -19,7 +20,7 @@ import { CSS } from "@dnd-kit/utilities"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
-import { HuemulButton } from "@/huemul/components/huemul-button"
+import { HuemulSegmentedControl } from "@/huemul/components/huemul-segmented-control"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   useLifecycleSteps,
@@ -34,6 +35,16 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { LifecycleReviewActionsSection } from "./assets-types-lifecycle-review-actions"
+import {
+  ChipList,
+  PanelCard,
+  PanelFieldLabel,
+  PanelIconButton,
+  RemovableChip,
+  SettingToggleList,
+  SettingToggleRow,
+  StepModeBadge,
+} from "./assets-types-lifecycle-ui"
 import type { LifecycleStep, AccessRuleType } from "@/services/lifecycle"
 import type { EditStepCardData, EditStepContentProps, EditStepCardProps } from '@/types/assets'
 
@@ -73,6 +84,12 @@ export function stepToCard(step: LifecycleStep): EditStepCardData {
 
 // ─── EditStepCard ─────────────────────────────────────────────────────────────
 
+/**
+ * Tarjeta de un grupo. Los controles están siempre habilitados (si el usuario
+ * puede gestionar): los cambios se acumulan en el estado local de
+ * `EditStepContent` y se persisten con «Guardar cambios» del footer del sheet.
+ * El lápiz solo alterna el renombrado inline del grupo.
+ */
 function EditStepCard({
   card,
   stepType,
@@ -82,19 +99,14 @@ function EditStepCard({
   earlierStepOptions,
   onChange,
   onDelete,
-  onSave,
   t,
-  isDeleting,
   canDelete,
   canManage,
   dragHandleProps,
-  onEditingChange,
   organizationId,
 }: EditStepCardProps) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [snapshot, setSnapshot] = useState<EditStepCardData | null>(null)
   const [isExpanded, setIsExpanded] = useState(true)
+  const [isRenaming, setIsRenaming] = useState(false)
   const [pendingRuleType, setPendingRuleType] = useState<AccessRuleType | "">("")
   const [pendingSourceStepId, setPendingSourceStepId] = useState("")
 
@@ -138,300 +150,263 @@ function EditStepCard({
     onChange({ accessRules: card.accessRules.filter((_, i) => i !== index) })
   }
 
-  const ro = !isEditing
+  const ro = !canManage
   const stepAction = t(`lifecycle.stepActions.${stepType}`, { defaultValue: stepType })
-
-  const toggleExpanded = () => {
-    if (isEditing) return
-    setIsExpanded((prev) => !prev)
-  }
-
-  const handleCheckClick = async () => {
-    if (!canManage) return
-    if (isEditing) {
-      setIsSaving(true)
-      try {
-        await onSave()
-        setIsEditing(false)
-        setSnapshot(null)
-        onEditingChange?.(false)
-      } finally {
-        setIsSaving(false)
-      }
-    } else {
-      setSnapshot({ ...card })
-      setIsEditing(true)
-      setIsExpanded(true)
-      onEditingChange?.(true)
-    }
-  }
-
-  const handleCancel = () => {
-    if (snapshot) onChange(snapshot)
-    setIsEditing(false)
-    setSnapshot(null)
-    onEditingChange?.(false)
-  }
+  const groupName = card.name.trim() || t("lifecycle.newGroupName")
+  const allowsAnyone = card.accessType === "all"
+  const hasModeSelector = stepType === "edit" || stepType === "review"
 
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-3 rounded-md border bg-background p-4 shadow-sm transition-colors",
-        isEditing ? "border-primary/50" : "border-border",
-        !isEditing && "hover:cursor-pointer"
-      )}
-      onClick={toggleExpanded}
-    >
-      {/* Header: drag handle + name + edit/confirm + cancel + delete + expand toggle — always visible */}
-      <div className="flex items-center gap-2">
-        {dragHandleProps && (
+    <PanelCard>
+      {/* Cabecera — siempre visible; colapsada, la tarjeta se reduce a esta fila */}
+      <div className="flex items-center gap-1.5 px-3 py-2.5">
+        {dragHandleProps && !ro && (
           <button
             type="button"
-            className="text-muted-foreground hover:text-foreground hover:cursor-grab active:cursor-grabbing shrink-0"
-            aria-label="Drag to reorder"
+            className="shrink-0 text-[#b6c0cd] transition-colors hover:cursor-grab hover:text-[#64748b] active:cursor-grabbing"
+            aria-label={t("lifecycle.groups")}
             {...dragHandleProps}
-            onClick={(e) => e.stopPropagation()}
           >
-            <GripVertical className="w-4 h-4" />
+            <GripVertical className="size-4" />
           </button>
         )}
-        <div className="flex-1" onClick={(e) => { if (isEditing) e.stopPropagation() }}>
-          <HuemulField
-            type="text"
-            label=""
-            name={`card-name-${card.id}`}
-            value={card.name}
-            onChange={(v) => onChange({ name: String(v) })}
-            placeholder={t("lifecycle.groupNamePlaceholder")}
-            disabled={ro}
-            inputClassName={cn(
-              "h-7 border-0 shadow-none px-0 focus-visible:ring-0 font-medium",
-              ro && "cursor-default"
-            )}
-          />
-        </div>
-        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-          {isEditing ? (
-            <>
-              <HuemulButton
-                icon={Ban}
-                label={t("common:cancel")}
-                variant="ghost"
-                onClick={handleCancel}
-                disabled={isSaving}
-                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-              />
-              <HuemulButton
-                icon={Save}
-                label={t("common:save")}
-                variant="default"
-                onClick={handleCheckClick}
-                loading={isSaving}
-                disabled={isSaving}
-              />
-            </>
-          ) : (
-            canManage && (
-              <HuemulButton
-                icon={Pencil}
-                label={t("common:edit")}
-                variant="ghost"
-                onClick={handleCheckClick}
-                className="text-muted-foreground"
-              />
-            )
-          )}
-          {canManage && (
-            <HuemulButton
-              icon={Trash2}
-              variant="ghost"
-              size="icon"
-              onClick={onDelete}
-              disabled={isDeleting || !canDelete}
-              tooltip={t("lifecycle.deleteGroup")}
-              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+
+        {isRenaming ? (
+          <div className="min-w-0 flex-1">
+            <HuemulField
+              type="text"
+              label=""
+              name={`card-name-${card.id}`}
+              value={card.name}
+              onChange={(v) => onChange({ name: String(v) })}
+              placeholder={t("lifecycle.groupNamePlaceholder")}
+              inputClassName="h-7 text-[13px] font-semibold"
             />
-          )}
-        </div>
-        <ChevronDown
-          className={cn(
-            "w-4 h-4 text-muted-foreground transition-transform shrink-0",
-            isExpanded && "rotate-180"
-          )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsExpanded((prev) => !prev)}
+            className="min-w-0 flex-1 truncate text-left text-[13px] font-semibold text-[#0f172a] hover:cursor-pointer"
+            title={groupName}
+          >
+            {groupName}
+          </button>
+        )}
+
+        <StepModeBadge
+          label={
+            card.mode === "automatic" ? t("lifecycle.modeAutomatic") : t("lifecycle.modeManual")
+          }
+        />
+
+        {canManage && (
+          <>
+            <PanelIconButton
+              icon={isRenaming ? Check : Pencil}
+              label={t("lifecycle.renameGroup")}
+              onClick={() => setIsRenaming((prev) => !prev)}
+            />
+            <PanelIconButton
+              icon={Trash2}
+              label={t("lifecycle.deleteGroup")}
+              tone="danger"
+              disabled={!canDelete}
+              onClick={onDelete}
+            />
+          </>
+        )}
+        <PanelIconButton
+          icon={ChevronDown}
+          label={isExpanded ? t("lifecycle.collapseGroup") : t("lifecycle.expandGroup")}
+          onClick={() => setIsExpanded((prev) => !prev)}
+          className={cn("transition-transform", isExpanded && "rotate-180")}
         />
       </div>
 
       {isExpanded && (
-        <>
-          <div className="h-px bg-border" />
-
-          {/* Mode selector — only for edit/review steps (approve stays manual-only) */}
-          {(stepType === "edit" || stepType === "review") && (
-            <HuemulField
-              type="radio"
-              label={t("lifecycle.modeLabel")}
-              name={`mode-${card.id}`}
-              value={card.mode}
-              options={[
-                { value: "manual", label: t("lifecycle.modeManual") },
-                { value: "automatic", label: t("lifecycle.modeAutomatic") },
-              ]}
-              onChange={(v) => onChange({ mode: v as "manual" | "automatic" })}
-              disabled={ro}
-            />
+        <div className="flex flex-col gap-3 border-t border-[#eef1f5] px-3 py-3">
+          {/* Tipo de paso — approve es siempre manual */}
+          {hasModeSelector && (
+            <div className="flex flex-col gap-1.5">
+              <PanelFieldLabel disabled={ro}>{t("lifecycle.modeLabel")}</PanelFieldLabel>
+              <HuemulSegmentedControl
+                value={card.mode}
+                disabled={ro}
+                ariaLabel={t("lifecycle.modeLabel")}
+                options={[
+                  { value: "manual", label: t("lifecycle.modeManual") },
+                  { value: "automatic", label: t("lifecycle.modeAutomatic") },
+                ]}
+                onChange={(mode) => onChange({ mode })}
+              />
+            </div>
           )}
 
-          {/* Manual mode: SLA + access configuration */}
+          {/* Manual: SLA + configuración de acceso */}
           {card.mode === "manual" && (
             <>
-              {/* SLA */}
-              <div className="flex flex-col gap-2">
-                <HuemulField
-                  type="switch"
+              <SettingToggleList>
+                <SettingToggleRow
                   label={t("lifecycle.slaLabel")}
-                  name={`sla-toggle-${card.id}`}
-                  value={card.hasSla}
+                  description={t(`lifecycle.slaDescriptions.${stepType}`, {
+                    defaultValue: t("lifecycle.slaDescription"),
+                  })}
+                  checked={card.hasSla}
+                  disabled={ro}
                   onChange={(v) =>
                     onChange({
-                      hasSla: Boolean(v),
+                      hasSla: v,
                       slaValue: v ? card.slaValue : "",
                       slaUnit: v ? card.slaUnit : "",
                     })
                   }
+                >
+                  {card.hasSla && (
+                    <div className="flex items-center gap-2">
+                      <HuemulField
+                        type="number"
+                        label=""
+                        name={`sla-value-${card.id}`}
+                        value={card.slaValue}
+                        min={1}
+                        onChange={(v) => onChange({ slaValue: String(v) })}
+                        placeholder={t("lifecycle.slaValuePlaceholder")}
+                        disabled={ro}
+                        className="w-20"
+                        inputClassName="h-8 text-[12.5px]"
+                      />
+                      <HuemulField
+                        type="select"
+                        label=""
+                        name={`sla-unit-${card.id}`}
+                        value={card.slaUnit}
+                        options={slaUnitOptions}
+                        onChange={(v) => onChange({ slaUnit: String(v) })}
+                        disabled={ro}
+                        className="flex-1"
+                      />
+                    </div>
+                  )}
+                </SettingToggleRow>
+
+                <SettingToggleRow
+                  label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
+                  description={t("lifecycle.allowAnyoneDescShort")}
+                  checked={allowsAnyone}
                   disabled={ro}
-                  labelFirst
+                  onChange={(v) => {
+                    if (v) {
+                      onChange({ accessType: "all", ownerCanExecute: false, roleIds: [] })
+                    } else {
+                      onChange({ accessType: "owner", ownerCanExecute: true, roleIds: [] })
+                    }
+                  }}
                 />
-                {card.hasSla && (
-                  <div className="flex items-center gap-2 pl-1">
+
+                <SettingToggleRow
+                  label={t("lifecycle.ownerCanExecuteLabel", { action: stepAction })}
+                  description={t("lifecycle.ownerCanExecuteDesc")}
+                  checked={card.ownerCanExecute}
+                  disabled={ro || allowsAnyone}
+                  onChange={(v) => {
+                    const newAccessType =
+                      card.roleIds.length > 0 ? (v ? "custom_owner" : "custom") : "owner"
+                    onChange({ ownerCanExecute: v, accessType: newAccessType })
+                  }}
+                />
+              </SettingToggleList>
+
+              {!allowsAnyone && (
+                <>
+                  {/* Roles asignados como chips + selector debajo */}
+                  <div className="flex flex-col gap-1.5">
+                    <PanelFieldLabel disabled={ro}>
+                      {t("lifecycle.rolesAllowedLabel", { action: stepAction })}
+                    </PanelFieldLabel>
+                    {assignedRoles.length > 0 && (
+                      <ChipList>
+                        {assignedRoles.map((r) => (
+                          <RemovableChip
+                            key={r.id}
+                            label={r.name}
+                            disabled={ro}
+                            removeLabel={t("lifecycle.matrix.removeRole")}
+                            onRemove={
+                              ro
+                                ? undefined
+                                : () => {
+                                    const newRoleIds = card.roleIds.filter((id) => id !== r.id)
+                                    const newAccessType =
+                                      newRoleIds.length > 0
+                                        ? card.ownerCanExecute
+                                          ? "custom_owner"
+                                          : "custom"
+                                        : "owner"
+                                    onChange({ roleIds: newRoleIds, accessType: newAccessType })
+                                  }
+                            }
+                          />
+                        ))}
+                      </ChipList>
+                    )}
                     <HuemulField
-                      type="number"
+                      type="combobox"
                       label=""
-                      name={`sla-value-${card.id}`}
-                      value={card.slaValue}
-                      min={1}
-                      onChange={(v) => onChange({ slaValue: String(v) })}
-                      placeholder={t("lifecycle.slaValuePlaceholder")}
+                      name={`role-${card.id}`}
+                      placeholder={t("lifecycle.panel.addRoleToStep")}
+                      value=""
+                      options={availableRoles.map((r) => ({ value: r.id, label: r.name }))}
+                      onChange={(roleId) => {
+                        if (!roleId) return
+                        const role = allRoles.find((r) => r.id === roleId)
+                        const newRoleIds = [...card.roleIds, String(roleId)]
+                        const newAccessType = card.ownerCanExecute ? "custom_owner" : "custom"
+                        onChange({
+                          roleIds: newRoleIds,
+                          roleNames: {
+                            ...card.roleNames,
+                            [String(roleId)]: role?.name ?? String(roleId),
+                          },
+                          accessType: newAccessType,
+                        })
+                      }}
                       disabled={ro}
-                      className="w-20"
-                      inputClassName="h-8 text-sm"
-                    />
-                    <HuemulField
-                      type="select"
-                      label=""
-                      name={`sla-unit-${card.id}`}
-                      value={card.slaUnit}
-                      options={slaUnitOptions}
-                      onChange={(v) => onChange({ slaUnit: String(v) })}
-                      disabled={ro}
-                      className="w-40"
                     />
                   </div>
-                )}
-              </div>
 
-              {/* Allow anyone switch */}
-              <HuemulField
-                type="switch"
-                label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
-                name={`access-all-${card.id}`}
-                value={card.accessType === "all"}
-                onChange={(v) => {
-                  if (v) {
-                    onChange({ accessType: "all", ownerCanExecute: false, roleIds: [] })
-                  } else {
-                    onChange({ accessType: "owner", ownerCanExecute: true, roleIds: [] })
-                  }
-                }}
-                disabled={ro}
-                labelFirst
-              />
-
-              {/* When not "all": owner switch + role picker */}
-              {card.accessType !== "all" && (
-                <>
-                  <HuemulField
-                    type="switch"
-                    label={t("lifecycle.ownerCanExecuteLabel", { action: stepAction })}
-                    name={`access-owner-${card.id}`}
-                    value={card.ownerCanExecute}
-                    onChange={(v) => {
-                      const newOwner = Boolean(v)
-                      const newAccessType =
-                        card.roleIds.length > 0
-                          ? newOwner ? "custom_owner" : "custom"
-                          : "owner"
-                      onChange({ ownerCanExecute: newOwner, accessType: newAccessType })
-                    }}
-                    disabled={ro}
-                    labelFirst
-                  />
-
-                  <HuemulField
-                    type="combobox"
-                    label={t("lifecycle.addRole", { action: stepAction })}
-                    name={`role-${card.id}`}
-                    placeholder={t("lifecycle.addRolePlaceholder")}
-                    value=""
-                    options={availableRoles.map((r) => ({ value: r.id, label: r.name }))}
-                    onChange={(roleId) => {
-                      if (!roleId) return
-                      const role = allRoles.find((r) => r.id === roleId)
-                      const newRoleIds = [...card.roleIds, String(roleId)]
-                      const newAccessType = card.ownerCanExecute ? "custom_owner" : "custom"
-                      onChange({
-                        roleIds: newRoleIds,
-                        roleNames: {
-                          ...card.roleNames,
-                          [String(roleId)]: role?.name ?? String(roleId),
-                        },
-                        accessType: newAccessType,
-                      })
-                    }}
-                    disabled={ro}
-                  >
-                    {assignedRoles.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {assignedRoles.map((r) => (
-                          <Badge
-                            key={r.id}
-                            variant="secondary"
-                            className="flex items-center gap-1 pr-1.5"
-                          >
-                            <span className="text-xs">{r.name}</span>
-                            {!ro && (
-                              <button
-                                type="button"
-                                className="rounded-full hover:text-destructive hover:cursor-pointer transition-colors"
-                                onClick={() => {
-                                  const newRoleIds = card.roleIds.filter((id) => id !== r.id)
-                                  const newAccessType =
-                                    newRoleIds.length > 0
-                                      ? card.ownerCanExecute ? "custom_owner" : "custom"
-                                      : "owner"
-                                  onChange({ roleIds: newRoleIds, accessType: newAccessType })
-                                }}
-                                aria-label={`Remove ${r.name}`}
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            )}
-                          </Badge>
+                  {/* Reglas adicionales — acceso por creador/jefatura (OR con los roles) */}
+                  <div className="flex flex-col gap-1.5">
+                    <PanelFieldLabel disabled={ro}>
+                      {t("lifecycle.accessRules.title")}
+                    </PanelFieldLabel>
+                    {card.accessRules.length > 0 && (
+                      <ChipList>
+                        {card.accessRules.map((rule, index) => (
+                          <RemovableChip
+                            key={`${rule.rule_type}-${rule.source_step_id ?? "none"}-${index}`}
+                            label={`${ruleTypeLabel(rule.rule_type)}${
+                              sourceStepLabel(rule.source_step_id)
+                                ? ` (${sourceStepLabel(rule.source_step_id)})`
+                                : ""
+                            }`}
+                            disabled={ro}
+                            onRemove={ro ? undefined : () => handleRemoveAccessRule(index)}
+                          />
                         ))}
-                      </div>
+                      </ChipList>
                     )}
-                  </HuemulField>
-
-                  {/* Additional access rules — creator/manager-based access (OR'd with roles above) */}
-                  <div className="flex flex-col gap-2 pt-1">
-                    <span className={cn("text-sm font-medium leading-snug", ro && "opacity-50")}>{t("lifecycle.accessRules.title")}</span>
                     <div className="flex items-center gap-2">
                       <HuemulField
                         type="select"
                         label=""
                         name={`access-rule-type-${card.id}`}
                         value={pendingRuleType}
-                        options={availableRuleTypeOptions.map((o) => ({ value: o.value, label: ruleTypeLabel(o.value) }))}
-                        placeholder={t("lifecycle.accessRules.addPlaceholder")}
+                        options={availableRuleTypeOptions.map((o) => ({
+                          value: o.value,
+                          label: ruleTypeLabel(o.value),
+                        }))}
+                        placeholder={t("lifecycle.panel.addRulePlaceholder")}
                         onChange={(v) => {
                           setPendingRuleType((v as AccessRuleType) || "")
                           setPendingSourceStepId("")
@@ -452,48 +427,25 @@ function EditStepCard({
                           className="flex-1"
                         />
                       )}
-                      <HuemulButton
-                        icon={Plus}
-                        variant="outline"
-                        size="icon"
+                      <button
+                        type="button"
                         onClick={handleAddAccessRule}
+                        title={t("lifecycle.accessRules.add")}
+                        aria-label={t("lifecycle.accessRules.add")}
                         disabled={
-                          ro || !pendingRuleType ||
+                          ro ||
+                          !pendingRuleType ||
                           (pendingRuleType === "step_actor_manager" && !pendingSourceStepId)
                         }
-                        tooltip={t("lifecycle.accessRules.add")}
-                      />
+                        className="inline-flex size-8 shrink-0 items-center justify-center rounded-[8px] border border-[#dde4ec] text-[#64748b] transition-colors hover:cursor-pointer hover:bg-[#f8fafc] hover:text-[#334155] disabled:pointer-events-none disabled:opacity-50"
+                      >
+                        <Plus className="size-4" />
+                      </button>
                     </div>
                     {pendingRuleType === "step_actor_manager" && (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-[11px] text-[#94a3b8]">
                         {t("lifecycle.accessRules.stepActorManagerNote")}
                       </p>
-                    )}
-                    {card.accessRules.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {card.accessRules.map((rule, index) => (
-                          <Badge
-                            key={`${rule.rule_type}-${rule.source_step_id ?? "none"}-${index}`}
-                            variant="secondary"
-                            className="flex items-center gap-1 pr-1.5"
-                          >
-                            <span className="text-xs">
-                              {ruleTypeLabel(rule.rule_type)}
-                              {sourceStepLabel(rule.source_step_id) && ` (${sourceStepLabel(rule.source_step_id)})`}
-                            </span>
-                            {!ro && (
-                              <button
-                                type="button"
-                                className="rounded-full hover:text-destructive hover:cursor-pointer transition-colors"
-                                onClick={() => handleRemoveAccessRule(index)}
-                                aria-label={`Remove ${ruleTypeLabel(rule.rule_type)}`}
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            )}
-                          </Badge>
-                        ))}
-                      </div>
                     )}
                   </div>
                 </>
@@ -501,13 +453,17 @@ function EditStepCard({
             </>
           )}
 
-          {/* Automatic mode: external functionalities table — only for edit/review steps */}
-          {card.mode === "automatic" && (stepType === "edit" || stepType === "review") && organizationId && (
-            <LifecycleReviewActionsSection organizationId={organizationId} stepId={card.id} readOnly={ro} />
+          {/* Automático: tabla de funcionalidades externas — solo edit/review */}
+          {card.mode === "automatic" && hasModeSelector && organizationId && (
+            <LifecycleReviewActionsSection
+              organizationId={organizationId}
+              stepId={card.id}
+              readOnly={ro}
+            />
           )}
-        </>
+        </div>
       )}
-    </div>
+    </PanelCard>
   )
 }
 
@@ -537,7 +493,19 @@ function SortableEditStepCard(
 
 // ─── EditStepContent ──────────────────────────────────────────────────────────
 
-export function EditStepContent({ documentTypeId, stepType, onEditingChange, organizationId }: EditStepContentProps) {
+/**
+ * Etapas con grupos (Elaboración, Revisión, Aprobación). Mantiene las tarjetas
+ * en estado local y publica `save`/`isDirty` vía `onRegisterEditor`: el botón
+ * «Guardar cambios» del footer del sheet persiste de una sola vez todos los
+ * grupos modificados (y el orden, si se reordenó).
+ */
+export function EditStepContent({
+  documentTypeId,
+  stepType,
+  onRegisterEditor,
+  organizationId,
+  addGroupSignal = 0,
+}: EditStepContentProps) {
   const { t } = useTranslation(["asset-types", "common"])
   const { canUpdate } = useUserPermissions()
   const canManage = canUpdate('asset_type')
@@ -570,6 +538,8 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
   }))
 
   const [localSteps, setLocalSteps] = useState<EditStepCardData[]>([])
+  const [dirtyIds, setDirtyIds] = useState<Set<string>>(() => new Set())
+  const [orderDirty, setOrderDirty] = useState(false)
   const initializedRef = useRef(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [addGroupOpen, setAddGroupOpen] = useState(false)
@@ -594,6 +564,20 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
     }
   }, [data])
 
+  // El header del panel pide abrir el alta de grupo incrementando la señal.
+  useEffect(() => {
+    if (addGroupSignal <= 0) return
+    setNewGroupName("")
+    setNewGroupMode("manual")
+    setNewGroupHasSla(false)
+    setNewGroupSlaValue("")
+    setNewGroupSlaUnit("")
+    setNewGroupAccessType("all")
+    setNewGroupOwnerCanExecute(false)
+    setNewGroupRoleIds([])
+    setAddGroupOpen(true)
+  }, [addGroupSignal])
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   )
@@ -606,18 +590,31 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
       const newIndex = prev.findIndex((s) => s.id === over.id)
       return arrayMove(prev, oldIndex, newIndex)
     })
+    setOrderDirty(true)
   }
 
   const handleCardChange = (id: string, updated: Partial<EditStepCardData>) => {
     setLocalSteps((prev) =>
       prev.map((c) => (c.id === id ? { ...c, ...updated } : c))
     )
+    setDirtyIds((prev) => {
+      if (prev.has(id)) return prev
+      const next = new Set(prev)
+      next.add(id)
+      return next
+    })
   }
 
   const handleDelete = async (id: string) => {
     if (!canManage) return
     await deleteStep.mutateAsync(id)
     setLocalSteps((prev) => prev.filter((c) => c.id !== id))
+    setDirtyIds((prev) => {
+      if (!prev.has(id)) return prev
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
   }
 
   const handleAddGroup = async () => {
@@ -651,6 +648,60 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
     setNewGroupMode("manual")
   }
 
+  // ── Guardado batch ──────────────────────────────────────────────────────────
+  // El closure vive en un ref para que el footer siempre invoque la última
+  // versión sin re-registrar la API en cada tecleo.
+  const isDirty = dirtyIds.size > 0 || orderDirty
+  const saveRef = useRef<() => Promise<void>>(async () => {})
+
+  saveRef.current = async () => {
+    if (!canManage || !isDirty) return
+    // Reordenar obliga a reenviar todas las tarjetas: `order` es posicional.
+    const idsToSave = orderDirty
+      ? localSteps.map((c) => c.id)
+      : localSteps.filter((c) => dirtyIds.has(c.id)).map((c) => c.id)
+
+    for (const id of idsToSave) {
+      const currentCard = localSteps.find((c) => c.id === id)
+      if (!currentCard) continue
+      const cardIndex = localSteps.findIndex((c) => c.id === id)
+      const isAutomatic = currentCard.mode === "automatic"
+      await updateStep.mutateAsync({
+        stepId: currentCard.id,
+        data: {
+          name: currentCard.name || undefined,
+          order: cardIndex + 1,
+          mode: currentCard.mode,
+          sla_value: !isAutomatic && currentCard.hasSla
+            ? Number(currentCard.slaValue) || null
+            : null,
+          sla_unit: !isAutomatic && currentCard.hasSla
+            ? currentCard.slaUnit || null
+            : null,
+          access_type: isAutomatic ? "owner" : currentCard.accessType,
+          ...(!isAutomatic && currentCard.accessType !== "all" && currentCard.accessType !== "owner" && {
+            role_ids: currentCard.roleIds,
+          }),
+          access_rules: currentCard.accessRules,
+        },
+      })
+    }
+
+    setDirtyIds(new Set())
+    setOrderDirty(false)
+    toast.success(t("lifecycle.savedSuccess"))
+  }
+
+  const save = useCallback(() => saveRef.current(), [])
+
+  useEffect(() => {
+    onRegisterEditor?.({ isDirty, save })
+  }, [isDirty, save, onRegisterEditor])
+
+  useEffect(() => {
+    return () => onRegisterEditor?.(null)
+  }, [onRegisterEditor])
+
   if (isLoading) {
     return (
       <div className="flex flex-col gap-3 py-2">
@@ -662,44 +713,9 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
   }
 
   return (
-    <div className="flex flex-col gap-4 h-full min-h-0">
-      {/* Title */}
-      <div className="shrink-0 flex flex-col gap-1">
-        <p className="text-base font-semibold text-foreground">
-          {t(`lifecycle.stepTypes.${stepType}`, { defaultValue: t("lifecycle.editTitle") })}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          {t(`lifecycle.stepDescriptions.${stepType}`, { defaultValue: t("lifecycle.editDescription") })}
-        </p>
-      </div>
-
-      {/* Groups label + Add group button — fixed, never scrolls */}
-      <div className="shrink-0 flex items-center justify-between py-2 border-b border-border">
-        <p className="text-sm font-semibold">{t("lifecycle.groups")}</p>
-        {canManage && (
-          <button
-            type="button"
-            onClick={() => {
-              setNewGroupName("")
-              setNewGroupMode("manual")
-              setNewGroupHasSla(false)
-              setNewGroupSlaValue("")
-              setNewGroupSlaUnit("")
-              setNewGroupAccessType("all")
-              setNewGroupOwnerCanExecute(false)
-              setNewGroupRoleIds([])
-              setAddGroupOpen(true)
-            }}
-            className="flex items-center gap-1 text-sm text-primary font-medium hover:underline hover:cursor-pointer transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            {t("lifecycle.addGroup")}
-          </button>
-        )}
-      </div>
-
-      {/* Sortable card list — only this area scrolls */}
-      <ScrollArea className="flex-1 min-h-0" viewportClassName="pr-3">
+    <div className="flex h-full min-h-0 flex-col">
+      {/* Lista ordenable de tarjetas — única área que scrollea */}
+      <ScrollArea className="min-h-0 flex-1" viewportClassName="pr-2">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -709,7 +725,12 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
             items={localSteps.map((s) => s.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="flex flex-col gap-3 pb-2">
+            <div className="flex flex-col gap-2.5 pb-2">
+              {localSteps.length === 0 && (
+                <p className="py-6 text-center text-[12px] text-[#94a3b8]">
+                  {t("lifecycle.panel.groupsEmpty")}
+                </p>
+              )}
               {localSteps.map((card, index) => (
                 <SortableEditStepCard
                   key={card.id}
@@ -730,35 +751,8 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
                   onChange={(updated) => handleCardChange(card.id, updated)}
                   onDelete={() => setDeleteConfirmId(card.id)}
                   canDelete={!((stepType === "edit" || stepType === "approve") && localSteps.length <= 1)}
-                  onEditingChange={(editing) => onEditingChange?.(editing)}
                   canManage={canManage}
-                  onSave={async () => {
-                    if (!canManage) return
-                    const currentCard = localSteps.find((c) => c.id === card.id)!
-                    const cardIndex = localSteps.findIndex((c) => c.id === card.id)
-                    const isAutomatic = currentCard.mode === "automatic"
-                    await updateStep.mutateAsync({
-                      stepId: currentCard.id,
-                      data: {
-                        name: currentCard.name || undefined,
-                        order: cardIndex + 1,
-                        mode: currentCard.mode,
-                        sla_value: !isAutomatic && currentCard.hasSla
-                          ? Number(currentCard.slaValue) || null
-                          : null,
-                        sla_unit: !isAutomatic && currentCard.hasSla
-                          ? currentCard.slaUnit || null
-                          : null,
-                        access_type: isAutomatic ? "owner" : currentCard.accessType,
-                        ...(!isAutomatic && currentCard.accessType !== "all" && currentCard.accessType !== "owner" && {
-                          role_ids: currentCard.roleIds,
-                        }),
-                        access_rules: currentCard.accessRules,
-                      },
-                    })
-                  }}
                   t={t}
-                  isDeleting={false}
                 />
               ))}
             </div>

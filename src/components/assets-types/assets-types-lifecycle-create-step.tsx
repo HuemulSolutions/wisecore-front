@@ -1,21 +1,31 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-import { X, Pencil, Ban, Save } from "lucide-react"
 import { HuemulField } from "@/huemul/components/huemul-field"
-import { HuemulButton } from "@/huemul/components/huemul-button"
 import { useLifecycleSteps, useLifecycleMutations, useLifecycleSlaUnits } from "@/hooks/useLifecycle"
 import { useRoles } from "@/hooks/useRbac"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
-import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LifecyclePublishActionsSection } from "./assets-types-lifecycle-publish-actions"
+import {
+  ChipList,
+  PanelFieldLabel,
+  RemovableChip,
+  SettingToggleList,
+  SettingToggleRow,
+} from "./assets-types-lifecycle-ui"
 import type { CreateStepContentProps } from '@/types/assets'
 
 export type { CreateStepContentProps } from '@/types/assets'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+/**
+ * Etapas sin grupos (Creador, Publicación, Archivado, Lector): un único
+ * `LifecycleStep` con permisos simples. Igual que `EditStepContent`, los
+ * controles quedan siempre editables y el guardado se dispara desde el footer
+ * del sheet a través de `onRegisterEditor`.
+ */
 export function CreateStepContent({
   documentTypeId,
   stepType,
@@ -23,7 +33,7 @@ export function CreateStepContent({
   hasValidity = true,
   noOwner = false,
   useAllOrCustomOwner = false,
-  onEditingChange,
+  onRegisterEditor,
   organizationId,
 }: CreateStepContentProps) {
   const { t } = useTranslation(["asset-types", "common"])
@@ -42,17 +52,7 @@ export function CreateStepContent({
     label: t(`lifecycle.slaUnits.${u.value}`, { defaultValue: u.label }),
   }))
 
-  const [isEditing, setIsEditing] = useState(false)
-  const [snapshot, setSnapshot] = useState<{
-    accessType: "all" | "owner" | "custom" | "custom_owner"
-    ownerCanExecute: boolean
-    validFrom: string | null
-    validTo: string | null
-    roleIds: string[]
-    slaEnabled: boolean
-    slaValue: string
-    slaUnit: string
-  } | null>(null)
+  const [isDirty, setIsDirty] = useState(false)
   const [accessType, setAccessType] = useState<"all" | "owner" | "custom" | "custom_owner">("all")
   const [ownerCanExecute, setOwnerCanExecute] = useState(true)
   const [validFrom, setValidFrom] = useState<string | null>(null)
@@ -62,75 +62,65 @@ export function CreateStepContent({
   const [slaValue, setSlaValue] = useState("")
   const [slaUnit, setSlaUnit] = useState("")
 
-  const handleEdit = () => {
-    if (!canManage) return
-    setSnapshot({ accessType, ownerCanExecute, validFrom, validTo, roleIds, slaEnabled, slaValue, slaUnit })
-    setIsEditing(true)
-    onEditingChange?.(true)
-  }
-
-  const handleCancel = () => {
-    if (snapshot) {
-      setAccessType(snapshot.accessType)
-      setOwnerCanExecute(snapshot.ownerCanExecute)
-      setValidFrom(snapshot.validFrom)
-      setValidTo(snapshot.validTo)
-      setRoleIds(snapshot.roleIds)
-      setSlaEnabled(snapshot.slaEnabled)
-      setSlaValue(snapshot.slaValue)
-      setSlaUnit(snapshot.slaUnit)
-    }
-    setIsEditing(false)
-    setSnapshot(null)
-    onEditingChange?.(false)
-  }
-
-  // Ref always holding the latest save fn (updated every render, no stale closure)
-  const saveFnRef = useRef<(() => Promise<void>) | null>(null)
-  saveFnRef.current = step
-    ? async () => {
-        await updateStep.mutateAsync({
-          stepId: step.id,
-          data: {
-            access_type: accessType,
-            ...(hasValidity && {
-              valid_from: validFrom ? validFrom.split("T")[0] : null,
-              valid_to: validTo ? validTo.split("T")[0] : null,
-            }),
-            ...(hasSla && {
-              sla_value: slaEnabled ? Number(slaValue) || null : null,
-              sla_unit: slaEnabled ? slaUnit || null : null,
-            }),
-            ...((accessType === "custom" || accessType === "custom_owner") && { role_ids: roleIds }),
-          },
-        })
-        toast.success(t("lifecycle.savedSuccess"))
-        setIsEditing(false)
-        setSnapshot(null)
-        onEditingChange?.(false)
-      }
-    : null
+  // El estado local solo se hidrata la primera vez que llegan los datos del step:
+  // después manda lo que el usuario tiene en pantalla, hasta que se guarde.
+  const hydratedStepIdRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (step) {
-      let at: "all" | "owner" | "custom" | "custom_owner"
-      if (useAllOrCustomOwner) {
-        at = step.access_type === "all" ? "all" : "custom_owner"
-      } else {
-        at = step.access_type === "custom" ? "custom" : (noOwner || step.access_type !== "owner") ? "all" : "owner"
-      }
-      setAccessType(at)
-      setOwnerCanExecute(at === "all" || at === "owner" || at === "custom_owner")
-      setValidFrom(step.valid_from ?? null)
-      setValidTo(step.valid_to ?? null)
-      setRoleIds(step.step_roles.map((r) => r.role_id))
-      if (hasSla) {
-        setSlaEnabled(step.sla_value != null)
-        setSlaValue(step.sla_value != null ? String(step.sla_value) : "")
-        setSlaUnit(step.sla_unit ?? "")
-      }
+    if (!step || hydratedStepIdRef.current === step.id) return
+    let at: "all" | "owner" | "custom" | "custom_owner"
+    if (useAllOrCustomOwner) {
+      at = step.access_type === "all" ? "all" : "custom_owner"
+    } else {
+      at = step.access_type === "custom" ? "custom" : (noOwner || step.access_type !== "owner") ? "all" : "owner"
     }
+    setAccessType(at)
+    setOwnerCanExecute(at === "all" || at === "owner" || at === "custom_owner")
+    setValidFrom(step.valid_from ?? null)
+    setValidTo(step.valid_to ?? null)
+    setRoleIds(step.step_roles.map((r) => r.role_id))
+    if (hasSla) {
+      setSlaEnabled(step.sla_value != null)
+      setSlaValue(step.sla_value != null ? String(step.sla_value) : "")
+      setSlaUnit(step.sla_unit ?? "")
+    }
+    setIsDirty(false)
+    hydratedStepIdRef.current = step.id
   }, [step, hasSla, noOwner, useAllOrCustomOwner])
+
+  // ── Guardado batch ──────────────────────────────────────────────────────────
+  const saveRef = useRef<() => Promise<void>>(async () => {})
+
+  saveRef.current = async () => {
+    if (!canManage || !step || !isDirty) return
+    await updateStep.mutateAsync({
+      stepId: step.id,
+      data: {
+        access_type: accessType,
+        ...(hasValidity && {
+          valid_from: validFrom ? validFrom.split("T")[0] : null,
+          valid_to: validTo ? validTo.split("T")[0] : null,
+        }),
+        ...(hasSla && {
+          sla_value: slaEnabled ? Number(slaValue) || null : null,
+          sla_unit: slaEnabled ? slaUnit || null : null,
+        }),
+        ...((accessType === "custom" || accessType === "custom_owner") && { role_ids: roleIds }),
+      },
+    })
+    setIsDirty(false)
+    toast.success(t("lifecycle.savedSuccess"))
+  }
+
+  const save = useCallback(() => saveRef.current(), [])
+
+  useEffect(() => {
+    onRegisterEditor?.({ isDirty, save })
+  }, [isDirty, save, onRegisterEditor])
+
+  useEffect(() => {
+    return () => onRegisterEditor?.(null)
+  }, [onRegisterEditor])
 
   if (isLoading) {
     return (
@@ -144,68 +134,79 @@ export function CreateStepContent({
 
   if (!step) {
     return (
-      <p className="text-sm text-muted-foreground py-4">
+      <p className="py-4 text-[12.5px] text-[#64748b]">
         {t("lifecycle.noConfig")}
       </p>
     )
   }
 
+  const ro = !canManage
   const assignedRoles = allRoles.filter((r) => roleIds.includes(r.id))
   const availableRoles = allRoles.filter((r) => !roleIds.includes(r.id))
+  const showRolePicker = useAllOrCustomOwner
+    ? accessType !== "all"
+    : accessType === "custom" || accessType === "custom_owner"
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Title + edit/cancel toggle */}
-      <div className="flex items-start justify-between">
-        <div className="flex flex-col gap-1">
-          <p className="text-base font-semibold text-foreground">
-            {t(`lifecycle.stepTypes.${stepType}`, { defaultValue: step.name ?? t("lifecycle.creatorTitle") })}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {t(`lifecycle.stepDescriptions.${stepType}`, {
-              defaultValue: t("lifecycle.creatorDescription"),
+    <div className="flex flex-col gap-3">
+      <SettingToggleList>
+        {hasSla && (
+          <SettingToggleRow
+            label={t("lifecycle.slaLabel")}
+            description={t(`lifecycle.slaDescriptions.${stepType}`, {
+              defaultValue: t("lifecycle.slaDescription"),
             })}
-          </p>
-        </div>
-        <div className="flex items-center gap-1">
-          {isEditing ? (
-            <>
-              <HuemulButton
-                icon={Ban}
-                label={t("common:cancel")}
-                variant="ghost"
-                onClick={handleCancel}
-                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-              />
-              <HuemulButton
-                icon={Save}
-                label={t("common:save")}
-                variant="default"
-                onClick={async () => { if (canManage) await saveFnRef.current?.() }}
-                loading={updateStep.isPending}
-              />
-            </>
-          ) : (
-            canManage && (
-              <HuemulButton
-                icon={Pencil}
-                label={t("common:edit")}
-                variant="ghost"
-                onClick={handleEdit}
-                className="text-muted-foreground"
-              />
-            )
-          )}
-        </div>
-      </div>
+            checked={slaEnabled}
+            disabled={ro}
+            onChange={(v) => {
+              setSlaEnabled(v)
+              if (!v) {
+                setSlaValue("")
+                setSlaUnit("")
+              }
+              setIsDirty(true)
+            }}
+          >
+            {slaEnabled && (
+              <div className="flex items-center gap-2">
+                <HuemulField
+                  type="number"
+                  label=""
+                  name={`sla-value-${stepType}`}
+                  value={slaValue}
+                  min={1}
+                  onChange={(v) => {
+                    setSlaValue(String(v))
+                    setIsDirty(true)
+                  }}
+                  placeholder={t("lifecycle.slaValuePlaceholder")}
+                  disabled={ro}
+                  className="w-20"
+                  inputClassName="h-8 text-[12.5px]"
+                />
+                <HuemulField
+                  type="select"
+                  label=""
+                  name={`sla-unit-${stepType}`}
+                  value={slaUnit}
+                  options={slaUnitOptions}
+                  onChange={(v) => {
+                    setSlaUnit(String(v))
+                    setIsDirty(true)
+                  }}
+                  disabled={ro}
+                  className="flex-1"
+                />
+              </div>
+            )}
+          </SettingToggleRow>
+        )}
 
-      {/* Access type: switch all → switch owner → role picker */}
-      <div className="flex flex-col gap-3 rounded-md border border-border bg-muted/30 p-4">
-        <HuemulField
-          type="switch"
+        <SettingToggleRow
           label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
-          name={`access-all-${stepType}`}
-          value={accessType === "all"}
+          description={t("lifecycle.allowAnyoneDescShort")}
+          checked={accessType === "all"}
+          disabled={ro}
           onChange={(v) => {
             if (v) {
               setAccessType("all")
@@ -218,173 +219,125 @@ export function CreateStepContent({
               setAccessType("owner")
               setOwnerCanExecute(true)
             }
+            setIsDirty(true)
           }}
-          disabled={!isEditing}
-          labelFirst
         />
 
-        {!noOwner && accessType !== "all" && (
-          <>
-            <div className="h-px bg-border" />
-            <HuemulField
-              type="switch"
-              label={t("lifecycle.ownerCanExecuteLabel", { action: stepAction })}
-              name={`access-owner-${stepType}`}
-              value={ownerCanExecute}
-              onChange={(v) => {
-                const newOwner = Boolean(v)
-                setOwnerCanExecute(newOwner)
-                if (useAllOrCustomOwner) {
-                  const newAccessType =
-                    roleIds.length > 0
-                      ? newOwner ? "custom_owner" : "custom"
-                      : "owner"
-                  setAccessType(newAccessType)
-                } else if (newOwner) {
-                  setAccessType("owner")
-                  setRoleIds([])
-                } else {
-                  setAccessType("custom")
-                }
-              }}
-              disabled={!isEditing}
-              labelFirst
-            />
-          </>
+        {!noOwner && (
+          <SettingToggleRow
+            label={t("lifecycle.ownerCanExecuteLabel", { action: stepAction })}
+            description={t("lifecycle.ownerCanExecuteDesc")}
+            checked={ownerCanExecute}
+            disabled={ro || accessType === "all"}
+            onChange={(v) => {
+              setOwnerCanExecute(v)
+              if (useAllOrCustomOwner) {
+                setAccessType(roleIds.length > 0 ? (v ? "custom_owner" : "custom") : "owner")
+              } else if (v) {
+                setAccessType("owner")
+                setRoleIds([])
+              } else {
+                setAccessType("custom")
+              }
+              setIsDirty(true)
+            }}
+          />
         )}
-      </div>
+      </SettingToggleList>
 
-      {/* Role picker — shown when access is "custom"/"custom_owner", or any non-all when useAllOrCustomOwner */}
-      {(useAllOrCustomOwner ? accessType !== "all" : (accessType === "custom" || accessType === "custom_owner")) && (
-        <HuemulField
-          type="combobox"
-          label={t("lifecycle.addRole", { action: stepAction })}
-          name="add-role-create"
-          placeholder={t("lifecycle.addRolePlaceholder")}
-          value=""
-          options={availableRoles.map((r) => ({ value: r.id, label: r.name }))}
-          onChange={(roleId) => {
-            if (!roleId) return
-            setRoleIds((prev) => {
-              const newIds = [...prev, roleId as string]
+      {/* Roles asignados: chips removibles + selector */}
+      {showRolePicker && (
+        <div className="flex flex-col gap-1.5">
+          <PanelFieldLabel disabled={ro}>
+            {t("lifecycle.rolesAllowedLabel", { action: stepAction })}
+          </PanelFieldLabel>
+          {assignedRoles.length > 0 && (
+            <ChipList>
+              {assignedRoles.map((r) => (
+                <RemovableChip
+                  key={r.id}
+                  label={r.name}
+                  disabled={ro}
+                  removeLabel={t("lifecycle.matrix.removeRole")}
+                  onRemove={
+                    ro
+                      ? undefined
+                      : () => {
+                          const newIds = roleIds.filter((id) => id !== r.id)
+                          setRoleIds(newIds)
+                          if (useAllOrCustomOwner) {
+                            setAccessType(
+                              newIds.length > 0
+                                ? ownerCanExecute
+                                  ? "custom_owner"
+                                  : "custom"
+                                : "owner",
+                            )
+                          }
+                          setIsDirty(true)
+                        }
+                  }
+                />
+              ))}
+            </ChipList>
+          )}
+          <HuemulField
+            type="combobox"
+            label=""
+            name="add-role-create"
+            placeholder={t("lifecycle.panel.addRoleToStep")}
+            value=""
+            options={availableRoles.map((r) => ({ value: r.id, label: r.name }))}
+            onChange={(roleId) => {
+              if (!roleId) return
+              setRoleIds((prev) => [...prev, roleId as string])
               if (useAllOrCustomOwner) {
                 setAccessType(ownerCanExecute ? "custom_owner" : "custom")
               }
-              return newIds
-            })
-          }}
-          disabled={!isEditing}
-        >
-          {assignedRoles.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {assignedRoles.map((r) => (
-                <Badge
-                  key={r.id}
-                  variant="secondary"
-                  className="flex items-center gap-1 pr-1.5"
-                >
-                  <span className="text-xs">{r.name}</span>
-                  {isEditing && (
-                    <button
-                      type="button"
-                      className="rounded-full hover:text-destructive hover:cursor-pointer transition-colors"
-                      onClick={() => {
-                        setRoleIds((prev) => {
-                          const newIds = prev.filter((id) => id !== r.id)
-                          if (useAllOrCustomOwner) {
-                            const newAccessType =
-                              newIds.length > 0
-                                ? ownerCanExecute ? "custom_owner" : "custom"
-                                : "owner"
-                            setAccessType(newAccessType)
-                          }
-                          return newIds
-                        })
-                      }}
-                      aria-label={`Remove ${r.name}`}
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </HuemulField>
-      )}
-
-      {/* SLA (only for steps that support it) */}
-      {hasSla && (
-        <div className="flex flex-col gap-3">
-          <HuemulField
-            type="switch"
-            label={t("lifecycle.slaLabel")}
-            name={`sla-toggle-${stepType}`}
-            value={slaEnabled}
-            onChange={(v) => {
-              setSlaEnabled(Boolean(v))
-              if (!v) {
-                setSlaValue("")
-                setSlaUnit("")
-              }
+              setIsDirty(true)
             }}
-            disabled={!isEditing}
-            labelFirst
+            disabled={ro}
           />
-          {slaEnabled && (
-            <div className="flex items-center gap-2 pl-1">
-              <HuemulField
-                type="number"
-                label=""
-                name={`sla-value-${stepType}`}
-                value={slaValue}
-                min={1}
-                onChange={(v) => setSlaValue(String(v))}
-                placeholder={t("lifecycle.slaValuePlaceholder")}
-                disabled={!isEditing}
-                className="w-20"
-                inputClassName="h-8 text-sm"
-              />
-              <HuemulField
-                type="select"
-                label=""
-                name={`sla-unit-${stepType}`}
-                value={slaUnit}
-                options={slaUnitOptions}
-                onChange={(v) => setSlaUnit(String(v))}
-                disabled={!isEditing}
-                className="w-32"
-              />
-            </div>
-          )}
         </div>
       )}
 
-      {/* Validity date range */}
-      {hasValidity && <div className="flex items-center gap-4">
-        <p className="text-sm font-medium shrink-0">{t("lifecycle.validity")}</p>
-        <HuemulField
-          type="date"
-          label=""
-          name="valid-from"
-          value={validFrom ?? ""}
-          placeholder={t("lifecycle.validFrom")}
-          onChange={(v) => setValidFrom(v ? String(v) : null)}
-          disabled={!isEditing}
-        />
-        <span className="text-muted-foreground">-</span>
-        <HuemulField
-          type="date"
-          label=""
-          name="valid-to"
-          value={validTo ?? ""}
-          placeholder={t("lifecycle.validTo")}
-          onChange={(v) => setValidTo(v ? String(v) : null)}
-          disabled={!isEditing}
-        />
-      </div>}
+      {/* Vigencia */}
+      {hasValidity && (
+        <div className="flex flex-col gap-1.5">
+          <PanelFieldLabel disabled={ro}>{t("lifecycle.validity")}</PanelFieldLabel>
+          <div className="flex items-center gap-2">
+            <HuemulField
+              type="date"
+              label=""
+              name="valid-from"
+              value={validFrom ?? ""}
+              placeholder={t("lifecycle.validFrom")}
+              onChange={(v) => {
+                setValidFrom(v ? String(v) : null)
+                setIsDirty(true)
+              }}
+              disabled={ro}
+              className="flex-1"
+            />
+            <span className="text-[#94a3b8]">–</span>
+            <HuemulField
+              type="date"
+              label=""
+              name="valid-to"
+              value={validTo ?? ""}
+              placeholder={t("lifecycle.validTo")}
+              onChange={(v) => {
+                setValidTo(v ? String(v) : null)
+                setIsDirty(true)
+              }}
+              disabled={ro}
+              className="flex-1"
+            />
+          </div>
+        </div>
+      )}
 
-      {/* External publish actions — only for publish steps */}
+      {/* Publicación externa — solo pasos de tipo publish */}
       {stepType === "publish" && organizationId && step?.id && (
         <LifecyclePublishActionsSection
           organizationId={organizationId}
