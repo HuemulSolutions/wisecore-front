@@ -131,7 +131,7 @@ export function AssetTypeConfigSheet({
         title={t("asset-types:config.title")}
         description={assetType?.document_type_name}
         icon={Settings2}
-        maxWidth="sm:max-w-7xl"
+        size="wide"
         bodyClassName="flex flex-col overflow-hidden py-0"
         cancelLabel={t("common:close")}
         saveAction={

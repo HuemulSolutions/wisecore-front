@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 
+export type HuemulSheetSize = "sm" | "md" | "lg" | "xl" | "2xl" | "wide";
+
 export interface HuemulSheetAction {
   label: string;
   onClick?: () => void | Promise<void>;
@@ -30,6 +32,7 @@ export interface HuemulSheetProps {
   closeDelay?: number;
   side?: "top" | "right" | "bottom" | "left";
   maxWidth?: string;
+  size?: HuemulSheetSize;
   className?: string;
   bodyClassName?: string;
   headerExtra?: ReactNode;

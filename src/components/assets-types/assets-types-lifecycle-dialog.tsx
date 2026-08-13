@@ -382,7 +382,7 @@ export default function AssetTypeLifecycleDialog({
       })}
       icon={Activity}
       showFooter={false}
-      maxWidth="sm:max-w-7xl"
+      size="wide"
       bodyClassName="flex flex-col overflow-hidden py-0"
     >
       {assetType && (

@@ -12,10 +12,19 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { HuemulSheetAction, HuemulSheetProps } from "@/types/huemul"
-export type { HuemulSheetAction, HuemulSheetProps }
+import type { HuemulSheetAction, HuemulSheetProps, HuemulSheetSize } from "@/types/huemul"
+export type { HuemulSheetAction, HuemulSheetProps, HuemulSheetSize }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+const SHEET_SIZE_CLASSES: Record<HuemulSheetSize, string> = {
+  sm: "sm:max-w-sm",
+  md: "sm:max-w-md",
+  lg: "sm:max-w-2xl",
+  xl: "sm:max-w-4xl",
+  "2xl": "sm:max-w-5xl",
+  wide: "w-[90vw] sm:max-w-none",
+};
 
 function ActionButton({
   action,
@@ -68,6 +77,7 @@ export function HuemulSheet({
   closeDelay = 500,
   side = "right",
   maxWidth = "sm:max-w-md",
+  size,
   className,
   bodyClassName,
   headerExtra,
@@ -133,6 +143,8 @@ export function HuemulSheet({
   const saveInHeader = saveAction?.position === "header";
   const saveInFooter = saveAction && !saveInHeader;
 
+  const widthClass = size ? SHEET_SIZE_CLASSES[size] : maxWidth;
+
   // Determine if footer has any content
   const hasFooterContent = showFooter && (showCancelButton || saveInFooter || footerActions.length > 0 || !!footerLeft);
 
@@ -143,7 +155,7 @@ export function HuemulSheet({
         {...(!description && { "aria-describedby": undefined })}
         className={cn(
           "flex flex-col gap-0 p-0",
-          maxWidth,
+          widthClass,
           className,
         )}
       >
