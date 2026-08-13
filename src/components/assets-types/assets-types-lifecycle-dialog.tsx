@@ -1,9 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from "react"
+﻿import { useState, useEffect, useRef, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { Activity } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable"
 import {
   useLifecycleSteps,
   useAllLifecycleSteps,
@@ -189,7 +194,7 @@ export function StepContent({
   // Other step types don't have their own scroll container — wrap them so they scroll
   // within the fixed-height panel instead of relying on the sheet itself to scroll.
   return (
-    <ScrollArea className="h-full" viewportClassName="pr-2">
+    <ScrollArea className="h-full" viewportClassName="pr-1">
       {stepType === "create" || stepType === "view" || stepType === "publish" || stepType === "archive" || stepType === "read" ? (
         <CreateStepContent
           documentTypeId={documentTypeId}
@@ -302,8 +307,8 @@ export function AssetTypeLifecyclePanel({
   }
 
   return (
-    <div className="flex h-full min-h-0">
-      <div className="flex min-w-0 flex-1 flex-col">
+    <ResizablePanelGroup direction="horizontal" className="-mr-6 h-full min-h-0">
+      <ResizablePanel defaultSize={65} minSize={35} className="flex min-w-0 flex-col">
         <AssetTypeLifecycleMatrix
           documentTypeId={documentTypeId}
           enabled={enabled}
@@ -311,22 +316,25 @@ export function AssetTypeLifecyclePanel({
           lockedStageType={isDirty ? activeStageType : null}
           onSelectStage={handleSelectStage}
         />
-      </div>
+      </ResizablePanel>
 
       {activeStageType && (
-        <aside className="-mr-6 w-[396px] shrink-0 border-l border-[#e9edf2]">
-          <LifecycleStepPanel
-            key={activeStageType}
-            documentTypeId={documentTypeId}
-            stageType={activeStageType}
-            groupCount={groupCount}
-            onClose={handleClosePanel}
-            onRegisterEditor={handleRegisterEditor}
-            organizationId={organizationId}
-          />
-        </aside>
+        <>
+          <ResizableHandle className="mx-3 bg-[#e9edf2]" />
+          <ResizablePanel defaultSize={35} minSize={24} maxSize={55} className="flex min-h-0 flex-col">
+            <LifecycleStepPanel
+              key={activeStageType}
+              documentTypeId={documentTypeId}
+              stageType={activeStageType}
+              groupCount={groupCount}
+              onClose={handleClosePanel}
+              onRegisterEditor={handleRegisterEditor}
+              organizationId={organizationId}
+            />
+          </ResizablePanel>
+        </>
       )}
-    </div>
+    </ResizablePanelGroup>
   )
 }
 
@@ -402,7 +410,7 @@ export default function AssetTypeLifecycleDialog({
         icon={Activity}
         iconVariant="tile"
         size="wide"
-        bodyClassName="flex flex-col overflow-hidden py-0"
+        bodyClassName="flex flex-col overflow-hidden py-0 [scrollbar-gutter:auto]"
         cancelLabel={t("common:close")}
         footerLeft={
           lifecycleState.isDirty ? (

@@ -2,18 +2,10 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { Settings, RefreshCw, Plus, X, Check, Globe, CheckCircle2, Columns3, Loader2 } from "lucide-react"
+import { Settings, RefreshCw, Plus, X, Check, Globe, CheckCircle2, Loader2 } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { useAllLifecycleSteps, useLifecycleMutations } from "@/hooks/useLifecycle"
@@ -65,12 +57,18 @@ function CellDash() {
   return <span className="text-[13px] text-[#cbd5e1]">—</span>
 }
 
+/** Tinte de fondo + ícono de las filas especiales ("Toda la organización", "Todos los roles"). */
+const ROW_TINT: Partial<Record<MatrixRow["kind"], { cell: string; hover: string; icon: string }>> = {
+  all: { cell: "bg-[#fffbeb]", hover: "group-hover:bg-[#fef6dd]", icon: "text-[#d97706]" },
+  listedRoles: { cell: "bg-[#f0fdf4]", hover: "group-hover:bg-[#e4fbec]", icon: "text-[#16a34a]" },
+}
+
 /**
  * Matriz rol × paso del ciclo de vida. Cada columna es un `LifecycleStep` (un grupo)
  * y cada fila un rol. Sobre la tabla, el selector de etapa del flujo: elegir una etapa
- * tinta sus columnas y abre el panel lateral con sus grupos (`onSelectStage`), que es
- * donde se configura el detalle (SLA, modo, reglas de acceso). El menú «Columnas»
- * conserva el filtro de visibilidad por tipo de paso.
+ * tinta y filtra la tabla a solo esa etapa, y abre el panel lateral con sus grupos
+ * (`onSelectStage`), que es donde se configura el detalle (SLA, modo, reglas de acceso).
+ * Reclicar el chip activo restaura todas las columnas.
  */
 export function AssetTypeLifecycleMatrix({
   documentTypeId,
@@ -90,7 +88,6 @@ export function AssetTypeLifecycleMatrix({
   const allSteps = React.useMemo(() => data?.data?.steps ?? [], [data])
   const allRoles = React.useMemo(() => rolesData?.data ?? [], [rolesData])
 
-  const [visibleTypes, setVisibleTypes] = React.useState<Set<string> | null>(null)
   const [localExtraRoleIds, setLocalExtraRoleIds] = React.useState<string[]>([])
   const [isAddingRole, setIsAddingRole] = React.useState(false)
   const [roleToRemove, setRoleToRemove] = React.useState<Role | null>(null)
@@ -115,9 +112,8 @@ export function AssetTypeLifecycleMatrix({
       if (typeDiff !== 0) return typeDiff
       return (a.order ?? 0) - (b.order ?? 0)
     })
-    if (!visibleTypes) return sorted
-    return sorted.filter((s) => visibleTypes.has(s.type))
-  }, [allSteps, visibleTypes])
+    return activeStageType ? sorted.filter((s) => s.type === activeStageType) : sorted
+  }, [allSteps, activeStageType])
 
   // Roles ya presentes en algún step + agregados localmente sin asignaciones aún.
   const listedRoleIds = React.useMemo(() => {
@@ -136,28 +132,6 @@ export function AssetTypeLifecycleMatrix({
     () => allRoles.filter((r) => !listedRoleIds.has(r.id)),
     [allRoles, listedRoleIds]
   )
-
-  const toggleTypeFilter = (type: string) => {
-    setVisibleTypes((prev) => {
-      const base = prev ?? new Set(stepTypesPresent)
-      const next = new Set(base)
-      if (next.has(type)) next.delete(type)
-      else next.add(type)
-      return next
-    })
-  }
-
-  // Elegir una etapa oculta por el filtro la vuelve visible: si no, el panel se abriría
-  // sin ninguna columna que lo respalde.
-  const handleSelectStage = (type: string) => {
-    setVisibleTypes((prev) => {
-      if (!prev || prev.has(type)) return prev
-      const next = new Set(prev)
-      next.add(type)
-      return next
-    })
-    onSelectStage(type)
-  }
 
   // Deriva el nuevo access_type igual que el switch "El propietario puede…" del
   // panel de edición (assets-types-lifecycle-edit-step.tsx): salir de "custom" es
@@ -224,7 +198,7 @@ export function AssetTypeLifecycleMatrix({
       case "all":
         return (
           <div className="flex min-w-0 items-center gap-2">
-            <Globe className="size-4 shrink-0 text-[#94a3b8]" />
+            <Globe className={cn("size-4 shrink-0", ROW_TINT.all!.icon)} />
             <div className="flex min-w-0 flex-col">
               <span className="truncate text-[13px] font-medium text-[#0f172a]">
                 {t("lifecycle.matrix.wholeOrganization")}
@@ -238,7 +212,7 @@ export function AssetTypeLifecycleMatrix({
       case "listedRoles":
         return (
           <div className="flex min-w-0 items-center gap-2">
-            <CheckCircle2 className="size-4 shrink-0 text-[#94a3b8]" />
+            <CheckCircle2 className={cn("size-4 shrink-0", ROW_TINT.listedRoles!.icon)} />
             <div className="flex min-w-0 flex-col">
               <span className="truncate text-[13px] font-medium text-[#0f172a]">
                 {t("lifecycle.matrix.allListedRoles")}
@@ -345,7 +319,7 @@ export function AssetTypeLifecycleMatrix({
                   key={type}
                   type="button"
                   aria-pressed={isActive}
-                  onClick={() => handleSelectStage(type)}
+                  onClick={() => onSelectStage(type)}
                   className={cn(
                     "inline-flex h-[30px] items-center gap-1.5 rounded-full border px-3 text-[13px] transition-colors hover:cursor-pointer",
                     isActive
@@ -372,33 +346,6 @@ export function AssetTypeLifecycleMatrix({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                title={t("lifecycle.matrix.columns")}
-                aria-label={t("lifecycle.matrix.columns")}
-                className="inline-flex size-[30px] items-center justify-center rounded-[8px] border border-[#dde4ec] text-[#64748b] transition-colors hover:cursor-pointer hover:bg-[#f8fafc] hover:text-[#334155]"
-              >
-                <Columns3 className="size-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuLabel>{t("lifecycle.matrix.filterHint")}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {stepTypesPresent.map((type) => (
-                <DropdownMenuCheckboxItem
-                  key={type}
-                  checked={!visibleTypes || visibleTypes.has(type)}
-                  onCheckedChange={() => toggleTypeFilter(type)}
-                  onSelect={(event) => event.preventDefault()}
-                >
-                  {stepTypeLabel(type)}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
           <button
             type="button"
             title={t("common:refresh")}
@@ -458,7 +405,7 @@ export function AssetTypeLifecycleMatrix({
                     </span>
                     <button
                       type="button"
-                      onClick={() => handleSelectStage(step.type)}
+                      onClick={() => onSelectStage(step.type)}
                       title={t("lifecycle.matrix.configureStep", { step: stepTypeLabel(step.type) })}
                       aria-label={t("lifecycle.matrix.configureStep", { step: stepTypeLabel(step.type) })}
                       className={cn(
@@ -487,13 +434,9 @@ export function AssetTypeLifecycleMatrix({
               if (row.kind === "add") {
                 if (!canManage) return null
                 return (
-                  <div
-                    key={rowKey(row)}
-                    className="px-3 py-3"
-                    style={{ gridColumn: "1 / -1" }}
-                  >
-                    {isAddingRole ? (
-                      <div className="max-w-[280px]">
+                  <div key={rowKey(row)} className="contents">
+                    <div className="sticky left-0 z-10 flex min-w-0 items-center bg-white px-3 py-3">
+                      {isAddingRole ? (
                         <HuemulField
                           type="combobox"
                           label=""
@@ -506,26 +449,29 @@ export function AssetTypeLifecycleMatrix({
                             setIsAddingRole(false)
                           }}
                         />
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setIsAddingRole(true)}
-                        className="inline-flex h-[30px] items-center gap-1.5 rounded-[8px] border border-dashed border-[#bfd3fb] px-3 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
-                      >
-                        <Plus className="size-3.5" />
-                        {t("lifecycle.matrix.addRole")}
-                      </button>
-                    )}
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setIsAddingRole(true)}
+                          className="inline-flex h-[30px] items-center gap-1.5 rounded-[8px] border border-dashed border-[#bfd3fb] px-3 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
+                        >
+                          <Plus className="size-3.5" />
+                          {t("lifecycle.matrix.addRole")}
+                        </button>
+                      )}
+                    </div>
+                    <div className="bg-white" style={{ gridColumn: "2 / -1" }} />
                   </div>
                 )
               }
 
+              const tint = ROW_TINT[row.kind]
               return (
                 <div key={rowKey(row)} className="group contents">
                   <div
                     className={cn(
-                      "sticky left-0 z-10 flex min-w-0 items-center bg-white px-3 py-2.5 transition-colors group-hover:bg-[#fafbfd]",
+                      "sticky left-0 z-10 flex min-w-0 items-center px-3 py-2.5 transition-colors",
+                      tint ? cn(tint.cell, tint.hover) : "bg-white group-hover:bg-[#fafbfd]",
                       !isLast && "border-b border-[#eef1f5]",
                     )}
                   >
@@ -535,8 +481,9 @@ export function AssetTypeLifecycleMatrix({
                     <div
                       key={`${rowKey(row)}-${step.id}`}
                       className={cn(
-                        "flex items-center justify-center border-l border-[#eef1f5] px-3 py-2.5 transition-colors group-hover:bg-[#fafbfd]",
-                        activeStageType === step.type && "bg-[#fafcff]",
+                        "flex items-center justify-center border-l border-[#eef1f5] px-3 py-2.5 transition-colors",
+                        tint ? cn(tint.cell, tint.hover) : "group-hover:bg-[#fafbfd]",
+                        !tint && activeStageType === step.type && "bg-[#fafcff]",
                         !isLast && "border-b border-b-[#eef1f5]",
                       )}
                     >

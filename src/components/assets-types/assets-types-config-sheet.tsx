@@ -182,7 +182,7 @@ export function AssetTypeConfigSheet({
         icon={Settings2}
         iconVariant="tile"
         size="wide"
-        bodyClassName="flex flex-col overflow-hidden py-0"
+        bodyClassName="flex flex-col overflow-hidden py-0 [scrollbar-gutter:auto]"
         cancelLabel={t("common:close")}
         footerLeft={
           isLifecycleTab && lifecycleState.isDirty ? (

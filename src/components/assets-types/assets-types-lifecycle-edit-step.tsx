@@ -715,7 +715,7 @@ export function EditStepContent({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Lista ordenable de tarjetas — única área que scrollea */}
-      <ScrollArea className="min-h-0 flex-1" viewportClassName="pr-2">
+      <ScrollArea className="min-h-0 flex-1" viewportClassName="pr-1">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}

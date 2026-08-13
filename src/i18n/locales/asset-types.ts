@@ -314,7 +314,7 @@ const translations = {
       cancel: { en: "Cancel", es: "Cancelar" },
     },
     matrix: {
-      hint: { en: "Elaboration, Review and Approval support groups; the number shows how many are configured.", es: "Elaboración, Revisión y Aprobación admiten grupos; el número indica cuántos hay configurados." },
+      hint: { en: "Elaboration, Review and Approval support groups. Selecting a stage filters the table to it; click it again to show all stages.", es: "Elaboración, Revisión y Aprobación admiten grupos. Elegir una etapa filtra la tabla a esa etapa; volver a hacer clic muestra todas." },
       stageLabel: { en: "Workflow stage", es: "Etapa del flujo" },
       roleColumn: { en: "Role", es: "Rol" },
       wholeOrganization: { en: "Whole organization", es: "Toda la organización" },
@@ -330,8 +330,6 @@ const translations = {
       removeRole: { en: "Remove role", es: "Quitar rol" },
       removeRoleConfirm: { en: "This role has assigned permissions across one or more steps. Remove it from all of them?", es: "Este rol tiene permisos asignados en uno o más pasos. ¿Quitarlo de todos ellos?" },
       automaticHint: { en: "Automatic step — roles don't apply.", es: "Paso automático — los roles no aplican." },
-      filterHint: { en: "Filter columns", es: "Filtrar columnas" },
-      columns: { en: "Columns", es: "Columnas" },
     },
     panel: {
       stageDescriptionGroups: { en: "Define which roles and groups can {{action}} this asset type.", es: "Define qué roles y grupos pueden {{action}} este tipo de activo." },
