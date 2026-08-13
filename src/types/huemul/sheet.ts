@@ -45,5 +45,6 @@ export interface HuemulSheetProps {
   bodyClassName?: string;
   headerExtra?: ReactNode;
   footerLeft?: ReactNode;
+  onOpenAutoFocus?: (event: Event) => void;
   children: ReactNode;
 }

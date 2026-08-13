@@ -2,416 +2,539 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { LayoutTemplate, Loader2, Pencil, Trash2 } from "lucide-react"
+import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
+import {
+  ArrowLeft,
+  ChevronDown,
+  FileText,
+  GripVertical,
+  LayoutTemplate,
+  Loader2,
+  RefreshCw,
+  X,
+} from "lucide-react"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
-import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { HuemulCombobox } from "@/huemul/components/huemul-combobox"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
-import { useDocumentTypeTemplates, useAssetTypeMutations } from "@/hooks/useAssetTypes"
+import {
+  PanelCard,
+  PanelDirtyBadge,
+  PanelFieldLabel,
+  PanelIconButton,
+  PanelSectionLabel,
+  SettingToggleRow,
+} from "@/components/assets-types/assets-types-lifecycle-ui"
+import { TemplateSectionAccessMatrix } from "@/components/assets-types/assets-types-template-sections-matrix"
+import { assetTypeQueryKeys, useDocumentTypeTemplates, useAssetTypeMutations } from "@/hooks/useAssetTypes"
+import { updateDocumentTypeTemplate } from "@/services/asset-types"
 import { getAllTemplates } from "@/services/templates"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
-import type { LinkedTemplate, DocumentTypeTemplateLinkBody } from "@/types/assets"
+import { cn } from "@/lib/utils"
+import type { AssetTypeTemplatesPanelProps, DocumentTypeTemplateLinkBody, LinkedTemplate } from "@/types/assets"
 import type { FetchOptionsParams } from "@/huemul/components/huemul-field"
 
-interface AssetTypeTemplatesPanelProps {
-  documentTypeId: string
-  /** Solo dispara el fetch cuando el tab/panel está visible. */
-  enabled?: boolean
-}
+// ─── Fila arrastrable de la lista ──────────────────────────────────────────
 
-function TemplateRow({
+function SortableTemplateRow({
   template,
-  onEdit,
-  onRequestRemove,
+  isDirty,
   isRemoving,
   canManage,
+  onConfigure,
+  onRequestRemove,
 }: {
   template: LinkedTemplate
-  onEdit: (template: LinkedTemplate) => void
-  onRequestRemove: (template: LinkedTemplate) => void
+  isDirty: boolean
   isRemoving: boolean
   canManage: boolean
+  onConfigure: () => void
+  onRequestRemove: () => void
 }) {
   const { t } = useTranslation("asset-types")
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: template.template_id,
+    disabled: !canManage,
+  })
 
   return (
-    <li className="flex items-center gap-2 border border-border rounded-lg p-3 hover:border-muted-foreground/30 transition-colors">
-      <p className="flex-1 text-xs font-medium truncate min-w-0">{template.template_name}</p>
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn("flex items-center gap-2 px-3 py-2.5", isDragging && "opacity-50 z-50 bg-white")}
+    >
+      {canManage && (
+        <button
+          type="button"
+          aria-label={t("templates.reorder", { name: template.template_name })}
+          className="flex shrink-0 items-center justify-center text-[#94a3b8] hover:cursor-grab active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="size-4" />
+        </button>
+      )}
+      <FileText className="size-4 shrink-0 text-[#6d5ae0]" />
+      <p className="flex-1 min-w-0 truncate text-[12.5px] font-medium text-[#334155]">
+        {template.template_name}
+      </p>
+      {isDirty && <PanelDirtyBadge label={t("lifecycle.editedBadge")} />}
       {canManage && (
         <>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 shrink-0 hover:cursor-pointer"
-            onClick={() => onEdit(template)}
-            aria-label={t("templates.edit", { name: template.template_name })}
+          <button
+            type="button"
+            onClick={onConfigure}
+            className="shrink-0 text-[12px] font-medium text-[#1d4ed8] hover:cursor-pointer hover:underline"
           >
-            <Pencil className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:cursor-pointer"
-            onClick={() => onRequestRemove(template)}
+            {t("templates.configure")}
+          </button>
+          <PanelIconButton
+            icon={X}
+            label={t("templates.remove", { name: template.template_name })}
+            onClick={onRequestRemove}
             disabled={isRemoving}
-            aria-label={t("templates.remove", { name: template.template_name })}
-          >
-            {isRemoving ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <Trash2 className="h-3 w-3" />
-            )}
-          </Button>
+            tone="danger"
+          />
         </>
       )}
-    </li>
+    </div>
   )
 }
 
-// Sheet compartido para crear (vincular) y editar un vínculo document_type↔template.
-// `template` en modo editar trae los valores a prefillear; en modo crear viene null
-// y se usan defaults — el padre resuelve a qué template aplica el `onSave`.
-function TemplateLinkFormSheet({
-  mode,
+// ─── Vista de detalle («Configuración de workflow») ────────────────────────
+
+function TemplateDetailView({
   template,
-  open,
-  onOpenChange,
-  onSave,
+  documentTypeId,
+  onBack,
+  onChange,
+  disabled,
 }: {
-  mode: "create" | "edit"
-  template: LinkedTemplate | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSave: (body: DocumentTypeTemplateLinkBody) => Promise<void>
+  template: LinkedTemplate
+  documentTypeId: string
+  onBack: () => void
+  onChange: (patch: Partial<DocumentTypeTemplateLinkBody>) => void
+  disabled: boolean
 }) {
-  const { t } = useTranslation(["asset-types", "common"])
-
-  const [relationName, setRelationName] = React.useState("")
-  const [canCreateExpress, setCanCreateExpress] = React.useState(false)
-  const [requireNameOnExpress, setRequireNameOnExpress] = React.useState(false)
-  const [namePlaceholder, setNamePlaceholder] = React.useState("")
-  const [mostrarEnWorkflow, setMostrarEnWorkflow] = React.useState(false)
-  const [orden, setOrden] = React.useState("")
-
-  // Prefill local state whenever the sheet opens — avoids showing stale form
-  // data if it was left dirty from a previous open. En modo crear resetea a defaults.
-  React.useEffect(() => {
-    if (!open) return
-    if (mode === "edit" && template) {
-      setRelationName(template.relation_name ?? "")
-      setCanCreateExpress(template.can_create_express)
-      setRequireNameOnExpress(template.require_name_on_express)
-      setNamePlaceholder(template.name_placeholder ?? "")
-      setMostrarEnWorkflow(template.mostrar_en_workflow)
-      setOrden(template.orden !== null ? String(template.orden) : "")
-    } else if (mode === "create") {
-      setRelationName("")
-      setCanCreateExpress(false)
-      setRequireNameOnExpress(false)
-      setNamePlaceholder("")
-      setMostrarEnWorkflow(false)
-      setOrden("")
-    }
-  }, [mode, template, open])
-
-  const isDirty =
-    mode === "create" ||
-    (!!template &&
-      (relationName !== (template.relation_name ?? "") ||
-        canCreateExpress !== template.can_create_express ||
-        requireNameOnExpress !== template.require_name_on_express ||
-        namePlaceholder !== (template.name_placeholder ?? "") ||
-        mostrarEnWorkflow !== template.mostrar_en_workflow ||
-        orden !== (template.orden !== null ? String(template.orden) : "")))
-
-  const handleSave = () => {
-    const trimmedOrden = orden.trim()
-    return onSave({
-      relation_name: relationName.trim() ? relationName.trim() : null,
-      can_create_express: canCreateExpress,
-      require_name_on_express: requireNameOnExpress,
-      name_placeholder: namePlaceholder.trim() ? namePlaceholder.trim() : null,
-      mostrar_en_workflow: mostrarEnWorkflow,
-      orden: trimmedOrden ? Number(trimmedOrden) : null,
-    })
-  }
-
-  const title = mode === "create" ? t("templates.linkTitle") : t("templates.editTitle")
-  const description =
-    mode === "create"
-      ? t("templates.linkDescription")
-      : template
-        ? t("templates.editDescription", { name: template.template_name })
-        : undefined
+  const { t } = useTranslation("asset-types")
+  const [workflowConfigOpen, setWorkflowConfigOpen] = React.useState(true)
+  const [sectionAccessOpen, setSectionAccessOpen] = React.useState(true)
 
   return (
-    <HuemulSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title={title}
-      description={description}
-      icon={Pencil}
-      cancelLabel={t("common:cancel")}
-      saveAction={{
-        label: t("common:save"),
-        onClick: handleSave,
-        disabled: !isDirty,
-      }}
-    >
-      <div className="flex flex-col gap-4 py-2">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="edit-relation-name" className="text-xs text-muted-foreground font-normal">
-            {t("templates.relationName")}
-          </Label>
-          <Input
-            id="edit-relation-name"
-            value={relationName}
-            onChange={(e) => setRelationName(e.target.value)}
-            placeholder={t("templates.relationNamePlaceholder")}
-          />
-        </div>
+    <div className="flex flex-col gap-4">
+      <button
+        type="button"
+        onClick={onBack}
+        className="flex w-fit items-center gap-1 text-[12px] font-medium text-[#1d4ed8] hover:cursor-pointer hover:underline"
+      >
+        <ArrowLeft className="size-3.5" />
+        {t("templates.backToList")}
+      </button>
 
-        <div className="flex items-center justify-between gap-2">
-          <Label htmlFor="edit-can-create-express" className="text-xs font-normal">
-            {t("templates.canCreateExpress")}
-          </Label>
-          <Switch
-            id="edit-can-create-express"
-            checked={canCreateExpress}
-            onCheckedChange={setCanCreateExpress}
-          />
-        </div>
+      <h3 className="text-[15px] font-semibold text-[#0f172a]">{template.template_name}</h3>
 
-        <div className="flex items-center justify-between gap-2">
-          <Label htmlFor="edit-require-name-on-express" className="text-xs font-normal">
-            {t("templates.requireNameOnExpress")}
-          </Label>
-          <Switch
-            id="edit-require-name-on-express"
-            checked={requireNameOnExpress}
-            onCheckedChange={setRequireNameOnExpress}
+      <Collapsible open={workflowConfigOpen} onOpenChange={setWorkflowConfigOpen}>
+        <CollapsibleTrigger className="flex w-full items-center gap-2 py-1 hover:cursor-pointer">
+          <ChevronDown
+            className={cn("size-3.5 text-[#94a3b8] transition-transform", !workflowConfigOpen && "-rotate-90")}
           />
-        </div>
+          <PanelSectionLabel label={t("templates.workflowConfig")} />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="flex flex-col gap-4 pt-3">
+          <div className="flex flex-col gap-1.5">
+            <PanelFieldLabel disabled={disabled}>{t("templates.workflowDisplayName")}</PanelFieldLabel>
+            <Input
+              value={template.relation_name ?? ""}
+              onChange={(e) => onChange({ relation_name: e.target.value.trim() ? e.target.value : null })}
+              disabled={disabled}
+            />
+            <p className="text-[11px] leading-snug text-[#94a3b8]">
+              {t("templates.workflowDisplayNameHint")}
+            </p>
+          </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="edit-name-placeholder" className="text-xs text-muted-foreground font-normal">
-            {t("templates.namePlaceholder")}
-          </Label>
-          <Input
-            id="edit-name-placeholder"
-            value={namePlaceholder}
-            onChange={(e) => setNamePlaceholder(e.target.value)}
-            placeholder={t("templates.namePlaceholderHint")}
-          />
-        </div>
+          <SettingToggleRow
+            className="px-0 py-0"
+            label={t("templates.askNameBeforeStart")}
+            description={t("templates.askNameBeforeStartHint")}
+            checked={template.require_name_on_express}
+            disabled={disabled}
+            onChange={(value) => onChange({ require_name_on_express: value })}
+          >
+            {template.require_name_on_express && (
+              <div className="flex flex-col gap-1.5">
+                <PanelFieldLabel disabled={disabled}>{t("templates.namePlaceholderLabel")}</PanelFieldLabel>
+                <Input
+                  value={template.name_placeholder ?? ""}
+                  onChange={(e) => onChange({ name_placeholder: e.target.value.trim() ? e.target.value : null })}
+                  placeholder={t("templates.namePlaceholderExample")}
+                  disabled={disabled}
+                />
+                <p className="text-[11px] leading-snug text-[#94a3b8]">
+                  {t("templates.namePlaceholderHint")}
+                </p>
+              </div>
+            )}
+          </SettingToggleRow>
 
-        <div className="flex items-center justify-between gap-2">
-          <Label htmlFor="edit-mostrar-en-workflow" className="text-xs font-normal">
-            {t("templates.mostrarEnWorkflow")}
-          </Label>
-          <Switch
-            id="edit-mostrar-en-workflow"
-            checked={mostrarEnWorkflow}
-            onCheckedChange={setMostrarEnWorkflow}
+          <SettingToggleRow
+            className="px-0 py-0"
+            label={t("templates.showInWorkflows")}
+            description={t("templates.showInWorkflowsHint")}
+            checked={template.mostrar_en_workflow}
+            disabled={disabled}
+            onChange={(value) => onChange({ mostrar_en_workflow: value, can_create_express: value })}
           />
-        </div>
+        </CollapsibleContent>
+      </Collapsible>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="edit-orden" className="text-xs text-muted-foreground font-normal">
-            {t("templates.orden")}
-          </Label>
-          <Input
-            id="edit-orden"
-            type="number"
-            value={orden}
-            onChange={(e) => setOrden(e.target.value)}
-            placeholder={t("templates.ordenPlaceholder")}
+      {/* Permisos por sección: qué ve o edita cada sección en cada etapa del ciclo
+          de vida. Escribe entidades propias (`lifecycle_access`), no el vínculo
+          documento-tipo ↔ plantilla que guarda el footer, así que persiste al instante. */}
+      <Collapsible open={sectionAccessOpen} onOpenChange={setSectionAccessOpen}>
+        <CollapsibleTrigger className="flex w-full items-center gap-2 py-1 hover:cursor-pointer">
+          <ChevronDown
+            className={cn("size-3.5 text-[#94a3b8] transition-transform", !sectionAccessOpen && "-rotate-90")}
           />
-        </div>
-      </div>
-    </HuemulSheet>
+          <PanelSectionLabel label={t("templates.sectionAccess.title")} />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3">
+          <TemplateSectionAccessMatrix
+            templateId={template.template_id}
+            documentTypeId={documentTypeId}
+          />
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
   )
 }
 
 /**
  * Contenido de gestión de plantillas vinculadas a un tipo de activo. Se monta
- * como tab dentro del sheet de configuración (`AssetTypeConfigSheet`).
+ * como tab dentro del sheet de configuración (`AssetTypeConfigSheet`); los
+ * cambios se acumulan en estado local y se persisten en batch con el footer
+ * del sheet (ver `saveApiRef`), igual que el tab «Permisos por rol».
  */
 export function AssetTypeTemplatesPanel({
   documentTypeId,
   enabled = true,
+  onDirtyChange,
+  saveApiRef,
 }: AssetTypeTemplatesPanelProps) {
   const { t } = useTranslation(["asset-types", "common"])
+  const queryClient = useQueryClient()
   const { selectedOrganizationId } = useOrganization()
   const mutations = useAssetTypeMutations()
   const { canUpdate } = useUserPermissions()
   const canManage = canUpdate('asset_type')
 
+  const { data, isLoading, isFetching, refetch } = useDocumentTypeTemplates(documentTypeId, enabled && !!documentTypeId)
+  const serverLinks = data?.data
+
+  const [localLinks, setLocalLinks] = React.useState<LinkedTemplate[]>([])
+  const [dirtyIds, setDirtyIds] = React.useState<Set<string>>(new Set())
+  const [orderDirty, setOrderDirty] = React.useState(false)
+  const [isSaving, setIsSaving] = React.useState(false)
+  const [configuringId, setConfiguringId] = React.useState<string | null>(null)
   const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>("")
-  const [isLinkFormOpen, setIsLinkFormOpen] = React.useState(false)
-  const [editTarget, setEditTarget] = React.useState<LinkedTemplate | null>(null)
+  const [selectedTemplateLabel, setSelectedTemplateLabel] = React.useState<string>("")
   const [deleteTarget, setDeleteTarget] = React.useState<LinkedTemplate | null>(null)
 
-  const { data, isLoading } = useDocumentTypeTemplates(documentTypeId, enabled && !!documentTypeId)
-  const linked = data?.data ?? []
+  const isDirty = dirtyIds.size > 0 || orderDirty
+
+  // Hidratación gateada por el estado sucio: un refetch nunca pisa una edición
+  // en curso (ver ia context/sheet-footer-batch-save-guide.md, regla 3).
+  React.useEffect(() => {
+    if (!serverLinks || isDirty) return
+    setLocalLinks(serverLinks)
+  }, [serverLinks, isDirty])
+
+  React.useEffect(() => {
+    if (configuringId && !localLinks.some((l) => l.template_id === configuringId)) {
+      setConfiguringId(null)
+    }
+  }, [configuringId, localLinks])
+
+  const patchLocal = React.useCallback((templateId: string, patch: Partial<DocumentTypeTemplateLinkBody>) => {
+    setLocalLinks((prev) => prev.map((l) => (l.template_id === templateId ? { ...l, ...patch } : l)))
+    setDirtyIds((prev) => new Set(prev).add(templateId))
+  }, [])
+
+  const discard = React.useCallback(() => {
+    setDirtyIds(new Set())
+    setOrderDirty(false)
+  }, [])
+
+  const saveRef = React.useRef<() => Promise<void>>(async () => {})
+  saveRef.current = async () => {
+    if (!canManage || !isDirty) return
+    setIsSaving(true)
+    try {
+      for (const id of dirtyIds) {
+        const tpl = localLinks.find((l) => l.template_id === id)
+        if (!tpl) continue
+        const body: DocumentTypeTemplateLinkBody = {
+          relation_name: tpl.relation_name,
+          require_name_on_express: tpl.require_name_on_express,
+          name_placeholder: tpl.name_placeholder,
+          mostrar_en_workflow: tpl.mostrar_en_workflow,
+          can_create_express: tpl.can_create_express,
+        }
+        if (orderDirty) {
+          body.orden = localLinks.findIndex((l) => l.template_id === id)
+        }
+        await updateDocumentTypeTemplate(documentTypeId, id, body)
+      }
+      if (orderDirty) {
+        for (const [index, tpl] of localLinks.entries()) {
+          if (dirtyIds.has(tpl.template_id) || tpl.orden === index) continue
+          await updateDocumentTypeTemplate(documentTypeId, tpl.template_id, { orden: index })
+        }
+      }
+      setDirtyIds(new Set())
+      setOrderDirty(false)
+      await queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.templates(documentTypeId) })
+      toast.success(t("templates.savedSuccess"))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+  const save = React.useCallback(() => saveRef.current(), [])
+
+  React.useEffect(() => {
+    if (!saveApiRef) return
+    saveApiRef.current = { save, discard, isDirty, isSaving }
+    return () => {
+      saveApiRef.current = null
+    }
+  }, [saveApiRef, save, discard, isDirty, isSaving])
+
+  React.useEffect(() => {
+    onDirtyChange?.({ isDirty })
+  }, [isDirty, onDirtyChange])
 
   const fetchTemplateOptions = React.useCallback(
     async ({ search, page, pageSize }: FetchOptionsParams) => {
       if (!selectedOrganizationId) return { options: [], hasMore: false }
       const res = await getAllTemplates(selectedOrganizationId, search, page, pageSize)
       return {
-        options: res.data.map((tpl) => ({
-          value: tpl.id,
-          label: tpl.name,
-        })),
+        options: res.data.map((tpl) => ({ value: tpl.id, label: tpl.name })),
         hasMore: res.has_next,
       }
     },
     [selectedOrganizationId],
   )
 
-  const handleLink = () => {
+  const handleAdd = () => {
     if (!canManage || !selectedTemplateId || !documentTypeId) return
-    setIsLinkFormOpen(true)
+    const body: DocumentTypeTemplateLinkBody = {
+      relation_name: null,
+      can_create_express: false,
+      require_name_on_express: false,
+      name_placeholder: null,
+      mostrar_en_workflow: false,
+      orden: localLinks.length,
+    }
+    mutations.linkTemplate.mutate(
+      { documentTypeId, templateId: selectedTemplateId, body },
+      {
+        onSuccess: () => {
+          // Se agrega en local además de invalidar: si hay cambios sucios en
+          // otra fila, la hidratación queda bloqueada y la nueva fila no
+          // aparecería hasta el próximo guardado.
+          setLocalLinks((prev) => [
+            ...prev,
+            {
+              template_id: selectedTemplateId,
+              template_name: selectedTemplateLabel,
+              relation_name: null,
+              can_create_express: false,
+              require_name_on_express: false,
+              name_placeholder: null,
+              mostrar_en_workflow: false,
+              orden: prev.length,
+            },
+          ])
+          setSelectedTemplateId("")
+          setSelectedTemplateLabel("")
+        },
+      },
+    )
   }
 
-  const handleSaveNewLink = (body: DocumentTypeTemplateLinkBody) => {
-    if (!canManage || !documentTypeId || !selectedTemplateId) return Promise.resolve()
-    return new Promise<void>((resolve, reject) => {
-      mutations.linkTemplate.mutate(
-        { documentTypeId, templateId: selectedTemplateId, body },
-        { onSuccess: () => { setSelectedTemplateId(""); resolve() }, onError: (err) => reject(err) },
-      )
-    })
-  }
-
-  const handleSaveTemplate = (body: DocumentTypeTemplateLinkBody) => {
-    if (!canManage || !documentTypeId || !editTarget) return Promise.resolve()
-    const templateId = editTarget.template_id
-    return new Promise<void>((resolve, reject) => {
-      mutations.updateTemplateLink.mutate(
-        { documentTypeId, templateId, body },
-        { onSuccess: () => resolve(), onError: (err) => reject(err) },
-      )
-    })
-  }
-
-  const handleConfirmUnlink = () => {
+  const handleConfirmRemove = () => {
     if (!canManage || !documentTypeId || !deleteTarget) return Promise.resolve()
     const templateId = deleteTarget.template_id
     return new Promise<void>((resolve, reject) => {
       mutations.unlinkTemplate.mutate(
         { documentTypeId, templateId },
-        { onSuccess: () => resolve(), onError: (err) => reject(err) },
+        {
+          onSuccess: () => {
+            setLocalLinks((prev) => prev.filter((l) => l.template_id !== templateId))
+            setDirtyIds((prev) => {
+              const next = new Set(prev)
+              next.delete(templateId)
+              return next
+            })
+            resolve()
+          },
+          onError: (err) => reject(err),
+        },
       )
     })
   }
 
+  const handleRefresh = () => {
+    if (isDirty) return
+    void refetch()
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!canManage || !over || active.id === over.id) return
+    const oldIndex = localLinks.findIndex((l) => l.template_id === active.id)
+    const newIndex = localLinks.findIndex((l) => l.template_id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+    setLocalLinks((prev) => arrayMove(prev, oldIndex, newIndex))
+    setOrderDirty(true)
+  }
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(KeyboardSensor),
+  )
+
+  const configuringTemplate = configuringId ? localLinks.find((l) => l.template_id === configuringId) ?? null : null
+
   return (
     <>
-      <div className="flex flex-col gap-5">
-        {/* Add template */}
-        {canManage && (
-          <section className="flex flex-col gap-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              {t("templates.addTemplate")}
-            </p>
-            <div className="flex gap-2">
-              <div className="flex-1 min-w-0">
-                <HuemulCombobox
-                  value={selectedTemplateId}
-                  onValueChange={(v) => setSelectedTemplateId(v as string)}
-                  fetchOptions={fetchTemplateOptions}
-                  placeholder={t("templates.searchPlaceholder")}
-                  searchPlaceholder={t("templates.searchPlaceholder")}
-                  emptyMessage={t("templates.noTemplatesAvailable")}
-                  disabled={!selectedOrganizationId || mutations.linkTemplate.isPending}
-                  pageSize={20}
-                />
+      {configuringTemplate ? (
+        <TemplateDetailView
+          template={configuringTemplate}
+          documentTypeId={documentTypeId}
+          onBack={() => setConfiguringId(null)}
+          onChange={(patch) => patchLocal(configuringTemplate.template_id, patch)}
+          disabled={!canManage}
+        />
+      ) : (
+        <div className="flex flex-col gap-5">
+          {canManage && (
+            <section className="flex flex-col gap-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {t("templates.addTemplate")}
+              </p>
+              <div className="flex gap-2">
+                <div className="flex-1 min-w-0">
+                  <HuemulCombobox
+                    value={selectedTemplateId}
+                    onValueChange={(v) => setSelectedTemplateId(v as string)}
+                    onSelectedLabelChange={(label) => setSelectedTemplateLabel(label ?? "")}
+                    fetchOptions={fetchTemplateOptions}
+                    placeholder={t("templates.searchPlaceholder")}
+                    searchPlaceholder={t("templates.searchPlaceholder")}
+                    emptyMessage={t("templates.noTemplatesAvailable")}
+                    disabled={!selectedOrganizationId || mutations.linkTemplate.isPending}
+                    pageSize={20}
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  onClick={handleAdd}
+                  disabled={!selectedTemplateId || mutations.linkTemplate.isPending}
+                  className="shrink-0"
+                >
+                  {mutations.linkTemplate.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    t("templates.add")
+                  )}
+                </Button>
               </div>
-              <Button
-                size="sm"
-                onClick={handleLink}
-                disabled={!selectedTemplateId || mutations.linkTemplate.isPending}
-                className="shrink-0"
-              >
-                {mutations.linkTemplate.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  t("templates.link")
-                )}
-              </Button>
-            </div>
-          </section>
-        )}
-
-        {/* Linked templates */}
-        <section className="flex flex-col gap-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            {t("templates.linkedTemplates")}
-          </p>
-
-          {isLoading ? (
-            <ul className="flex flex-col gap-2">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-11 rounded-lg" />
-              ))}
-            </ul>
-          ) : linked.length === 0 ? (
-            <div className="py-5 px-4 text-center border border-dashed border-border rounded-lg bg-muted/40">
-              <LayoutTemplate className="h-6 w-6 text-border mx-auto mb-2" />
-              <p className="text-xs font-medium text-muted-foreground">
-                {t("templates.noLinkedTemplates")}
-              </p>
-              <p className="text-[11px] text-muted-foreground/70 mt-1 leading-relaxed">
-                {t("templates.noLinkedTemplatesHint")}
-              </p>
-            </div>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {linked.map((tpl) => (
-                <TemplateRow
-                  key={tpl.template_id}
-                  template={tpl}
-                  onEdit={setEditTarget}
-                  onRequestRemove={setDeleteTarget}
-                  isRemoving={mutations.unlinkTemplate.isPending && deleteTarget?.template_id === tpl.template_id}
-                  canManage={canManage}
-                />
-              ))}
-            </ul>
+            </section>
           )}
-        </section>
-      </div>
 
-      <TemplateLinkFormSheet
-        mode="create"
-        template={null}
-        open={isLinkFormOpen}
-        onOpenChange={setIsLinkFormOpen}
-        onSave={handleSaveNewLink}
-      />
+          <section className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <PanelSectionLabel label={t("templates.addedTemplates")} count={localLinks.length} />
+              <HuemulButton
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                icon={RefreshCw}
+                tooltip={t("common:refresh")}
+                loading={isFetching}
+                disabled={isDirty}
+                onClick={handleRefresh}
+              />
+            </div>
 
-      <TemplateLinkFormSheet
-        mode="edit"
-        template={editTarget}
-        open={editTarget !== null}
-        onOpenChange={(o) => { if (!o) setEditTarget(null) }}
-        onSave={handleSaveTemplate}
-      />
+            {isLoading ? (
+              <div className="flex flex-col gap-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-11 rounded-lg" />
+                ))}
+              </div>
+            ) : localLinks.length === 0 ? (
+              <div className="py-5 px-4 text-center border border-dashed border-border rounded-lg bg-muted/40">
+                <LayoutTemplate className="h-6 w-6 text-border mx-auto mb-2" />
+                <p className="text-xs font-medium text-muted-foreground">
+                  {t("templates.noLinkedTemplates")}
+                </p>
+                <p className="text-[11px] text-muted-foreground/70 mt-1 leading-relaxed">
+                  {t("templates.noLinkedTemplatesHint")}
+                </p>
+              </div>
+            ) : (
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext
+                  items={localLinks.map((l) => l.template_id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <PanelCard className="divide-y divide-[#eef1f5]">
+                    {localLinks.map((tpl) => (
+                      <SortableTemplateRow
+                        key={tpl.template_id}
+                        template={tpl}
+                        isDirty={dirtyIds.has(tpl.template_id)}
+                        isRemoving={mutations.unlinkTemplate.isPending && deleteTarget?.template_id === tpl.template_id}
+                        canManage={canManage}
+                        onConfigure={() => setConfiguringId(tpl.template_id)}
+                        onRequestRemove={() => setDeleteTarget(tpl)}
+                      />
+                    ))}
+                  </PanelCard>
+                </SortableContext>
+              </DndContext>
+            )}
+          </section>
+        </div>
+      )}
 
       <HuemulAlertDialog
         open={deleteTarget !== null}
         onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}
         title={t("templates.confirmDeleteTitle")}
         description={t("templates.confirmDeleteDescription", { name: deleteTarget?.template_name })}
-        onAction={handleConfirmUnlink}
+        onAction={handleConfirmRemove}
         actionLabel={t("common:delete")}
         cancelLabel={t("common:cancel")}
         actionVariant="destructive"

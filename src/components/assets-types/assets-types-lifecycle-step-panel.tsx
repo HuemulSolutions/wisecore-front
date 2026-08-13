@@ -4,14 +4,12 @@ import { useState } from "react"
 import { Plus, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { isGroupableStepType } from "@/lib/lifecycle-access"
 import { StepContent } from "./assets-types-lifecycle-dialog"
 import { PanelIconButton, PanelSectionLabel } from "./assets-types-lifecycle-ui"
 import type { LifecycleStepPanelProps } from "@/types/assets"
 
 export type { LifecycleStepPanelProps } from "@/types/assets"
-
-// Etapas que admiten varios grupos — mismo criterio que la matriz.
-const GROUPABLE_TYPES = new Set(["edit", "review", "approve"])
 
 /**
  * Panel lateral de configuración de una etapa del flujo. Se abre desde el
@@ -39,12 +37,12 @@ export function LifecycleStepPanel({
 
   const stageLabel = t(`lifecycle.stepTypes.${stageType}`, { defaultValue: stageType })
   const stageAction = t(`lifecycle.stepActions.${stageType}`, { defaultValue: stageType })
-  const isGroupable = GROUPABLE_TYPES.has(stageType)
+  const isGroupable = isGroupableStepType(stageType)
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[#fbfcfe]">
       {/* Header — título único de la etapa + descripción en texto plano */}
-      <div className="flex shrink-0 items-start justify-between gap-2 border-b border-[#e9edf2] pl-4 pr-3 py-3">
+      <div className="flex shrink-0 items-start justify-between gap-2 border-b border-[#e9edf2] pl-4 pr-4 py-3">
         <div className="flex min-w-0 flex-col gap-0.5">
           <p className="truncate text-[14px] font-semibold text-[#0f172a]">
             {t("lifecycle.matrix.configureStep", { step: stageLabel })}
@@ -60,7 +58,7 @@ export function LifecycleStepPanel({
 
       {/* Sección de grupos — solo etapas agrupables */}
       {isGroupable && (
-        <div className="flex shrink-0 items-center justify-between gap-2 pl-4 pr-3 pt-3 pb-2">
+        <div className="flex shrink-0 items-center justify-between gap-2 pl-4 pr-4 pt-3 pb-2">
           <PanelSectionLabel label={t("lifecycle.groups")} count={groupCount} />
           {canManage && (
             <button
@@ -75,7 +73,7 @@ export function LifecycleStepPanel({
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-hidden pl-4 pr-3 pt-1 pb-3">
+      <div className="min-h-0 flex-1 overflow-hidden pl-4 pr-4 pt-1 pb-3">
         <StepContent
           documentTypeId={documentTypeId}
           stepType={stageType}

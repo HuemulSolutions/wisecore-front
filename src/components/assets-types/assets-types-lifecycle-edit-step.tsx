@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-import { GripVertical, Trash2, Plus, Pencil, ChevronDown, Check, X } from "lucide-react"
+import { GripVertical, Trash2, Plus, Pencil, X } from "lucide-react"
 import {
   DndContext,
   closestCenter,
@@ -31,6 +31,13 @@ import {
 } from "@/hooks/useLifecycle"
 import { useRoles } from "@/hooks/useRbac"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import {
+  pipelineIndex,
+  deriveAccessType,
+  ownerCanExecute,
+  stepRoleIds,
+  buildAccessPayload,
+} from "@/lib/lifecycle-access"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -38,8 +45,12 @@ import { LifecycleReviewActionsSection } from "./assets-types-lifecycle-review-a
 import {
   ChipList,
   PanelCard,
+  PanelDirtyBadge,
   PanelFieldLabel,
   PanelIconButton,
+  PanelPillButton,
+  PanelStatePill,
+  PanelSummaryRow,
   RemovableChip,
   SettingToggleList,
   SettingToggleRow,
@@ -50,16 +61,12 @@ import type { EditStepCardData, EditStepContentProps, EditStepCardProps } from '
 
 export type { EditStepCardData, EditStepContentProps } from '@/types/assets'
 
-// Pipeline order used to restrict step_actor_manager's source_step_id to steps
-// that are genuinely earlier — mirrors the backend's own validation so the
-// picker doesn't offer choices the API would reject.
-const PIPELINE_ORDER = ["create", "edit", "review", "approve", "publish", "archive"]
-
-function pipelineIndex(type: string): number {
-  return PIPELINE_ORDER.indexOf(type)
-}
-
 // ─── Utils ────────────────────────────────────────────────────────────────────
+// `pipelineIndex` (fuente única en src/lib/lifecycle-access.ts, con "view" incluido)
+// se usa acá para restringir el `source_step_id` de `step_actor_manager` a steps
+// genuinamente anteriores — mismo criterio que valida el backend. No cambia el
+// comportamiento: los steps "view" (índice 6) ya quedaban fuera de
+// `earlierStepOptions` con el orden local anterior (sin "view").
 
 export function stepToCard(step: LifecycleStep): EditStepCardData {
   return {
@@ -70,8 +77,10 @@ export function stepToCard(step: LifecycleStep): EditStepCardData {
     slaValue: step.sla_value != null ? String(step.sla_value) : "",
     slaUnit: step.sla_unit ?? "",
     accessType: step.access_type,
-    ownerCanExecute: step.access_type === "owner" || step.access_type === "custom_owner",
-    roleIds: step.step_roles.map((r) => r.role_id),
+    ownerCanExecute: ownerCanExecute(step.access_type),
+    // Roles vigentes: una tarjeta `all`/`owner` no debe arrastrar los residuales
+    // que el backend haya dejado (ver `stepRoleIds`).
+    roleIds: stepRoleIds(step),
     roleNames: Object.fromEntries(
       step.step_roles.map((r) => [r.role_id, r.role_name ?? r.role_id])
     ),
@@ -82,13 +91,19 @@ export function stepToCard(step: LifecycleStep): EditStepCardData {
   }
 }
 
+/** Igualdad estructural de tarjetas — solo para evitar re-renders inútiles. */
+function sameCards(a: EditStepCardData[], b: EditStepCardData[]): boolean {
+  return a.length === b.length && JSON.stringify(a) === JSON.stringify(b)
+}
+
 // ─── EditStepCard ─────────────────────────────────────────────────────────────
 
 /**
- * Tarjeta de un grupo. Los controles están siempre habilitados (si el usuario
- * puede gestionar): los cambios se acumulan en el estado local de
- * `EditStepContent` y se persisten con «Guardar cambios» del footer del sheet.
- * El lápiz solo alterna el renombrado inline del grupo.
+ * Tarjeta de un grupo. Abre colapsada y de solo lectura; el lápiz («Editar
+ * grupo») es el único camino para habilitar los controles, que se acumulan en
+ * el estado local de `EditStepContent` y se persisten con «Guardar cambios»
+ * del footer del sheet. La exclusividad de edición y el expandido/colapsado
+ * los gobierna el padre (`EditStepContent`) vía props.
  */
 function EditStepCard({
   card,
@@ -104,9 +119,14 @@ function EditStepCard({
   canManage,
   dragHandleProps,
   organizationId,
+  isExpanded,
+  isEditing,
+  isDirty,
+  onToggleExpand,
+  onStartEdit,
+  onCancelEdit,
+  onDoneEdit,
 }: EditStepCardProps) {
-  const [isExpanded, setIsExpanded] = useState(true)
-  const [isRenaming, setIsRenaming] = useState(false)
   const [pendingRuleType, setPendingRuleType] = useState<AccessRuleType | "">("")
   const [pendingSourceStepId, setPendingSourceStepId] = useState("")
 
@@ -129,6 +149,18 @@ function EditStepCard({
     })
   const sourceStepLabel = (sourceStepId: string | null) =>
     sourceStepId ? earlierStepOptions.find((o) => o.value === sourceStepId)?.label ?? sourceStepId : null
+  const accessTypeLabel = (accessType: EditStepCardData["accessType"]) => {
+    switch (accessType) {
+      case "all":
+        return t("lifecycle.accessAll")
+      case "owner":
+        return t("lifecycle.accessOwner")
+      case "custom_owner":
+        return t("lifecycle.accessCustomOwner")
+      default:
+        return t("lifecycle.accessCustom")
+    }
+  }
 
   const handleAddAccessRule = () => {
     if (!pendingRuleType) return
@@ -158,41 +190,36 @@ function EditStepCard({
 
   return (
     <PanelCard>
-      {/* Cabecera — siempre visible; colapsada, la tarjeta se reduce a esta fila */}
-      <div className="flex items-center gap-1.5 px-3 py-2.5">
+      {/* Cabecera — siempre visible; colapsada, la tarjeta se reduce a esta fila.
+          Clickear la fila expande/colapsa; controles internos frenan la propagación. */}
+      <div
+        className={cn(
+          "flex items-center gap-1.5 px-3 py-2.5",
+          !isEditing && "hover:cursor-pointer",
+        )}
+        onClick={isEditing ? undefined : onToggleExpand}
+      >
         {dragHandleProps && !ro && (
           <button
             type="button"
             className="shrink-0 text-[#b6c0cd] transition-colors hover:cursor-grab hover:text-[#64748b] active:cursor-grabbing"
             aria-label={t("lifecycle.groups")}
+            onClick={(e) => e.stopPropagation()}
             {...dragHandleProps}
           >
             <GripVertical className="size-4" />
           </button>
         )}
 
-        {isRenaming ? (
-          <div className="min-w-0 flex-1">
-            <HuemulField
-              type="text"
-              label=""
-              name={`card-name-${card.id}`}
-              value={card.name}
-              onChange={(v) => onChange({ name: String(v) })}
-              placeholder={t("lifecycle.groupNamePlaceholder")}
-              inputClassName="h-7 text-[13px] font-semibold"
-            />
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setIsExpanded((prev) => !prev)}
-            className="min-w-0 flex-1 truncate text-left text-[13px] font-semibold text-[#0f172a] hover:cursor-pointer"
-            title={groupName}
-          >
-            {groupName}
-          </button>
-        )}
+        <span
+          className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#0f172a]"
+          title={groupName}
+          aria-expanded={isEditing ? undefined : isExpanded}
+        >
+          {groupName}
+        </span>
+
+        {isDirty && <PanelDirtyBadge label={t("lifecycle.editedBadge")} />}
 
         <StepModeBadge
           label={
@@ -200,32 +227,41 @@ function EditStepCard({
           }
         />
 
-        {canManage && (
+        {isEditing ? (
           <>
-            <PanelIconButton
-              icon={isRenaming ? Check : Pencil}
-              label={t("lifecycle.renameGroup")}
-              onClick={() => setIsRenaming((prev) => !prev)}
-            />
-            <PanelIconButton
-              icon={Trash2}
-              label={t("lifecycle.deleteGroup")}
-              tone="danger"
-              disabled={!canDelete}
-              onClick={onDelete}
-            />
+            <PanelStatePill label={t("lifecycle.editingBadge")} />
+            {canManage && (
+              <PanelIconButton
+                icon={Trash2}
+                label={t("lifecycle.deleteGroup")}
+                tone="danger"
+                disabled={!canDelete}
+                onClick={onDelete}
+              />
+            )}
           </>
+        ) : (
+          canManage && (
+            <PanelPillButton icon={Pencil} label={t("common:edit")} onClick={onStartEdit} />
+          )
         )}
-        <PanelIconButton
-          icon={ChevronDown}
-          label={isExpanded ? t("lifecycle.collapseGroup") : t("lifecycle.expandGroup")}
-          onClick={() => setIsExpanded((prev) => !prev)}
-          className={cn("transition-transform", isExpanded && "rotate-180")}
-        />
       </div>
 
-      {isExpanded && (
+      {isEditing && (
         <div className="flex flex-col gap-3 border-t border-[#eef1f5] px-3 py-3">
+          {/* Nombre del grupo */}
+          <div className="flex flex-col gap-1.5">
+            <PanelFieldLabel>{t("lifecycle.groupNameLabel")}</PanelFieldLabel>
+            <HuemulField
+              type="text"
+              label=""
+              name={`card-name-${card.id}`}
+              value={card.name}
+              onChange={(v) => onChange({ name: String(v) })}
+              placeholder={t("lifecycle.groupNamePlaceholder")}
+            />
+          </div>
+
           {/* Tipo de paso — approve es siempre manual */}
           {hasModeSelector && (
             <div className="flex flex-col gap-1.5">
@@ -310,8 +346,11 @@ function EditStepCard({
                   checked={card.ownerCanExecute}
                   disabled={ro || allowsAnyone}
                   onChange={(v) => {
-                    const newAccessType =
-                      card.roleIds.length > 0 ? (v ? "custom_owner" : "custom") : "owner"
+                    const newAccessType = deriveAccessType({
+                      anyone: false,
+                      owner: v,
+                      roleCount: card.roleIds.length,
+                    })
                     onChange({ ownerCanExecute: v, accessType: newAccessType })
                   }}
                 />
@@ -337,12 +376,11 @@ function EditStepCard({
                                 ? undefined
                                 : () => {
                                     const newRoleIds = card.roleIds.filter((id) => id !== r.id)
-                                    const newAccessType =
-                                      newRoleIds.length > 0
-                                        ? card.ownerCanExecute
-                                          ? "custom_owner"
-                                          : "custom"
-                                        : "owner"
+                                    const newAccessType = deriveAccessType({
+                                      anyone: false,
+                                      owner: card.ownerCanExecute,
+                                      roleCount: newRoleIds.length,
+                                    })
                                     onChange({ roleIds: newRoleIds, accessType: newAccessType })
                                   }
                             }
@@ -361,7 +399,11 @@ function EditStepCard({
                         if (!roleId) return
                         const role = allRoles.find((r) => r.id === roleId)
                         const newRoleIds = [...card.roleIds, String(roleId)]
-                        const newAccessType = card.ownerCanExecute ? "custom_owner" : "custom"
+                        const newAccessType = deriveAccessType({
+                          anyone: false,
+                          owner: card.ownerCanExecute,
+                          roleCount: newRoleIds.length,
+                        })
                         onChange({
                           roleIds: newRoleIds,
                           roleNames: {
@@ -461,6 +503,67 @@ function EditStepCard({
               readOnly={ro}
             />
           )}
+
+          {/* Footer — confirmar/descartar la edición de esta tarjeta */}
+          <div className="flex items-center justify-between gap-2 border-t border-[#eef1f5] pt-2.5">
+            <span className="text-[11px] leading-snug text-[#94a3b8]">
+              {t("lifecycle.editHint")}
+            </span>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <PanelPillButton label={t("common:cancel")} onClick={onCancelEdit} />
+              <PanelPillButton label={t("lifecycle.doneEditing")} tone="primary" onClick={onDoneEdit} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Resumen de solo lectura — colapsada no se muestra nada de esto */}
+      {!isEditing && isExpanded && (
+        <div className="flex flex-col gap-3 border-t border-[#eef1f5] px-3 py-3">
+          {card.mode === "manual" ? (
+            <>
+              <PanelSummaryRow label={t("lifecycle.summary.sla")}>
+                {card.hasSla
+                  ? `${card.slaValue} ${
+                      slaUnitOptions.find((u) => u.value === card.slaUnit)?.label ?? card.slaUnit
+                    }`
+                  : t("lifecycle.summary.none")}
+              </PanelSummaryRow>
+              <PanelSummaryRow label={t("lifecycle.summary.whoCanExecute", { action: stepAction })}>
+                {accessTypeLabel(card.accessType)}
+              </PanelSummaryRow>
+              {assignedRoles.length > 0 && (
+                <PanelSummaryRow label={t("lifecycle.summary.roles")}>
+                  <ChipList>
+                    {assignedRoles.map((r) => (
+                      <RemovableChip key={r.id} label={r.name} />
+                    ))}
+                  </ChipList>
+                </PanelSummaryRow>
+              )}
+              {card.accessRules.length > 0 && (
+                <PanelSummaryRow label={t("lifecycle.summary.rules")}>
+                  <ChipList>
+                    {card.accessRules.map((rule, index) => (
+                      <RemovableChip
+                        key={`${rule.rule_type}-${rule.source_step_id ?? "none"}-${index}`}
+                        label={`${ruleTypeLabel(rule.rule_type)}${
+                          sourceStepLabel(rule.source_step_id)
+                            ? ` (${sourceStepLabel(rule.source_step_id)})`
+                            : ""
+                        }`}
+                      />
+                    ))}
+                  </ChipList>
+                </PanelSummaryRow>
+              )}
+            </>
+          ) : (
+            hasModeSelector &&
+            organizationId && (
+              <LifecycleReviewActionsSection organizationId={organizationId} stepId={card.id} readOnly />
+            )
+          )}
         </div>
       )}
     </PanelCard>
@@ -540,8 +643,56 @@ export function EditStepContent({
   const [localSteps, setLocalSteps] = useState<EditStepCardData[]>([])
   const [dirtyIds, setDirtyIds] = useState<Set<string>>(() => new Set())
   const [orderDirty, setOrderDirty] = useState(false)
-  const initializedRef = useRef(false)
+  // Declarado acá (no junto al guardado batch más abajo) porque el efecto de
+  // hidratación lo necesita como guard.
+  const isDirty = dirtyIds.size > 0 || orderDirty
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+
+  // ── Colapsado + edición exclusiva ───────────────────────────────────────────
+  // El panel abre colapsado y de solo lectura: cada tarjeta se expande/edita
+  // de forma independiente y solo un grupo puede estar en edición a la vez.
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set())
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const editSnapshotRef = useRef<{ card: EditStepCardData; wasDirty: boolean } | null>(null)
+
+  const handleToggleExpand = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handleStartEdit = (id: string) => {
+    const card = localSteps.find((c) => c.id === id)
+    if (!card) return
+    editSnapshotRef.current = { card: { ...card }, wasDirty: dirtyIds.has(id) }
+    setEditingId(id)
+    setExpandedIds((prev) => new Set(prev).add(id))
+  }
+
+  const handleCancelEdit = () => {
+    const snapshot = editSnapshotRef.current
+    if (snapshot) {
+      setLocalSteps((prev) => prev.map((c) => (c.id === snapshot.card.id ? snapshot.card : c)))
+      if (!snapshot.wasDirty) {
+        setDirtyIds((prev) => {
+          if (!prev.has(snapshot.card.id)) return prev
+          const next = new Set(prev)
+          next.delete(snapshot.card.id)
+          return next
+        })
+      }
+    }
+    editSnapshotRef.current = null
+    setEditingId(null)
+  }
+
+  const handleDoneEdit = () => {
+    editSnapshotRef.current = null
+    setEditingId(null)
+  }
   const [addGroupOpen, setAddGroupOpen] = useState(false)
   const [newGroupName, setNewGroupName] = useState("")
   const [newGroupMode, setNewGroupMode] = useState<"manual" | "automatic">("manual")
@@ -554,15 +705,29 @@ export function EditStepContent({
   const [newGroupOwnerCanExecute, setNewGroupOwnerCanExecute] = useState(false)
   const [newGroupRoleIds, setNewGroupRoleIds] = useState<string[]>([])
 
+  // ── Hidratación / rehidratación ─────────────────────────────────────────────
+  // Antes un `initializedRef` descartaba TODOS los refetch: el panel se quedaba
+  // con los `role_ids` de la primera carga y al guardar los reenviaba, pisando
+  // lo que la matriz hubiera cambiado. Ahora cada llegada de datos rehidrata,
+  // pero solo si no hay nada que pisar (excepción documentada a la regla 3 de
+  // ia context/sheet-footer-batch-save-guide.md).
+  //
+  // Una tarjeta abierta con el lápiz pero sin cambios (`editingId` seteado,
+  // `isDirty` false) también rehidrata: un toggle hecho en la matriz debe
+  // reflejarse en la tarjeta en edición. `sameCards` evita recrear el array —y
+  // con él el `SortableContext`— cuando el refetch no trae cambios.
+  const serverSteps = data?.data?.steps
+  const hydrationBlocked = isDirty
+
   useEffect(() => {
-    if (data?.data?.steps && !initializedRef.current) {
-      const sorted = [...data.data.steps].sort(
-        (a, b) => (a.order ?? 0) - (b.order ?? 0)
-      )
-      setLocalSteps(sorted.map(stepToCard))
-      initializedRef.current = true
-    }
-  }, [data])
+    if (!serverSteps || hydrationBlocked) return
+    const nextCards = [...serverSteps]
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .map(stepToCard)
+    // Comparación estructural para no recrear el array (y con él el
+    // `SortableContext`) en cada refetch que no trae cambios.
+    setLocalSteps((prev) => (sameCards(prev, nextCards) ? prev : nextCards))
+  }, [serverSteps, hydrationBlocked])
 
   // El header del panel pide abrir el alta de grupo incrementando la señal.
   useEffect(() => {
@@ -615,43 +780,58 @@ export function EditStepContent({
       next.delete(id)
       return next
     })
+    setExpandedIds((prev) => {
+      if (!prev.has(id)) return prev
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+    if (editingId === id) {
+      editSnapshotRef.current = null
+      setEditingId(null)
+    }
   }
 
   const handleAddGroup = async () => {
     if (!canManage) return
     const isAutomatic =
       (stepType === "edit" || stepType === "review") && newGroupMode === "automatic"
-    let access_type: string
-    if (isAutomatic) {
-      access_type = "owner"
-    } else if (newGroupAccessType === "all") {
-      access_type = "all"
-    } else if (newGroupOwnerCanExecute && newGroupRoleIds.length > 0) {
-      access_type = "custom_owner"
-    } else if (!newGroupOwnerCanExecute && newGroupRoleIds.length > 0) {
-      access_type = "custom"
-    } else {
-      access_type = "owner"
-    }
+    const access_type = isAutomatic
+      ? "owner"
+      : deriveAccessType({
+          anyone: newGroupAccessType === "all",
+          owner: newGroupOwnerCanExecute,
+          roleCount: newGroupRoleIds.length,
+        })
     const res = await createStep.mutateAsync({
       type: stepType,
       name: newGroupName.trim() || t("lifecycle.newGroupName"),
       mode: isAutomatic ? "automatic" : "manual",
-      access_type,
       order: localSteps.length + 1,
       sla_value: !isAutomatic && newGroupHasSla ? Number(newGroupSlaValue) || null : null,
       sla_unit: !isAutomatic && newGroupHasSla ? newGroupSlaUnit || null : null,
-      ...(!isAutomatic && access_type !== "all" && access_type !== "owner" && { role_ids: newGroupRoleIds }),
+      // `access_type` + `role_ids` los arma `buildAccessPayload`: fuera de
+      // `custom`/`custom_owner` la clave `role_ids` no puede viajar (422).
+      ...buildAccessPayload({
+        accessType: access_type,
+        roleIds: isAutomatic ? [] : newGroupRoleIds,
+      }),
     })
-    setLocalSteps((prev) => [...prev, stepToCard(res.data)])
+    const newCard = stepToCard(res.data)
+    setLocalSteps((prev) => [...prev, newCard])
     setNewGroupName("")
     setNewGroupMode("manual")
+    // El grupo recién creado abre directo en edición: el usuario recién lo
+    // creó para configurarlo, no para verlo colapsado.
+    editSnapshotRef.current = { card: { ...newCard }, wasDirty: false }
+    setEditingId(newCard.id)
+    setExpandedIds((prev) => new Set(prev).add(newCard.id))
   }
 
   // ── Guardado batch ──────────────────────────────────────────────────────────
   // El closure vive en un ref para que el footer siempre invoque la última
-  // versión sin re-registrar la API en cada tecleo.
-  const isDirty = dirtyIds.size > 0 || orderDirty
+  // versión sin re-registrar la API en cada tecleo. `isDirty` está declarado
+  // arriba, junto a `dirtyIds`/`orderDirty` (lo necesita el efecto de hidratación).
   const saveRef = useRef<() => Promise<void>>(async () => {})
 
   saveRef.current = async () => {
@@ -678,9 +858,12 @@ export function EditStepContent({
           sla_unit: !isAutomatic && currentCard.hasSla
             ? currentCard.slaUnit || null
             : null,
-          access_type: isAutomatic ? "owner" : currentCard.accessType,
-          ...(!isAutomatic && currentCard.accessType !== "all" && currentCard.accessType !== "owner" && {
-            role_ids: currentCard.roleIds,
+          // `access_type` + `role_ids` los arma `buildAccessPayload`: fuera de
+          // `custom`/`custom_owner` la clave `role_ids` no puede viajar, el backend
+          // la rechaza con 422 incluso vacía.
+          ...buildAccessPayload({
+            accessType: isAutomatic ? "owner" : currentCard.accessType,
+            roleIds: isAutomatic ? [] : currentCard.roleIds,
           }),
           access_rules: currentCard.accessRules,
         },
@@ -694,9 +877,21 @@ export function EditStepContent({
 
   const save = useCallback(() => saveRef.current(), [])
 
+  // Descarta los cambios locales sin recomponer el estado a mano: el efecto de
+  // rehidratación de arriba repuebla `localSteps` desde la cache en cuanto
+  // `hydrationBlocked` baja (ver ese efecto para el porqué del diseño).
+  const discardRef = useRef<() => void>(() => {})
+  discardRef.current = () => {
+    editSnapshotRef.current = null
+    setEditingId(null)
+    setDirtyIds(new Set())
+    setOrderDirty(false)
+  }
+  const discard = useCallback(() => discardRef.current(), [])
+
   useEffect(() => {
-    onRegisterEditor?.({ isDirty, save })
-  }, [isDirty, save, onRegisterEditor])
+    onRegisterEditor?.({ isDirty, save, discard })
+  }, [isDirty, save, discard, onRegisterEditor])
 
   useEffect(() => {
     return () => onRegisterEditor?.(null)
@@ -753,6 +948,13 @@ export function EditStepContent({
                   canDelete={!((stepType === "edit" || stepType === "approve") && localSteps.length <= 1)}
                   canManage={canManage}
                   t={t}
+                  isExpanded={expandedIds.has(card.id)}
+                  isEditing={editingId === card.id}
+                  isDirty={dirtyIds.has(card.id)}
+                  onToggleExpand={() => handleToggleExpand(card.id)}
+                  onStartEdit={() => handleStartEdit(card.id)}
+                  onCancelEdit={handleCancelEdit}
+                  onDoneEdit={handleDoneEdit}
                 />
               ))}
             </div>

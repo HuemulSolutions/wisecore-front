@@ -88,6 +88,7 @@ export function HuemulSheet({
   bodyClassName,
   headerExtra,
   footerLeft,
+  onOpenAutoFocus,
   children,
 }: HuemulSheetProps) {
   // Shared helper — all close paths go through Radix's onOpenChange
@@ -159,6 +160,7 @@ export function HuemulSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side={side}
+        onOpenAutoFocus={onOpenAutoFocus}
         {...(!description && { "aria-describedby": undefined })}
         className={cn(
           "flex flex-col gap-0 p-0",

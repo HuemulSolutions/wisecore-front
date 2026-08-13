@@ -8,8 +8,9 @@ import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 
 /**
- * Primitivos visuales de la pestaña «Permisos por rol» (matriz + panel lateral).
- * Viven en el módulo porque su paleta está fijada al diseño de esta superficie
+ * Primitivos visuales compartidos por los tabs del sheet de configuración de
+ * tipos de activo (matriz de «Permisos por rol» y lista/detalle de «Plantillas»).
+ * Viven en el módulo porque su paleta está fijada al diseño de estas superficies
  * (hex literales, sin variantes dark); lo genuinamente reutilizable —el control
  * segmentado— vive en `@/huemul/components/huemul-segmented-control`.
  */
@@ -97,6 +98,7 @@ export function SettingToggleRow({
   onChange,
   disabled,
   children,
+  className,
 }: {
   label: string
   description?: string
@@ -105,9 +107,11 @@ export function SettingToggleRow({
   disabled?: boolean
   /** Contenido extra que se despliega bajo la fila cuando el toggle está activo. */
   children?: ReactNode
+  /** Override de estilos del contenedor (ej. `px-0` al usarse fuera de `SettingToggleList`). */
+  className?: string
 }) {
   return (
-    <div className="px-3 py-2.5">
+    <div className={cn("px-3 py-2.5", className)}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-0.5">
           <span
@@ -143,6 +147,65 @@ export function SettingToggleRow({
   )
 }
 
+// ─── Pill button ──────────────────────────────────────────────────────────────
+
+/** Pill con borde e ícono opcional (Editar, Cancelar, Listo). */
+export function PanelPillButton({
+  icon: Icon,
+  label,
+  onClick,
+  disabled,
+  tone = "default",
+  className,
+}: {
+  icon?: LucideIcon
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  tone?: "default" | "primary"
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
+      className={cn(
+        "inline-flex h-[26px] shrink-0 items-center gap-1 rounded-[7px] border px-2 text-[12px] font-medium transition-colors hover:cursor-pointer disabled:pointer-events-none disabled:opacity-50",
+        tone === "primary"
+          ? "border-[#bfd3fb] bg-[#f5f8ff] text-[#1d4ed8] hover:bg-[#eaf1ff]"
+          : "border-[#dde4ec] text-[#475569] hover:bg-[#f8fafc] hover:text-[#0f172a]",
+        className,
+      )}
+    >
+      {Icon && <Icon className="size-3.5" />}
+      {label}
+    </button>
+  )
+}
+
+/** Pastilla de estado activo («Editando»), hermana de `StepModeBadge`. */
+export function PanelStatePill({ label }: { label: string }) {
+  return (
+    <span className="inline-flex h-[20px] shrink-0 items-center rounded-full border border-[#bfd3fb] bg-[#f5f8ff] px-2 text-[11px] font-medium text-[#1d4ed8]">
+      {label}
+    </span>
+  )
+}
+
+/** Badge de cambios sin guardar («• Editado»). */
+export function PanelDirtyBadge({ label }: { label: string }) {
+  return (
+    <span className="inline-flex h-[20px] shrink-0 items-center gap-1 rounded-full bg-[#fef6e7] px-2 text-[11px] font-medium text-[#b45309]">
+      <span className="size-1.5 rounded-full bg-[#f59e0b]" />
+      {label}
+    </span>
+  )
+}
+
 // ─── Icon button ──────────────────────────────────────────────────────────────
 
 /** Icon-button discreto del panel (renombrar, eliminar, colapsar, cerrar). */
@@ -167,7 +230,10 @@ export function PanelIconButton({
       title={label}
       aria-label={label}
       disabled={disabled}
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
       className={cn(
         "inline-flex size-6 shrink-0 items-center justify-center rounded-[6px] text-[#94a3b8] transition-colors hover:cursor-pointer disabled:pointer-events-none disabled:opacity-50",
         tone === "danger"
@@ -246,5 +312,25 @@ export function StepModeBadge({ label }: { label: string }) {
     <span className="inline-flex h-[20px] shrink-0 items-center rounded-full bg-[#f1f4f8] px-2 text-[11px] font-medium text-[#64748b]">
       {label}
     </span>
+  )
+}
+
+// ─── Resumen de solo lectura ──────────────────────────────────────────────────
+
+/** Fila «label: valor» del resumen colapsado (grupo o paso simple en modo lectura). */
+export function PanelSummaryRow({
+  label,
+  children,
+}: {
+  label: string
+  children: ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[11px] font-medium uppercase tracking-wide text-[#94a3b8]">
+        {label}
+      </span>
+      <div className="text-[12.5px] leading-snug text-[#334155]">{children}</div>
+    </div>
   )
 }

@@ -1,4 +1,5 @@
 // Asset Types - Types for the asset type management module
+import type { MutableRefObject } from 'react';
 
 // ========================================
 // Core Asset Type Types (from service)
@@ -118,6 +119,24 @@ export interface DocumentTypeTemplateLinkResponse {
   transaction_id: string;
   timestamp: string;
 }
+
+// ----------------------------------------
+// Guardado batch del tab Plantillas
+// ----------------------------------------
+
+/** Contrato que `AssetTypeTemplatesPanel` expone hacia el footer del sheet. */
+export interface TemplatesEditorApi {
+  save: () => Promise<void>;
+  isDirty: boolean;
+  discard: () => void;
+}
+
+/** API publicada en el ref del sheet contenedor. */
+export interface TemplatesSaveApi extends TemplatesEditorApi {
+  isSaving: boolean;
+}
+
+export type TemplatesSaveApiRef = MutableRefObject<TemplatesSaveApi | null>;
 
 // ========================================
 // Export / Import

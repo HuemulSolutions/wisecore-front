@@ -1,20 +1,56 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+import { Pencil } from "lucide-react"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { useLifecycleSteps, useLifecycleMutations, useLifecycleSlaUnits } from "@/hooks/useLifecycle"
 import { useRoles } from "@/hooks/useRbac"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { deriveAccessType, stepRoleIds, buildAccessPayload } from "@/lib/lifecycle-access"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LifecyclePublishActionsSection } from "./assets-types-lifecycle-publish-actions"
 import {
   ChipList,
   PanelFieldLabel,
+  PanelPillButton,
+  PanelSummaryRow,
   RemovableChip,
   SettingToggleList,
   SettingToggleRow,
 } from "./assets-types-lifecycle-ui"
 import type { CreateStepContentProps } from '@/types/assets'
+import type { LifecycleAccessType } from '@/types/lifecycle'
+
+/**
+ * Traduce el `access_type` del backend al estado del panel según qué controles
+ * expone cada variante.
+ *
+ * `useAllOrCustomOwner` (publish/archive/read/view) representa los CUATRO
+ * valores —switch «todos» + switch «el propietario puede…» + roles—, así que
+ * se respeta lo que devuelve el backend. Antes colapsaba `owner` a
+ * `custom_owner`: un paso realmente `owner` se mostraba como `custom_owner` y
+ * se volvía a guardar así, cambiando el acceso sin que el usuario tocara nada.
+ */
+function resolvePanelAccessType(
+  serverAccessType: LifecycleAccessType,
+  options: { noOwner: boolean; useAllOrCustomOwner: boolean },
+): LifecycleAccessType {
+  if (options.useAllOrCustomOwner) return serverAccessType
+  if (serverAccessType === "custom") return "custom"
+  // `create` (noOwner) no ofrece el switch de propietario: `owner` y
+  // `custom_owner` no son representables y caen a `all`.
+  if (options.noOwner) return "all"
+  // Con propietario pero sin `useAllOrCustomOwner`, el switch alterna
+  // `owner` ↔ `custom`: `custom_owner` se representa como `custom` (conserva
+  // los roles) en vez de caer a `all` (los perdía).
+  if (serverAccessType === "custom_owner") return "custom"
+  return serverAccessType === "owner" ? "owner" : "all"
+}
+
+/** Igualdad de listas de ids — evita recrear el array de roles en cada refetch. */
+function sameIdList(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((id, i) => id === b[i])
+}
 
 export type { CreateStepContentProps } from '@/types/assets'
 
@@ -22,13 +58,18 @@ export type { CreateStepContentProps } from '@/types/assets'
 
 /**
  * Etapas sin grupos (Creador, Publicación, Archivado, Lector): un único
- * `LifecycleStep` con permisos simples. Igual que `EditStepContent`, los
- * controles quedan siempre editables y el guardado se dispara desde el footer
- * del sheet a través de `onRegisterEditor`.
+ * `LifecycleStep` con permisos simples. Siempre muestra todo el contenido
+ * (resumen en lectura o controles en edición) — es una sola tarjeta y el
+ * header del panel ya titula la etapa, así que un colapso no aporta nada.
+ * El lápiz («Editar») habilita los controles, cuyos cambios se acumulan en
+ * estado local y se persisten con «Guardar cambios» del footer del sheet a
+ * través de `onRegisterEditor` — mismo patrón que las tarjetas de grupo de
+ * `EditStepContent`.
  */
 export function CreateStepContent({
   documentTypeId,
   stepType,
+  stepLabel,
   hasSla = false,
   hasValidity = true,
   noOwner = false,
@@ -53,7 +94,7 @@ export function CreateStepContent({
   }))
 
   const [isDirty, setIsDirty] = useState(false)
-  const [accessType, setAccessType] = useState<"all" | "owner" | "custom" | "custom_owner">("all")
+  const [accessType, setAccessType] = useState<LifecycleAccessType>("all")
   const [ownerCanExecute, setOwnerCanExecute] = useState(true)
   const [validFrom, setValidFrom] = useState<string | null>(null)
   const [validTo, setValidTo] = useState<string | null>(null)
@@ -62,31 +103,50 @@ export function CreateStepContent({
   const [slaValue, setSlaValue] = useState("")
   const [slaUnit, setSlaUnit] = useState("")
 
-  // El estado local solo se hidrata la primera vez que llegan los datos del step:
-  // después manda lo que el usuario tiene en pantalla, hasta que se guarde.
-  const hydratedStepIdRef = useRef<string | null>(null)
+  // Edición explícita: el contenido siempre se muestra, y solo se habilita al
+  // pulsar «Editar» — mismo patrón que los grupos de `EditStepContent`.
+  const [isEditing, setIsEditing] = useState(false)
+  const editSnapshotRef = useRef<{
+    accessType: LifecycleAccessType
+    ownerCanExecute: boolean
+    validFrom: string | null
+    validTo: string | null
+    roleIds: string[]
+    slaEnabled: boolean
+    slaValue: string
+    slaUnit: string
+    isDirty: boolean
+  } | null>(null)
+
+  // ── Hidratación / rehidratación ─────────────────────────────────────────────
+  // Antes un `hydratedStepIdRef` descartaba todos los refetch (el step es
+  // siempre el mismo id, así que hidrataba una única vez en toda la vida del
+  // panel). Ahora rehidrata en cada llegada de datos mientras no haya cambios
+  // sin persistir — incluso con una edición abierta: un cambio hecho en la
+  // matriz (p. ej. tildar un rol) debe reflejarse acá también mientras no haya
+  // nada local que pisar.
+  const hydrationBlocked = isDirty
 
   useEffect(() => {
-    if (!step || hydratedStepIdRef.current === step.id) return
-    let at: "all" | "owner" | "custom" | "custom_owner"
-    if (useAllOrCustomOwner) {
-      at = step.access_type === "all" ? "all" : "custom_owner"
-    } else {
-      at = step.access_type === "custom" ? "custom" : (noOwner || step.access_type !== "owner") ? "all" : "owner"
-    }
-    setAccessType(at)
-    setOwnerCanExecute(at === "all" || at === "owner" || at === "custom_owner")
+    if (!step || hydrationBlocked) return
+    const nextAccessType = resolvePanelAccessType(step.access_type, { noOwner, useAllOrCustomOwner })
+    setAccessType(nextAccessType)
+    setOwnerCanExecute(
+      nextAccessType === "all" || nextAccessType === "owner" || nextAccessType === "custom_owner",
+    )
     setValidFrom(step.valid_from ?? null)
     setValidTo(step.valid_to ?? null)
-    setRoleIds(step.step_roles.map((r) => r.role_id))
+    // Roles vigentes: si el paso ya no es `custom`/`custom_owner`, los residuales
+    // que devuelva el backend no deben repoblar los chips (ver `stepRoleIds`).
+    const nextRoleIds = stepRoleIds(step)
+    setRoleIds((prev) => (sameIdList(prev, nextRoleIds) ? prev : nextRoleIds))
     if (hasSla) {
       setSlaEnabled(step.sla_value != null)
       setSlaValue(step.sla_value != null ? String(step.sla_value) : "")
       setSlaUnit(step.sla_unit ?? "")
     }
-    setIsDirty(false)
-    hydratedStepIdRef.current = step.id
-  }, [step, hasSla, noOwner, useAllOrCustomOwner])
+    // No hace falta `setIsDirty(false)`: por el guard, acá `isDirty` ya es false.
+  }, [step, hasSla, noOwner, useAllOrCustomOwner, hydrationBlocked])
 
   // ── Guardado batch ──────────────────────────────────────────────────────────
   const saveRef = useRef<() => Promise<void>>(async () => {})
@@ -96,7 +156,10 @@ export function CreateStepContent({
     await updateStep.mutateAsync({
       stepId: step.id,
       data: {
-        access_type: accessType,
+        // `access_type` + `role_ids` los arma `buildAccessPayload`: fuera de
+        // `custom`/`custom_owner` la clave `role_ids` no puede viajar, el backend
+        // la rechaza con 422 incluso vacía.
+        ...buildAccessPayload({ accessType, roleIds }),
         ...(hasValidity && {
           valid_from: validFrom ? validFrom.split("T")[0] : null,
           valid_to: validTo ? validTo.split("T")[0] : null,
@@ -105,7 +168,6 @@ export function CreateStepContent({
           sla_value: slaEnabled ? Number(slaValue) || null : null,
           sla_unit: slaEnabled ? slaUnit || null : null,
         }),
-        ...((accessType === "custom" || accessType === "custom_owner") && { role_ids: roleIds }),
       },
     })
     setIsDirty(false)
@@ -114,13 +176,61 @@ export function CreateStepContent({
 
   const save = useCallback(() => saveRef.current(), [])
 
+  // Descarta los cambios locales sin recomponer el estado a mano: el efecto de
+  // rehidratación de arriba repuebla los campos desde el step cacheado en
+  // cuanto `hydrationBlocked` baja.
+  const discardRef = useRef<() => void>(() => {})
+  discardRef.current = () => {
+    editSnapshotRef.current = null
+    setIsEditing(false)
+    setIsDirty(false)
+  }
+  const discard = useCallback(() => discardRef.current(), [])
+
   useEffect(() => {
-    onRegisterEditor?.({ isDirty, save })
-  }, [isDirty, save, onRegisterEditor])
+    onRegisterEditor?.({ isDirty, save, discard })
+  }, [isDirty, save, discard, onRegisterEditor])
 
   useEffect(() => {
     return () => onRegisterEditor?.(null)
   }, [onRegisterEditor])
+
+  const handleStartEdit = () => {
+    editSnapshotRef.current = {
+      accessType,
+      ownerCanExecute,
+      validFrom,
+      validTo,
+      roleIds,
+      slaEnabled,
+      slaValue,
+      slaUnit,
+      isDirty,
+    }
+    setIsEditing(true)
+  }
+
+  const handleCancelEdit = () => {
+    const snapshot = editSnapshotRef.current
+    if (snapshot) {
+      setAccessType(snapshot.accessType)
+      setOwnerCanExecute(snapshot.ownerCanExecute)
+      setValidFrom(snapshot.validFrom)
+      setValidTo(snapshot.validTo)
+      setRoleIds(snapshot.roleIds)
+      setSlaEnabled(snapshot.slaEnabled)
+      setSlaValue(snapshot.slaValue)
+      setSlaUnit(snapshot.slaUnit)
+      setIsDirty(snapshot.isDirty)
+    }
+    editSnapshotRef.current = null
+    setIsEditing(false)
+  }
+
+  const handleDoneEdit = () => {
+    editSnapshotRef.current = null
+    setIsEditing(false)
+  }
 
   if (isLoading) {
     return (
@@ -140,210 +250,289 @@ export function CreateStepContent({
     )
   }
 
-  const ro = !canManage
+  const ro = !canManage || !isEditing
+  const title = step.name ?? stepLabel ?? t(`lifecycle.stepTypes.${stepType}`, { defaultValue: stepType })
   const assignedRoles = allRoles.filter((r) => roleIds.includes(r.id))
   const availableRoles = allRoles.filter((r) => !roleIds.includes(r.id))
   const showRolePicker = useAllOrCustomOwner
     ? accessType !== "all"
     : accessType === "custom" || accessType === "custom_owner"
+  const accessTypeLabel = (at: typeof accessType) => {
+    switch (at) {
+      case "all":
+        return t("lifecycle.accessAll")
+      case "owner":
+        return t("lifecycle.accessOwner")
+      case "custom_owner":
+        return t("lifecycle.accessCustomOwner")
+      default:
+        return t("lifecycle.accessCustom")
+    }
+  }
 
   return (
     <div className="flex flex-col gap-3">
-      <SettingToggleList>
-        {hasSla && (
-          <SettingToggleRow
-            label={t("lifecycle.slaLabel")}
-            description={t(`lifecycle.slaDescriptions.${stepType}`, {
-              defaultValue: t("lifecycle.slaDescription"),
-            })}
-            checked={slaEnabled}
-            disabled={ro}
-            onChange={(v) => {
-              setSlaEnabled(v)
-              if (!v) {
-                setSlaValue("")
-                setSlaUnit("")
-              }
-              setIsDirty(true)
-            }}
-          >
-            {slaEnabled && (
-              <div className="flex items-center gap-2">
-                <HuemulField
-                  type="number"
-                  label=""
-                  name={`sla-value-${stepType}`}
-                  value={slaValue}
-                  min={1}
+      {/* Cabecera — título de la tarjeta + acción de edición. El título de la
+          etapa ya lo dice el header del panel; acá solo el nombre del paso. */}
+      <div className="flex items-center gap-1.5 border-b border-[#eef1f5] pb-2.5">
+        <span
+          className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#0f172a]"
+          title={title}
+        >
+          {title}
+        </span>
+
+        {isEditing ? (
+          <div className="flex shrink-0 items-center gap-1.5">
+            <PanelPillButton label={t("common:cancel")} onClick={handleCancelEdit} />
+            <PanelPillButton
+              label={t("lifecycle.doneEditing")}
+              tone="primary"
+              onClick={handleDoneEdit}
+            />
+          </div>
+        ) : (
+          canManage && (
+            <PanelPillButton icon={Pencil} label={t("common:edit")} onClick={handleStartEdit} />
+          )
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {isEditing ? (
+          <>
+            <SettingToggleList>
+              {hasSla && (
+                <SettingToggleRow
+                  label={t("lifecycle.slaLabel")}
+                  description={t(`lifecycle.slaDescriptions.${stepType}`, {
+                    defaultValue: t("lifecycle.slaDescription"),
+                  })}
+                  checked={slaEnabled}
+                  disabled={ro}
                   onChange={(v) => {
-                    setSlaValue(String(v))
+                    setSlaEnabled(v)
+                    if (!v) {
+                      setSlaValue("")
+                      setSlaUnit("")
+                    }
                     setIsDirty(true)
                   }}
-                  placeholder={t("lifecycle.slaValuePlaceholder")}
-                  disabled={ro}
-                  className="w-20"
-                  inputClassName="h-8 text-[12.5px]"
+                >
+                  {slaEnabled && (
+                    <div className="flex items-center gap-2">
+                      <HuemulField
+                        type="number"
+                        label=""
+                        name={`sla-value-${stepType}`}
+                        value={slaValue}
+                        min={1}
+                        onChange={(v) => {
+                          setSlaValue(String(v))
+                          setIsDirty(true)
+                        }}
+                        placeholder={t("lifecycle.slaValuePlaceholder")}
+                        disabled={ro}
+                        className="w-20"
+                        inputClassName="h-8 text-[12.5px]"
+                      />
+                      <HuemulField
+                        type="select"
+                        label=""
+                        name={`sla-unit-${stepType}`}
+                        value={slaUnit}
+                        options={slaUnitOptions}
+                        onChange={(v) => {
+                          setSlaUnit(String(v))
+                          setIsDirty(true)
+                        }}
+                        disabled={ro}
+                        className="flex-1"
+                      />
+                    </div>
+                  )}
+                </SettingToggleRow>
+              )}
+
+              <SettingToggleRow
+                label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
+                description={t("lifecycle.allowAnyoneDescShort")}
+                checked={accessType === "all"}
+                disabled={ro}
+                onChange={(v) => {
+                  if (v) {
+                    setAccessType("all")
+                    setOwnerCanExecute(true)
+                    setRoleIds([])
+                  } else if (noOwner) {
+                    setAccessType("custom")
+                    setOwnerCanExecute(false)
+                  } else {
+                    setAccessType("owner")
+                    setOwnerCanExecute(true)
+                  }
+                  setIsDirty(true)
+                }}
+              />
+
+              {!noOwner && (
+                <SettingToggleRow
+                  label={t("lifecycle.ownerCanExecuteLabel", { action: stepAction })}
+                  description={t("lifecycle.ownerCanExecuteDesc")}
+                  checked={ownerCanExecute}
+                  disabled={ro || accessType === "all"}
+                  onChange={(v) => {
+                    setOwnerCanExecute(v)
+                    if (useAllOrCustomOwner) {
+                      setAccessType(deriveAccessType({ anyone: false, owner: v, roleCount: roleIds.length }))
+                    } else if (v) {
+                      setAccessType("owner")
+                      setRoleIds([])
+                    } else {
+                      setAccessType("custom")
+                    }
+                    setIsDirty(true)
+                  }}
                 />
+              )}
+            </SettingToggleList>
+
+            {/* Roles asignados: chips removibles + selector */}
+            {showRolePicker && (
+              <div className="flex flex-col gap-1.5">
+                <PanelFieldLabel disabled={ro}>
+                  {t("lifecycle.rolesAllowedLabel", { action: stepAction })}
+                </PanelFieldLabel>
+                {assignedRoles.length > 0 && (
+                  <ChipList>
+                    {assignedRoles.map((r) => (
+                      <RemovableChip
+                        key={r.id}
+                        label={r.name}
+                        disabled={ro}
+                        removeLabel={t("lifecycle.matrix.removeRole")}
+                        onRemove={
+                          ro
+                            ? undefined
+                            : () => {
+                                const newIds = roleIds.filter((id) => id !== r.id)
+                                setRoleIds(newIds)
+                                if (useAllOrCustomOwner) {
+                                  setAccessType(
+                                    deriveAccessType({ anyone: false, owner: ownerCanExecute, roleCount: newIds.length }),
+                                  )
+                                }
+                                setIsDirty(true)
+                              }
+                        }
+                      />
+                    ))}
+                  </ChipList>
+                )}
                 <HuemulField
-                  type="select"
+                  type="combobox"
                   label=""
-                  name={`sla-unit-${stepType}`}
-                  value={slaUnit}
-                  options={slaUnitOptions}
-                  onChange={(v) => {
-                    setSlaUnit(String(v))
+                  name="add-role-create"
+                  placeholder={t("lifecycle.panel.addRoleToStep")}
+                  value=""
+                  options={availableRoles.map((r) => ({ value: r.id, label: r.name }))}
+                  onChange={(roleId) => {
+                    if (!roleId) return
+                    const newIds = [...roleIds, roleId as string]
+                    setRoleIds(newIds)
+                    if (useAllOrCustomOwner) {
+                      setAccessType(
+                        deriveAccessType({ anyone: false, owner: ownerCanExecute, roleCount: newIds.length }),
+                      )
+                    }
                     setIsDirty(true)
                   }}
                   disabled={ro}
-                  className="flex-1"
                 />
               </div>
             )}
-          </SettingToggleRow>
+
+            {/* Vigencia */}
+            {hasValidity && (
+              <div className="flex flex-col gap-1.5">
+                <PanelFieldLabel disabled={ro}>{t("lifecycle.validity")}</PanelFieldLabel>
+                <div className="flex items-center gap-2">
+                  <HuemulField
+                    type="date"
+                    label=""
+                    name="valid-from"
+                    value={validFrom ?? ""}
+                    placeholder={t("lifecycle.validFrom")}
+                    onChange={(v) => {
+                      setValidFrom(v ? String(v) : null)
+                      setIsDirty(true)
+                    }}
+                    disabled={ro}
+                    className="flex-1"
+                  />
+                  <span className="text-[#94a3b8]">–</span>
+                  <HuemulField
+                    type="date"
+                    label=""
+                    name="valid-to"
+                    value={validTo ?? ""}
+                    placeholder={t("lifecycle.validTo")}
+                    onChange={(v) => {
+                      setValidTo(v ? String(v) : null)
+                      setIsDirty(true)
+                    }}
+                    disabled={ro}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {hasSla && (
+              <PanelSummaryRow label={t("lifecycle.summary.sla")}>
+                {slaEnabled
+                  ? `${slaValue} ${
+                      slaUnitOptions.find((u) => u.value === slaUnit)?.label ?? slaUnit
+                    }`
+                  : t("lifecycle.summary.none")}
+              </PanelSummaryRow>
+            )}
+
+            <PanelSummaryRow label={t("lifecycle.summary.whoCanExecute", { action: stepAction })}>
+              {accessTypeLabel(accessType)}
+            </PanelSummaryRow>
+
+            {assignedRoles.length > 0 && (
+              <PanelSummaryRow label={t("lifecycle.summary.roles")}>
+                <ChipList>
+                  {assignedRoles.map((r) => (
+                    <RemovableChip key={r.id} label={r.name} />
+                  ))}
+                </ChipList>
+              </PanelSummaryRow>
+            )}
+
+            {hasValidity && (
+              <PanelSummaryRow label={t("lifecycle.validity")}>
+                {validFrom || validTo
+                  ? `${validFrom ?? "—"} – ${validTo ?? "—"}`
+                  : t("lifecycle.summary.none")}
+              </PanelSummaryRow>
+            )}
+          </>
         )}
 
-        <SettingToggleRow
-          label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
-          description={t("lifecycle.allowAnyoneDescShort")}
-          checked={accessType === "all"}
-          disabled={ro}
-          onChange={(v) => {
-            if (v) {
-              setAccessType("all")
-              setOwnerCanExecute(true)
-              setRoleIds([])
-            } else if (noOwner) {
-              setAccessType("custom")
-              setOwnerCanExecute(false)
-            } else {
-              setAccessType("owner")
-              setOwnerCanExecute(true)
-            }
-            setIsDirty(true)
-          }}
-        />
-
-        {!noOwner && (
-          <SettingToggleRow
-            label={t("lifecycle.ownerCanExecuteLabel", { action: stepAction })}
-            description={t("lifecycle.ownerCanExecuteDesc")}
-            checked={ownerCanExecute}
-            disabled={ro || accessType === "all"}
-            onChange={(v) => {
-              setOwnerCanExecute(v)
-              if (useAllOrCustomOwner) {
-                setAccessType(roleIds.length > 0 ? (v ? "custom_owner" : "custom") : "owner")
-              } else if (v) {
-                setAccessType("owner")
-                setRoleIds([])
-              } else {
-                setAccessType("custom")
-              }
-              setIsDirty(true)
-            }}
+        {/* Publicación externa — solo pasos de tipo publish */}
+        {stepType === "publish" && organizationId && step?.id && (
+          <LifecyclePublishActionsSection
+            organizationId={organizationId}
+            stepId={step.id}
+            readOnly={!isEditing}
           />
         )}
-      </SettingToggleList>
-
-      {/* Roles asignados: chips removibles + selector */}
-      {showRolePicker && (
-        <div className="flex flex-col gap-1.5">
-          <PanelFieldLabel disabled={ro}>
-            {t("lifecycle.rolesAllowedLabel", { action: stepAction })}
-          </PanelFieldLabel>
-          {assignedRoles.length > 0 && (
-            <ChipList>
-              {assignedRoles.map((r) => (
-                <RemovableChip
-                  key={r.id}
-                  label={r.name}
-                  disabled={ro}
-                  removeLabel={t("lifecycle.matrix.removeRole")}
-                  onRemove={
-                    ro
-                      ? undefined
-                      : () => {
-                          const newIds = roleIds.filter((id) => id !== r.id)
-                          setRoleIds(newIds)
-                          if (useAllOrCustomOwner) {
-                            setAccessType(
-                              newIds.length > 0
-                                ? ownerCanExecute
-                                  ? "custom_owner"
-                                  : "custom"
-                                : "owner",
-                            )
-                          }
-                          setIsDirty(true)
-                        }
-                  }
-                />
-              ))}
-            </ChipList>
-          )}
-          <HuemulField
-            type="combobox"
-            label=""
-            name="add-role-create"
-            placeholder={t("lifecycle.panel.addRoleToStep")}
-            value=""
-            options={availableRoles.map((r) => ({ value: r.id, label: r.name }))}
-            onChange={(roleId) => {
-              if (!roleId) return
-              setRoleIds((prev) => [...prev, roleId as string])
-              if (useAllOrCustomOwner) {
-                setAccessType(ownerCanExecute ? "custom_owner" : "custom")
-              }
-              setIsDirty(true)
-            }}
-            disabled={ro}
-          />
-        </div>
-      )}
-
-      {/* Vigencia */}
-      {hasValidity && (
-        <div className="flex flex-col gap-1.5">
-          <PanelFieldLabel disabled={ro}>{t("lifecycle.validity")}</PanelFieldLabel>
-          <div className="flex items-center gap-2">
-            <HuemulField
-              type="date"
-              label=""
-              name="valid-from"
-              value={validFrom ?? ""}
-              placeholder={t("lifecycle.validFrom")}
-              onChange={(v) => {
-                setValidFrom(v ? String(v) : null)
-                setIsDirty(true)
-              }}
-              disabled={ro}
-              className="flex-1"
-            />
-            <span className="text-[#94a3b8]">–</span>
-            <HuemulField
-              type="date"
-              label=""
-              name="valid-to"
-              value={validTo ?? ""}
-              placeholder={t("lifecycle.validTo")}
-              onChange={(v) => {
-                setValidTo(v ? String(v) : null)
-                setIsDirty(true)
-              }}
-              disabled={ro}
-              className="flex-1"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Publicación externa — solo pasos de tipo publish */}
-      {stepType === "publish" && organizationId && step?.id && (
-        <LifecyclePublishActionsSection
-          organizationId={organizationId}
-          stepId={step.id}
-        />
-      )}
+      </div>
     </div>
   )
 }

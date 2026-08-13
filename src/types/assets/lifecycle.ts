@@ -17,6 +17,20 @@ export interface LifecycleEditorApi {
   save: () => Promise<void>
   /** Hay cambios locales sin persistir. */
   isDirty: boolean
+  /**
+   * Descarta los cambios locales y vuelve al último estado del backend.
+   * Necesario porque el contenedor (`assets-types-config-sheet.tsx`,
+   * `assets-types-lifecycle-dialog.tsx`) marcaba `isDirty: false` en SU estado
+   * al confirmar el descarte, sin limpiar el del editor: si la acción pendiente
+   * no lo desmonta (cambio de tab con contenido montado, cierre del panel sin
+   * cambiar de etapa), los cambios seguían vivos y el siguiente «Guardar
+   * cambios» los persistía igual.
+   *
+   * Implementación esperada: limpiar los flags de sucio y dejar que el efecto
+   * de rehidratación repueble el estado local desde la cache — no recomponer a
+   * mano.
+   */
+  discard: () => void
 }
 
 /** API que `AssetTypeLifecyclePanel` publica en el ref del contenedor. */
@@ -47,6 +61,8 @@ export interface ConfigStepContentProps {
 export interface CreateStepContentProps {
   documentTypeId: string
   stepType: string
+  /** Título mostrado en la cabecera de la tarjeta colapsable; cae a `step.name` cuando existe. */
+  stepLabel?: string
   hasSla?: boolean
   hasValidity?: boolean
   noOwner?: boolean
@@ -140,6 +156,16 @@ export interface EditStepCardProps {
   canManage: boolean
   dragHandleProps?: HTMLAttributes<HTMLButtonElement>
   organizationId?: string
+  /** La tarjeta muestra el resumen (colapsada = solo cabecera). */
+  isExpanded: boolean
+  /** Controles editables — exclusivo entre tarjetas, lo gobierna `EditStepContent`. */
+  isEditing: boolean
+  /** Tiene cambios locales sin persistir («• Editado»). */
+  isDirty: boolean
+  onToggleExpand: () => void
+  onStartEdit: () => void
+  onCancelEdit: () => void
+  onDoneEdit: () => void
 }
 
 // ----------------------------------------
@@ -159,6 +185,19 @@ export interface AssetTypeLifecycleMatrixProps {
   lockedStageType?: string | null
   /** El usuario eligió una etapa (pastilla o engranaje de una de sus columnas). */
   onSelectStage: (stepType: string) => void
+}
+
+// ----------------------------------------
+// Section permissions matrix
+// ----------------------------------------
+
+export interface TemplateSectionAccessMatrixProps {
+  /** Plantilla cuyas secciones son las filas de la matriz. */
+  templateId: string
+  /** Tipo de activo cuyos steps del ciclo de vida son las columnas. */
+  documentTypeId: string
+  /** Solo dispara el fetch cuando la vista de configuración está visible. */
+  enabled?: boolean
 }
 
 export interface LifecycleStepPanelProps {

@@ -1,6 +1,6 @@
 // Asset type page component props (the asset-types management module)
 import type { ReactNode } from 'react'
-import type { AssetTypeWithRoles } from './asset-types'
+import type { AssetTypeWithRoles, TemplatesSaveApiRef } from './asset-types'
 import type { AssetTypePageState } from './asset-types'
 import type { useAssetTypeMutations } from '@/hooks/useAssetTypes'
 import type { HuemulTablePagination } from '@/huemul/components/huemul-table'
@@ -40,7 +40,7 @@ export interface CreateDocumentTypeProps {
 // Asset Type Config Sheet (tabs)
 // ----------------------------------------
 
-export type AssetTypeConfigTab = 'general' | 'templates' | 'lifecycle'
+export type AssetTypeConfigTab = 'general' | 'lifecycle' | 'templates'
 
 export interface AssetTypeConfigSheetProps {
   assetType: AssetTypeWithRoles | null
@@ -53,6 +53,19 @@ export interface AssetTypeConfigSheetProps {
   canManageTemplates: boolean
   /** `manageLifecycle` — habilita el tab Ciclo de vida. */
   canManageLifecycle: boolean
+}
+
+// ----------------------------------------
+// Asset Type Templates Panel (tab «Plantillas»)
+// ----------------------------------------
+
+export interface AssetTypeTemplatesPanelProps {
+  documentTypeId: string
+  /** Solo dispara el fetch cuando el tab/panel está visible. */
+  enabled?: boolean
+  /** Publica `save`/`isDirty`/`discard` hacia el footer del sheet. `null` al desmontar. */
+  onDirtyChange?: (state: { isDirty: boolean }) => void
+  saveApiRef?: TemplatesSaveApiRef
 }
 
 // ----------------------------------------

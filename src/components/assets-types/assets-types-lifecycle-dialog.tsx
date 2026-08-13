@@ -199,6 +199,7 @@ export function StepContent({
         <CreateStepContent
           documentTypeId={documentTypeId}
           stepType={stepType}
+          stepLabel={stepLabel}
           hasSla={stepType === "publish" || stepType === "archive"}
           hasValidity={stepType === "create"}
           noOwner={stepType === "create"}
@@ -283,14 +284,18 @@ export function AssetTypeLifecyclePanel({
     }
   }, [editor])
 
+  const discard = useCallback(() => {
+    editor?.discard()
+  }, [editor])
+
   // Publica la API de guardado hacia el footer del contenedor.
   useEffect(() => {
     if (!saveApiRef) return
-    saveApiRef.current = { save, isDirty, isSaving }
+    saveApiRef.current = { save, discard, isDirty, isSaving }
     return () => {
       saveApiRef.current = null
     }
-  }, [saveApiRef, save, isDirty, isSaving])
+  }, [saveApiRef, save, discard, isDirty, isSaving])
 
   useEffect(() => {
     onDirtyChange?.({ isDirty, stageLabel })
@@ -307,7 +312,7 @@ export function AssetTypeLifecyclePanel({
   }
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="-mr-6 h-full min-h-0">
+    <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
       <ResizablePanel defaultSize={65} minSize={35} className="flex min-w-0 flex-col">
         <AssetTypeLifecycleMatrix
           documentTypeId={documentTypeId}
@@ -397,6 +402,10 @@ export default function AssetTypeLifecycleDialog({
         cancelLabel={t("asset-types:lifecycle.unsavedChanges.keepEditing")}
         actionVariant="destructive"
         onAction={async () => {
+          // Primero se limpia el editor y después la acción: si la acción lo
+          // desmonta, el `discard()` ya corrió; si no (p. ej. no cambia de
+          // etapa), sin esto los cambios sobrevivían al «Descartar».
+          saveApiRef.current?.discard()
           pendingActionRef.current?.()
           pendingActionRef.current = null
           setLifecycleState((prev) => ({ ...prev, isDirty: false }))
@@ -410,7 +419,7 @@ export default function AssetTypeLifecycleDialog({
         icon={Activity}
         iconVariant="tile"
         size="wide"
-        bodyClassName="flex flex-col overflow-hidden py-0 [scrollbar-gutter:auto]"
+        bodyClassName="flex flex-col overflow-hidden py-0 pr-0 [scrollbar-gutter:auto]"
         cancelLabel={t("common:close")}
         footerLeft={
           lifecycleState.isDirty ? (

@@ -17,6 +17,7 @@ import type {
   AssetTypeConfigSheetProps,
   AssetTypeConfigTab,
   LifecycleSaveApiRef,
+  TemplatesSaveApiRef,
 } from "@/types/assets"
 
 export type { AssetTypeConfigSheetProps } from "@/types/assets"
@@ -45,8 +46,8 @@ export function AssetTypeConfigSheet({
   const availableTabs = React.useMemo<AssetTypeConfigTab[]>(() => {
     const tabs: AssetTypeConfigTab[] = []
     if (canUpdate) tabs.push("general")
-    if (canManageTemplates) tabs.push("templates")
     if (canManageLifecycle) tabs.push("lifecycle")
+    if (canManageTemplates) tabs.push("templates")
     return tabs
   }, [canUpdate, canManageTemplates, canManageLifecycle])
 
@@ -58,6 +59,9 @@ export function AssetTypeConfigSheet({
     stageLabel: string
   }>({ isDirty: false, stageLabel: "" })
   const lifecycleSaveApiRef = React.useRef<LifecycleSaveApiRef["current"]>(null)
+  // Estado de guardado del tab «Plantillas», hermano del de lifecycle.
+  const [templatesState, setTemplatesState] = React.useState<{ isDirty: boolean }>({ isDirty: false })
+  const templatesSaveApiRef = React.useRef<TemplatesSaveApiRef["current"]>(null)
 
   // Unsaved-changes guard (compartido entre cambio de tab y cierre del sheet)
   const [showUnsavedAlert, setShowUnsavedAlert] = React.useState(false)
@@ -77,14 +81,21 @@ export function AssetTypeConfigSheet({
     if (open) return
     setActiveTab(availableTabs[0] ?? "general")
     setLifecycleState({ isDirty: false, stageLabel: "" })
+    setTemplatesState({ isDirty: false })
     form.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   const discardPending = React.useCallback(() => {
+    // Primero se limpia el editor y después se ejecuta la acción: si la acción
+    // lo desmonta, el `discard()` ya corrió; si NO lo desmonta (cambio de tab
+    // con el panel vivo), sin esto los cambios sobrevivían al «Descartar».
+    lifecycleSaveApiRef.current?.discard()
+    templatesSaveApiRef.current?.discard()
     pendingActionRef.current?.()
     pendingActionRef.current = null
     setLifecycleState((prev) => ({ ...prev, isDirty: false }))
+    setTemplatesState({ isDirty: false })
     form.discard()
   }, [form])
 
@@ -104,14 +115,14 @@ export function AssetTypeConfigSheet({
   // Guard del sheet: mira los cambios pendientes de cualquier tab.
   const sheetGuardedAction = React.useCallback(
     (action: () => void) => {
-      if (lifecycleState.isDirty || form.isDirty) {
+      if (lifecycleState.isDirty || templatesState.isDirty || form.isDirty) {
         pendingActionRef.current = action
         setShowUnsavedAlert(true)
       } else {
         action()
       }
     },
-    [lifecycleState.isDirty, form.isDirty],
+    [lifecycleState.isDirty, templatesState.isDirty, form.isDirty],
   )
 
   const handleGuardedOpenChange = React.useCallback(
@@ -127,9 +138,10 @@ export function AssetTypeConfigSheet({
 
   const isGeneralTab = activeTab === "general"
   const isLifecycleTab = activeTab === "lifecycle"
+  const isTemplatesTab = activeTab === "templates"
 
   // Cada tab decide qué guarda el footer: General envía el formulario, «Permisos
-  // por rol» delega en la API que publica el panel de la etapa activa.
+  // por rol» y «Plantillas» delegan en la API que publica su panel.
   const saveAction = React.useMemo(() => {
     if (isGeneralTab && canUpdate) {
       return {
@@ -148,16 +160,27 @@ export function AssetTypeConfigSheet({
         closeOnSuccess: false,
       }
     }
+    if (isTemplatesTab && canManageTemplates) {
+      return {
+        label: t("asset-types:lifecycle.saveChanges"),
+        onClick: () => templatesSaveApiRef.current?.save(),
+        disabled: !templatesState.isDirty,
+        closeOnSuccess: false,
+      }
+    }
     return undefined
   }, [
     isGeneralTab,
     isLifecycleTab,
+    isTemplatesTab,
     canUpdate,
     canManageLifecycle,
+    canManageTemplates,
     form.submit,
     form.isSaving,
     form.canSubmit,
     lifecycleState.isDirty,
+    templatesState.isDirty,
     t,
   ])
 
@@ -184,12 +207,23 @@ export function AssetTypeConfigSheet({
         size="wide"
         bodyClassName="flex flex-col overflow-hidden py-0 [scrollbar-gutter:auto]"
         cancelLabel={t("common:close")}
+        onOpenAutoFocus={(e) => {
+          // Radix enfoca el primer tab al montar y su focus-visible ring queda
+          // dibujado como si el tab estuviera "en caja". Se mantiene el foco
+          // dentro del sheet sin marcar ningún trigger.
+          e.preventDefault()
+          ;(e.currentTarget as HTMLElement | null)?.focus()
+        }}
         footerLeft={
           isLifecycleTab && lifecycleState.isDirty ? (
             <span className="text-[12px] text-[#64748b]">
               {t("asset-types:lifecycle.unsavedInStage", {
                 stage: lifecycleState.stageLabel,
               })}
+            </span>
+          ) : isTemplatesTab && templatesState.isDirty ? (
+            <span className="text-[12px] text-[#64748b]">
+              {t("asset-types:templates.unsavedChanges")}
             </span>
           ) : undefined
         }
@@ -211,14 +245,14 @@ export function AssetTypeConfigSheet({
                     {t("asset-types:config.tabs.general")}
                   </TabsTrigger>
                 )}
-                {availableTabs.includes("templates") && (
-                  <TabsTrigger value="templates" className={TAB_TRIGGER_CLASS}>
-                    {t("asset-types:config.tabs.templates")}
-                  </TabsTrigger>
-                )}
                 {availableTabs.includes("lifecycle") && (
                   <TabsTrigger value="lifecycle" className={TAB_TRIGGER_CLASS}>
                     {t("asset-types:config.tabs.lifecycle")}
+                  </TabsTrigger>
+                )}
+                {availableTabs.includes("templates") && (
+                  <TabsTrigger value="templates" className={TAB_TRIGGER_CLASS}>
+                    {t("asset-types:config.tabs.templates")}
                   </TabsTrigger>
                 )}
               </TabsList>
@@ -242,6 +276,24 @@ export function AssetTypeConfigSheet({
               </TabsContent>
             )}
 
+            {/* ── Ciclo de vida ───────────────────────────────────────── */}
+            {availableTabs.includes("lifecycle") && (
+              <TabsContent
+                value="lifecycle"
+                className="flex-1 min-h-0 overflow-hidden pl-6 pr-0 pt-2 pb-0 mt-0 data-[state=active]:flex data-[state=active]:flex-col"
+              >
+                <AssetTypeLifecyclePanel
+                  key={documentTypeId}
+                  documentTypeId={documentTypeId}
+                  organizationId={organizationId}
+                  enabled={open && activeTab === "lifecycle"}
+                  onDirtyChange={setLifecycleState}
+                  saveApiRef={lifecycleSaveApiRef}
+                  guardedAction={lifecycleGuardedAction}
+                />
+              </TabsContent>
+            )}
+
             {/* ── Plantillas ──────────────────────────────────────────── */}
             {availableTabs.includes("templates") && (
               <TabsContent
@@ -252,24 +304,8 @@ export function AssetTypeConfigSheet({
                   key={documentTypeId}
                   documentTypeId={documentTypeId}
                   enabled={open && activeTab === "templates"}
-                />
-              </TabsContent>
-            )}
-
-            {/* ── Ciclo de vida ───────────────────────────────────────── */}
-            {availableTabs.includes("lifecycle") && (
-              <TabsContent
-                value="lifecycle"
-                className="flex-1 min-h-0 overflow-hidden px-6 pt-2 pb-0 mt-0 data-[state=active]:flex data-[state=active]:flex-col"
-              >
-                <AssetTypeLifecyclePanel
-                  key={documentTypeId}
-                  documentTypeId={documentTypeId}
-                  organizationId={organizationId}
-                  enabled={open && activeTab === "lifecycle"}
-                  onDirtyChange={setLifecycleState}
-                  saveApiRef={lifecycleSaveApiRef}
-                  guardedAction={lifecycleGuardedAction}
+                  onDirtyChange={setTemplatesState}
+                  saveApiRef={templatesSaveApiRef}
                 />
               </TabsContent>
             )}
