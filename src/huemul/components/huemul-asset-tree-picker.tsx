@@ -592,6 +592,8 @@ export interface HuemulAssetTreePickerFieldProps {
   label?: string
   onPick: (id: string, label: string) => void
   onClear?: () => void
+  /** "dialog" (default) usa HuemulDialog; "sheet" apila un HuemulSheet lateral (para abrir sobre otro sheet). */
+  container?: "dialog" | "sheet"
 }
 
 export function HuemulAssetTreePickerField({
@@ -603,6 +605,7 @@ export function HuemulAssetTreePickerField({
   label,
   onPick,
   onClear,
+  container = "dialog",
 }: HuemulAssetTreePickerFieldProps) {
   const { t } = useTranslation("media")
   const [open, setOpen] = useState(false)
@@ -643,6 +646,7 @@ export function HuemulAssetTreePickerField({
         mode={mode}
         value={valueId}
         onSelect={onPick}
+        container={container}
       />
     </div>
   )

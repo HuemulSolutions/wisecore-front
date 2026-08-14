@@ -19,7 +19,7 @@ import type { AssetTypeNodeData } from "./asset-type-node"
 import type { CanvasElementNodeData } from "./text-node"
 import type { RelationshipEdgeData } from "./relationship-edge"
 import { executionLabel } from "./execution-relationship-dialogs"
-import type { DiagramDetailInput, DiagramRelationshipInput, DiagramTextInput } from "@/types/diagrams"
+import type { Diagram, DiagramDetailInput, DiagramRelationshipInput, DiagramTextInput } from "@/types/diagrams"
 
 // The canvas mixes asset nodes with free-standing text/container elements; this
 // sheet only cares about telling them apart by `type` when building the save payload.
@@ -50,6 +50,8 @@ export interface SaveAsDiagramSheetProps {
   canCreate: boolean
   /** `diagram:u`. Obligatoria: sin default, olvidarse de pasarla rompe el build. */
   canUpdate: boolean
+  /** Se dispara al terminar un guardado exitoso (create o update) con el Diagram resultante. */
+  onSaved?: (diagram: Diagram) => void
 }
 
 export function SaveAsDiagramSheet({
@@ -64,6 +66,7 @@ export function SaveAsDiagramSheet({
   initialValues,
   canCreate,
   canUpdate,
+  onSaved,
 }: SaveAsDiagramSheetProps) {
   const { t } = useTranslation(['document-type-relationships', 'common'])
   const navigate = useOrgNavigate()
@@ -232,11 +235,10 @@ export function SaveAsDiagramSheet({
             relationships,
           }
 
-          if (diagramId) {
-            await updateDiagram.mutateAsync({ diagramId, body })
-          } else {
-            await createDiagram.mutateAsync(body)
-          }
+          const saved = diagramId
+            ? await updateDiagram.mutateAsync({ diagramId, body })
+            : await createDiagram.mutateAsync(body)
+          onSaved?.(saved)
 
           toast.success(
             isEditing ? t('saveAsDiagramDialog.updateSuccessToast') : t('saveAsDiagramDialog.successToast'),
@@ -296,6 +298,7 @@ export function SaveAsDiagramSheet({
           valueLabel={mainExecutionLabel || undefined}
           onPick={(id, label) => { setMainExecutionId(id); setMainExecutionLabel(label) }}
           onClear={() => { setMainExecutionId(""); setMainExecutionLabel("") }}
+          container="sheet"
         />
       </div>
     </HuemulSheet>

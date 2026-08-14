@@ -1,5 +1,6 @@
 import type { DocumentType } from '@/types/document-types'
 import type { ExecutionRelationshipType, ExecutionRelationshipAttributeValue } from '@/types/execution-relationships'
+import type { Diagram } from '@/types/diagrams'
 import type React from 'react'
 
 // ─── Canvas ───────────────────────────────────────────────────────────────────
@@ -108,6 +109,10 @@ export interface RelationshipsCanvasProps {
   // Saved text/container elements to seed the canvas with on mount.
   initialElements?: InitialCanvasElement[]
   editingDiagram?: EditingDiagram
+  // Fired after a successful create/update from the "Save as Diagram" sheet, with the
+  // resulting Diagram — lets the caller (e.g. NewDiagramCanvas) sync its own state/URL
+  // now that the canvas has been promoted into "editing" mode for it.
+  onDiagramSaved?: (diagram: Diagram) => void
   // View-only mode: no dragging, connecting, resizing, inline editing, or toolbars —
   // just pan/zoom and the informational side panels. Used by the diagram viewer sheet;
   // real editing happens back on the assets page in relations mode.

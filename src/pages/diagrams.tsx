@@ -69,7 +69,7 @@ function DiagramsContent() {
   })
   const documentTypes = docTypesResponse?.data ?? []
 
-  const openDiagram = (id: string | 'new' | null) => {
+  const openDiagram = (id: string | 'new' | null, replace = false) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
       // Las semillas son de un solo uso: pertenecen al canvas que se está
@@ -79,7 +79,7 @@ function DiagramsContent() {
       if (id === null) next.delete('diagram')
       else next.set('diagram', id)
       return next
-    })
+    }, { replace })
   }
 
   if (isLoadingPermissions) return <DiagramsPageSkeleton />
@@ -111,6 +111,10 @@ function DiagramsContent() {
           organizationId={selectedOrganizationId}
           seedAssetId={diagramSeed.assetId}
           seedExecutionId={diagramSeed.executionId}
+          // Ya guardado: el canvas quedó en modo edición para este diagrama;
+          // sincronizamos la URL (replace, no ensucia el historial) para que el
+          // deep-link y F5 lo recarguen desde el servidor en vez de perderlo.
+          onDiagramSaved={(diagram) => openDiagram(diagram.id, true)}
         />
       ) : (
         <HuemulAccessDenied variant="inline" />

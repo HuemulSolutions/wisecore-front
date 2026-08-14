@@ -63,6 +63,7 @@ const translations = {
     saveAsDiagram: { en: "Save as Diagram", es: "Guardar como Diagrama" },
     saveChanges: { en: "Save changes", es: "Guardar cambios" },
     loadDiagram: { en: "Load Diagram", es: "Cargar Diagrama" },
+    editingDiagram: { en: "Editing: {{name}}", es: "Editando: {{name}}" },
     addContainer: { en: "Add Container", es: "Agregar Contenedor" },
     addText: { en: "Add Text", es: "Agregar Texto" },
     addRole: { en: "Add Role", es: "Agregar Rol" },

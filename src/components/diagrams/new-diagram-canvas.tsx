@@ -8,6 +8,7 @@ import { RelationshipsCanvas } from "@/components/document-type-relationships"
 import { executionLabel } from "@/components/document-type-relationships/execution-relationship-dialogs"
 import type { InitialCanvasNode } from "@/types/document-type-relationships"
 import type { Execution } from "@/types/execution"
+import type { Diagram } from "@/types/diagrams"
 import { cn } from "@/lib/utils"
 
 export interface NewDiagramCanvasProps {
@@ -15,13 +16,18 @@ export interface NewDiagramCanvasProps {
   seedAssetId?: string
   seedExecutionId?: string
   className?: string
+  /** Fired after the first "Save as Diagram" (or a later save) — lets the caller
+   * (e.g. the /diagrams page) sync the URL now that this diagram has an id. */
+  onDiagramSaved?: (diagram: Diagram) => void
 }
 
 // Fresh canvas for creating a Diagram from scratch (no editingDiagram → the
-// canvas shows "Save as Diagram" instead of "Save changes"). When opened from
-// the asset diagrams sheet, seeds the canvas with the asset the user came
-// from so they land already relating it instead of an empty board.
-export function NewDiagramCanvas({ organizationId, seedAssetId, seedExecutionId, className }: NewDiagramCanvasProps) {
+// canvas shows "Save as Diagram" instead of "Save changes"). Once saved, the
+// canvas itself is promoted into "editing" mode for that diagram (see
+// `RelationshipsCanvas.onDiagramSaved`), so "Save changes" appears right away.
+// When opened from the asset diagrams sheet, seeds the canvas with the asset
+// the user came from so they land already relating it instead of an empty board.
+export function NewDiagramCanvas({ organizationId, seedAssetId, seedExecutionId, className, onDiagramSaved }: NewDiagramCanvasProps) {
   const { data: docTypesResponse, isLoading: isLoadingDocTypes } = useDocumentTypes()
   const documentTypes = docTypesResponse?.data ?? []
 
@@ -64,6 +70,7 @@ export function NewDiagramCanvas({ organizationId, seedAssetId, seedExecutionId,
         documentTypes={documentTypes}
         mode="execution"
         initialNodes={seed ? [seed] : undefined}
+        onDiagramSaved={onDiagramSaved}
       />
     </div>
   )

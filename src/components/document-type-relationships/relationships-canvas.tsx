@@ -60,6 +60,7 @@ import type {
   CanvasElementRole,
   PendingConnection,
   RelationshipsCanvasProps,
+  EditingDiagram,
 } from "@/types/document-type-relationships"
 import type { ExecutionRelationship, ExecutionRelationshipSubitem } from "@/types/execution-relationships"
 import type { Diagram } from "@/types/diagrams"
@@ -186,6 +187,18 @@ function computeLayoutForNewNodes(
   return result
 }
 
+// Diagram (API shape) → EditingDiagram (canvas state) — shared by "load an existing
+// diagram" and "just saved/created a diagram" so both promote the canvas the same way.
+function toEditingDiagram(diagram: Diagram): EditingDiagram {
+  return {
+    id: diagram.id,
+    name: diagram.name,
+    description: diagram.description,
+    executionId: diagram.execution_id,
+    snapshotMediaId: diagram.snapshot_media_id,
+  }
+}
+
 // ─── Public export — wraps with ReactFlowProvider so inner hooks work ──────────
 
 export function RelationshipsCanvas(props: RelationshipsCanvasProps) {
@@ -208,6 +221,7 @@ function RelationshipsCanvasFlow({
   initialRelationships,
   initialElements,
   editingDiagram: editingDiagramProp,
+  onDiagramSaved,
   readOnly = false,
 }: RelationshipsCanvasProps) {
   const { t } = useTranslation("document-type-relationships")
@@ -1608,16 +1622,18 @@ function RelationshipsCanvasFlow({
     setEdges([])
     setSelectedEdgeId(null)
     setSelectedNodeId(null)
-    setEditingDiagram({
-      id: diagram.id,
-      name: diagram.name,
-      description: diagram.description,
-      executionId: diagram.execution_id,
-      snapshotMediaId: diagram.snapshot_media_id,
-    })
+    setEditingDiagram(toEditingDiagram(diagram))
     seedCanvasNodes(nodesToSeed, diagram.relationships)
     if (diagram.texts?.length) seedElementNodes(buildInitialCanvasElements(diagram))
   }, [seedCanvasNodes, seedElementNodes, setNodes, setEdges])
+
+  // Saving (create or update) resolves the same shape LoadDiagramSheet feeds in —
+  // reused here so a freshly created diagram is promoted straight into "editing" mode.
+  const handleDiagramSaved = useCallback((diagram: Diagram) => {
+    setEditingDiagram(toEditingDiagram(diagram))
+    setSaveAsNewDiagram(false)
+    onDiagramSaved?.(diagram)
+  }, [onDiagramSaved])
 
   const openUpdateDiagramDialog = useCallback(() => {
     setSaveAsNewDiagram(false)
@@ -1715,6 +1731,14 @@ function RelationshipsCanvasFlow({
           {!readOnly && nodes.length > 0 && (
             <Panel position="top-right">
               <div className="flex items-center gap-2">
+                {mode === 'execution' && editingDiagram && (
+                  <span className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground max-w-55">
+                    <Workflow className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate" title={editingDiagram.name}>
+                      {t("canvas.editingDiagram", { name: editingDiagram.name })}
+                    </span>
+                  </span>
+                )}
                 {mode === 'execution' && hasValidDiagramNodes && editingDiagram && canUpdateDiagram && (
                   <button
                     onClick={openUpdateDiagramDialog}
@@ -2010,6 +2034,7 @@ function RelationshipsCanvasFlow({
           diagramId={saveAsNewDiagram ? undefined : editingDiagram?.id}
           canCreate={canCreateDiagram}
           canUpdate={canUpdateDiagram}
+          onSaved={handleDiagramSaved}
           initialValues={editingDiagram ? {
             name: editingDiagram.name,
             description: editingDiagram.description,
