@@ -12,29 +12,42 @@ import {
   useReadOnly,
   useSelected,
 } from 'platejs/react';
+import { File, Shield } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
 import { useMounted } from '@/hooks/use-mounted';
 import { useEffectiveOrgId, useOrgPath } from '@/hooks/useOrgRouter';
+import { usePageAccess } from '@/hooks/usePageAccess';
 import {
   HuemulAssetTreePickerDialog,
   type AssetPickerSelectMeta,
 } from '@/huemul/components/huemul-asset-tree-picker';
+import { HuemulRolePickerDialog } from '@/huemul/components/huemul-role-picker';
+import { HuemulDialog } from '@/huemul/components/huemul-dialog';
+import { Button } from '@/components/ui/button';
+import type { HuemulRolePickerSelectMeta } from '@/types/huemul';
 
-/** Mention element referencing an asset: `value`/`key` hold the asset name/id,
- * `color` snapshots the asset type's color at insertion time.
- * `executionId` is set when the mention was pinned to a specific version. */
-type AssetMentionElement = TMentionElement & {
+/** `refType` ausente ⇒ 'asset' (menciones creadas antes de soportar roles). */
+type MentionRefType = 'asset' | 'role';
+
+/** Mention element referencing an asset or a role: `value`/`key` hold the
+ * name/id of the referenced entity, `color` snapshots its color at
+ * insertion time (asset type color, or role color).
+ * `executionId` is set only for asset mentions pinned to a specific version. */
+type WisecoreMentionElement = TMentionElement & {
   color?: string | null;
   executionId?: string | null;
+  refType?: MentionRefType;
 };
 
 export function MentionElement(
-  props: PlateElementProps<AssetMentionElement> & {
+  props: PlateElementProps<WisecoreMentionElement> & {
     prefix?: string;
   }
 ) {
   const element = props.element;
+  const isRole = element.refType === 'role';
 
   const selected = useSelected();
   const focused = useFocused();
@@ -44,6 +57,7 @@ export function MentionElement(
   const effectiveOrgId = useEffectiveOrgId();
 
   const handleOpenAsset = (event: React.MouseEvent) => {
+    if (isRole) return;
     if (!element.key) return;
     // Solo botón izquierdo — este es onMouseDown (dispara con cualquier
     // botón, incluido el derecho) porque el nodo también es draggable y
@@ -63,7 +77,7 @@ export function MentionElement(
       {...props}
       className={cn(
         'inline-block rounded-md bg-muted px-1.5 py-0.5 align-baseline font-medium text-sm',
-        !readOnly && 'cursor-pointer',
+        !readOnly && !isRole && 'cursor-pointer',
         selected && focused && 'ring-2 ring-ring',
         element.children[0][KEYS.bold] === true && 'font-bold',
         element.children[0][KEYS.italic] === true && 'italic',
@@ -83,12 +97,14 @@ export function MentionElement(
         <>
           {props.children}
           {props.prefix}
+          {isRole && <Shield className="mr-1 inline-block h-3 w-3 align-text-bottom" />}
           {element.value}
         </>
       ) : (
         // Others like Android https://github.com/ianstormtaylor/slate/pull/5360
         <>
           {props.prefix}
+          {isRole && <Shield className="mr-1 inline-block h-3 w-3 align-text-bottom" />}
           {element.value}
           {props.children}
         </>
@@ -97,22 +113,30 @@ export function MentionElement(
   );
 }
 
+type MentionInputStep = 'type' | 'asset' | 'role';
+
 export function MentionInputElement(
   props: PlateElementProps<TComboboxInputElement>
 ) {
   const { editor, element } = props;
+  const { t } = useTranslation('editor');
   const organizationId = useEffectiveOrgId();
+  // Sin permiso de listar roles, la elección de tipo se salta directo al
+  // picker de assets — mismo comportamiento que antes de soportar roles.
+  const { can: canAccessRoles } = usePageAccess('roles');
+  const canPickRole = canAccessRoles('listRoles');
+  const [step, setStep] = React.useState<MentionInputStep>(canPickRole ? 'type' : 'asset');
   const [open, setOpen] = React.useState(true);
   // Marca si ya se insertó un mention, para que el onOpenChange(false) que el
   // dialog dispara justo después de onSelect no borre el nodo recién insertado
   // (ver handleOpenChange).
   const selectedRef = React.useRef(false);
 
-  // Al cerrar sin seleccionar (Escape, click afuera), limpia el nodo
-  // mention_input huérfano. Si ya hubo selección, el dialog llama
-  // onSelect() y luego onOpenChange(false) de forma síncrona; en ese caso
-  // findPath(element) ya resuelve al mention recién insertado (mismo path),
-  // así que hay que saltar la limpieza con este guard.
+  // Al cerrar sin seleccionar (Escape, click afuera) en cualquiera de los
+  // pasos, limpia el nodo mention_input huérfano. Si ya hubo selección, el
+  // dialog llama onSelect() y luego onOpenChange(false) de forma síncrona;
+  // en ese caso findPath(element) ya resuelve al mention recién insertado
+  // (mismo path), así que hay que saltar la limpieza con este guard.
   const handleOpenChange = React.useCallback(
     (nextOpen: boolean) => {
       setOpen(nextOpen);
@@ -125,24 +149,14 @@ export function MentionInputElement(
     [editor, element]
   );
 
-  const handleSelect = React.useCallback(
-    (id: string, label: string, meta?: AssetPickerSelectMeta) => {
+  const insertMention = React.useCallback(
+    (refType: MentionRefType, key: string, value: string, executionId: string | null, color?: string | null) => {
       selectedRef.current = true;
       const path = editor.api.findPath(element);
       if (path) {
         editor.tf.removeNodes({ at: path });
-        // meta.documentId is only set when a specific version (execution) was
-        // picked; in that case `id` is the execution id, not the document id.
-        const isVersioned = !!meta?.documentId;
-        editor.tf.insertNodes<AssetMentionElement>(
-          {
-            type: KEYS.mention,
-            key: isVersioned ? meta!.documentId! : id,
-            executionId: isVersioned ? id : null,
-            value: label,
-            color: meta?.color ?? null,
-            children: [{ text: '' }],
-          },
+        editor.tf.insertNodes<WisecoreMentionElement>(
+          { type: KEYS.mention, children: [{ text: '' }], refType, key, value, executionId, color: color ?? null },
           { at: path }
         );
         editor.tf.move({ unit: 'offset' });
@@ -152,17 +166,59 @@ export function MentionInputElement(
     [editor, element]
   );
 
+  const handleSelectAsset = React.useCallback(
+    (id: string, label: string, meta?: AssetPickerSelectMeta) => {
+      // meta.documentId is only set when a specific version (execution) was
+      // picked; in that case `id` is the execution id, not the document id.
+      const isVersioned = !!meta?.documentId;
+      insertMention('asset', isVersioned ? meta!.documentId! : id, label, isVersioned ? id : null, meta?.color);
+    },
+    [insertMention]
+  );
+
+  const handleSelectRole = React.useCallback(
+    (id: string, label: string, meta?: HuemulRolePickerSelectMeta) => {
+      insertMention('role', id, label, null, meta?.color);
+    },
+    [insertMention]
+  );
+
   return (
     <PlateElement {...props} as="span">
       <span contentEditable={false}>
-        {organizationId && (
+        {step === 'type' && (
+          <HuemulDialog
+            open={open}
+            onOpenChange={handleOpenChange}
+            title={t('mention.chooseType.title')}
+            showFooter={false}
+            maxWidth="sm:max-w-sm"
+          >
+            <div className="flex gap-2">
+              <Button variant="outline" className="h-16 flex-1 flex-col gap-1" onClick={() => setStep('asset')}>
+                <File className="h-4 w-4" />
+                {t('mention.chooseType.asset')}
+              </Button>
+              <Button variant="outline" className="h-16 flex-1 flex-col gap-1" onClick={() => setStep('role')}>
+                <Shield className="h-4 w-4" />
+                {t('mention.chooseType.role')}
+              </Button>
+            </div>
+          </HuemulDialog>
+        )}
+
+        {step === 'asset' && organizationId && (
           <HuemulAssetTreePickerDialog
             open={open}
             onOpenChange={handleOpenChange}
             organizationId={organizationId}
             mode="document-with-version"
-            onSelect={handleSelect}
+            onSelect={handleSelectAsset}
           />
+        )}
+
+        {step === 'role' && (
+          <HuemulRolePickerDialog open={open} onOpenChange={handleOpenChange} onSelect={handleSelectRole} />
         )}
       </span>
 
