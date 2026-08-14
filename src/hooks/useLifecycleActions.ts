@@ -5,6 +5,7 @@ import { handleApiError } from "@/lib/error-utils"
 import { withRefresh } from "@/lib/query-utils"
 import { useExternalReviewActions } from "@/hooks/useLifecycle"
 import { executionLifecycleQueryKeys } from "@/hooks/useExecutionLifecycle"
+import { getDocumentTypeById } from "@/services/document-types"
 import {
   completeExecutionLifecycleStep,
   rejectExecutionLifecycle,
@@ -43,6 +44,7 @@ export function useLifecycleActions({
   documentId,
   executionId,
   organizationId,
+  documentTypeId,
   lifecycleStatus,
   lifecyclePermissions,
   rbac,
@@ -52,6 +54,15 @@ export function useLifecycleActions({
 }: UseLifecycleActionsOptions): LifecycleActionsController {
   const { t } = useTranslation(["assets", "common"])
   const queryClient = useQueryClient()
+
+  // Misma query key que el tab General del tipo de activo
+  // (assets-types-general-form.tsx) — comparte cache, sin fetch extra.
+  const { data: documentTypeData } = useQuery({
+    queryKey: ["document-type", documentTypeId],
+    queryFn: () => getDocumentTypeById(documentTypeId!),
+    enabled: !!documentTypeId,
+  })
+  const finalLifecycleStage = documentTypeData?.data?.final_lifecycle_stage ?? "publish"
 
   const [isCheckDialogOpen, setIsCheckDialogOpen] = useState(false)
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
@@ -257,6 +268,7 @@ export function useLifecycleActions({
     status: lifecycleStatus,
     permissions: lifecyclePermissions,
     canTransition: rbac.canTransition,
+    finalLifecycleStage,
 
     isCheckDialogOpen,
     setIsCheckDialogOpen,

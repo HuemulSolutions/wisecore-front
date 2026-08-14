@@ -71,6 +71,15 @@ const translations = {
     errorUpdating: { en: "An error occurred while updating the {{type}} type", es: "Ocurrió un error al actualizar el tipo de {{type}}" },
     requiresIsoStrictVersioning: { en: "Requires strict ISO version compliance", es: "Requiere cumplimiento estricto de versión ISO" },
     requiresIsoStrictVersioningDescription: { en: "When enabled, a semantic version must be assigned manually before approval. When disabled, Wisecore assigns it automatically.", es: "Si está activado, se debe asignar manualmente una versión semántica antes de aprobar. Si está desactivado, Wisecore la asigna automáticamente." },
+    finalLifecycleStage: { en: "Final lifecycle stage", es: "Etapa final del ciclo de vida" },
+    finalLifecycleStageDescription: { en: "The asset is archived automatically when this stage is completed, without going through the following ones.", es: "El activo se archiva automáticamente al completar esta etapa, sin pasar por las siguientes." },
+    finalLifecycleStageOptions: {
+      edit: { en: "Elaboration", es: "Elaboración" },
+      review: { en: "Review", es: "Validación" },
+      approve: { en: "Approval", es: "Aprobación" },
+      publish: { en: "Publication (full flow)", es: "Publicación (flujo completo)" },
+    },
+    finalStageRequiresNonStrictIso: { en: "The final stage can only be changed while strict ISO compliance is disabled.", es: "La etapa final solo puede cambiarse si el cumplimiento ISO estricto está desactivado." },
   },
   emptyState: {
     noAssetTypesFound: { en: "No asset types found", es: "No se encontraron tipos de activo" },
@@ -234,6 +243,7 @@ const translations = {
       none: { en: "—", es: "—" },
     },
     deleteGroup: { en: "Delete group", es: "Eliminar grupo" },
+    cannotDeleteLastStep: { en: "This step cannot be deleted: it is required by the final lifecycle stage.", es: "No se puede eliminar el último paso de esta etapa: es obligatorio según la etapa final del ciclo de vida." },
     deleteGroupConfirmDesc: { en: "Are you sure you want to delete this group? This action cannot be undone.", es: "¿Estás seguro de que deseas eliminar este grupo? Esta acción no se puede deshacer." },
     newGroupName: { en: "New group", es: "Nuevo grupo" },
     addGroupTitle: { en: "Add group", es: "Agregar grupo" },

@@ -195,6 +195,7 @@ export function WorkflowDetailPanel({
     documentId,
     executionId: lifecycleExecutionId,
     organizationId: selectedOrganizationId,
+    documentTypeId: data?.document_type?.id,
     lifecycleStatus: data?.lifecycle_status,
     lifecyclePermissions: data?.lifecycle_permissions,
     rbac: { canTransition: canUpdateAssetContent },

@@ -4,21 +4,26 @@ import { useTranslation } from "react-i18next";
 import { useOrganization } from "@/contexts/organization-context";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { createDocumentType, updateDocumentType, getDocumentTypeById } from "@/services/document-types";
-import { getErrorMessage } from "@/lib/error-utils";
-import type { DocumentType, CreateDocumentTypeData } from "@/types/document-types";
+import { getErrorMessage, isErrorCode } from "@/lib/error-utils";
+import type { DocumentType, CreateDocumentTypeData, FinalLifecycleStage } from "@/types/document-types";
 
 const DEFAULT_COLOR = "#3B82F6";
+
+/** Opciones del selector "Etapa final del ciclo de vida" — orden del pipeline. */
+export const FINAL_STAGE_OPTIONS: FinalLifecycleStage[] = ["edit", "review", "approve", "publish"];
 
 interface AssetTypeGeneralFormValues {
   name: string;
   color: string;
   requiresIsoStrictVersioning: boolean;
+  finalLifecycleStage: FinalLifecycleStage;
 }
 
 const DEFAULT_VALUES: AssetTypeGeneralFormValues = {
   name: "",
   color: DEFAULT_COLOR,
   requiresIsoStrictVersioning: true,
+  finalLifecycleStage: "publish",
 };
 
 interface UseAssetTypeGeneralFormOptions {
@@ -35,6 +40,7 @@ export interface AssetTypeGeneralForm {
   setName: (value: string) => void;
   setColor: (value: string) => void;
   setRequiresIsoStrictVersioning: (value: boolean) => void;
+  setFinalLifecycleStage: (value: FinalLifecycleStage) => void;
   isEditing: boolean;
   isLoadingData: boolean;
   isSaving: boolean;
@@ -84,6 +90,7 @@ export function useAssetTypeGeneralForm({
       name: documentTypeData.data.name,
       color: documentTypeData.data.color,
       requiresIsoStrictVersioning: documentTypeData.data.requires_iso_strict_versioning ?? true,
+      finalLifecycleStage: documentTypeData.data.final_lifecycle_stage ?? "publish",
     };
     setValues(loaded);
     setBaseline(loaded);
@@ -119,6 +126,10 @@ export function useAssetTypeGeneralForm({
       onSaved?.(result);
     },
     onError: (err) => {
+      if (isErrorCode(err, 'FINAL_STAGE_REQUIRES_NON_STRICT_ISO')) {
+        setError(finalStageRequiresNonStrictIsoMessage);
+        return;
+      }
       setError(getErrorMessage(err, t(isEditing ? 'asset-types:form.errorUpdating' : 'asset-types:form.errorCreating', { type })));
     },
   });
@@ -135,6 +146,7 @@ export function useAssetTypeGeneralForm({
       name: values.name.trim(),
       color: values.color,
       requires_iso_strict_versioning: values.requiresIsoStrictVersioning,
+      final_lifecycle_stage: values.finalLifecycleStage,
     });
 
     // Tras guardar, los valores enviados pasan a ser la nueva línea base.
@@ -142,22 +154,34 @@ export function useAssetTypeGeneralForm({
       name: values.name.trim(),
       color: values.color,
       requiresIsoStrictVersioning: values.requiresIsoStrictVersioning,
+      finalLifecycleStage: values.finalLifecycleStage,
     });
   }, [values, mutation, t]);
 
   const isDirty =
     values.name !== baseline.name ||
     values.color !== baseline.color ||
-    values.requiresIsoStrictVersioning !== baseline.requiresIsoStrictVersioning;
+    values.requiresIsoStrictVersioning !== baseline.requiresIsoStrictVersioning ||
+    values.finalLifecycleStage !== baseline.finalLifecycleStage;
 
   const nameRequiredMessage = t('asset-types:form.nameRequired');
+  const finalStageRequiresNonStrictIsoMessage = t('asset-types:form.finalStageRequiresNonStrictIso');
 
   return {
     values,
     setName: (value) => setValues((prev) => ({ ...prev, name: value })),
     setColor: (value) => setValues((prev) => ({ ...prev, color: value })),
     setRequiresIsoStrictVersioning: (value) =>
-      setValues((prev) => ({ ...prev, requiresIsoStrictVersioning: value })),
+      setValues((prev) => ({
+        ...prev,
+        requiresIsoStrictVersioning: value,
+        // final_lifecycle_stage distinto de "publish" solo es válido sin ISO
+        // estricto: al reactivarlo, el selector se oculta pero su valor previo
+        // seguía vivo en el estado y hubiera viajado igual en el próximo submit.
+        finalLifecycleStage: value ? "publish" : prev.finalLifecycleStage,
+      })),
+    setFinalLifecycleStage: (value) =>
+      setValues((prev) => ({ ...prev, finalLifecycleStage: value })),
     isEditing,
     isLoadingData: isEditing && isLoadingData,
     isSaving: mutation.isPending,
@@ -215,6 +239,22 @@ export function AssetTypeGeneralFormFields({
         onChange={(v) => form.setRequiresIsoStrictVersioning(v as boolean)}
         disabled={disabled}
       />
+
+      {!form.values.requiresIsoStrictVersioning && (
+        <HuemulField
+          type="select"
+          label={t('form.finalLifecycleStage')}
+          description={t('form.finalLifecycleStageDescription')}
+          name="final_lifecycle_stage"
+          value={form.values.finalLifecycleStage}
+          onChange={(v) => form.setFinalLifecycleStage(v as FinalLifecycleStage)}
+          options={FINAL_STAGE_OPTIONS.map((value) => ({
+            value,
+            label: t(`form.finalLifecycleStageOptions.${value}`),
+          }))}
+          disabled={disabled}
+        />
+      )}
 
       {form.error && (
         <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">

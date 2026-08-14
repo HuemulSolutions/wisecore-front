@@ -69,6 +69,8 @@ interface MoreOptionsDropdownProps {
   lifecyclePermissions: LifecyclePermissions | undefined;
   frontendPermissions: FrontendPermissions;
   lifecycleStatus?: LifecycleStatus | null;
+  /** Etapa final del ciclo de vida del tipo de activo — oculta "Publicar" si nunca llega a publicarse. Default `'publish'`. */
+  finalLifecycleStage?: "edit" | "review" | "approve" | "publish";
   selectedExecutionId?: string | null;
   hasTemplateName: boolean;
   canCreateTemplate: boolean;
@@ -130,6 +132,7 @@ export function MoreOptionsDropdown({
   lifecyclePermissions,
   frontendPermissions,
   lifecycleStatus,
+  finalLifecycleStage = "publish",
   selectedExecutionId,
   hasTemplateName,
   canCreateTemplate,
@@ -238,7 +241,7 @@ export function MoreOptionsDropdown({
                 {t("lifecycle.complete")}
               </DropdownMenuItem>
             )}
-            {lifecyclePermissions?.publish && lifecycleStatus.state === "approved" && (
+            {lifecyclePermissions?.publish && lifecycleStatus.state === "approved" && finalLifecycleStage === "publish" && (
               <DropdownMenuItem
                 onSelect={() => setTimeout(onPublish, 0)}
                 className="hover:cursor-pointer"

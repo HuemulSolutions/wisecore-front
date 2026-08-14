@@ -1,4 +1,5 @@
 import type { LifecycleAccessType, LifecycleStep } from "@/types/lifecycle"
+import type { FinalLifecycleStage } from "@/types/document-types"
 
 /**
  * Fuente única de verdad del pipeline del ciclo de vida y de la semántica de
@@ -56,6 +57,17 @@ export function isGroupableStepType(type: string): boolean {
 /** Posición en el pipeline, o `-1` si el tipo no está listado. */
 export function pipelineIndex(type: string): number {
   return LIFECYCLE_PIPELINE_ORDER.indexOf(type)
+}
+
+/**
+ * Tipos de step con mínimo de 1 (no se puede borrar el último) según la etapa
+ * final configurada en el tipo de activo — mismo criterio que valida el
+ * backend en `DELETE /lifecycle/steps/{id}`.
+ */
+export function getRequiredStepTypes(finalStage: FinalLifecycleStage): ReadonlySet<string> {
+  if (finalStage === "edit") return new Set(["edit"])
+  if (finalStage === "review") return new Set(["edit", "review"])
+  return new Set(["edit", "approve"]) // approve | publish — comportamiento actual
 }
 
 /** Posición para ordenar: los tipos desconocidos van al final, no al principio. */

@@ -34,7 +34,11 @@ export function HuemulLifecycleActions({
 
   const canAssignVersion =
     permissions?.approve && (status.version_required || status.state === "in_approval") && !status.version
-  const canPublish = permissions?.publish && status.state === "approved"
+  // Con etapa final distinta de "publish" (campo `final_lifecycle_stage` del
+  // tipo de activo) el documento nunca llega a publicarse: al aprobar, la
+  // ejecución se archiva directo.
+  const canPublish =
+    permissions?.publish && status.state === "approved" && controller.finalLifecycleStage === "publish"
   const canArchive = permissions?.archive && (status.state === "approved" || status.state === "published")
   const canRestore = permissions?.archive && status.state === "archived"
   const canRerunExternalPublish = showRerunExternalPublish && permissions?.publish && status.state === "published"

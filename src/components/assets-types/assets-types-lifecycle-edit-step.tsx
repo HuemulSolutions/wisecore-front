@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { GripVertical, Trash2, Plus, Pencil, X } from "lucide-react"
@@ -37,7 +38,10 @@ import {
   ownerCanExecute,
   stepRoleIds,
   buildAccessPayload,
+  getRequiredStepTypes,
 } from "@/lib/lifecycle-access"
+import { getDocumentTypeById } from "@/services/document-types"
+import { handleApiError } from "@/lib/error-utils"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -233,7 +237,7 @@ function EditStepCard({
             {canManage && (
               <PanelIconButton
                 icon={Trash2}
-                label={t("lifecycle.deleteGroup")}
+                label={canDelete ? t("lifecycle.deleteGroup") : t("lifecycle.cannotDeleteLastStep")}
                 tone="danger"
                 disabled={!canDelete}
                 onClick={onDelete}
@@ -623,6 +627,18 @@ export function EditStepContent({
   )
   const stepAction = t(`lifecycle.stepActions.${stepType}`, { defaultValue: stepType })
 
+  // Misma query key que el formulario General (assets-types-general-form.tsx):
+  // comparten cache, no duplica el fetch mientras el sheet de configuración
+  // está abierto.
+  const { data: documentTypeData } = useQuery({
+    queryKey: ["document-type", documentTypeId],
+    queryFn: () => getDocumentTypeById(documentTypeId),
+    enabled: !!documentTypeId,
+  })
+  const requiredStepTypes = getRequiredStepTypes(
+    documentTypeData?.data?.final_lifecycle_stage ?? "publish"
+  )
+
   const allRoles = rolesData?.data ?? []
   const slaUnitOptions = (slaUnitsData?.data ?? []).map((u) => ({
     value: u.value,
@@ -772,7 +788,19 @@ export function EditStepContent({
 
   const handleDelete = async (id: string) => {
     if (!canManage) return
-    await deleteStep.mutateAsync(id)
+    try {
+      await deleteStep.mutateAsync(id)
+    } catch (error) {
+      handleApiError(error, {
+        fallbackMessage: t("lifecycle.saveError"),
+        onErrorCode: (code) => {
+          if (code !== "LIFECYCLE_REQUIRED_STEP_MINIMUM") return false
+          toast.error(t("lifecycle.cannotDeleteLastStep"))
+          return true
+        },
+      })
+      return
+    }
     setLocalSteps((prev) => prev.filter((c) => c.id !== id))
     setDirtyIds((prev) => {
       if (!prev.has(id)) return prev
@@ -945,7 +973,7 @@ export function EditStepContent({
                   ]}
                   onChange={(updated) => handleCardChange(card.id, updated)}
                   onDelete={() => setDeleteConfirmId(card.id)}
-                  canDelete={!((stepType === "edit" || stepType === "approve") && localSteps.length <= 1)}
+                  canDelete={!(requiredStepTypes.has(stepType) && localSteps.length <= 1)}
                   canManage={canManage}
                   t={t}
                   isExpanded={expandedIds.has(card.id)}

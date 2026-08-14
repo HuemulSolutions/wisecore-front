@@ -1,5 +1,6 @@
 import type { QueryKey, UseMutationResult } from '@tanstack/react-query'
 import type { LifecycleStatus, LifecyclePermissions } from '@/types/assets'
+import type { FinalLifecycleStage } from '@/types/document-types'
 
 // ----------------------------------------
 // useLifecycleActions
@@ -27,6 +28,8 @@ export interface UseLifecycleActionsOptions {
   documentId: string | null | undefined
   executionId: string | null | undefined
   organizationId: string | null | undefined
+  /** Para leer `final_lifecycle_stage` del tipo de activo (oculta "Publicar" si el tipo nunca llega a publicarse). */
+  documentTypeId?: string | null
   lifecycleStatus?: LifecycleStatus | null
   lifecyclePermissions?: LifecyclePermissions | null
   /**
@@ -50,6 +53,8 @@ export interface LifecycleActionsController {
   permissions: LifecyclePermissions | null | undefined
   /** Eje RBAC del cruce (asset:u). Se ANDea con el lifecycle en cada affordance. */
   canTransition: boolean
+  /** Etapa en la que termina el ciclo de vida del tipo de activo. Default `'publish'` mientras carga. */
+  finalLifecycleStage: FinalLifecycleStage
 
   isCheckDialogOpen: boolean
   setIsCheckDialogOpen: (open: boolean) => void

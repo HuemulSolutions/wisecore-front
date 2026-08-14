@@ -1193,6 +1193,7 @@ export function AssetContent({
     documentId: selectedFile?.id,
     executionId: selectedExecutionId || documentContent?.execution_id,
     organizationId: selectedOrganizationId,
+    documentTypeId: documentContent?.document_type?.id,
     lifecycleStatus: documentContent?.lifecycle_status,
     lifecyclePermissions,
     rbac: { canTransition: assetRbac.updateAssetContent },
@@ -2382,6 +2383,7 @@ export function AssetContent({
                             lifecyclePermissions={lifecyclePermissions}
                             frontendPermissions={frontendPermissions}
                             lifecycleStatus={documentContent?.lifecycle_status}
+                            finalLifecycleStage={lifecycle.finalLifecycleStage}
                             selectedExecutionId={selectedExecutionId}
                             hasTemplateName={!!documentContent?.template_name}
                             canCreateTemplate={canCreate('template')}
