@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import {
   File,
@@ -17,6 +17,7 @@ import { getLibraryContent } from "@/services/folders"
 import { getExecutionsByDocumentId } from "@/services/executions"
 import { getExecutionDisplayLabel } from "@/components/assets/content/utils/version-utils"
 import { HuemulDialog } from "./huemul-dialog"
+import { HuemulSheet } from "./huemul-sheet"
 import { HuemulFileTree } from "./huemul-file-tree"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -110,6 +111,8 @@ function AssetRow({
   organizationId,
   activeId,
   onSelect,
+  disabled = false,
+  disabledHint,
 }: {
   asset: LibraryContentAsset
   mode: AssetPickerMode
@@ -117,6 +120,8 @@ function AssetRow({
   organizationId: string
   activeId?: string
   onSelect: (id: string, label: string, meta?: AssetPickerSelectMeta) => void
+  disabled?: boolean
+  disabledHint?: string
 }) {
   const [expanded, setExpanded] = useState(false)
   const [executions, setExecutions] = useState<ExecutionItem[] | null>(null)
@@ -142,6 +147,7 @@ function AssetRow({
     }
   }
 
+  const canPick = isDocumentMode(mode) && !disabled
   const isDocActive = isDocumentMode(mode) && activeId === asset.id
   const docMeta: AssetPickerSelectMeta = { color: asset.document_type?.color }
 
@@ -150,10 +156,12 @@ function AssetRow({
       <div
         role="button"
         tabIndex={0}
-        onClick={() => (isDocumentMode(mode) ? onSelect(asset.id, asset.name, docMeta) : undefined)}
-        onKeyDown={(e) => e.key === "Enter" && isDocumentMode(mode) && onSelect(asset.id, asset.name, docMeta)}
+        title={disabled ? disabledHint : undefined}
+        onClick={() => (canPick ? onSelect(asset.id, asset.name, docMeta) : undefined)}
+        onKeyDown={(e) => e.key === "Enter" && canPick && onSelect(asset.id, asset.name, docMeta)}
         className={cn(
-          "group flex items-center gap-1.5 py-0.5 px-2 rounded-md hover:bg-accent hover:cursor-pointer",
+          "group flex items-center gap-1.5 py-0.5 px-2 rounded-md",
+          disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-accent hover:cursor-pointer",
           isDocActive && "bg-accent font-medium",
         )}
         style={{ paddingLeft: `${level * 12 + 6}px` }}
@@ -209,6 +217,8 @@ function SearchFolder({
   organizationId,
   activeId,
   onSelect,
+  disabledIds,
+  disabledHint,
 }: {
   node: SearchTreeNode
   mode: AssetPickerMode
@@ -216,6 +226,8 @@ function SearchFolder({
   organizationId: string
   activeId?: string
   onSelect: (id: string, label: string, meta?: AssetPickerSelectMeta) => void
+  disabledIds?: Set<string>
+  disabledHint?: string
 }) {
   return (
     <div>
@@ -235,6 +247,8 @@ function SearchFolder({
           organizationId={organizationId}
           activeId={activeId}
           onSelect={onSelect}
+          disabledIds={disabledIds}
+          disabledHint={disabledHint}
         />
       ))}
       {node.assets.map((asset) => (
@@ -246,6 +260,8 @@ function SearchFolder({
           organizationId={organizationId}
           activeId={activeId}
           onSelect={onSelect}
+          disabled={disabledIds?.has(asset.id)}
+          disabledHint={disabledHint}
         />
       ))}
     </div>
@@ -261,6 +277,16 @@ export interface HuemulAssetTreePickerDialogProps {
   mode: AssetPickerMode
   value?: string
   onSelect: (id: string, label: string, meta?: AssetPickerSelectMeta) => void
+  /** "dialog" (default) usa HuemulDialog; "sheet" apila un HuemulSheet lateral (para abrir sobre otro sheet). */
+  container?: "dialog" | "sheet"
+  title?: string
+  description?: string
+  /** Ids de documentos no seleccionables (ya dependencias, el propio activo, etc). */
+  disabledIds?: string[]
+  /** Tooltip mostrado sobre un asset deshabilitado. */
+  disabledHint?: string
+  /** Si es true, seleccionar un asset no cierra el picker — permite elegir varios seguidos. */
+  keepOpenOnSelect?: boolean
 }
 
 export function HuemulAssetTreePickerDialog({
@@ -270,6 +296,12 @@ export function HuemulAssetTreePickerDialog({
   mode,
   value,
   onSelect,
+  container = "dialog",
+  title,
+  description,
+  disabledIds,
+  disabledHint,
+  keepOpenOnSelect = false,
 }: HuemulAssetTreePickerDialogProps) {
   const { t } = useTranslation("media")
   const [searchTerm, setSearchTerm] = useState("")
@@ -282,13 +314,14 @@ export function HuemulAssetTreePickerDialog({
   const effectiveMode: AssetPickerMode = mode === "document-with-version" ? subMode : mode
   // Tracks how to load each node's children in browse mode (folder vs document).
   const kindMap = useRef(new Map<string, NodeKind>())
+  const disabledSet = useMemo(() => new Set(disabledIds ?? []), [disabledIds])
 
   const handleSelect = useCallback(
     (id: string, label: string, meta?: AssetPickerSelectMeta) => {
       onSelect(id, label, meta)
-      onOpenChange(false)
+      if (!keepOpenOnSelect) onOpenChange(false)
     },
-    [onSelect, onOpenChange],
+    [onSelect, onOpenChange, keepOpenOnSelect],
   )
 
   // ── Browse mode ──
@@ -334,13 +367,14 @@ export function HuemulAssetTreePickerDialog({
           id: a.id,
           name: a.name,
           type: "document",
+          disabled: disabledSet.has(a.id),
           metadata: { kind: "document", color: a.document_type?.color },
         }
       })
 
       return [...folderNodes, ...assetNodes]
     },
-    [organizationId, effectiveMode],
+    [organizationId, effectiveMode, disabledSet],
   )
 
   const handleFileClick = useCallback(
@@ -396,15 +430,7 @@ export function HuemulAssetTreePickerDialog({
     searchTree.rootFolders.length === 0 &&
     searchTree.rootAssets.length === 0
 
-  return (
-    <HuemulDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title={t("picker.title", { defaultValue: "Select" })}
-      icon={FolderTree}
-      showFooter={false}
-      maxWidth="sm:max-w-xl"
-    >
+  const pickerBody = (
       <div className="flex flex-col gap-3">
         {mode === "document-with-version" && (
           <div className="inline-flex w-fit rounded-md border bg-muted p-0.5">
@@ -475,6 +501,8 @@ export function HuemulAssetTreePickerDialog({
                     organizationId={organizationId}
                     activeId={value}
                     onSelect={handleSelect}
+                    disabledIds={disabledSet}
+                    disabledHint={disabledHint}
                   />
                 ))}
                 {searchTree?.rootAssets.map((asset) => (
@@ -486,6 +514,8 @@ export function HuemulAssetTreePickerDialog({
                     organizationId={organizationId}
                     activeId={value}
                     onSelect={handleSelect}
+                    disabled={disabledSet.has(asset.id)}
+                    disabledHint={disabledHint}
                   />
                 ))}
               </div>
@@ -516,6 +546,37 @@ export function HuemulAssetTreePickerDialog({
           )}
         </div>
       </div>
+  )
+
+  const pickerTitle = title ?? t("picker.title", { defaultValue: "Select" })
+
+  if (container === "sheet") {
+    return (
+      <HuemulSheet
+        open={open}
+        onOpenChange={onOpenChange}
+        title={pickerTitle}
+        description={description}
+        icon={FolderTree}
+        showFooter={false}
+        maxWidth="sm:max-w-xl"
+      >
+        {pickerBody}
+      </HuemulSheet>
+    )
+  }
+
+  return (
+    <HuemulDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={pickerTitle}
+      description={description}
+      icon={FolderTree}
+      showFooter={false}
+      maxWidth="sm:max-w-xl"
+    >
+      {pickerBody}
     </HuemulDialog>
   )
 }

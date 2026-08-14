@@ -74,8 +74,6 @@ export interface FileNode {
   folder_type?: LibraryContentFolderType | null;
   /** True for custom group folders created directly at the real root (folder_type: null, no parent). */
   isRootGroup?: boolean;
-  /** True when this document node is a dependency of the document being edited (dependency-add.tsx). */
-  isDependency?: boolean;
 }
 
 /**
