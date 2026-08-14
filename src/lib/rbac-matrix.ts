@@ -157,6 +157,17 @@ export const RBAC_PAGES = {
       // (`custom_field_document` no existe como recurso propio, ver hallazgos
       // pendientes), así que se gatea con la creación del recurso que produce.
       createCustomField: "custom_fields:c",
+      // Bloque "Documentos relacionados" del tab Contenido: solo lectura,
+      // mismo permiso que usa el listado equivalente en la página diagrams.
+      listExecutionRelationships: ["execution_relationship:l", "execution_relationship:r"],
+      // El bloque de relacionados resuelve el nombre del tipo de cada documento
+      // con el catálogo GET /document_types (mismo criterio que la paleta del
+      // canvas en diagrams): sin el permiso la fila omite ese segmento.
+      listAssetTypes: ["asset_type:l", "asset_type:r"],
+      // "Vincular documento" abre /diagrams?diagram=new&seedAsset=…, cuyo guard
+      // exige diagram:r|l — se gatea con el permiso del destino, mismo criterio
+      // que `openAsset` en search.
+      openDiagramsCanvas: ["diagram:r", "diagram:l"],
       listNotifications: ["notification:l", "notification:r"],
       // Marcar leída/no leída escribe la notificación; eliminarla la borra. Las
       // suscripciones (POST/DELETE /subscriptions) no tienen recurso propio en

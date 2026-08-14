@@ -27,6 +27,7 @@ import { HuemulExpandableText } from "@/huemul/components/huemul-expandable-text
 import { AssetsNotificationsSheet } from "@/components/assets/content/assets-notifications-sheet";
 import { LifecycleHistorySheet } from "@/components/assets/content/lifecycle-history-sheet";
 import { AssetDiagramsSheet } from "@/components/assets/content/asset-diagrams-sheet";
+import { AssetsRelatedDocuments } from "@/components/assets/content/assets-related-documents";
 
 import {
   DropdownMenu,
@@ -514,6 +515,7 @@ export function AssetContent({
   const canListCustomFields = can('listCustomFields');
   const canCreateCustomField = can('createCustomField');
   const canListNotifications = can('listNotifications');
+  const canListExecutionRelationships = can('listExecutionRelationships');
   // El tab activo no puede quedar apuntando a un tab que el usuario no puede ver.
   useEffect(() => {
     if (activeTab === 'custom-fields' && !canListCustomFields) setActiveTab('toc');
@@ -2389,7 +2391,7 @@ export function AssetContent({
                             canDeleteVersion={can('deleteVersion')}
                             isRefreshing={isRefreshingContent}
                             isLoadingContent={isLoadingContent}
-                            hasTocItems={tocItems.length > 0}
+                            hasTocItems={!!documentContent?.content}
                             isDocumentType={selectedFile.type === 'document'}
                             hasDocumentContent={!!documentContent?.content}
                             isTocSidebarOpen={isTocSidebarOpen}
@@ -2534,7 +2536,7 @@ export function AssetContent({
                 />
 
                 {/* TOC Toggle button - desktop only */}
-                {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 &&
+                {selectedFile.type === 'document' && documentContent?.content &&
                  (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
                   <HuemulButton
                     size="sm"
@@ -3122,7 +3124,7 @@ export function AssetContent({
       </ResizablePanel>
 
       {/* Table of Contents Sidebar - only show for documents with content and not during full/full-single executions */}
-      {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && 
+      {selectedFile.type === 'document' && documentContent?.content &&
        isTocSidebarOpen &&
        (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
         <>
@@ -3159,9 +3161,21 @@ export function AssetContent({
                   </div>
                 </div>
                 {activeTab === 'toc' || !canListCustomFields ? (
-                  <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2 py-2">
-                    <TableOfContents items={tocItems} />
-                  </div>
+                  <>
+                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2 py-2">
+                      <TableOfContents items={tocItems} />
+                    </div>
+                    {canListExecutionRelationships && (
+                      <AssetsRelatedDocuments
+                        organizationId={selectedOrganizationId}
+                        executionId={selectedExecutionId || documentContent?.execution_id}
+                        currentDocumentId={selectedFile?.id}
+                        versionLabel={getExecutionDisplayLabel(selectedExecutionInfo)}
+                        canOpenDiagrams={can('openDiagramsCanvas')}
+                        canListAssetTypes={can('listAssetTypes')}
+                      />
+                    )}
+                  </>
                 ) : (
                   <div className="flex-1 min-h-0 overflow-hidden">
                     <CustomFieldsList
