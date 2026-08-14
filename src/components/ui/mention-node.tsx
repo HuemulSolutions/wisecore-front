@@ -26,7 +26,6 @@ import {
 import { HuemulRolePickerDialog } from '@/huemul/components/huemul-role-picker';
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import { Button } from '@/components/ui/button';
-import type { HuemulRolePickerSelectMeta } from '@/types/huemul';
 
 /** `refType` ausente ⇒ 'asset' (menciones creadas antes de soportar roles). */
 type MentionRefType = 'asset' | 'role';
@@ -177,8 +176,11 @@ export function MentionInputElement(
   );
 
   const handleSelectRole = React.useCallback(
-    (id: string, label: string, meta?: HuemulRolePickerSelectMeta) => {
-      insertMention('role', id, label, null, meta?.color);
+    // Roles have no assignable color (no such field exists on the role form), unlike
+    // asset mentions which do carry a real document-type color — so this path never
+    // passes one through to insertMention.
+    (id: string, label: string) => {
+      insertMention('role', id, label, null);
     },
     [insertMention]
   );

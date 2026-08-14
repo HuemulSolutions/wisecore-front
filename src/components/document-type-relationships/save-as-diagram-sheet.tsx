@@ -193,10 +193,13 @@ export function SaveAsDiagramSheet({
             execution_relationship_id: id,
           }))
 
-          // Free-standing text/container elements → Diagram `texts`. `kind` is stashed
-          // in `position` so the exact element type is reconstructed on reload. A blank
-          // `content` is filtered out — the backend rejects it (422 VALIDATION_ERROR).
-          const elementNodes = nodes.filter((n) => n.type === 'text' || n.type === 'container')
+          // Free-standing text/container/role elements → Diagram `texts`. `kind` is
+          // stashed in `position` so the exact element type is reconstructed on reload.
+          // A container's or role node's assigned role has no first-class column on
+          // diagram_texts yet, so `role_id/role_name` are stashed there too (no
+          // `role_color` — roles have no assignable color anywhere in the app).
+          // A blank `content` is filtered out — the backend rejects it (422 VALIDATION_ERROR).
+          const elementNodes = nodes.filter((n) => n.type === 'text' || n.type === 'container' || n.type === 'role')
           const texts: DiagramTextInput[] = elementNodes
             .filter((n) => String((n.data as CanvasElementNodeData).content ?? '').trim())
             .map((n) => {
@@ -210,6 +213,7 @@ export function SaveAsDiagramSheet({
                   width: n.measured?.width ?? n.width ?? 160,
                   height: n.measured?.height ?? n.height ?? 80,
                   kind: n.type,
+                  ...(data.role ? { role_id: data.role.id, role_name: data.role.name } : {}),
                 },
                 has_border: isContainer,
                 border_type: isContainer ? 'solid' : undefined,

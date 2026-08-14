@@ -25,12 +25,14 @@ import {
 import "@xyflow/react/dist/style.css"
 
 import { useQueryClient } from "@tanstack/react-query"
-import { GitMerge, Square, Trash2, Type, Workflow } from "lucide-react"
+import { GitMerge, Shield, Square, Trash2, Type, Workflow } from "lucide-react"
 import { toast } from "sonner"
 import { MemoizedAssetTypeNode, type AssetTypeNodeData } from "./asset-type-node"
 import { MemoizedTextNode, type CanvasElementNodeData } from "./text-node"
 import { MemoizedContainerNode } from "./container-node"
+import { MemoizedRoleNode, ROLE_NODE_ENABLED } from "./role-node"
 import { ElementPanel } from "./element-panel"
+import { HuemulRolePickerDialog } from "@/huemul/components/huemul-role-picker"
 import { MemoizedRelationshipEdge, type RelationshipEdgeData } from "./relationship-edge"
 import { RelationshipCreateDialog, RelationshipEditDialog } from "./relationship-dialogs"
 import { ExecutionRelationshipCreateDialog, ExecutionRelationshipEditDialog, ExecutionPickerDialog, executionLabel } from "./execution-relationship-dialogs"
@@ -55,6 +57,7 @@ import type {
   InitialCanvasRelationship,
   InitialCanvasElement,
   CanvasElementKind,
+  CanvasElementRole,
   PendingConnection,
   RelationshipsCanvasProps,
 } from "@/types/document-type-relationships"
@@ -67,11 +70,13 @@ const NODE_TYPES = {
   assetType: MemoizedAssetTypeNode,
   text: MemoizedTextNode,
   container: MemoizedContainerNode,
+  role: MemoizedRoleNode,
 }
 
 const DEFAULT_ELEMENT_COLOR: Record<CanvasElementKind, string> = {
   text: "#0f172a",
   container: "#94a3b8",
+  role: "#6366f1",
 }
 
 const EDGE_TYPES = {
@@ -215,6 +220,10 @@ function RelationshipsCanvasFlow({
   // ─── Relationship permissions ───────────────────────────────────────────────
   // `readOnly` overrides every write permission below — the viewer never mutates
   // canvas or backend state regardless of what the user is actually allowed to do.
+  // The role picker calls GET /rbac/roles — same gate as the roles page's `listRoles`
+  // and the @role mention picker in the editor (mention-node.tsx).
+  const canPickRole = !readOnly && (isOrgAdmin || hasAnyPermission(['rbac:l', 'rbac:r']))
+
   const canListRelationships = isOrgAdmin || hasAnyPermission(['asset_type_relationship:l', 'asset_type_relationship:r'])
   const canCreateRelationship = !readOnly && (isOrgAdmin || hasPermission('asset_type_relationship:c'))
   const canUpdateRelationship = !readOnly && (isOrgAdmin || hasPermission('asset_type_relationship:u'))
@@ -284,6 +293,11 @@ function RelationshipsCanvasFlow({
     sourceId: string
     position: { x: number; y: number }
   } | null>(null)
+  // Role picker state: either creating a brand-new role node at a position, or
+  // (re)assigning the role of an existing container/role node by its canvas id.
+  const [pendingRolePick, setPendingRolePick] = useState<
+    { position: { x: number; y: number } } | { nodeId: string } | null
+  >(null)
   // execution-mode delete state
   const [deletingExecRelId, setDeletingExecRelId] = useState<string | null>(null)
   const [deletingExecRelName, setDeletingExecRelName] = useState("")
@@ -695,8 +709,51 @@ function RelationshipsCanvasFlow({
     [setNodes],
   )
 
+  // Assigns/replaces the role on a container (turns it into a lane) or a role node
+  // (its sole identity) — called once the role picker dialog resolves. On a role node
+  // this also refreshes the label/color shown, since those mirror the role itself.
+  const handleUpdateElementRole = useCallback(
+    (id: string, role: CanvasElementRole) => {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id !== id) return n
+          const isRoleNode = n.type === "role"
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              role,
+              // Roles have no color of their own — a role node keeps its own element
+              // color (DEFAULT_ELEMENT_COLOR.role), only its label mirrors the role.
+              ...(isRoleNode ? { content: role.name } : {}),
+            },
+          }
+        }),
+      )
+    },
+    [setNodes],
+  )
+
+  // Container-only: unassigns the role without opening the picker.
+  const handleClearElementRole = useCallback(
+    (id: string) => {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id !== id) return n
+          const nextData = { ...n.data } as CanvasElementNodeData
+          delete nextData.role
+          return { ...n, data: nextData }
+        }),
+      )
+    },
+    [setNodes],
+  )
+
+  // Opens the role picker dialog scoped to an existing element (container or role node).
+  const handleRequestRolePick = useCallback((id: string) => setPendingRolePick({ nodeId: id }), [])
+
   const createElementNode = useCallback(
-    (kind: CanvasElementKind, position: { x: number; y: number }, content?: string, color?: string, width?: number, height?: number) => {
+    (kind: CanvasElementKind, position: { x: number; y: number }, content?: string, color?: string, width?: number, height?: number, role?: CanvasElementRole) => {
       const id = `${kind}-${Math.random().toString(36).slice(2, 9)}`
       const node: Node<CanvasElementNodeData> = {
         id,
@@ -708,20 +765,25 @@ function RelationshipsCanvasFlow({
           kind,
           content: content ?? (kind === "container" ? t("elementPanel.defaultContainerTitle") : t("elementPanel.defaultTextContent")),
           color: color ?? DEFAULT_ELEMENT_COLOR[kind],
+          ...(role ? { role } : {}),
           onContentChange: handleUpdateElementContent,
           onColorChange: handleUpdateElementColor,
+          onRequestRolePick: handleRequestRolePick,
+          onClearRole: handleClearElementRole,
           onRemove: handleRemoveNode,
         },
       }
       setNodes((nds) => [...nds, node])
       return id
     },
-    [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRemoveNode, t],
+    [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRequestRolePick, handleClearElementRole, handleRemoveNode, t],
   )
 
   // In-canvas toolbar entry point: adds the element at the current viewport's
   // center — needed because the drag palette (AssetTypeSidebar) isn't mounted on
   // every screen that embeds this canvas (e.g. the executions canvas, diagram edit sheet).
+  // A "role" element has no content until a role is chosen, so it opens the picker
+  // instead of creating the node directly — the node is created once it resolves.
   const addElementAtCenter = useCallback(
     (kind: CanvasElementKind) => {
       const rect = containerRef.current?.getBoundingClientRect()
@@ -729,7 +791,12 @@ function RelationshipsCanvasFlow({
         ? screenToFlowPosition({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 })
         : { x: 0, y: 0 }
       const jitter = (getNodes().length % 8) * 12
-      createElementNode(kind, { x: center.x + jitter, y: center.y + jitter })
+      const position = { x: center.x + jitter, y: center.y + jitter }
+      if (kind === "role") {
+        setPendingRolePick({ position })
+        return
+      }
+      createElementNode(kind, position)
     },
     [screenToFlowPosition, createElementNode, getNodes],
   )
@@ -747,6 +814,12 @@ function RelationshipsCanvasFlow({
           return
         }
         const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+        // A "role" element has no content until a role is picked — open the
+        // dialog instead of creating the node directly (mirrors addElementAtCenter).
+        if (element.kind === "role") {
+          setPendingRolePick({ position })
+          return
+        }
         createElementNode(element.kind, position)
         return
       }
@@ -797,6 +870,17 @@ function RelationshipsCanvasFlow({
   // ─── Connect → open create dialog ──────────────────────────────────────────
   const onConnect: OnConnect = useCallback((params) => {
     if (!params.source || !params.target) return
+    // Role nodes have no persisted relationship shape yet — the backend only
+    // accepts execution_relationship edges. Block instead of drawing an edge
+    // that would silently vanish on the next save/reload.
+    const allCanvasNodes = getNodes()
+    const involvesRoleNode = [params.source, params.target].some(
+      (id) => allCanvasNodes.find((n) => n.id === id)?.type === "role",
+    )
+    if (involvesRoleNode) {
+      toast.info(t("canvas.roleConnectionsUnsupported"))
+      return
+    }
     if (mode === 'execution') {
       const allNodes = getNodes()
       const srcNode = allNodes.find((n) => n.id === params.source)
@@ -1478,7 +1562,7 @@ function RelationshipsCanvasFlow({
     seedRelationshipEdges(seeded, relationships)
   }, [nodesInitialized, nodes, seedRelationshipEdges])
 
-  // ─── Seed free-standing text/container elements at explicit saved positions ──
+  // ─── Seed free-standing text/container/role elements at explicit saved positions ──
   const seedElementNodes = useCallback((elementsToSeed: InitialCanvasElement[]) => {
     const seeded: Node<CanvasElementNodeData>[] = elementsToSeed.map((el) => {
       const id = `${el.kind}-${Math.random().toString(36).slice(2, 9)}`
@@ -1492,16 +1576,19 @@ function RelationshipsCanvasFlow({
           kind: el.kind,
           content: el.content,
           color: el.color,
+          ...(el.role ? { role: el.role } : {}),
           ...(readOnly ? { readOnly: true } : {
             onContentChange: handleUpdateElementContent,
             onColorChange: handleUpdateElementColor,
+            onRequestRolePick: handleRequestRolePick,
+            onClearRole: handleClearElementRole,
             onRemove: handleRemoveNode,
           }),
         },
       }
     })
     setNodes((nds) => [...nds, ...seeded])
-  }, [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRemoveNode, readOnly])
+  }, [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRequestRolePick, handleClearElementRole, handleRemoveNode, readOnly])
 
   // Guarded by a ref (not just the effect dep array) so it only seeds once even if
   // the parent re-renders and passes a new `initialNodes` array reference.
@@ -1612,6 +1699,15 @@ function RelationshipsCanvasFlow({
                   <Type className="h-3.5 w-3.5" />
                   {t("canvas.addText")}
                 </button>
+                {ROLE_NODE_ENABLED && canPickRole && (
+                  <button
+                    onClick={() => addElementAtCenter("role")}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
+                  >
+                    <Shield className="h-3.5 w-3.5" />
+                    {t("canvas.addRole")}
+                  </button>
+                )}
               </div>
             </Panel>
           )}
@@ -1809,6 +1905,23 @@ function RelationshipsCanvasFlow({
           onSelect={(executionId, executionName) => {
             createExecutionNode(pendingDrop.docType, pendingDrop.position, executionId, executionName)
             setPendingDrop(null)
+          }}
+        />
+      )}
+
+      {/* Role picker — shared by "create role node" and "(re)assign role on container/role node" */}
+      {pendingRolePick && (
+        <HuemulRolePickerDialog
+          open={!!pendingRolePick}
+          onOpenChange={(o) => !o && setPendingRolePick(null)}
+          onSelect={(id, name) => {
+            const role: CanvasElementRole = { id, name }
+            if ("nodeId" in pendingRolePick) {
+              handleUpdateElementRole(pendingRolePick.nodeId, role)
+            } else {
+              createElementNode("role", pendingRolePick.position, role.name, undefined, undefined, undefined, role)
+            }
+            setPendingRolePick(null)
           }}
         />
       )}

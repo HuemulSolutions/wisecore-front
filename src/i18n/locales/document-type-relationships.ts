@@ -25,6 +25,9 @@ const translations = {
       en: "Remove from Canvas",
       es: "Quitar del Canvas",
     },
+    assignRole: { en: "Assign role", es: "Asignar rol" },
+    changeRole: { en: "Change role", es: "Cambiar rol" },
+    clearRole: { en: "Clear role", es: "Quitar rol" },
     noRelationshipsFound: {
       en: "No relationships found for this asset type",
       es: "No se encontraron relaciones para este tipo de activo",
@@ -45,6 +48,7 @@ const translations = {
     refresh: { en: "Refresh list", es: "Refrescar lista" },
     container: { en: "Container", es: "Contenedor" },
     text: { en: "Text", es: "Texto" },
+    role: { en: "Role", es: "Rol" },
   },
   canvas: {
     empty: {
@@ -61,6 +65,11 @@ const translations = {
     loadDiagram: { en: "Load Diagram", es: "Cargar Diagrama" },
     addContainer: { en: "Add Container", es: "Agregar Contenedor" },
     addText: { en: "Add Text", es: "Agregar Texto" },
+    addRole: { en: "Add Role", es: "Agregar Rol" },
+    roleConnectionsUnsupported: {
+      en: "Connections from role nodes aren't supported yet",
+      es: "Las conexiones desde nodos de rol aún no están soportadas",
+    },
   },
   loadDiagramSheet: {
     title: { en: "Load Diagram", es: "Cargar Diagrama" },
@@ -132,12 +141,19 @@ const translations = {
   elementPanel: {
     containerTitle: { en: "Container", es: "Contenedor" },
     textTitle: { en: "Text", es: "Texto" },
+    roleTitle: { en: "Role", es: "Rol" },
     title: { en: "Title", es: "Título" },
     content: { en: "Content", es: "Contenido" },
     borderColor: { en: "Border color", es: "Color de borde" },
     textColor: { en: "Text color", es: "Color de texto" },
+    color: { en: "Color", es: "Color" },
     defaultContainerTitle: { en: "Container", es: "Contenedor" },
     defaultTextContent: { en: "Text", es: "Texto" },
+    role: { en: "Role", es: "Rol" },
+    noRole: { en: "No role assigned", es: "Sin rol asignado" },
+    selectRole: { en: "Select role", es: "Seleccionar rol" },
+    changeRole: { en: "Change role", es: "Cambiar rol" },
+    clearRole: { en: "Clear role", es: "Quitar rol" },
   },
   relationship: {
     name: { en: "Name", es: "Nombre" },

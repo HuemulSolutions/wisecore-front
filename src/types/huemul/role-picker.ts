@@ -1,5 +1,4 @@
 export interface HuemulRolePickerSelectMeta {
-  color?: string | null
   description?: string | null
 }
 

@@ -6,7 +6,6 @@ import { useRoles } from "@/hooks/useRbac"
 import { HuemulDialog } from "./huemul-dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import type { HuemulRolePickerDialogProps } from "@/types/huemul"
 
 const PAGE_SIZE = 50
@@ -32,8 +31,8 @@ export function HuemulRolePickerDialog({ open, onOpenChange, onSelect }: HuemulR
     setPage(1)
   }
 
-  function handleSelect(id: string, name: string, color?: string | null, description?: string | null) {
-    onSelect(id, name, { color: color ?? null, description: description ?? null })
+  function handleSelect(id: string, name: string, description?: string | null) {
+    onSelect(id, name, { description: description ?? null })
     onOpenChange(false)
   }
 
@@ -93,13 +92,9 @@ export function HuemulRolePickerDialog({ open, onOpenChange, onSelect }: HuemulR
                 <button
                   key={role.id}
                   type="button"
-                  onClick={() => handleSelect(role.id, role.name, role.color, role.description)}
-                  className="flex w-full items-start gap-2 rounded-md p-2 text-left hover:bg-muted hover:cursor-pointer"
+                  onClick={() => handleSelect(role.id, role.name, role.description)}
+                  className="flex w-full items-start rounded-md p-2 text-left hover:bg-muted hover:cursor-pointer"
                 >
-                  <span
-                    className={cn("mt-1 h-2.5 w-2.5 shrink-0 rounded-full", !role.color && "bg-muted-foreground")}
-                    style={role.color ? { backgroundColor: role.color } : undefined}
-                  />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{role.name}</div>
                     {role.description && (
