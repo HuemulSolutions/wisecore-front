@@ -46,7 +46,7 @@ const translations = {
   // version selection (version_mode)
   versionMode: {
     label: { en: "Version to use", es: "Versión a usar" },
-    published: { en: "Current published version", es: "Versión publicada vigente" },
+    published: { en: "Current published version", es: "Versión publicada" },
     publishedHint: {
       en: "Always resolves to whatever version is published at the time.",
       es: "Siempre resuelve a la versión publicada vigente en cada momento.",

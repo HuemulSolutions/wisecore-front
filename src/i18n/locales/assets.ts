@@ -16,6 +16,8 @@ const translations = {
     templateTitle: { en: "Use template", es: "Usar plantilla" },
     templateDescription: { en: "Choose a template for your asset.", es: "Elige una plantilla para tu activo." },
     selectTemplatePlaceholder: { en: "Select template", es: "Seleccionar plantilla" },
+    urlTitle: { en: "From a link", es: "Desde un link" },
+    urlDescription: { en: "Import a Markdown file from a public URL.", es: "Importa un archivo Markdown desde un link público." },
   },
   createFolder: {
     title: { en: "Create Folder", es: "Crear Carpeta" },
@@ -40,6 +42,54 @@ const translations = {
     errorFileRequired: { en: "Please select a file to import", es: "Por favor selecciona un archivo para importar" },
     fileLabel: { en: "File", es: "Archivo" },
     fileDescription: { en: "Accepted formats: PDF, DOCX", es: "Formatos aceptados: PDF, DOCX" },
+  },
+  importFromUrl: {
+    submitLabel: { en: "Import from link", es: "Importar desde link" },
+    started: { en: "Importing \"{{name}}\"…", es: "Importando \"{{name}}\"…" },
+    urlLabel: { en: "File URL", es: "URL del archivo" },
+    urlPlaceholder: { en: "https://github.com/org/repo/blob/main/README.md", es: "https://github.com/org/repo/blob/main/README.md" },
+    urlHelp: {
+      en: "Must link directly to a .md or .markdown file. GitHub file links are supported.",
+      es: "Debe apuntar directamente a un archivo .md o .markdown. Se admiten links de archivos de GitHub.",
+    },
+    sectionSeparatorLabel: { en: "Split sections by", es: "Dividir secciones por" },
+    sectionSeparatorDescription: {
+      en: "Heading level used to split the Markdown file into sections.",
+      es: "Nivel de encabezado usado para dividir el archivo Markdown en secciones.",
+    },
+    separatorH1: { en: "Heading 1 (#)", es: "Encabezado 1 (#)" },
+    separatorH2: { en: "Heading 2 (##)", es: "Encabezado 2 (##)" },
+    separatorH3: { en: "Heading 3 (###)", es: "Encabezado 3 (###)" },
+    forceImportLabel: { en: "Force import", es: "Forzar importación" },
+    forceImportDescription: { en: "Import even if a document with the same content already exists.", es: "Importar aunque ya exista un documento con el mismo contenido." },
+    errorUrlRequired: { en: "The file URL is required", es: "La URL del archivo es requerida" },
+    errorUrlInvalid: {
+      en: "The link must be a direct http(s) link to a .md or .markdown file",
+      es: "El link debe ser un link http(s) directo a un archivo .md o .markdown",
+    },
+    errorDuplicateContent: { en: "A document with the same content already exists: \"{{name}}\"", es: "Ya existe un documento con el mismo contenido: \"{{name}}\"" },
+    openExisting: { en: "Open existing", es: "Abrir existente" },
+    errors: {
+      invalidUrlScheme: { en: "The link must start with http:// or https://", es: "El link debe empezar con http:// o https://" },
+      invalidUrl: { en: "The link is not a valid URL", es: "El link no es una URL válida" },
+      unsupportedUrlContent: {
+        en: "The link doesn't point to a .md or .markdown file",
+        es: "El link no apunta a un archivo .md o .markdown",
+      },
+      contentTypeNotMarkdown: {
+        en: "The link returned a web page instead of the raw Markdown file. Use the file's direct \"raw\" link.",
+        es: "El link devolvió una página web en vez del archivo Markdown crudo. Usá el link directo (\"raw\") del archivo.",
+      },
+      hostUnresolvable: { en: "The link's host could not be resolved", es: "No se pudo resolver el host del link" },
+      hostNotAllowed: { en: "The link points to a private or internal network and can't be imported", es: "El link apunta a una red interna o privada y no se puede importar" },
+      redirectNotSupported: {
+        en: "The link responded with a redirect. Use the file's final direct link.",
+        es: "El link respondió con una redirección. Usá el link directo final del archivo.",
+      },
+      fetchFailed: { en: "The file could not be downloaded (network error or timeout)", es: "No se pudo descargar el archivo (error de red o tiempo agotado)" },
+      fetchHttpError: { en: "The link's server responded with an error", es: "El servidor del link respondió con un error" },
+      contentTooLarge: { en: "The file exceeds the 5 MB maximum size", es: "El archivo supera el máximo de 5 MB" },
+    },
   },
   importFromExternal: {
     title: { en: "Create Asset from External System", es: "Crear Activo desde Sistema Externo" },

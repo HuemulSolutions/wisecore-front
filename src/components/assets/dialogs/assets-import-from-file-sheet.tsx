@@ -14,9 +14,9 @@ import { getAssetTypes } from "@/services/asset-types"
 import { useOrganization } from "@/contexts/organization-context"
 import { toast } from "sonner"
 import { ApiError } from "@/types/api-error"
-import { handleApiError } from "@/lib/error-utils"
+import { handleApiError, parseErrorDetail } from "@/lib/error-utils"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
-import type { ImportAssetFromFileSheetProps } from '@/types/assets'
+import type { ImportAssetFromFileSheetProps, DuplicateDocumentDetail } from '@/types/assets'
 export type { ImportAssetFromFileSheetProps } from '@/types/assets'
 
 export function ImportAssetFromFileSheet({
@@ -78,7 +78,7 @@ export function ImportAssetFromFileSheet({
     meta: { showSuccessToast: false },
     onError: (error) => {
       if (ApiError.isApiError(error) && error.code === 'DUPLICATE_DOCUMENT_CONTENT') {
-        const detail = error.detail as unknown as { document_id?: string; document_name?: string }
+        const detail = parseErrorDetail<DuplicateDocumentDetail>(error)
         const docName = detail?.document_name ?? ''
         const docId = detail?.document_id
         toast.warning(t('importFromFile.errorDuplicateContent', { name: docName }), {

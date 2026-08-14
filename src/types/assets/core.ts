@@ -523,6 +523,35 @@ export interface ImportDocumentFromFileParams {
   organizationId: string;
 }
 
+export interface ImportDocumentFromUrlParams {
+  url: string;
+  name: string;
+  description?: string;
+  document_type_id: string;
+  folder_id?: string | null;
+  internal_code?: string;
+  section_separator?: 'h1' | 'h2' | 'h3';
+  force_import?: boolean;
+  organizationId: string;
+}
+
+// Respuesta 202 de import-from-file / import-from-url (mismo shape en ambos)
+export interface ImportDocumentAsyncResponse {
+  document_id: string;
+  execution_id: string;
+  job_id: string;
+  status: string;
+  message: string;
+  document_path: string;
+}
+
+// `detail` estructurado del 409 DUPLICATE_DOCUMENT_CONTENT (ver parseErrorDetail en error-utils)
+export interface DuplicateDocumentDetail {
+  document_id?: string;
+  document_path?: string;
+  document_name?: string;
+}
+
 // ========================================
 // Export / Import de configuración (migración por JSON)
 // Distinto de ImportDocumentFromFileParams, que importa DOCX/PDF y los convierte.

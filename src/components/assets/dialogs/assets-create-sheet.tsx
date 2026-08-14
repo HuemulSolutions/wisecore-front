@@ -3,12 +3,12 @@
 import * as React from "react"
 import { useState } from "react"
 import { useMutation } from "@tanstack/react-query"
-import { Plus, FileText, LayoutTemplate, PlusCircle } from "lucide-react"
+import { Plus, FileText, LayoutTemplate, Link2, PlusCircle } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulField } from "@/huemul/components/huemul-field"
-import { createDocument } from "@/services/assets"
+import { createDocument, importDocumentFromUrl } from "@/services/assets"
 import { getAllTemplates } from "@/services/templates"
 import { getAssetTypes } from "@/services/asset-types"
 import { useOrganization } from "@/contexts/organization-context"
@@ -16,16 +16,36 @@ import type { FetchOptionsParams } from "@/huemul/components/huemul-field"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import CreateDocumentType from "@/components/assets-types/assets-types-create"
-import type { CreateAssetRequest, CreateAssetSheetProps } from "@/types/assets"
+import { handleImportFromUrlError } from "./import-error-utils"
+import type { CreateAssetRequest, CreateAssetSheetProps, DuplicateDocumentDetail } from "@/types/assets"
 
-type ContentMode = "blank" | "template"
+type ContentMode = "blank" | "template" | "url"
+
+const SECTION_SEPARATOR_OPTIONS = ["h1", "h2", "h3"] as const
+
+// El backend acepta links directos a .md/.markdown (query string aparte) y
+// reescribe solo los links "blob" de GitHub — el resto de la validación real
+// (Content-Type, DNS, redirects, tamaño) la hace el backend. Esto solo evita
+// un round-trip para los casos obvios (esquema incorrecto, extensión incorrecta).
+function isLikelyMarkdownUrl(value: string): boolean {
+  let parsed: URL
+  try {
+    parsed = new URL(value)
+  } catch {
+    return false
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false
+  return /\.(md|markdown)$/i.test(parsed.pathname)
+}
 
 function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated, canCreate }: CreateAssetSheetProps) {
   const { selectedOrganizationId } = useOrganization()
   const { t } = useTranslation('assets')
   const { t: tCommon } = useTranslation('common')
   const { canCreate: canCreateResource } = useUserPermissions()
+  const navigate = useOrgNavigate()
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [internalCode, setInternalCode] = useState("")
@@ -35,6 +55,9 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated, c
   const [templateId, setTemplateId] = useState("")
   const [contentMode, setContentMode] = useState<ContentMode>("blank")
   const [showCreateDocTypeDialog, setShowCreateDocTypeDialog] = useState(false)
+  const [url, setUrl] = useState("")
+  const [sectionSeparator, setSectionSeparator] = useState<"h1" | "h2" | "h3">("h1")
+  const [forceImport, setForceImport] = useState(false)
 
   React.useEffect(() => {
     if (open) {
@@ -46,6 +69,9 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated, c
       setDocTypeColor(undefined)
       setTemplateId("")
       setContentMode("blank")
+      setUrl("")
+      setSectionSeparator("h1")
+      setForceImport(false)
     }
   }, [open, selectedOrganizationId])
 
@@ -102,7 +128,12 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated, c
 
   const handleContentModeChange = (mode: ContentMode) => {
     setContentMode(mode)
-    if (mode === "blank") setTemplateId("")
+    if (mode !== "template") setTemplateId("")
+    if (mode !== "url") {
+      setUrl("")
+      setSectionSeparator("h1")
+      setForceImport(false)
+    }
   }
 
   const createAssetMutation = useMutation({
@@ -126,6 +157,55 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated, c
     },
   })
 
+  // Separada de createAssetMutation: responde 202 (no el asset completo),
+  // no muestra el toast de éxito automático (meta.successMessage) porque el
+  // documento sigue "importing" al recibir la respuesta, y necesita su propio
+  // onError para el 409 de duplicado y los códigos de validación del link.
+  const importFromUrlMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedOrganizationId) throw new Error("Organization ID not found")
+      return importDocumentFromUrl({
+        url: url.trim(),
+        name: name.trim(),
+        description: description.trim() || undefined,
+        internal_code: internalCode.trim() || undefined,
+        document_type_id: documentTypeId,
+        folder_id: folderId ?? null,
+        section_separator: sectionSeparator,
+        force_import: forceImport,
+        organizationId: selectedOrganizationId,
+      })
+    },
+    meta: { showSuccessToast: false },
+    onError: (error) => {
+      handleImportFromUrlError(error, t, (detail: DuplicateDocumentDetail | null) => {
+        const docName = detail?.document_name ?? ''
+        const docId = detail?.document_id
+        toast.warning(t('importFromUrl.errorDuplicateContent', { name: docName }), {
+          action: docId
+            ? {
+                label: t('importFromUrl.openExisting'),
+                onClick: () => {
+                  onOpenChange(false)
+                  navigate(`/asset/${docId}`)
+                },
+              }
+            : undefined,
+          duration: 8000,
+        })
+      })
+    },
+    onSuccess: (res) => {
+      toast.success(t('importFromUrl.started', { name: name.trim() }))
+      onOpenChange(false)
+      onAssetCreated?.({
+        id: res.document_id,
+        name: name.trim(),
+        type: "document",
+      })
+    },
+  })
+
   const handleCreate = () => {
     if (!canCreate) return
     if (!selectedOrganizationId) {
@@ -140,6 +220,19 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated, c
 
     if (contentMode === "template" && !templateId) {
       toast.error(t('create.errorTemplateRequired'))
+      return
+    }
+
+    if (contentMode === "url") {
+      if (!url.trim()) {
+        toast.error(t('importFromUrl.errorUrlRequired'))
+        return
+      }
+      if (!isLikelyMarkdownUrl(url.trim())) {
+        toast.error(t('importFromUrl.errorUrlInvalid'))
+        return
+      }
+      importFromUrlMutation.mutate()
       return
     }
 
@@ -171,7 +264,8 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated, c
     handleCreate()
   }
 
-  const disabled = createAssetMutation.isPending
+  const isSaving = createAssetMutation.isPending || importFromUrlMutation.isPending
+  const disabled = isSaving
 
   // Defensa en profundidad: aunque el trigger esté oculto, el sheet no se
   // monta sin `asset:c`.
@@ -189,15 +283,16 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated, c
         maxWidth="sm:max-w-2xl"
         cancelLabel={tCommon('cancel')}
         saveAction={{
-          label: t('create.submitLabel'),
+          label: contentMode === "url" ? t('importFromUrl.submitLabel') : t('create.submitLabel'),
           onClick: handleCreate,
-          loading: createAssetMutation.isPending,
+          loading: isSaving,
           disabled:
             !canCreate ||
             !name.trim() ||
             !documentTypeId ||
             !selectedOrganizationId ||
-            (contentMode === "template" && !templateId),
+            (contentMode === "template" && !templateId) ||
+            (contentMode === "url" && !url.trim()),
           closeOnSuccess: false,
         }}
       >
@@ -243,7 +338,7 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated, c
           {/* 3 · Initial content */}
           <div className="flex flex-col gap-2">
             <span className="text-sm font-medium leading-snug">{t('create.initialContentLabel')}</span>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <ContentModeCard
                 icon={FileText}
                 title={t('create.blankTitle')}
@@ -258,6 +353,14 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated, c
                 description={t('create.templateDescription')}
                 selected={contentMode === "template"}
                 onClick={() => handleContentModeChange("template")}
+                disabled={disabled}
+              />
+              <ContentModeCard
+                icon={Link2}
+                title={t('create.urlTitle')}
+                description={t('create.urlDescription')}
+                selected={contentMode === "url"}
+                onClick={() => handleContentModeChange("url")}
                 disabled={disabled}
               />
             </div>
@@ -276,6 +379,45 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated, c
               placeholder={t('create.selectTemplatePlaceholder')}
               disabled={disabled}
             />
+          )}
+
+          {/* 3 · URL + section separator + force import (url mode only) */}
+          {contentMode === "url" && (
+            <div className="flex flex-col gap-4">
+              <HuemulField
+                type="text"
+                label={t('importFromUrl.urlLabel')}
+                name="url"
+                required
+                value={url}
+                onChange={(v) => setUrl(String(v))}
+                placeholder={t('importFromUrl.urlPlaceholder')}
+                description={t('importFromUrl.urlHelp')}
+                disabled={disabled}
+              />
+              <HuemulField
+                type="select"
+                label={t('importFromUrl.sectionSeparatorLabel')}
+                name="sectionSeparator"
+                value={sectionSeparator}
+                options={SECTION_SEPARATOR_OPTIONS.map((sep) => ({
+                  value: sep,
+                  label: t(`importFromUrl.separator${sep.toUpperCase()}`),
+                }))}
+                onChange={(v) => setSectionSeparator(String(v) as "h1" | "h2" | "h3")}
+                description={t('importFromUrl.sectionSeparatorDescription')}
+                disabled={disabled}
+              />
+              <HuemulField
+                type="switch"
+                label={t('importFromUrl.forceImportLabel')}
+                name="forceImportUrl"
+                value={forceImport}
+                onChange={(v) => setForceImport(Boolean(v))}
+                description={t('importFromUrl.forceImportDescription')}
+                disabled={disabled}
+              />
+            </div>
           )}
 
           {/* 4 · Internal code + description */}

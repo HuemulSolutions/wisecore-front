@@ -169,6 +169,22 @@ export function isStatusCode(error: unknown, statusCode: number): boolean {
 }
 
 /**
+ * Recupera el `detail` estructurado que el backend mandó como objeto.
+ * ApiError lo normaliza siempre a string (JSON.stringify si no era string
+ * de por sí) — este helper deshace ese paso para los códigos de error que
+ * traen un `detail` con forma de objeto (ej. DUPLICATE_DOCUMENT_CONTENT).
+ */
+export function parseErrorDetail<T>(error: unknown): T | null {
+  if (!ApiError.isApiError(error) || !error.detail) return null;
+  try {
+    const parsed = JSON.parse(error.detail);
+    return typeof parsed === 'object' && parsed !== null ? (parsed as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Re-export ApiError for convenience
  */
 export { ApiError };
