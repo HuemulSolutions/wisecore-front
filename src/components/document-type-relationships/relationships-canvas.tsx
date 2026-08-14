@@ -78,6 +78,14 @@ const EDGE_TYPES = {
   relationship: MemoizedRelationshipEdge,
 }
 
+const EDGE_MARKER = {
+  type: MarkerType.ArrowClosed,
+  width: 18,
+  height: 18,
+  color: "var(--diagram-edge)",
+} as const
+const EDGE_MARKER_SELECTED = { ...EDGE_MARKER, color: "var(--primary)" } as const
+
 // Los contenedores son agrupadores visuales, no nodos `group` de React Flow: deben quedar
 // siempre por debajo para que un clic dentro de uno llegue al nodo que está encima, y un clic
 // en su zona vacía lo tome a él. Los contenedores más grandes van más abajo, así un contenedor
@@ -243,7 +251,12 @@ function RelationshipsCanvasFlow({
   }, [nodes])
 
   const layeredEdges = useMemo(
-    () => edges.map((e) => (e.zIndex === EDGE_Z ? e : { ...e, zIndex: EDGE_Z })),
+    () =>
+      edges.map((e) => ({
+        ...e,
+        zIndex: EDGE_Z,
+        markerEnd: e.selected ? EDGE_MARKER_SELECTED : EDGE_MARKER,
+      })),
     [edges],
   )
   const [showSaveDiagramDialog, setShowSaveDiagramDialog] = useState(false)
@@ -442,7 +455,6 @@ function RelationshipsCanvasFlow({
             source: sourceId,
             target: targetId,
             type: "relationship",
-            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
             data: {
               relationshipId: cfg.id,
               name: cfg.name,
@@ -560,7 +572,6 @@ function RelationshipsCanvasFlow({
             source: sourceId,
             target: targetId,
             type: "relationship",
-            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
             data: {
               relationshipId: cfg.id,
               name: cfg.name,
@@ -938,7 +949,6 @@ function RelationshipsCanvasFlow({
             source: conn.sourceId,
             target: conn.targetId,
             type: "relationship",
-            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
             data: {
               relationshipId: cfg.id,
               name: cfg.name,
@@ -986,7 +996,6 @@ function RelationshipsCanvasFlow({
             source: conn.sourceId,
             target: conn.targetId,
             type: "relationship",
-            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
             data: {
               relationshipId: relationship.id,
               name: relName,
@@ -1141,7 +1150,6 @@ function RelationshipsCanvasFlow({
             source: srcCanvasId,
             target: tgtCanvasId,
             type: 'relationship',
-            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
             data: {
               relationshipId: rel.id,
               name: relName,
@@ -1281,7 +1289,6 @@ function RelationshipsCanvasFlow({
             source: srcCanvasId,
             target: tgtCanvasId,
             type: 'relationship',
-            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
             data: {
               relationshipId: rel.id,
               name: relName,
@@ -1377,7 +1384,6 @@ function RelationshipsCanvasFlow({
           source: srcCanvasId,
           target: tgtCanvasId,
           type: 'relationship',
-          markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
           data: {
             relationshipId: rel.execution_relationship_id,
             name: relName,
