@@ -169,6 +169,7 @@ const translations = {
       triggerHint: { en: "Your answer may show or hide other questions", es: "Tu respuesta puede mostrar u ocultar otras preguntas" },
       recalculating: { en: "Updating form...", es: "Actualizando formulario..." },
       noAnswer: { en: "No answer", es: "Sin respuesta" },
+      answeredCount: { en: "{{answered}}/{{total}} answered", es: "{{answered}}/{{total}} respondidas" },
       selectOption: { en: "Select an option...", es: "Seleccionar opción..." },
       selectOptions: { en: "Select options...", es: "Seleccionar opciones..." },
       emptyForm: { en: "This form has no questions.", es: "Este formulario no tiene preguntas." },

@@ -29,6 +29,7 @@ import { handleApiError } from '@/lib/error-utils';
 import { logger } from '@/lib/logger';
 import { useTranslation } from 'react-i18next';
 import { AssetFormSection, type AssetFormSectionHandle } from '@/components/assets/content/asset-form-section';
+import { AssetFormSectionReader } from '@/components/assets/content/asset-form-section-reader';
 import { QUESTION_TYPE, formatFieldValueForCopy, isFieldAnswerable, isFieldVisible } from '@/components/sections/question-type-meta';
 import type { SectionExecutionProps } from '@/types/assets';
 export type { SectionExecutionProps } from '@/types/assets';
@@ -780,24 +781,33 @@ function SectionExecutionInner({
                     </div>
                 </div>
             ) : sectionType === 'form' ? (
-                /* Form section: render fillable/read-only form instead of the Plate editor */
-                <div className={`${readyToEdit ? 'pt-4' : 'pt-1'} pr-2 w-full`}>
-                    <AssetFormSection
-                        ref={formSectionRef}
-                        sectionExecutionId={sectionExecution.id}
-                        formFields={sectionExecution.form_fields ?? []}
-                        status={status}
-                        organizationId={selectedOrganizationId ?? undefined}
-                        documentId={documentId}
-                        canInteract={readyToEdit && canEditSections}
-                        isEditing={isEditing}
-                        onExitEditing={handleCancelEdit}
-                        reviewStatus={reviewStatus}
-                        onReviewStatusChange={setReviewStatus}
-                        onUpdate={onUpdate}
-                        onSavingChange={setIsFormSaving}
+                !readyToEdit ? (
+                    /* Reader mode: numbered/collapsible summary card instead of the flat answer stack */
+                    <AssetFormSectionReader
+                        section={{ form_fields: sectionExecution.form_fields, review_status: reviewStatus }}
+                        sectionName={sectionName}
+                        sectionIndex={sectionIndex ?? 0}
                     />
-                </div>
+                ) : (
+                    /* Form section: render fillable/read-only form instead of the Plate editor */
+                    <div className="pt-4 pr-2 w-full">
+                        <AssetFormSection
+                            ref={formSectionRef}
+                            sectionExecutionId={sectionExecution.id}
+                            formFields={sectionExecution.form_fields ?? []}
+                            status={status}
+                            organizationId={selectedOrganizationId ?? undefined}
+                            documentId={documentId}
+                            canInteract={readyToEdit && canEditSections}
+                            isEditing={isEditing}
+                            onExitEditing={handleCancelEdit}
+                            reviewStatus={reviewStatus}
+                            onReviewStatusChange={setReviewStatus}
+                            onUpdate={onUpdate}
+                            onSavingChange={setIsFormSaving}
+                        />
+                    </div>
+                )
             ) : (
                 /* Unified Plate view: readOnly when not editing, editable when editing */
                 <div className={isEditing ? 'pt-2 pr-0' : `${readyToEdit ? 'pt-4' : 'pt-1'} pr-2 w-full`}>

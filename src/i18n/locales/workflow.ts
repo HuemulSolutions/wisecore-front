@@ -75,7 +75,7 @@ const translations = {
     summary: {
       tooltip: { en: "Back to summary", es: "Volver al resumen" },
       stepLabel: { en: "Step {{number}}", es: "Paso {{number}}" },
-      answeredCount: { en: "{{answered}}/{{total}} answered", es: "{{answered}}/{{total}} respondidas" },
+      // answeredCount vive en sections:form.fill.answeredCount (compartido con el modo lector del asset).
       missingRequired: { en: "{{count}} required pending", es: "{{count}} obligatorias pendientes" },
       goToSection: { en: "Go to section", es: "Ir a la sección" },
       noAnswers: { en: "No answers in this section yet", es: "Esta sección aún no tiene respuestas" },
