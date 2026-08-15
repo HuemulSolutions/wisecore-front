@@ -2,33 +2,26 @@
 
 import { useEffect, useState, type RefObject } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { toPng } from "html-to-image"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-import { Workflow } from "lucide-react"
+import { Pencil, Workflow } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulAssetTreePickerField } from "@/huemul/components/huemul-asset-tree-picker"
-import { useMediaMutations } from "@/hooks/useMedia"
-import { useDiagramMutations } from "@/hooks/useDiagrams"
+import { useSaveDiagramGraph } from "@/hooks/useDiagrams"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { handleApiError } from "@/lib/error-utils"
 import { getExecutionById } from "@/services/executions"
-import { getNodesBounds, getViewportForBounds, type Edge, type Node } from "@xyflow/react"
+import type { Edge, Node } from "@xyflow/react"
 import type { AssetTypeNodeData } from "./asset-type-node"
 import type { CanvasElementNodeData } from "./text-node"
 import type { RelationshipEdgeData } from "./relationship-edge"
 import { executionLabel } from "./execution-relationship-dialogs"
-import type { Diagram, DiagramDetailInput, DiagramRelationshipInput, DiagramTextInput } from "@/types/diagrams"
+import type { Diagram } from "@/types/diagrams"
 
 // The canvas mixes asset nodes with free-standing text/container elements; this
 // sheet only cares about telling them apart by `type` when building the save payload.
 type CanvasNode = Node<AssetTypeNodeData | CanvasElementNodeData>
-
-// Fixed export canvas size used to frame the captured nodes (react-flow's official
-// download-image recipe: https://reactflow.dev/examples/misc/download-image)
-const SNAPSHOT_IMAGE_WIDTH = 1024
-const SNAPSHOT_IMAGE_HEIGHT = 768
 
 export interface SaveAsDiagramSheetProps {
   open: boolean
@@ -50,6 +43,12 @@ export interface SaveAsDiagramSheetProps {
   canCreate: boolean
   /** `diagram:u`. Obligatoria: sin default, olvidarse de pasarla rompe el build. */
   canUpdate: boolean
+  /**
+   * Solo edita los datos del diagrama (nombre, descripción, ejecución principal):
+   * salta el recentrado del canvas, la captura PNG y la subida de Media, y reusa
+   * el snapshot existente. Requiere `diagramId`.
+   */
+  metadataOnly?: boolean
   /** Se dispara al terminar un guardado exitoso (create o update) con el Diagram resultante. */
   onSaved?: (diagram: Diagram) => void
 }
@@ -66,42 +65,56 @@ export function SaveAsDiagramSheet({
   initialValues,
   canCreate,
   canUpdate,
+  metadataOnly = false,
   onSaved,
 }: SaveAsDiagramSheetProps) {
   const { t } = useTranslation(['document-type-relationships', 'common'])
   const navigate = useOrgNavigate()
-  const { uploadMedia, uploadMediaVersion } = useMediaMutations(organizationId)
-  const { createDiagram, updateDiagram } = useDiagramMutations(organizationId)
+  const { saveDiagramGraph } = useSaveDiagramGraph(organizationId)
   const isEditing = !!diagramId
   // Guardar cambios escribe con PUT (diagram:u); guardar como nuevo, con POST
   // (diagram:c). El sheet no confía solo en que su trigger esté oculto.
   const canSave = isEditing ? canUpdate : canCreate
 
+  // Tres modos sobre el mismo formulario: crear, guardar cambios del canvas y
+  // editar solo los datos. Únicas diferencias visibles: título, botón y toast.
+  const titleKey = metadataOnly
+    ? 'saveAsDiagramDialog.editMetadataTitle'
+    : isEditing ? 'saveAsDiagramDialog.updateTitle' : 'saveAsDiagramDialog.title'
+  const saveLabelKey = metadataOnly
+    ? 'saveAsDiagramDialog.editMetadata'
+    : isEditing ? 'saveAsDiagramDialog.update' : 'saveAsDiagramDialog.save'
+  const successMessage = t(
+    metadataOnly
+      ? 'saveAsDiagramDialog.metadataSuccessToast'
+      : isEditing ? 'saveAsDiagramDialog.updateSuccessToast' : 'saveAsDiagramDialog.successToast',
+  )
+
   const [name, setName] = useState(initialValues?.name ?? "")
   const [description, setDescription] = useState(initialValues?.description ?? "")
   const [mainExecutionId, setMainExecutionId] = useState(initialValues?.executionId ?? "")
-  const [mainExecutionLabel, setMainExecutionLabel] = useState("")
+  // Solo guarda lo que el usuario eligió a mano en el picker. Para la ejecución que
+  // viene del diagrama guardado el label se DERIVA de la query de abajo: si se
+  // guardara en state habría que limpiarlo en cada reset y el picker mostraría el
+  // UUID crudo (su fallback es `valueLabel || valueId`) hasta que la query resuelva.
+  const [pickedExecutionLabel, setPickedExecutionLabel] = useState("")
 
-  const validNodes = nodes.filter((n) => n.data.assetId && n.data.executionId)
-  const validNodeIds = new Set(validNodes.map((n) => n.id))
-
-  // When editing an existing diagram we only have the executionId (no label) —
-  // fetch it once to seed a readable label in the tree picker field.
+  // Del diagrama guardado solo llega el executionId (sin label) — se resuelve para
+  // mostrar algo legible en el picker. Cacheada por react-query, así que reabrir el
+  // sheet no vuelve a pedirla.
   const { data: seedExecution } = useQuery({
-    queryKey: ['save-as-diagram-main-execution', organizationId, initialValues?.executionId],
-    queryFn: () => getExecutionById(initialValues!.executionId, organizationId),
-    enabled: open && !!initialValues?.executionId && !mainExecutionLabel,
+    queryKey: ['save-as-diagram-main-execution', organizationId, mainExecutionId],
+    queryFn: () => getExecutionById(mainExecutionId, organizationId),
+    enabled: open && !!mainExecutionId && !pickedExecutionLabel,
   })
 
-  useEffect(() => {
-    if (seedExecution) setMainExecutionLabel(executionLabel(seedExecution))
-  }, [seedExecution])
+  const mainExecutionLabel = pickedExecutionLabel || (seedExecution ? executionLabel(seedExecution) : "")
 
   const reset = () => {
     setName(initialValues?.name ?? "")
     setDescription(initialValues?.description ?? "")
     setMainExecutionId(initialValues?.executionId ?? "")
-    setMainExecutionLabel("")
+    setPickedExecutionLabel("")
   }
 
   // The sheet stays mounted across multiple loads/saves in the same canvas session
@@ -112,152 +125,38 @@ export function SaveAsDiagramSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  const handleSave = () =>
-    new Promise<void>((resolve, reject) => {
-      if (!canSave) {
-        reject(new Error(`Missing diagram:${isEditing ? 'u' : 'c'} permission`))
-        return
-      }
-      const run = async () => {
-        try {
-          fitView()
-          // Give React Flow a moment to settle the viewport before capturing.
-          await new Promise((r) => setTimeout(r, 150))
-
-          const viewportEl = containerRef.current?.querySelector<HTMLElement>('.react-flow__viewport')
-          if (!viewportEl) throw new Error('Canvas not ready')
-
-          // Frame just the nodes (excludes Controls/MiniMap/Panel and the side panels,
-          // which live outside .react-flow__viewport) — same recipe as react-flow's docs.
-          const bounds = getNodesBounds(nodes)
-          const viewport = getViewportForBounds(
-            bounds,
-            SNAPSHOT_IMAGE_WIDTH,
-            SNAPSHOT_IMAGE_HEIGHT,
-            0.5,
-            2,
-            0.1,
-          )
-
-          const dataUrl = await toPng(viewportEl, {
-            backgroundColor: '#ffffff',
-            width: SNAPSHOT_IMAGE_WIDTH,
-            height: SNAPSHOT_IMAGE_HEIGHT,
-            style: {
-              width: `${SNAPSHOT_IMAGE_WIDTH}px`,
-              height: `${SNAPSHOT_IMAGE_HEIGHT}px`,
-              transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-            },
-          })
-          const blob = await (await fetch(dataUrl)).blob()
-          const file = new File([blob], 'diagram-snapshot.png', { type: 'image/png' })
-
-          let snapshotMediaId: string
-          if (diagramId && initialValues?.snapshotMediaId) {
-            // Editing a diagram that already has a snapshot → add a new version to the same Media
-            await uploadMediaVersion.mutateAsync({
-              mediaId: initialValues.snapshotMediaId,
-              body: { file },
-            })
-            snapshotMediaId = initialValues.snapshotMediaId
-          } else {
-            // First save (create), or editing a diagram that somehow has no snapshot yet
-            const media = await uploadMedia.mutateAsync({
-              file,
-              level: 'execution',
-              parent_id: mainExecutionId,
-              name: `${name} - snapshot`,
-              origin: 'diagram_snapshot',
-            })
-            snapshotMediaId = media.id
-          }
-
-          const details: DiagramDetailInput[] = validNodes.map((n) => ({
-            execution_id: n.data.executionId as string,
-            document_id: n.data.assetId as string,
-            position: {
-              x: n.position.x,
-              y: n.position.y,
-              width: n.measured?.width ?? 180,
-              height: n.measured?.height ?? 80,
-            },
-          }))
-
-          // Only edges whose both ends are in `details` survive — the backend rejects
-          // edges "hanging" off a box that isn't part of the same request (DIAGRAM_RELATIONSHIP_EXECUTION_NOT_IN_DETAILS).
-          const relIds = new Set<string>()
-          for (const e of edges) {
-            if (!e.id.startsWith('exec-rel-')) continue
-            if (!validNodeIds.has(e.source) || !validNodeIds.has(e.target)) continue
-            const relId = (e.data as RelationshipEdgeData | undefined)?.relationshipId
-            if (relId) relIds.add(relId)
-          }
-          const relationships: DiagramRelationshipInput[] = Array.from(relIds).map((id) => ({
-            execution_relationship_id: id,
-          }))
-
-          // Free-standing text/container/role elements → Diagram `texts`. `kind` is
-          // stashed in `position` so the exact element type is reconstructed on reload.
-          // A container's or role node's assigned role has no first-class column on
-          // diagram_texts yet, so `role_id/role_name` are stashed there too (no
-          // `role_color` — roles have no assignable color anywhere in the app).
-          // A blank `content` is filtered out — the backend rejects it (422 VALIDATION_ERROR).
-          const elementNodes = nodes.filter((n) => n.type === 'text' || n.type === 'container' || n.type === 'role')
-          const texts: DiagramTextInput[] = elementNodes
-            .filter((n) => String((n.data as CanvasElementNodeData).content ?? '').trim())
-            .map((n) => {
-              const data = n.data as CanvasElementNodeData
-              const isContainer = n.type === 'container'
-              return {
-                content: data.content.trim(),
-                position: {
-                  x: n.position.x,
-                  y: n.position.y,
-                  width: n.measured?.width ?? n.width ?? 160,
-                  height: n.measured?.height ?? n.height ?? 80,
-                  kind: n.type,
-                  ...(data.role ? { role_id: data.role.id, role_name: data.role.name } : {}),
-                },
-                has_border: isContainer,
-                border_type: isContainer ? 'solid' : undefined,
-                border_color: isContainer ? data.color : undefined,
-                font_color: !isContainer ? data.color : undefined,
-              }
-            })
-
-          const body = {
-            name,
-            execution_id: mainExecutionId,
-            description: description || undefined,
-            snapshot_media_id: snapshotMediaId,
-            details,
-            texts,
-            relationships,
-          }
-
-          const saved = diagramId
-            ? await updateDiagram.mutateAsync({ diagramId, body })
-            : await createDiagram.mutateAsync(body)
-          onSaved?.(saved)
-
-          toast.success(
-            isEditing ? t('saveAsDiagramDialog.updateSuccessToast') : t('saveAsDiagramDialog.successToast'),
-            {
-              action: {
-                label: t('saveAsDiagramDialog.viewDiagrams'),
-                onClick: () => navigate('/diagrams'),
-              },
-            },
-          )
-          reset()
-          resolve()
-        } catch (err) {
-          handleApiError(err)
-          reject(err)
-        }
-      }
-      run()
-    })
+  // Editar solo los datos no toca el dibujo: se reusa el snapshot ya subido en vez
+  // de recentrar el canvas y regenerar el PNG (lo caro del guardado). Nota: si acá
+  // se cambia la ejecución principal, el Media del snapshot sigue colgando de la
+  // ejecución anterior (su `parent_id`). No rompe nada — el diagrama lo referencia
+  // por `snapshot_media_id`, no por su padre.
+  const handleSave = async () => {
+    if (!canSave) throw new Error(`Missing diagram:${isEditing ? 'u' : 'c'} permission`)
+    try {
+      const saved = await saveDiagramGraph({
+        diagramId,
+        name,
+        description,
+        executionId: mainExecutionId,
+        snapshotMediaId: initialValues?.snapshotMediaId,
+        nodes,
+        edges,
+        containerRef,
+        fitView,
+        skipSnapshot: metadataOnly,
+      })
+      onSaved?.(saved)
+      toast.success(successMessage, {
+        action: {
+          label: t('saveAsDiagramDialog.viewDiagrams'),
+          onClick: () => navigate('/diagrams'),
+        },
+      })
+    } catch (err) {
+      handleApiError(err)
+      throw err
+    }
+  }
 
   if (!canSave) return null
 
@@ -265,11 +164,14 @@ export function SaveAsDiagramSheet({
     <HuemulSheet
       open={open}
       onOpenChange={(o) => { if (!o) reset(); onOpenChange(o) }}
-      title={isEditing ? t('saveAsDiagramDialog.updateTitle') : t('saveAsDiagramDialog.title')}
-      icon={Workflow}
-      closeDelay={800}
+      title={t(titleKey)}
+      icon={metadataOnly ? Pencil : Workflow}
+      // Cierra apenas responde el backend: con un retardo el sheet quedaba visible
+      // mientras el padre ya había cambiado a modo edición, y se leía como si se
+      // hubiera reabierto en blanco.
+      closeDelay={0}
       saveAction={{
-        label: isEditing ? t('saveAsDiagramDialog.update') : t('saveAsDiagramDialog.save'),
+        label: t(saveLabelKey),
         onClick: handleSave,
         disabled: !name.trim() || !mainExecutionId,
       }}
@@ -296,8 +198,8 @@ export function SaveAsDiagramSheet({
           placeholder={t('saveAsDiagramDialog.mainExecutionPlaceholder')}
           valueId={mainExecutionId || undefined}
           valueLabel={mainExecutionLabel || undefined}
-          onPick={(id, label) => { setMainExecutionId(id); setMainExecutionLabel(label) }}
-          onClear={() => { setMainExecutionId(""); setMainExecutionLabel("") }}
+          onPick={(id, label) => { setMainExecutionId(id); setPickedExecutionLabel(label) }}
+          onClear={() => { setMainExecutionId(""); setPickedExecutionLabel("") }}
           container="sheet"
         />
       </div>

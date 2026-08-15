@@ -23,10 +23,19 @@ import {
   Panel,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
+import "./relationships-canvas.css"
 
 import { useQueryClient } from "@tanstack/react-query"
-import { GitMerge, Shield, Square, Trash2, Type, Workflow } from "lucide-react"
+import { ChevronDown, GitMerge, Loader2, Pencil, Plus, Shield, Square, Trash2, Type, Workflow } from "lucide-react"
 import { toast } from "sonner"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { MemoizedAssetTypeNode, type AssetTypeNodeData } from "./asset-type-node"
 import { MemoizedTextNode, type CanvasElementNodeData } from "./text-node"
 import { MemoizedContainerNode } from "./container-node"
@@ -65,6 +74,9 @@ import type {
 import type { ExecutionRelationship, ExecutionRelationshipSubitem } from "@/types/execution-relationships"
 import type { Diagram } from "@/types/diagrams"
 import { buildInitialCanvasElements } from "@/lib/diagram-utils"
+import { useSaveDiagramGraph } from "@/hooks/useDiagrams"
+import { useOrgNavigate } from "@/hooks/useOrgRouter"
+import { handleApiError } from "@/lib/error-utils"
 import { cn } from "@/lib/utils"
 
 const NODE_TYPES = {
@@ -225,6 +237,7 @@ function RelationshipsCanvasFlow({
   readOnly = false,
 }: RelationshipsCanvasProps) {
   const { t } = useTranslation("document-type-relationships")
+  const navigate = useOrgNavigate()
   const { screenToFlowPosition, getNodes, getEdges, fitView } = useReactFlow()
   const queryClient = useQueryClient()
   const { deleteExecutionRelationship } = useExecutionRelationshipMutations(organizationId)
@@ -282,10 +295,21 @@ function RelationshipsCanvasFlow({
       })),
     [edges],
   )
-  const [showSaveDiagramDialog, setShowSaveDiagramDialog] = useState(false)
-  const [saveAsNewDiagram, setSaveAsNewDiagram] = useState(false)
+  // Un solo estado para el sheet de guardado: 'new' crea (POST), 'metadata' solo edita
+  // nombre/descripción/ejecución. "Guardar cambios" ya no pasa por el sheet — guarda
+  // directo (ver `handleSaveChanges`) porque nombre/descripción/ejecución ya están
+  // guardados y no hace falta reconfirmarlos.
+  const [saveSheetMode, setSaveSheetMode] = useState<'new' | 'metadata' | null>(null)
   const [showLoadDiagramSheet, setShowLoadDiagramSheet] = useState(false)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [editingDiagram, setEditingDiagram] = useState(editingDiagramProp)
+  const { saveDiagramGraph, isSaving: isSavingDiagram } = useSaveDiagramGraph(organizationId)
+
+  // El padre puede refrescar el diagrama (refetch tras invalidar) mientras el canvas
+  // sigue montado: sin esto el state local se quedaba con el nombre/ejecución viejos.
+  useEffect(() => {
+    if (editingDiagramProp) setEditingDiagram(editingDiagramProp)
+  }, [editingDiagramProp])
 
   // Dialog state
   const [pendingConnection, setPendingConnection] = useState<PendingConnection | null>(null)
@@ -1631,19 +1655,44 @@ function RelationshipsCanvasFlow({
   // reused here so a freshly created diagram is promoted straight into "editing" mode.
   const handleDiagramSaved = useCallback((diagram: Diagram) => {
     setEditingDiagram(toEditingDiagram(diagram))
-    setSaveAsNewDiagram(false)
     onDiagramSaved?.(diagram)
   }, [onDiagramSaved])
 
-  const openUpdateDiagramDialog = useCallback(() => {
-    setSaveAsNewDiagram(false)
-    setShowSaveDiagramDialog(true)
-  }, [])
+  // "Guardar cambios" ya no abre el sheet: nombre/descripción/ejecución ya están
+  // guardados (para tocarlos está "Editar datos del diagrama"), así que guarda
+  // directo — regenera el snapshot y hace el PUT sin pedir nada más.
+  const handleSaveChanges = useCallback(async () => {
+    if (!editingDiagram) return
+    try {
+      const saved = await saveDiagramGraph({
+        diagramId: editingDiagram.id,
+        name: editingDiagram.name,
+        description: editingDiagram.description,
+        executionId: editingDiagram.executionId,
+        snapshotMediaId: editingDiagram.snapshotMediaId,
+        nodes: nodes as Node<AssetTypeNodeData | CanvasElementNodeData>[],
+        edges: edges as Edge<RelationshipEdgeData>[],
+        containerRef,
+        fitView,
+      })
+      handleDiagramSaved(saved)
+      toast.success(t('saveAsDiagramDialog.updateSuccessToast'), {
+        action: {
+          label: t('saveAsDiagramDialog.viewDiagrams'),
+          onClick: () => navigate('/diagrams'),
+        },
+      })
+    } catch (err) {
+      handleApiError(err)
+    }
+  }, [editingDiagram, saveDiagramGraph, nodes, edges, containerRef, fitView, handleDiagramSaved, t, navigate])
 
-  const openSaveNewDiagramDialog = useCallback(() => {
-    setSaveAsNewDiagram(true)
-    setShowSaveDiagramDialog(true)
-  }, [])
+  const handleClearCanvas = useCallback(() => {
+    setNodes([])
+    setSelectedEdgeId(null)
+    setSelectedNodeId(null)
+    setEditingDiagram(undefined)
+  }, [setNodes])
 
   const sourceDocType = pendingConnection ? docTypeMap.get(pendingConnection.sourceId) : undefined
   const targetDocType = pendingConnection ? docTypeMap.get(pendingConnection.targetId) : undefined
@@ -1657,6 +1706,10 @@ function RelationshipsCanvasFlow({
     const d = n.data as AssetTypeNodeData
     return !!d.assetId && !!d.executionId
   })
+  // El menú derecho agrupa todo lo relativo al Diagrama (guardar, cargar, limpiar):
+  // sigue existiendo con el canvas vacío si se puede cargar uno, igual que antes lo
+  // hacía el panel de "Cargar Diagrama" aparte.
+  const showDiagramMenu = !readOnly && (nodes.length > 0 || (mode === 'execution' && canLoadDiagram))
 
   return (
     <>
@@ -1700,83 +1753,119 @@ function RelationshipsCanvasFlow({
           {/* Always available — not gated on the drag palette, which isn't mounted on every screen */}
           {!readOnly && (
             <Panel position="top-left">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => addElementAtCenter("container")}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
-                >
-                  <Square className="h-3.5 w-3.5" />
-                  {t("canvas.addContainer")}
-                </button>
-                <button
-                  onClick={() => addElementAtCenter("text")}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
-                >
-                  <Type className="h-3.5 w-3.5" />
-                  {t("canvas.addText")}
-                </button>
-                {ROLE_NODE_ENABLED && canPickRole && (
-                  <button
-                    onClick={() => addElementAtCenter("role")}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <HuemulButton variant="outline" size="sm" className="shadow-sm text-xs">
+                    <Plus className="h-3.5 w-3.5" />
+                    {t("canvas.add")}
+                    <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                  </HuemulButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem
+                    onSelect={() => setTimeout(() => addElementAtCenter("container"), 0)}
+                    className="hover:cursor-pointer"
                   >
-                    <Shield className="h-3.5 w-3.5" />
-                    {t("canvas.addRole")}
-                  </button>
-                )}
-              </div>
+                    <Square className="mr-2 h-4 w-4" />
+                    {t("canvas.addContainer")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => setTimeout(() => addElementAtCenter("text"), 0)}
+                    className="hover:cursor-pointer"
+                  >
+                    <Type className="mr-2 h-4 w-4" />
+                    {t("canvas.addText")}
+                  </DropdownMenuItem>
+                  {ROLE_NODE_ENABLED && canPickRole && (
+                    <DropdownMenuItem
+                      onSelect={() => setTimeout(() => addElementAtCenter("role"), 0)}
+                      className="hover:cursor-pointer"
+                    >
+                      <Shield className="mr-2 h-4 w-4" />
+                      {t("canvas.addRole")}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </Panel>
           )}
 
-          {!readOnly && nodes.length > 0 && (
+          {showDiagramMenu && (
             <Panel position="top-right">
-              <div className="flex items-center gap-2">
-                {mode === 'execution' && editingDiagram && (
-                  <span className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground max-w-55">
-                    <Workflow className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate" title={editingDiagram.name}>
-                      {t("canvas.editingDiagram", { name: editingDiagram.name })}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <HuemulButton
+                    variant="outline"
+                    size="sm"
+                    className="shadow-sm text-xs max-w-55"
+                    disabled={isSavingDiagram}
+                    title={
+                      mode === 'execution' && editingDiagram
+                        ? t("canvas.editingDiagram", { name: editingDiagram.name })
+                        : undefined
+                    }
+                  >
+                    {isSavingDiagram ? (
+                      <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                    ) : (
+                      <Workflow className="h-3.5 w-3.5 shrink-0" />
+                    )}
+                    <span className="truncate">
+                      {mode === 'execution' && editingDiagram
+                        ? editingDiagram.name
+                        : t("canvas.diagramActions")}
                     </span>
-                  </span>
-                )}
-                {mode === 'execution' && hasValidDiagramNodes && editingDiagram && canUpdateDiagram && (
-                  <button
-                    onClick={openUpdateDiagramDialog}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
+                    <ChevronDown className="h-3.5 w-3.5 opacity-60 shrink-0" />
+                  </HuemulButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {mode === 'execution' && hasValidDiagramNodes && editingDiagram && canUpdateDiagram && (
+                    <DropdownMenuItem
+                      onSelect={() => setTimeout(handleSaveChanges, 0)}
+                      disabled={isSavingDiagram}
+                      className="hover:cursor-pointer"
+                    >
+                      <Workflow className="mr-2 h-4 w-4" />
+                      {t("canvas.saveChanges")}
+                    </DropdownMenuItem>
+                  )}
+                  {mode === 'execution' && hasValidDiagramNodes && canCreateDiagram && (
+                    <DropdownMenuItem
+                      onSelect={() => setTimeout(() => setSaveSheetMode('new'), 0)}
+                      className="hover:cursor-pointer"
+                    >
+                      <Workflow className="mr-2 h-4 w-4" />
+                      {t("canvas.saveAsNewDiagram")}
+                    </DropdownMenuItem>
+                  )}
+                  {mode === 'execution' && editingDiagram && canUpdateDiagram && (
+                    <DropdownMenuItem
+                      onSelect={() => setTimeout(() => setSaveSheetMode('metadata'), 0)}
+                      className="hover:cursor-pointer"
+                    >
+                      <Pencil className="mr-2 h-4 w-4" />
+                      {t("canvas.editDiagramData")}
+                    </DropdownMenuItem>
+                  )}
+                  {mode === 'execution' && canLoadDiagram && (
+                    <DropdownMenuItem
+                      onSelect={() => setTimeout(() => setShowLoadDiagramSheet(true), 0)}
+                      className="hover:cursor-pointer"
+                    >
+                      <Workflow className="mr-2 h-4 w-4" />
+                      {t("canvas.loadDiagram")}
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={() => setTimeout(() => setShowClearConfirm(true), 0)}
+                    className="hover:cursor-pointer text-destructive focus:text-destructive"
                   >
-                    <Workflow className="h-3.5 w-3.5" />
-                    {t("canvas.saveChanges")}
-                  </button>
-                )}
-                {mode === 'execution' && hasValidDiagramNodes && canCreateDiagram && (
-                  <button
-                    onClick={openSaveNewDiagramDialog}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
-                  >
-                    <Workflow className="h-3.5 w-3.5" />
-                    {t("canvas.saveAsDiagram")}
-                  </button>
-                )}
-                <button
-                  onClick={() => { setNodes([]); setSelectedEdgeId(null); setSelectedNodeId(null); setEditingDiagram(undefined) }}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 hover:cursor-pointer transition-colors shadow-sm"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  {t("canvas.clearAll")}
-                </button>
-              </div>
-            </Panel>
-          )}
-
-          {nodes.length === 0 && mode === 'execution' && canLoadDiagram && (
-            <Panel position="top-right">
-              <button
-                onClick={() => setShowLoadDiagramSheet(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
-              >
-                <Workflow className="h-3.5 w-3.5" />
-                {t("canvas.loadDiagram")}
-              </button>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {t("canvas.clearAll")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </Panel>
           )}
 
@@ -1972,6 +2061,18 @@ function RelationshipsCanvasFlow({
         }}
       />
 
+      {/* Clear canvas confirmation — a stray click used to wipe unsaved work with no way back */}
+      <HuemulAlertDialog
+        open={showClearConfirm}
+        onOpenChange={setShowClearConfirm}
+        title={t("canvas.clearConfirm.title")}
+        description={t("canvas.clearConfirm.description")}
+        actionLabel={t("canvas.clearConfirm.confirmLabel")}
+        onAction={async () => {
+          handleClearCanvas()
+        }}
+      />
+
       {/* Delete exec relationship dialog */}
       <HuemulAlertDialog
         open={!!deletingExecRelId}
@@ -2024,14 +2125,15 @@ function RelationshipsCanvasFlow({
       {/* Save current graph as a Diagram, or save changes to the diagram being edited (execution mode only) */}
       {mode === 'execution' && (
         <SaveAsDiagramSheet
-          open={showSaveDiagramDialog}
-          onOpenChange={(o) => { setShowSaveDiagramDialog(o); if (!o) setSaveAsNewDiagram(false) }}
+          open={saveSheetMode !== null}
+          onOpenChange={(o) => { if (!o) setSaveSheetMode(null) }}
           organizationId={organizationId}
           nodes={nodes as Node<AssetTypeNodeData | CanvasElementNodeData>[]}
           edges={edges as Edge<RelationshipEdgeData>[]}
           containerRef={containerRef}
           fitView={fitView}
-          diagramId={saveAsNewDiagram ? undefined : editingDiagram?.id}
+          diagramId={saveSheetMode === 'new' ? undefined : editingDiagram?.id}
+          metadataOnly={saveSheetMode === 'metadata'}
           canCreate={canCreateDiagram}
           canUpdate={canUpdateDiagram}
           onSaved={handleDiagramSaved}

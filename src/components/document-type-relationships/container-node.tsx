@@ -22,6 +22,7 @@ export function ContainerNode({ data, selected }: NodeProps<ContainerNodeType>) 
   const { t } = useTranslation("document-type-relationships")
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [draft, setDraft] = useState(data.content)
+  const [hovered, setHovered] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => setDraft(data.content), [data.content])
@@ -47,13 +48,19 @@ export function ContainerNode({ data, selected }: NodeProps<ContainerNodeType>) 
         selected ? "shadow-md" : "",
       )}
       style={{ borderColor: color }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
       {!data.readOnly && (
+        // isVisible en hover (no solo selected) permite redimensionar en un solo
+        // gesto, sin clic previo. mouseleave del div raíz no dispara al entrar a
+        // un descendiente, aunque el hit-area del handle sobresalga del borde
+        // visual — por eso el hover se sostiene mientras se arrastra.
         <NodeResizer
           color={color}
-          isVisible={selected}
-          handleClassName="z-10"
-          lineClassName="z-10"
+          isVisible={selected || hovered}
+          handleClassName={cn("z-10 huemul-resize-handle", !selected && "huemul-resize-handle--ghost")}
+          lineClassName="z-10 huemul-resize-line"
           minWidth={120}
           minHeight={80}
         />

@@ -1,4 +1,6 @@
+import type { RefObject } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { Edge, Node } from '@xyflow/react'
 import {
   getDiagrams,
   getDiagram,
@@ -6,7 +8,17 @@ import {
   updateDiagram,
   deleteDiagram,
 } from '@/services/diagrams'
-import type { CreateDiagramRequest, UpdateDiagramRequest } from '@/types/diagrams'
+import type { CreateDiagramRequest, UpdateDiagramRequest, Diagram } from '@/types/diagrams'
+import { useMediaMutations } from './useMedia'
+import { captureDiagramSnapshot } from '@/lib/diagram-snapshot'
+import { buildDiagramGraphPayload } from '@/lib/diagram-utils'
+import type { AssetTypeNodeData } from '@/components/document-type-relationships/asset-type-node'
+import type { CanvasElementNodeData } from '@/components/document-type-relationships/text-node'
+import type { RelationshipEdgeData } from '@/components/document-type-relationships/relationship-edge'
+
+// The canvas mixes asset nodes with free-standing text/container elements; the
+// save flow only cares about telling them apart by `type` when building the payload.
+type CanvasNode = Node<AssetTypeNodeData | CanvasElementNodeData>
 
 // ─── Query keys ───────────────────────────────────────────────────────────────
 
@@ -90,7 +102,13 @@ export function useDiagramMutations(organizationId: string) {
 
   const createMutation = useMutation({
     mutationFn: (body: CreateDiagramRequest) => createDiagram(organizationId, body),
-    onSuccess: invalidateList,
+    onSuccess: (saved) => {
+      invalidateList()
+      // Sembrar el detalle evita el canvas en blanco al pasar de ?diagram=new a
+      // ?diagram=<id>: DiagramCanvas monta con el diagrama ya en cache en vez de
+      // renderizar null mientras hace el GET.
+      queryClient.setQueryData(diagramQueryKeys.detail(organizationId, saved.id), saved)
+    },
   })
 
   const updateMutation = useMutation({
@@ -118,5 +136,74 @@ export function useDiagramMutations(organizationId: string) {
     createDiagram: createMutation,
     updateDiagram: updateMutation,
     deleteDiagram: deleteMutation,
+  }
+}
+
+// ─── Save graph (snapshot + create/update) ─────────────────────────────────────
+
+export interface SaveDiagramGraphParams {
+  /** When set, updates this existing diagram (PUT) instead of creating a new one (POST). */
+  diagramId?: string
+  name: string
+  description?: string | null
+  executionId: string
+  snapshotMediaId?: string | null
+  nodes: CanvasNode[]
+  edges: Edge<RelationshipEdgeData>[]
+  containerRef: RefObject<HTMLDivElement | null>
+  fitView: () => void
+  /** Skips the PNG capture/upload and reuses `snapshotMediaId` as-is — for edits that only touch name/description/execution. */
+  skipSnapshot?: boolean
+}
+
+/**
+ * Shared save flow for every diagram-writing surface (save changes, save as new,
+ * metadata-only edit): captures/uploads the snapshot when needed, builds the graph
+ * payload and calls create or update. Does not toast or navigate — callers own that.
+ */
+export function useSaveDiagramGraph(organizationId: string) {
+  const { uploadMedia, uploadMediaVersion } = useMediaMutations(organizationId)
+  const { createDiagram: createMutation, updateDiagram: updateMutation } = useDiagramMutations(organizationId)
+
+  const saveMutation = useMutation({
+    mutationFn: async (params: SaveDiagramGraphParams): Promise<Diagram> => {
+      let snapshotMediaId = params.snapshotMediaId ?? undefined
+
+      if (!params.skipSnapshot) {
+        const file = await captureDiagramSnapshot(params.containerRef, params.nodes, params.fitView)
+        if (params.diagramId && params.snapshotMediaId) {
+          // Editing a diagram that already has a snapshot → add a new version to the same Media
+          await uploadMediaVersion.mutateAsync({ mediaId: params.snapshotMediaId, body: { file } })
+          snapshotMediaId = params.snapshotMediaId
+        } else {
+          // First save (create), or editing a diagram that somehow has no snapshot yet
+          const media = await uploadMedia.mutateAsync({
+            file,
+            level: 'execution',
+            parent_id: params.executionId,
+            name: `${params.name} - snapshot`,
+            origin: 'diagram_snapshot',
+          })
+          snapshotMediaId = media.id
+        }
+      }
+
+      const body = {
+        name: params.name,
+        execution_id: params.executionId,
+        description: params.description || undefined,
+        snapshot_media_id: snapshotMediaId,
+        ...buildDiagramGraphPayload(params.nodes, params.edges),
+      }
+
+      return params.diagramId
+        ? await updateMutation.mutateAsync({ diagramId: params.diagramId, body })
+        : await createMutation.mutateAsync(body)
+    },
+  })
+
+  return {
+    saveDiagramGraph: saveMutation.mutateAsync,
+    isSaving: saveMutation.isPending,
   }
 }
