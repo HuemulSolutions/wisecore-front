@@ -33,7 +33,7 @@ export function PanelSectionLabel({
         {label}
       </span>
       {count != null && (
-        <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#eef2f7] px-1.5 text-[11px] font-semibold text-[#64748b]">
+        <span className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-[#eef2f7] px-1.5 text-[11px] font-semibold text-[#64748b]">
           {count}
         </span>
       )}
@@ -77,7 +77,7 @@ export function SettingToggleList({
   return (
     <div
       className={cn(
-        "divide-y divide-[#eef1f5] overflow-hidden rounded-[8px] border border-[#e5eaf0] bg-white",
+        "divide-y divide-[#eef1f5] overflow-hidden rounded-xl border border-[#e5eaf0] bg-white",
         className,
       )}
     >
@@ -134,10 +134,10 @@ export function SettingToggleRow({
           onCheckedChange={(value) => onChange(Boolean(value))}
           aria-label={label}
           className={cn(
-            "h-[19px] w-[34px] shrink-0 data-[state=checked]:bg-[#2563eb] data-[state=unchecked]:bg-[#dfe5ec]",
-            "[&>[data-slot=switch-thumb]]:size-[15px] [&>[data-slot=switch-thumb]]:bg-white",
-            "[&>[data-slot=switch-thumb][data-state=unchecked]]:translate-x-[2px]",
-            "[&>[data-slot=switch-thumb][data-state=checked]]:translate-x-[15px]",
+            "h-4.75 w-8.5 shrink-0 data-[state=checked]:bg-[#2563eb] data-[state=unchecked]:bg-[#dfe5ec]",
+            "*:data-[slot=switch-thumb]:size-3.75 *:data-[slot=switch-thumb]:bg-white",
+            "[&>[data-slot=switch-thumb][data-state=unchecked]]:translate-x-0.5",
+            "[&>[data-slot=switch-thumb][data-state=checked]]:translate-x-3.75",
             !disabled && "hover:cursor-pointer",
           )}
         />
@@ -174,7 +174,7 @@ export function PanelPillButton({
         onClick()
       }}
       className={cn(
-        "inline-flex h-[26px] shrink-0 items-center gap-1 rounded-[7px] border px-2 text-[12px] font-medium transition-colors hover:cursor-pointer disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex h-6.5 shrink-0 items-center gap-1 rounded-[7px] border px-2 text-[12px] font-medium transition-colors hover:cursor-pointer disabled:pointer-events-none disabled:opacity-50",
         tone === "primary"
           ? "border-[#bfd3fb] bg-[#f5f8ff] text-[#1d4ed8] hover:bg-[#eaf1ff]"
           : "border-[#dde4ec] text-[#475569] hover:bg-[#f8fafc] hover:text-[#0f172a]",
@@ -190,7 +190,7 @@ export function PanelPillButton({
 /** Pastilla de estado activo («Editando»), hermana de `StepModeBadge`. */
 export function PanelStatePill({ label }: { label: string }) {
   return (
-    <span className="inline-flex h-[20px] shrink-0 items-center rounded-full border border-[#bfd3fb] bg-[#f5f8ff] px-2 text-[11px] font-medium text-[#1d4ed8]">
+    <span className="inline-flex h-5 shrink-0 items-center rounded-full border border-[#bfd3fb] bg-[#f5f8ff] px-2 text-[11px] font-medium text-[#1d4ed8]">
       {label}
     </span>
   )
@@ -199,7 +199,7 @@ export function PanelStatePill({ label }: { label: string }) {
 /** Badge de cambios sin guardar («• Editado»). */
 export function PanelDirtyBadge({ label }: { label: string }) {
   return (
-    <span className="inline-flex h-[20px] shrink-0 items-center gap-1 rounded-full bg-[#fef6e7] px-2 text-[11px] font-medium text-[#b45309]">
+    <span className="inline-flex h-5 shrink-0 items-center gap-1 rounded-full bg-[#fef6e7] px-2 text-[11px] font-medium text-[#b45309]">
       <span className="size-1.5 rounded-full bg-[#f59e0b]" />
       {label}
     </span>
@@ -270,7 +270,7 @@ export function RemovableChip({
           disabled={disabled}
           onClick={onRemove}
           aria-label={removeLabel ?? label}
-          className="inline-flex size-4 shrink-0 items-center justify-center rounded-[4px] text-[#94a3b8] transition-colors hover:bg-[#fee2e2] hover:text-[#dc2626] hover:cursor-pointer disabled:pointer-events-none disabled:opacity-50"
+          className="inline-flex size-4 shrink-0 items-center justify-center rounded-lg text-[#94a3b8] transition-colors hover:bg-[#fee2e2] hover:text-[#dc2626] hover:cursor-pointer disabled:pointer-events-none disabled:opacity-50"
         >
           <X className="size-3" />
         </button>
@@ -309,7 +309,7 @@ export function PanelCard({
 /** Badge del tipo de paso («Manual» / «Automático») en la cabecera de la tarjeta. */
 export function StepModeBadge({ label }: { label: string }) {
   return (
-    <span className="inline-flex h-[20px] shrink-0 items-center rounded-full bg-[#f1f4f8] px-2 text-[11px] font-medium text-[#64748b]">
+    <span className="inline-flex h-5 shrink-0 items-center rounded-full bg-[#f1f4f8] px-2 text-[11px] font-medium text-[#64748b]">
       {label}
     </span>
   )

@@ -483,7 +483,7 @@ function EditStepCard({
                           !pendingRuleType ||
                           (pendingRuleType === "step_actor_manager" && !pendingSourceStepId)
                         }
-                        className="inline-flex size-8 shrink-0 items-center justify-center rounded-[8px] border border-[#dde4ec] text-[#64748b] transition-colors hover:cursor-pointer hover:bg-[#f8fafc] hover:text-[#334155] disabled:pointer-events-none disabled:opacity-50"
+                        className="inline-flex size-8 shrink-0 items-center justify-center rounded-xl border border-[#dde4ec] text-[#64748b] transition-colors hover:cursor-pointer hover:bg-[#f8fafc] hover:text-[#334155] disabled:pointer-events-none disabled:opacity-50"
                       >
                         <Plus className="size-4" />
                       </button>

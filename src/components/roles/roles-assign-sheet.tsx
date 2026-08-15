@@ -266,7 +266,7 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess, 
                         setPage(1)
                       }}
                     >
-                      <SelectTrigger className="h-7 w-[64px] text-xs hover:cursor-pointer">
+                      <SelectTrigger className="h-7 w-16 text-xs hover:cursor-pointer">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

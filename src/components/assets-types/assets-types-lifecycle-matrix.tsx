@@ -62,7 +62,7 @@ const ROLE_COLUMN_WIDTH = "232px"
 /** Celda concedida: check blanco sobre círculo verde. */
 function CellCheck() {
   return (
-    <span className="inline-flex size-[18px] items-center justify-center rounded-full bg-[#dcfce7]">
+    <span className="inline-flex size-4.5 items-center justify-center rounded-full bg-[#dcfce7]">
       <Check className="size-3 text-[#15803d]" strokeWidth={3} />
     </span>
   )
@@ -71,7 +71,7 @@ function CellCheck() {
 /** Celda implícita: la fila «Toda la organización» ya cubre este permiso. */
 function CellImplied() {
   return (
-    <span className="inline-flex size-[18px] items-center justify-center rounded-full bg-[#eef2f7]">
+    <span className="inline-flex size-4.5 items-center justify-center rounded-full bg-[#eef2f7]">
       <Check className="size-3 text-[#94a3b8]" strokeWidth={3} />
     </span>
   )
@@ -650,7 +650,7 @@ export function AssetTypeLifecycleMatrix({
                   aria-pressed={isActive}
                   onClick={() => onSelectStage(type)}
                   className={cn(
-                    "inline-flex h-[30px] items-center gap-1.5 rounded-full border px-3 text-[13px] transition-colors hover:cursor-pointer",
+                    "inline-flex h-7.5 items-center gap-1.5 rounded-full border px-3 text-[13px] transition-colors hover:cursor-pointer",
                     isActive
                       ? "border-[#bfd3fb] bg-[#eef4ff] font-semibold text-[#1d4ed8]"
                       : "border-[#dbe1e9] text-[#334155] hover:border-[#bfd3fb] hover:bg-[#f8fafc]",
@@ -660,7 +660,7 @@ export function AssetTypeLifecycleMatrix({
                   {isGroupableStepType(type) && (
                     <span
                       className={cn(
-                        "inline-flex size-[18px] items-center justify-center rounded-full text-[11px] font-semibold",
+                        "inline-flex size-4.5 items-center justify-center rounded-full text-[11px] font-semibold",
                         isActive ? "bg-[#dbe7fe] text-[#1d4ed8]" : "bg-[#eef2f7] text-[#64748b]",
                       )}
                     >
@@ -678,7 +678,7 @@ export function AssetTypeLifecycleMatrix({
           <HuemulButton
             variant="ghost"
             size="icon"
-            className="size-[30px]"
+            className="size-7.5"
             icon={RefreshCw}
             tooltip={t("common:refresh")}
             loading={isRefreshing || isFetching || isFetchingRoles}
@@ -733,7 +733,7 @@ export function AssetTypeLifecycleMatrix({
                       title={t("lifecycle.matrix.configureStep", { step: stepTypeLabel(step.type) })}
                       aria-label={t("lifecycle.matrix.configureStep", { step: stepTypeLabel(step.type) })}
                       className={cn(
-                        "inline-flex size-4 shrink-0 items-center justify-center rounded-[4px] transition-colors hover:cursor-pointer",
+                        "inline-flex size-4 shrink-0 items-center justify-center rounded-lg transition-colors hover:cursor-pointer",
                         isActiveStage
                           ? "text-[#1d4ed8]"
                           : "text-[#b6c0cd] hover:bg-[#eef2f7] hover:text-[#64748b]",
@@ -778,7 +778,7 @@ export function AssetTypeLifecycleMatrix({
                         <button
                           type="button"
                           onClick={() => setIsAddingRole(true)}
-                          className="inline-flex h-[30px] items-center gap-1.5 rounded-[8px] border border-dashed border-[#bfd3fb] px-3 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
+                          className="inline-flex h-7.5 items-center gap-1.5 rounded-xl border border-dashed border-[#bfd3fb] px-3 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
                         >
                           <Plus className="size-3.5" />
                           {t("lifecycle.matrix.addRole")}

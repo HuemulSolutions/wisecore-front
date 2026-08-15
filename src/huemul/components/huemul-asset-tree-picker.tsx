@@ -482,7 +482,7 @@ export function HuemulAssetTreePickerDialog({
         </div>
 
         {/* Tree area */}
-        <div className="h-[420px] overflow-y-auto rounded-lg border bg-card p-1">
+        <div className="h-105 overflow-y-auto rounded-lg border bg-card p-1">
           {committedSearch ? (
             searchLoading ? (
               <div className="flex h-full items-center justify-center">

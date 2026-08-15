@@ -478,13 +478,13 @@ function CodeDrawingToolbar({
           onOpenChange={setLanguageSelectOpen}
         >
           <SelectTrigger
-            className={`h-8 w-[120px] border-0 bg-muted/50 text-xs shadow-none ${
+            className={`h-8 w-30 border-0 bg-muted/50 text-xs shadow-none ${
               isMobile ? '' : 'transition-colors hover:bg-zinc-200'
             }`}
           >
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="z-[100]">
+          <SelectContent className="z-100">
             {CODE_DRAWING_TYPE_ARRAY.map((item) => (
               <SelectItem key={item.value} value={item.value}>
                 {item.label}
@@ -502,13 +502,13 @@ function CodeDrawingToolbar({
           onOpenChange={setViewModeSelectOpen}
         >
           <SelectTrigger
-            className={`h-8 w-[80px] border-0 bg-muted/50 text-xs shadow-none ${
+            className={`h-8 w-20 border-0 bg-muted/50 text-xs shadow-none ${
               isMobile ? '' : 'transition-colors hover:bg-zinc-200'
             }`}
           >
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="z-[100]">
+          <SelectContent className="z-100">
             {VIEW_MODE_ARRAY.map((item) => (
               <SelectItem key={item.value} value={item.value}>
                 {item.label}
@@ -583,7 +583,7 @@ function CodeDrawingTextarea({
       <div className="relative flex-1 overflow-hidden rounded-md" style={{ minHeight: 0 }}>
         <pre
           className={
-            'm-0 h-full overflow-auto p-8 pr-4 font-mono text-sm leading-[normal] [tab-size:2] print:break-inside-avoid'
+            'm-0 h-full overflow-auto p-8 pr-4 font-mono text-sm leading-[normal] tab-2 print:break-inside-avoid'
           }
         >
           <code className="block h-full w-full">

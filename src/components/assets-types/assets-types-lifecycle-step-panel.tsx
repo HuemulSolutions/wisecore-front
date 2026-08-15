@@ -64,7 +64,7 @@ export function LifecycleStepPanel({
             <button
               type="button"
               onClick={() => setAddGroupSignal((prev) => prev + 1)}
-              className="inline-flex h-[30px] items-center gap-1.5 rounded-[8px] border border-[#bfd3fb] px-2.5 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
+              className="inline-flex h-7.5 items-center gap-1.5 rounded-xl border border-[#bfd3fb] px-2.5 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
             >
               <Plus className="size-3.5" />
               {t("lifecycle.addGroup")}

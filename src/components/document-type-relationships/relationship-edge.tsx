@@ -210,7 +210,7 @@ export function RelationshipEdge({
         >
           <span
             className={cn(
-              "text-[11px] font-semibold px-1.5 py-0.5 rounded bg-background whitespace-nowrap max-w-[160px] truncate",
+              "text-[11px] font-semibold px-1.5 py-0.5 rounded bg-background whitespace-nowrap max-w-40 truncate",
               selected ? "text-primary" : "text-foreground",
             )}
           >

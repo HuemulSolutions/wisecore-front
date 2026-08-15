@@ -879,7 +879,7 @@ export default function AppLayout() {
                         </AvatarFallback>
                       </Avatar>
                       {organizationToken && canListNotifications &&unreadNotificationsCount > 0 && (
-                        <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center h-4 min-w-[1rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-medium leading-none">
+                        <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-medium leading-none">
                           {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
                         </span>
                       )}
@@ -908,7 +908,7 @@ export default function AppLayout() {
                         <BellRing className="h-4 w-4 mr-2" />
                         {t('header.notifications')}
                         {unreadNotificationsCount > 0 && (
-                          <span className="ml-auto inline-flex items-center justify-center h-4 min-w-[1rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-medium leading-none">
+                          <span className="ml-auto inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-medium leading-none">
                             {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
                           </span>
                         )}

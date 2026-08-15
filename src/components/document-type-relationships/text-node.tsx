@@ -59,7 +59,7 @@ export function TextNode({ data, selected }: NodeProps<TextNodeType>) {
   const nodeContent = (
     <div
       className={cn(
-        "px-2 py-1 rounded-md min-w-[80px] max-w-[280px]",
+        "px-2 py-1 rounded-md min-w-20 max-w-70",
         "transition-shadow",
         selected ? "ring-2 ring-primary/40" : "",
       )}
@@ -74,13 +74,13 @@ export function TextNode({ data, selected }: NodeProps<TextNodeType>) {
           onKeyDown={(e) => {
             if (e.key === "Escape") { setDraft(data.content); setIsEditing(false) }
           }}
-          className="nodrag w-full min-w-[120px] resize-none bg-transparent outline-none border border-dashed rounded px-1 text-sm"
+          className="nodrag w-full min-w-30 resize-none bg-transparent outline-none border border-dashed rounded px-1 text-sm"
           style={{ color: data.color || "#0f172a" }}
           rows={2}
         />
       ) : (
         <p
-          className="text-sm whitespace-pre-wrap break-words select-none"
+          className="text-sm whitespace-pre-wrap wrap-break-word select-none"
           style={{ color: data.color || "#0f172a" }}
         >
           {data.content}

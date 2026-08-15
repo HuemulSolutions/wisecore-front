@@ -180,7 +180,7 @@ export function HuemulSheet({
           <div className={cn("flex gap-2", isTile ? "items-start gap-3" : "items-center")}>
             {Icon &&
               (isTile ? (
-                <span className="flex size-[30px] shrink-0 items-center justify-center rounded-[8px] bg-[#eef2ff]">
+                <span className="flex size-7.5 shrink-0 items-center justify-center rounded-xl bg-[#eef2ff]">
                   <Icon className={cn("size-4 text-[#4f46e5]", iconClassName)} />
                 </span>
               ) : (

@@ -129,7 +129,7 @@ export function HuemulInfoItem({
 
     return (
       <div className={cn("flex items-start justify-between gap-3 py-2", className)}>
-        <span className="text-xs text-gray-500 shrink-0 pt-0.5 w-[120px]">{label}</span>
+        <span className="text-xs text-gray-500 shrink-0 pt-0.5 w-30">{label}</span>
         <div className="text-sm text-gray-900 font-medium text-right flex-1 min-w-0">
           {renderValue()}
         </div>
