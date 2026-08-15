@@ -103,7 +103,6 @@ import { FontColorToolbarButton } from '@/components/ui/font-color-toolbar-butto
 import { MediaToolbarButton } from '@/components/ui/media-toolbar-button';
 import { TurnIntoToolbarButton } from '@/components/ui/turn-into-toolbar-button';
 import { CommentToolbarButton } from '@/components/ui/comment-toolbar-button';
-import { CodeDrawingToolbarButton } from '@/components/ui/code-drawing-toolbar-button';
 import { MermaidToolbarButton } from '@/components/ui/mermaid-toolbar-button';
 import { ModeToolbarButton } from '@/components/ui/mode-toolbar-button';
 import { EmojiToolbarButton } from '@/components/ui/emoji-toolbar-button';
@@ -127,7 +126,7 @@ import { EditorErrorBoundary } from '@/components/plate-editor/components/editor
 import { useTranslation } from 'react-i18next';
 import { MediaReferenceContext, useMediaReference } from '@/contexts/media-reference-context';
 import { MediaReferencePicker } from '@/components/ui/media-reference-picker';
-import { Library } from 'lucide-react';
+import { Images } from 'lucide-react';
 
 
 function EditorToolbar() {
@@ -269,7 +268,6 @@ function EditorToolbar() {
           <TableToolbarButton />
           <ToggleToolbarButton />
           <MediaToolbarButton nodeType="img" />
-          <CodeDrawingToolbarButton />
           <MermaidToolbarButton />
           <EmojiToolbarButton />
           <MediaReferenceToolbarButton />
@@ -411,7 +409,6 @@ function SectionEditorToolbar({ actions, topOffset }: { actions?: React.ReactNod
         <LinkToolbarButton />
         <TableToolbarButton />
         <MediaToolbarButton nodeType="img" />
-        <CodeDrawingToolbarButton />
         <MermaidToolbarButton />
         <MediaReferenceToolbarButton />
 
@@ -439,7 +436,7 @@ function MediaReferenceToolbarButton() {
       onClick={() => openPicker(editor)}
       className="hover:cursor-pointer"
     >
-      <Library />
+      <Images />
     </ToolbarButton>
   )
 }

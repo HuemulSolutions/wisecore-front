@@ -8,7 +8,7 @@ import { Image } from 'lucide-react'
 import { useMediaList } from '@/hooks/useMedia'
 import { useMediaFilters } from '@/hooks/useMediaFilters'
 import { useMediaViewMode } from '@/hooks/useMediaViewMode'
-import { HuemulDialog } from '@/huemul/components/huemul-dialog'
+import { HuemulSheet } from '@/huemul/components/huemul-sheet'
 import { HuemulPagination } from '@/huemul/components/huemul-pagination'
 import { DEFAULT_PAGE_SIZE } from '@/huemul/constants'
 import { HuemulFilterButton } from '@/huemul/components/huemul-filter-button'
@@ -116,17 +116,17 @@ export function MediaReferencePicker({
   }
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={(v) => { if (!v) handleClose(); else onOpenChange(true) }}
       title={t('media.mediaReferenceTitle')}
       icon={Image}
       showFooter={false}
-      maxWidth="sm:max-w-5xl"
-      maxHeight="max-h-[90vh]"
+      className="w-full sm:max-w-[95vw]"
+      bodyClassName="flex min-h-0 flex-1 flex-col overflow-hidden px-6 py-4"
     >
       {/* Toolbar: filter button + view toggle (same filters as the Media page) */}
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-4 shrink-0">
         <HuemulFilterButton
           count={activeCount}
           open={filtersOpen}
@@ -137,7 +137,7 @@ export function MediaReferencePicker({
       </div>
 
       {/* Body: optional filter panel + results */}
-      <div className="flex gap-4 h-115">
+      <div className="flex flex-1 min-h-0 gap-4">
         {filtersOpen && (
           <div className="w-64 shrink-0 rounded-lg border overflow-hidden">
             <HuemulFilterPanel
@@ -181,6 +181,6 @@ export function MediaReferencePicker({
           )}
         </div>
       </div>
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }
