@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Sparkles, Download, Trash2, AlertCircle, ImageOff, Image as ImageIcon, RefreshCw, Loader2, X } from "lucide-react"
+import { Sparkles, Download, Trash2, AlertCircle, ImageOff, Image as ImageIcon, ImagePlus, RefreshCw, Loader2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { useImageGenerationMutations } from "@/hooks/useImageGeneration"
@@ -46,6 +46,13 @@ export interface HuemulMediaGenerateSheetProps {
    * correspondiente en la galería.
    */
   onDiscarded?: (mediaId: string) => void
+  /**
+   * Cuando se define, el lienzo muestra un botón primario para insertar la
+   * imagen seleccionada en el contexto que abrió el sheet (p.ej. referencia
+   * de media del editor de documentos). El padre decide qué hacer con el
+   * cierre del sheet tras insertar.
+   */
+  onInsert?: (image: GeneratedImage) => void
 }
 
 export function HuemulMediaGenerateSheet({
@@ -56,6 +63,7 @@ export function HuemulMediaGenerateSheet({
   canDelete,
   onGenerated,
   onDiscarded,
+  onInsert,
 }: HuemulMediaGenerateSheetProps) {
   const { t } = useTranslation("media")
   const { t: tCommon } = useTranslation("common")
@@ -295,6 +303,14 @@ export function HuemulMediaGenerateSheet({
 
           {selected && previewUrl && !isPending && (
             <div className="flex shrink-0 items-center justify-center gap-2">
+              {onInsert && (
+                <HuemulButton
+                  size="sm"
+                  icon={ImagePlus}
+                  label={t("generate.insert")}
+                  onClick={() => onInsert(selected)}
+                />
+              )}
               <HuemulButton
                 variant="outline"
                 size="sm"

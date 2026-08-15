@@ -150,6 +150,7 @@ const translations = {
     expand: { en: "View fullscreen", es: "Ver en pantalla completa" },
     previewExpired: { en: "The preview link expired", es: "El enlace de vista previa expiró" },
     reloadPreview: { en: "Reload preview", es: "Recargar vista previa" },
+    insert: { en: "Insert in document", es: "Insertar en el documento" },
     download: { en: "Download", es: "Descargar" },
     discard: { en: "Discard", es: "Descartar" },
     history: { en: "Previous generations", es: "Generaciones anteriores" },
