@@ -26,13 +26,13 @@ function ExecutionResult({ execution, documentId }: ExecutionResultProps) {
       <div className="border border-border rounded-lg bg-muted/30">
         <div className="flex items-center justify-between px-3 py-2">
           <div className="flex items-center gap-2 min-w-0">
-            <GitBranch className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+            <GitBranch className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
             <span className="text-xs font-medium text-foreground truncate">{execution.execution_name}</span>
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">
               {tAssets(`lifecycle.stateLabels.${execution.lifecycle_state}`, { defaultValue: execution.lifecycle_state })}
             </Badge>
           </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             <span className="text-[10px] text-muted-foreground">
               {execution.match_count} {execution.match_count !== 1 ? t('document.segmentsFound') : t('document.segmentFound')}
             </span>
@@ -46,7 +46,7 @@ function ExecutionResult({ execution, documentId }: ExecutionResultProps) {
               className="h-6 text-[10px] px-1.5"
             />
             <CollapsibleTrigger asChild>
-              <button className="flex-shrink-0 hover:cursor-pointer text-muted-foreground hover:text-foreground">
+              <button className="shrink-0 hover:cursor-pointer text-muted-foreground hover:text-foreground">
                 {isExpanded
                   ? <ChevronDown className="w-3.5 h-3.5" />
                   : <ChevronRight className="w-3.5 h-3.5" />}
@@ -91,7 +91,7 @@ export function DocumentResult({ document }: DocumentResultProps) {
         <div className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
                   <FileText className="w-4 h-4 text-blue-600" />
                 </div>
@@ -121,7 +121,7 @@ export function DocumentResult({ document }: DocumentResultProps) {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <HuemulButton
                 variant="outline"
                 size="sm"

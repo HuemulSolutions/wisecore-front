@@ -2,85 +2,26 @@
 
 import * as React from "react"
 import { ChevronsUpDown } from "lucide-react"
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { OrganizationSelectionDialog } from '@/components/organization/organization-selection-dialog'
-import { CreateOrganizationDialog } from '@/components/organization/organization-create-dialog'
-import { EditOrganizationDialog } from '@/components/organization/organization-edit-dialog'
-import { DeleteOrganizationDialog } from '@/components/organization/organization-delete-dialog'
 
 import { HuemulButton } from "@/huemul/components/huemul-button"
-import { getUserOrganizations, addOrganization, updateOrganization, deleteOrganization } from '@/services/organizations'
+import { getUserOrganizations } from '@/services/organizations'
 import { useOrganization } from '@/contexts/organization-context'
 import { useAuth } from '@/contexts/auth-context'
 import { useTranslation } from 'react-i18next'
-import type { OrganizationDialogData } from '@/types/organizations'
 
 export function OrganizationSwitcher() {
-  const [isDialogOpen, setIsDialogOpen] = React.useState(false)
-  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
   const [isOrgSelectionOpen, setIsOrgSelectionOpen] = React.useState(false)
-  const [editingOrg, setEditingOrg] = React.useState<OrganizationDialogData | null>(null)
-  const [deletingOrg, setDeletingOrg] = React.useState<OrganizationDialogData | null>(null)
-  
-  const { selectedOrganizationId, organizations, setSelectedOrganizationId, setOrganizations, setOrganizationToken } = useOrganization()
+
+  const { selectedOrganizationId, organizations, setOrganizations } = useOrganization()
   const { user } = useAuth()
   const { t } = useTranslation('organizations')
-  const queryClient = useQueryClient()
 
   const { data: organizationsData } = useQuery({
     queryKey: ['user-organizations', user?.id],
     queryFn: () => getUserOrganizations(user!.id),
     enabled: !!user?.id,
-  })
-
-  const createOrgMutation = useMutation({
-    mutationFn: addOrganization,
-    onSuccess: (newOrg) => {
-      queryClient.invalidateQueries({ queryKey: ['user-organizations'] })
-      setSelectedOrganizationId(newOrg.id)
-      setIsDialogOpen(false)
-    },
-  })
-
-  const updateOrgMutation = useMutation({
-    mutationFn: ({ id, name, description }: { id: string; name: string; description?: string }) =>
-      updateOrganization(id, { name, description }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-organizations'] })
-      setEditingOrg(null)
-      setIsEditDialogOpen(false)
-    },
-  })
-
-  const deleteOrgMutation = useMutation({
-    mutationFn: deleteOrganization,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-organizations'] })
-      // If deleted org was selected, clear selection and reset context
-      if (deletingOrg && selectedOrganizationId === deletingOrg.id) {
-        setSelectedOrganizationId('')
-        setOrganizationToken('')
-        // Invalidar todas las queries de la organización eliminada
-        queryClient.invalidateQueries({ 
-          predicate: (query) => {
-            const queryKey = query.queryKey
-            return Array.isArray(queryKey) && (
-              queryKey.includes('documents') ||
-              queryKey.includes('document-types') ||
-              queryKey.includes('roles') ||
-              queryKey.includes('permissions') ||
-              queryKey.includes('assets') ||
-              queryKey.includes('asset-types') ||
-              queryKey.includes('users') ||
-              queryKey.includes('knowledge') ||
-              queryKey.includes('library') ||
-              queryKey.some(key => typeof key === 'string' && key.includes('org'))
-            )
-          }
-        })
-      }
-    },
   })
 
   React.useEffect(() => {
@@ -132,50 +73,12 @@ export function OrganizationSwitcher() {
   return (
     <>
       {renderButton()}
-      
-      <OrganizationSelectionDialog 
-        open={isOrgSelectionOpen} 
+
+      <OrganizationSelectionDialog
+        open={isOrgSelectionOpen}
         onOpenChange={setIsOrgSelectionOpen}
         preselectedOrganizationId={selectedOrganizationId || undefined}
       />
-      
-      <CreateOrganizationDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        onSubmit={(data) => createOrgMutation.mutate(data)}
-        isPending={createOrgMutation.isPending}
-      />
-    
-    <EditOrganizationDialog
-      open={isEditDialogOpen}
-      onOpenChange={setIsEditDialogOpen}
-      organization={editingOrg}
-      onSave={() => {
-        if (editingOrg && editingOrg.name.trim()) {
-          updateOrgMutation.mutate({
-            id: editingOrg.id,
-            name: editingOrg.name.trim(),
-            description: editingOrg.description?.trim() || undefined
-          })
-        }
-      }}
-      isSaving={updateOrgMutation.isPending}
-      onOrgChange={setEditingOrg}
-    />
-    
-    <DeleteOrganizationDialog
-      open={isDeleteDialogOpen}
-      onOpenChange={(open) => {
-        setIsDeleteDialogOpen(open)
-        if (!open) setDeletingOrg(null)
-      }}
-      organization={deletingOrg}
-      onConfirm={async () => {
-        if (deletingOrg) {
-          await deleteOrgMutation.mutateAsync(deletingOrg.id)
-        }
-      }}
-    />
-  </>
+    </>
   )
 }

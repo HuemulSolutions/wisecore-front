@@ -20,7 +20,12 @@ export interface OrganizationTableProps {
   canUpdate?: boolean
   canDelete?: boolean
   canSetAdmin?: boolean
-  isRootAdmin?: boolean
+  /**
+   * No es un eje de RBAC ni un bypass: solo decide si se muestran las
+   * columnas de límites de sistema (`max_users`/`token_limit`), que no son
+   * org-scoped. Ver ia context/rbac-audit-guide.md.
+   */
+  canManageSystemLimits?: boolean
   maxHeight?: string
   isLoading?: boolean
   isFetching?: boolean

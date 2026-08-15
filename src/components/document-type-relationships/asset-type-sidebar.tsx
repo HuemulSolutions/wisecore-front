@@ -1,17 +1,18 @@
 "use client"
 
 import { useTranslation } from "react-i18next"
-import { GripVertical, RefreshCw, Square, Type } from "lucide-react"
+import { GripVertical, RefreshCw, Shield, Square, Type } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { ROLE_NODE_ENABLED } from "./role-node"
 import type { CanvasElementKind } from "@/types/document-type-relationships"
 import type {
   AssetTypeSidebarProps,
   AssetTypeDraggableItemProps,
 } from "@/types/document-type-relationships"
 
-export function AssetTypeSidebar({ items, isLoading, isFetching, page, pageSize, onRefresh }: AssetTypeSidebarProps) {
+export function AssetTypeSidebar({ items, isLoading, isFetching, page, pageSize, onRefresh, canPickRole }: AssetTypeSidebarProps) {
   const { t } = useTranslation("document-type-relationships")
 
   const start = (page - 1) * pageSize
@@ -38,6 +39,9 @@ export function AssetTypeSidebar({ items, isLoading, isFetching, page, pageSize,
       <div className="p-2 space-y-1 border-b">
         <CanvasElementDraggableItem kind="container" icon={Square} label={t("sidebar.container")} />
         <CanvasElementDraggableItem kind="text" icon={Type} label={t("sidebar.text")} />
+        {ROLE_NODE_ENABLED && canPickRole && (
+          <CanvasElementDraggableItem kind="role" icon={Shield} label={t("sidebar.role")} />
+        )}
       </div>
 
       {/* Scrollable list */}

@@ -17,6 +17,10 @@ export interface HuemulTableColumn<T> {
   align?: "left" | "right" | "center"
   render: (item: T) => ReactNode
   sortKey?: string
+  /** Reemplaza el `label` por defecto en la cabecera (ej. dos líneas + botón de acción). */
+  renderHeader?: () => ReactNode
+  /** Fija la columna a la izquierda durante el scroll horizontal (ej. columna de rol/nombre). */
+  sticky?: boolean
 }
 
 export interface HuemulTableActionItem<T> {

@@ -14,12 +14,13 @@ export function SetOrganizationAdminDialog({
   open,
   onOpenChange,
   onSuccess,
+  canSetAdmin,
 }: SetOrganizationAdminDialogProps) {
   const [selectedUserId, setSelectedUserId] = useState<string>("")
   const { t } = useTranslation('organizations')
 
   const { data: usersResponse, isLoading, error } = useOrganizationUsers(
-    open ? organization?.id : undefined
+    open && canSetAdmin ? organization?.id : undefined
   )
 
   const setAdminMutation = useSetOrganizationAdmin()
@@ -32,7 +33,7 @@ export function SetOrganizationAdminDialog({
   }, [open, organization?.id])
 
   const handleSave = () => {
-    if (!organization?.id || !selectedUserId) return
+    if (!canSetAdmin || !organization?.id || !selectedUserId) return
 
     setAdminMutation.mutate(
       { organizationId: organization.id, userId: selectedUserId },
@@ -45,7 +46,7 @@ export function SetOrganizationAdminDialog({
     )
   }
 
-  if (!organization) return null
+  if (!organization || !canSetAdmin) return null
 
   const users = usersResponse?.data || []
   

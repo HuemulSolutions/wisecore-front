@@ -3,15 +3,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useQueryClient } from "@tanstack/react-query"
-import { RefreshCw, Loader2, ShieldAlert } from "lucide-react"
+import { RefreshCw, Loader2 } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { useWorkflows, workflowQueryKeys } from "@/hooks/useWorkflows"
 import { useWorkflowTemplates, useCreateTemplateExpress, workflowTemplateQueryKeys } from "@/hooks/useWorkflowTemplates"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useHuemulFilters } from "@/hooks/useHuemulFilters"
 import { useGridColumns } from "@/hooks/useGridColumns"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
+import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulFilterButton } from "@/huemul/components/huemul-filter-button"
 import { HuemulFilterChips } from "@/huemul/components/huemul-filter-chips"
@@ -35,8 +36,12 @@ export default function WorkflowPage() {
   const { t: tFilters } = useTranslation("huemul-filters")
   const { t: tCommon } = useTranslation("common")
   const { selectedOrganizationId, organizationToken } = useOrganization()
-  const { canAccessAssets, isLoading: isLoadingPermissions } = useUserPermissions()
+  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess("workflow")
   const queryClient = useQueryClient()
+
+  // Crear un express es la única razón por la que existen las tarjetas de
+  // templates: sin `asset:c` no se listan ni se pega a GET /templates/.
+  const canCreateExpress = can("createExpressAsset") && can("listTemplates")
 
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
@@ -85,6 +90,14 @@ export default function WorkflowPage() {
     [selectedOrganizationId],
   )
 
+  // Los filtros son superficie RBAC: cada combobox asíncrono pega a un endpoint
+  // de OTRO recurso y sin permiso se come un 403 mudo al abrirse. Se omite la
+  // entrada de `filterDefs` (elimina también su chip sin tocar useHuemulFilters).
+  const canFilterByAssetType = can("listAssetTypes")
+  const canFilterByTemplate = can("listTemplates")
+  const canFilterByUser = can("listUsers")
+  const canFilterByCustomField = can("listCustomFields")
+
   const filterDefs = useMemo<HuemulFilterDef[]>(() => {
     const classification = tFilters("groups.classification")
     const dates = tFilters("groups.dates")
@@ -115,63 +128,103 @@ export default function WorkflowPage() {
           { value: "archived", label: tAssets("lifecycle.stateLabels.archived") },
         ],
       },
-      {
-        key: "documentTypeId",
-        type: "async-combobox",
-        group: classification,
-        label: t("filters.documentType"),
-        placeholder: t("filters.allDocumentTypes"),
-        fetchOptions: fetchDocumentTypes,
-        pageSize: 50,
-        searchOnEnter: true,
-      },
-      {
-        key: "templateId",
-        type: "async-combobox",
-        group: classification,
-        label: t("filters.template"),
-        placeholder: t("filters.allTemplates"),
-        fetchOptions: fetchExpressTemplates,
-        pageSize: 20,
-        searchOnEnter: true,
-      },
-      {
-        key: "ownerValue",
-        type: "async-combobox",
-        group: classification,
-        label: t("filters.ownerScope"),
-        placeholder: t("filters.allOwners"),
-        fetchOptions: fetchUsers,
-        pageSize: 20,
-        searchOnEnter: true,
-        staticOptions: [
-          { value: "__me__", label: t("filters.ownerMe"), description: t("filters.ownerMeDescription") },
-        ],
-        staticOptionsLabel: t("filters.ownerScopeLabel"),
-        asyncResultsLabel: t("filters.ownerUsersLabel"),
-      },
+      // Sin el permiso del recurso que consulta, se omite la entrada entera
+      // (elimina también su chip sin tocar useHuemulFilters, patrón /diagrams).
+      ...(canFilterByAssetType
+        ? [
+            {
+              key: "documentTypeId",
+              type: "async-combobox" as const,
+              group: classification,
+              label: t("filters.documentType"),
+              placeholder: t("filters.allDocumentTypes"),
+              fetchOptions: fetchDocumentTypes,
+              pageSize: 50,
+              searchOnEnter: true,
+            },
+          ]
+        : []),
+      ...(canFilterByTemplate
+        ? [
+            {
+              key: "templateId",
+              type: "async-combobox" as const,
+              group: classification,
+              label: t("filters.template"),
+              placeholder: t("filters.allTemplates"),
+              fetchOptions: fetchExpressTemplates,
+              pageSize: 20,
+              searchOnEnter: true,
+            },
+          ]
+        : []),
+      // Sin `user:l|r` se DEGRADA a un select estático en vez de omitirse: la
+      // opción __me__ manda owner_scope=me y no lista usuarios, y omitir la
+      // entrada dejaría ese valor huérfano fuera de chips/clearAll (patrón /home).
+      canFilterByUser
+        ? ({
+            key: "ownerValue",
+            type: "async-combobox",
+            group: classification,
+            label: t("filters.ownerScope"),
+            placeholder: t("filters.allOwners"),
+            fetchOptions: fetchUsers,
+            pageSize: 20,
+            searchOnEnter: true,
+            staticOptions: [
+              { value: "__me__", label: t("filters.ownerMe"), description: t("filters.ownerMeDescription") },
+            ],
+            staticOptionsLabel: t("filters.ownerScopeLabel"),
+            asyncResultsLabel: t("filters.ownerUsersLabel"),
+          } as HuemulFilterDef)
+        : ({
+            key: "ownerValue",
+            type: "select",
+            group: classification,
+            label: t("filters.ownerScope"),
+            allValue: "",
+            options: [
+              { value: "", label: t("filters.allOwners") },
+              { value: "__me__", label: t("filters.ownerMe") },
+            ],
+          } as HuemulFilterDef),
       { key: "expirationDate", type: "date-range", group: dates, label: t("filters.expirationDate") },
       { key: "estimatedPublicationDate", type: "date-range", group: dates, label: t("filters.estimatedPublicationDate") },
       { key: "reviewDate", type: "date-range", group: dates, label: t("filters.reviewDate") },
       { key: "auditDate", type: "date-range", group: dates, label: t("filters.auditDate") },
-      {
-        key: "customFieldFilter",
-        type: "custom",
-        multiEntry: true,
-        group: t("filters.customFieldsGroup"),
-        label: t("filters.customFields"),
-        render: ({ value, setValue }) => (
-          <HuemulCustomFieldFilter
-            value={Array.isArray(value) ? (value as string[]) : []}
-            onChange={(next) => setValue(next)}
-          />
-        ),
-      },
+      ...(canFilterByCustomField
+        ? [
+            {
+              key: "customFieldFilter",
+              type: "custom" as const,
+              multiEntry: true,
+              group: t("filters.customFieldsGroup"),
+              label: t("filters.customFields"),
+              render: ({ value, setValue }: { value: HuemulFilterValue; setValue: (v: HuemulFilterValue) => void }) => (
+                <HuemulCustomFieldFilter
+                  value={Array.isArray(value) ? (value as string[]) : []}
+                  onChange={(next) => setValue(next)}
+                />
+              ),
+            },
+          ]
+        : []),
       { key: "hasPendingAiSuggestion", type: "boolean", group: other, label: t("filters.pendingAiSuggestion") },
       { key: "hasUnresolvedComments", type: "boolean", group: other, label: t("filters.unresolvedComments") },
       { key: "expiringSoon", type: "boolean", group: other, label: t("filters.expiringSoon") },
     ]
-  }, [t, tAssets, tFilters, fetchDocumentTypes, fetchExpressTemplates, fetchUsers])
+  }, [
+    t,
+    tAssets,
+    tFilters,
+    fetchDocumentTypes,
+    fetchExpressTemplates,
+    fetchUsers,
+    canFilterByAssetType,
+    canFilterByTemplate,
+    canFilterByUser,
+    canFilterByCustomField,
+  ])
 
   const {
     values,
@@ -212,7 +265,7 @@ export default function WorkflowPage() {
     error,
     refetch,
   } = useWorkflows(selectedOrganizationId ?? "", {
-    enabled: !!selectedOrganizationId && !!organizationToken && canAccessAssets,
+    enabled: !!selectedOrganizationId && !!organizationToken && can("listWorkflows"),
     page,
     pageSize,
     search: (values.search as string) || undefined,
@@ -262,7 +315,7 @@ export default function WorkflowPage() {
   const { data: templatesResponse, isLoading: isLoadingTemplates } = useWorkflowTemplates(
     selectedOrganizationId ?? "",
     {
-      enabled: !!selectedOrganizationId && !!organizationToken && canAccessAssets,
+      enabled: !!selectedOrganizationId && !!organizationToken && canCreateExpress,
     },
   )
   const allTemplateItems = templatesResponse?.items ?? []
@@ -280,13 +333,8 @@ export default function WorkflowPage() {
     )
   }
 
-  if (!canAccessAssets) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-        <ShieldAlert className="h-8 w-8 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">{t("common:accessDenied", { defaultValue: "You don't have access to this page" })}</p>
-      </div>
-    )
+  if (!canAccessPage) {
+    return <HuemulAccessDenied variant="inline" />
   }
 
   if (showPageLoader) {
@@ -364,6 +412,7 @@ export default function WorkflowPage() {
                   onClearAll={handleClearAll}
                 />
                 <WorkflowTemplateCards
+                  canCreate={canCreateExpress}
                   items={templateItems}
                   isLoading={isLoadingTemplates}
                   page={templatesPage}
@@ -371,6 +420,7 @@ export default function WorkflowPage() {
                   hasNext={templatesHasNext}
                   onPageChange={setTemplatesPage}
                   onStart={(item) => {
+                    if (!canCreateExpress) return
                     setSelectedRow(null)
                     setExpressDoc(null)
                     setExpressTemplate(item)
@@ -424,7 +474,7 @@ export default function WorkflowPage() {
                 createdDoc={expressDoc}
                 isCreating={createExpress.isPending}
                 onSubmitName={(name, description) => {
-                  if (!expressTemplate) return
+                  if (!expressTemplate || !canCreateExpress) return
                   createExpress
                     .mutateAsync({
                       documentTypeId: expressTemplate.document_type_id,

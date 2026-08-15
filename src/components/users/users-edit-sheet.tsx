@@ -10,7 +10,7 @@ import UserFormFields from "@/components/users/users-form-fields"
 import type { EditUserSheetProps } from '@/types/users'
 export type { EditUserSheetProps } from '@/types/users'
 
-export default function EditUserSheet({ user, open, onOpenChange, onSuccess, showDailyDigest = false }: EditUserSheetProps) {
+export default function EditUserSheet({ user, open, onOpenChange, onSuccess, showDailyDigest = false, canSave }: EditUserSheetProps) {
   const [formData, setFormData] = useState({
     name: '',
     last_name: '',
@@ -28,7 +28,7 @@ export default function EditUserSheet({ user, open, onOpenChange, onSuccess, sho
   const { data: fetchedUser, isLoading: isLoadingUser } = useQuery({
     queryKey: ['user', user?.id],
     queryFn: () => getUserById(user!.id),
-    enabled: !!user?.id && open,
+    enabled: !!user?.id && open && canSave,
     staleTime: 0, // Always fetch fresh data when sheet opens
   })
 
@@ -109,6 +109,7 @@ export default function EditUserSheet({ user, open, onOpenChange, onSuccess, sho
   })
 
   const handleSave = async () => {
+    if (!canSave) return
     if (!validateForm()) throw new Error('Validation failed')
     if (!user) return
 
@@ -130,7 +131,7 @@ export default function EditUserSheet({ user, open, onOpenChange, onSuccess, sho
     })
   }
 
-  if (!user) return null
+  if (!user || !canSave) return null
 
   return (
     <HuemulSheet
@@ -144,7 +145,7 @@ export default function EditUserSheet({ user, open, onOpenChange, onSuccess, sho
       saveAction={{
         label: t('users:edit.button'),
         onClick: handleSave,
-        disabled: !formData.name.trim() || !formData.last_name.trim() || !formData.email.trim()
+        disabled: !canSave || !formData.name.trim() || !formData.last_name.trim() || !formData.email.trim()
       }}
     >
       <div className="space-y-4">

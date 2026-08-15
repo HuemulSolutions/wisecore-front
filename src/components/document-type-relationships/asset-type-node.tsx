@@ -47,7 +47,7 @@ export function AssetTypeNode({ data, selected }: NodeProps<AssetTypeNodeType>) 
   const nodeContent = (
     <div
       className={cn(
-        "relative px-4 py-3 rounded-xl border-2 bg-background shadow-md min-w-[140px] max-w-[200px]",
+        "relative px-4 py-3 rounded-xl border-2 bg-background shadow-md min-w-35 max-w-50",
         "transition-shadow",
         selected ? "shadow-lg" : "shadow-sm",
         needsVersion ? "border-amber-400" : "",

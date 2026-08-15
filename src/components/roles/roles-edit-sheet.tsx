@@ -8,7 +8,7 @@ import RoleFormFields from "./roles-form-fields"
 import type { EditRoleSheetProps } from '@/types/roles'
 export type { EditRoleSheetProps } from '@/types/roles'
 
-export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleSheetProps) {
+export default function EditRoleSheet({ role, open, onOpenChange, canUpdate }: EditRoleSheetProps) {
   const { t } = useTranslation(['roles', 'common'])
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -18,9 +18,9 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
   const [parentRoleId, setParentRoleId] = useState<string | null>(null)
   const [initialParentRoleId, setInitialParentRoleId] = useState<string | null>(null)
 
-  // Only fetch permissions with status when the sheet is actually open
-  const { data: rolePermissionsResponse, isLoading: rolePermissionsLoading } = useRolePermissions(role?.id || '', open, search)
-  const { data: rolesResponse } = useRoles(open, 1, 1000)
+  // Only fetch permissions with status when the sheet is actually open y hay permiso de actualizar
+  const { data: rolePermissionsResponse, isLoading: rolePermissionsLoading } = useRolePermissions(role?.id || '', open && canUpdate, search)
+  const { data: rolesResponse } = useRoles(open && canUpdate, 1, 1000)
   const { updateRole } = useRoleMutations()
 
   const allPermissions = Array.isArray(rolePermissionsResponse?.data?.permissions) ? rolePermissionsResponse.data.permissions : []
@@ -64,7 +64,7 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
   }, [allPermissions, open, role?.id])
 
   const handleSubmit = async (): Promise<void> => {
-    if (!role) return
+    if (!role || !canUpdate) return
 
     const currentPermissions = allPermissions.filter(p => p.assigned).map(p => p.id)
     const add_permissions = permissions.filter(pId => !currentPermissions.includes(pId))
@@ -93,7 +93,7 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
   }
 
 
-  if (!role) return null
+  if (!role || !canUpdate) return null
 
   return (
     <HuemulSheet

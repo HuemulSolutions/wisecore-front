@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useDocumentTypes } from "@/hooks/useDocumentTypes"
 import {
@@ -51,12 +52,18 @@ export function ExternalFunctionalityPublishActionsTab({
   functionality,
 }: ExternalFunctionalityPublishActionsTabProps) {
   const { t } = useTranslation(["external-functionalities", "common"])
-  const { isOrgAdmin, hasPermission } = useUserPermissions()
+  const { can } = usePageAccess("external-systems")
+  const { hasAnyPermission } = useUserPermissions()
 
-  const canList   = isOrgAdmin || hasPermission("lifecycle_external_publish_action:l" as never)
-  const canCreate = isOrgAdmin || hasPermission("lifecycle_external_publish_action:c" as never)
-  const canUpdate = isOrgAdmin || hasPermission("lifecycle_external_publish_action:u" as never)
-  const canDelete = isOrgAdmin || hasPermission("lifecycle_external_publish_action:d" as never)
+  // `lifecycle_external_publish_action` sí existe en PermissionResource: los
+  // `as never` que había acá eran casts innecesarios que ocultaban el tipo.
+  const canList   = can("listPublishActions")
+  const canCreate = can("createPublishAction")
+  const canUpdate = can("updatePublishAction")
+  const canDelete = can("deletePublishAction")
+  // El selector de asset types pega a /document_types/: sin permiso de listar,
+  // no se dispara la llamada (el paso 1 del tab queda vacío en vez de dar 403).
+  const canListAssetTypes = hasAnyPermission(["asset_type:l", "asset_type:r"])
 
   const [selectedDocTypeId, setSelectedDocTypeId] = useState("")
   const [selectedStepId, setSelectedStepId]       = useState("")
@@ -69,7 +76,7 @@ export function ExternalFunctionalityPublishActionsTab({
 
   // ─── Data ──────────────────────────────────────────────────────────────────
 
-  const { data: docTypesData, isLoading: isLoadingDocTypes } = useDocumentTypes()
+  const { data: docTypesData, isLoading: isLoadingDocTypes } = useDocumentTypes({ enabled: canListAssetTypes })
   const docTypes = docTypesData?.data ?? []
 
   const { data: stepsData, isLoading: isLoadingSteps } = useLifecycleSteps(
@@ -116,6 +123,7 @@ export function ExternalFunctionalityPublishActionsTab({
   }
 
   const handleSaveCreate = () => {
+    if (!canCreate) return
     const body: CreateExternalPublishActionRequest = {
       external_functionality_id: formState.external_functionality_id,
       execution_order: formState.execution_order,
@@ -126,7 +134,7 @@ export function ExternalFunctionalityPublishActionsTab({
   }
 
   const handleSaveEdit = () => {
-    if (!editingAction) return
+    if (!canUpdate || !editingAction) return
     const body: UpdateExternalPublishActionRequest = {
       execution_order: formState.execution_order,
       is_enabled: formState.is_enabled,
@@ -142,11 +150,12 @@ export function ExternalFunctionalityPublishActionsTab({
   }
 
   const handleConfirmDelete = async () => {
-    if (!deleteTarget) return
+    if (!canDelete || !deleteTarget) return
     await deleteAction.mutateAsync(deleteTarget.id)
   }
 
   const handleMove = (index: number, direction: "up" | "down") => {
+    if (!canUpdate) return
     const swapIdx = direction === "up" ? index - 1 : index + 1
     if (swapIdx < 0 || swapIdx >= actions.length) return
     const reordered = actions.map((a, i) => {

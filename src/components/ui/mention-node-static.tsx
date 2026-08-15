@@ -8,13 +8,16 @@ import { SlateElement } from 'platejs/static';
 
 import { cn } from '@/lib/utils';
 
-type AssetMentionElement = TMentionElement & {
+/** `refType` ausente ⇒ 'asset' (menciones creadas antes de soportar roles).
+ * Ver también `WisecoreMentionElement` en mention-node.tsx. */
+type WisecoreMentionElement = TMentionElement & {
   color?: string | null;
   executionId?: string | null;
+  refType?: 'asset' | 'role';
 };
 
 export function MentionElementStatic(
-  props: SlateElementProps<AssetMentionElement> & {
+  props: SlateElementProps<WisecoreMentionElement> & {
     prefix?: string;
   }
 ) {

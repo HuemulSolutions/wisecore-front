@@ -21,6 +21,8 @@ export interface TokenUsageByUserTabProps {
   userId?: string
   llmId?: string
   activeLlms: TokenUsageActiveLLM[]
+  /** Gate RBAC de la página (listByUser); sin default — secure-by-default. */
+  enabled: boolean
 }
 
 function formatChartDay(dateIso: string): string {
@@ -36,6 +38,7 @@ export function TokenUsageByUserTab({
   userId,
   llmId,
   activeLlms,
+  enabled,
 }: TokenUsageByUserTabProps) {
   const { t } = useTranslation("token-usage")
   const [page, setPage] = useState(1)
@@ -50,6 +53,7 @@ export function TokenUsageByUserTab({
   }, [sort])
 
   const { data, isLoading, isFetching, error, refetch } = useTokenUsageByUser(organizationId, {
+    enabled,
     page,
     page_size: pageSize,
     user_id: userId,
@@ -155,6 +159,7 @@ export function TokenUsageByUserTab({
     dateFrom,
     dateTo,
     llmId,
+    enabled,
   })
   const chartData = useMemo(
     () => points.map((p) => ({ label: formatChartDay(p.date), value: p.tokens })),
@@ -185,6 +190,7 @@ export function TokenUsageByUserTab({
               dateFrom={dateFrom}
               dateTo={dateTo}
               activeLlms={activeLlms}
+              enabled={enabled}
             />
           )}
           expandedKeys={expandedKeys}

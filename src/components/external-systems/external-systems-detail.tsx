@@ -1,11 +1,11 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Network, Plus, Edit2, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { cn } from "@/lib/utils"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import type { ExternalSystemDetailProps } from "@/types/external-systems"
 import type { ExternalSystemDetailTab as Tab } from "@/types/external-systems"
 import { ExternalSystemParamsTab } from "./external-system-params-tab"
@@ -15,14 +15,25 @@ export type { ExternalSystemDetailProps } from "@/types/external-systems"
 
 export function ExternalSystemDetail({ system, organizationId = "", onAddFunctionality, onEdit, onDelete }: ExternalSystemDetailProps) {
   const { t } = useTranslation(["external-systems", "external-functionalities", "common"])
-  const { canAccessExternalParameters, canAccessExternalSecrets } = useUserPermissions()
+  const { can } = usePageAccess("external-systems")
+  // Tabs de lectura: se gatean con el permiso de LISTAR su recurso, no con un
+  // helper que también acepta :c/:u/:d (permiso de escritura gateando lectura).
+  const canListParams = can("listParameters")
+  const canListSecrets = can("listSecrets")
   const [activeTab, setActiveTab] = useState<Tab>("docs")
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "docs", label: t("external-functionalities:detail.tabs.docs") },
-    ...(canAccessExternalParameters ? [{ id: "params" as Tab, label: t("external-functionalities:detail.tabs.params") }] : []),
-    ...(canAccessExternalSecrets ? [{ id: "secrets" as Tab, label: t("external-functionalities:detail.tabs.secrets") }] : []),
+    ...(canListParams ? [{ id: "params" as Tab, label: t("external-functionalities:detail.tabs.params") }] : []),
+    ...(canListSecrets ? [{ id: "secrets" as Tab, label: t("external-functionalities:detail.tabs.secrets") }] : []),
   ]
+
+  // Si el tab activo deja de estar disponible (cambio de permisos), caer al
+  // primero disponible en vez de dejar el panel vacío.
+  useEffect(() => {
+    if (activeTab === "params" && !canListParams) setActiveTab("docs")
+    if (activeTab === "secrets" && !canListSecrets) setActiveTab("docs")
+  }, [activeTab, canListParams, canListSecrets])
 
   if (!system) {
     return (

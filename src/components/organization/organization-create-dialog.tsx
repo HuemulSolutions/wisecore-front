@@ -10,7 +10,8 @@ export function CreateOrganizationDialog({
   open,
   onOpenChange,
   onSubmit,
-  isPending
+  isPending,
+  canCreate
 }: CreateOrganizationDialogProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -23,6 +24,8 @@ export function CreateOrganizationDialog({
       setDescription('');
     }
   }, [open]);
+
+  if (!canCreate) return null;
 
   const isValid = name.trim().length > 0;
 
@@ -41,6 +44,7 @@ export function CreateOrganizationDialog({
         loading: isPending,
         closeOnSuccess: false,
         onClick: () => {
+          if (!canCreate) return;
           if (name.trim()) {
             onSubmit({
               name: name.trim(),

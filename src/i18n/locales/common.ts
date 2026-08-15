@@ -50,6 +50,8 @@ const translations = {
   refreshFailed: { en: "Failed to refresh data", es: "Error al actualizar los datos" },
   accessDenied: { en: "Access Denied", es: "Acceso Denegado" },
   noPermission: { en: "You don't have permission to access this page.", es: "No tienes permiso para acceder a esta página." },
+  goBack: { en: "Go Back", es: "Volver" },
+  goToHome: { en: "Go to Home", es: "Ir a Inicio" },
   pickDate: { en: "Pick a date", es: "Selecciona una fecha" },
   pickTime: { en: "Pick a time", es: "Selecciona una hora" },
   pickDateTime: { en: "Pick a date & time", es: "Selecciona fecha y hora" },

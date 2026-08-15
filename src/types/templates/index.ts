@@ -6,3 +6,4 @@ export type { TemplateContentProps, TemplateHeaderProps, TemplateSectionsListPro
 // NOTE: add-section-dialog exports AddSectionDialogProps which conflicts with the assets version.
 // Import directly from '@/types/templates/add-section-dialog' if needed.
 export * from './hooks'
+export * from './section-lifecycle-access'

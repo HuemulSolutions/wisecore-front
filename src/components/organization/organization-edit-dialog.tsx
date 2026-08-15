@@ -12,9 +12,10 @@ export function EditOrganizationDialog({
   onSave,
   isSaving,
   onOrgChange,
-  isRootAdmin = false
+  canSave,
+  canManageSystemLimits = false
 }: EditOrganizationDialogProps) {
-  if (!organization) return null;
+  if (!organization || !canSave) return null;
 
   const { t } = useTranslation('organizations');
   const isValid = organization.name.trim().length > 0;
@@ -33,6 +34,7 @@ export function EditOrganizationDialog({
         loading: isSaving,
         closeOnSuccess: false,
         onClick: () => {
+          if (!canSave) return;
           if (isValid) onSave();
         }
       }}
@@ -59,7 +61,7 @@ export function EditOrganizationDialog({
           rows={3}
         />
 
-        {isRootAdmin && (
+        {canManageSystemLimits && (
           <>
             <HuemulField
               type="number"

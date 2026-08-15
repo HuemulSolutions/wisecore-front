@@ -2,15 +2,15 @@
 
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { GitMerge, Edit2, Activity, Copy, Trash2 } from "lucide-react"
+import { GitMerge, Settings2, Copy, Trash2 } from "lucide-react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { RelationshipsCanvas } from "@/components/document-type-relationships"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
-import CreateDocumentType from "@/components/assets-types/assets-types-create"
-import AssetTypeLifecycleDialog from "@/components/assets-types/assets-types-lifecycle-dialog"
+import { AssetTypeConfigSheet } from "@/components/assets-types/assets-types-config-sheet"
 import { useDocumentTypes } from "@/hooks/useDocumentTypes"
 import { useAssetTypeMutations } from "@/hooks/useAssetTypes"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { useOrganization } from "@/contexts/organization-context"
 import type { AssetTypeWithRoles } from "@/services/asset-types"
 import type { CanvasNodeAction } from "@/types/document-type-relationships"
@@ -47,19 +47,22 @@ export function AssetTypeRelationshipsSheet({
   const { data: docTypesResponse } = useDocumentTypes()
   const documentTypes = docTypesResponse?.data ?? []
   const mutations = useAssetTypeMutations()
-  const { isRootAdmin, hasPermission } = useUserPermissions()
-  const canCreateDocumentType = isRootAdmin || hasPermission('asset_type:c')
-  const canUpdateDocumentType = isRootAdmin || hasPermission('asset_type:u')
-  const canDeleteDocumentType = isRootAdmin || hasPermission('asset_type:d')
+  const { canCreate, canUpdate, canDelete } = useUserPermissions()
+  const { can } = usePageAccess('asset-types')
+  const canCreateDocumentType = canCreate('asset_type')
+  const canUpdateDocumentType = canUpdate('asset_type')
+  const canDeleteDocumentType = canDelete('asset_type')
+  const canManageTemplates = can('manageLinkedTemplates')
+  const canManageLifecycle = can('manageLifecycle')
+  const canConfigureDocumentType = canUpdateDocumentType || canManageTemplates || canManageLifecycle
 
   // Dialog state for actions triggered from the node panel
-  const [editingAssetType, setEditingAssetType] = useState<AssetTypeWithRoles | null>(null)
-  const [lifecycleAssetType, setLifecycleAssetType] = useState<AssetTypeWithRoles | null>(null)
+  const [configAssetType, setConfigAssetType] = useState<AssetTypeWithRoles | null>(null)
   const [cloningAssetType, setCloningAssetType] = useState<AssetTypeWithRoles | null>(null)
   const [deletingAssetType, setDeletingAssetType] = useState<AssetTypeWithRoles | null>(null)
 
   const handleClone = async () => {
-    if (!cloningAssetType) return
+    if (!canCreateDocumentType || !cloningAssetType) return
     const minDelay = new Promise((resolve) => setTimeout(resolve, 800))
     await Promise.all([
       new Promise<void>((resolve, reject) => {
@@ -73,7 +76,7 @@ export function AssetTypeRelationshipsSheet({
   }
 
   const handleDelete = async () => {
-    if (!deletingAssetType) return
+    if (!canDeleteDocumentType || !deletingAssetType) return
     const minDelay = new Promise((resolve) => setTimeout(resolve, 800))
     await Promise.all([
       new Promise<void>((resolve, reject) => {
@@ -87,22 +90,13 @@ export function AssetTypeRelationshipsSheet({
   }
 
   const nodeActions: CanvasNodeAction[] = [
-    ...(canUpdateDocumentType ? [{
-      key: "edit",
-      label: t("asset-types:actions.editAssetType"),
-      icon: Edit2,
+    ...(canConfigureDocumentType ? [{
+      key: "configure",
+      label: t("asset-types:actions.configureAssetType"),
+      icon: Settings2,
       onClick: (nodeId: string) => {
         const node = documentTypes.find((d) => d.id === nodeId)
-        setEditingAssetType(toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8"))
-      },
-    }] : []),
-    ...(canUpdateDocumentType ? [{
-      key: "lifecycle",
-      label: t("asset-types:actions.lifecycle"),
-      icon: Activity,
-      onClick: (nodeId: string) => {
-        const node = documentTypes.find((d) => d.id === nodeId)
-        setLifecycleAssetType(toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8"))
+        setConfigAssetType(toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8"))
       },
     }] : []),
     ...(canCreateDocumentType ? [{
@@ -160,21 +154,15 @@ export function AssetTypeRelationshipsSheet({
         </SheetContent>
       </Sheet>
 
-      {/* Edit dialog */}
-      <CreateDocumentType
-        type="asset"
-        documentType={editingAssetType}
-        open={!!editingAssetType}
-        onOpenChange={(o) => { if (!o) setEditingAssetType(null) }}
-        onDocumentTypeCreated={() => setEditingAssetType(null)}
-      />
-
-      {/* Lifecycle dialog */}
-      <AssetTypeLifecycleDialog
-        assetType={lifecycleAssetType}
-        open={!!lifecycleAssetType}
-        onOpenChange={(o) => { if (!o) setLifecycleAssetType(null) }}
+      {/* Config sheet (general + plantillas + ciclo de vida) */}
+      <AssetTypeConfigSheet
+        assetType={configAssetType}
+        open={!!configAssetType}
+        onOpenChange={(o) => { if (!o) setConfigAssetType(null) }}
         organizationId={selectedOrganizationId ?? ""}
+        canUpdate={canUpdateDocumentType}
+        canManageTemplates={canManageTemplates}
+        canManageLifecycle={canManageLifecycle}
       />
 
       {/* Clone confirmation */}

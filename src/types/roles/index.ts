@@ -1,22 +1,15 @@
 import type { Role } from '@/services/rbac'
-import type { DocumentType } from '@/services/document-types'
 import type { Permission, PermissionWithStatus } from '@/services/rbac'
 import type { HuemulTablePagination } from '@/huemul/components/huemul-table'
 import type { User } from '@/types/users'
-
-export interface RoleActionsProps {
-  role: Role
-  isLoadingUsers?: boolean
-  onAssignToUsers: (role: Role) => void
-  onEdit: (role: Role) => void
-  onDelete: (role: Role) => void
-}
 
 export interface AssignRolesSheetProps {
   user: User | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess?: () => void
+  /** rbac:u — sin default: cada call-site debe resolverlo explícitamente. */
+  canAssign: boolean
 }
 
 export interface AssignRoleToUsersDialogProps {
@@ -24,6 +17,8 @@ export interface AssignRoleToUsersDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess?: () => void
+  /** rbac:u — sin default: secure-by-default. */
+  canAssign: boolean
 }
 
 export interface CloneRoleDialogProps {
@@ -31,6 +26,8 @@ export interface CloneRoleDialogProps {
   onOpenChange: (open: boolean) => void
   role: Role | null
   onConfirm: (copyUsers: boolean) => Promise<void>
+  /** rbac:c — sin default: secure-by-default. */
+  canClone: boolean
 }
 
 export interface RolesContentEmptyStateProps {
@@ -41,6 +38,8 @@ export interface RolesContentEmptyStateProps {
 export interface CreateRoleSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** rbac:c — sin default: secure-by-default. */
+  canCreate: boolean
 }
 
 export interface DeleteRoleDialogProps {
@@ -48,17 +47,16 @@ export interface DeleteRoleDialogProps {
   onOpenChange: (open: boolean) => void
   role: Role | null
   onConfirm: () => Promise<void>
+  /** rbac:d — sin default: secure-by-default. */
+  canDelete: boolean
 }
 
 export interface EditRoleSheetProps {
   role: Role | null
   open: boolean
   onOpenChange: (open: boolean) => void
-}
-
-export interface RolesEmptyStateProps {
-  hasSearchTerm: boolean
-  onCreateRole: () => void
+  /** rbac:u — sin default: secure-by-default. */
+  canUpdate: boolean
 }
 
 export interface RoleFormFieldsProps {
@@ -87,12 +85,6 @@ export interface PermissionSelectorProps {
   onSearchChange?: (search: string) => void
 }
 
-export interface RolePermissionsDialogProps {
-  documentType: DocumentType | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}
-
 export interface RolesSearchProps {
   searchTerm: string
   onSearchChange: (value: string) => void
@@ -101,7 +93,8 @@ export interface RolesSearchProps {
   onRefresh: () => void
   onCreateRole: () => void
   hasError?: boolean
-  canManage?: boolean
+  /** rbac:c — sin default: secure-by-default. */
+  canCreate: boolean
   onExport?: () => void
   onImport?: () => void
   canExport?: boolean
@@ -114,7 +107,6 @@ export interface RolesSearchProps {
 
 export interface RolesTableProps {
   roles: Role[]
-  isLoadingUsers: boolean
   isTableLoading?: boolean
   isTableFetching?: boolean
   onAssignToUsers: (role: Role) => void
@@ -122,7 +114,12 @@ export interface RolesTableProps {
   onDeleteRole: (role: Role) => void
   onCloneRole: (role: Role) => void
   pagination?: HuemulTablePagination
-  canManage?: boolean
+  /** rbac:u — habilita "Asignar a usuarios" y "Editar permisos". Sin default. */
+  canUpdate: boolean
+  /** rbac:d — habilita "Eliminar". Sin default. */
+  canDelete: boolean
+  /** rbac:c — habilita "Clonar" (crea un rol nuevo). Sin default. */
+  canClone: boolean
   selectedIds?: Set<string>
   onSelectionChange?: (next: Set<string>) => void
 }

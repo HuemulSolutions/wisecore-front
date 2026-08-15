@@ -7,9 +7,12 @@ export function DeleteProviderDialog({
   open,
   onOpenChange,
   provider,
-  onAction
+  onAction,
+  canDelete,
 }: DeleteProviderDialogProps) {
   const { t } = useTranslation('models')
+
+  if (!canDelete) return null
 
   return (
     <HuemulAlertDialog

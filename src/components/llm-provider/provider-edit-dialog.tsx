@@ -14,6 +14,7 @@ export function EditProviderDialog({
   supportedProviders,
   onSubmit,
   isUpdating,
+  canUpdate,
 }: EditProviderDialogProps) {
   const [name, setName] = useState("")
   const [isManaged, setIsManaged] = useState(false)
@@ -51,6 +52,8 @@ export function EditProviderDialog({
   }, [open])
 
   const handleSave = async () => {
+    if (!canUpdate) return
+
     const data: CreateLLMProviderRequest = {
       name,
       type: selectedType,
@@ -92,7 +95,7 @@ export function EditProviderDialog({
     }
   }
 
-  if (!provider) return null
+  if (!provider || !canUpdate) return null
 
   return (
     <HuemulDialog

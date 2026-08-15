@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
+import { useOrganization } from "@/contexts/organization-context"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { getAllOrganizations, addOrganization, updateOrganization, deleteOrganization } from "@/services/organizations"
 import { toast } from "sonner"
@@ -36,21 +37,22 @@ export default function Organizations() {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
   // Get permissions
-  const { isOrgAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
+  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('organizations')
+  const { selectedOrganizationId, organizationToken } = useOrganization()
   const queryClient = useQueryClient()
-  
+
   // Permisos específicos
-  const canListOrgs = isOrgAdmin || hasAnyPermission(['organization:l', 'organization:r'])
-  const canUpdateOrg = isOrgAdmin || hasPermission('organization:u')
-  const canDeleteOrg = isOrgAdmin || hasPermission('organization:d')
-  const canCreateOrg = isOrgAdmin || hasPermission('organization:c')
-  
+  const canListOrgs = can('listOrganizations')
+  const canUpdateOrg = can('updateOrganization')
+  const canDeleteOrg = can('deleteOrganization')
+  const canCreateOrg = can('createOrganization')
+
   // Fetch organizations - solo si tiene permisos de listar
   const { data: organizationsResponse, isLoading, isFetching, error: queryError } = useQuery({
-    queryKey: ["organizations", page, pageSize, state.searchTerm],
+    queryKey: ["organizations", selectedOrganizationId, page, pageSize, state.searchTerm],
     queryFn: () => getAllOrganizations(page, pageSize, state.searchTerm || undefined),
     placeholderData: (prev) => prev,
-    enabled: canListOrgs,
+    enabled: !!selectedOrganizationId && !!organizationToken && canListOrgs,
   })
 
   const { showPageLoader, isTableLoading, isTableFetching } = useTableLoadingState({
@@ -61,7 +63,10 @@ export default function Organizations() {
 
   // Mutations
   const createMutation = useMutation({
-    mutationFn: (payload: { name: string; description?: string }) => addOrganization(payload),
+    mutationFn: (payload: { name: string; description?: string }) => {
+      if (!canCreateOrg) return Promise.reject(new Error("forbidden"))
+      return addOrganization(payload)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizations"] })
       closeDialog("showCreateDialog")
@@ -70,8 +75,10 @@ export default function Organizations() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { name: string; description?: string } }) =>
-      updateOrganization(id, data),
+    mutationFn: ({ id, data }: { id: string; data: { name: string; description?: string } }) => {
+      if (!canUpdateOrg) return Promise.reject(new Error("forbidden"))
+      return updateOrganization(id, data)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizations"] })
       closeDialog("editingOrganization")
@@ -80,9 +87,13 @@ export default function Organizations() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteOrganization(id),
+    mutationFn: (id: string) => {
+      if (!canDeleteOrg) return Promise.reject(new Error("forbidden"))
+      return deleteOrganization(id)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizations"] })
+      closeDialog("deletingOrganization")
       toast.success(t('toasts.deleted'))
     },
   })
@@ -93,7 +104,7 @@ export default function Organizations() {
   }
 
   // Access check - need at least read/list permission
-  if (!canListOrgs) {
+  if (!canAccessPage) {
     return <OrganizationPageEmptyState type="access-denied" />
   }
 
@@ -163,9 +174,9 @@ export default function Organizations() {
                 onRetry={handleRefresh}
               />
             ) : !isTableLoading && !isTableFetching && organizations.length === 0 && !state.searchTerm ? (
-              <OrganizationContentEmptyState 
+              <OrganizationContentEmptyState
                 type="empty"
-                onCreateFirst={() => updateState({ showCreateDialog: true })}
+                onCreateFirst={canCreateOrg ? () => updateState({ showCreateDialog: true }) : undefined}
               />
             ) : !isTableLoading && !isTableFetching && organizations.length === 0 ? (
               <OrganizationContentEmptyState 
@@ -206,6 +217,7 @@ export default function Organizations() {
         onOpenChange={(open) => updateState({ showCreateDialog: open })}
         onSubmit={(data) => createMutation.mutate(data)}
         isPending={createMutation.isPending}
+        canCreate={canCreateOrg}
       />
 
       {state.editingOrganization && (
@@ -226,6 +238,7 @@ export default function Organizations() {
           }}
           isSaving={updateMutation.isPending}
           onOrgChange={(org: Organization) => updateState({ editingOrganization: org })}
+          canSave={canUpdateOrg}
         />
       )}
 
@@ -239,6 +252,7 @@ export default function Organizations() {
               await deleteMutation.mutateAsync(state.deletingOrganization.id)
             }
           }}
+          canDelete={canDeleteOrg}
         />
       )}
     </>

@@ -4,7 +4,7 @@ const translations = {
     assets: { en: "Assets", es: "Activos" },
     search: { en: "Search", es: "Búsqueda" },
     templates: { en: "Templates", es: "Plantillas" },
-    advanced: { en: "Advanced", es: "Avanzado" },
+    diagrams: { en: "Diagrams", es: "Diagramas" },
     media: { en: "Media", es: "Media" },
     workflow: { en: "Workflow", es: "Workflow" },
     navigationMenuTitle: { en: "Navigation", es: "Navegación" },
@@ -19,12 +19,12 @@ const translations = {
     signOut: { en: "Sign out", es: "Cerrar sesión" },
   },
   settings: {
+    tools: { en: "Tools", es: "Herramientas" },
     assetManagement: { en: "Asset Management", es: "Gestión de Activos" },
     assetTypes: { en: "Asset Types", es: "Tipos de Activo" },
     assetTypeRelationships: { en: "Asset Type Relationships", es: "Relaciones de Tipos de Activo" },
     customFields: { en: "Custom Fields", es: "Campos Personalizados" },
     canvas: { en: "Canvas", es: "Canvas" },
-    diagrams: { en: "Diagrams", es: "Diagramas" },
     media: { en: "Media", es: "Media" },
     administration: { en: "Administration", es: "Administración" },
     organizations: { en: "Organizations", es: "Organizaciones" },
@@ -82,9 +82,6 @@ const translations = {
     rootFolder: { en: "Root", es: "Raíz" },
     searchPlaceholder: { en: "Search assets...", es: "Buscar activos..." },
     searchNoResults: { en: "No results found", es: "No se encontraron resultados" },
-    relationsMode: { en: "Relations", es: "Relaciones" },
-    relationsModeTitle: { en: "Relations", es: "Relaciones" },
-    relationsModeTooltip: { en: "Relations mode", es: "Modo relaciones" },
     errors: {
       folderNotAccessible: {
         en: "You don't have access to this folder",

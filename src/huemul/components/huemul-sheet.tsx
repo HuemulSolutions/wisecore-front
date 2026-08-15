@@ -12,10 +12,24 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { HuemulSheetAction, HuemulSheetProps } from "@/types/huemul"
-export type { HuemulSheetAction, HuemulSheetProps }
+import type {
+  HuemulSheetAction,
+  HuemulSheetIconVariant,
+  HuemulSheetProps,
+  HuemulSheetSize,
+} from "@/types/huemul"
+export type { HuemulSheetAction, HuemulSheetIconVariant, HuemulSheetProps, HuemulSheetSize }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+const SHEET_SIZE_CLASSES: Record<HuemulSheetSize, string> = {
+  sm: "sm:max-w-sm",
+  md: "sm:max-w-md",
+  lg: "sm:max-w-2xl",
+  xl: "sm:max-w-4xl",
+  "2xl": "sm:max-w-5xl",
+  wide: "w-[90vw] sm:max-w-none",
+};
 
 function ActionButton({
   action,
@@ -58,6 +72,7 @@ export function HuemulSheet({
   description,
   icon: Icon,
   iconClassName,
+  iconVariant = "plain",
   bodyLoading = false,
   showFooter = true,
   showCancelButton = true,
@@ -68,10 +83,12 @@ export function HuemulSheet({
   closeDelay = 500,
   side = "right",
   maxWidth = "sm:max-w-md",
+  size,
   className,
   bodyClassName,
   headerExtra,
   footerLeft,
+  onOpenAutoFocus,
   children,
 }: HuemulSheetProps) {
   // Shared helper — all close paths go through Radix's onOpenChange
@@ -133,6 +150,9 @@ export function HuemulSheet({
   const saveInHeader = saveAction?.position === "header";
   const saveInFooter = saveAction && !saveInHeader;
 
+  const widthClass = size ? SHEET_SIZE_CLASSES[size] : maxWidth;
+  const isTile = iconVariant === "tile";
+
   // Determine if footer has any content
   const hasFooterContent = showFooter && (showCancelButton || saveInFooter || footerActions.length > 0 || !!footerLeft);
 
@@ -140,27 +160,48 @@ export function HuemulSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side={side}
+        onOpenAutoFocus={onOpenAutoFocus}
         {...(!description && { "aria-describedby": undefined })}
         className={cn(
           "flex flex-col gap-0 p-0",
-          maxWidth,
+          widthClass,
           className,
         )}
       >
         {/* ── Header ─────────────────────────────────────────────────── */}
-        <SheetHeader className="px-6 pt-6 pb-4 space-y-1.5">
+        <SheetHeader
+          className={cn("px-6 pt-6 pb-4 space-y-1.5", isTile && "space-y-1 pb-3")}
+        >
           {eyebrow && (
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               {eyebrow}
             </p>
           )}
-          <div className="flex items-center gap-2">
-            {Icon && (
-              <Icon
-                className={cn("size-5 shrink-0 text-blue-600", iconClassName)}
-              />
+          <div className={cn("flex gap-2", isTile ? "items-start gap-3" : "items-center")}>
+            {Icon &&
+              (isTile ? (
+                <span className="flex size-7.5 shrink-0 items-center justify-center rounded-xl bg-[#eef2ff]">
+                  <Icon className={cn("size-4 text-[#4f46e5]", iconClassName)} />
+                </span>
+              ) : (
+                <Icon
+                  className={cn("size-5 shrink-0 text-blue-600", iconClassName)}
+                />
+              ))}
+            {isTile ? (
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <SheetTitle className="text-[16px] font-semibold leading-tight text-[#0f172a]">
+                  {title}
+                </SheetTitle>
+                {description && (
+                  <SheetDescription className="text-[13px] leading-tight text-[#64748b]">
+                    {description}
+                  </SheetDescription>
+                )}
+              </div>
+            ) : (
+              <SheetTitle>{title}</SheetTitle>
             )}
-            <SheetTitle>{title}</SheetTitle>
 
             {/* Header-positioned actions (right-aligned) */}
             {(headerActions.length > 0 || saveInHeader || headerExtra) && (
@@ -202,7 +243,9 @@ export function HuemulSheet({
               </div>
             )}
           </div>
-          {description && <SheetDescription>{description}</SheetDescription>}
+          {!isTile && description && (
+            <SheetDescription>{description}</SheetDescription>
+          )}
         </SheetHeader>
 
         {/* ── Body ───────────────────────────────────────────────────── */}

@@ -58,6 +58,16 @@ export interface HuemulFileTreeProps {
   // En false, el resultado de onRefresh/onLoadChildren es autoritativo:
   // solo queda expandido lo que venga marcado en esa respuesta.
   preserveExpandedOnRefresh?: boolean
+  /**
+   * Qué nodos puede arrastrar el usuario (mover por drag&drop).
+   * Default: todos los arrastrables por las reglas visuales previas.
+   *
+   * NO bajar el default a `false`: los call-sites que no pasan esta prop
+   * (external-systems, huemul-asset-tree-picker) perderían el drag en silencio.
+   * Cada pantalla que exponga mover debe pasar su propio predicado — ver
+   * ia context/rbac-audit-guide.md, punto 8 (gestos sin botón).
+   */
+  canDragNode?: (node: HuemulTreeNode) => boolean
 }
 
 export interface HuemulFileTreeRef {

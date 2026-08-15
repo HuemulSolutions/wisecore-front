@@ -1,21 +1,41 @@
 ﻿import { useState, useEffect, useRef, useCallback } from "react"
 import { useTranslation } from "react-i18next"
-import { Activity, X } from "lucide-react"
+import { Activity } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
-import { HuemulField } from "@/huemul/components/huemul-field"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
-  useLifecycleStepTypes,
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable"
+import {
   useLifecycleSteps,
+  useAllLifecycleSteps,
   useLifecycleMutations,
 } from "@/hooks/useLifecycle"
 import { useRoles } from "@/hooks/useRbac"
-import { Badge } from "@/components/ui/badge"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CreateStepContent } from "./assets-types-lifecycle-create-step"
 import { EditStepContent } from "./assets-types-lifecycle-edit-step"
-import type { DefaultStepContentProps, StepContentProps, AssetTypeLifecycleDialogProps } from '@/types/assets'
+import { AssetTypeLifecycleMatrix } from "./assets-types-lifecycle-matrix"
+import { LifecycleStepPanel } from "./assets-types-lifecycle-step-panel"
+import {
+  ChipList,
+  PanelFieldLabel,
+  RemovableChip,
+  SettingToggleList,
+  SettingToggleRow,
+} from "./assets-types-lifecycle-ui"
+import { HuemulField } from "@/huemul/components/huemul-field"
+import type {
+  DefaultStepContentProps,
+  StepContentProps,
+  AssetTypeLifecycleDialogProps,
+  LifecycleEditorApi,
+  LifecycleSaveApiRef,
+} from '@/types/assets'
 
 export type { AssetTypeLifecycleDialogProps } from '@/types/assets'
 
@@ -27,6 +47,8 @@ function DefaultStepContent({
   stepLabel,
 }: DefaultStepContentProps) {
   const { t } = useTranslation("asset-types")
+  const { canUpdate } = useUserPermissions()
+  const canManage = canUpdate('asset_type')
   const { data, isLoading } = useLifecycleSteps(documentTypeId, stepType, true)
   const { data: rolesData } = useRoles(true, 1, 1000)
   const { updateStep, addRole, removeRole } = useLifecycleMutations(
@@ -50,7 +72,7 @@ function DefaultStepContent({
 
   if (!step) {
     return (
-      <p className="text-sm text-muted-foreground py-4">
+      <p className="py-4 text-[12.5px] text-[#64748b]">
         {t("lifecycle.noConfig")}
       </p>
     )
@@ -60,142 +82,129 @@ function DefaultStepContent({
   const isCustom = step.access_type === "custom"
   const isMutating =
     updateStep.isPending || addRole.isPending || removeRole.isPending
+  const ro = !canManage || isMutating
 
   const assignedRoleIds = new Set(step.step_roles.map((r) => r.role_id))
   const availableRoles = allRoles.filter((r) => !assignedRoleIds.has(r.id))
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Step heading */}
-      <p className="text-sm font-semibold text-foreground">
+    <div className="flex flex-col gap-3">
+      <p className="text-[13px] font-semibold text-[#0f172a]">
         {step.name ?? stepLabel}
       </p>
 
-      {/* Access config card */}
-      <div className="flex flex-col gap-4 rounded-md border border-border bg-muted/30 p-4">
-        {/* Switch: all vs owner */}
-        <HuemulField
-          type="switch"
+      <SettingToggleList>
+        <SettingToggleRow
           label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
-          name="access-all"
-          value={isAll}
-          onChange={(v) =>
+          description={t("lifecycle.allowAnyoneDescShort")}
+          checked={isAll}
+          disabled={ro || isCustom}
+          onChange={(v) => {
+            if (!canManage) return
             updateStep.mutate({
               stepId: step.id,
               data: { access_type: v ? "all" : "owner" },
             })
-          }
-          disabled={isCustom || isMutating}
-          description={
-            isAll
-              ? t("lifecycle.allowAnyoneDescOn", { action: stepAction })
-              : t("lifecycle.allowAnyoneDescOff", { action: stepAction })
-          }
-          labelFirst
+          }}
         />
-
-        <div className="h-px bg-border" />
-
-        {/* Switch: custom role configuration */}
-        <HuemulField
-          type="switch"
+        <SettingToggleRow
           label={t("lifecycle.customRolesLabel")}
-          name="access-custom"
-          value={isCustom}
-          onChange={(v) =>
+          description={t("lifecycle.customRolesDesc", { action: stepAction })}
+          checked={isCustom}
+          disabled={ro}
+          onChange={(v) => {
+            if (!canManage) return
             updateStep.mutate({
               stepId: step.id,
               data: { access_type: v ? "custom" : "owner" },
             })
-          }
-          disabled={isMutating}
-          description={t("lifecycle.customRolesDesc", { action: stepAction })}
-          labelFirst
-        />
-      </div>
-
-      {/* Custom roles section */}
-      {isCustom && (
-        <HuemulField
-          type="combobox"
-          label={t("lifecycle.addRole", { action: stepAction })}
-          name="add-role"
-          placeholder={t("lifecycle.addRolePlaceholder")}
-          value=""
-          options={availableRoles.map((r) => ({ value: r.id, label: r.name }))}
-          onChange={(roleId) => {
-            if (!roleId) return
-            addRole.mutate({ stepId: step.id, roleId: roleId as string })
           }}
-          disabled={addRole.isPending}
-        >
+        />
+      </SettingToggleList>
+
+      {isCustom && (
+        <div className="flex flex-col gap-1.5">
+          <PanelFieldLabel disabled={ro}>
+            {t("lifecycle.rolesAllowedLabel", { action: stepAction })}
+          </PanelFieldLabel>
           {step.step_roles.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
+            <ChipList>
               {step.step_roles.map((sr) => (
-                <Badge
+                <RemovableChip
                   key={sr.role_id}
-                  variant="secondary"
-                  className="flex items-center gap-1 pr-1.5"
-                >
-                  <span className="text-xs">{sr.role_name ?? sr.role_id}</span>
-                  <button
-                    type="button"
-                    className="rounded-full hover:text-destructive hover:cursor-pointer transition-colors"
-                    disabled={removeRole.isPending}
-                    onClick={() =>
-                      removeRole.mutate({
-                        stepId: step.id,
-                        roleId: sr.role_id,
-                      })
-                    }
-                    aria-label={`Remove ${sr.role_name ?? sr.role_id}`}
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </Badge>
+                  label={sr.role_name ?? sr.role_id}
+                  disabled={removeRole.isPending}
+                  removeLabel={t("lifecycle.matrix.removeRole")}
+                  onRemove={
+                    canManage
+                      ? () =>
+                          removeRole.mutate({ stepId: step.id, roleId: sr.role_id })
+                      : undefined
+                  }
+                />
               ))}
-            </div>
+            </ChipList>
           )}
-        </HuemulField>
+          {canManage && (
+            <HuemulField
+              type="combobox"
+              label=""
+              name="add-role"
+              placeholder={t("lifecycle.panel.addRoleToStep")}
+              value=""
+              options={availableRoles.map((r) => ({ value: r.id, label: r.name }))}
+              onChange={(roleId) => {
+                if (!roleId) return
+                addRole.mutate({ stepId: step.id, roleId: roleId as string })
+              }}
+              disabled={addRole.isPending}
+            />
+          )}
+        </div>
       )}
     </div>
   )
 }
 
-// Routes to the appropriate sub-component based on stepType.
+// Routes to the appropriate sub-component based on stepType. Exportado para que
+// el panel lateral de la matriz de permisos por rol (`LifecycleStepPanel`) lo
+// reutilice tal cual, sin duplicar el routing por step type.
 
-function StepContent({
+export function StepContent({
   documentTypeId,
   stepType,
   stepLabel,
-  onEditingChange,
+  onRegisterEditor,
   organizationId,
+  addGroupSignal,
 }: StepContentProps) {
-  // Edit-style steps manage their own internal scroll area (header fixed, cards scroll)
+  // Edit-style steps manage their own internal scroll area (cards scroll)
   if (stepType === "edit" || stepType === "review" || stepType === "approve") {
     return (
       <EditStepContent
         documentTypeId={documentTypeId}
         stepType={stepType}
-        onEditingChange={onEditingChange}
+        onRegisterEditor={onRegisterEditor}
         organizationId={organizationId}
+        addGroupSignal={addGroupSignal}
       />
     )
   }
 
   // Other step types don't have their own scroll container — wrap them so they scroll
-  // within the fixed-height sheet body instead of relying on the sheet itself to scroll.
+  // within the fixed-height panel instead of relying on the sheet itself to scroll.
   return (
-    <ScrollArea className="h-full">
+    <ScrollArea className="h-full" viewportClassName="pr-1">
       {stepType === "create" || stepType === "view" || stepType === "publish" || stepType === "archive" || stepType === "read" ? (
         <CreateStepContent
           documentTypeId={documentTypeId}
           stepType={stepType}
+          stepLabel={stepLabel}
           hasSla={stepType === "publish" || stepType === "archive"}
           hasValidity={stepType === "create"}
           noOwner={stepType === "create"}
           useAllOrCustomOwner={stepType === "publish" || stepType === "archive" || stepType === "read" || stepType === "view"}
-          onEditingChange={onEditingChange}
+          onRegisterEditor={onRegisterEditor}
           organizationId={organizationId}
         />
       ) : (
@@ -209,18 +218,144 @@ function StepContent({
   )
 }
 
+interface AssetTypeLifecyclePanelProps {
+  documentTypeId: string
+  organizationId?: string
+  /** Solo dispara el fetch de steps/roles cuando el panel está visible. */
+  enabled?: boolean
+  /** Informa al contenedor si la etapa activa tiene cambios sin guardar. */
+  onDirtyChange?: (state: { isDirty: boolean; stageLabel: string }) => void
+  /** El contenedor publica aquí `save`/`isDirty`/`isSaving` para su footer. */
+  saveApiRef?: LifecycleSaveApiRef
+  /** Envuelve las acciones que descartarían cambios sin guardar. */
+  guardedAction: (action: () => void) => void
+}
+
+/**
+ * Matriz de permisos por rol + panel lateral de configuración. Se monta como
+ * tab dentro del sheet de configuración (`AssetTypeConfigSheet`) y también
+ * dentro del `AssetTypeLifecycleDialog` que usan las páginas de relaciones.
+ *
+ * La matriz (`AssetTypeLifecycleMatrix`) lista roles × columnas (un
+ * `LifecycleStep` por columna); el selector de etapa —y el engranaje de cada
+ * columna— abre el panel lateral (`LifecycleStepPanel`) con los grupos de esa
+ * etapa, que reutiliza el router `StepContent` para el detalle (SLA, modo,
+ * reglas de acceso).
+ *
+ * Los controles del panel están siempre editables: los cambios se acumulan en
+ * el contenido de la etapa y se persisten con «Guardar cambios» del footer del
+ * sheet, vía la API publicada en `saveApiRef`.
+ */
+export function AssetTypeLifecyclePanel({
+  documentTypeId,
+  organizationId,
+  enabled = true,
+  onDirtyChange,
+  saveApiRef,
+  guardedAction,
+}: AssetTypeLifecyclePanelProps) {
+  const { t } = useTranslation("asset-types")
+  const { data } = useAllLifecycleSteps(documentTypeId, enabled)
+  const allSteps = data?.data?.steps ?? []
+
+  const [activeStageType, setActiveStageType] = useState<string | null>(null)
+  const [editor, setEditor] = useState<LifecycleEditorApi | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+
+  const handleRegisterEditor = useCallback((api: LifecycleEditorApi | null) => {
+    setEditor(api)
+  }, [])
+
+  const isDirty = editor?.isDirty ?? false
+  const stageLabel = activeStageType
+    ? t(`lifecycle.stepTypes.${activeStageType}`, { defaultValue: activeStageType })
+    : ""
+  const groupCount = activeStageType
+    ? allSteps.filter((s) => s.type === activeStageType).length
+    : 0
+
+  const save = useCallback(async () => {
+    if (!editor) return
+    setIsSaving(true)
+    try {
+      await editor.save()
+    } finally {
+      setIsSaving(false)
+    }
+  }, [editor])
+
+  const discard = useCallback(() => {
+    editor?.discard()
+  }, [editor])
+
+  // Publica la API de guardado hacia el footer del contenedor.
+  useEffect(() => {
+    if (!saveApiRef) return
+    saveApiRef.current = { save, discard, isDirty, isSaving }
+    return () => {
+      saveApiRef.current = null
+    }
+  }, [saveApiRef, save, discard, isDirty, isSaving])
+
+  useEffect(() => {
+    onDirtyChange?.({ isDirty, stageLabel })
+  }, [isDirty, stageLabel, onDirtyChange])
+
+  const handleSelectStage = (stepType: string) => {
+    guardedAction(() =>
+      setActiveStageType((prev) => (prev === stepType ? null : stepType))
+    )
+  }
+
+  const handleClosePanel = () => {
+    guardedAction(() => setActiveStageType(null))
+  }
+
+  return (
+    <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
+      <ResizablePanel defaultSize={65} minSize={35} className="flex min-w-0 flex-col">
+        <AssetTypeLifecycleMatrix
+          documentTypeId={documentTypeId}
+          enabled={enabled}
+          activeStageType={activeStageType}
+          lockedStageType={isDirty ? activeStageType : null}
+          onSelectStage={handleSelectStage}
+        />
+      </ResizablePanel>
+
+      {activeStageType && (
+        <>
+          <ResizableHandle className="mx-3 bg-[#e9edf2]" />
+          <ResizablePanel defaultSize={35} minSize={24} maxSize={55} className="flex min-h-0 flex-col">
+            <LifecycleStepPanel
+              key={activeStageType}
+              documentTypeId={documentTypeId}
+              stageType={activeStageType}
+              groupCount={groupCount}
+              onClose={handleClosePanel}
+              onRegisterEditor={handleRegisterEditor}
+              organizationId={organizationId}
+            />
+          </ResizablePanel>
+        </>
+      )}
+    </ResizablePanelGroup>
+  )
+}
+
 export default function AssetTypeLifecycleDialog({
   assetType,
   open,
   onOpenChange,
   organizationId,
 }: AssetTypeLifecycleDialogProps) {
-  const { t } = useTranslation("asset-types")
-  const { data, isLoading: loadingStepTypes } = useLifecycleStepTypes(open)
-  const stepTypes = data?.data ?? []
+  const { t } = useTranslation(["asset-types", "common"])
 
-  const [activeStep, setActiveStep] = useState<string | null>(null)
-  const [activeStepIsEditing, setActiveStepIsEditing] = useState(false)
+  const [lifecycleState, setLifecycleState] = useState<{
+    isDirty: boolean
+    stageLabel: string
+  }>({ isDirty: false, stageLabel: "" })
+  const saveApiRef = useRef<LifecycleSaveApiRef["current"]>(null)
 
   // Unsaved-changes guard
   const [showUnsavedAlert, setShowUnsavedAlert] = useState(false)
@@ -228,14 +363,14 @@ export default function AssetTypeLifecycleDialog({
 
   const guardedAction = useCallback(
     (action: () => void) => {
-      if (activeStepIsEditing) {
+      if (lifecycleState.isDirty) {
         pendingActionRef.current = action
         setShowUnsavedAlert(true)
       } else {
         action()
       }
     },
-    [activeStepIsEditing]
+    [lifecycleState.isDirty]
   )
 
   const handleGuardedOpenChange = useCallback(
@@ -249,100 +384,71 @@ export default function AssetTypeLifecycleDialog({
     [guardedAction, onOpenChange]
   )
 
-
-  // Select first step type once loaded or when dialog opens
-  useEffect(() => {
-    if (open && stepTypes.length > 0 && !activeStep) {
-      setActiveStep(stepTypes[0].value)
-    }
-  }, [open, stepTypes, activeStep])
-
   // Reset when dialog closes
   useEffect(() => {
     if (!open) {
-      setActiveStep(null)
-      setActiveStepIsEditing(false)
+      setLifecycleState({ isDirty: false, stageLabel: "" })
     }
   }, [open])
-
-  // Reset edit mode when switching step types
-  useEffect(() => {
-    setActiveStepIsEditing(false)
-  }, [activeStep])
-
-  const activeStepLabel =
-    stepTypes.find((s) => s.value === activeStep)?.label ?? activeStep ?? ""
 
   return (
     <>
       <HuemulAlertDialog
         open={showUnsavedAlert}
         onOpenChange={setShowUnsavedAlert}
-        title={t("lifecycle.unsavedChanges.title")}
-        description={t("lifecycle.unsavedChanges.description")}
-        actionLabel={t("lifecycle.unsavedChanges.discard")}
-        cancelLabel={t("lifecycle.unsavedChanges.keepEditing")}
+        title={t("asset-types:lifecycle.unsavedChanges.title")}
+        description={t("asset-types:lifecycle.unsavedChanges.description")}
+        actionLabel={t("asset-types:lifecycle.unsavedChanges.discard")}
+        cancelLabel={t("asset-types:lifecycle.unsavedChanges.keepEditing")}
         actionVariant="destructive"
         onAction={async () => {
+          // Primero se limpia el editor y después la acción: si la acción lo
+          // desmonta, el `discard()` ya corrió; si no (p. ej. no cambia de
+          // etapa), sin esto los cambios sobrevivían al «Descartar».
+          saveApiRef.current?.discard()
           pendingActionRef.current?.()
           pendingActionRef.current = null
-          setActiveStepIsEditing(false)
+          setLifecycleState((prev) => ({ ...prev, isDirty: false }))
         }}
       />
-    <HuemulSheet
-      open={open}
-      onOpenChange={handleGuardedOpenChange}
-      title={t("lifecycle.title")}
-      description={t("lifecycle.description", {
-        name: assetType?.document_type_name ?? "",
-      })}
-      icon={Activity}
-      showFooter={false}
-      maxWidth="sm:max-w-7xl"
-      bodyClassName="flex flex-col overflow-hidden py-0"
-    >
-      <div className="flex flex-col gap-4 h-full py-2">
-        {/* Step type badge selector — fixed, never scrolls */}
-        <div className="shrink-0 bg-background pb-2 border-b border-border">
-          {loadingStepTypes ? (
-            <div className="flex flex-wrap gap-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-6 w-20 rounded-full" />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {stepTypes.map((step) => (
-                <Badge
-                  key={step.value}
-                  variant={activeStep === step.value ? "default" : "outline"}
-                  className="cursor-pointer select-none text-sm px-4 py-1.5 transition-colors"
-                  onClick={() => guardedAction(() => setActiveStep(step.value))}
-                >
-                  {t(`lifecycle.stepTypes.${step.value}`, {
-                    defaultValue: step.label,
-                  })}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Active step content */}
-        {assetType && activeStep && (
-          <div className="flex-1 min-h-0">
-            <StepContent
-              key={`${assetType.document_type_id}-${activeStep}`}
-              documentTypeId={assetType.document_type_id}
-              stepType={activeStep}
-              stepLabel={activeStepLabel}
-              onEditingChange={setActiveStepIsEditing}
-              organizationId={organizationId}
-            />
-          </div>
+      <HuemulSheet
+        open={open}
+        onOpenChange={handleGuardedOpenChange}
+        title={t("asset-types:lifecycle.title")}
+        description={assetType?.document_type_name ?? undefined}
+        icon={Activity}
+        iconVariant="tile"
+        size="wide"
+        bodyClassName="flex flex-col overflow-hidden py-0 pr-0 [scrollbar-gutter:auto]"
+        cancelLabel={t("common:close")}
+        footerLeft={
+          lifecycleState.isDirty ? (
+            <span className="text-[12px] text-[#64748b]">
+              {t("asset-types:lifecycle.unsavedInStage", {
+                stage: lifecycleState.stageLabel,
+              })}
+            </span>
+          ) : undefined
+        }
+        saveAction={{
+          label: t("asset-types:lifecycle.saveChanges"),
+          onClick: () => saveApiRef.current?.save(),
+          disabled: !lifecycleState.isDirty,
+          closeOnSuccess: false,
+        }}
+      >
+        {assetType && (
+          <AssetTypeLifecyclePanel
+            key={assetType.document_type_id}
+            documentTypeId={assetType.document_type_id}
+            organizationId={organizationId}
+            enabled={open}
+            onDirtyChange={setLifecycleState}
+            saveApiRef={saveApiRef}
+            guardedAction={guardedAction}
+          />
         )}
-      </div>
-    </HuemulSheet>
+      </HuemulSheet>
     </>
   )
 }

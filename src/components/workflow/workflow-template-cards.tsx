@@ -7,6 +7,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import type { WorkflowTemplateItem } from "@/types/templates"
 
 interface WorkflowTemplateCardsProps {
+  /**
+   * `asset:c` + `template:l|r` — iniciar un template crea un documento real
+   * (POST /document_types/{id}/templates/{id}/express). Obligatoria (sin
+   * default) para que un call-site futuro no herede un default permisivo.
+   */
+  canCreate: boolean
   items: WorkflowTemplateItem[]
   isLoading?: boolean
   page: number
@@ -19,6 +25,7 @@ interface WorkflowTemplateCardsProps {
 const GRID_CLASSNAME = "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
 
 export function WorkflowTemplateCards({
+  canCreate,
   items,
   isLoading,
   page,
@@ -29,6 +36,11 @@ export function WorkflowTemplateCards({
 }: WorkflowTemplateCardsProps) {
   const { t } = useTranslation("workflow")
   const [visible, setVisible] = useState(true)
+
+  // Las tarjetas existen solo para crear: sin permiso no hay nada que mostrar.
+  if (!canCreate) {
+    return null
+  }
 
   if (isLoading) {
     return (
@@ -98,11 +110,11 @@ export function WorkflowTemplateCards({
               key={`${item.id}-${item.document_type_id}`}
               role="button"
               tabIndex={0}
-              onClick={() => onStart(item)}
+              onClick={() => canCreate && onStart(item)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault()
-                  onStart(item)
+                  if (canCreate) onStart(item)
                 }
               }}
               className="group relative gap-0 overflow-hidden py-0 hover:cursor-pointer hover:border-primary/50 hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 transition-colors"

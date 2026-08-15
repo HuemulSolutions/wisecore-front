@@ -31,9 +31,11 @@ import { MessageBubble } from './chatbot-bubble';
 import { ConversationList } from './conversation-list';
 import { WisyContextChips } from './wisy-context-chips';
 import { HuemulAlertDialog } from '@/huemul/components/huemul-alert-dialog';
+import { HuemulAccessDenied } from '@/huemul/components/huemul-access-denied';
 import { useChatbotContext } from '@/contexts/chatbot-context';
 import { useGlobalPanel } from '@/contexts/global-panel-context';
 import { useOrganization } from '@/contexts/organization-context';
+import { useWisyAccess } from '@/hooks/useWisyAccess';
 import { chatbotQueryKeys } from '@/hooks/use-chatbot';
 import { updateConversationTitle, archiveConversation } from '@/services/chatbot';
 import { getDefaultLLM, getAllLLMs } from '@/services/llms';
@@ -66,11 +68,14 @@ function SessionBar({
   title,
   onTitleChanged,
   onDeleted,
+  canManage,
 }: {
   conversationId: string;
   title: string | null;
   onTitleChanged: (title: string) => void;
   onDeleted: () => void;
+  /** Sin default a propósito: un default permisivo es indistinguible de "todavía no lo gatearon". */
+  canManage: boolean;
 }) {
   const { t } = useTranslation(['chatbot', 'common']);
   const queryClient = useQueryClient();
@@ -84,7 +89,10 @@ function SessionBar({
   const displayTitle = title || t('conversations.defaultTitle');
 
   const renameMutation = useMutation({
-    mutationFn: (newTitle: string) => updateConversationTitle(conversationId, newTitle),
+    mutationFn: (newTitle: string) => {
+      if (!canManage) return Promise.reject(new Error('Missing permission'));
+      return updateConversationTitle(conversationId, newTitle);
+    },
     onSuccess: (_data, newTitle) => {
       onTitleChanged(newTitle);
       queryClient.invalidateQueries({
@@ -94,10 +102,11 @@ function SessionBar({
   });
 
   const startEditing = useCallback(() => {
+    if (!canManage) return;
     setEditValue(title || '');
     setIsEditing(true);
     setTimeout(() => inputRef.current?.focus(), 0);
-  }, [title]);
+  }, [canManage, title]);
 
   const confirmRename = useCallback(() => {
     const trimmed = editValue.trim();
@@ -112,19 +121,20 @@ function SessionBar({
   }, []);
 
   const handleDelete = useCallback(async () => {
+    if (!canManage) return;
     await archiveConversation(conversationId);
     queryClient.invalidateQueries({
       queryKey: chatbotQueryKeys.conversations(selectedOrganizationId),
     });
     onDeleted();
-  }, [conversationId, queryClient, selectedOrganizationId, onDeleted]);
+  }, [canManage, conversationId, queryClient, selectedOrganizationId, onDeleted]);
 
   return (
     <>
       <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border bg-muted/20 shrink-0 min-h-[32px]">
         <MessageCircle className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
 
-        {isEditing ? (
+        {isEditing && canManage ? (
           <div className="flex-1 flex items-center gap-1 min-w-0">
             <input
               ref={inputRef}
@@ -160,38 +170,42 @@ function SessionBar({
               {displayTitle}
             </span>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={startEditing}
-                  disabled={renameMutation.isPending}
-                  className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground hover:cursor-pointer shrink-0"
-                >
-                  <Pencil className="w-3 h-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>{t('conversations.renameTooltip')}</p>
-              </TooltipContent>
-            </Tooltip>
+            {canManage && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={startEditing}
+                      disabled={renameMutation.isPending}
+                      className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground hover:cursor-pointer shrink-0"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p>{t('conversations.renameTooltip')}</p>
+                  </TooltipContent>
+                </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setDeleteOpen(true)}
-                  className="h-5 w-5 p-0 text-muted-foreground hover:text-red-600 hover:cursor-pointer shrink-0"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>{t('conversations.deleteTooltip')}</p>
-              </TooltipContent>
-            </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setDeleteOpen(true)}
+                      className="h-5 w-5 p-0 text-muted-foreground hover:text-red-600 hover:cursor-pointer shrink-0"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p>{t('conversations.deleteTooltip')}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </>
+            )}
           </>
         )}
       </div>
@@ -217,6 +231,11 @@ export function WisyPanel() {
   const endRef = useRef<HTMLDivElement>(null);
   const { t } = useTranslation(['chatbot', 'common']);
   const { closePanel } = useGlobalPanel();
+  const { selectedOrganizationId } = useOrganization();
+  // Defensa en profundidad: `WisyToggle` ya no renderiza el punto de entrada
+  // sin permiso, pero el panel queda guardado como elemento en el estado del
+  // GlobalPanelProvider y sobrevive a un cambio de organización.
+  const { canUseWisy } = useWisyAccess();
   const [isDragOver, setIsDragOver] = useState(false);
   const {
     inputValue,
@@ -275,17 +294,23 @@ export function WisyPanel() {
     } catch { /* ignore malformed data */ }
   }, [addWorkingContextItem]);
 
+  // Las claves llevan la organización activa: sin ese segmento, cambiar de
+  // organización servía el cache de la anterior (mismo bug ya corregido en
+  // /models y /roles). `enabled` exige organización + permiso: sin ellos el
+  // selector de modelo pegaba a /llms/ apenas se abría el panel.
   const { data: llms = [], isLoading: isLoadingLlms } = useQuery({
-    queryKey: ['llms'],
+    queryKey: ['llms', selectedOrganizationId],
     queryFn: getAllLLMs,
     staleTime: 5 * 60 * 1000,
+    enabled: !!selectedOrganizationId && canUseWisy,
   });
 
   const { data: defaultLLM, isLoading: isLoadingDefaultLLM } = useQuery({
-    queryKey: ['default-llm'],
+    queryKey: ['default-llm', selectedOrganizationId],
     queryFn: getDefaultLLM,
     staleTime: 5 * 60 * 1000,
     retry: 0,
+    enabled: !!selectedOrganizationId && canUseWisy,
   });
 
   useEffect(() => {
@@ -310,6 +335,7 @@ export function WisyPanel() {
 
   // ── Handlers ────────────────────────────────────────────────
   const handleSendMessage = () => {
+    if (!canUseWisy) return;
     if (!inputValue.trim() || isSending || isTyping) return;
     sendMessage(inputValue.trim());
     setInputValue('');
@@ -336,9 +362,13 @@ export function WisyPanel() {
     }
   };
 
-  const isInputDisabled = isSending || isTyping || isLoadingConversation;
+  const isInputDisabled = !canUseWisy || isSending || isTyping || isLoadingConversation;
   const isModelSelectorDisabled =
     isInputDisabled || isLoadingLlms || isLoadingDefaultLLM || llms.length === 0;
+
+  if (!canUseWisy) {
+    return <HuemulAccessDenied variant="inline" />;
+  }
 
   return (
     <div
@@ -421,6 +451,7 @@ export function WisyPanel() {
             onSelectConversation={handleSelectConversation}
             activeConversationId={conversationId}
             onDeletedActiveConversation={handleNewConversation}
+            canManage={canUseWisy}
           />
         </div>
       ) : (
@@ -433,6 +464,7 @@ export function WisyPanel() {
               title={conversationTitle}
               onTitleChanged={(newTitle) => setConversationTitle(newTitle)}
               onDeleted={handleNewConversation}
+              canManage={canUseWisy}
             />
           )}
 

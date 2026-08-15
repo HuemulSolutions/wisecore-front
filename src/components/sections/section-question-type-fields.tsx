@@ -33,7 +33,8 @@ interface SectionQuestionTypeFieldsProps {
   isPending?: boolean;
   onUpdate: (patch: Partial<SectionFormField>) => void;
   onCustomFieldChange: (customFieldId: string) => void;
-  onCreateCustomField: () => void;
+  /** Ausente sin `custom_fields:c`: el botón de crear no se renderiza. */
+  onCreateCustomField?: () => void;
 }
 
 // Selector de campo personalizado: combobox async sobre el catálogo de la organización
@@ -51,7 +52,8 @@ function SectionCustomFieldQuestionEditor({
   fetchCustomFieldOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
   isPending?: boolean;
   onCustomFieldChange: (customFieldId: string) => void;
-  onCreateCustomField: () => void;
+  /** Ausente sin `custom_fields:c`: el botón de crear no se renderiza. */
+  onCreateCustomField?: () => void;
 }) {
   const { t } = useTranslation(["sections", "custom-fields"]);
   const { data: selectedCustomField } = useCustomField(
@@ -85,17 +87,19 @@ function SectionCustomFieldQuestionEditor({
             error={!field.custom_field_id}
           />
         </div>
-        <HuemulButton
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onCreateCustomField}
-          disabled={isPending}
-          icon={Plus}
-          className="h-8 shrink-0 text-xs"
-        >
-          {t("form.formFields.createCustomField")}
-        </HuemulButton>
+        {onCreateCustomField && (
+          <HuemulButton
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onCreateCustomField}
+            disabled={isPending}
+            icon={Plus}
+            className="h-8 shrink-0 text-xs"
+          >
+            {t("form.formFields.createCustomField")}
+          </HuemulButton>
+        )}
       </div>
       {!field.custom_field_id && (
         <p className="text-xs text-red-500">{t("form.validation.customFieldRequired")}</p>

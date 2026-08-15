@@ -22,6 +22,8 @@ import { getExecutionDisplayLabel } from "@/components/assets/content/utils/vers
 import { parseApiDate } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
+import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
+import { usePageAccess } from "@/hooks/usePageAccess";
 import { HuemulPagination } from "@/huemul/components/huemul-pagination";
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants";
 import { Switch } from "@/components/ui/switch";
@@ -81,9 +83,11 @@ function NotificationItem({
   onDelete,
 }: {
   notification: Notification;
-  onMarkRead: (id: string) => void;
-  onMarkUnread: (id: string) => void;
-  onDelete: (id: string) => void;
+  // Opcionales a propósito: sin `notification:u`/`:d` el consumidor no los pasa
+  // y la fila no renderiza el botón (mismo patrón que MediaVersionRow).
+  onMarkRead?: (id: string) => void;
+  onMarkUnread?: (id: string) => void;
+  onDelete?: (id: string) => void;
 }) {
   const Icon = getEventIcon(notification.event_type);
 
@@ -126,30 +130,34 @@ function NotificationItem({
         </p>
       </div>
       <div className="flex items-center gap-1 shrink-0">
-        {notification.is_read ? (
+        {notification.is_read
+          ? onMarkUnread && (
+              <button
+                onClick={() => onMarkUnread(notification.id)}
+                className="p-1 text-gray-400 hover:text-blue-600 hover:cursor-pointer transition-colors rounded"
+                title="Mark as unread"
+              >
+                <BellOff className="h-3.5 w-3.5" />
+              </button>
+            )
+          : onMarkRead && (
+              <button
+                onClick={() => onMarkRead(notification.id)}
+                className="p-1 text-gray-400 hover:text-green-600 hover:cursor-pointer transition-colors rounded"
+                title="Mark as read"
+              >
+                <Check className="h-3.5 w-3.5" />
+              </button>
+            )}
+        {onDelete && (
           <button
-            onClick={() => onMarkUnread(notification.id)}
-            className="p-1 text-gray-400 hover:text-blue-600 hover:cursor-pointer transition-colors rounded"
-            title="Mark as unread"
+            onClick={() => onDelete(notification.id)}
+            className="p-1 text-gray-400 hover:text-red-600 hover:cursor-pointer transition-colors rounded"
+            title="Delete"
           >
-            <BellOff className="h-3.5 w-3.5" />
-          </button>
-        ) : (
-          <button
-            onClick={() => onMarkRead(notification.id)}
-            className="p-1 text-gray-400 hover:text-green-600 hover:cursor-pointer transition-colors rounded"
-            title="Mark as read"
-          >
-            <Check className="h-3.5 w-3.5" />
+            <Trash2 className="h-3.5 w-3.5" />
           </button>
         )}
-        <button
-          onClick={() => onDelete(notification.id)}
-          className="p-1 text-gray-400 hover:text-red-600 hover:cursor-pointer transition-colors rounded"
-          title="Delete"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
       </div>
     </div>
   );
@@ -190,6 +198,17 @@ export function AssetsNotificationsSheet({
 }: AssetsNotificationsSheetProps) {
   const { t } = useTranslation(["assets"]);
   const queryClient = useQueryClient();
+  // Las notificaciones/suscripciones son un recurso propio (notification), no del
+  // asset: el sheet lleva su propio gate y no depende solo del trigger.
+  const { can } = usePageAccess('asset');
+  const canListNotifications = can('listNotifications');
+  const canUpdateNotifications = can('updateNotification');
+  const canDeleteNotifications = can('deleteNotification');
+  const canCreateSubscription = can('createSubscription');
+  const canDeleteSubscription = can('deleteSubscription');
+  // Un toggle de suscripción crea o borra según el estado previo, así que la
+  // affordance solo se ofrece con las dos acciones.
+  const canManageSubscriptions = canCreateSubscription && canDeleteSubscription;
 
   const [activeTab, setActiveTab] = useState<"notifications" | "subscriptions">(
     "notifications",
@@ -253,7 +272,7 @@ export function AssetsNotificationsSheet({
         page: notifPage,
         page_size: notifPageSize,
       }),
-    enabled: open && activeTab === "notifications",
+    enabled: open && activeTab === "notifications" && canListNotifications,
     staleTime: 30000,
     refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
@@ -272,7 +291,7 @@ export function AssetsNotificationsSheet({
     queryKey: ["subscriptions", documentId],
     queryFn: () =>
       getSubscriptions(organizationId, { document_id: documentId, page_size: 100 }),
-    enabled: open && activeTab === "subscriptions",
+    enabled: open && activeTab === "subscriptions" && canListNotifications,
     staleTime: 30000,
     refetchOnWindowFocus: false,
   });
@@ -286,19 +305,28 @@ export function AssetsNotificationsSheet({
   // ─── Notification mutations ───────────────────────────────────────────────
 
   const markReadMutation = useMutation({
-    mutationFn: (id: string) => markNotificationRead(organizationId, id),
+    mutationFn: (id: string) => {
+      if (!canUpdateNotifications) return Promise.reject(new Error("Missing permission"));
+      return markNotificationRead(organizationId, id);
+    },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["notifications", documentId] }),
   });
 
   const markUnreadMutation = useMutation({
-    mutationFn: (id: string) => markNotificationUnread(organizationId, id),
+    mutationFn: (id: string) => {
+      if (!canUpdateNotifications) return Promise.reject(new Error("Missing permission"));
+      return markNotificationUnread(organizationId, id);
+    },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["notifications", documentId] }),
   });
 
   const deleteNotificationMutation = useMutation({
-    mutationFn: (id: string) => deleteNotification(organizationId, id),
+    mutationFn: (id: string) => {
+      if (!canDeleteNotifications) return Promise.reject(new Error("Missing permission"));
+      return deleteNotification(organizationId, id);
+    },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["notifications", documentId] }),
   });
@@ -306,23 +334,33 @@ export function AssetsNotificationsSheet({
   // ─── Subscription mutations ───────────────────────────────────────────────
 
   const createSubMutation = useMutation({
-    mutationFn: (body: CreateSubscriptionRequest) =>
-      createSubscription(organizationId, body),
+    mutationFn: (body: CreateSubscriptionRequest) => {
+      if (!canCreateSubscription) return Promise.reject(new Error("Missing permission"));
+      return createSubscription(organizationId, body);
+    },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["subscriptions", documentId] }),
   });
 
   const deleteSubMutation = useMutation({
-    mutationFn: (id: string) => deleteSubscription(organizationId, id),
+    mutationFn: (id: string) => {
+      if (!canDeleteSubscription) return Promise.reject(new Error("Missing permission"));
+      return deleteSubscription(organizationId, id);
+    },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["subscriptions", documentId] }),
   });
 
-  const isSubscriptionBusy = createSubMutation.isPending || deleteSubMutation.isPending;
+  // Los switches se dejan visibles (muestran el estado actual de la suscripción,
+  // que es lectura) pero deshabilitados sin permiso — tercera capa junto al
+  // early-return del handler y al de cada `mutationFn`.
+  const isSubscriptionBusy =
+    createSubMutation.isPending || deleteSubMutation.isPending || !canManageSubscriptions;
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
   const handleToggleFavorite = () => {
+    if (!canManageSubscriptions) return;
     if (favoriteSubscription) {
       deleteSubMutation.mutate(favoriteSubscription.id);
     } else {
@@ -340,6 +378,7 @@ export function AssetsNotificationsSheet({
     execId: string | null,
     days?: number,
   ) => {
+    if (!canManageSubscriptions) return;
     const existing = subscriptions.find(
       (s) => s.event_type === eventType && s.execution_id === execId,
     );
@@ -371,6 +410,9 @@ export function AssetsNotificationsSheet({
       showFooter={false}
       maxWidth="sm:max-w-xl"
     >
+      {!canListNotifications ? (
+        <HuemulAccessDenied variant="inline" />
+      ) : (
       <Tabs
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as typeof activeTab)}
@@ -457,9 +499,9 @@ export function AssetsNotificationsSheet({
                 <NotificationItem
                   key={n.id}
                   notification={n}
-                  onMarkRead={(id) => markReadMutation.mutate(id)}
-                  onMarkUnread={(id) => markUnreadMutation.mutate(id)}
-                  onDelete={(id) => deleteNotificationMutation.mutate(id)}
+                  onMarkRead={canUpdateNotifications ? (id) => markReadMutation.mutate(id) : undefined}
+                  onMarkUnread={canUpdateNotifications ? (id) => markUnreadMutation.mutate(id) : undefined}
+                  onDelete={canDeleteNotifications ? (id) => deleteNotificationMutation.mutate(id) : undefined}
                 />
               ))}
             </div>
@@ -746,6 +788,7 @@ export function AssetsNotificationsSheet({
           )}
         </TabsContent>
       </Tabs>
+      )}
     </HuemulSheet>
   );
 }

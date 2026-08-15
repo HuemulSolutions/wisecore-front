@@ -4,19 +4,24 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { PlateEditor } from 'platejs/react'
 import { KEYS } from 'platejs'
-import { Image } from 'lucide-react'
+import { Image, Sparkles } from 'lucide-react'
 import { useMediaList } from '@/hooks/useMedia'
 import { useMediaFilters } from '@/hooks/useMediaFilters'
 import { useMediaViewMode } from '@/hooks/useMediaViewMode'
-import { HuemulDialog } from '@/huemul/components/huemul-dialog'
+import { usePageAccess } from '@/hooks/usePageAccess'
+import { HuemulSheet } from '@/huemul/components/huemul-sheet'
 import { HuemulPagination } from '@/huemul/components/huemul-pagination'
 import { DEFAULT_PAGE_SIZE } from '@/huemul/constants'
+import { HuemulButton } from '@/huemul/components/huemul-button'
 import { HuemulFilterButton } from '@/huemul/components/huemul-filter-button'
 import { HuemulFilterChips } from '@/huemul/components/huemul-filter-chips'
 import { HuemulFilterPanel } from '@/huemul/components/huemul-filter-panel'
 import { HuemulViewToggle } from '@/huemul/components/huemul-view-toggle'
 import { HuemulMediaGallery } from '@/huemul/components/huemul-media-gallery'
+import { HuemulMediaGenerateSheet } from '@/huemul/components/huemul-media-generate-sheet'
+import { mediaTokenFor } from '@/lib/plate-media-utils'
 import type { Media } from '@/types/media'
+import type { GeneratedImage } from '@/types/image-generation'
 import type { EditorMediaUploadTarget } from '@/contexts/media-reference-context'
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE
@@ -44,6 +49,10 @@ export function MediaReferencePicker({
   const { t: tCommon } = useTranslation('common')
   const [page, setPage] = useState(1)
   const [viewMode, setViewMode] = useMediaViewMode()
+  const [generateOpen, setGenerateOpen] = useState(false)
+  const { can } = usePageAccess('media')
+  const canCreate = can('createMedia')
+  const canDeleteMedia = can('deleteMedia')
 
   // Default the picker scope to the editor context (asset / version); fall back to
   // the document, then organization.
@@ -88,12 +97,10 @@ export function MediaReferencePicker({
     setPage(1)
   }
 
-  function handleSelect(media: Media) {
+  function insertMediaReference(mediaId: string, previewUrl: string) {
     if (!editor) return
 
-    const version = media.current_version
-    const url = `{{MEDIA:${media.id}}}`
-    const previewUrl = version?.download_url || ''
+    const url = mediaTokenFor(mediaId)
 
     // Insert image node at current selection
     editor.tf.insertNodes(
@@ -101,7 +108,7 @@ export function MediaReferencePicker({
         type: KEYS.img,
         url,
         previewUrl,
-        mediaId: media.id,
+        mediaId,
         children: [{ text: '' }],
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
@@ -111,33 +118,54 @@ export function MediaReferencePicker({
     // Insert an empty paragraph after so the cursor can continue writing
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     editor.tf.insertNodes({ type: KEYS.p, children: [{ text: '' }] } as any)
+  }
 
+  function handleSelect(media: Media) {
+    if (!editor) return
+    insertMediaReference(media.id, media.current_version?.download_url || '')
+    handleClose()
+  }
+
+  function handleGeneratedInsert(image: GeneratedImage) {
+    insertMediaReference(image.media_id, image.url)
+    setGenerateOpen(false)
     handleClose()
   }
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={(v) => { if (!v) handleClose(); else onOpenChange(true) }}
       title={t('media.mediaReferenceTitle')}
       icon={Image}
       showFooter={false}
-      maxWidth="sm:max-w-5xl"
-      maxHeight="max-h-[90vh]"
+      className="w-full sm:max-w-[95vw]"
+      bodyClassName="flex min-h-0 flex-1 flex-col overflow-hidden px-6 py-4"
     >
       {/* Toolbar: filter button + view toggle (same filters as the Media page) */}
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-4 shrink-0">
         <HuemulFilterButton
           count={activeCount}
           open={filtersOpen}
           onToggle={() => setFiltersOpen(!filtersOpen)}
         />
         <div className="flex-1" />
+        {canCreate && (
+          <HuemulButton
+            variant="outline"
+            size="sm"
+            icon={Sparkles}
+            iconClassName="w-3 h-3 mr-1"
+            label={tMedia('generate.button')}
+            onClick={() => setGenerateOpen(true)}
+            className="h-8 text-xs px-2"
+          />
+        )}
         <HuemulViewToggle value={viewMode} onChange={setViewMode} />
       </div>
 
       {/* Body: optional filter panel + results */}
-      <div className="flex gap-4 h-115">
+      <div className="flex flex-1 min-h-0 gap-4">
         {filtersOpen && (
           <div className="w-64 shrink-0 rounded-lg border overflow-hidden">
             <HuemulFilterPanel
@@ -181,6 +209,15 @@ export function MediaReferencePicker({
           )}
         </div>
       </div>
-    </HuemulDialog>
+
+      <HuemulMediaGenerateSheet
+        open={generateOpen}
+        onOpenChange={setGenerateOpen}
+        organizationId={organizationId}
+        canCreate={canCreate}
+        canDelete={canDeleteMedia}
+        onInsert={handleGeneratedInsert}
+      />
+    </HuemulSheet>
   )
 }

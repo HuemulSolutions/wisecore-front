@@ -27,7 +27,17 @@ export function MediaIcon({ contentType, className }: { contentType?: string | n
 
 export const LEVEL_VALUES = ["organization", "document_type", "document", "execution", "template"] as const
 
-/** Build the level select options with translated labels (media namespace). */
-export function getLevelOptions(t: TFunction): { value: MediaLevel; label: string }[] {
-  return LEVEL_VALUES.map((value) => ({ value, label: t(`filters.levels.${value}`) }))
+/**
+ * Build the level select options with translated labels (media namespace).
+ *
+ * `allowed` restringe la lista: cada nivel distinto de "organization" hace que
+ * el selector de padre pegue a un endpoint de OTRO recurso, así que quien no
+ * tiene su permiso de listar no debe poder elegirlo (ver useMediaFilters).
+ */
+export function getLevelOptions(
+  t: TFunction,
+  allowed?: readonly MediaLevel[],
+): { value: MediaLevel; label: string }[] {
+  const values = allowed ? LEVEL_VALUES.filter((v) => allowed.includes(v)) : LEVEL_VALUES
+  return values.map((value) => ({ value, label: t(`filters.levels.${value}`) }))
 }

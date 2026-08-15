@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ArrowRight, Eye } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulReviewStatusBadge } from "@/huemul/components/huemul-review-status-badge";
-import { Card } from "@/components/ui/card";
+import { HuemulNumberedStatusCard } from "@/huemul/components/huemul-numbered-status-card";
 import { WorkflowSectionAnswersSheet } from "@/components/workflow/workflow-section-answers-sheet";
 import type { ContentSection } from "@/types/assets";
 import type { ReviewStatus } from "@/types/section-execution";
@@ -14,15 +14,6 @@ export interface WorkflowSectionsSummaryProps {
   /** Entrar al wizard en ese índice de paso. */
   onGoToSection: (stepIndex: number) => void;
 }
-
-// Paleta por estado — misma señal que HuemulReviewStatusBadge (review_status === 'finished'),
-// para que la tarjeta nunca contradiga al badge. Sin componente dedicado: es la única tarjeta
-// del repo que combina acento lateral + círculo numerado; si aparece un segundo consumidor,
-// promover a src/huemul/components/.
-const STATUS_STYLES = {
-  answered: { accentClass: "bg-emerald-500", circleClass: "bg-emerald-100 text-emerald-700" },
-  pending: { accentClass: "bg-amber-400", circleClass: "bg-amber-100 text-amber-700" },
-} as const;
 
 /**
  * Pantalla de resumen mostrada antes de entrar al wizard de respuesta (ver
@@ -39,27 +30,17 @@ export function WorkflowSectionsSummary({ sections, onGoToSection }: WorkflowSec
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3">
-        {sections.map((section, index) => {
-          const answered = section.review_status === "finished";
-          const styles = STATUS_STYLES[answered ? "answered" : "pending"];
-
-          return (
-            <Card key={section.id} className="relative flex-row items-start gap-3 overflow-hidden p-4">
-              <div className={`absolute inset-y-0 left-0 w-1 ${styles.accentClass}`} />
-              <div
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${styles.circleClass}`}
-              >
-                {index + 1}
-              </div>
-
-              <div className="min-w-0 flex-1 space-y-1.5">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <p className="text-sm font-semibold text-foreground">{section.section_name}</p>
-                  <HuemulReviewStatusBadge status={section.review_status as ReviewStatus | null} sectionType="form" />
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+        {sections.map((section, index) => (
+          <HuemulNumberedStatusCard
+            key={section.id}
+            number={index + 1}
+            title={section.section_name ?? ""}
+            tone={section.review_status === "finished" ? "success" : "warning"}
+            headerExtra={
+              <HuemulReviewStatusBadge status={section.review_status as ReviewStatus | null} sectionType="form" />
+            }
+            actions={
+              <>
                 <HuemulButton
                   variant="outline"
                   size="sm"
@@ -74,10 +55,10 @@ export function WorkflowSectionsSummary({ sections, onGoToSection }: WorkflowSec
                   label={t("wizard.summary.goToSection")}
                   onClick={() => onGoToSection(index)}
                 />
-              </div>
-            </Card>
-          );
-        })}
+              </>
+            }
+          />
+        ))}
       </div>
 
       <WorkflowSectionAnswersSheet

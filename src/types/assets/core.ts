@@ -74,8 +74,6 @@ export interface FileNode {
   folder_type?: LibraryContentFolderType | null;
   /** True for custom group folders created directly at the real root (folder_type: null, no parent). */
   isRootGroup?: boolean;
-  /** True when this document node is a dependency of the document being edited (dependency-add.tsx). */
-  isDependency?: boolean;
 }
 
 /**
@@ -289,6 +287,12 @@ export interface CreateAssetSheetProps {
   onOpenChange: (open: boolean) => void;
   folderId?: string;
   onAssetCreated?: (asset: { id: string; name: string; type: "document" }) => void;
+  /**
+   * `asset:c` resuelto por el consumidor. Obligatoria a propósito (sin default):
+   * el sheet muta `POST /documents/`, y un call-site que se olvide de pasarla
+   * debe romper el build en vez de reabrir el hueco en silencio.
+   */
+  canCreate: boolean;
 }
 
 export interface CreateFolderSheetProps {
@@ -515,6 +519,35 @@ export interface ImportDocumentFromFileParams {
   folder_id?: string | null;
   file: File;
   organizationId: string;
+}
+
+export interface ImportDocumentFromUrlParams {
+  url: string;
+  name: string;
+  description?: string;
+  document_type_id: string;
+  folder_id?: string | null;
+  internal_code?: string;
+  section_separator?: 'h1' | 'h2' | 'h3';
+  force_import?: boolean;
+  organizationId: string;
+}
+
+// Respuesta 202 de import-from-file / import-from-url (mismo shape en ambos)
+export interface ImportDocumentAsyncResponse {
+  document_id: string;
+  execution_id: string;
+  job_id: string;
+  status: string;
+  message: string;
+  document_path: string;
+}
+
+// `detail` estructurado del 409 DUPLICATE_DOCUMENT_CONTENT (ver parseErrorDetail en error-utils)
+export interface DuplicateDocumentDetail {
+  document_id?: string;
+  document_path?: string;
+  document_name?: string;
 }
 
 // ========================================

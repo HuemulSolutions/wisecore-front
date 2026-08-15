@@ -1,4 +1,5 @@
 // Asset Types - Types for the asset type management module
+import type { MutableRefObject } from 'react';
 
 // ========================================
 // Core Asset Type Types (from service)
@@ -67,14 +68,12 @@ export interface CloneAssetTypeData {
 
 export interface AssetTypePageState {
   searchTerm: string;
-  editingAssetType: AssetTypeWithRoles | null;
   showCreateDialog: boolean;
+  /** Tipo de activo abierto en el sheet de configuración (general/plantillas/ciclo de vida). */
+  configAssetType: AssetTypeWithRoles | null;
   deletingAssetType: AssetTypeWithRoles | null;
   cloningAssetType: AssetTypeWithRoles | null;
-  rolePermissionsAssetType: AssetTypeWithRoles | null;
-  lifecycleAssetType: AssetTypeWithRoles | null;
   viewRelationshipsAssetType: AssetTypeWithRoles | null;
-  templatesAssetType: AssetTypeWithRoles | null;
   showExportDialog: boolean;
   showImportSheet: boolean;
 }
@@ -120,6 +119,24 @@ export interface DocumentTypeTemplateLinkResponse {
   transaction_id: string;
   timestamp: string;
 }
+
+// ----------------------------------------
+// Guardado batch del tab Plantillas
+// ----------------------------------------
+
+/** Contrato que `AssetTypeTemplatesPanel` expone hacia el footer del sheet. */
+export interface TemplatesEditorApi {
+  save: () => Promise<void>;
+  isDirty: boolean;
+  discard: () => void;
+}
+
+/** API publicada en el ref del sheet contenedor. */
+export interface TemplatesSaveApi extends TemplatesEditorApi {
+  isSaving: boolean;
+}
+
+export type TemplatesSaveApiRef = MutableRefObject<TemplatesSaveApi | null>;
 
 // ========================================
 // Export / Import

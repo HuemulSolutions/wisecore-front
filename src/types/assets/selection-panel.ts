@@ -4,6 +4,12 @@ import type { ChildDocumentFolder, ChildDocument, ChildDocumentExecution } from 
 
 export interface AssetSelectionPanelProps {
   templateId: string
+  /**
+   * `section_execution:l|r` — el panel lista assets y sus ejecuciones vía
+   * GET /templates/{id}/child-documents. Obligatoria y sin default: el `catch`
+   * del fetch devolvía `[]`, así que un 403 quedaba invisible.
+   */
+  canList: boolean
   onExecute?: (executionIds: string[]) => void
   isExecuting?: boolean
   executeDisabled?: boolean

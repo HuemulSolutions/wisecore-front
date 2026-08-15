@@ -200,6 +200,7 @@ export function ConversationList({
   onSelectConversation,
   activeConversationId,
   onDeletedActiveConversation,
+  canManage,
 }: ConversationListProps) {
   const { t } = useTranslation(['chatbot', 'common']);
   const queryClient = useQueryClient();
@@ -216,12 +217,15 @@ export function ConversationList({
     queryKey: [...chatbotQueryKeys.conversations(selectedOrganizationId), 'list', page],
     queryFn: () => listConversations(page, PAGE_SIZE),
     refetchOnMount: 'always',
-    enabled: !!selectedOrganizationId,
+    enabled: !!selectedOrganizationId && canManage,
   });
 
   // ── Mutations ────────────────────────────────────────────────
   const renameMutation = useMutation({
-    mutationFn: ({ id, title }: { id: string; title: string }) => updateConversationTitle(id, title),
+    mutationFn: ({ id, title }: { id: string; title: string }) => {
+      if (!canManage) return Promise.reject(new Error('Missing permission'));
+      return updateConversationTitle(id, title);
+    },
     onSuccess: (_data, { id, title }) => {
       setConversations((prev) =>
         prev.map((c) => (c.id === id ? { ...c, title } : c))
@@ -339,6 +343,7 @@ export function ConversationList({
         actionLabel={t('common:delete')}
         cancelLabel={t('common:cancel')}
         onAction={async () => {
+          if (!canManage) return;
           if (deleteTarget) {
             await archiveConversation(deleteTarget);
             setConversations((prev) => prev.filter((c) => c.id !== deleteTarget));

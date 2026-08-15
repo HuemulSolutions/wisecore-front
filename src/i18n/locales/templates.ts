@@ -53,6 +53,7 @@ const translations = {
   content: {
     noTemplateSelectedTitle: { en: "No Template Selected", es: "Ninguna Plantilla Seleccionada" },
     noTemplateSelectedDescription: { en: "Select a template from the sidebar to view and edit its sections, or create a new template to get started.", es: "Selecciona una plantilla de la barra lateral para ver y editar sus secciones, o crea una nueva plantilla para comenzar." },
+    noTemplateSelectedDescriptionReadOnly: { en: "Select a template from the sidebar to view its sections.", es: "Selecciona una plantilla de la barra lateral para ver sus secciones." },
     createTemplate: { en: "Create Template", es: "Crear Plantilla" },
     sectionsTab: { en: "Sections", es: "Secciones" },
     customFieldsTab: { en: "Custom Fields", es: "Campos Personalizados" },
@@ -137,6 +138,7 @@ const translations = {
     loadError: { en: "Error loading custom fields. Please try again.", es: "Error al cargar los campos personalizados. Por favor, inténtalo de nuevo." },
     emptyTitle: { en: "No custom fields", es: "Sin campos personalizados" },
     emptyDescription: { en: "This template doesn't have any custom fields yet. Add your first custom field to get started.", es: "Esta plantilla aún no tiene campos personalizados. Agrega tu primer campo para comenzar." },
+    emptyDescriptionReadOnly: { en: "This template doesn't have any custom fields yet.", es: "Esta plantilla aún no tiene campos personalizados." },
     addCustomField: { en: "Add Custom Field", es: "Agregar Campo Personalizado" },
     table: {
       fieldName: { en: "Field Name", es: "Nombre del Campo" },

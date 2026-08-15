@@ -297,10 +297,13 @@ export function HuemulTable<T>({
                     !resizable && col.width,
                     canResize && "relative",
                     showDivider && "border-r border-border",
-                    col.hideOnMobile && "hidden sm:table-cell"
+                    col.hideOnMobile && "hidden sm:table-cell",
+                    col.sticky && "sticky left-0 z-20 bg-muted border-r border-border"
                   )}
                 >
-                  {col.sortKey ? (
+                  {col.renderHeader ? (
+                    col.renderHeader()
+                  ) : col.sortKey ? (
                     <button
                       type="button"
                       onClick={() => handleSortClick(col.sortKey!)}
@@ -427,7 +430,8 @@ export function HuemulTable<T>({
                               ? "text-center"
                               : "text-left",
                             resizable && "overflow-hidden text-ellipsis",
-                            col.hideOnMobile && "hidden sm:table-cell"
+                            col.hideOnMobile && "hidden sm:table-cell",
+                            col.sticky && cn("sticky left-0 z-10 border-r border-border", stickyExtraClass)
                           )}
                         >
                           {col.render(item)}

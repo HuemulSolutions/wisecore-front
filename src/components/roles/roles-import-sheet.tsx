@@ -17,11 +17,13 @@ interface RolesImportSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onImportSuccess?: () => void
+  /** rbac:c + rbac:u (on_conflict=overwrite pisa roles existentes) — sin default: secure-by-default. */
+  canImport: boolean
 }
 
 type OnConflict = "skip" | "overwrite"
 
-export function RolesImportSheet({ open, onOpenChange, onImportSuccess }: RolesImportSheetProps) {
+export function RolesImportSheet({ open, onOpenChange, onImportSuccess, canImport }: RolesImportSheetProps) {
   const { t } = useTranslation("roles")
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
@@ -47,7 +49,7 @@ export function RolesImportSheet({ open, onOpenChange, onImportSuccess }: RolesI
   }
 
   const handleImport = async () => {
-    if (!file) return
+    if (!file || !canImport) return
     setIsImporting(true)
     try {
       const data = await importRoles(file, { on_conflict: onConflict })
@@ -67,6 +69,8 @@ export function RolesImportSheet({ open, onOpenChange, onImportSuccess }: RolesI
     setResult(null)
     if (fileInputRef.current) fileInputRef.current.value = ""
   }
+
+  if (!canImport) return null
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

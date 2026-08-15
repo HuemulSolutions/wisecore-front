@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { DEFAULT_PAGE_SIZE } from "@/huemul/constants"
 import { deleteFolder } from "@/services/folders"
 import { deleteDocument } from "@/services/assets"
@@ -62,10 +63,10 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const [rootPage, setRootPage] = useState(1)
   const [rootPageSize, setRootPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [hasNextRootPage, setHasNextRootPage] = useState(false)
-  const [isRelationsMode, setIsRelationsMode] = useState(false)
   const [sharingFolder, setSharingFolder] = useState<{ id: string; name: string } | null>(null)
   const { selectedOrganizationId } = useOrganization()
   const { canAccessRoleFolders } = useUserPermissions()
+  const { can: canAsset } = usePageAccess('asset')
   // Marca que la carpeta en creación es una carpeta grupal custom de raíz, para encadenar
   // el sheet de permisos al terminar (sin esto, quien solo tiene folder:manage_groups
   // se queda sin acceso a lo que acaba de crear).
@@ -306,7 +307,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <NavKnowledgeContext.Provider value={{ fileTreeRef, pendingFocusAssetIdRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage, isRelationsMode, setIsRelationsMode }}>
+    <NavKnowledgeContext.Provider value={{ fileTreeRef, pendingFocusAssetIdRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage }}>
       {children}
       {renderCreateAssetDialog && (
         <CreateAssetSheet
@@ -314,6 +315,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
           onOpenChange={handleCreateAssetDialogChange}
           folderId={currentFolderId}
           onAssetCreated={handleAssetCreated}
+          canCreate={canAsset('createAsset')}
         />
       )}
       {renderImportAssetDialog && (
@@ -322,6 +324,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
           onOpenChange={handleImportAssetDialogChange}
           folderId={currentFolderId}
           onAssetCreated={handleAssetCreated}
+          canCreate={canAsset('createAsset')}
         />
       )}
       {renderImportExternalDialog && (

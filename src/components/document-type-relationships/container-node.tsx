@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useRef, useState } from "react"
 import { NodeResizer, type NodeProps, type Node } from "@xyflow/react"
-import { Trash2 } from "lucide-react"
+import { Shield, Trash2, UserCog, UserX } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import {
   ContextMenu,
@@ -22,6 +22,7 @@ export function ContainerNode({ data, selected }: NodeProps<ContainerNodeType>) 
   const { t } = useTranslation("document-type-relationships")
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [draft, setDraft] = useState(data.content)
+  const [hovered, setHovered] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => setDraft(data.content), [data.content])
@@ -37,28 +38,57 @@ export function ContainerNode({ data, selected }: NodeProps<ContainerNodeType>) 
     if (next !== data.content) data.onContentChange?.(data.id, next)
   }
 
+  const color = data.color || "#94a3b8"
+
   const nodeContent = (
     <div
       className={cn(
-        "h-full w-full rounded-lg border-2 bg-transparent overflow-hidden",
+        "relative h-full w-full rounded-lg border-2 bg-transparent",
         "transition-shadow",
         selected ? "shadow-md" : "",
       )}
-      style={{ borderColor: data.color || "#94a3b8" }}
+      style={{ borderColor: color }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
       {!data.readOnly && (
+        // isVisible en hover (no solo selected) permite redimensionar en un solo
+        // gesto, sin clic previo. mouseleave del div raíz no dispara al entrar a
+        // un descendiente, aunque el hit-area del handle sobresalga del borde
+        // visual — por eso el hover se sostiene mientras se arrastra.
         <NodeResizer
-          color={data.color || "#94a3b8"}
-          isVisible={selected}
-          handleClassName="z-10"
-          lineClassName="z-10"
+          color={color}
+          isVisible={selected || hovered}
+          handleClassName={cn("z-10 huemul-resize-handle", !selected && "huemul-resize-handle--ghost")}
+          lineClassName="z-10 huemul-resize-line"
           minWidth={120}
           minHeight={80}
         />
       )}
+      {/* Role badge — sits on top of the border line like a fieldset legend, so it
+          reads as the lane's label rather than competing with the title inside.
+          Takes the container's own color (not the role's) so it never introduces a
+          second color into the box; the soft fill is what sets it apart from the
+          solid border line underneath. Needs `overflow-hidden` gone from the root —
+          removed above — otherwise this gets clipped at the box edge. */}
+      {data.role && (
+        <span
+          // z-20: above NodeResizer's z-10 line/handles (rendered when selected) —
+          // otherwise the selection border line paints over this badge like a strikethrough.
+          className="nodrag absolute left-4 top-0 z-20 -translate-y-1/2 rounded-full bg-background p-0.5"
+          title={data.role.name}
+        >
+          <span
+            className="flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium"
+            style={{ backgroundColor: `${color}1F`, borderColor: color, color }}
+          >
+            <Shield className="h-2.5 w-2.5 shrink-0" />
+            <span className="max-w-35 truncate">{data.role.name}</span>
+          </span>
+        </span>
+      )}
       <div
-        className="w-full px-2 py-1 text-xs font-semibold truncate select-none cursor-move"
-        style={{ color: data.color || "#94a3b8" }}
+        className={cn("flex w-full items-center gap-1.5 px-2 py-1 select-none cursor-move", data.role && "pt-2.5")}
         onDoubleClick={() => { if (!data.readOnly) setIsEditingTitle(true) }}
       >
         {isEditingTitle ? (
@@ -71,10 +101,13 @@ export function ContainerNode({ data, selected }: NodeProps<ContainerNodeType>) 
               if (e.key === "Enter") { e.preventDefault(); commit() }
               if (e.key === "Escape") { setDraft(data.content); setIsEditingTitle(false) }
             }}
-            className="nodrag w-full bg-transparent outline-none border-b border-dashed"
+            className="nodrag min-w-0 flex-1 bg-transparent outline-none border-b border-dashed text-xs font-semibold"
+            style={{ color }}
           />
         ) : (
-          data.content
+          <span className="min-w-0 flex-1 truncate text-xs font-semibold" style={{ color }}>
+            {data.content}
+          </span>
         )}
       </div>
     </div>
@@ -88,6 +121,24 @@ export function ContainerNode({ data, selected }: NodeProps<ContainerNodeType>) 
     <ContextMenu>
       <ContextMenuTrigger asChild>{nodeContent}</ContextMenuTrigger>
       <ContextMenuContent className="w-56">
+        {data.onRequestRolePick && (
+          <ContextMenuItem
+            className="hover:cursor-pointer"
+            onClick={() => data.onRequestRolePick?.(data.id)}
+          >
+            <UserCog className="mr-2 h-4 w-4" />
+            <span>{data.role ? t("node.changeRole") : t("node.assignRole")}</span>
+          </ContextMenuItem>
+        )}
+        {data.role && data.onClearRole && (
+          <ContextMenuItem
+            className="hover:cursor-pointer"
+            onClick={() => data.onClearRole?.(data.id)}
+          >
+            <UserX className="mr-2 h-4 w-4" />
+            <span>{t("node.clearRole")}</span>
+          </ContextMenuItem>
+        )}
         <ContextMenuItem
           className="hover:cursor-pointer text-destructive focus:text-destructive"
           onClick={() => data.onRemove?.(data.id)}

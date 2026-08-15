@@ -70,7 +70,11 @@ export function HuemulLifecycleDialogs({
         open={controller.isArchiveDialogOpen}
         onOpenChange={(open) => !controller.advanceMutation.isPending && controller.setIsArchiveDialogOpen(open)}
         title={t("lifecycle.archiveTitle")}
-        description={status?.state === "approved" ? t("lifecycle.archiveFromApprovedDescription") : t("lifecycle.archiveDescription")}
+        description={
+          status?.state === "approved" && controller.finalLifecycleStage === "publish"
+            ? t("lifecycle.archiveFromApprovedDescription")
+            : t("lifecycle.archiveDescription")
+        }
         onConfirm={(comment) =>
           controller.advanceMutation.mutate({
             comment,

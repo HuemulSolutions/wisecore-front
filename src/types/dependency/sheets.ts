@@ -1,5 +1,11 @@
 export type DependencyVersionMode = 'published' | 'latest_approved' | 'specific'
 
+export interface DocumentType {
+  id: string
+  name: string
+  color: string
+}
+
 export interface Dependency {
   id: string
   document_id: string
@@ -9,12 +15,9 @@ export interface Dependency {
   version_mode: DependencyVersionMode
   depends_on_execution_id: string | null
   depends_on_execution_name: string | null
-}
-
-export interface DocumentType {
-  id: string
-  name: string
-  color: string
+  // Opcional: el backend puede no enviarlo todavía. Ver "ia context/" — pendiente
+  // agregar document_type al payload de GET /documents/{id}/dependencies.
+  document_type?: DocumentType | null
 }
 
 export interface AddDependencySheetProps {

@@ -13,13 +13,14 @@ export function ExternalFunctionalityDeleteDialog({
   organizationId,
   systemId,
   functionality,
+  canDelete,
   onDeleted,
 }: ExternalFunctionalityDeleteDialogProps) {
   const { t } = useTranslation(["external-functionalities", "common"])
   const { deleteExternalFunctionality } = useExternalFunctionalityMutations(organizationId, systemId)
 
   const handleDelete = async () => {
-    if (!functionality) return
+    if (!canDelete || !functionality) return
     await new Promise<void>((resolve, reject) => {
       deleteExternalFunctionality.mutate(functionality.id, {
         onSuccess: () => {
@@ -30,6 +31,8 @@ export function ExternalFunctionalityDeleteDialog({
       })
     })
   }
+
+  if (!canDelete) return null
 
   return (
     <HuemulAlertDialog

@@ -16,6 +16,7 @@ import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useQuestionTypes } from "@/hooks/useQuestionTypes";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useCustomFieldMutations } from "@/hooks/useCustomFields";
 import { getCustomFields } from "@/services/custom-fields";
 import { CreateEditCustomFieldSheet } from "@/components/custom-fields/custom-fields-create-edit-sheet";
@@ -48,6 +49,11 @@ export function SectionFormFieldsBuilder({
   isPending,
 }: SectionFormFieldsBuilderProps) {
   const { t } = useTranslation(["sections", "custom-fields"]);
+  // El builder se monta desde /templates, /asset-types y /asset, y el recurso
+  // que crea es siempre el mismo — se resuelve acá en vez de propagar una prop
+  // por tres cadenas distintas de sheets.
+  const { hasPermission } = useUserPermissions();
+  const canCreateCustomField = hasPermission("custom_fields:c");
 
   // Catálogo de question types
   const { data: questionTypesResp } = useQuestionTypes();
@@ -261,7 +267,9 @@ export function SectionFormFieldsBuilder({
                     onUpdate={(patch) => updateField(index, patch)}
                     onQuestionTypeChange={(qt) => handleQuestionTypeChange(index, qt)}
                     onCustomFieldChange={(cfId) => handleCustomFieldChange(index, cfId)}
-                    onCreateCustomField={() => setCreateCustomFieldIndex(index)}
+                    onCreateCustomField={
+                      canCreateCustomField ? () => setCreateCustomFieldIndex(index) : undefined
+                    }
                     onDuplicate={() => duplicateField(index)}
                     onRemove={() => removeField(index)}
                   />
@@ -298,6 +306,10 @@ export function SectionFormFieldsBuilder({
           setCreateCustomFieldIndex(null);
         }}
         customFieldMutations={customFieldMutations}
+        // Solo se crean campos nuevos desde acá (`customField` siempre null).
+        canCreate={canCreateCustomField}
+        canUpdate={false}
+        canDelete={false}
       />
     </div>
   );

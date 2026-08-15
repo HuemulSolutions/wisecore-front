@@ -23,6 +23,7 @@ import type { ExternalPublishAction, CreateExternalPublishActionRequest, UpdateE
 interface LifecyclePublishActionsSectionProps {
   organizationId: string
   stepId: string
+  readOnly?: boolean
 }
 
 interface ActionFormState {
@@ -47,6 +48,7 @@ function buildDefaultAdd(nextOrder: number): AddDialogState {
 export function LifecyclePublishActionsSection({
   organizationId,
   stepId,
+  readOnly = false,
 }: LifecyclePublishActionsSectionProps) {
   const { t } = useTranslation(["asset-types", "common"])
   const { isOrgAdmin, hasPermission } = useUserPermissions()
@@ -168,7 +170,7 @@ export function LifecyclePublishActionsSection({
           <p className="text-xs text-muted-foreground">{t("lifecycle.publishActions.description")}</p>
         </div>
         {canCreate && (
-          <Button variant="outline" size="sm" onClick={handleOpenAdd} className="shrink-0">
+          <Button variant="outline" size="sm" onClick={handleOpenAdd} disabled={readOnly} className="shrink-0">
             <Plus className="h-4 w-4 mr-1.5" />
             {t("lifecycle.publishActions.addAction")}
           </Button>
@@ -220,7 +222,7 @@ export function LifecyclePublishActionsSection({
                         canUpdate &&
                         updateAction.mutate({ actionId: action.id, body: { is_enabled: Boolean(v) } })
                       }
-                      disabled={!canUpdate || updateAction.isPending}
+                      disabled={readOnly || !canUpdate || updateAction.isPending}
                     />
                   </td>
                   <td className="px-3 py-2 text-center">
@@ -233,21 +235,21 @@ export function LifecyclePublishActionsSection({
                         canUpdate &&
                         updateAction.mutate({ actionId: action.id, body: { stop_on_error: Boolean(v) } })
                       }
-                      disabled={!canUpdate || updateAction.isPending}
+                      disabled={readOnly || !canUpdate || updateAction.isPending}
                     />
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center justify-end gap-0.5">
                       <Button
                         variant="ghost" size="icon" className="h-6 w-6"
-                        disabled={!canUpdate || idx === 0 || reorderActions.isPending}
+                        disabled={readOnly || !canUpdate || idx === 0 || reorderActions.isPending}
                         onClick={() => handleMove(idx, "up")}
                       >
                         <ChevronUp className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost" size="icon" className="h-6 w-6"
-                        disabled={!canUpdate || idx === actions.length - 1 || reorderActions.isPending}
+                        disabled={readOnly || !canUpdate || idx === actions.length - 1 || reorderActions.isPending}
                         onClick={() => handleMove(idx, "down")}
                       >
                         <ChevronDown className="h-3.5 w-3.5" />
@@ -255,6 +257,7 @@ export function LifecyclePublishActionsSection({
                       {canUpdate && (
                         <Button
                           variant="ghost" size="icon" className="h-6 w-6"
+                          disabled={readOnly}
                           onClick={() => handleOpenEdit(action)}
                         >
                           <Pencil className="h-3.5 w-3.5" />
@@ -263,7 +266,7 @@ export function LifecyclePublishActionsSection({
                       {canDelete && (
                         <Button
                           variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive"
-                          disabled={deleteAction.isPending}
+                          disabled={readOnly || deleteAction.isPending}
                           onClick={() => handleDelete(action)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
