@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Sparkles, Download, Trash2, AlertCircle, ImageOff, Image as ImageIcon, RefreshCw, Loader2, X } from "lucide-react"
+import { Sparkles, Download, Trash2, AlertCircle, ImageOff, Image as ImageIcon, ImagePlus, RefreshCw, Loader2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { useImageGenerationMutations } from "@/hooks/useImageGeneration"
@@ -30,6 +30,14 @@ export interface HuemulMediaGenerateSheetProps {
   open: boolean
   onOpenChange: (v: boolean) => void
   organizationId: string
+  /**
+   * `media:c`. `POST /image-generation/generate` persiste una Media real de la
+   * organización y no hay recurso propio en PermissionResource, así que se
+   * gatea con la escritura del recurso que produce. Obligatoria (sin default).
+   */
+  canCreate: boolean
+  /** `media:d` — descartar una imagen generada llama a `DELETE /media/{id}`. */
+  canDelete: boolean
   /** Se dispara tras cada generación exitosa (para fijar la imagen en la galería). */
   onGenerated?: (image: GeneratedImage) => void
   /**
@@ -38,14 +46,24 @@ export interface HuemulMediaGenerateSheetProps {
    * correspondiente en la galería.
    */
   onDiscarded?: (mediaId: string) => void
+  /**
+   * Cuando se define, el lienzo muestra un botón primario para insertar la
+   * imagen seleccionada en el contexto que abrió el sheet (p.ej. referencia
+   * de media del editor de documentos). El padre decide qué hacer con el
+   * cierre del sheet tras insertar.
+   */
+  onInsert?: (image: GeneratedImage) => void
 }
 
 export function HuemulMediaGenerateSheet({
   open,
   onOpenChange,
   organizationId,
+  canCreate,
+  canDelete,
   onGenerated,
   onDiscarded,
+  onInsert,
 }: HuemulMediaGenerateSheetProps) {
   const { t } = useTranslation("media")
   const { t: tCommon } = useTranslation("common")
@@ -92,7 +110,7 @@ export function HuemulMediaGenerateSheet({
 
   async function handleGenerate() {
     const trimmed = prompt.trim()
-    if (!trimmed || isPending) return
+    if (!canCreate || !trimmed || isPending) return
     try {
       const img = await generateImage.mutateAsync({ prompt: trimmed, aspect_ratio: aspectRatio })
       if (!openRef.current) return // el usuario cerró el sheet mientras generaba
@@ -107,7 +125,7 @@ export function HuemulMediaGenerateSheet({
   }
 
   async function handleDiscard() {
-    if (!selected || deleteMedia.isPending) return
+    if (!canDelete || !selected || deleteMedia.isPending) return
     const mediaId = selected.media_id
     try {
       await deleteMedia.mutateAsync(mediaId)
@@ -156,6 +174,8 @@ export function HuemulMediaGenerateSheet({
     aspectRatio: `${rw} / ${rh}`,
     width: `min(100cqw, calc(100cqh * ${rw} / ${rh}))`,
   }
+
+  if (!canCreate) return null
 
   return (
     <HuemulSheet
@@ -283,6 +303,14 @@ export function HuemulMediaGenerateSheet({
 
           {selected && previewUrl && !isPending && (
             <div className="flex shrink-0 items-center justify-center gap-2">
+              {onInsert && (
+                <HuemulButton
+                  size="sm"
+                  icon={ImagePlus}
+                  label={t("generate.insert")}
+                  onClick={() => onInsert(selected)}
+                />
+              )}
               <HuemulButton
                 variant="outline"
                 size="sm"
@@ -290,15 +318,17 @@ export function HuemulMediaGenerateSheet({
                 label={t("generate.download")}
                 onClick={handleDownload}
               />
-              <HuemulButton
-                variant="ghost"
-                size="sm"
-                icon={Trash2}
-                label={t("generate.discard")}
-                loading={deleteMedia.isPending}
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                onClick={handleDiscard}
-              />
+              {canDelete && (
+                <HuemulButton
+                  variant="ghost"
+                  size="sm"
+                  icon={Trash2}
+                  label={t("generate.discard")}
+                  loading={deleteMedia.isPending}
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={handleDiscard}
+                />
+              )}
             </div>
           )}
         </div>

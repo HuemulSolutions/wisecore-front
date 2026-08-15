@@ -89,6 +89,13 @@ const translations = {
     errorLoading: { en: "Failed to load roles", es: "Error al cargar los roles" },
     errorDescription: { en: "There was an error loading the roles data. Please try again.", es: "Ocurrió un error al cargar los datos de roles. Por favor, inténtalo de nuevo." },
   },
+  picker: {
+    title: { en: "Select role", es: "Seleccionar rol" },
+    searchPlaceholder: { en: "Search roles...", es: "Buscar roles..." },
+    clearSearch: { en: "Clear", es: "Limpiar" },
+    noResults: { en: "No roles found", es: "No se encontraron roles" },
+    errorLoading: { en: "Failed to load roles", es: "Error al cargar los roles" },
+  },
   permissions: {
     title: { en: "Role Permissions", es: "Permisos del Rol" },
     selected: { en: "{{count}} selected", es: "{{count}} seleccionados" },

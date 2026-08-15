@@ -8,7 +8,7 @@ import RoleFormFields from "./roles-form-fields"
 import type { CreateRoleSheetProps } from '@/types/roles'
 export type { CreateRoleSheetProps } from '@/types/roles'
 
-export default function CreateRoleSheet({ open, onOpenChange }: CreateRoleSheetProps) {
+export default function CreateRoleSheet({ open, onOpenChange, canCreate }: CreateRoleSheetProps) {
   const { t } = useTranslation(['roles', 'common'])
   const [formData, setFormData] = useState({
     name: '',
@@ -18,9 +18,9 @@ export default function CreateRoleSheet({ open, onOpenChange }: CreateRoleSheetP
   const [isPosition, setIsPosition] = useState(false)
   const [parentRoleId, setParentRoleId] = useState<string | null>(null)
 
-  // Only fetch permissions when the sheet is actually open
-  const { data: permissionsResponse, isLoading: permissionsLoading } = usePermissions(open)
-  const { data: rolesResponse } = useRoles(open, 1, 1000)
+  // Only fetch permissions when the sheet is actually open y hay permiso de listar el catálogo
+  const { data: permissionsResponse, isLoading: permissionsLoading } = usePermissions(open && canCreate)
+  const { data: rolesResponse } = useRoles(open && canCreate, 1, 1000)
   const { createRole } = useRoleMutations()
 
   const availablePermissions = Array.isArray(permissionsResponse?.data) ? permissionsResponse.data : []
@@ -39,7 +39,10 @@ export default function CreateRoleSheet({ open, onOpenChange }: CreateRoleSheetP
     }
   }, [open])
 
+  if (!canCreate) return null
+
   const handleSubmit = async (): Promise<void> => {
+    if (!canCreate) return
     await new Promise<void>((resolve, reject) => {
       createRole.mutate({
         name: formData.name,

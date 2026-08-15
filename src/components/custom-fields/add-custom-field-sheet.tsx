@@ -34,6 +34,7 @@ export function AddCustomFieldSheet({
   isLoadingSources,
   onImageUploadStart,
   onImageUploadComplete,
+  canCreateCustomField = false,
 }: AddCustomFieldDialogProps) {
   const [fieldType, setFieldType] = useState<"existing" | "new">("existing")
   const [selectedCustomFieldId, setSelectedCustomFieldId] = useState<string>("")
@@ -339,7 +340,10 @@ export function AddCustomFieldSheet({
         logger.error(`Error adding custom field ${entityType}:`, error)
       }
     } else {
-      // Create new custom field only, don't add it to entity yet
+      // Create new custom field only, don't add it to entity yet.
+      // Defensa en profundidad: la opción "new" ya está oculta del radio
+      // sin canCreateCustomField, pero el early-return queda como segunda capa.
+      if (!canCreateCustomField) return
       if (!validateNewCustomFieldForm()) {
         return
       }
@@ -410,7 +414,7 @@ export function AddCustomFieldSheet({
           onChange={(v) => setFieldType(v as "existing" | "new")}
           options={[
             { label: t('addDialog.useExisting'), value: "existing" },
-            { label: t('addDialog.createNew'), value: "new" },
+            ...(canCreateCustomField ? [{ label: t('addDialog.createNew'), value: "new" }] : []),
           ]}
           inputClassName="flex-col gap-2"
         />

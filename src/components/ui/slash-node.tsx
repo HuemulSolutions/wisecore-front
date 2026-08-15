@@ -11,7 +11,7 @@ import {
   Heading2Icon,
   Heading3Icon,
   ImageIcon,
-  LibraryIcon,
+  ImagesIcon,
   ListIcon,
   ListOrdered,
   PilcrowIcon,
@@ -190,7 +190,7 @@ export function SlashInputElement(
         group: t('slash.groups.media'),
         items: [
           {
-            icon: <LibraryIcon />,
+            icon: <ImagesIcon />,
             keywords: ['media', 'image', 'reference', 'file', 'asset', 'imagen', 'referencia', 'archivo'],
             label: t('slash.items.mediaReference'),
             value: 'media-reference',

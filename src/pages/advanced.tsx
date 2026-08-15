@@ -14,7 +14,9 @@ import { AssetSelectionPanel } from "@/components/execution/asset-selection-pane
 import { ChangeHistoryPanel } from "@/components/execution/change-history-panel"
 import { bulkGenerateByTemplateSection, bulkAiFixByTemplateSection, bulkExportExcel, bulkExportCustomWord } from "@/services/executions"
 import { useOrganization } from "@/contexts/organization-context"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
+import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
+import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { cn } from "@/lib/utils"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
@@ -24,27 +26,41 @@ type AdvancedSection = "home" | "mass-execution" | "change-history" | "excel-exp
 export default function AdvancedPage() {
   const { t } = useTranslation(["advanced", "common"])
   const { selectedOrganizationId } = useOrganization()
-  const { isOrgAdmin, hasPermission, hasAnyPermission } = useUserPermissions()
+  // El bypass de `isOrgAdmin` ya vive dentro de `hasPermission`/`hasAnyPermission`
+  // (ver permissions-context.tsx), así que no se repite acá. `features` de esta
+  // página se declara atómico en la matriz y las secciones lo combinan: un
+  // FeatureSpec no representa AND-de-OR.
+  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('advanced')
   const navigate = useOrgNavigate()
   const { section: sectionParam } = useParams<{ section: string }>()
 
   // Permission flags
-  const canListTemplates = isOrgAdmin || hasAnyPermission(['template:l', 'template:r'])
-  const canListTemplateSections = isOrgAdmin || hasAnyPermission(['template_section:l', 'template_section:r'])
-  const canListLlms = isOrgAdmin || hasAnyPermission(['llm:l', 'llm:r'])
-  const canCreateExecution = isOrgAdmin || hasPermission('section_execution:c')
-  const canListExecutions = isOrgAdmin || hasAnyPermission(['section_execution:l', 'section_execution:r'])
+  const canListTemplates = can('listTemplates')
+  const canListTemplateSections = can('listTemplateSections')
+  const canListLlms = can('listLlms')
+  const canCreateExecution = can('createExecution')
+  const canListExecutions = can('listExecutions')
 
-  const canAccessMassExecution = canListTemplates && canListTemplateSections && canListExecutions
-  const canAccessExcelExport = isOrgAdmin || (canListTemplates && canListTemplateSections && canListExecutions)
-  const canAccessWordExport = isOrgAdmin || hasPermission('version:r')
+  // Ejecutar en masa es la única razón de ser de esa sección: sin `:c` el
+  // formulario se recorría entero y solo el botón final quedaba deshabilitado.
+  const canAccessMassExecution =
+    canListTemplates && canListTemplateSections && canListExecutions && canCreateExecution
+  const canAccessExcelExport = canListTemplates && canListTemplateSections && canListExecutions
+  const canAccessWordExport = can('wordExport')
   const canAccessExports = canAccessExcelExport || canAccessWordExport
 
   const VALID_SECTIONS: AdvancedSection[] = ["home", "mass-execution", "change-history", "excel-export"]
-  const activeSection: AdvancedSection =
+  const requestedSection: AdvancedSection =
     VALID_SECTIONS.includes(sectionParam as AdvancedSection)
       ? (sectionParam as AdvancedSection)
       : "home"
+  const sectionAccess: Record<AdvancedSection, boolean> = {
+    home: true,
+    "mass-execution": canAccessMassExecution,
+    "excel-export": canAccessExports,
+    "change-history": canListExecutions,
+  }
+  const activeSection: AdvancedSection = sectionAccess[requestedSection] ? requestedSection : "home"
 
   const [selectedTemplateId, setSelectedTemplateId] = useState("")
   const [massExecutionConfig, setMassExecutionConfig] = useState<MassExecutionConfig | null>(null)
@@ -56,6 +72,16 @@ export default function AdvancedPage() {
   const [selectedExportTemplateId, setSelectedExportTemplateId] = useState("")
   const [combinedExportConfig, setCombinedExportConfig] = useState<CombinedExportConfig | null>(null)
   const [isExporting, setIsExporting] = useState(false)
+
+  // Redirigir a home si la sección de la URL no está permitida (bypass de permisos).
+  // Solo cuando los permisos ya cargaron: si no, el primer render rebota a
+  // /advanced/home a todos, incluso a quien sí tiene acceso a la sección.
+  useEffect(() => {
+    if (isLoadingPermissions) return
+    if (requestedSection !== "home" && !sectionAccess[requestedSection]) {
+      navigate("/advanced/home")
+    }
+  }, [isLoadingPermissions, requestedSection, canAccessMassExecution, canAccessExports, canListExecutions, navigate])
 
   // Reset form state when leaving mass-execution
   useEffect(() => {
@@ -131,6 +157,8 @@ export default function AdvancedPage() {
 
   const handleExport = useCallback(async (executionIds: string[]) => {
     if (!combinedExportConfig || !selectedOrganizationId) return
+    if (combinedExportConfig.type === "excel" && !canAccessExcelExport) return
+    if (combinedExportConfig.type === "word" && !canAccessWordExport) return
     setIsExporting(true)
     try {
       if (combinedExportConfig.type === "excel") {
@@ -160,7 +188,7 @@ export default function AdvancedPage() {
     } finally {
       setIsExporting(false)
     }
-  }, [combinedExportConfig, selectedOrganizationId, t])
+  }, [combinedExportConfig, selectedOrganizationId, canAccessExcelExport, canAccessWordExport, t])
 
   const menuItems: { key: AdvancedSection; label: string; icon: React.ElementType; visible: boolean }[] = [
     { key: "home", label: t("menu.home"), icon: Home, visible: true },
@@ -252,6 +280,8 @@ export default function AdvancedPage() {
       <MassExecutionForm
         onTemplateChange={setSelectedTemplateId}
         onConfigChange={setMassExecutionConfig}
+        canListTemplates={canListTemplates}
+        canListLlms={canListLlms}
       />
     </div>
   )
@@ -261,6 +291,7 @@ export default function AdvancedPage() {
       <CombinedExportForm
         canAccessExcelExport={canAccessExcelExport}
         canAccessWordExport={canAccessWordExport}
+        canListTemplates={canListTemplates}
         onTemplateChange={setSelectedExportTemplateId}
         onConfigChange={setCombinedExportConfig}
       />
@@ -277,6 +308,7 @@ export default function AdvancedPage() {
     <div className="p-6 h-full overflow-y-auto scrollbar-hide">
       <AssetSelectionPanel
         templateId={selectedTemplateId}
+        canList={canListExecutions}
         onExecute={handleExecute}
         isExecuting={isExecuting}
         executeDisabled={executeDisabled}
@@ -289,6 +321,7 @@ export default function AdvancedPage() {
     <div className="p-6 h-full overflow-y-auto scrollbar-hide">
       <AssetSelectionPanel
         templateId={selectedExportTemplateId}
+        canList={canListExecutions}
         onExecute={handleExport}
         isExecuting={isExporting}
         executeDisabled={exportDisabled}
@@ -361,6 +394,13 @@ export default function AdvancedPage() {
       ]}
     />
   )
+
+  // Orden de guardas: permisos cargando → sin acceso → contenido. El guard de
+  // ruta ya rebota a /home, pero llegar por navegación interna (o quedarse en
+  // la página tras perder el permiso) mostraba el layout vacío en vez de un 403.
+  if (isLoadingPermissions) return <PageSkeleton />
+
+  if (!canAccessPage) return <HuemulAccessDenied />
 
   return (
     <>

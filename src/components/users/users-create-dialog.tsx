@@ -7,11 +7,12 @@ import UserFormFields from "@/components/users/users-form-fields"
 import type { CreateUserDialogProps } from '@/types/users';
 export type { CreateUserDialogProps } from '@/types/users';
 
-export default function CreateUserDialog({ 
-  open, 
+export default function CreateUserDialog({
+  open,
   onOpenChange,
   onSuccess,
-  addToOrganization
+  addToOrganization,
+  canCreate
 }: CreateUserDialogProps) {
   const [formData, setFormData] = useState({
     name: '',
@@ -85,6 +86,7 @@ export default function CreateUserDialog({
   }
 
   const handleSave = async () => {
+    if (!canCreate) return
     if (!validateForm()) throw new Error('Validation failed')
 
     const submissionData = {
@@ -105,6 +107,8 @@ export default function CreateUserDialog({
     })
   }
 
+  if (!canCreate) return null
+
   return (
     <HuemulDialog
       open={open}
@@ -117,7 +121,7 @@ export default function CreateUserDialog({
       saveAction={{
         label: t('users:create.button'),
         onClick: handleSave,
-        disabled: !formData.name.trim() || !formData.last_name.trim() || !formData.email.trim()
+        disabled: !canCreate || !formData.name.trim() || !formData.last_name.trim() || !formData.email.trim()
       }}
     >
       <div className="space-y-4">

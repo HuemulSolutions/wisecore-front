@@ -9,6 +9,7 @@ export function AddCustomFieldTemplateSheet({
   onClose,
   templateId,
   onAdd,
+  canCreateCustomField,
 }: AddCustomFieldTemplateDialogProps) {
   // Fetch custom field template sources
   const {
@@ -26,6 +27,9 @@ export function AddCustomFieldTemplateSheet({
       uploadImageFn={uploadCustomFieldTemplateValueBlob}
       sources={sources}
       isLoadingSources={isLoadingSources}
+      // `custom_fields:c` resuelto por /templates y propagado por el tab
+      // (templates.tsx → templates-content.tsx → TemplateCustomFields).
+      canCreateCustomField={canCreateCustomField}
     />
   )
 }

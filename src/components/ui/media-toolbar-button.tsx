@@ -10,7 +10,7 @@ import {
   FileUpIcon,
   FilmIcon,
   ImageIcon,
-  LibraryIcon,
+  ImagesIcon,
   LinkIcon,
 } from 'lucide-react';
 import { isUrl, KEYS } from 'platejs';
@@ -157,7 +157,7 @@ export function MediaToolbarButton({
                     setTimeout(() => openPicker(editor), 0)
                   }}
                 >
-                  <LibraryIcon />
+                  <ImagesIcon />
                   {t('media.insertMediaReference')}
                 </DropdownMenuItem>
               )}

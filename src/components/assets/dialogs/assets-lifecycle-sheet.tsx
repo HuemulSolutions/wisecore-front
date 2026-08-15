@@ -5,6 +5,8 @@ import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulButton } from "@/huemul/components/huemul-button"
+import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import {
   useLifecycleStepTypes,
   useLifecycleSteps,
@@ -37,6 +39,14 @@ interface StepGrantsPanelProps {
   onPendingChange: (stepId: string, hasPending: boolean) => void
   isGrantPending: boolean
   isRevokePending: boolean
+  /**
+   * Si el usuario puede otorgar/revocar grants (asset:u). Default `false`
+   * (secure-by-default): en modo lectura el panel muestra los grants actuales
+   * pero no ofrece editar.
+   */
+  canManageGrants?: boolean
+  /** Si el usuario puede listar usuarios de la organización (user:l|r). */
+  canListUsers?: boolean
 }
 
 function StepGrantsPanel({
@@ -52,6 +62,8 @@ function StepGrantsPanel({
   onPendingChange,
   isGrantPending,
   isRevokePending,
+  canManageGrants = false,
+  canListUsers = false,
 }: StepGrantsPanelProps) {
   const { t } = useTranslation("asset-types")
   const stepAction = t(`lifecycle.stepActions.${stepType}`, { defaultValue: stepType })
@@ -117,6 +129,9 @@ function StepGrantsPanel({
   }
 
   const handleSaveAll = () => {
+    // El botón ya está oculto sin permiso; este freno cubre el caso de que el
+    // permiso haya cambiado a mitad de sesión con el panel en modo edición.
+    if (!canManageGrants) return
     if (pendingUserIds.length > 0) {
       setOptimisticUserIds(pendingUserIds)
       onSaveGrants(step.id, pendingUserIds)
@@ -187,7 +202,7 @@ function StepGrantsPanel({
                 disabled={isMutating}
               />
             </>
-          ) : (
+          ) : canManageGrants ? (
             <div className="flex items-center gap-1">
               {isMutating && (
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -201,7 +216,7 @@ function StepGrantsPanel({
                 className="text-muted-foreground"
               />
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -267,8 +282,10 @@ function StepGrantsPanel({
               </p>
             ) : null}
 
-            {/* Edit mode: user picker */}
-            {isEditing && (
+            {/* Edit mode: user picker. Requiere poder listar usuarios de la
+                organización; sin ese permiso solo se pueden revocar grants
+                existentes (los badges caen al user_id crudo). */}
+            {isEditing && canListUsers && (
               <HuemulField
                 type="async-combobox"
                 label={t("lifecycle.grants.addUser")}
@@ -325,9 +342,15 @@ export default function AssetLifecycleSheet({
   const { t } = useTranslation("asset-types")
   const { selectedOrganizationId } = useOrganization()
   const organizationId = selectedOrganizationId ?? ""
+  // El gate va DENTRO del sheet porque se monta desde dos lugares (el provider
+  // global del layout y assets-content) y ninguno de los dos puede garantizar
+  // el permiso por sí solo. Otorgar/revocar grants es escritura sobre el asset.
+  const { can } = usePageAccess('asset')
+  const canManageGrants = can('manageAssetLifecycleGrants')
+  const canListUsers = can('listUsers')
 
   const { data: stepTypesData, isLoading: loadingStepTypes } =
-    useLifecycleStepTypes(open)
+    useLifecycleStepTypes(open && canManageGrants)
   const stepTypes = stepTypesData?.data ?? []
 
   const [activeStep, setActiveStep] = useState<string | null>(null)
@@ -395,11 +418,11 @@ export default function AssetLifecycleSheet({
   const { data: stepsData, isLoading: loadingSteps } = useLifecycleSteps(
     documentTypeId,
     activeStep,
-    open && !!documentTypeId && !!activeStep,
+    open && !!documentTypeId && !!activeStep && canManageGrants,
   )
   const steps = stepsData?.data?.steps ?? []
 
-  const { data: usersData } = useUsers(open && !!organizationId, organizationId, 1, 100)
+  const { data: usersData } = useUsers(open && !!organizationId && canListUsers, organizationId, 1, 100)
   const users = usersData?.data ?? []
 
   const fetchUserOptions = useCallback(
@@ -419,10 +442,12 @@ export default function AssetLifecycleSheet({
   const { grant, revoke } = useDocumentGrantMutations(organizationId, asset?.id ?? "")
 
   const handleSaveGrants = (stepId: string, userIds: string[]) => {
+    if (!canManageGrants) return
     grant.mutate({ lifecycle_step_id: stepId, user_ids: userIds })
   }
 
   const handleSaveRevokes = (stepId: string, userIds: string[]) => {
+    if (!canManageGrants) return
     revoke.mutate({ lifecycle_step_id: stepId, user_ids: userIds })
   }
 
@@ -453,6 +478,11 @@ export default function AssetLifecycleSheet({
         showFooter={false}
         maxWidth="sm:max-w-5xl"
       >
+        {!canManageGrants ? (
+          // 403 in-place (no `return null`: el sheet se abre por estado del
+          // provider y un null dejaría un panel vacío sin explicación).
+          <HuemulAccessDenied variant="inline" />
+        ) : (
         <div className="flex flex-col gap-4 py-2">
           {/* Step type badge selector */}
           <div className="pb-2 -mx-6 px-6">
@@ -521,12 +551,15 @@ export default function AssetLifecycleSheet({
                   onPendingChange={handlePendingChange}
                   isGrantPending={grant.isPending}
                   isRevokePending={revoke.isPending}
+                  canManageGrants={canManageGrants}
+                  canListUsers={canListUsers}
                 />
               ))}
               </div>
             </div>
           )}
         </div>
+        )}
       </HuemulSheet>
     </>
   )

@@ -29,6 +29,7 @@ import { handleApiError } from '@/lib/error-utils';
 import { logger } from '@/lib/logger';
 import { useTranslation } from 'react-i18next';
 import { AssetFormSection, type AssetFormSectionHandle } from '@/components/assets/content/asset-form-section';
+import { AssetFormSectionReader } from '@/components/assets/content/asset-form-section-reader';
 import { QUESTION_TYPE, formatFieldValueForCopy, isFieldAnswerable, isFieldVisible } from '@/components/sections/question-type-meta';
 import type { SectionExecutionProps } from '@/types/assets';
 export type { SectionExecutionProps } from '@/types/assets';
@@ -170,6 +171,9 @@ function SectionExecutionInner({
      * Persists plate_content (with the new mark) without affecting edit mode.
      */
     const handleAutoSavePlateContent = async (sId: string, markdown: string, pContent: string[]) => {
+        // El autosave se dispara por marks de comentario, sin click: necesita su
+        // propio gate (capa (c) de los gestos sin botón).
+        if (!canEditSections) return;
         try {
             await modifyContent(sId, markdown, pContent);
         } catch {
@@ -178,6 +182,7 @@ function SectionExecutionInner({
     };
 
     const handleSave = async (sectionId: string, newContent: string, plateContent?: string[]) => {
+        if (!canEditSections) return;
         try {
             setIsSaving(true);
             await modifyContent(sectionId, newContent, plateContent);
@@ -246,6 +251,8 @@ function SectionExecutionInner({
     };
 
     const handleReviewStatusChange = async (newStatus: ReviewStatus) => {
+        // Es un select, no un botón: el `disabled` es solo la capa visual.
+        if (!canEditSections) return;
         try {
             setIsUpdatingReviewStatus(true);
             await updateReviewStatus(sectionExecution.id, newStatus, selectedOrganizationId ?? undefined);
@@ -584,37 +591,22 @@ function SectionExecutionInner({
                                     </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                    {/* <DocumentAccessControl
-                                        requiredAccess=""
-                                        checkGlobalPermissions={false}
-                                        resource="asset"
-                                    > */}
-                                        <DropdownMenuItem
-                                            className='hover:cursor-pointer'
-                                            onClick={handleCopy}
-                                        >
-                                            <Copy className="h-4 w-4 mr-2" />
-                                            {t('section.copy')}
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            className='hover:cursor-pointer'
-                                            onSelect={() => {
-                                                setTimeout(() => setIsHistorySheetOpen(true), 0);
-                                            }}
-                                        >
-                                            <History className="h-4 w-4 mr-2" />
-                                            {t('section.viewHistoryMenu')}
-                                        </DropdownMenuItem>
-                                        {/* {onCopyLink && (
-                                            <DropdownMenuItem
-                                                className='hover:cursor-pointer'
-                                                onClick={onCopyLink}
-                                            >
-                                                <Link2 className="h-4 w-4 mr-2" />
-                                                {t('section.copyLink')}
-                                            </DropdownMenuItem>
-                                        )} */}
-                                    {/* </DocumentAccessControl> */}
+                                    <DropdownMenuItem
+                                        className='hover:cursor-pointer'
+                                        onClick={handleCopy}
+                                    >
+                                        <Copy className="h-4 w-4 mr-2" />
+                                        {t('section.copy')}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        className='hover:cursor-pointer'
+                                        onSelect={() => {
+                                            setTimeout(() => setIsHistorySheetOpen(true), 0);
+                                        }}
+                                    >
+                                        <History className="h-4 w-4 mr-2" />
+                                        {t('section.viewHistoryMenu')}
+                                    </DropdownMenuItem>
                                     {documentId && executionId && sectionIdForExecution && !isExecutionApproved && canExecute && canEditSections && (
                                         <>
                                             <DropdownMenuItem
@@ -705,24 +697,6 @@ function SectionExecutionInner({
                     </>
                     )}
                     
-                    {/* Copy button - always visible */}
-                    {/* <ProtectedComponent resource="section_execution" resourceAction="r">
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer ml-2"
-                                    onClick={handleCopy}
-                                >
-                                    <Copy className="h-3.5 w-3.5 text-gray-600" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Copy content</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </ProtectedComponent> */}
                 </div>
             )}
             
@@ -807,24 +781,33 @@ function SectionExecutionInner({
                     </div>
                 </div>
             ) : sectionType === 'form' ? (
-                /* Form section: render fillable/read-only form instead of the Plate editor */
-                <div className={`${readyToEdit ? 'pt-4' : 'pt-1'} pr-2 w-full`}>
-                    <AssetFormSection
-                        ref={formSectionRef}
-                        sectionExecutionId={sectionExecution.id}
-                        formFields={sectionExecution.form_fields ?? []}
-                        status={status}
-                        organizationId={selectedOrganizationId ?? undefined}
-                        documentId={documentId}
-                        canInteract={readyToEdit && canEditSections}
-                        isEditing={isEditing}
-                        onExitEditing={handleCancelEdit}
-                        reviewStatus={reviewStatus}
-                        onReviewStatusChange={setReviewStatus}
-                        onUpdate={onUpdate}
-                        onSavingChange={setIsFormSaving}
+                !readyToEdit ? (
+                    /* Reader mode: numbered/collapsible summary card instead of the flat answer stack */
+                    <AssetFormSectionReader
+                        section={{ form_fields: sectionExecution.form_fields, review_status: reviewStatus }}
+                        sectionName={sectionName}
+                        sectionIndex={sectionIndex ?? 0}
                     />
-                </div>
+                ) : (
+                    /* Form section: render fillable/read-only form instead of the Plate editor */
+                    <div className="pt-4 pr-2 w-full">
+                        <AssetFormSection
+                            ref={formSectionRef}
+                            sectionExecutionId={sectionExecution.id}
+                            formFields={sectionExecution.form_fields ?? []}
+                            status={status}
+                            organizationId={selectedOrganizationId ?? undefined}
+                            documentId={documentId}
+                            canInteract={readyToEdit && canEditSections}
+                            isEditing={isEditing}
+                            onExitEditing={handleCancelEdit}
+                            reviewStatus={reviewStatus}
+                            onReviewStatusChange={setReviewStatus}
+                            onUpdate={onUpdate}
+                            onSavingChange={setIsFormSaving}
+                        />
+                    </div>
+                )
             ) : (
                 /* Unified Plate view: readOnly when not editing, editable when editing */
                 <div className={isEditing ? 'pt-2 pr-0' : `${readyToEdit ? 'pt-4' : 'pt-1'} pr-2 w-full`}>

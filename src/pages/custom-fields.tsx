@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { useOrganization } from "@/contexts/organization-context"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { type CustomField } from "@/types/custom-fields"
 import { useCustomFields, useCustomFieldMutations } from "@/hooks/useCustomFields"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
@@ -31,15 +32,21 @@ export default function CustomFieldsPage() {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
   // Get permissions
-  const { isRootAdmin, isLoading: isLoadingPermissions } = useUserPermissions()
+  const { selectedOrganizationId } = useOrganization()
+  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('custom-fields')
   const queryClient = useQueryClient()
-  
-  // Fetch custom fields and mutations - solo si es admin
-  const { data: customFieldsResponse, isLoading, isFetching, error } = useCustomFields({ 
-    page, 
+
+  const canList = can('listCustomFields')
+  const canCreate = can('createCustomField')
+  const canUpdate = can('updateCustomField')
+  const canDelete = can('deleteCustomField')
+
+  // Fetch custom fields and mutations - solo si el usuario puede listar
+  const { data: customFieldsResponse, isLoading, isFetching, error } = useCustomFields({
+    page,
     page_size: pageSize,
     search: state.searchTerm || undefined,
-    enabled: isRootAdmin 
+    enabled: canList && !!selectedOrganizationId
   })
   const customFieldMutations = useCustomFieldMutations()
 
@@ -54,8 +61,8 @@ export default function CustomFieldsPage() {
     return <CustomFieldPageSkeleton />
   }
 
-  // Access check - only root admin
-  if (!isRootAdmin) {
+  // Access check
+  if (!canAccessPage) {
     return <CustomFieldPageEmptyState type="access-denied" />
   }
 
@@ -109,7 +116,7 @@ export default function CustomFieldsPage() {
               updateState({ searchTerm: value })
               setPage(1)
             }}
-            canManage={isRootAdmin}
+            canCreate={canCreate}
           />
         }
         headerClassName="p-6 md:p-8 pb-0 md:pb-0"
@@ -122,9 +129,9 @@ export default function CustomFieldsPage() {
                 onRetry={handleRefresh}
               />
             ) : filteredCustomFields.length === 0 && customFields.length === 0 ? (
-              <CustomFieldContentEmptyState 
+              <CustomFieldContentEmptyState
                 type="empty"
-                onCreateFirst={() => updateState({ showCreateDialog: true })}
+                onCreateFirst={canCreate ? () => updateState({ showCreateDialog: true }) : undefined}
               />
             ) : filteredCustomFields.length === 0 && customFields.length > 0 ? (
               <CustomFieldContentEmptyState 
@@ -135,7 +142,8 @@ export default function CustomFieldsPage() {
               <CustomFieldTable
                 customFields={filteredCustomFields}
                 onEditCustomField={handleEditCustomField}
-                canManage={isRootAdmin}
+                canUpdate={canUpdate}
+                canDelete={canDelete}
                 isLoading={isTableLoading}
                 isFetching={isTableFetching}
                 pagination={{
@@ -162,6 +170,9 @@ export default function CustomFieldsPage() {
         state={state}
         onCloseDialog={closeDialog}
         customFieldMutations={customFieldMutations}
+        canCreate={canCreate}
+        canUpdate={canUpdate}
+        canDelete={canDelete}
       />
     </>
   )

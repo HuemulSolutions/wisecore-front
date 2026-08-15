@@ -1,8 +1,6 @@
 import { Users, Plus } from "lucide-react"
 import { useTranslation } from 'react-i18next'
 import { PageHeader } from "@/huemul/components/huemul-page-header"
-import ProtectedComponent from "@/components/protected-component"
-import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { UserPageHeaderProps } from '@/types/users';
 export type { UserPageHeaderProps } from '@/types/users';
@@ -21,6 +19,9 @@ export default function UserPageHeader({
 }: UserPageHeaderProps) {
   const { t } = useTranslation(['users', 'common'])
 
+  // Un solo gate para el botón de crear: `protectedContent` REEMPLAZA al botón
+  // dentro de PageHeader, así que tenerlo con criterio propio además de
+  // `primaryAction` era doble gate sobre la misma condición (`user:c`).
   return (
     <PageHeader
       icon={Users}
@@ -35,18 +36,7 @@ export default function UserPageHeader({
         label: t('users:header.addUser'),
         icon: Plus,
         onClick: onCreateUser,
-        protectedContent: (
-          <ProtectedComponent permission="user:c">
-            <HuemulButton
-              label={t('users:header.addUser')}
-              icon={Plus}
-              size="sm"
-              onClick={onCreateUser}
-              disabled={hasError}
-              className="h-8 text-xs px-2"
-            />
-          </ProtectedComponent>
-        )
+        disabled: hasError,
       } : undefined}
       searchConfig={{
         placeholder: t('users:header.searchPlaceholder'),

@@ -9,8 +9,9 @@ export function DeleteOrganizationDialog({
   onOpenChange,
   organization,
   onConfirm,
+  canDelete,
 }: DeleteOrganizationDialogProps) {
-  if (!organization) return null;
+  if (!organization || !canDelete) return null;
 
   const { t } = useTranslation(['organizations', 'common']);
 
@@ -22,7 +23,10 @@ export function DeleteOrganizationDialog({
       description={t('delete.description', { name: organization.name })}
       actionLabel={t('common:delete')}
       actionIcon={Trash2}
-      onAction={onConfirm}
+      onAction={() => {
+        if (!canDelete) return Promise.resolve();
+        return onConfirm();
+      }}
     />
   );
 }

@@ -4,6 +4,13 @@ import type { BreadcrumbItem, LibraryItem } from '@/components/assets'
 export interface UseAssetNavigationProps {
   selectedOrganizationId: string | null
   organizationToken: string | null
+  /**
+   * Si el usuario puede listar la biblioteca (asset:l|r o folder:l|r). Sin esto
+   * el hook no resuelve la jerarquía por URL: no dispara getLibraryContent.
+   * Obligatorio a propósito — un default permisivo reabriría el hueco en
+   * silencio (ver ia context/rbac-audit-guide.md, punto 3 del checklist).
+   */
+  canListLibrary: boolean
 }
 
 export interface UseAssetNavigationReturn {

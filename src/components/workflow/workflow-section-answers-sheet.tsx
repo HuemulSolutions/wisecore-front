@@ -4,9 +4,7 @@ import { toast } from "sonner";
 import { ArrowRight, Copy, Eye } from "lucide-react";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { HuemulReviewStatusBadge } from "@/huemul/components/huemul-review-status-badge";
-import { SectionFieldSeparator } from "@/components/sections/section-field-separator";
-import { FormFieldAnswerValue } from "@/components/sections/form-field-answer-value";
-import { QUESTION_TYPE, isFieldVisible } from "@/components/sections/question-type-meta";
+import { FormAnswersList } from "@/components/sections/form-answers-list";
 import { computeSectionStats, serializeSectionAnswers } from "@/components/workflow/workflow-section-stats";
 import type { ContentSection } from "@/types/assets";
 import type { ReviewStatus } from "@/types/section-execution";
@@ -56,7 +54,7 @@ export function WorkflowSectionAnswersSheet({
       title={section?.section_name ?? ""}
       description={
         stepIndex !== null
-          ? `${t("wizard.summary.stepLabel", { number: stepIndex + 1 })} · ${t("wizard.summary.answeredCount", { answered: answeredCount, total: questions.length })}`
+          ? `${t("wizard.summary.stepLabel", { number: stepIndex + 1 })} · ${t("sections:form.fill.answeredCount", { answered: answeredCount, total: questions.length })}`
           : undefined
       }
       icon={Eye}
@@ -87,23 +85,7 @@ export function WorkflowSectionAnswersSheet({
       {questions.length === 0 ? (
         <p className="py-6 text-sm text-muted-foreground">{t("wizard.summary.noAnswers")}</p>
       ) : (
-        <div className="space-y-4">
-          {fields
-            .filter(isFieldVisible)
-            .map((field, fieldIndex) =>
-              field.question_type === QUESTION_TYPE.label ? (
-                <SectionFieldSeparator key={field.id || fieldIndex} name={field.field_name} />
-              ) : (
-                <div key={field.id || fieldIndex} className="space-y-1 border-b pb-3 last:border-b-0 last:pb-0">
-                  <p className="text-xs text-muted-foreground">
-                    {field.field_name}
-                    {field.required && <span className="text-destructive"> *</span>}
-                  </p>
-                  <FormFieldAnswerValue field={field} />
-                </div>
-              ),
-            )}
-        </div>
+        <FormAnswersList fields={fields} emptyLabel={t("wizard.summary.noAnswers")} />
       )}
     </HuemulSheet>
   );

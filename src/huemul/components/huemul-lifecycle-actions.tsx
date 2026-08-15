@@ -19,9 +19,13 @@ export function HuemulLifecycleActions({
   className,
 }: HuemulLifecycleActionsProps) {
   const { t } = useTranslation(["assets", "common"])
-  const { status, permissions } = controller
+  const { status, permissions, canTransition } = controller
 
   if (!status) return null
+  // Cruce lifecycle × RBAC: sin `asset:u` ninguna transición se ofrece, aunque
+  // el grant del documento (o `status.can_advance`, que viene del backend y no
+  // del objeto de permisos) diga que sí. Ver ia context/rbac-audit-guide.md.
+  if (!canTransition) return null
 
   const isCompact = variant === "compact"
   const iconClassName = isCompact ? "h-3 w-3" : "h-3.5 w-3.5"
@@ -30,7 +34,11 @@ export function HuemulLifecycleActions({
 
   const canAssignVersion =
     permissions?.approve && (status.version_required || status.state === "in_approval") && !status.version
-  const canPublish = permissions?.publish && status.state === "approved"
+  // Con etapa final distinta de "publish" (campo `final_lifecycle_stage` del
+  // tipo de activo) el documento nunca llega a publicarse: al aprobar, la
+  // ejecución se archiva directo.
+  const canPublish =
+    permissions?.publish && status.state === "approved" && controller.finalLifecycleStage === "publish"
   const canArchive = permissions?.archive && (status.state === "approved" || status.state === "published")
   const canRestore = permissions?.archive && status.state === "archived"
   const canRerunExternalPublish = showRerunExternalPublish && permissions?.publish && status.state === "published"

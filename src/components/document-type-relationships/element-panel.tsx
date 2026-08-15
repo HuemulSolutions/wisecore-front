@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { X, Trash2 } from "lucide-react"
+import { X, Trash2, UserCog, UserX } from "lucide-react"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import type { CanvasElementNodeData } from "./text-node"
 
@@ -12,11 +12,12 @@ interface ElementPanelProps {
   readOnly?: boolean
 }
 
-// Editing panel for free-standing text/container elements — mirrors NodePanel's
+// Editing panel for free-standing text/container/role elements — mirrors NodePanel's
 // layout so the right-side panel stays visually consistent across selection types.
 export function ElementPanel({ elementData, onClose, readOnly = false }: ElementPanelProps) {
   const { t } = useTranslation("document-type-relationships")
   const isContainer = elementData.kind === "container"
+  const isRole = elementData.kind === "role"
 
   const [content, setContent] = useState(elementData.content)
   useEffect(() => setContent(elementData.content), [elementData.content])
@@ -38,7 +39,7 @@ export function ElementPanel({ elementData, onClose, readOnly = false }: Element
             style={{ backgroundColor: elementData.color || "#94a3b8" }}
           />
           <span className="text-sm font-semibold truncate">
-            {isContainer ? t("elementPanel.containerTitle") : t("elementPanel.textTitle")}
+            {isContainer ? t("elementPanel.containerTitle") : isRole ? t("elementPanel.roleTitle") : t("elementPanel.textTitle")}
           </span>
         </div>
         <button
@@ -51,24 +52,61 @@ export function ElementPanel({ elementData, onClose, readOnly = false }: Element
 
       {/* Body */}
       <div className="px-4 py-4 space-y-4 flex-1 overflow-auto">
-        <HuemulField
-          type="textarea"
-          label={isContainer ? t("elementPanel.title") : t("elementPanel.content")}
-          name="element_content"
-          value={content}
-          onChange={(v) => handleContentChange(String(v))}
-          required
-          disabled={readOnly}
-        />
+        {!isRole && (
+          <HuemulField
+            type="textarea"
+            label={isContainer ? t("elementPanel.title") : t("elementPanel.content")}
+            name="element_content"
+            value={content}
+            onChange={(v) => handleContentChange(String(v))}
+            required
+            disabled={readOnly}
+          />
+        )}
 
         <HuemulField
           type="color"
-          label={isContainer ? t("elementPanel.borderColor") : t("elementPanel.textColor")}
+          label={isContainer ? t("elementPanel.borderColor") : isRole ? t("elementPanel.color") : t("elementPanel.textColor")}
           name="element_color"
           value={elementData.color}
           onChange={(v) => elementData.onColorChange?.(elementData.id, String(v))}
-          disabled={readOnly}
+          disabled={readOnly || isRole}
         />
+
+        {/* Role assignment — containers can optionally act as a lane; a role node's
+            label always mirrors its assigned role (roles have no color of their own). */}
+        {(isContainer || isRole) && (
+          <div className="space-y-2">
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+              {t("elementPanel.role")}
+            </p>
+            {/* Roles have no assignable color or other per-role visual attribute (no
+                such field on the role form) — plain text, no marker in front. */}
+            <span className="text-sm truncate block">
+              {elementData.role?.name ?? t("elementPanel.noRole")}
+            </span>
+            {!readOnly && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => elementData.onRequestRolePick?.(elementData.id)}
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-md border text-xs text-muted-foreground flex-1 hover:bg-accent hover:text-foreground hover:cursor-pointer transition-colors"
+                >
+                  <UserCog className="h-3.5 w-3.5 shrink-0" />
+                  <span>{elementData.role ? t("elementPanel.changeRole") : t("elementPanel.selectRole")}</span>
+                </button>
+                {isContainer && elementData.role && (
+                  <button
+                    onClick={() => elementData.onClearRole?.(elementData.id)}
+                    className="p-1.5 rounded-md border text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:cursor-pointer transition-colors"
+                    title={t("elementPanel.clearRole")}
+                  >
+                    <UserX className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {!readOnly && (
           <div className="space-y-2">

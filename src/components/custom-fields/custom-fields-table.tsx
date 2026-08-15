@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge"
-import { Edit2, FileText } from "lucide-react"
+import { Edit, FileText } from "lucide-react"
 import type { CustomField, CustomFieldTableProps } from '@/types/custom-fields'
 export type { CustomFieldTableProps } from '@/types/custom-fields'
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
@@ -10,7 +10,8 @@ export function CustomFieldTable({
   customFields,
   onEditCustomField,
   pagination,
-  canManage = false,
+  canUpdate = false,
+  canDelete = false,
   isLoading = false,
   isFetching = false
 }: CustomFieldTableProps) {
@@ -80,12 +81,15 @@ export function CustomFieldTable({
     }
   ]
 
-  // Define actions - solo si es admin
-  const actions: HuemulTableAction<CustomField>[] = canManage ? [
+  // El único punto de entrada para borrar es este mismo sheet de edición
+  // (custom-fields-create-edit-sheet.tsx), así que la fila se abre con
+  // canUpdate O canDelete — restringirla solo a canUpdate le quitaría a un
+  // rol con únicamente custom_fields:d toda forma de eliminar.
+  const actions: HuemulTableAction<CustomField>[] = (canUpdate || canDelete) ? [
     {
       key: "edit",
       label: t('actions.editCustomField'),
-      icon: Edit2,
+      icon: Edit,
       onClick: onEditCustomField,
     }
   ] : []
@@ -95,6 +99,7 @@ export function CustomFieldTable({
       data={customFields}
       columns={columns}
       actions={actions}
+      actionsMode="inline"
       getRowKey={(customField) => customField.id}
       emptyState={{
         icon: FileText,

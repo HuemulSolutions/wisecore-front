@@ -161,13 +161,3 @@ export interface ArchiveConversationResponse {
   conversation_id: string;
 }
 
-// ========================================
-// Component Props
-// ========================================
-
-export interface ChatbotProps {
-  /** Execution/version ID — if provided, sent as reference with every message */
-  executionId?: string;
-  /** Document ID — used as fallback reference when no executionId is available */
-  documentId?: string;
-}

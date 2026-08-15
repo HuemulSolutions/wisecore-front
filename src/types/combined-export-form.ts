@@ -25,6 +25,8 @@ export interface CombinedExportConfig {
 export interface CombinedExportFormProps {
   canAccessExcelExport: boolean
   canAccessWordExport: boolean
+  /** `template:l|r` — sin esto el formulario no dispara GET /templates/. Obligatoria, sin default. */
+  canListTemplates: boolean
   onTemplateChange?: (templateId: string) => void
   onConfigChange?: (config: CombinedExportConfig | null) => void
 }

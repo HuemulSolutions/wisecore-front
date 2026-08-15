@@ -6,18 +6,15 @@ import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 import { logger } from "@/lib/logger"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useUserMutations } from "@/hooks/useUsers"
 import { getGlobalUsers } from "@/services/users"
 import { type User } from "@/types/users"
 import { Check, Edit, Shield, ShieldCheck, Trash2, Users, X, Building, Plus } from "lucide-react"
-import ProtectedComponent from "@/components/protected-component"
 
 import {
   UserPageSkeleton,
@@ -30,7 +27,18 @@ import {
 } from "@/components/users"
 import type { GlobalUsersResponse } from "@/types/global-admin/components"
 
-export function GlobalAdminUsersSection() {
+interface GlobalAdminUsersSectionProps {
+  /**
+   * Único eje de permisos de la sección: `/global-admin` es una ruta técnica
+   * root-admin-only y NO org-scoped, así que los permisos org-scoped
+   * (`user:c/u/d`) no aplican acá. Un trío canCreate/canUpdate/canDelete
+   * alimentado por el mismo booleano sería granularidad falsa.
+   * Ver ia context/rbac-audit-guide.md.
+   */
+  canManage: boolean
+}
+
+export function GlobalAdminUsersSection({ canManage }: GlobalAdminUsersSectionProps) {
   const { t } = useTranslation(['users', 'global-admin', 'common'])
   const [state, setState] = useState<UserPageState>({
     searchTerm: "",
@@ -47,13 +55,7 @@ export function GlobalAdminUsersSection() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
-  const { canAccessUsers, isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
   const queryClient = useQueryClient()
-
-  const canListUsers = isRootAdmin || hasAnyPermission(['user:l', 'user:r'])
-  const canCreateUser = isRootAdmin || hasPermission('user:c')
-  const canUpdateUser = isRootAdmin || hasPermission('user:u')
-  const canDeleteUser = isRootAdmin || hasPermission('user:d')
 
   const globalUsersQueryKey = ["global-users", page, pageSize, state.searchTerm] as const
 
@@ -61,7 +63,7 @@ export function GlobalAdminUsersSection() {
     queryKey: globalUsersQueryKey,
     queryFn: () => getGlobalUsers(page, pageSize, state.searchTerm || undefined),
     placeholderData: (prev) => prev,
-    enabled: canListUsers
+    enabled: canManage
   }) as {
     data: GlobalUsersResponse | undefined
     isLoading: boolean
@@ -77,11 +79,7 @@ export function GlobalAdminUsersSection() {
     hasData: !!usersResponse,
   })
 
-  if (isLoadingPermissions) {
-    return <UserPageSkeleton />
-  }
-
-  if (!isRootAdmin && !canAccessUsers) {
+  if (!canManage) {
     return <UserPageEmptyState type="access-denied" />
   }
 
@@ -188,7 +186,7 @@ export function GlobalAdminUsersSection() {
       label: t('actions.approveUser'),
       icon: Check,
       onClick: (user) => userMutations.approveUser.mutate(user.id),
-      show: (user) => user.status === 'pending' && canUpdateUser,
+      show: (user) => user.status === 'pending' && canManage,
       className: "text-green-600"
     },
     {
@@ -196,7 +194,7 @@ export function GlobalAdminUsersSection() {
       label: t('actions.rejectUser'),
       icon: X,
       onClick: (user) => userMutations.rejectUser.mutate(user.id),
-      show: (user) => user.status === 'pending' && canUpdateUser,
+      show: (user) => user.status === 'pending' && canManage,
       separator: true,
       destructive: true
     },
@@ -205,21 +203,21 @@ export function GlobalAdminUsersSection() {
       label: t('actions.assignToOrganization'),
       icon: Building,
       onClick: (user) => updateState({ organizationUser: user }),
-      show: () => isRootAdmin
+      show: () => canManage
     },
     {
       key: "manage-root-admin",
       label: t('actions.manageRootAdmin'),
       icon: ShieldCheck,
       onClick: (user) => updateState({ rootAdminUser: user }),
-      show: () => isRootAdmin
+      show: () => canManage
     },
     {
       key: "make-org-admin",
       label: t('actions.makeOrgAdmin'),
       icon: Shield,
       onClick: handleMakeOrganizationAdmin,
-      show: () => isRootAdmin,
+      show: () => canManage,
       separator: true
     },
     {
@@ -227,7 +225,7 @@ export function GlobalAdminUsersSection() {
       label: t('actions.editUser'),
       icon: Edit,
       onClick: (user) => updateState({ editingUser: user }),
-      show: () => canUpdateUser,
+      show: () => canManage,
       separator: true
     },
     {
@@ -235,7 +233,7 @@ export function GlobalAdminUsersSection() {
       label: t('actions.deleteUser'),
       icon: Trash2,
       onClick: (user) => updateState({ deletingUser: user }),
-      show: () => canDeleteUser,
+      show: () => canManage,
       destructive: true
     }
   ]
@@ -243,6 +241,10 @@ export function GlobalAdminUsersSection() {
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
       <div className="shrink-0">
+        {/* Un solo gate para el botón de crear: `protectedContent` REEMPLAZA al
+            botón dentro de PageHeader, así que gatearlo ahí con `user:c`
+            mientras `primaryAction` se mostraba por otro criterio dejaba el
+            header sin botón de crear para un root admin sin rol en la org. */}
         <PageHeader
           icon={Users}
           title={t('header.title')}
@@ -252,23 +254,11 @@ export function GlobalAdminUsersSection() {
           onRefresh={handleRefresh}
           isLoading={isRefreshing || isFetching}
           hasError={!!error}
-          primaryAction={canCreateUser ? {
+          primaryAction={canManage ? {
             label: t('header.addUser'),
             icon: Plus,
             onClick: () => updateState({ showCreateDialog: true }),
-            protectedContent: (
-              <ProtectedComponent permission="user:c">
-                <Button
-                  size="sm"
-                  onClick={() => updateState({ showCreateDialog: true })}
-                  disabled={!!error}
-                  className="hover:cursor-pointer h-8 text-xs px-2"
-                >
-                  <Plus className="w-3 h-3 mr-1" />
-                  {t('header.addUser')}
-                </Button>
-              </ProtectedComponent>
-            )
+            disabled: !!error,
           } : undefined}
           searchConfig={{
             placeholder: t('header.searchPlaceholder'),
@@ -342,6 +332,12 @@ export function GlobalAdminUsersSection() {
           void refetch()
         }}
         createUserAddToOrganization={false}
+        canCreate={canManage}
+        canUpdate={canManage}
+        canDelete={canManage}
+        canAssignRoles={canManage}
+        canManageRootAdmin={canManage}
+        canManageOrganizations={canManage}
       />
     </div>
   )

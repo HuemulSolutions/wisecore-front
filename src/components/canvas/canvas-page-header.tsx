@@ -13,7 +13,7 @@ export function CanvasPageHeader({
   isLoading = false,
   searchTerm,
   onSearchChange,
-  canManage = false,
+  canCreate = false,
 }: CanvasPageHeaderProps) {
   const { t } = useTranslation('canvas')
 
@@ -24,7 +24,7 @@ export function CanvasPageHeader({
       badges={[{ label: "", value: canvasCount }]}
       onRefresh={onRefresh}
       isLoading={isLoading}
-      primaryAction={canManage ? {
+      primaryAction={canCreate ? {
         label: t('header.createCanvas'),
         icon: Plus,
         onClick: onCreateCanvas,

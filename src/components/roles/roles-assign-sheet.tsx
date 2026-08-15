@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
+import { useOrganization } from "@/contexts/organization-context"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
@@ -16,7 +17,7 @@ import { userQueryKeys } from "@/hooks/useUsers"
 import type { AssignRolesSheetProps } from '@/types/roles'
 export type { AssignRolesSheetProps } from '@/types/roles'
 
-export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }: AssignRolesSheetProps) {
+export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess, canAssign }: AssignRolesSheetProps) {
   const { t } = useTranslation(['roles', 'common'])
   const [selectedRoles, setSelectedRoles] = useState<string[]>([])
   const [, setHasInitialized] = useState(false)
@@ -25,9 +26,10 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
   const [searchInput, setSearchInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const queryClient = useQueryClient()
-  
-  // Fetch all roles with user assignment status when sheet is open
-  const { data: userAllRolesResponse, isLoading: rolesLoading, error: rolesError, refetch: refetchRoles } = useUserAllRoles(user?.id || '', open && !!user, page, pageSize, searchQuery)
+  const { selectedOrganizationId } = useOrganization()
+
+  // Fetch all roles with user assignment status when sheet is open y hay permiso de asignar
+  const { data: userAllRolesResponse, isLoading: rolesLoading, error: rolesError, refetch: refetchRoles } = useUserAllRoles(user?.id || '', open && !!user && canAssign, page, pageSize, searchQuery)
   const { assignRoles } = useRoleMutations()
 
   const roles = userAllRolesResponse?.data || []
@@ -55,12 +57,12 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
   // Invalidate queries when sheet opens
   useEffect(() => {
     if (open && user) {
-      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.userAllRoles(user.id, page, pageSize, searchQuery) })
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.userAllRoles(selectedOrganizationId, user.id, page, pageSize, searchQuery) })
     }
   }, [open, user?.id, queryClient])
 
   const handleSubmit = async (): Promise<void> => {
-    if (!user) return
+    if (!user || !canAssign) return
 
     await new Promise<void>((resolve, reject) => {
       assignRoles.mutate({
@@ -97,7 +99,7 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
   const hasNext = userAllRolesResponse?.has_next ?? false
   const hasPrevious = page > 1
 
-  if (!user) return null
+  if (!user || !canAssign) return null
 
   return (
     <HuemulSheet
@@ -264,7 +266,7 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
                         setPage(1)
                       }}
                     >
-                      <SelectTrigger className="h-7 w-[64px] text-xs hover:cursor-pointer">
+                      <SelectTrigger className="h-7 w-16 text-xs hover:cursor-pointer">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

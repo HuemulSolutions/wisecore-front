@@ -4,22 +4,10 @@ import type { AssetType, AssetTypesResponse, RoleAccess, AssetTypeWithRoles, Ass
 
 export type { AssetType, AssetTypesResponse, RoleAccess, AssetTypeWithRoles, AssetTypesWithRolesResponse, CreateAssetTypeData, UpdateAssetTypeData, CloneAssetTypeData, LinkedTemplate, DocumentTypeTemplatesResponse, ExportAssetTypesBody, ImportAssetTypesQueryParams, ImportAssetTypesData, ImportAssetTypesResponse };
 
-// Get current organization ID from localStorage or context
-const getOrganizationId = (): string | null => {
-  return localStorage.getItem('selectedOrganizationId');
-};
-
-// Get headers with organization ID
-const getHeaders = (): Record<string, string> => {
-  const orgId = getOrganizationId();
-  const headers: Record<string, string> = {};
-  
-  if (orgId) {
-    headers['X-Org-Id'] = orgId;
-  }
-  
-  return headers;
-};
+// Nota: X-Org-Id lo inyecta httpClient desde el contexto de organización activa
+// (ver src/lib/http-client.ts). No pasarlo a mano leyendo localStorage: ese header
+// gana sobre el de httpClient y puede servir una organización obsoleta tras un
+// cambio de organización activa.
 
 // Get all asset types
 export const getAssetTypes = async (page: number = 1, pageSize: number = 100, search?: string): Promise<AssetTypesResponse> => {
@@ -28,10 +16,8 @@ export const getAssetTypes = async (page: number = 1, pageSize: number = 100, se
     page_size: pageSize.toString(),
   });
   if (search?.trim()) params.set('search', search.trim());
-  const response = await httpClient.get(`${backendUrl}/document_types?${params}`, {
-    headers: getHeaders(),
-  });
-  
+  const response = await httpClient.get(`${backendUrl}/document_types?${params}`);
+
   return response.json();
 };
 
@@ -46,45 +32,35 @@ export const getAssetTypesWithRoles = async (page: number = 1, pageSize: number 
     params.append('search', search);
   }
 
-  const response = await httpClient.get(`${backendUrl}/role-doctype/document-types/list_with_all_roles?${params.toString()}`, {
-    headers: getHeaders(),
-  });
-  
+  const response = await httpClient.get(`${backendUrl}/role-doctype/document-types/list_with_all_roles?${params.toString()}`);
+
   return response.json();
 };
 
 // Get single asset type
 export const getAssetType = async (id: string): Promise<AssetType> => {
-  const response = await httpClient.get(`${backendUrl}/document_types/${id}`, {
-    headers: getHeaders(),
-  });
-  
+  const response = await httpClient.get(`${backendUrl}/document_types/${id}`);
+
   return response.json();
 };
 
 // Create new asset type
 export const createAssetType = async (data: CreateAssetTypeData): Promise<AssetType> => {
-  const response = await httpClient.post(`${backendUrl}/document_types`, data, {
-    headers: getHeaders(),
-  });
-  
+  const response = await httpClient.post(`${backendUrl}/document_types`, data);
+
   return response.json();
 };
 
 // Update asset type
 export const updateAssetType = async (id: string, data: UpdateAssetTypeData): Promise<AssetType> => {
-  const response = await httpClient.put(`${backendUrl}/document_types/${id}`, data, {
-    headers: getHeaders(),
-  });
-  
+  const response = await httpClient.put(`${backendUrl}/document_types/${id}`, data);
+
   return response.json();
 };
 
 // Delete asset type
 export const deleteAssetType = async (id: string): Promise<void> => {
-  await httpClient.delete(`${backendUrl}/document_types/${id}`, {
-    headers: getHeaders(),
-  });
+  await httpClient.delete(`${backendUrl}/document_types/${id}`);
 };
 
 // Clone asset type
@@ -94,9 +70,7 @@ export const cloneAssetType = async (id: string, options: CloneAssetTypeData = {
   if (options.include_relationships !== undefined) {
     body.include_relationships = options.include_relationships;
   }
-  const response = await httpClient.post(`${backendUrl}/document_types/${id}/clone`, body, {
-    headers: getHeaders(),
-  });
+  const response = await httpClient.post(`${backendUrl}/document_types/${id}/clone`, body);
 
   return response.json();
 };
@@ -105,10 +79,7 @@ export const cloneAssetType = async (id: string, options: CloneAssetTypeData = {
 export const getDocumentTypeTemplates = async (
   documentTypeId: string,
 ): Promise<DocumentTypeTemplatesResponse> => {
-  const response = await httpClient.get(
-    `${backendUrl}/document_types/${documentTypeId}/templates`,
-    { headers: getHeaders() },
-  );
+  const response = await httpClient.get(`${backendUrl}/document_types/${documentTypeId}/templates`);
   return response.json();
 };
 
@@ -118,11 +89,7 @@ export const linkTemplateToDocumentType = async (
   templateId: string,
   body: DocumentTypeTemplateLinkBody = {},
 ): Promise<void> => {
-  await httpClient.post(
-    `${backendUrl}/document_types/${documentTypeId}/templates/${templateId}`,
-    body,
-    { headers: getHeaders() },
-  );
+  await httpClient.post(`${backendUrl}/document_types/${documentTypeId}/templates/${templateId}`, body);
 };
 
 // Update a document type's template link configuration (requiere permiso asset_type:u)
@@ -131,11 +98,7 @@ export const updateDocumentTypeTemplate = async (
   templateId: string,
   body: DocumentTypeTemplateLinkBody,
 ): Promise<void> => {
-  await httpClient.patch(
-    `${backendUrl}/document_types/${documentTypeId}/templates/${templateId}`,
-    body,
-    { headers: getHeaders() },
-  );
+  await httpClient.patch(`${backendUrl}/document_types/${documentTypeId}/templates/${templateId}`, body);
 };
 
 // Unlink a template from a document type (requiere permiso asset_type:u)
@@ -143,31 +106,12 @@ export const unlinkTemplateFromDocumentType = async (
   documentTypeId: string,
   templateId: string,
 ): Promise<void> => {
-  await httpClient.delete(
-    `${backendUrl}/document_types/${documentTypeId}/templates/${templateId}`,
-    { headers: getHeaders() },
-  );
+  await httpClient.delete(`${backendUrl}/document_types/${documentTypeId}/templates/${templateId}`);
 };
 
 // Export asset types as a downloadable JSON file (requiere permiso asset_type:r)
 export const exportAssetTypes = async (body: ExportAssetTypesBody): Promise<void> => {
-  const orgToken = httpClient.getOrganizationToken();
-  const orgId = getOrganizationId();
-
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (orgToken) headers['Authorization'] = `Bearer ${orgToken}`;
-  if (orgId) headers['X-Org-Id'] = orgId;
-
-  const response = await fetch(`${backendUrl}/document_types/export`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.json().catch(() => null);
-    throw new Error(errorBody?.message ?? 'Error al exportar tipos de asset');
-  }
+  const response = await httpClient.post(`${backendUrl}/document_types/export`, body);
 
   const blob = await response.blob();
   const contentDisposition = response.headers.get('content-disposition');
@@ -212,7 +156,6 @@ export const importAssetTypes = async (
   const response = await httpClient.fetch(url.toString(), {
     method: 'POST',
     body: formData,
-    headers: getHeaders(),
   });
 
   const data = await response.json();

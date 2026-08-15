@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from 'react-i18next'
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { type User, type UsersResponse } from "@/types/users"
 import { useUsers, useUserMutations, userQueryKeys } from "@/hooks/useUsers"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
@@ -39,17 +40,21 @@ export default function UsersPage() {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
   // Get permissions and organization context
-  const { canAccessUsers, isOrgAdmin, isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
+  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('users')
+  // `isRootAdmin` es el eje del flag de sistema `is_root_admin`
+  // (PATCH /users/{id}/root-admin), no un bypass de los permisos org-scoped.
+  const { isRootAdmin } = useUserPermissions()
   const { selectedOrganizationId, organizationToken } = useOrganization()
   const queryClient = useQueryClient()
   const { t } = useTranslation(['users', 'common'])
-  
-  // Permisos específicos
-  const canListUsers = isOrgAdmin || hasAnyPermission(['user:l', 'user:r'])
-  const canCreateUser = isOrgAdmin || hasPermission('user:c')
-  const canUpdateUser = isOrgAdmin || hasPermission('user:u')
-  const canDeleteUser = isOrgAdmin || hasPermission('user:d')
-  
+
+  // Permisos específicos (el bypass de isOrgAdmin ya vive dentro de `can`)
+  const canListUsers = can('listUsers')
+  const canCreateUser = can('createUser')
+  const canUpdateUser = can('updateUser')
+  const canDeleteUser = can('deleteUser')
+  const canAssignRoles = can('assignRoles')
+
   // Fetch users and mutations - solo si tiene permisos de listar
   const { data: usersResponse, isLoading, isFetching, isError, refetch } = useUsers(
     !!selectedOrganizationId && !!organizationToken && canListUsers,
@@ -78,7 +83,7 @@ export default function UsersPage() {
   }
 
   // Access check
-  if (!canAccessUsers) {
+  if (!canAccessPage) {
     return <UserPageEmptyState type="access-denied" />
   }
 
@@ -134,11 +139,6 @@ export default function UsersPage() {
   const handleEditUser = async (user: User) => {
     // Data for editing is usually already available from the user object
     updateState({ editingUser: user })
-  }
-
-  const handleViewOrganizations = async (user: User) => {
-    // Set the user and let the dialog component handle data fetching
-    updateState({ organizationUser: user })
   }
 
   const handleAssignRoles = async (user: User) => {
@@ -204,14 +204,14 @@ export default function UsersPage() {
                 onUserSelection={handleUserSelection}
                 onSelectAll={handleSelectAll}
                 onEditUser={handleEditUser}
-                onViewOrganizations={handleViewOrganizations}
                 onAssignRoles={handleAssignRoles}
                 onDeleteUser={handleDeleteUser}
                 onManageRootAdmin={handleManageRootAdmin}
-                isCurrentUserRootAdmin={isRootAdmin}
+                canManageRootAdmin={isRootAdmin}
                 userMutations={userMutations}
                 canUpdate={canUpdateUser}
                 canDelete={canDeleteUser}
+                canAssignRoles={canAssignRoles}
                 isLoading={isTableLoading}
                 isFetching={isTableFetching}
                 pagination={{
@@ -239,6 +239,14 @@ export default function UsersPage() {
         onCloseDialog={closeDialog}
         onUpdateState={updateState}
         userMutations={userMutations}
+        canCreate={canCreateUser}
+        canUpdate={canUpdateUser}
+        canDelete={canDeleteUser}
+        canAssignRoles={canAssignRoles}
+        canManageRootAdmin={isRootAdmin}
+        // Asignar/quitar organizaciones es cross-org y solo se ofrece desde
+        // /global-admin (root-admin-only): esta pantalla no tiene el trigger.
+        canManageOrganizations={false}
       />
     </>
   )

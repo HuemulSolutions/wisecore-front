@@ -144,9 +144,11 @@ const translations = {
     download: { en: "Download .md", es: "Descargar .md" },
   },
   mention: {
-    searchAssets: { en: "Search assets…", es: "Buscar activos…" },
-    noResults: { en: "No assets found", es: "No se encontraron activos" },
-    loading: { en: "Searching…", es: "Buscando…" },
+    chooseType: {
+      title: { en: "Insert reference", es: "Insertar referencia" },
+      asset: { en: "Asset", es: "Activo" },
+      role: { en: "Role", es: "Rol" },
+    },
   },
   slash: {
     noResults: { en: "No results", es: "Sin resultados" },

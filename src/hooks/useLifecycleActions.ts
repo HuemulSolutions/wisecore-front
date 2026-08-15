@@ -5,6 +5,7 @@ import { handleApiError } from "@/lib/error-utils"
 import { withRefresh } from "@/lib/query-utils"
 import { useExternalReviewActions } from "@/hooks/useLifecycle"
 import { executionLifecycleQueryKeys } from "@/hooks/useExecutionLifecycle"
+import { getDocumentTypeById } from "@/services/document-types"
 import {
   completeExecutionLifecycleStep,
   rejectExecutionLifecycle,
@@ -22,6 +23,9 @@ import type {
 
 const VERSION_REQUIRED_CODE = "VERSION_REQUIRED_FOR_APPROVAL"
 
+/** Defensa en profundidad: los botones ya no se renderizan sin `asset:u`. */
+const NO_TRANSITION_PERMISSION = "Missing permission to transition the lifecycle"
+
 /**
  * Controller for the execution lifecycle transitions (complete/return, publish,
  * archive, restore, assign version, re-run external publish) — shared by
@@ -30,19 +34,35 @@ const VERSION_REQUIRED_CODE = "VERSION_REQUIRED_FOR_APPROVAL"
  *
  * Rendering is left to `HuemulLifecycleActions` / `HuemulLifecycleDialogs`; this
  * hook only owns state, mutations and the derived data those components need.
+ *
+ * Cruce lifecycle × RBAC: `rbac.canTransition` (asset:u) se ANDea con los
+ * grants por documento. Acá vive el early-return de las 6 mutaciones — los
+ * botones son cosméticos, el gate real es este choke point.
+ * Ver ia context/rbac-audit-guide.md (pasada de /workflow).
  */
 export function useLifecycleActions({
   documentId,
   executionId,
   organizationId,
+  documentTypeId,
   lifecycleStatus,
   lifecyclePermissions,
+  rbac,
   extraRefreshKeys,
   onBeforeAdvance,
   onViewChanges,
 }: UseLifecycleActionsOptions): LifecycleActionsController {
   const { t } = useTranslation(["assets", "common"])
   const queryClient = useQueryClient()
+
+  // Misma query key que el tab General del tipo de activo
+  // (assets-types-general-form.tsx) — comparte cache, sin fetch extra.
+  const { data: documentTypeData } = useQuery({
+    queryKey: ["document-type", documentTypeId],
+    queryFn: () => getDocumentTypeById(documentTypeId!),
+    enabled: !!documentTypeId,
+  })
+  const finalLifecycleStage = documentTypeData?.data?.final_lifecycle_stage ?? "publish"
 
   const [isCheckDialogOpen, setIsCheckDialogOpen] = useState(false)
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
@@ -65,6 +85,7 @@ export function useLifecycleActions({
   const checkMutation = useMutation({
     mutationFn: withRefresh(
       async (options?: { comment?: string; run_external_review?: boolean }) => {
+        if (!rbac.canTransition) throw new Error(NO_TRANSITION_PERMISSION)
         const stepId = lifecycleStatus?.current_step_id
         if (!executionId || !organizationId) throw new Error("Missing execution or organization")
         if (!stepId) throw new Error("Missing step ID")
@@ -95,6 +116,7 @@ export function useLifecycleActions({
   const rejectMutation = useMutation({
     mutationFn: withRefresh(
       async (options?: { comment: string; target_state?: string; target_step_id?: string }) => {
+        if (!rbac.canTransition) throw new Error(NO_TRANSITION_PERMISSION)
         if (!executionId || !organizationId) throw new Error("Missing execution or organization")
         return rejectExecutionLifecycle(executionId, organizationId, options)
       },
@@ -120,6 +142,7 @@ export function useLifecycleActions({
         publish_step_id?: string
         run_external_publish?: boolean
       }) => {
+        if (!rbac.canTransition) throw new Error(NO_TRANSITION_PERMISSION)
         onBeforeAdvance?.()
         if (!executionId || !organizationId) throw new Error("Missing execution or organization")
         return advanceExecutionLifecycle(executionId, organizationId, options)
@@ -156,6 +179,7 @@ export function useLifecycleActions({
   const assignVersionMutation = useMutation({
     mutationFn: withRefresh(
       async (version: { major: number; minor: number; patch: number }) => {
+        if (!rbac.canTransition) throw new Error(NO_TRANSITION_PERMISSION)
         if (!executionId || !organizationId) throw new Error("Missing execution or organization")
         return assignExecutionVersion(executionId, version, organizationId)
       },
@@ -183,6 +207,7 @@ export function useLifecycleActions({
   const restoreMutation = useMutation({
     mutationFn: withRefresh(
       async (options?: { comment?: string }) => {
+        if (!rbac.canTransition) throw new Error(NO_TRANSITION_PERMISSION)
         if (!executionId || !organizationId) throw new Error("Missing execution or organization")
         return restoreExecutionLifecycle(executionId, organizationId, options)
       },
@@ -202,6 +227,7 @@ export function useLifecycleActions({
 
   const runExternalPublishMutation = useMutation({
     mutationFn: async () => {
+      if (!rbac.canTransition) throw new Error(NO_TRANSITION_PERMISSION)
       const stepId = lifecycleStatus?.current_step_id
       if (!executionId || !stepId || !organizationId) throw new Error("Missing execution, step or organization")
       return runExternalPublish(executionId, organizationId, stepId)
@@ -241,6 +267,8 @@ export function useLifecycleActions({
   return {
     status: lifecycleStatus,
     permissions: lifecyclePermissions,
+    canTransition: rbac.canTransition,
+    finalLifecycleStage,
 
     isCheckDialogOpen,
     setIsCheckDialogOpen,

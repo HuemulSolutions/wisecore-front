@@ -28,12 +28,26 @@ export async function renderMermaidSvg(code: string): Promise<string> {
       htmlLabels: false,
       flowchart: { htmlLabels: false },
       theme: 'neutral',
+      // Sin esto, al fallar el parseo Mermaid dibuja su propio diagrama de error en un
+      // div temporal colgado del <body> y recién lo limpia después de lanzar, dejando
+      // un banner de error visible al final de la página. El error ya lo muestra el
+      // propio nodo del editor, así que no queremos que Mermaid pinte nada por su cuenta.
+      suppressErrorRendering: true,
     });
     mermaidInitialized = true;
   }
 
-  const { svg } = await mermaid.render(randomId(), code);
-  return svg;
+  const id = randomId();
+  try {
+    const { svg } = await mermaid.render(id, code);
+    return svg;
+  } finally {
+    // Mermaid cuelga un div#d<id> temporal del <body> mientras renderiza. Con
+    // suppressErrorRendering se limpia solo en el caso de parseo, pero un fallo dentro
+    // del propio draw() puede seguir dejando restos; como el id es aleatorio en cada
+    // llamada, esos restos se irían acumulando si no se limpian explícitamente aquí.
+    document.getElementById(`d${id}`)?.remove();
+  }
 }
 
 /**

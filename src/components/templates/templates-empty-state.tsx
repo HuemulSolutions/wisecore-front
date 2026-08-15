@@ -8,7 +8,9 @@ export function TemplateEmptyState({
   isGenerating,
   onAddSection,
   onGenerateWithAI,
-  canCreate = true,
+  // Secure-by-default (punto 9 del checklist): su único call-site
+  // (templates-content.tsx) ya pasa `template_section:c` explícito.
+  canCreate = false,
 }: TemplateEmptyStateProps) {
   const { t } = useTranslation('templates');
 

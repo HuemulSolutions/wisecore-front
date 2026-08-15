@@ -7,9 +7,12 @@ export function DeleteModelDialog({
   open,
   onOpenChange,
   model,
-  onAction
+  onAction,
+  canDelete,
 }: DeleteModelDialogProps) {
   const { t } = useTranslation('models')
+
+  if (!canDelete) return null
 
   return (
     <HuemulAlertDialog

@@ -6,6 +6,7 @@ export interface ModelCapabilitiesDialogProps {
   model: LLM | null
   isUpdating: boolean
   onSubmit: (model: LLM, capabilities: string[]) => void
+  canUpdate: boolean
 }
 
 export interface DeleteModelDialogProps {
@@ -13,6 +14,7 @@ export interface DeleteModelDialogProps {
   onOpenChange: (open: boolean) => void
   model: LLM | null
   onAction: () => Promise<void>
+  canDelete: boolean
 }
 
 export interface ModelDialogProps {
@@ -24,4 +26,5 @@ export interface ModelDialogProps {
   isCreating: boolean
   isUpdating: boolean
   onSubmit: (data: { name: string; internal_name: string; capabilities: string[]; provider_id?: string }) => void
+  canSave: boolean
 }

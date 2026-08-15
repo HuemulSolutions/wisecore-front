@@ -32,6 +32,12 @@ export interface RelationshipEdgeData {
 
 type RelationshipEdgeType = Edge<RelationshipEdgeData, "relationship">
 
+// El SVG de cada edge lleva zIndex EDGE_Z (60) desde `layeredEdges` en relationships-canvas,
+// y `.react-flow__edgelabel-renderer` es z-index auto: sin esto el trazo pinta sobre el chip
+// de la etiqueta y el texto queda cruzado por la línea. 61 sigue por debajo de NODE_Z (100),
+// así que las tarjetas de nodo continúan tapando etiquetas, como hasta ahora.
+const EDGE_LABEL_Z = 61
+
 // ─── Floating-edge utilities ───────────────────────────────────────────────────
 
 function getNodeCenter(node: InternalNode) {
@@ -153,7 +159,7 @@ export function RelationshipEdge({
 
   const isSelfLoop = source === target
   const offset = edgeData.pathOffset ?? 0
-  const strokeColor = selected ? "var(--primary)" : "var(--muted-foreground)"
+  const strokeColor = selected ? "var(--primary)" : "var(--diagram-edge)"
 
   let edgePath: string
   let labelX: number
@@ -187,7 +193,7 @@ export function RelationshipEdge({
         path={edgePath}
         markerEnd={markerEnd}
         style={{
-          strokeWidth: selected ? 2 : 1.5,
+          strokeWidth: selected ? 1.75 : 1.25,
           stroke: strokeColor,
         }}
       />
@@ -198,13 +204,14 @@ export function RelationshipEdge({
             position: "absolute",
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
             pointerEvents: "all",
+            zIndex: EDGE_LABEL_Z,
           }}
           className="nodrag nopan flex flex-col items-center gap-1"
         >
           <span
             className={cn(
-              "text-[11px] font-medium px-1.5 py-0.5 rounded bg-background whitespace-nowrap max-w-[160px] truncate",
-              selected ? "text-primary" : "text-muted-foreground",
+              "text-[11px] font-semibold px-1.5 py-0.5 rounded bg-background whitespace-nowrap max-w-40 truncate",
+              selected ? "text-primary" : "text-foreground",
             )}
           >
             {edgeData.name}

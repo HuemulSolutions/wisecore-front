@@ -6,14 +6,21 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useGlobalPanel } from "@/contexts/global-panel-context"
+import { useWisyAccess } from "@/hooks/useWisyAccess"
 import { WisyPanel } from "@/components/chatbot/wisy-panel"
 
 export function WisyToggle() {
   const { isOpen, togglePanel } = useGlobalPanel()
+  const { canUseWisy } = useWisyAccess()
 
   const handleClick = () => {
+    if (!canUseWisy) return
     togglePanel({ side: "right", content: <WisyPanel />, title: "Wisy", raw: true })
   }
+
+  // Wisy lee assets y ejecuciones para armar el contexto de la conversación:
+  // sin permiso de lectura sobre `asset` no se ofrece el punto de entrada.
+  if (!canUseWisy) return null
 
   return (
     <Tooltip>

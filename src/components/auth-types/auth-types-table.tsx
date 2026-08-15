@@ -2,21 +2,20 @@ import { Edit2, Trash2, Shield } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import type { AuthType } from "@/services/auth-types"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
 import type { AuthTypesTableProps } from '@/types/auth-types'
 
 export type { AuthTypesTableProps } from '@/types/auth-types'
 
-export function AuthTypesTable({ 
-  authTypes, 
-  onEdit, 
+export function AuthTypesTable({
+  authTypes,
+  onEdit,
   onDelete,
   isLoading = false,
   isFetching = false,
   pagination,
+  canManage = false,
 }: AuthTypesTableProps) {
   const { t } = useTranslation(['auth-types', 'common'])
-  const { isRootAdmin } = useUserPermissions()
 
   const columns: HuemulTableColumn<AuthType>[] = [
     {
@@ -55,7 +54,7 @@ export function AuthTypesTable({
     }
   ]
 
-  const actions: HuemulTableAction<AuthType>[] = isRootAdmin ? [
+  const actions: HuemulTableAction<AuthType>[] = canManage ? [
     {
       key: "edit",
       label: t('actions.editAuthType'),

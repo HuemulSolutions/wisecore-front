@@ -11,29 +11,14 @@ import type {
   UpdateCustomFieldTemplateRequest,
 } from '@/types/custom-fields';
 
-// Get current organization ID from localStorage or context
-const getOrganizationId = (): string | null => {
-  return localStorage.getItem('selectedOrganizationId');
-};
-
-// Get headers with organization ID
-const getHeaders = (): Record<string, string> => {
-  const orgId = getOrganizationId();
-  const headers: Record<string, string> = {};
-  
-  if (orgId) {
-    headers['X-Org-Id'] = orgId;
-  }
-  
-  return headers;
-};
+// NOTA: el X-Org-Id lo inyecta httpClient desde el contexto de organización
+// (ver src/lib/http-client.ts) — no leerlo de localStorage aquí, porque pisa
+// ese valor con uno potencialmente obsoleto tras un cambio de organización.
 
 // Get available value sources for custom field templates
 export const getCustomFieldTemplateSources = async (): Promise<CustomFieldTemplateSourcesResponse> => {
-  const response = await httpClient.get(`${backendUrl}/custom_field_templates/sources`, {
-    headers: getHeaders(),
-  });
-  
+  const response = await httpClient.get(`${backendUrl}/custom_field_templates/sources`);
+
   return response.json();
 };
 
@@ -54,10 +39,8 @@ export const getCustomFieldTemplates = async (params?: CustomFieldTemplateListPa
   }
 
   const url = `${backendUrl}/custom_field_templates/${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
-  const response = await httpClient.get(url, {
-    headers: getHeaders(),
-  });
-  
+  const response = await httpClient.get(url);
+
   return response.json();
 };
 
@@ -74,19 +57,15 @@ export const getCustomFieldTemplatesByTemplate = async (params: CustomFieldTempl
   }
 
   const url = `${backendUrl}/custom_field_templates/by_template/${params.template_id}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
-  const response = await httpClient.get(url, {
-    headers: getHeaders(),
-  });
-  
+  const response = await httpClient.get(url);
+
   return response.json();
 };
 
 // Get single custom field template
 export const getCustomFieldTemplate = async (customFieldTemplateId: string): Promise<CustomFieldTemplate> => {
-  const response = await httpClient.get(`${backendUrl}/custom_field_templates/${customFieldTemplateId}`, {
-    headers: getHeaders(),
-  });
-  
+  const response = await httpClient.get(`${backendUrl}/custom_field_templates/${customFieldTemplateId}`);
+
   const result: CustomFieldTemplateResponse = await response.json();
   return result.data;
 };
@@ -95,11 +74,10 @@ export const getCustomFieldTemplate = async (customFieldTemplateId: string): Pro
 export const createCustomFieldTemplate = async (data: CreateCustomFieldTemplateRequest): Promise<CustomFieldTemplate> => {
   const response = await httpClient.post(`${backendUrl}/custom_field_templates/`, data, {
     headers: {
-      ...getHeaders(),
       "Content-Type": "application/json",
     },
   });
-  
+
   const result: CustomFieldTemplateResponse = await response.json();
   return result.data;
 };
@@ -108,20 +86,17 @@ export const createCustomFieldTemplate = async (data: CreateCustomFieldTemplateR
 export const updateCustomFieldTemplate = async (customFieldTemplateId: string, data: UpdateCustomFieldTemplateRequest): Promise<CustomFieldTemplate> => {
   const response = await httpClient.patch(`${backendUrl}/custom_field_templates/${customFieldTemplateId}`, data, {
     headers: {
-      ...getHeaders(),
       "Content-Type": "application/json",
     },
   });
-  
+
   const result: CustomFieldTemplateResponse = await response.json();
   return result.data;
 };
 
 // Delete custom field template association
 export const deleteCustomFieldTemplate = async (customFieldTemplateId: string): Promise<void> => {
-  await httpClient.delete(`${backendUrl}/custom_field_templates/${customFieldTemplateId}`, {
-    headers: getHeaders(),
-  });
+  await httpClient.delete(`${backendUrl}/custom_field_templates/${customFieldTemplateId}`);
 };
 
 // Upload image file for custom field template
@@ -142,55 +117,4 @@ export const uploadCustomFieldTemplateValueBlob = async (customFieldTemplateId: 
     const errorText = await response.text();
     throw new Error(`Failed to upload custom field template image: ${errorText}`);
   }
-};
-
-// Legacy service object for backward compatibility
-export const customFieldTemplatesService = {
-  /**
-   * Get available value sources for custom field templates
-   * @deprecated Use getCustomFieldTemplateSources instead
-   */
-  getSources: getCustomFieldTemplateSources,
-
-  /**
-   * List custom field templates with pagination and filtering
-   * @deprecated Use getCustomFieldTemplates instead
-   */
-  getCustomFieldTemplates: (params?: CustomFieldTemplateListParams) => getCustomFieldTemplates(params),
-
-  /**
-   * Get custom field templates by template ID
-   * @deprecated Use getCustomFieldTemplatesByTemplate instead
-   */
-  getByTemplate: (params: CustomFieldTemplateByTemplateParams) => getCustomFieldTemplatesByTemplate(params),
-
-  /**
-   * Get a specific custom field template by ID
-   * @deprecated Use getCustomFieldTemplate instead
-   */
-  getCustomFieldTemplate: (customFieldTemplateId: string) => getCustomFieldTemplate(customFieldTemplateId),
-
-  /**
-   * Create a new custom field template association
-   * @deprecated Use createCustomFieldTemplate instead
-   */
-  createCustomFieldTemplate: (data: CreateCustomFieldTemplateRequest) => createCustomFieldTemplate(data),
-
-  /**
-   * Update a custom field template association
-   * @deprecated Use updateCustomFieldTemplate instead
-   */
-  updateCustomFieldTemplate: (customFieldTemplateId: string, data: UpdateCustomFieldTemplateRequest) => updateCustomFieldTemplate(customFieldTemplateId, data),
-
-  /**
-   * Delete a custom field template association
-   * @deprecated Use deleteCustomFieldTemplate instead
-   */
-  deleteCustomFieldTemplate: (customFieldTemplateId: string) => deleteCustomFieldTemplate(customFieldTemplateId),
-
-  /**
-   * Upload image file for custom field template
-   * @deprecated Use uploadCustomFieldTemplateValueBlob instead
-   */
-  uploadValueBlob: (customFieldTemplateId: string, file: File) => uploadCustomFieldTemplateValueBlob(customFieldTemplateId, file, getOrganizationId()!),
 };

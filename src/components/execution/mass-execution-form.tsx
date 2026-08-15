@@ -46,7 +46,17 @@ function SelectionCard({ selected, onClick, icon: Icon, title, description }: Se
   )
 }
 
-export function MassExecutionForm({ onTemplateChange, onConfigChange }: { onTemplateChange?: (templateId: string) => void; onConfigChange?: (config: MassExecutionConfig) => void }) {
+export function MassExecutionForm({
+  onTemplateChange,
+  onConfigChange,
+  canListTemplates = false,
+  canListLlms = false,
+}: {
+  onTemplateChange?: (templateId: string) => void
+  onConfigChange?: (config: MassExecutionConfig) => void
+  canListTemplates?: boolean
+  canListLlms?: boolean
+}) {
   const { t } = useTranslation("advanced")
   const { selectedOrganizationId } = useOrganization()
 
@@ -62,23 +72,25 @@ export function MassExecutionForm({ onTemplateChange, onConfigChange }: { onTemp
   const { data: templatesData, isLoading: isLoadingTemplates } = useQuery({
     queryKey: ["templates", selectedOrganizationId],
     queryFn: () => getAllTemplates(selectedOrganizationId!),
-    enabled: !!selectedOrganizationId,
+    enabled: !!selectedOrganizationId && canListTemplates,
   })
 
   const { data: templateDetail, isLoading: isLoadingSections } = useQuery({
     queryKey: ["template", templateId, selectedOrganizationId],
     queryFn: () => getTemplateById(templateId, selectedOrganizationId!),
-    enabled: !!templateId && !!selectedOrganizationId,
+    enabled: !!templateId && !!selectedOrganizationId && canListTemplates,
   })
 
   const { data: availableLLMs = [], isLoading: isLoadingLLMs } = useQuery({
     queryKey: ["llms"],
     queryFn: getAllLLMs,
+    enabled: !!selectedOrganizationId && canListLlms,
   })
 
   const { data: defaultLLM, isLoading: isLoadingDefaultLLM } = useQuery({
     queryKey: ["llms", "default"],
     queryFn: getDefaultLLM,
+    enabled: !!selectedOrganizationId && canListLlms,
     retry: false,
   })
 

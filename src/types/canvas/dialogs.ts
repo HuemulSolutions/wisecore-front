@@ -5,6 +5,7 @@ export interface CanvasCreateEditDialogProps {
   onOpenChange: (open: boolean) => void
   canvas: Canvas | null
   organizationId: string
+  canSave?: boolean
 }
 
 export interface CanvasDeleteDialogProps {
@@ -12,6 +13,7 @@ export interface CanvasDeleteDialogProps {
   onOpenChange: (open: boolean) => void
   canvas: Canvas | null
   organizationId: string
+  canDelete?: boolean
 }
 
 export interface CanvasPageState {
@@ -25,4 +27,7 @@ export interface CanvasPageDialogsProps {
   state: CanvasPageState
   organizationId: string
   onCloseDialog: (dialog: keyof CanvasPageState) => void
+  canCreate?: boolean
+  canUpdate?: boolean
+  canDelete?: boolean
 }

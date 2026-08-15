@@ -10,6 +10,7 @@ import {
   useLifecycleSlaUnits,
 } from "@/hooks/useLifecycle"
 import { useRoles } from "@/hooks/useRbac"
+import { buildAccessPayload } from "@/lib/lifecycle-access"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { ConfigStepContentProps } from '@/types/assets'
@@ -87,7 +88,9 @@ export function ConfigStepContent({
         await updateStep.mutateAsync({
           stepId: step.id,
           data: {
-            access_type: accessType,
+            // Constructor único del par: `role_ids` solo viaja con acceso por
+            // roles — con `all`/`owner` el backend rechaza la clave (422).
+            ...buildAccessPayload({ accessType, roleIds }),
             ...(hasSla && {
               sla_value: slaEnabled ? Number(slaValue) || null : null,
               sla_unit: slaEnabled ? slaUnit || null : null,
@@ -96,7 +99,6 @@ export function ConfigStepContent({
               valid_from: validFrom ? validFrom.split("T")[0] : null,
               valid_to: validTo ? validTo.split("T")[0] : null,
             }),
-            ...(accessType === "custom" && { role_ids: roleIds }),
           },
         })
         toast.success(t("lifecycle.savedSuccess"))

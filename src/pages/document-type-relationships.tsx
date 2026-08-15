@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next"
 import { GitMerge, Edit2, Activity, Copy, Trash2 } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
 import { useDocumentTypes } from "@/hooks/useDocumentTypes"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { AssetTypePageEmptyState } from "@/components/assets-types"
 import { useAssetTypeMutations } from "@/hooks/useAssetTypes"
 import { AssetTypeSidebar, RelationshipsCanvas } from "@/components/document-type-relationships"
@@ -37,12 +37,15 @@ export default function DocumentTypeRelationshipsPage() {
   const { selectedOrganizationId } = useOrganization()
 
   // Permissions
-  const { isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
-  const canListDocumentTypes = isRootAdmin || hasAnyPermission(['asset_type:l', 'asset_type:r'])
-  const canCreateDocumentType = isRootAdmin || hasPermission('asset_type:c')
-  const canUpdateDocumentType = isRootAdmin || hasPermission('asset_type:u')
-  const canDeleteDocumentType = isRootAdmin || hasPermission('asset_type:d')
-  const canListRelationships = isRootAdmin || hasAnyPermission(['asset_type_relationship:l', 'asset_type_relationship:r'])
+  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('asset-type-relationships')
+  // routePermissions de esta página ya son asset_type:r/l — el gate de acceso
+  // y "puede listar document types" son el mismo chequeo aquí.
+  const canListDocumentTypes = canAccessPage
+  const canCloneDocumentType = can('cloneAssetType')
+  const canUpdateDocumentType = can('updateAssetType')
+  const canDeleteDocumentType = can('deleteAssetType')
+  const canManageLifecycle = can('manageLifecycle')
+  const canListRelationships = can('listRelationships')
 
   // Search input (typed) vs committed search (sent to API on Enter)
   const [searchInput, setSearchInput] = useState("")
@@ -69,7 +72,7 @@ export default function DocumentTypeRelationshipsPage() {
   }
 
   const handleClone = async () => {
-    if (!cloningAssetType) return
+    if (!canCloneDocumentType || !cloningAssetType) return
     const minDelay = new Promise((resolve) => setTimeout(resolve, 800))
     await Promise.all([
       new Promise<void>((resolve, reject) => {
@@ -83,7 +86,7 @@ export default function DocumentTypeRelationshipsPage() {
   }
 
   const handleDelete = async () => {
-    if (!deletingAssetType) return
+    if (!canDeleteDocumentType || !deletingAssetType) return
     const minDelay = new Promise((resolve) => setTimeout(resolve, 800))
     await Promise.all([
       new Promise<void>((resolve, reject) => {
@@ -106,7 +109,7 @@ export default function DocumentTypeRelationshipsPage() {
         setEditingAssetType(toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8"))
       },
     }] : []),
-    ...(canUpdateDocumentType ? [{
+    ...(canManageLifecycle ? [{
       key: "lifecycle",
       label: t("asset-types:actions.lifecycle"),
       icon: Activity,
@@ -115,7 +118,7 @@ export default function DocumentTypeRelationshipsPage() {
         setLifecycleAssetType(toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8"))
       },
     }] : []),
-    ...(canCreateDocumentType ? [{
+    ...(canCloneDocumentType ? [{
       key: "clone",
       label: t("asset-types:actions.cloneAssetType"),
       icon: Copy,
@@ -221,6 +224,7 @@ export default function DocumentTypeRelationshipsPage() {
       <CreateDocumentType
         type="asset"
         documentType={editingAssetType}
+        canSave={canUpdateDocumentType}
         open={!!editingAssetType}
         onOpenChange={(o) => { if (!o) setEditingAssetType(null) }}
         onDocumentTypeCreated={() => setEditingAssetType(null)}

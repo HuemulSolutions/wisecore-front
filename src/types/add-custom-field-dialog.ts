@@ -9,4 +9,7 @@ export interface AddCustomFieldDialogProps {
   isLoadingSources: boolean
   onImageUploadStart?: (fieldId: string) => void
   onImageUploadComplete?: () => void
+  /** Gatea únicamente la rama "crear campo nuevo" (custom_fields:c). No afecta
+   * asociar un campo existente a la entidad, que es un recurso distinto. */
+  canCreateCustomField?: boolean
 }

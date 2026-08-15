@@ -6,6 +6,7 @@ export interface CreateProviderDialogProps {
   supportedProviders: SupportedProvider[]
   onSubmit: (data: CreateLLMProviderRequest) => void
   isCreating: boolean
+  canCreate: boolean
 }
 
 export interface DeleteProviderDialogProps {
@@ -13,6 +14,7 @@ export interface DeleteProviderDialogProps {
   onOpenChange: (open: boolean) => void
   provider: any | null
   onAction: () => Promise<void>
+  canDelete: boolean
 }
 
 export interface EditProviderDialogProps {
@@ -22,4 +24,5 @@ export interface EditProviderDialogProps {
   supportedProviders: SupportedProvider[]
   onSubmit: (data: CreateLLMProviderRequest) => void
   isUpdating: boolean
+  canUpdate: boolean
 }
