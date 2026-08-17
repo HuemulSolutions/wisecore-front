@@ -105,6 +105,7 @@ const translations = {
     apiKeyLabel: { en: "API Key", es: "Clave API" },
     apiKeyPlaceholder: { en: "Enter your API key...", es: "Ingresa tu clave API..." },
     endpointLabel: { en: "Endpoint", es: "Endpoint" },
+    endpointPlaceholder: { en: "https://your-resource.openai.azure.com/", es: "https://tu-recurso.openai.azure.com/" },
     deploymentLabel: { en: "Deployment", es: "Deployment" },
     deploymentPlaceholder: { en: "Enter deployment name...", es: "Ingresa el nombre del deployment..." },
     createProvider: { en: "Create Provider", es: "Crear Proveedor" },
@@ -120,6 +121,8 @@ const translations = {
   editProviderDialog: {
     title: { en: "Edit Provider - {{name}}", es: "Editar Proveedor - {{name}}" },
     description: { en: "Update the configuration settings for your {{name}} provider.", es: "Actualiza la configuración de tu proveedor {{name}}." },
+    apiKeyKeepPlaceholder: { en: "Leave blank to keep the current key", es: "Dejar en blanco para mantener la clave actual" },
+    apiKeyKeepHelp: { en: "The saved key is never shown. Enter a new one only to replace it.", es: "La clave guardada nunca se muestra. Ingresa una nueva solo si quieres reemplazarla." },
   },
   deleteProviderDialog: {
     title: { en: "Delete Provider", es: "Eliminar Proveedor" },

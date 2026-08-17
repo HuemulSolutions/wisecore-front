@@ -33,9 +33,9 @@ export function EditProviderDialog({
       setName(provider.name || "")
       setIsManaged(provider.is_managed || false)
       setSelectedType(provider.type || "")
-      setApiKey("")
-      setEndpoint("")
-      setDeployment("")
+      setApiKey("") // nunca viene del backend
+      setEndpoint(provider.endpoint ?? "")
+      setDeployment(provider.deployment ?? "")
     }
   }, [provider, open])
 
@@ -60,13 +60,13 @@ export function EditProviderDialog({
       is_managed: isManaged,
     }
 
-    if (selectedProvider?.requires_api_key) {
+    if (selectedProvider?.requires_api_key && apiKey.trim() !== "") {
       data.key = apiKey
     }
-    if (selectedProvider?.requires_endpoint) {
+    if (selectedProvider?.requires_endpoint && endpoint.trim() !== "") {
       data.endpoint = endpoint
     }
-    if (selectedProvider?.requires_deployment) {
+    if (selectedProvider?.requires_deployment && deployment.trim() !== "") {
       data.deployment = deployment
     }
 
@@ -76,7 +76,6 @@ export function EditProviderDialog({
   const isFormValid =
     name.trim() !== "" &&
     selectedType !== "" &&
-    (!selectedProvider?.requires_api_key || apiKey.trim() !== "") &&
     (!selectedProvider?.requires_endpoint || endpoint.trim() !== "") &&
     (!selectedProvider?.requires_deployment || deployment.trim() !== "")
 
@@ -152,11 +151,10 @@ export function EditProviderDialog({
             label={t('createProviderDialog.apiKeyLabel')}
             name="apiKey"
             type={isMultilineKeyProvider(selectedProvider.type) ? "textarea" : "password"}
-            placeholder={t('createProviderDialog.apiKeyPlaceholder')}
-            description={t(`createProviderDialog.keyHelp.${selectedProvider.type}`, { defaultValue: '' }) || undefined}
+            placeholder={t('editProviderDialog.apiKeyKeepPlaceholder')}
+            description={t('editProviderDialog.apiKeyKeepHelp')}
             value={apiKey}
             onChange={(v) => setApiKey(String(v))}
-            required
             {...(helpLinkAction(selectedProvider) ? { labelAction: helpLinkAction(selectedProvider) } : {})}
           />
         )}
@@ -165,8 +163,8 @@ export function EditProviderDialog({
           <HuemulField
             label={t('createProviderDialog.endpointLabel')}
             name="endpoint"
-            type="password"
-            placeholder="https://api.example.com/v1"
+            type="url"
+            placeholder={t('createProviderDialog.endpointPlaceholder')}
             value={endpoint}
             onChange={(v) => setEndpoint(String(v))}
             required
@@ -178,7 +176,7 @@ export function EditProviderDialog({
           <HuemulField
             label={t('createProviderDialog.deploymentLabel')}
             name="deployment"
-            type="password"
+            type="text"
             placeholder={t('createProviderDialog.deploymentPlaceholder')}
             value={deployment}
             onChange={(v) => setDeployment(String(v))}
