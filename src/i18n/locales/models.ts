@@ -17,6 +17,7 @@ const translations = {
   toast: {
     providerConfigured: { en: "Provider configured successfully", es: "Proveedor configurado exitosamente" },
     providerUpdated: { en: "Provider updated successfully", es: "Proveedor actualizado exitosamente" },
+    providerKeyUpdated: { en: "API key updated successfully", es: "Clave API actualizada exitosamente" },
     providerDeleted: { en: "Provider deleted successfully", es: "Proveedor eliminado exitosamente" },
     modelCreated: { en: "Model created successfully", es: "Modelo creado exitosamente" },
     modelUpdated: { en: "Model updated successfully", es: "Modelo actualizado exitosamente" },
@@ -59,6 +60,7 @@ const translations = {
   },
   providerActions: {
     editProvider: { en: "Edit Provider", es: "Editar Proveedor" },
+    changeApiKey: { en: "Change API key", es: "Cambiar clave API" },
     deleteProvider: { en: "Delete Provider", es: "Eliminar Proveedor" },
   },
   table: {
@@ -123,6 +125,12 @@ const translations = {
     description: { en: "Update the configuration settings for your {{name}} provider.", es: "Actualiza la configuración de tu proveedor {{name}}." },
     apiKeyKeepPlaceholder: { en: "Leave blank to keep the current key", es: "Dejar en blanco para mantener la clave actual" },
     apiKeyKeepHelp: { en: "The saved key is never shown. Enter a new one only to replace it.", es: "La clave guardada nunca se muestra. Ingresa una nueva solo si quieres reemplazarla." },
+  },
+  providerApiKeyDialog: {
+    title: { en: "Change API key - {{name}}", es: "Cambiar clave API - {{name}}" },
+    description: { en: "Replace the stored credential for {{name}}. The rest of the configuration stays untouched.", es: "Reemplaza la credencial guardada de {{name}}. El resto de la configuración queda sin cambios." },
+    help: { en: "The saved key is never shown. The new key replaces it as soon as you save.", es: "La clave guardada nunca se muestra. La nueva la reemplaza apenas guardes." },
+    save: { en: "Save key", es: "Guardar clave" },
   },
   deleteProviderDialog: {
     title: { en: "Delete Provider", es: "Eliminar Proveedor" },

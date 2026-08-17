@@ -26,3 +26,13 @@ export interface EditProviderDialogProps {
   isUpdating: boolean
   canUpdate: boolean
 }
+
+export interface ProviderApiKeyDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  provider: LLMProvider | null
+  supportedProviders: SupportedProvider[]
+  onSubmit: (data: CreateLLMProviderRequest) => void
+  isUpdating: boolean
+  canUpdate: boolean
+}
