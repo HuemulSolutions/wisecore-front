@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useOrganization } from "@/contexts/organization-context"
 import { useHuemulFilters } from "@/hooks/useHuemulFilters"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { getLevelOptions } from "@/huemul/components/huemul-media-icon"
 import { buildMediaParentFetchOptions, getMediaParentLabel } from "@/huemul/components/huemul-media-parent"
 import { HuemulAssetTreePickerField } from "@/huemul/components/huemul-asset-tree-picker"
@@ -27,12 +28,31 @@ export function useMediaFilters(options: UseMediaFiltersOptions = {}) {
   const { initialLevel = "organization", initialParentId, initialParentLabel, onChange } = options
   const { t } = useTranslation("media")
   const { selectedOrganizationId } = useOrganization()
+  const { can } = usePageAccess("media")
 
   // Mirror of the `level` filter, kept in its own state so `filterDefs` can depend
   // on it (the parent selector's visibility/fetcher) without a filterDefs↔values cycle.
   const [level, setLevel] = useState<MediaLevel>(initialLevel)
   // Resolved name of the picked parent (asset/execution), for the tree-picker trigger label.
   const [parentLabel, setParentLabel] = useState<string | undefined>(initialParentLabel)
+
+  // Cada nivel distinto de "organization" hace que el selector de padre pegue a
+  // un endpoint de otro recurso (asset types, biblioteca de assets, ejecuciones,
+  // templates): sin su permiso de listar, elegirlo solo produce un 403 mudo.
+  // Se recortan las OPCIONES en vez de omitir el `filterDef` — omitirlo dejaría
+  // un valor huérfano fuera de `chips`/`clearAll` (ver el hallazgo de /home).
+  // `initialLevel` se preserva siempre: el picker del editor lo fija en
+  // "document"/"execution" desde /asset, donde el guard de ruta ya garantizó
+  // esos permisos, y recortarlo dejaría el picker en un nivel inexistente.
+  const allowedLevels = useMemo<MediaLevel[]>(() => {
+    const levels: MediaLevel[] = ["organization"]
+    if (can("listAssetTypes")) levels.push("document_type")
+    if (can("listAssets") && can("listFolders")) levels.push("document")
+    if (can("listExecutions")) levels.push("execution")
+    if (can("listTemplates")) levels.push("template")
+    if (!levels.includes(initialLevel)) levels.push(initialLevel)
+    return levels
+  }, [can, initialLevel])
 
   const filterDefs = useMemo<HuemulFilterDef[]>(() => {
     const parentFetch = buildMediaParentFetchOptions(level, selectedOrganizationId ?? "")
@@ -69,7 +89,7 @@ export function useMediaFilters(options: UseMediaFiltersOptions = {}) {
         type: "select",
         label: t("filters.level"),
         allValue: "organization",
-        options: getLevelOptions(t),
+        options: getLevelOptions(t, allowedLevels),
       },
       parentDef,
       {
@@ -79,7 +99,7 @@ export function useMediaFilters(options: UseMediaFiltersOptions = {}) {
         placeholder: t("filters.mediaTypePlaceholder"),
       },
     ]
-  }, [t, level, selectedOrganizationId, parentLabel])
+  }, [t, level, selectedOrganizationId, parentLabel, allowedLevels])
 
   const {
     values,

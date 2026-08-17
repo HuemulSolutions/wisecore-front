@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AssetContent } from "@/components/assets";
 import { AssetEmptyContent } from "@/components/assets/content/assets-empty-content";
@@ -10,14 +9,14 @@ import { ExpandedFoldersProvider } from "@/hooks/use-expanded-folders";
 import { useAssetNavigation } from "@/hooks/useAssetNavigation";
 import { useScrollPreservation } from "@/hooks/useScrollPreservation";
 import { NavKnowledgeHeader, NavKnowledgeContent } from "@/components/layout/nav-knowledge";
-import { useNavKnowledgeRefresh, useNavKnowledgePagination, useNavKnowledgeMode } from "@/contexts/nav-knowledge-context";
+import { useNavKnowledgeRefresh, useNavKnowledgePagination } from "@/contexts/nav-knowledge-context";
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
 import { HuemulPagination } from "@/huemul/components/huemul-pagination";
+import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useGlobalPanel } from "@/contexts/global-panel-context";
-import { RelationshipsCanvas } from "@/components/document-type-relationships";
-import { DiagramCanvas, NewDiagramCanvas } from "@/components/diagrams";
-import { useDocumentTypes } from "@/hooks/useDocumentTypes";
+import { usePageAccess } from "@/hooks/usePageAccess";
 
 /**
  * Main content component for the Assets page
@@ -28,44 +27,9 @@ function AssetsContent() {
   const { selectedOrganizationId, organizationToken } = useOrganization();
   const refreshFileTree = useNavKnowledgeRefresh();
   const { isOpen: isWisyOpen } = useGlobalPanel();
-  const { isRelationsMode, setIsRelationsMode } = useNavKnowledgeMode();
-  const { data: docTypesResponse } = useDocumentTypes();
-  const documentTypes = docTypesResponse?.data ?? [];
+  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('asset');
   const { page, pageSize, hasNext, hasPrevious, setPage } = useNavKnowledgePagination();
-
-  // Deep-link into an existing diagram: /asset?diagram=<id> forces relations mode
-  // on so the diagram opens in-place (with the asset tree available to edit it).
-  // /asset?diagram=new does the same but opens a blank canvas to create one
-  // (optionally seeded via ?seedAsset=&seedExecution=, see AssetDiagramsSheet).
-  // Turning relations mode back off (checkbox in the tree kebab) drops the param.
-  const [searchParams, setSearchParams] = useSearchParams();
-  const diagramParam = searchParams.get('diagram');
-  const isNewDiagram = diagramParam === 'new';
-  const diagramId = isNewDiagram ? null : diagramParam;
-  // seedAsset/seedExecution only matter on the very first render of the "new
-  // diagram" deep link — useAssetNavigation's URL rewrites drop unknown query
-  // params, so this is captured once instead of re-read from searchParams.
-  const [diagramSeed] = useState(() => ({
-    assetId: searchParams.get('seedAsset') ?? undefined,
-    executionId: searchParams.get('seedExecution') ?? undefined,
-  }));
-  const wasRelationsModeRef = useRef(isRelationsMode);
-  useEffect(() => {
-    const wasOn = wasRelationsModeRef.current;
-    wasRelationsModeRef.current = isRelationsMode;
-    if (!diagramParam) return;
-    if (!isRelationsMode) {
-      if (wasOn) {
-        setSearchParams((prev) => {
-          const next = new URLSearchParams(prev);
-          next.delete('diagram');
-          return next;
-        }, { replace: true });
-      } else {
-        setIsRelationsMode(true);
-      }
-    }
-  }, [diagramParam, isRelationsMode, setIsRelationsMode, setSearchParams]);
+  const canListLibrary = can('listAssets') || can('listFolders');
 
   // Asset navigation (URL parsing, breadcrumb, selected file)
   const {
@@ -78,7 +42,7 @@ function AssetsContent() {
     setSelectedExecutionId,
     setSelectedSectionId,
     currentFolderId,
-  } = useAssetNavigation({ selectedOrganizationId, organizationToken });
+  } = useAssetNavigation({ selectedOrganizationId, organizationToken, canListLibrary });
 
   // Scroll preservation
   const { scrollContainerRef, preserveScroll, restoreScrollPosition } = useScrollPreservation();
@@ -94,6 +58,17 @@ function AssetsContent() {
     queryClient.invalidateQueries({ queryKey: ['library', selectedOrganizationId] });
     refreshFileTree();
   };
+
+  // Loading de permisos
+  if (isLoadingPermissions) {
+    return <PageSkeleton />;
+  }
+
+  // Sin ningún permiso sobre la página -> 403 in-place (no depender solo del
+  // route guard, que redirige a /home y deja la superficie sin explicación)
+  if (!canAccessPage) {
+    return <HuemulAccessDenied />;
+  }
 
   // Empty states
   if (!selectedOrganizationId) {
@@ -137,25 +112,7 @@ function AssetsContent() {
           {
             content: (
               <div ref={scrollContainerRef} className="h-full bg-white">
-                {isRelationsMode && diagramId ? (
-                  <DiagramCanvas
-                    key={diagramId}
-                    organizationId={selectedOrganizationId}
-                    diagramId={diagramId}
-                  />
-                ) : isRelationsMode && isNewDiagram ? (
-                  <NewDiagramCanvas
-                    organizationId={selectedOrganizationId}
-                    seedAssetId={diagramSeed.assetId}
-                    seedExecutionId={diagramSeed.executionId}
-                  />
-                ) : isRelationsMode ? (
-                  <RelationshipsCanvas
-                    organizationId={selectedOrganizationId}
-                    documentTypes={documentTypes}
-                    mode="execution"
-                  />
-                ) : selectedFile ? (
+                {selectedFile ? (
                   <AssetContent
                     selectedFile={selectedFile}
                     breadcrumb={breadcrumb}

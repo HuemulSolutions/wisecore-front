@@ -25,6 +25,8 @@ export type PermissionResource =
   | 'folder'
   | 'context'
   | 'asset_type'
+  | 'asset_type_relationship'
+  | 'execution_relationship'
   | 'docx_template'
   | 'template'
   | 'template_section'
@@ -42,6 +44,11 @@ export type PermissionResource =
   | 'external_secret'
   | 'lifecycle_external_publish_action'
   | 'lifecycle_external_review_action'
-  | 'token_usage';
+  | 'token_usage'
+  | 'notification'
+  | 'custom_fields'
+  | 'media'
+  | 'canvas'
+  | 'discussion';
 
 export type Permission = `${PermissionResource}:${PermissionAction}` | 'folder:manage_groups';

@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils'
 
 interface LlmConfigBannerProps {
   organizationId: string | null | undefined
+  /** El aviso solo sirve a quien puede entrar a /models a arreglarlo. */
+  canAccessModels: boolean
 }
 
 interface BannerMessage {
@@ -16,13 +18,13 @@ interface BannerMessage {
   text: string
 }
 
-export function LlmConfigBanner({ organizationId }: LlmConfigBannerProps) {
+export function LlmConfigBanner({ organizationId, canAccessModels }: LlmConfigBannerProps) {
   const { t } = useTranslation('layout')
-  const { data } = useLlmConfigurationStatus(organizationId)
+  const { data } = useLlmConfigurationStatus(organizationId, canAccessModels)
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
   const buildPath = useOrgPath()
 
-  if (!data) return null
+  if (!canAccessModels || !data) return null
 
   const messages: BannerMessage[] = []
 

@@ -28,6 +28,9 @@ export function CreateEditCustomFieldSheet({
   customField,
   onSuccess,
   customFieldMutations,
+  canCreate = false,
+  canUpdate = false,
+  canDelete = false,
 }: CreateEditCustomFieldDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -179,7 +182,12 @@ export function CreateEditCustomFieldSheet({
     return {}
   }
 
+  const canSave = isEditing ? canUpdate : canCreate
+
   const handleSave = async () => {
+    // Defensa en profundidad: un botón oculto no alcanza si el gesto sigue
+    // siendo invocable (ej. Enter en el form).
+    if (!canSave) return
     if (!validateForm()) {
       return
     }
@@ -302,13 +310,13 @@ export function CreateEditCustomFieldSheet({
         description={isEditing ? undefined : t('createDialog.description')}
         maxWidth="sm:max-w-xl"
         cancelLabel={t('common:cancel', 'Cancel')}
-        saveAction={{
+        saveAction={canSave ? {
           label: isEditing ? t('editDialog.saveLabel') : t('createDialog.saveLabel'),
           icon: isEditing ? undefined : Plus,
           onClick: handleSave,
           closeOnSuccess: false,
-        }}
-        footerLeft={isEditing ? (
+        } : undefined}
+        footerLeft={isEditing && canDelete ? (
           <Button
             variant="ghost"
             size="sm"
@@ -344,13 +352,13 @@ export function CreateEditCustomFieldSheet({
             questionTypes={questionTypes}
             formatQuestionType={formatQuestionType}
             errors={errors}
-            disabled={isSubmitting}
+            disabled={isSubmitting || !canSave}
             loadingQuestionTypes={loadingQuestionTypes}
           />
         </div>
       </HuemulSheet>
 
-      {isEditing && (
+      {isEditing && canDelete && (
         <HuemulAlertDialog
           open={deleteOpen}
           onOpenChange={(nextOpen) => {
@@ -366,6 +374,10 @@ export function CreateEditCustomFieldSheet({
           actionLabel={usage ? t('deleteDialog.forceConfirm') : t('actions.deleteCustomField')}
           actionIcon={Trash2}
           onAction={async () => {
+            // Defensa en profundidad: sin canDelete este diálogo no se monta,
+            // pero el early-return queda como segunda capa por si algún
+            // día se reutiliza fuera de este gate.
+            if (!canDelete) return
             try {
               await customFieldMutations.delete.mutateAsync({ id: customField!.id, force: Boolean(usage) })
             } catch (error) {

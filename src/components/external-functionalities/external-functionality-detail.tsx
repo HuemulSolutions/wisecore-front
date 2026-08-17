@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Zap, Edit2, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { JsonViewer } from "@/huemul/components/json-viewer"
 import { cn } from "@/lib/utils"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import type { ExternalFunctionalityDetailProps } from "@/types/external-functionalities"
 import type { ExternalFunctionalityTab as Tab } from "@/types/external-functionalities"
 import { ExternalFunctionalityParamsTab } from "./external-functionality-params-tab"
@@ -32,7 +32,12 @@ export function ExternalFunctionalityDetail({
   onDelete,
 }: ExternalFunctionalityDetailProps) {
   const { t } = useTranslation(["external-functionalities", "common"])
-  const { canAccessExternalParameters } = useUserPermissions()
+  const { can } = usePageAccess("external-systems")
+  // Tabs de lectura gateados con el permiso de LISTAR su recurso (antes usaban
+  // helpers que también aceptaban :c/:u/:d).
+  const canListParams = can("listParameters")
+  const canListLogs = can("listLogs")
+  const canListPublishActions = can("listPublishActions")
   const [activeTab, setActiveTab] = useState<Tab>("docs")
 
   const methodVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -45,13 +50,19 @@ export function ExternalFunctionalityDetail({
 
   const tabs: { id: Tab; label: string; dot?: boolean }[] = [
     { id: "docs", label: t("detail.tabs.docs", "Docs") },
-    ...(canAccessExternalParameters ? [{ id: "params" as Tab, label: t("detail.tabs.params", "Params") }] : []),
+    ...(canListParams ? [{ id: "params" as Tab, label: t("detail.tabs.params", "Params") }] : []),
     { id: "body", label: t("detail.tabs.body", "Body"), dot: !!functionality.body },
-    { id: "logs", label: t("detail.tabs.logs", "Logs") },
-    ...(functionality.objective === "publish_asset"
+    ...(canListLogs ? [{ id: "logs" as Tab, label: t("detail.tabs.logs", "Logs") }] : []),
+    ...(functionality.objective === "publish_asset" && canListPublishActions
       ? [{ id: "lifecycle" as Tab, label: t("detail.tabs.lifecycle", "Lifecycle") }]
       : []),
   ]
+
+  // Si el tab activo deja de estar disponible, caer al primero disponible.
+  useEffect(() => {
+    if (!tabs.some((tab) => tab.id === activeTab)) setActiveTab("docs")
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, canListParams, canListLogs, canListPublishActions, functionality.objective])
 
   return (
     <div className="flex flex-col h-full overflow-hidden">

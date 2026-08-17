@@ -9,6 +9,9 @@ export function CanvasPageDialogs({
   state,
   organizationId,
   onCloseDialog,
+  canCreate = false,
+  canUpdate = false,
+  canDelete = false,
 }: CanvasPageDialogsProps) {
   const closeDialog = (key: keyof CanvasPageState) => (open: boolean) => {
     if (!open) onCloseDialog(key)
@@ -21,6 +24,7 @@ export function CanvasPageDialogs({
         onOpenChange={closeDialog('showCreateDialog')}
         canvas={null}
         organizationId={organizationId}
+        canSave={canCreate}
       />
 
       <CanvasCreateEditDialog
@@ -28,6 +32,7 @@ export function CanvasPageDialogs({
         onOpenChange={closeDialog('editingCanvas')}
         canvas={state.editingCanvas}
         organizationId={organizationId}
+        canSave={canUpdate}
       />
 
       <CanvasDeleteDialog
@@ -35,6 +40,7 @@ export function CanvasPageDialogs({
         onOpenChange={closeDialog('deletingCanvas')}
         canvas={state.deletingCanvas}
         organizationId={organizationId}
+        canDelete={canDelete}
       />
     </>
   )

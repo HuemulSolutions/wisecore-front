@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { CheckCircle, XCircle, Clock, Loader2, Eye, RefreshCw } from "lucide-react"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { useExternalExecutionLogs } from "@/hooks/useExternalFunctionalities"
 import { Button } from "@/components/ui/button"
 import { HuemulTable } from "@/huemul/components/huemul-table"
@@ -140,8 +140,12 @@ export function ExternalFunctionalityLogsTab({
   functionalityId,
 }: ExternalFunctionalityLogsTabProps) {
   const { t } = useTranslation(["external-functionalities", "common"])
-  const { isOrgAdmin, hasPermission } = useUserPermissions()
-  const canList = isOrgAdmin || hasPermission("external_execution_log:l" as never)
+  const { can } = usePageAccess("external-systems")
+  // Los logs de ejecución no tienen recurso propio en PermissionResource: se
+  // gatean con la lectura de la funcionalidad que los produce. Antes se pedía
+  // `external_execution_log:l as never` — un recurso inexistente que dejaba el
+  // tab invisible para todos salvo org admin.
+  const canList = can("listLogs")
 
   const [page, setPage] = useState(1)
   const [selectedLog, setSelectedLog] = useState<ExternalExecutionLog | null>(null)

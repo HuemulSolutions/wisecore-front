@@ -13,6 +13,7 @@ export function CreateProviderDialog({
   supportedProviders,
   onSubmit,
   isCreating,
+  canCreate,
 }: CreateProviderDialogProps) {
   const [name, setName] = useState("")
   const [isManaged, setIsManaged] = useState(false)
@@ -47,6 +48,8 @@ export function CreateProviderDialog({
   }
 
   const handleSave = async () => {
+    if (!canCreate) return
+
     const data: CreateLLMProviderRequest = {
       name,
       type: selectedType,
@@ -87,6 +90,8 @@ export function CreateProviderDialog({
       tooltip: isCredentialsHelpUrl(supportedProvider) ? t('createProviderDialog.getCredentials') : t('createProviderDialog.viewDocs'),
     }
   }
+
+  if (!canCreate) return null
 
   return (
     <HuemulDialog

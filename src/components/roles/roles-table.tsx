@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
-import { Shield, RefreshCw, UserPlus, Trash2, Copy } from "lucide-react"
+import { Shield, UserPlus, Trash2, Copy } from "lucide-react"
 import { type Role } from "@/services/rbac"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import type { RolesTableProps } from '@/types/roles'
@@ -8,7 +8,6 @@ export type { RolesTableProps } from '@/types/roles'
 
 export function RolesTable({
   roles,
-  isLoadingUsers,
   isTableLoading = false,
   isTableFetching = false,
   onAssignToUsers,
@@ -16,7 +15,9 @@ export function RolesTable({
   onDeleteRole,
   onCloneRole,
   pagination,
-  canManage = false,
+  canUpdate,
+  canDelete,
+  canClone,
   selectedIds,
   onSelectionChange
 }: RolesTableProps) {
@@ -83,36 +84,36 @@ export function RolesTable({
     }
   ]
 
-  // Define actions - solo si tiene permisos de manage
-  const actions: HuemulTableAction<Role>[] = canManage ? [
-    {
+  // Cada acción se gatea con el permiso exacto que dispara, no con un único
+  // "canManage" (ver ia context/rbac-audit-guide.md, 14ª pasada).
+  const actions: HuemulTableAction<Role>[] = [
+    ...(canUpdate ? [{
       key: "assign",
-      label: isLoadingUsers ? t('actions.loadingUsers') : t('actions.assignToUsers'),
-      icon: isLoadingUsers ? RefreshCw : UserPlus,
+      label: t('actions.assignToUsers'),
+      icon: UserPlus,
       onClick: onAssignToUsers,
-      className: isLoadingUsers ? "animate-spin" : ""
-    },
-    {
+    }] : []),
+    ...(canUpdate ? [{
       key: "edit",
       label: t('actions.managePermissions'),
       icon: Shield,
       onClick: onEditRole,
       separator: true
-    },
-    {
+    }] : []),
+    ...(canClone ? [{
       key: "clone",
       label: t('actions.cloneRole'),
       icon: Copy,
       onClick: onCloneRole,
-    },
-    {
+    }] : []),
+    ...(canDelete ? [{
       key: "delete",
       label: t('actions.deleteRole'),
       icon: Trash2,
       onClick: onDeleteRole,
       destructive: true
-    }
-  ] : []
+    }] : []),
+  ]
 
   return (
     <HuemulTable

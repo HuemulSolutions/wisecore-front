@@ -11,4 +11,7 @@ export interface CustomFieldPageDialogsProps {
   state: CustomFieldPageState
   onCloseDialog: (dialog: keyof CustomFieldPageState) => void
   customFieldMutations: ReturnType<typeof useCustomFieldMutations>
+  canCreate?: boolean
+  canUpdate?: boolean
+  canDelete?: boolean
 }

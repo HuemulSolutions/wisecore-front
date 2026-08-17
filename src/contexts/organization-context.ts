@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { httpClient } from '@/lib/http-client';
 import { queryClient } from '@/lib/query-client';
 import { logger } from '@/lib/logger';
+import { sessionEvents } from '@/lib/session-events';
 import type { UserOrganization } from '@/types/users';
 import type { OrganizationContextType, OrganizationProviderProps } from '@/types/organizations'
 export type { OrganizationContextType }
@@ -104,6 +105,20 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       clearInterval(interval);
     };
   }, [selectedOrganizationId]);
+
+  // Reset explícito en transiciones de sesión (login/logout) en ESTA pestaña.
+  // Necesario junto con el reset de PermissionsProvider: refreshPermissions(true)
+  // pone hasLoadedPermissionsOnce en false, y ese flag se usa como
+  // "permissionsNeverLoaded" solo si organizationToken sigue truthy — sin
+  // limpiar también el organizationToken de este contexto, las rutas
+  // org-scoped mostrarían un skeleton en vez de la pantalla de login durante
+  // el ~1s que tarda el poll de auth_token en notarlo.
+  useEffect(() => {
+    return sessionEvents.subscribe(() => {
+      logger.log('Session reset, clearing organization context...');
+      resetOrganizationContext();
+    });
+  }, []);
 
   // Guardar en localStorage cuando cambie la organización
   const setSelectedOrganizationId = (id: string) => {

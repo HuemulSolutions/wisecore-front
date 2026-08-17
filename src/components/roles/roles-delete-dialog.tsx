@@ -3,8 +3,11 @@ import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import type { DeleteRoleDialogProps } from '@/types/roles'
 export type { DeleteRoleDialogProps } from '@/types/roles'
 
-export function DeleteRoleDialog({ open, onOpenChange, role, onConfirm }: DeleteRoleDialogProps) {
+export function DeleteRoleDialog({ open, onOpenChange, role, onConfirm, canDelete }: DeleteRoleDialogProps) {
   const { t } = useTranslation('roles')
+
+  if (!canDelete) return null
+
   return (
     <HuemulAlertDialog
       open={open}

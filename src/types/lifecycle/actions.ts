@@ -1,5 +1,6 @@
 import type { QueryKey, UseMutationResult } from '@tanstack/react-query'
 import type { LifecycleStatus, LifecyclePermissions } from '@/types/assets'
+import type { FinalLifecycleStage } from '@/types/document-types'
 
 // ----------------------------------------
 // useLifecycleActions
@@ -11,12 +12,34 @@ export type PendingVersionLifecycleAction =
 
 export type LifecycleChangeSummaryStatus = 'pending' | 'completed' | 'failed' | null
 
+/**
+ * Capacidades RBAC globales que se cruzan con el lifecycle del documento para
+ * decidir si las transiciones están disponibles.
+ *
+ * Granularidad GRUESA a propósito (`asset:u`, no `section_execution:u` /
+ * `version:u`): mismo criterio que `AssetRbacCaps` en useDocumentAccess.ts.
+ */
+export interface LifecycleRbacCaps {
+  /** asset:u — completar/devolver, publicar, archivar, restaurar, asignar versión. */
+  canTransition: boolean
+}
+
 export interface UseLifecycleActionsOptions {
   documentId: string | null | undefined
   executionId: string | null | undefined
   organizationId: string | null | undefined
+  /** Para leer `final_lifecycle_stage` del tipo de activo (oculta "Publicar" si el tipo nunca llega a publicarse). */
+  documentTypeId?: string | null
   lifecycleStatus?: LifecycleStatus | null
   lifecyclePermissions?: LifecyclePermissions | null
+  /**
+   * OBLIGATORIA a propósito (mismo criterio que el 3er parámetro de
+   * `computeFrontendPermissions`): el lifecycle contesta "¿sos el revisor DE
+   * ESTE documento?" y RBAC "¿tu rol te permite esta acción EN ABSOLUTO?".
+   * Sin default, un call-site futuro que se olvide de cruzar RBAC rompe el
+   * build en vez de reabrir el hueco en silencio.
+   */
+  rbac: LifecycleRbacCaps
   /** Extra query keys to refetch (besides `['document-content', documentId]`) after every mutation settles. */
   extraRefreshKeys?: () => QueryKey[]
   /** Runs right before an advance (publish/archive) mutation fires — e.g. to preserve scroll position. */
@@ -28,6 +51,10 @@ export interface UseLifecycleActionsOptions {
 export interface LifecycleActionsController {
   status: LifecycleStatus | null | undefined
   permissions: LifecyclePermissions | null | undefined
+  /** Eje RBAC del cruce (asset:u). Se ANDea con el lifecycle en cada affordance. */
+  canTransition: boolean
+  /** Etapa en la que termina el ciclo de vida del tipo de activo. Default `'publish'` mientras carga. */
+  finalLifecycleStage: FinalLifecycleStage
 
   isCheckDialogOpen: boolean
   setIsCheckDialogOpen: (open: boolean) => void

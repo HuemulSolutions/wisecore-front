@@ -29,6 +29,7 @@ export function ExternalFunctionalityCreateSheet({
   onOpenChange,
   organizationId,
   systemId,
+  canCreate,
   onSuccess,
 }: ExternalFunctionalityCreateDialogProps) {
   const { t } = useTranslation(["external-functionalities", "common"])
@@ -41,6 +42,7 @@ export function ExternalFunctionalityCreateSheet({
   ) => setFormData((prev) => ({ ...prev, [field]: value }))
 
   const handleSubmit = async () => {
+    if (!canCreate) return
     await new Promise<void>((resolve, reject) => {
       createExternalFunctionality.mutate(formData, {
         onSuccess: () => {
@@ -52,6 +54,8 @@ export function ExternalFunctionalityCreateSheet({
       })
     })
   }
+
+  if (!canCreate) return null
 
   return (
     <HuemulSheet

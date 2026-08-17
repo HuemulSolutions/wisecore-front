@@ -56,6 +56,14 @@ export interface LifecycleAccessRuleResponse {
   timestamp: string;
 }
 
+/**
+ * `all` = toda la organización (implica propietario, hace irrelevantes roles y
+ * reglas); `owner` = solo el propietario; `custom` = solo los roles listados
+ * (propietario excluido); `custom_owner` = roles listados OR propietario.
+ * Única fuente de verdad de la semántica: `src/lib/lifecycle-access.ts`.
+ */
+export type LifecycleAccessType = 'all' | 'owner' | 'custom' | 'custom_owner';
+
 export interface LifecycleStep {
   id: string;
   document_type_id: string;
@@ -63,7 +71,7 @@ export interface LifecycleStep {
   name: string | null;
   order: number | null;
   mode: 'manual' | 'automatic';
-  access_type: 'all' | 'owner' | 'custom' | 'custom_owner';
+  access_type: LifecycleAccessType;
   valid_from: string | null;
   valid_to: string | null;
   sla_value: number | null;
@@ -85,7 +93,7 @@ export interface LifecycleStepsResponse {
 }
 
 export interface UpdateLifecycleStepData {
-  access_type?: 'all' | 'owner' | 'custom' | 'custom_owner';
+  access_type?: LifecycleAccessType;
   name?: string;
   order?: number;
   mode?: 'manual' | 'automatic';

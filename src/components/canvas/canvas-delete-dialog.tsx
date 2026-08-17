@@ -12,14 +12,16 @@ export function CanvasDeleteDialog({
   onOpenChange,
   canvas,
   organizationId,
+  canDelete = false,
 }: CanvasDeleteDialogProps) {
   const { t } = useTranslation(['canvas', 'common'])
   const mutations = useCanvasMutations(organizationId)
 
-  if (!canvas) return null
+  if (!canvas || !canDelete) return null
 
   const handleDelete = () =>
     new Promise<void>((resolve, reject) => {
+      if (!canDelete) return reject(new Error("Forbidden"))
       mutations.deleteCanvas.mutate(canvas.id, {
         onSuccess: () => { onOpenChange(false); resolve() },
         onError: (err) => reject(err),

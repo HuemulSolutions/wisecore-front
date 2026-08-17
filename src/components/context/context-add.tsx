@@ -24,7 +24,9 @@ import type { AddContextSheetProps } from '@/types/context';
 
 export type { AddContextSheetProps } from '@/types/context';
 
-export default function AddContext({ id, isSheetOpen = true, canEdit = true }: AddContextSheetProps) {
+// `canEdit` es secure-by-default (punto 9 del checklist): su único call-site
+// (assets-context-sheet.tsx) ya lo pasa explícito desde el cruce lifecycle × RBAC.
+export default function AddContext({ id, isSheetOpen = true, canEdit = false }: AddContextSheetProps) {
   const { t } = useTranslation('context')
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

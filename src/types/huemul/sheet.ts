@@ -1,6 +1,15 @@
 import type { ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 
+export type HuemulSheetSize = "sm" | "md" | "lg" | "xl" | "2xl" | "wide";
+
+/**
+ * `plain` (default) — icono suelto junto al título, como siempre.
+ * `tile` — icono dentro de un cuadrado de 30px con fondo, título 16px y
+ * descripción 13px. Usado por los sheets de configuración rediseñados.
+ */
+export type HuemulSheetIconVariant = "plain" | "tile";
+
 export interface HuemulSheetAction {
   label: string;
   onClick?: () => void | Promise<void>;
@@ -20,6 +29,7 @@ export interface HuemulSheetProps {
   description?: string;
   icon?: LucideIcon;
   iconClassName?: string;
+  iconVariant?: HuemulSheetIconVariant;
   bodyLoading?: boolean;
   showFooter?: boolean;
   showCancelButton?: boolean;
@@ -30,9 +40,11 @@ export interface HuemulSheetProps {
   closeDelay?: number;
   side?: "top" | "right" | "bottom" | "left";
   maxWidth?: string;
+  size?: HuemulSheetSize;
   className?: string;
   bodyClassName?: string;
   headerExtra?: ReactNode;
   footerLeft?: ReactNode;
+  onOpenAutoFocus?: (event: Event) => void;
   children: ReactNode;
 }

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useOrganization } from "@/contexts/organization-context"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { useCanvasList, canvasQueryKeys } from "@/hooks/useCanvas"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
@@ -32,15 +32,18 @@ export default function CanvasPage() {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
   const { selectedOrganizationId, organizationToken } = useOrganization()
-  const { canAccessCanvas, isOrgAdmin, hasPermission, isLoading: isLoadingPermissions } = useUserPermissions()
+  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('canvas')
   const queryClient = useQueryClient()
 
-  const canManage = isOrgAdmin || hasPermission('canvas:c') || hasPermission('canvas:u') || hasPermission('canvas:d')
+  const canList = can('listCanvas')
+  const canCreate = can('createCanvas')
+  const canUpdate = can('updateCanvas')
+  const canDelete = can('deleteCanvas')
 
   const { data: canvasResponse, isLoading, isFetching, error } = useCanvasList(
     selectedOrganizationId ?? "",
     {
-      enabled: !!selectedOrganizationId && !!organizationToken && canAccessCanvas,
+      enabled: !!selectedOrganizationId && !!organizationToken && canList,
       page,
       pageSize,
       search: state.searchTerm || undefined,
@@ -57,7 +60,7 @@ export default function CanvasPage() {
   if (isLoadingPermissions) return <CanvasPageSkeleton />
 
   // Access check
-  if (!canAccessCanvas) return <CanvasPageEmptyState type="access-denied" />
+  if (!canAccessPage) return <CanvasPageEmptyState type="access-denied" />
 
   // Organization check
   if (!selectedOrganizationId || !organizationToken) return <CanvasPageEmptyState type="no-organization" />
@@ -96,7 +99,7 @@ export default function CanvasPage() {
               updateState({ searchTerm: value })
               setPage(1)
             }}
-            canManage={canManage}
+            canCreate={canCreate}
           />
         }
         headerClassName="p-6 md:p-8 pb-0 md:pb-0"
@@ -111,7 +114,7 @@ export default function CanvasPage() {
             ) : items.length === 0 && !state.searchTerm ? (
               <CanvasContentEmptyState
                 type="empty"
-                onCreateFirst={canManage ? () => updateState({ showCreateDialog: true }) : undefined}
+                onCreateFirst={canCreate ? () => updateState({ showCreateDialog: true }) : undefined}
               />
             ) : items.length === 0 && state.searchTerm ? (
               <CanvasContentEmptyState
@@ -126,7 +129,8 @@ export default function CanvasPage() {
                 items={items}
                 onEdit={(canvas: Canvas) => updateState({ editingCanvas: canvas })}
                 onDelete={(canvas: Canvas) => updateState({ deletingCanvas: canvas })}
-                canManage={canManage}
+                canUpdate={canUpdate}
+                canDelete={canDelete}
                 isLoading={isTableLoading}
                 isFetching={isTableFetching}
                 pagination={{
@@ -152,6 +156,9 @@ export default function CanvasPage() {
         state={state}
         organizationId={selectedOrganizationId}
         onCloseDialog={closeDialog}
+        canCreate={canCreate}
+        canUpdate={canUpdate}
+        canDelete={canDelete}
       />
     </>
   )

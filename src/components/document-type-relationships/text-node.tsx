@@ -11,15 +11,23 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
 import { cn } from "@/lib/utils"
-import type { CanvasElementKind } from "@/types/document-type-relationships"
+import type { CanvasElementKind, CanvasElementRole } from "@/types/document-type-relationships"
 
 export interface CanvasElementNodeData {
   id: string
   kind: CanvasElementKind
   content: string
   color: string
+  // Assigned RBAC role — turns a container into a lane, or is the sole identity
+  // of a free-standing "role" node.
+  role?: CanvasElementRole
   onContentChange?: (id: string, content: string) => void
   onColorChange?: (id: string, color: string) => void
+  // Opens the role picker dialog scoped to this element (canvas owns the dialog —
+  // the actual assignment lands back on this node's data once the user picks one).
+  onRequestRolePick?: (id: string) => void
+  // Container-only: clears an already-assigned role without opening the picker.
+  onClearRole?: (id: string) => void
   onRemove?: (id: string) => void
   // View-only mode: no resize, no inline editing, no context menu.
   readOnly?: boolean
@@ -51,7 +59,7 @@ export function TextNode({ data, selected }: NodeProps<TextNodeType>) {
   const nodeContent = (
     <div
       className={cn(
-        "px-2 py-1 rounded-md min-w-[80px] max-w-[280px]",
+        "px-2 py-1 rounded-md min-w-20 max-w-70",
         "transition-shadow",
         selected ? "ring-2 ring-primary/40" : "",
       )}
@@ -66,13 +74,13 @@ export function TextNode({ data, selected }: NodeProps<TextNodeType>) {
           onKeyDown={(e) => {
             if (e.key === "Escape") { setDraft(data.content); setIsEditing(false) }
           }}
-          className="nodrag w-full min-w-[120px] resize-none bg-transparent outline-none border border-dashed rounded px-1 text-sm"
+          className="nodrag w-full min-w-30 resize-none bg-transparent outline-none border border-dashed rounded px-1 text-sm"
           style={{ color: data.color || "#0f172a" }}
           rows={2}
         />
       ) : (
         <p
-          className="text-sm whitespace-pre-wrap break-words select-none"
+          className="text-sm whitespace-pre-wrap wrap-break-word select-none"
           style={{ color: data.color || "#0f172a" }}
         >
           {data.content}

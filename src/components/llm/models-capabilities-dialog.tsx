@@ -14,6 +14,7 @@ export function ModelCapabilitiesDialog({
   model,
   isUpdating,
   onSubmit,
+  canUpdate,
 }: ModelCapabilitiesDialogProps) {
   const { t } = useTranslation('models')
   const [selected, setSelected] = useState<string[]>([])
@@ -37,9 +38,11 @@ export function ModelCapabilitiesDialog({
   }
 
   const handleSave = () => {
-    if (!model) return
+    if (!model || !canUpdate) return
     onSubmit(model, selected)
   }
+
+  if (!canUpdate) return null
 
   return (
     <HuemulDialog

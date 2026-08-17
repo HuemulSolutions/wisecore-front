@@ -2,9 +2,9 @@ import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { downloadBlobResponse } from "@/lib/blob-download";
 import { logger } from "@/lib/logger";
-import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics, DocumentStatisticsResponse, DocumentMediaUrls, DocumentMediaUrlsResponse } from "@/types/assets";
+import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, ImportDocumentFromUrlParams, ImportDocumentAsyncResponse, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics, DocumentStatisticsResponse, DocumentMediaUrls, DocumentMediaUrlsResponse } from "@/types/assets";
 
-export type { ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics };
+export type { ImportDocumentFromFileParams, ImportDocumentFromUrlParams, ImportDocumentAsyncResponse, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics };
 
 export async function getAllDocuments(organizationId: string, documentTypeId?: string, search?: string) {
   const url = new URL(`${backendUrl}/documents/`);
@@ -268,6 +268,30 @@ export async function importDocumentFromFile(params: ImportDocumentFromFileParam
 
   const data = await response.json();
   logger.log('Document imported from file:', data.data);
+  return data.data;
+}
+
+export async function importDocumentFromUrl(params: ImportDocumentFromUrlParams): Promise<ImportDocumentAsyncResponse> {
+  const { organizationId, ...rest } = params;
+  const body: Record<string, unknown> = {
+    url: rest.url,
+    name: rest.name,
+    document_type_id: rest.document_type_id,
+  };
+  if (rest.description) body.description = rest.description;
+  if (rest.internal_code) body.internal_code = rest.internal_code;
+  if (rest.folder_id != null) body.folder_id = rest.folder_id;
+  if (rest.section_separator) body.section_separator = rest.section_separator;
+  if (rest.force_import !== undefined) body.force_import = rest.force_import;
+
+  const response = await httpClient.post(`${backendUrl}/documents/import-from-url`, body, {
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
+
+  const data = await response.json();
+  logger.log('Document imported from URL:', data.data);
   return data.data;
 }
 

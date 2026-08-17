@@ -23,7 +23,7 @@ export function OrganizationTable({
   canUpdate = false,
   canDelete = false,
   canSetAdmin = false,
-  isRootAdmin = false,
+  canManageSystemLimits = false,
   maxHeight,
   isLoading = false,
   isFetching = false
@@ -61,7 +61,7 @@ export function OrganizationTable({
         </div>
       )
     },
-    ...(isRootAdmin ? [
+    ...(canManageSystemLimits ? [
       {
         key: "max_users" as const,
         label: t('columns.maxUsers'),

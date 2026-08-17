@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import { getOrganizationUsers, setOrganizationAdmin } from "@/services/organizations"
 
 // Query keys for organizations
@@ -34,11 +35,12 @@ export function useOrganizationUsers(
 // Hook for setting organization admin mutation
 export function useSetOrganizationAdmin() {
   const queryClient = useQueryClient()
+  const { t } = useTranslation('organizations')
 
   return useMutation({
     mutationFn: ({ organizationId, userId }: { organizationId: string; userId: string }) =>
       setOrganizationAdmin(organizationId, userId),
-    meta: { successMessage: 'Organization admin set successfully' },
+    meta: { successMessage: t('toasts.adminSet') },
     onSuccess: (_, variables) => {
       // Invalidate the users query for this organization to refresh is_org_admin status
       queryClient.invalidateQueries({

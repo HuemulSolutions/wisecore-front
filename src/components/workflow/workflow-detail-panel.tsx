@@ -15,6 +15,8 @@ import { HuemulLifecycleActions } from "@/huemul/components/huemul-lifecycle-act
 import { HuemulLifecycleDialogs } from "@/huemul/components/huemul-lifecycle-dialogs"
 import { getDocumentContent } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
+import { usePageAccess } from "@/hooks/usePageAccess"
+import { lifecycleAllows } from "@/hooks/useDocumentAccess"
 import { workflowQueryKeys } from "@/hooks/useWorkflows"
 import { useLifecycleActions } from "@/hooks/useLifecycleActions"
 import type { AssetContentResponse, ContentSection } from "@/types/assets"
@@ -55,7 +57,12 @@ export function WorkflowDetailPanel({
   const { t } = useTranslation(["workflow", "sections"])
   const { t: tCommon } = useTranslation("common")
   const { selectedOrganizationId } = useOrganization()
+  const { can } = usePageAccess("workflow")
   const queryClient = useQueryClient()
+
+  // Eje RBAC del panel (grueso, `asset:*` — mismo criterio que useAssetContentPermissions).
+  const canReadAsset = can("readAsset")
+  const canUpdateAssetContent = can("updateAssetContent")
 
   // null = pantalla de resumen de secciones; number = paso del wizard (índice en formSections).
   // Solo una fila ya existente (`row`) tiene algo que resumir — un express recién iniciado
@@ -88,6 +95,7 @@ export function WorkflowDetailPanel({
   }, [row?.execution_id, template?.id])
 
   const handleCreateWithName = () => {
+    if (!can("createExpressAsset")) return
     onSubmitName?.(nameValue.trim(), descriptionValue.trim() || undefined)
   }
 
@@ -97,7 +105,7 @@ export function WorkflowDetailPanel({
       getDocumentContent(documentId ?? "", selectedOrganizationId ?? "", executionId) as Promise<
         AssetContentResponse["data"]
       >,
-    enabled: !!selectedOrganizationId && !!documentId,
+    enabled: !!selectedOrganizationId && !!documentId && canReadAsset,
     staleTime: 60 * 1000,
     retry: 0,
   })
@@ -174,6 +182,12 @@ export function WorkflowDetailPanel({
   const documentName = editedAsset?.name ?? row?.document_name ?? createdDoc?.name ?? template?.name
   const internalCode = editedAsset?.internalCode ?? row?.internal_code
 
+  // Cruce lifecycle × RBAC (AND, ver ia context/rbac-audit-guide.md): el lifecycle
+  // contesta "¿sos el editor DE ESTE documento?" y RBAC "¿tu rol te permite escribir
+  // EN ABSOLUTO?". `lifecycleAllows(undefined, ...) === true` degrada a "solo RBAC
+  // decide", que es el comportamiento deseado cuando el asset type no tiene lifecycle.
+  const canAnswerForm = canUpdateAssetContent && lifecycleAllows(data?.lifecycle_permissions, "edit")
+
   // Ciclo de vida del documento (completar/devolver, publicar, archivar, restaurar,
   // asignar versión, re-lanzar publish externo) — mismo controlador que assets-content.tsx.
   const lifecycleExecutionId = executionId ?? data?.execution_id
@@ -181,8 +195,10 @@ export function WorkflowDetailPanel({
     documentId,
     executionId: lifecycleExecutionId,
     organizationId: selectedOrganizationId,
+    documentTypeId: data?.document_type?.id,
     lifecycleStatus: data?.lifecycle_status,
     lifecyclePermissions: data?.lifecycle_permissions,
+    rbac: { canTransition: canUpdateAssetContent },
     extraRefreshKeys: () => [workflowQueryKeys.listBase()],
   })
 
@@ -211,7 +227,7 @@ export function WorkflowDetailPanel({
               className="h-8 w-8 p-0"
             />
           )}
-          {documentId && !needsNameStep && (
+          {documentId && !needsNameStep && canUpdateAssetContent && (
             <HuemulButton
               variant="ghost"
               size="sm"
@@ -301,8 +317,8 @@ export function WorkflowDetailPanel({
             formFields={currentSection.form_fields ?? []}
             organizationId={selectedOrganizationId ?? undefined}
             documentId={documentId}
-            canInteract
-            isEditing
+            canInteract={canAnswerForm}
+            isEditing={canAnswerForm}
             onExitEditing={goNext}
             reviewStatus={currentSection.review_status as ReviewStatus | null}
             onReviewStatusChange={(status) => handleReviewStatusChange(currentSection.id, status)}
@@ -340,7 +356,11 @@ export function WorkflowDetailPanel({
             iconPosition="right"
             label={isLastStep ? t("wizard.finish") : t("wizard.next")}
             disabled={isFormSaving}
-            onClick={() => formSectionRef.current?.exit()}
+            // Sin permiso de escritura el wizard sigue navegable pero no pasa por
+            // `exit()`: ese handle guarda los cambios Y marca la sección como
+            // 'finished' (PATCH /review_status), dos escrituras que no consultan
+            // `canInteract`. En modo lectura se avanza de paso y nada más.
+            onClick={() => (canAnswerForm ? formSectionRef.current?.exit() : goNext())}
           />
         </div>
       )}
@@ -349,6 +369,7 @@ export function WorkflowDetailPanel({
         <WorkflowAssetEditSheet
           open={isEditSheetOpen}
           onOpenChange={setIsEditSheetOpen}
+          canSave={canUpdateAssetContent}
           documentId={documentId}
           currentName={documentName ?? ""}
           currentInternalCode={internalCode}

@@ -17,7 +17,8 @@ export function ModelDialog({
   providers,
   isCreating,
   isUpdating,
-  onSubmit
+  onSubmit,
+  canSave,
 }: ModelDialogProps) {
   const isEdit = !!model
   const { t } = useTranslation('models')
@@ -57,6 +58,7 @@ export function ModelDialog({
   const isSubmitting = isCreating || isUpdating
 
   const handleSave = () => {
+    if (!canSave) return
     onSubmit({ name: displayName, internal_name: technicalName, capabilities, provider_id: selectedProviderId || undefined })
   }
 
@@ -70,6 +72,8 @@ export function ModelDialog({
     displayName.trim() !== '' &&
     technicalName.trim() !== '' &&
     (!isEdit ? capabilities.length > 0 && (!!providerName || !!selectedProviderId) : true)
+
+  if (!canSave) return null
 
   return (
     <HuemulDialog

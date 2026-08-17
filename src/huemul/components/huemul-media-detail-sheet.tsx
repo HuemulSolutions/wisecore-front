@@ -28,8 +28,15 @@ export interface HuemulMediaDetailSheetProps {
   open: boolean
   onOpenChange: (v: boolean) => void
   organizationId: string
-  /** When false, hides the danger zone (delete media). Defaults to true. */
-  canDelete?: boolean
+  /**
+   * Los tres flags son obligatorios a propósito (sin default): un default en
+   * `true` es indistinguible de "todavía no lo gatearon", y así cualquier
+   * call-site nuevo rompe el build en vez de reabrir el hueco en silencio.
+   * Ver punto 9 de ia context/rbac-audit-guide.md.
+   */
+  canCreate: boolean // media:c — subir una versión nueva
+  canUpdate: boolean // media:u — editar nombre/descripción
+  canDelete: boolean // media:d — borrar la media y sus versiones
 }
 
 export function HuemulMediaDetailSheet({
@@ -37,7 +44,9 @@ export function HuemulMediaDetailSheet({
   open,
   onOpenChange,
   organizationId,
-  canDelete = true,
+  canCreate,
+  canUpdate,
+  canDelete,
 }: HuemulMediaDetailSheetProps) {
   const { t } = useTranslation("media")
   const { t: tCommon } = useTranslation("common")
@@ -107,7 +116,7 @@ export function HuemulMediaDetailSheet({
   }
 
   async function handleSaveEdit() {
-    if (!item) return
+    if (!item || !canUpdate) return
     try {
       const updated = await patchMedia.mutateAsync({
         mediaId: item.id,
@@ -123,7 +132,7 @@ export function HuemulMediaDetailSheet({
   }
 
   async function uploadVersionFile(file: File) {
-    if (!item || uploadMediaVersion.isPending) return
+    if (!item || !canCreate || uploadMediaVersion.isPending) return
     if (!IMAGE_TYPES.has(file.type.toLowerCase())) {
       toast.error(t("upload.invalidImageType", { formats: "PNG, JPG, GIF, BMP" }))
       return
@@ -165,6 +174,7 @@ export function HuemulMediaDetailSheet({
               nextVersionNumber={nextVersionNumber}
               uploading={uploadMediaVersion.isPending}
               sheetOpen={open}
+              canUpload={canCreate}
               onDownload={() => downloadVersion(currentVersion)}
               onPickFile={() => versionFileInputRef.current?.click()}
               onFileDropped={uploadVersionFile}
@@ -181,7 +191,7 @@ export function HuemulMediaDetailSheet({
                       {t("detail.details")}
                     </p>
                     <Separator className="flex-1" />
-                    {!isEditingInfo && (
+                    {canUpdate && !isEditingInfo && (
                       <HuemulButton
                         variant="link"
                         size="sm"
@@ -193,7 +203,7 @@ export function HuemulMediaDetailSheet({
                     )}
                   </div>
 
-                  {isEditingInfo ? (
+                  {canUpdate && isEditingInfo ? (
                     <div className="flex flex-col gap-4">
                       <HuemulField
                         type="text"
@@ -273,22 +283,26 @@ export function HuemulMediaDetailSheet({
                       loading={versionsFetching}
                       onClick={() => refetchVersions()}
                     />
-                    <HuemulButton
-                      variant="outline"
-                      size="sm"
-                      className="h-6 shrink-0 px-2 text-xs hover:cursor-pointer"
-                      icon={Plus}
-                      label={t("detail.uploadShort")}
-                      loading={uploadMediaVersion.isPending}
-                      onClick={() => versionFileInputRef.current?.click()}
-                    />
-                    <input
-                      ref={versionFileInputRef}
-                      type="file"
-                      accept={IMAGE_ACCEPT}
-                      className="sr-only"
-                      onChange={handleVersionInputChange}
-                    />
+                    {canCreate && (
+                      <>
+                        <HuemulButton
+                          variant="outline"
+                          size="sm"
+                          className="h-6 shrink-0 px-2 text-xs hover:cursor-pointer"
+                          icon={Plus}
+                          label={t("detail.uploadShort")}
+                          loading={uploadMediaVersion.isPending}
+                          onClick={() => versionFileInputRef.current?.click()}
+                        />
+                        <input
+                          ref={versionFileInputRef}
+                          type="file"
+                          accept={IMAGE_ACCEPT}
+                          className="sr-only"
+                          onChange={handleVersionInputChange}
+                        />
+                      </>
+                    )}
                   </div>
 
                   {showVersionsSkeleton ? (
@@ -306,7 +320,7 @@ export function HuemulMediaDetailSheet({
                           key={v.id}
                           version={v}
                           isCurrent={v.id === currentVersion?.id}
-                          onDelete={() => setDeleteVersionTarget(v)}
+                          onDelete={canDelete ? () => setDeleteVersionTarget(v) : undefined}
                         />
                       ))}
                     </div>
@@ -341,7 +355,8 @@ export function HuemulMediaDetailSheet({
         description={t("detail.deleteMediaDescription")}
         actionLabel={t("detail.deleteMediaConfirm")}
         onAction={async () => {
-          await deleteMedia.mutateAsync(item!.id)
+          if (!canDelete || !item) return
+          await deleteMedia.mutateAsync(item.id)
           toast.success(t("detail.deleteMediaSuccess"))
           onOpenChange(false)
         }}
@@ -355,9 +370,10 @@ export function HuemulMediaDetailSheet({
         description={t("detail.deleteVersionDescription", { version: deleteVersionTarget?.version_number })}
         actionLabel={t("detail.deleteVersionConfirm")}
         onAction={async () => {
+          if (!canDelete || !item || !deleteVersionTarget) return
           await deleteMediaVersion.mutateAsync({
-            mediaId: item!.id,
-            versionNumber: deleteVersionTarget!.version_number,
+            mediaId: item.id,
+            versionNumber: deleteVersionTarget.version_number,
           })
           toast.success(t("detail.deleteVersionSuccess"))
           setDeleteVersionTarget(null)

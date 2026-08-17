@@ -25,6 +25,9 @@ const translations = {
       en: "Remove from Canvas",
       es: "Quitar del Canvas",
     },
+    assignRole: { en: "Assign role", es: "Asignar rol" },
+    changeRole: { en: "Change role", es: "Cambiar rol" },
+    clearRole: { en: "Clear role", es: "Quitar rol" },
     noRelationshipsFound: {
       en: "No relationships found for this asset type",
       es: "No se encontraron relaciones para este tipo de activo",
@@ -45,6 +48,7 @@ const translations = {
     refresh: { en: "Refresh list", es: "Refrescar lista" },
     container: { en: "Container", es: "Contenedor" },
     text: { en: "Text", es: "Texto" },
+    role: { en: "Role", es: "Rol" },
   },
   canvas: {
     empty: {
@@ -56,11 +60,28 @@ const translations = {
       es: "Conecta dos nodos de tipos de activo para crear una relación",
     },
     clearAll: { en: "Clear canvas", es: "Limpiar canvas" },
-    saveAsDiagram: { en: "Save as Diagram", es: "Guardar como Diagrama" },
+    clearConfirm: {
+      title: { en: "Clear canvas?", es: "¿Limpiar el canvas?" },
+      description: {
+        en: "This removes every node and edge from the canvas and exits editing mode. Unsaved changes are lost.",
+        es: "Esto elimina todos los nodos y conexiones del canvas y sale del modo edición. Los cambios sin guardar se pierden.",
+      },
+      confirmLabel: { en: "Clear canvas", es: "Limpiar canvas" },
+    },
+    diagramActions: { en: "Diagram", es: "Diagrama" },
+    saveAsNewDiagram: { en: "Save as new diagram", es: "Guardar como nuevo diagrama" },
     saveChanges: { en: "Save changes", es: "Guardar cambios" },
+    editDiagramData: { en: "Edit diagram details", es: "Editar datos del diagrama" },
     loadDiagram: { en: "Load Diagram", es: "Cargar Diagrama" },
+    editingDiagram: { en: "Editing: {{name}}", es: "Editando: {{name}}" },
+    add: { en: "Add", es: "Agregar" },
     addContainer: { en: "Add Container", es: "Agregar Contenedor" },
     addText: { en: "Add Text", es: "Agregar Texto" },
+    addRole: { en: "Add Role", es: "Agregar Rol" },
+    roleConnectionsUnsupported: {
+      en: "Connections from role nodes aren't supported yet",
+      es: "Las conexiones desde nodos de rol aún no están soportadas",
+    },
   },
   loadDiagramSheet: {
     title: { en: "Load Diagram", es: "Cargar Diagrama" },
@@ -73,6 +94,7 @@ const translations = {
   saveAsDiagramDialog: {
     title: { en: "Save as Diagram", es: "Guardar como Diagrama" },
     updateTitle: { en: "Save changes to Diagram", es: "Guardar cambios del Diagrama" },
+    editMetadataTitle: { en: "Edit diagram details", es: "Editar datos del diagrama" },
     nameLabel: { en: "Name", es: "Nombre" },
     namePlaceholder: { en: "e.g. Main content map", es: "ej. Mapa de contenido principal" },
     descriptionLabel: { en: "Description", es: "Descripción" },
@@ -80,8 +102,10 @@ const translations = {
     mainExecutionPlaceholder: { en: "Select a version placed on the canvas", es: "Selecciona una versión ubicada en el lienzo" },
     save: { en: "Save Diagram", es: "Guardar Diagrama" },
     update: { en: "Save changes", es: "Guardar cambios" },
+    editMetadata: { en: "Save details", es: "Guardar datos" },
     successToast: { en: "Diagram created successfully", es: "Diagrama creado correctamente" },
     updateSuccessToast: { en: "Diagram updated successfully", es: "Diagrama actualizado correctamente" },
+    metadataSuccessToast: { en: "Diagram details updated", es: "Datos del diagrama actualizados" },
     viewDiagrams: { en: "View diagrams", es: "Ver diagramas" },
   },
   panel: {
@@ -132,12 +156,19 @@ const translations = {
   elementPanel: {
     containerTitle: { en: "Container", es: "Contenedor" },
     textTitle: { en: "Text", es: "Texto" },
+    roleTitle: { en: "Role", es: "Rol" },
     title: { en: "Title", es: "Título" },
     content: { en: "Content", es: "Contenido" },
     borderColor: { en: "Border color", es: "Color de borde" },
     textColor: { en: "Text color", es: "Color de texto" },
+    color: { en: "Color", es: "Color" },
     defaultContainerTitle: { en: "Container", es: "Contenedor" },
     defaultTextContent: { en: "Text", es: "Texto" },
+    role: { en: "Role", es: "Rol" },
+    noRole: { en: "No role assigned", es: "Sin rol asignado" },
+    selectRole: { en: "Select role", es: "Seleccionar rol" },
+    changeRole: { en: "Change role", es: "Cambiar rol" },
+    clearRole: { en: "Clear role", es: "Quitar rol" },
   },
   relationship: {
     name: { en: "Name", es: "Nombre" },

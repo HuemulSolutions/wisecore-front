@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { httpClient } from '@/lib/http-client';
 import { queryClient } from '@/lib/query-client';
 import { logger } from '@/lib/logger';
+import { sessionEvents } from '@/lib/session-events';
 import type { User } from '@/types/users';
 import type { AuthContextType, AuthProviderProps } from '@/types/auth'
 export type { AuthContextType }
@@ -70,9 +71,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     localStorage.setItem('auth_user', JSON.stringify(userData));
     httpClient.setLoginToken(authToken);
     logger.log('AuthContext: Login completed, login token set in httpClient');
+    // Avisa a PermissionsProvider/OrganizationContext (no pueden consumir
+    // useAuth() sin invertir el orden de providers, ver session-events.ts).
+    // No-op en el flujo logout→login (ya está limpio), pero mantiene el
+    // invariante "todo borde de sesión limpia el estado derivado" también
+    // para el caso de login sin logout previo.
+    sessionEvents.emitReset('login');
   };
 
-  const logout = () => {
+  const clearSession = () => {
     setToken(null);
     setUser(null);
     localStorage.removeItem('auth_token');
@@ -82,10 +89,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     httpClient.setLoginToken(null);
     httpClient.setOrganizationToken(null);
     httpClient.setOrganizationId(null);
+  };
+
+  const logout = () => {
+    clearSession();
     // Purge cached data so it can't leak into the next session in this tab
     // (e.g. a different user logging in right after, or the same user
     // logging back into a different organization).
     queryClient.clear();
+    // Debe ir al final: PermissionsProvider/OrganizationContext leen el
+    // estado ya limpio (httpClient nulo) al reaccionar a este evento.
+    sessionEvents.emitReset('logout');
   };
 
   const updateUser = (updatedUser: User) => {

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, RefreshCw, Edit, Trash2, FileUp, FileJson, Search, X, FolderUp, ShieldCheck, Network, MoreVertical, Sparkles } from "lucide-react"
+import { Plus, File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, RefreshCw, Edit, Trash2, FileUp, FileJson, Search, X, FolderUp, ShieldCheck, Sparkles } from "lucide-react"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -16,7 +16,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
@@ -36,6 +35,7 @@ import { ApiError } from "@/types/api-error"
 import { cn } from "@/lib/utils"
 import { logger } from "@/lib/logger"
 import { useNavKnowledge } from "@/contexts/nav-knowledge-context"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { handleFolderActionError, isRootGroupFolderNode, buildFocusedTree } from "@/components/layout/nav-knowledge-utils"
 
 // Las áreas (subcarpetas de Grupal) se distinguen visualmente de una carpeta común.
@@ -56,7 +56,7 @@ function renderKnowledgeFolderIcon(node: FileNode, isExpanded: boolean) {
 export function NavKnowledgeHeader() {
   const { t } = useTranslation('layout')
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch, isRelationsMode, setIsRelationsMode } = useNavKnowledge()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch } = useNavKnowledge()
   const { canCreate, isOrgAdmin, hasAnyPermission, canManageGroupFolders } = useUserPermissions()
   const [isRefreshingTree, setIsRefreshingTree] = useState(false)
 
@@ -80,7 +80,6 @@ export function NavKnowledgeHeader() {
       hasAnyPermission(['external_functionality:l', 'external_functionality:r']))
   const canImportFromExternal = canCreateAsset && canBrowseExternalCatalog
   const hasAnyCreatePermission = canCreateAsset || canCreateFolder
-  const canListExecRelationships = isOrgAdmin || hasAnyPermission(['execution_relationship:l', 'execution_relationship:r'])
 
   if (!selectedOrganizationId) {
     return null
@@ -194,25 +193,6 @@ export function NavKnowledgeHeader() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-6 w-6 hover:cursor-pointer">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {canListExecRelationships && (
-                <DropdownMenuCheckboxItem
-                  checked={isRelationsMode}
-                  onCheckedChange={() => setIsRelationsMode(!isRelationsMode)}
-                  className="hover:cursor-pointer"
-                >
-                  <Network className="mr-2 h-4 w-4" />
-                  {t('knowledge.relationsModeTooltip')}
-                </DropdownMenuCheckboxItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
       {isSearchOpen && (
@@ -231,24 +211,57 @@ export function NavKnowledgeHeader() {
   )
 }
 
-export function NavKnowledgeContent() {
+export interface NavKnowledgeContentProps {
+  /**
+   * Modo editor de diagramas (/diagrams): los assets se arrastran al canvas en
+   * vez de abrirse. Es una prop y no un estado global porque el modo ya no es
+   * un toggle que viaja entre páginas: lo determina la página que monta el árbol.
+   */
+  diagramMode?: boolean
+}
+
+export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContentProps = {}) {
   const { t } = useTranslation('layout')
   const navigate = useOrgNavigate()
   const location = useLocation()
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, pendingFocusAssetIdRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleCreateFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage, isRelationsMode } = useNavKnowledge()
+  const { fileTreeRef, pendingFocusAssetIdRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleCreateFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
   const [documentTypeIds, setDocumentTypeIds] = useState<Map<string, string>>(new Map())
   const [nodeParentIds, setNodeParentIds] = useState<Map<string, string | null>>(new Map())
+  // access_levels por nodo: los handlers de mover (gesto de drag, sin botón)
+  // necesitan el grant del nodo, igual que el item de kebab "Mover a raíz".
+  const [nodeAccessLevels, setNodeAccessLevels] = useState<Map<string, string[]>>(new Map())
   const previousOrgId = React.useRef<string | null>(null)
   const { canCreate, canUpdate, canDelete, isOrgAdmin, hasAnyPermission, canAccessRoleFolders, canManageGroupFolders } = useUserPermissions()
+  const { can } = usePageAccess('asset')
   // Requiere poder listar AMBOS catálogos: sin systems no hay cascada, sin functionalities no hay qué elegir.
   const canBrowseExternalCatalog =
     isOrgAdmin ||
     (hasAnyPermission(['external_system:l', 'external_system:r']) &&
       hasAnyPermission(['external_functionality:l', 'external_functionality:r']))
+  // El árbol no usa React Query (llama getLibraryContent directo), así que el
+  // gate de listar va como early-return en cada punto de carga en vez de un
+  // `enabled` — ver punto 3 del checklist en ia context/rbac-audit-guide.md.
+  const canListLibrary = can('listAssets') || can('listFolders')
   const { guardedAction } = useOptionalEditingGuard()
+
+  /**
+   * Qué nodos puede arrastrar el usuario. Mismo predicado que el item de kebab
+   * "Mover a raíz" (`canUpdate` global O `access_levels` del nodo): un gesto sin
+   * botón necesita el mismo permiso que el botón equivalente. Se evalúa por nodo
+   * y no con un booleano global para no quitarle el drag a quien mueve sus
+   * carpetas por grant sin tener el permiso global.
+   */
+  const canDragNode = useCallback((node: FileNode) => {
+    if (node.type === "folder") {
+      // Ninguna carpeta de sistema (incluida Área) es reparentable
+      if (node.folder_type) return false
+      return canUpdate('folder') || node.access_levels?.includes('edit') || false
+    }
+    return canUpdate('asset') || node.access_levels?.includes('edit') || false
+  }, [canUpdate])
 
   // Refs so handleLoadChildren callback stays stable while always reading latest values
   const rootPageRef = React.useRef(rootPage)
@@ -261,7 +274,7 @@ export function NavKnowledgeContent() {
   const [isSearching, setIsSearching] = React.useState(false)
 
   React.useEffect(() => {
-    if (!committedSearch || !selectedOrganizationId) {
+    if (!committedSearch || !selectedOrganizationId || !canListLibrary) {
       setSearchResults([])
       setSearchMatchIds(new Set())
       return
@@ -329,7 +342,7 @@ export function NavKnowledgeContent() {
         if (!cancelled) setIsSearching(false)
       })
     return () => { cancelled = true }
-  }, [committedSearch, selectedOrganizationId])
+  }, [committedSearch, selectedOrganizationId, canListLibrary])
 
   // Extract active asset ID from URL (pattern: /asset/<folder>/.../<assetId>).
   // The asset (if present) is always the LAST segment — buildUrlPath puts
@@ -374,6 +387,8 @@ export function NavKnowledgeContent() {
   const handleLoadChildren = useCallback(
     async (folderId: string | null): Promise<FileNode[]> => {
       if (!selectedOrganizationId) return []
+      // Sin permiso de listar assets ni carpetas no se pega al backend.
+      if (!canListLibrary) return []
 
       try {
         const isRoot = folderId === null
@@ -450,6 +465,13 @@ export function NavKnowledgeContent() {
           return newMap
         })
 
+        setNodeAccessLevels((prev) => {
+          const newMap = new Map(prev)
+          content.folders.forEach((item) => { if (item.access_levels) newMap.set(item.id, item.access_levels) })
+          content.assets.forEach((item) => { if (item.access_levels) newMap.set(item.id, item.access_levels) })
+          return newMap
+        })
+
         // Track parent folder for each node so we can show "Move to Root" only for non-root nodes
         setNodeParentIds((prev) => {
           const newMap = new Map(prev)
@@ -497,7 +519,7 @@ export function NavKnowledgeContent() {
         return []
       }
     },
-    [selectedOrganizationId, t]
+    [selectedOrganizationId, t, canListLibrary]
   )
 
   const handleRefreshTree = useCallback(
@@ -507,6 +529,9 @@ export function NavKnowledgeContent() {
 
   const handleFileClick = useCallback(
     async (node: FileNode) => {
+      // En el editor de diagramas el árbol es la fuente de arrastre: hacer clic
+      // en un asset no debe sacar al usuario del canvas que está editando.
+      if (diagramMode) return
       if (node.type === "document") {
         guardedAction(() => {
           // Navigate with full context to avoid redundant API calls
@@ -524,12 +549,15 @@ export function NavKnowledgeContent() {
         })
       }
     },
-    [navigate, guardedAction]
+    [navigate, guardedAction, diagramMode]
   )
 
   const handleMoveFolder = useCallback(
     async (folderId: string, parentFolderId: string | null) => {
       if (!selectedOrganizationId) return
+      // Capa (c) del gate del gesto: el drag ya está deshabilitado por
+      // canDragNode, pero el handler no debe mutar si alguien lo alcanza igual.
+      if (!canUpdate('folder') && !nodeAccessLevels.get(folderId)?.includes('edit')) return
 
       try {
         await moveFolder(folderId, parentFolderId === null ? undefined : parentFolderId, selectedOrganizationId)
@@ -542,12 +570,14 @@ export function NavKnowledgeContent() {
         handleFolderActionError(error, t, t('knowledge.folderMoveError'))
       }
     },
-    [selectedOrganizationId, folderNames, t]
+    [selectedOrganizationId, folderNames, nodeAccessLevels, canUpdate, t]
   )
 
   const handleMoveFile = useCallback(
     async (documentId: string, folderId: string | null) => {
       if (!selectedOrganizationId) return
+      // Capa (c) del gate del gesto — ver handleMoveFolder.
+      if (!canUpdate('asset') && !nodeAccessLevels.get(documentId)?.includes('edit')) return
 
       try {
         await moveDocument(documentId, folderId === null ? undefined : folderId, selectedOrganizationId)
@@ -560,7 +590,7 @@ export function NavKnowledgeContent() {
         handleFolderActionError(error, t, t('knowledge.documentMoveError'))
       }
     },
-    [selectedOrganizationId, folderNames, t]
+    [selectedOrganizationId, folderNames, nodeAccessLevels, canUpdate, t]
   )
 
   // Debe declararse antes de cualquier early return (ver bug de "Rendered more
@@ -733,7 +763,9 @@ export function NavKnowledgeContent() {
         const documentTypeId = documentTypeIds.get(nodeId) ?? null
         handleOpenAssetLifecycle(nodeId, documentName, documentTypeId)
       },
-      show: (node) => node.type === "document",
+      // Otorgar/revocar grants de lifecycle es escritura sobre el asset
+      // (POST /lifecycle/documents/{id}/grants), no una acción de solo lectura.
+      show: (node) => node.type === "document" && can('manageAssetLifecycleGrants'),
       variant: "default",
     },
     {
@@ -837,6 +869,7 @@ export function NavKnowledgeContent() {
           onFileClick={handleFileClick}
           onMoveFolder={handleMoveFolder}
           onMoveFile={handleMoveFile}
+          canDragNode={canDragNode}
           onDelete={handleDelete}
           activeNodeId={activeAssetId}
           menuActions={menuActions}
@@ -855,7 +888,7 @@ export function NavKnowledgeContent() {
             return <File className="h-3.5 w-3.5 shrink-0" style={{ color: color ?? undefined }} />
           }}
           renderFolderIcon={(node, isExpanded) => renderKnowledgeFolderIcon(node as FileNode, isExpanded)}
-          onNodeDragStart={isRelationsMode ? (e, node) => {
+          onNodeDragStart={diagramMode ? (e, node) => {
             const docType = node.document_type
             if (!docType) return
             e.dataTransfer.setData(

@@ -23,7 +23,7 @@ function extractSaml2Params(params: Record<string, unknown> | null): Saml2Params
   }
 }
 
-export function EditAuthTypeDialog({ open, onOpenChange, authType }: EditAuthTypeDialogProps) {
+export function EditAuthTypeDialog({ open, onOpenChange, authType, canManage = false }: EditAuthTypeDialogProps) {
   const { t } = useTranslation(['auth-types', 'common'])
   const [formData, setFormData] = useState<UpdateAuthTypeRequest>({
     name: "",
@@ -32,7 +32,7 @@ export function EditAuthTypeDialog({ open, onOpenChange, authType }: EditAuthTyp
   })
   const [saml2Params, setSaml2Params] = useState<Saml2Params>(EMPTY_SAML2)
 
-  const { data: authTypeTypes } = useAuthTypeTypes(open && !!authType)
+  const { data: authTypeTypes } = useAuthTypeTypes(open && !!authType && canManage)
   const { updateAuthType } = useAuthTypeMutations()
 
   const isSaml2 = formData.type === "saml2"
@@ -47,6 +47,8 @@ export function EditAuthTypeDialog({ open, onOpenChange, authType }: EditAuthTyp
       setSaml2Params(authType.type === "saml2" ? extractSaml2Params(authType.params) : EMPTY_SAML2)
     }
   }, [authType, open])
+
+  if (!canManage) return null
 
   const handleSubmit = async () => {
     if (!authType) return

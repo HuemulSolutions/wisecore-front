@@ -15,8 +15,8 @@ export function TemplateSectionsList({
   templateId,
   organizationId,
   onSectionsReorder,
-  canUpdate = true,
-  canDelete = true,
+  canUpdate = false,
+  canDelete = false,
 }: TemplateSectionsListProps) {
   const queryClient = useQueryClient();
   const { t } = useTranslation(['sections', 'templates']);
@@ -82,7 +82,8 @@ export function TemplateSectionsList({
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveSection(null);
-    
+
+    if (!canUpdate) return;
     if (!over || active.id === over.id) return;
 
     const oldIndex = sections.findIndex((s: any) => s.id === active.id);

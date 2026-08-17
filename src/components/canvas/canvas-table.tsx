@@ -11,7 +11,8 @@ export function CanvasTable({
   onEdit,
   onDelete,
   pagination,
-  canManage = false,
+  canUpdate = false,
+  canDelete = false,
   isLoading = false,
   isFetching = false,
 }: CanvasTableProps) {
@@ -77,23 +78,29 @@ export function CanvasTable({
     },
   ]
 
-  const actions: HuemulTableAction<Canvas>[] = canManage
-    ? [
-        {
-          key: "edit",
-          label: t('actions.editCanvas'),
-          icon: Edit2,
-          onClick: onEdit,
-        },
-        {
-          key: "delete",
-          label: t('actions.deleteCanvas'),
-          icon: Trash2,
-          onClick: onDelete,
-          destructive: true,
-        },
-      ]
-    : []
+  const actions: HuemulTableAction<Canvas>[] = [
+    ...(canUpdate
+      ? [
+          {
+            key: "edit",
+            label: t('actions.editCanvas'),
+            icon: Edit2,
+            onClick: onEdit,
+          },
+        ]
+      : []),
+    ...(canDelete
+      ? [
+          {
+            key: "delete",
+            label: t('actions.deleteCanvas'),
+            icon: Trash2,
+            onClick: onDelete,
+            destructive: true,
+          },
+        ]
+      : []),
+  ]
 
   return (
     <HuemulTable

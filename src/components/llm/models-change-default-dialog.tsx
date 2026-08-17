@@ -19,6 +19,7 @@ interface ChangeDefaultModelDialogProps {
   currentDefaultId?: string
   isUpdating: boolean
   onSubmit: (modelId: string) => void
+  canUpdate: boolean
 }
 
 export function ChangeDefaultModelDialog({
@@ -29,6 +30,7 @@ export function ChangeDefaultModelDialog({
   currentDefaultId,
   isUpdating,
   onSubmit,
+  canUpdate,
 }: ChangeDefaultModelDialogProps) {
   const { t } = useTranslation('models')
   const [selectedId, setSelectedId] = useState<string>('')
@@ -43,9 +45,11 @@ export function ChangeDefaultModelDialog({
     providers.find((p) => p.id === providerId)?.name ?? ''
 
   const handleSave = () => {
-    if (!selectedId) return
+    if (!selectedId || !canUpdate) return
     onSubmit(selectedId)
   }
+
+  if (!canUpdate) return null
 
   return (
     <HuemulDialog

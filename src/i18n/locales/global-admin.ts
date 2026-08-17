@@ -5,6 +5,12 @@ const translations = {
     organizations: { en: "Organizations", es: "Organizaciones" },
     users: { en: "Organization Users", es: "Usuarios de Organizaciones" },
   },
+  accessDenied: {
+    description: {
+      en: "You don't have permission to access Global Admin Settings.",
+      es: "No tienes permisos para acceder a la Configuración de Administración Global.",
+    },
+  },
   toast: {
     orgCreated: { en: "Organization created successfully", es: "Organización creada exitosamente" },
     orgUpdated: { en: "Organization updated successfully", es: "Organización actualizada exitosamente" },

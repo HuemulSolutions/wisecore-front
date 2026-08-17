@@ -8,8 +8,8 @@ import { FieldDescription } from "@/components/ui/field"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { authService } from "@/services/auth"
-import { getErrorMessage } from "@/lib/error-utils"
-import packageJson from "../../../package.json"
+import { isStatusCode } from "@/lib/error-utils"
+import { AuthLegalFooter } from "@/components/auth/auth-legal-footer"
 import type { LoginFormProps } from "@/types/auth"
 
 export type { LoginFormProps } from "@/types/auth"
@@ -29,6 +29,15 @@ export function LoginForm({
       onCodeRequested?.(email)
     },
   })
+
+  // Mensaje genérico traducido en vez del texto crudo del backend: evita
+  // enumeración de usuarios (¿existe este email o no?) y viola la regla de
+  // i18n del proyecto si se muestra verbatim.
+  const requestCodeError = requestCodeMutation.error
+    ? isStatusCode(requestCodeMutation.error, 429)
+      ? t('auth:errors.tooManyRequests')
+      : t('auth:errors.requestCodeFailed')
+    : null
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,30 +66,18 @@ export function LoginForm({
           />
           <HuemulButton
             type="submit"
-            label={t('login.continueWithEmail')}
+            label={requestCodeMutation.isPending ? t('login.sendingCode') : t('login.continueWithEmail')}
             loading={requestCodeMutation.isPending}
             className="w-full bg-[#4464f7] hover:bg-[#3451e6] text-white font-medium py-2.5 transition-colors"
           />
-          {requestCodeMutation.error && (
+          {requestCodeError && (
             <FieldDescription className="text-red-600 text-center">
-              {getErrorMessage(requestCodeMutation.error)}
+              {requestCodeError}
             </FieldDescription>
           )}
         </HuemulFieldGroup>
       </form>
-      <FieldDescription className="px-6 text-center text-sm text-gray-500">
-        {t('login.termsText')}{" "}
-        <a href="#" className="text-[#4464f7] hover:text-[#3451e6] hover:underline">
-          {t('login.termsOfService')}
-        </a>{" "}
-        {t('login.and')}{" "}
-        <a href="#" className="text-[#4464f7] hover:text-[#3451e6] hover:underline">
-          {t('login.privacyPolicy')}
-        </a>.
-      </FieldDescription>
-      <div className="text-center text-xs text-gray-400">
-        {t('login.version')} {packageJson.version}
-      </div>
+      <AuthLegalFooter />
     </div>
   )
 }

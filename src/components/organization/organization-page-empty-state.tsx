@@ -1,5 +1,6 @@
-import { ShieldAlert, Building2 } from "lucide-react"
+import { Building2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
+import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import type { OrganizationPageEmptyStateProps } from "@/types/organizations"
 export type { OrganizationPageEmptyStateProps } from "@/types/organizations"
 
@@ -7,17 +8,7 @@ export function OrganizationPageEmptyState({ type }: OrganizationPageEmptyStateP
   const { t } = useTranslation(['organizations', 'common'])
 
   if (type === "access-denied") {
-    return (
-      <div className="flex h-[calc(100vh-8rem)] items-center justify-center p-6">
-        <div className="text-center max-w-md">
-          <ShieldAlert className="mx-auto h-16 w-16 text-destructive mb-4" />
-          <h2 className="text-2xl font-bold mb-2">{t('common:accessDenied')}</h2>
-          <p className="text-muted-foreground">
-            {t('emptyState.accessDeniedDescription')}
-          </p>
-        </div>
-      </div>
-    )
+    return <HuemulAccessDenied description={t('emptyState.accessDeniedDescription')} />
   }
 
   if (type === "no-organization") {

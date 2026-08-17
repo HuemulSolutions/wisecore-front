@@ -62,6 +62,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       renderNodeSuffix,
       isSectionHeader,
       preserveExpandedOnRefresh = true,
+      canDragNode,
     },
     ref,
   ) => {
@@ -435,6 +436,10 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       try {
         const node = findNode(draggedNode, nodes)
         if (!node) return
+        // Último freno del gesto: `draggable` ya está apagado para los nodos sin
+        // permiso, pero un drop sintético (o un nodo cuyo permiso cambió a mitad
+        // de sesión) no debe llegar a la mutación.
+        if (canDragNode && !canDragNode(node)) { setIsLoading(false); return }
 
         if (node.type === folderType && onMoveFolder) {
           await onMoveFolder(draggedNode, targetId)
@@ -598,7 +603,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
               renderNodeClassName?.(node),
             )}
             style={{ paddingLeft: `${level * 12 + 6}px` }}
-            draggable={!cascadeSelection && !node.disabled && !isSection}
+            draggable={!cascadeSelection && !node.disabled && !isSection && (canDragNode?.(node) ?? true)}
             onDragStart={(e) => handleDragStart(e, node.id, node)}
             onDragEnd={() => { setDraggedNode(null); setDragOverNode(null); stopAutoScroll() }}
             onDragOver={(e) =>

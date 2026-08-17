@@ -13,14 +13,29 @@ const translations = {
       es: "Vincula este activo con otros activos, plantillas o recursos externos para crear relaciones y contexto compartido.",
     },
   },
-  // dependency-add.tsx
+  // dependency-panel.tsx
   loading: { en: "Loading dependencies...", es: "Cargando dependencias..." },
   errorLoading: { en: "Error loading dependencies", es: "Error al cargar las dependencias" },
-  addSection: {
+  addButton: { en: "Add dependency", es: "Agregar dependencia" },
+  list: {
+    title: { en: "Dependencies", es: "Dependencias" },
+    count: { en: "{{count}} dependencies", es: "{{count}} dependencias" },
+    empty: { en: "This asset has no dependencies yet", es: "Este activo aún no tiene dependencias" },
+    emptyHint: {
+      en: "Link it to other assets to create relationships and shared context.",
+      es: "Vincúlalo con otros activos para crear relaciones y contexto compartido.",
+    },
+    sectionLabel: { en: "Section: {{name}}", es: "Sección: {{name}}" },
     adding: { en: "Adding dependency...", es: "Agregando dependencia..." },
   },
-  currentSection: {
-    badge: { en: "{{count}} dependencies", es: "{{count}} dependencias" },
+  picker: {
+    title: { en: "Add dependency", es: "Agregar dependencia" },
+    description: {
+      en: "Search or browse the library to pick the asset this one depends on.",
+      es: "Busca o navega la biblioteca para elegir el activo del que depende este.",
+    },
+    alreadyDependency: { en: "Already a dependency of this asset", es: "Ya es una dependencia de este activo" },
+    selfAsset: { en: "This is the current asset", es: "Es el activo actual" },
   },
   viewDocument: { en: "View Asset", es: "Ver Activo" },
   removeDependency: { en: "Remove Dependency", es: "Eliminar Dependencia" },
@@ -46,7 +61,7 @@ const translations = {
   // version selection (version_mode)
   versionMode: {
     label: { en: "Version to use", es: "Versión a usar" },
-    published: { en: "Current published version", es: "Versión publicada vigente" },
+    published: { en: "Current published version", es: "Versión publicada" },
     publishedHint: {
       en: "Always resolves to whatever version is published at the time.",
       es: "Siempre resuelve a la versión publicada vigente en cada momento.",

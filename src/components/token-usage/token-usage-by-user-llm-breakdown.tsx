@@ -14,6 +14,8 @@ export interface TokenUsageByUserLlmBreakdownProps {
   /** Catálogo de LLMs activos de la org (viene de `/token-usage/summary`), para
    *  resolver `llms_used` (internal_name) al `id` que exige `getTokenUsageStats`. */
   activeLlms: TokenUsageActiveLLM[]
+  /** Gate RBAC de la página (listByUser); sin default — secure-by-default. */
+  enabled: boolean
 }
 
 /**
@@ -27,6 +29,7 @@ export function TokenUsageByUserLlmBreakdown({
   dateFrom,
   dateTo,
   activeLlms,
+  enabled,
 }: TokenUsageByUserLlmBreakdownProps) {
   const { t } = useTranslation("token-usage")
 
@@ -51,6 +54,7 @@ export function TokenUsageByUserLlmBreakdown({
           date_from: dateFrom,
           date_to: dateTo,
         }),
+      enabled,
       staleTime: 2 * 60 * 1000,
       retry: 0,
     })),

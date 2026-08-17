@@ -23,14 +23,25 @@ import {
   Panel,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
+import "./relationships-canvas.css"
 
 import { useQueryClient } from "@tanstack/react-query"
-import { GitMerge, Square, Trash2, Type, Workflow } from "lucide-react"
+import { ChevronDown, GitMerge, Loader2, Pencil, Plus, Shield, Square, Trash2, Type, Workflow } from "lucide-react"
 import { toast } from "sonner"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { MemoizedAssetTypeNode, type AssetTypeNodeData } from "./asset-type-node"
 import { MemoizedTextNode, type CanvasElementNodeData } from "./text-node"
 import { MemoizedContainerNode } from "./container-node"
+import { MemoizedRoleNode, ROLE_NODE_ENABLED } from "./role-node"
 import { ElementPanel } from "./element-panel"
+import { HuemulRolePickerDialog } from "@/huemul/components/huemul-role-picker"
 import { MemoizedRelationshipEdge, type RelationshipEdgeData } from "./relationship-edge"
 import { RelationshipCreateDialog, RelationshipEditDialog } from "./relationship-dialogs"
 import { ExecutionRelationshipCreateDialog, ExecutionRelationshipEditDialog, ExecutionPickerDialog, executionLabel } from "./execution-relationship-dialogs"
@@ -55,28 +66,43 @@ import type {
   InitialCanvasRelationship,
   InitialCanvasElement,
   CanvasElementKind,
+  CanvasElementRole,
   PendingConnection,
   RelationshipsCanvasProps,
+  EditingDiagram,
 } from "@/types/document-type-relationships"
 import type { ExecutionRelationship, ExecutionRelationshipSubitem } from "@/types/execution-relationships"
 import type { Diagram } from "@/types/diagrams"
 import { buildInitialCanvasElements } from "@/lib/diagram-utils"
+import { useSaveDiagramGraph } from "@/hooks/useDiagrams"
+import { useOrgNavigate } from "@/hooks/useOrgRouter"
+import { handleApiError } from "@/lib/error-utils"
 import { cn } from "@/lib/utils"
 
 const NODE_TYPES = {
   assetType: MemoizedAssetTypeNode,
   text: MemoizedTextNode,
   container: MemoizedContainerNode,
+  role: MemoizedRoleNode,
 }
 
 const DEFAULT_ELEMENT_COLOR: Record<CanvasElementKind, string> = {
   text: "#0f172a",
   container: "#94a3b8",
+  role: "#6366f1",
 }
 
 const EDGE_TYPES = {
   relationship: MemoizedRelationshipEdge,
 }
+
+const EDGE_MARKER = {
+  type: MarkerType.ArrowClosed,
+  width: 18,
+  height: 18,
+  color: "var(--diagram-edge)",
+} as const
+const EDGE_MARKER_SELECTED = { ...EDGE_MARKER, color: "var(--primary)" } as const
 
 // Los contenedores son agrupadores visuales, no nodos `group` de React Flow: deben quedar
 // siempre por debajo para que un clic dentro de uno llegue al nodo que está encima, y un clic
@@ -173,6 +199,18 @@ function computeLayoutForNewNodes(
   return result
 }
 
+// Diagram (API shape) → EditingDiagram (canvas state) — shared by "load an existing
+// diagram" and "just saved/created a diagram" so both promote the canvas the same way.
+function toEditingDiagram(diagram: Diagram): EditingDiagram {
+  return {
+    id: diagram.id,
+    name: diagram.name,
+    description: diagram.description,
+    executionId: diagram.execution_id,
+    snapshotMediaId: diagram.snapshot_media_id,
+  }
+}
+
 // ─── Public export — wraps with ReactFlowProvider so inner hooks work ──────────
 
 export function RelationshipsCanvas(props: RelationshipsCanvasProps) {
@@ -195,9 +233,11 @@ function RelationshipsCanvasFlow({
   initialRelationships,
   initialElements,
   editingDiagram: editingDiagramProp,
+  onDiagramSaved,
   readOnly = false,
 }: RelationshipsCanvasProps) {
   const { t } = useTranslation("document-type-relationships")
+  const navigate = useOrgNavigate()
   const { screenToFlowPosition, getNodes, getEdges, fitView } = useReactFlow()
   const queryClient = useQueryClient()
   const { deleteExecutionRelationship } = useExecutionRelationshipMutations(organizationId)
@@ -207,6 +247,10 @@ function RelationshipsCanvasFlow({
   // ─── Relationship permissions ───────────────────────────────────────────────
   // `readOnly` overrides every write permission below — the viewer never mutates
   // canvas or backend state regardless of what the user is actually allowed to do.
+  // The role picker calls GET /rbac/roles — same gate as the roles page's `listRoles`
+  // and the @role mention picker in the editor (mention-node.tsx).
+  const canPickRole = !readOnly && (isOrgAdmin || hasAnyPermission(['rbac:l', 'rbac:r']))
+
   const canListRelationships = isOrgAdmin || hasAnyPermission(['asset_type_relationship:l', 'asset_type_relationship:r'])
   const canCreateRelationship = !readOnly && (isOrgAdmin || hasPermission('asset_type_relationship:c'))
   const canUpdateRelationship = !readOnly && (isOrgAdmin || hasPermission('asset_type_relationship:u'))
@@ -243,13 +287,29 @@ function RelationshipsCanvasFlow({
   }, [nodes])
 
   const layeredEdges = useMemo(
-    () => edges.map((e) => (e.zIndex === EDGE_Z ? e : { ...e, zIndex: EDGE_Z })),
+    () =>
+      edges.map((e) => ({
+        ...e,
+        zIndex: EDGE_Z,
+        markerEnd: e.selected ? EDGE_MARKER_SELECTED : EDGE_MARKER,
+      })),
     [edges],
   )
-  const [showSaveDiagramDialog, setShowSaveDiagramDialog] = useState(false)
-  const [saveAsNewDiagram, setSaveAsNewDiagram] = useState(false)
+  // Un solo estado para el sheet de guardado: 'new' crea (POST), 'metadata' solo edita
+  // nombre/descripción/ejecución. "Guardar cambios" ya no pasa por el sheet — guarda
+  // directo (ver `handleSaveChanges`) porque nombre/descripción/ejecución ya están
+  // guardados y no hace falta reconfirmarlos.
+  const [saveSheetMode, setSaveSheetMode] = useState<'new' | 'metadata' | null>(null)
   const [showLoadDiagramSheet, setShowLoadDiagramSheet] = useState(false)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [editingDiagram, setEditingDiagram] = useState(editingDiagramProp)
+  const { saveDiagramGraph, isSaving: isSavingDiagram } = useSaveDiagramGraph(organizationId)
+
+  // El padre puede refrescar el diagrama (refetch tras invalidar) mientras el canvas
+  // sigue montado: sin esto el state local se quedaba con el nombre/ejecución viejos.
+  useEffect(() => {
+    if (editingDiagramProp) setEditingDiagram(editingDiagramProp)
+  }, [editingDiagramProp])
 
   // Dialog state
   const [pendingConnection, setPendingConnection] = useState<PendingConnection | null>(null)
@@ -271,6 +331,11 @@ function RelationshipsCanvasFlow({
     sourceId: string
     position: { x: number; y: number }
   } | null>(null)
+  // Role picker state: either creating a brand-new role node at a position, or
+  // (re)assigning the role of an existing container/role node by its canvas id.
+  const [pendingRolePick, setPendingRolePick] = useState<
+    { position: { x: number; y: number } } | { nodeId: string } | null
+  >(null)
   // execution-mode delete state
   const [deletingExecRelId, setDeletingExecRelId] = useState<string | null>(null)
   const [deletingExecRelName, setDeletingExecRelName] = useState("")
@@ -442,7 +507,6 @@ function RelationshipsCanvasFlow({
             source: sourceId,
             target: targetId,
             type: "relationship",
-            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
             data: {
               relationshipId: cfg.id,
               name: cfg.name,
@@ -560,7 +624,6 @@ function RelationshipsCanvasFlow({
             source: sourceId,
             target: targetId,
             type: "relationship",
-            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
             data: {
               relationshipId: cfg.id,
               name: cfg.name,
@@ -684,8 +747,51 @@ function RelationshipsCanvasFlow({
     [setNodes],
   )
 
+  // Assigns/replaces the role on a container (turns it into a lane) or a role node
+  // (its sole identity) — called once the role picker dialog resolves. On a role node
+  // this also refreshes the label/color shown, since those mirror the role itself.
+  const handleUpdateElementRole = useCallback(
+    (id: string, role: CanvasElementRole) => {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id !== id) return n
+          const isRoleNode = n.type === "role"
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              role,
+              // Roles have no color of their own — a role node keeps its own element
+              // color (DEFAULT_ELEMENT_COLOR.role), only its label mirrors the role.
+              ...(isRoleNode ? { content: role.name } : {}),
+            },
+          }
+        }),
+      )
+    },
+    [setNodes],
+  )
+
+  // Container-only: unassigns the role without opening the picker.
+  const handleClearElementRole = useCallback(
+    (id: string) => {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id !== id) return n
+          const nextData = { ...n.data } as CanvasElementNodeData
+          delete nextData.role
+          return { ...n, data: nextData }
+        }),
+      )
+    },
+    [setNodes],
+  )
+
+  // Opens the role picker dialog scoped to an existing element (container or role node).
+  const handleRequestRolePick = useCallback((id: string) => setPendingRolePick({ nodeId: id }), [])
+
   const createElementNode = useCallback(
-    (kind: CanvasElementKind, position: { x: number; y: number }, content?: string, color?: string, width?: number, height?: number) => {
+    (kind: CanvasElementKind, position: { x: number; y: number }, content?: string, color?: string, width?: number, height?: number, role?: CanvasElementRole) => {
       const id = `${kind}-${Math.random().toString(36).slice(2, 9)}`
       const node: Node<CanvasElementNodeData> = {
         id,
@@ -697,20 +803,25 @@ function RelationshipsCanvasFlow({
           kind,
           content: content ?? (kind === "container" ? t("elementPanel.defaultContainerTitle") : t("elementPanel.defaultTextContent")),
           color: color ?? DEFAULT_ELEMENT_COLOR[kind],
+          ...(role ? { role } : {}),
           onContentChange: handleUpdateElementContent,
           onColorChange: handleUpdateElementColor,
+          onRequestRolePick: handleRequestRolePick,
+          onClearRole: handleClearElementRole,
           onRemove: handleRemoveNode,
         },
       }
       setNodes((nds) => [...nds, node])
       return id
     },
-    [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRemoveNode, t],
+    [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRequestRolePick, handleClearElementRole, handleRemoveNode, t],
   )
 
   // In-canvas toolbar entry point: adds the element at the current viewport's
   // center — needed because the drag palette (AssetTypeSidebar) isn't mounted on
   // every screen that embeds this canvas (e.g. the executions canvas, diagram edit sheet).
+  // A "role" element has no content until a role is chosen, so it opens the picker
+  // instead of creating the node directly — the node is created once it resolves.
   const addElementAtCenter = useCallback(
     (kind: CanvasElementKind) => {
       const rect = containerRef.current?.getBoundingClientRect()
@@ -718,7 +829,12 @@ function RelationshipsCanvasFlow({
         ? screenToFlowPosition({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 })
         : { x: 0, y: 0 }
       const jitter = (getNodes().length % 8) * 12
-      createElementNode(kind, { x: center.x + jitter, y: center.y + jitter })
+      const position = { x: center.x + jitter, y: center.y + jitter }
+      if (kind === "role") {
+        setPendingRolePick({ position })
+        return
+      }
+      createElementNode(kind, position)
     },
     [screenToFlowPosition, createElementNode, getNodes],
   )
@@ -736,6 +852,12 @@ function RelationshipsCanvasFlow({
           return
         }
         const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+        // A "role" element has no content until a role is picked — open the
+        // dialog instead of creating the node directly (mirrors addElementAtCenter).
+        if (element.kind === "role") {
+          setPendingRolePick({ position })
+          return
+        }
         createElementNode(element.kind, position)
         return
       }
@@ -786,6 +908,17 @@ function RelationshipsCanvasFlow({
   // ─── Connect → open create dialog ──────────────────────────────────────────
   const onConnect: OnConnect = useCallback((params) => {
     if (!params.source || !params.target) return
+    // Role nodes have no persisted relationship shape yet — the backend only
+    // accepts execution_relationship edges. Block instead of drawing an edge
+    // that would silently vanish on the next save/reload.
+    const allCanvasNodes = getNodes()
+    const involvesRoleNode = [params.source, params.target].some(
+      (id) => allCanvasNodes.find((n) => n.id === id)?.type === "role",
+    )
+    if (involvesRoleNode) {
+      toast.info(t("canvas.roleConnectionsUnsupported"))
+      return
+    }
     if (mode === 'execution') {
       const allNodes = getNodes()
       const srcNode = allNodes.find((n) => n.id === params.source)
@@ -938,7 +1071,6 @@ function RelationshipsCanvasFlow({
             source: conn.sourceId,
             target: conn.targetId,
             type: "relationship",
-            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
             data: {
               relationshipId: cfg.id,
               name: cfg.name,
@@ -986,7 +1118,6 @@ function RelationshipsCanvasFlow({
             source: conn.sourceId,
             target: conn.targetId,
             type: "relationship",
-            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
             data: {
               relationshipId: relationship.id,
               name: relName,
@@ -1141,7 +1272,6 @@ function RelationshipsCanvasFlow({
             source: srcCanvasId,
             target: tgtCanvasId,
             type: 'relationship',
-            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
             data: {
               relationshipId: rel.id,
               name: relName,
@@ -1281,7 +1411,6 @@ function RelationshipsCanvasFlow({
             source: srcCanvasId,
             target: tgtCanvasId,
             type: 'relationship',
-            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
             data: {
               relationshipId: rel.id,
               name: relName,
@@ -1377,7 +1506,6 @@ function RelationshipsCanvasFlow({
           source: srcCanvasId,
           target: tgtCanvasId,
           type: 'relationship',
-          markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
           data: {
             relationshipId: rel.execution_relationship_id,
             name: relName,
@@ -1472,7 +1600,7 @@ function RelationshipsCanvasFlow({
     seedRelationshipEdges(seeded, relationships)
   }, [nodesInitialized, nodes, seedRelationshipEdges])
 
-  // ─── Seed free-standing text/container elements at explicit saved positions ──
+  // ─── Seed free-standing text/container/role elements at explicit saved positions ──
   const seedElementNodes = useCallback((elementsToSeed: InitialCanvasElement[]) => {
     const seeded: Node<CanvasElementNodeData>[] = elementsToSeed.map((el) => {
       const id = `${el.kind}-${Math.random().toString(36).slice(2, 9)}`
@@ -1486,16 +1614,19 @@ function RelationshipsCanvasFlow({
           kind: el.kind,
           content: el.content,
           color: el.color,
+          ...(el.role ? { role: el.role } : {}),
           ...(readOnly ? { readOnly: true } : {
             onContentChange: handleUpdateElementContent,
             onColorChange: handleUpdateElementColor,
+            onRequestRolePick: handleRequestRolePick,
+            onClearRole: handleClearElementRole,
             onRemove: handleRemoveNode,
           }),
         },
       }
     })
     setNodes((nds) => [...nds, ...seeded])
-  }, [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRemoveNode, readOnly])
+  }, [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRequestRolePick, handleClearElementRole, handleRemoveNode, readOnly])
 
   // Guarded by a ref (not just the effect dep array) so it only seeds once even if
   // the parent re-renders and passes a new `initialNodes` array reference.
@@ -1515,37 +1646,70 @@ function RelationshipsCanvasFlow({
     setEdges([])
     setSelectedEdgeId(null)
     setSelectedNodeId(null)
-    setEditingDiagram({
-      id: diagram.id,
-      name: diagram.name,
-      description: diagram.description,
-      executionId: diagram.execution_id,
-      snapshotMediaId: diagram.snapshot_media_id,
-    })
+    setEditingDiagram(toEditingDiagram(diagram))
     seedCanvasNodes(nodesToSeed, diagram.relationships)
     if (diagram.texts?.length) seedElementNodes(buildInitialCanvasElements(diagram))
   }, [seedCanvasNodes, seedElementNodes, setNodes, setEdges])
 
-  const openUpdateDiagramDialog = useCallback(() => {
-    setSaveAsNewDiagram(false)
-    setShowSaveDiagramDialog(true)
-  }, [])
+  // Saving (create or update) resolves the same shape LoadDiagramSheet feeds in —
+  // reused here so a freshly created diagram is promoted straight into "editing" mode.
+  const handleDiagramSaved = useCallback((diagram: Diagram) => {
+    setEditingDiagram(toEditingDiagram(diagram))
+    onDiagramSaved?.(diagram)
+  }, [onDiagramSaved])
 
-  const openSaveNewDiagramDialog = useCallback(() => {
-    setSaveAsNewDiagram(true)
-    setShowSaveDiagramDialog(true)
-  }, [])
+  // "Guardar cambios" ya no abre el sheet: nombre/descripción/ejecución ya están
+  // guardados (para tocarlos está "Editar datos del diagrama"), así que guarda
+  // directo — regenera el snapshot y hace el PUT sin pedir nada más.
+  const handleSaveChanges = useCallback(async () => {
+    if (!editingDiagram) return
+    try {
+      const saved = await saveDiagramGraph({
+        diagramId: editingDiagram.id,
+        name: editingDiagram.name,
+        description: editingDiagram.description,
+        executionId: editingDiagram.executionId,
+        snapshotMediaId: editingDiagram.snapshotMediaId,
+        nodes: nodes as Node<AssetTypeNodeData | CanvasElementNodeData>[],
+        edges: edges as Edge<RelationshipEdgeData>[],
+        containerRef,
+        fitView,
+      })
+      handleDiagramSaved(saved)
+      toast.success(t('saveAsDiagramDialog.updateSuccessToast'), {
+        action: {
+          label: t('saveAsDiagramDialog.viewDiagrams'),
+          onClick: () => navigate('/diagrams'),
+        },
+      })
+    } catch (err) {
+      handleApiError(err)
+    }
+  }, [editingDiagram, saveDiagramGraph, nodes, edges, containerRef, fitView, handleDiagramSaved, t, navigate])
+
+  const handleClearCanvas = useCallback(() => {
+    setNodes([])
+    setSelectedEdgeId(null)
+    setSelectedNodeId(null)
+    setEditingDiagram(undefined)
+  }, [setNodes])
 
   const sourceDocType = pendingConnection ? docTypeMap.get(pendingConnection.sourceId) : undefined
   const targetDocType = pendingConnection ? docTypeMap.get(pendingConnection.targetId) : undefined
 
   const canUpdateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:u'))
   const canCreateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:c'))
-  const canLoadDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:u'))
+  // Cargar un diagrama al canvas es una LECTURA: el guardado posterior ya está
+  // gateado aparte por canUpdateDiagram / canCreateDiagram.
+  const canLoadDiagram = !readOnly && (isOrgAdmin || hasAnyPermission(['diagram:l', 'diagram:r']))
   const hasValidDiagramNodes = nodes.some((n) => {
     const d = n.data as AssetTypeNodeData
     return !!d.assetId && !!d.executionId
   })
+  // El menú derecho agrupa todo lo relativo al Diagrama (guardar, cargar, limpiar):
+  // sigue existiendo con el canvas vacío si se puede cargar uno, igual que antes lo
+  // hacía el panel de "Cargar Diagrama" aparte.
+  const showDiagramMenu = !readOnly && (nodes.length > 0 || (mode === 'execution' && canLoadDiagram))
 
   return (
     <>
@@ -1568,7 +1732,15 @@ function RelationshipsCanvasFlow({
           nodesDraggable={!readOnly}
           nodesConnectable={!readOnly}
           fitView
-          deleteKeyCode={readOnly ? null : "Delete"}
+          // El borrado por tecla es una mutación sin botón: exige el permiso de
+          // borrado del modo activo. En `execution` la eliminación se persiste
+          // luego con "Guardar cambios", así que sin `execution_relationship:d`
+          // no debe poder seleccionarse y borrarse.
+          deleteKeyCode={
+            (mode === 'execution' ? canDeleteExecRelationship : canDeleteRelationship)
+              ? "Delete"
+              : null
+          }
           className="flex-1 h-full bg-muted/10"
         >
           <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
@@ -1581,66 +1753,119 @@ function RelationshipsCanvasFlow({
           {/* Always available — not gated on the drag palette, which isn't mounted on every screen */}
           {!readOnly && (
             <Panel position="top-left">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => addElementAtCenter("container")}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
-                >
-                  <Square className="h-3.5 w-3.5" />
-                  {t("canvas.addContainer")}
-                </button>
-                <button
-                  onClick={() => addElementAtCenter("text")}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
-                >
-                  <Type className="h-3.5 w-3.5" />
-                  {t("canvas.addText")}
-                </button>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <HuemulButton variant="outline" size="sm" className="shadow-sm text-xs">
+                    <Plus className="h-3.5 w-3.5" />
+                    {t("canvas.add")}
+                    <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                  </HuemulButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem
+                    onSelect={() => setTimeout(() => addElementAtCenter("container"), 0)}
+                    className="hover:cursor-pointer"
+                  >
+                    <Square className="mr-2 h-4 w-4" />
+                    {t("canvas.addContainer")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => setTimeout(() => addElementAtCenter("text"), 0)}
+                    className="hover:cursor-pointer"
+                  >
+                    <Type className="mr-2 h-4 w-4" />
+                    {t("canvas.addText")}
+                  </DropdownMenuItem>
+                  {ROLE_NODE_ENABLED && canPickRole && (
+                    <DropdownMenuItem
+                      onSelect={() => setTimeout(() => addElementAtCenter("role"), 0)}
+                      className="hover:cursor-pointer"
+                    >
+                      <Shield className="mr-2 h-4 w-4" />
+                      {t("canvas.addRole")}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </Panel>
           )}
 
-          {!readOnly && nodes.length > 0 && (
+          {showDiagramMenu && (
             <Panel position="top-right">
-              <div className="flex items-center gap-2">
-                {mode === 'execution' && hasValidDiagramNodes && editingDiagram && canUpdateDiagram && (
-                  <button
-                    onClick={openUpdateDiagramDialog}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <HuemulButton
+                    variant="outline"
+                    size="sm"
+                    className="shadow-sm text-xs max-w-55"
+                    disabled={isSavingDiagram}
+                    title={
+                      mode === 'execution' && editingDiagram
+                        ? t("canvas.editingDiagram", { name: editingDiagram.name })
+                        : undefined
+                    }
                   >
-                    <Workflow className="h-3.5 w-3.5" />
-                    {t("canvas.saveChanges")}
-                  </button>
-                )}
-                {mode === 'execution' && hasValidDiagramNodes && canCreateDiagram && (
-                  <button
-                    onClick={openSaveNewDiagramDialog}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
+                    {isSavingDiagram ? (
+                      <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                    ) : (
+                      <Workflow className="h-3.5 w-3.5 shrink-0" />
+                    )}
+                    <span className="truncate">
+                      {mode === 'execution' && editingDiagram
+                        ? editingDiagram.name
+                        : t("canvas.diagramActions")}
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 opacity-60 shrink-0" />
+                  </HuemulButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {mode === 'execution' && hasValidDiagramNodes && editingDiagram && canUpdateDiagram && (
+                    <DropdownMenuItem
+                      onSelect={() => setTimeout(handleSaveChanges, 0)}
+                      disabled={isSavingDiagram}
+                      className="hover:cursor-pointer"
+                    >
+                      <Workflow className="mr-2 h-4 w-4" />
+                      {t("canvas.saveChanges")}
+                    </DropdownMenuItem>
+                  )}
+                  {mode === 'execution' && hasValidDiagramNodes && canCreateDiagram && (
+                    <DropdownMenuItem
+                      onSelect={() => setTimeout(() => setSaveSheetMode('new'), 0)}
+                      className="hover:cursor-pointer"
+                    >
+                      <Workflow className="mr-2 h-4 w-4" />
+                      {t("canvas.saveAsNewDiagram")}
+                    </DropdownMenuItem>
+                  )}
+                  {mode === 'execution' && editingDiagram && canUpdateDiagram && (
+                    <DropdownMenuItem
+                      onSelect={() => setTimeout(() => setSaveSheetMode('metadata'), 0)}
+                      className="hover:cursor-pointer"
+                    >
+                      <Pencil className="mr-2 h-4 w-4" />
+                      {t("canvas.editDiagramData")}
+                    </DropdownMenuItem>
+                  )}
+                  {mode === 'execution' && canLoadDiagram && (
+                    <DropdownMenuItem
+                      onSelect={() => setTimeout(() => setShowLoadDiagramSheet(true), 0)}
+                      className="hover:cursor-pointer"
+                    >
+                      <Workflow className="mr-2 h-4 w-4" />
+                      {t("canvas.loadDiagram")}
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={() => setTimeout(() => setShowClearConfirm(true), 0)}
+                    className="hover:cursor-pointer text-destructive focus:text-destructive"
                   >
-                    <Workflow className="h-3.5 w-3.5" />
-                    {t("canvas.saveAsDiagram")}
-                  </button>
-                )}
-                <button
-                  onClick={() => { setNodes([]); setSelectedEdgeId(null); setSelectedNodeId(null); setEditingDiagram(undefined) }}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 hover:cursor-pointer transition-colors shadow-sm"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  {t("canvas.clearAll")}
-                </button>
-              </div>
-            </Panel>
-          )}
-
-          {nodes.length === 0 && mode === 'execution' && canLoadDiagram && (
-            <Panel position="top-right">
-              <button
-                onClick={() => setShowLoadDiagramSheet(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
-              >
-                <Workflow className="h-3.5 w-3.5" />
-                {t("canvas.loadDiagram")}
-              </button>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {t("canvas.clearAll")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </Panel>
           )}
 
@@ -1797,12 +2022,30 @@ function RelationshipsCanvasFlow({
         />
       )}
 
+      {/* Role picker — shared by "create role node" and "(re)assign role on container/role node" */}
+      {pendingRolePick && (
+        <HuemulRolePickerDialog
+          open={!!pendingRolePick}
+          onOpenChange={(o) => !o && setPendingRolePick(null)}
+          onSelect={(id, name) => {
+            const role: CanvasElementRole = { id, name }
+            if ("nodeId" in pendingRolePick) {
+              handleUpdateElementRole(pendingRolePick.nodeId, role)
+            } else {
+              createElementNode("role", pendingRolePick.position, role.name, undefined, undefined, undefined, role)
+            }
+            setPendingRolePick(null)
+          }}
+        />
+      )}
+
       {/* Create-asset dialog — shown when a connection is dropped on empty canvas (execution mode) */}
       {mode === 'execution' && (
         <CreateAssetSheet
           open={!!pendingNewAssetConnection}
           onOpenChange={(o) => !o && setPendingNewAssetConnection(null)}
           onAssetCreated={handleNewAssetCreated}
+          canCreate={canCreate('asset')}
         />
       )}
 
@@ -1815,6 +2058,18 @@ function RelationshipsCanvasFlow({
         relationshipName={editingExecRelName}
         onUpdated={(updated) => {
           setEditingExecRelationship(updated)
+        }}
+      />
+
+      {/* Clear canvas confirmation — a stray click used to wipe unsaved work with no way back */}
+      <HuemulAlertDialog
+        open={showClearConfirm}
+        onOpenChange={setShowClearConfirm}
+        title={t("canvas.clearConfirm.title")}
+        description={t("canvas.clearConfirm.description")}
+        actionLabel={t("canvas.clearConfirm.confirmLabel")}
+        onAction={async () => {
+          handleClearCanvas()
         }}
       />
 
@@ -1870,14 +2125,18 @@ function RelationshipsCanvasFlow({
       {/* Save current graph as a Diagram, or save changes to the diagram being edited (execution mode only) */}
       {mode === 'execution' && (
         <SaveAsDiagramSheet
-          open={showSaveDiagramDialog}
-          onOpenChange={(o) => { setShowSaveDiagramDialog(o); if (!o) setSaveAsNewDiagram(false) }}
+          open={saveSheetMode !== null}
+          onOpenChange={(o) => { if (!o) setSaveSheetMode(null) }}
           organizationId={organizationId}
           nodes={nodes as Node<AssetTypeNodeData | CanvasElementNodeData>[]}
           edges={edges as Edge<RelationshipEdgeData>[]}
           containerRef={containerRef}
           fitView={fitView}
-          diagramId={saveAsNewDiagram ? undefined : editingDiagram?.id}
+          diagramId={saveSheetMode === 'new' ? undefined : editingDiagram?.id}
+          metadataOnly={saveSheetMode === 'metadata'}
+          canCreate={canCreateDiagram}
+          canUpdate={canUpdateDiagram}
+          onSaved={handleDiagramSaved}
           initialValues={editingDiagram ? {
             name: editingDiagram.name,
             description: editingDiagram.description,

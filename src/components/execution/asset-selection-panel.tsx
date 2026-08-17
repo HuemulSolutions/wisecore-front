@@ -12,7 +12,7 @@ import type { AssetSelectionPanelProps, FolderGroupProps, DocumentRowProps, Exec
 
 export type { AssetSelectionPanelProps } from '@/types/assets'
 
-export function AssetSelectionPanel({ templateId, onExecute, isExecuting, executeDisabled, selectionKey, actionLabel, actionLoadingLabel, ActionIcon }: AssetSelectionPanelProps) {
+export function AssetSelectionPanel({ templateId, canList, onExecute, isExecuting, executeDisabled, selectionKey, actionLabel, actionLoadingLabel, ActionIcon }: AssetSelectionPanelProps) {
   const { t } = useTranslation(["advanced", "common"])
   const { selectedOrganizationId } = useOrganization()
   const orgId = useEffectiveOrgId()
@@ -28,7 +28,7 @@ export function AssetSelectionPanel({ templateId, onExecute, isExecuting, execut
   }, [selectionKey])
 
   useEffect(() => {
-    if (!templateId || !selectedOrganizationId) {
+    if (!templateId || !selectedOrganizationId || !canList) {
       setFolders([])
       setSelectedExecutions(new Set())
       return
@@ -42,7 +42,7 @@ export function AssetSelectionPanel({ templateId, onExecute, isExecuting, execut
       })
       .catch(logger.error)
       .finally(() => setIsLoading(false))
-  }, [templateId, selectedOrganizationId])
+  }, [templateId, selectedOrganizationId, canList])
 
   // Compute all execution IDs across all folders/docs/versions
   const allExecutionIds = useMemo(() => {

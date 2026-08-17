@@ -2,7 +2,7 @@ import { Link2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
-import AddDependencySheet from "@/components/dependency/dependency-add";
+import AddDependencySheet from "@/components/dependency/dependency-panel";
 import type { DependenciesSheetProps } from '@/types/assets';
 export type { DependenciesSheetProps } from '@/types/assets';
 
@@ -58,6 +58,7 @@ export function DependenciesSheet({
       <HuemulSheet
         open={isOpen}
         onOpenChange={onOpenChange}
+        eyebrow={t('sheet.documentLabel', { name: documentName || selectedFile?.name })}
         title={t('sheet.title')}
         description={t('sheet.description')}
         icon={Link2}
@@ -65,18 +66,9 @@ export function DependenciesSheet({
         maxWidth="w-full sm:max-w-[90vw] lg:max-w-[800px]"
         showFooter={false}
       >
-        <div className="space-y-6">
-          {/* Document Info */}
-          <div className="p-4 bg-gray-50 rounded-lg border">
-            <h3 className="text-sm font-medium text-gray-900 mb-1">{t('sheet.documentLabel', { name: documentName || selectedFile?.name })}</h3>
-                <p className="text-xs text-gray-600">{t('sheet.documentDescription')}</p>
-          </div>
-
-          {/* Dependencies Component */}
-          {selectedFile && (
-            <AddDependencySheet id={selectedFile.id} isSheetOpen={isOpen} canEdit={canEdit} />
-          )}
-        </div>
+        {selectedFile && (
+          <AddDependencySheet id={selectedFile.id} isSheetOpen={isOpen} canEdit={canEdit} />
+        )}
       </HuemulSheet>
     </>
   );

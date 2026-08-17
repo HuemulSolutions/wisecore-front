@@ -20,6 +20,13 @@ const translations = {
     verifying: { en: "Verifying...", es: "Verificando..." },
     verifyCode: { en: "Verify Code", es: "Verificar Código" },
     codeSentSuccess: { en: "Code sent successfully!", es: "¡Código enviado exitosamente!" },
+    resendIn: { en: "Resend in {{seconds}}s", es: "Reenviar en {{seconds}}s" },
+  },
+  errors: {
+    tooManyRequests: { en: "Too many attempts. Please wait a moment before trying again.", es: "Demasiados intentos. Esperá un momento antes de volver a intentar." },
+    requestCodeFailed: { en: "We couldn't send the code. Please try again.", es: "No pudimos enviar el código. Intentá de nuevo." },
+    invalidCode: { en: "Incorrect or expired code. Please try again.", es: "Código incorrecto o vencido. Intentá de nuevo." },
+    resendFailed: { en: "We couldn't resend the code. Please try again.", es: "No pudimos reenviar el código. Intentá de nuevo." },
   },
 }
 

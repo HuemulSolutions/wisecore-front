@@ -6,7 +6,9 @@ import { toast } from "sonner"
 
 import { useOrganization } from "@/contexts/organization-context"
 import { useMediaList, mediaQueryKeys } from "@/hooks/useMedia"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
+import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import { HuemulPagination } from "@/huemul/components/huemul-pagination"
@@ -55,6 +57,11 @@ export default function MediaPage() {
   const { t: tCommon } = useTranslation("common")
   const { selectedOrganizationId } = useOrganization()
   const queryClient = useQueryClient()
+  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess("media")
+
+  const canCreate = can("createMedia")
+  const canUpdate = can("updateMedia")
+  const canDeleteMedia = can("deleteMedia")
 
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
@@ -87,7 +94,7 @@ export default function MediaPage() {
     selectedOrganizationId ?? "",
     level,
     {
-      enabled: !!selectedOrganizationId && (level === "organization" || !!parentId),
+      enabled: !!selectedOrganizationId && can("listMedia") && (level === "organization" || !!parentId),
       page,
       pageSize,
       mediaType,
@@ -110,6 +117,14 @@ export default function MediaPage() {
     } finally {
       setIsRefreshing(false)
     }
+  }
+
+  if (isLoadingPermissions) {
+    return <MediaPageSkeleton />
+  }
+
+  if (!canAccessPage) {
+    return <HuemulAccessDenied />
   }
 
   if (!selectedOrganizationId) {
@@ -164,23 +179,27 @@ export default function MediaPage() {
           onClick={handleRefresh}
           className="h-8 text-xs px-2"
         />
-        <HuemulButton
-          variant="outline"
-          size="sm"
-          icon={Sparkles}
-          iconClassName="w-3 h-3 mr-1"
-          label={t("generate.button")}
-          onClick={() => setGenerateOpen(true)}
-          className="h-8 text-xs px-2"
-        />
-        <HuemulButton
-          size="sm"
-          icon={Plus}
-          iconClassName="w-3 h-3 mr-1"
-          label={t("upload.title")}
-          onClick={() => setUploadOpen(true)}
-          className="h-8 text-xs px-2"
-        />
+        {canCreate && (
+          <HuemulButton
+            variant="outline"
+            size="sm"
+            icon={Sparkles}
+            iconClassName="w-3 h-3 mr-1"
+            label={t("generate.button")}
+            onClick={() => setGenerateOpen(true)}
+            className="h-8 text-xs px-2"
+          />
+        )}
+        {canCreate && (
+          <HuemulButton
+            size="sm"
+            icon={Plus}
+            iconClassName="w-3 h-3 mr-1"
+            label={t("upload.title")}
+            onClick={() => setUploadOpen(true)}
+            className="h-8 text-xs px-2"
+          />
+        )}
       </div>
     </div>
   )
@@ -263,18 +282,24 @@ export default function MediaPage() {
       open={detailOpen}
       onOpenChange={setDetailOpen}
       organizationId={selectedOrganizationId}
+      canCreate={canCreate}
+      canUpdate={canUpdate}
+      canDelete={canDeleteMedia}
     />
 
     <HuemulMediaUploadSheet
       open={uploadOpen}
       onOpenChange={setUploadOpen}
       organizationId={selectedOrganizationId}
+      canCreate={canCreate}
     />
 
     <HuemulMediaGenerateSheet
       open={generateOpen}
       onOpenChange={setGenerateOpen}
       organizationId={selectedOrganizationId}
+      canCreate={canCreate}
+      canDelete={canDeleteMedia}
       onGenerated={(img) => {
         if (level !== "organization" && pinnedMediaIds.length === 0) {
           toast.info(t("generate.hiddenByFilters"))

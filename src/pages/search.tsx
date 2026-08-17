@@ -5,15 +5,18 @@ import { useTranslation } from "react-i18next";
 import { Search, FileText, AlertTriangle, X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { PageHeader } from "@/huemul/components/huemul-page-header";
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
+import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
 import { HuemulFilterButton } from "@/huemul/components/huemul-filter-button";
 import { HuemulFilterInline } from "@/huemul/components/huemul-filter-inline";
 import { HuemulFilterPanel } from "@/huemul/components/huemul-filter-panel";
 import { HuemulFilterChips } from "@/huemul/components/huemul-filter-chips";
 import { HuemulCustomFieldFilter } from "@/huemul/components/huemul-custom-field-filter";
 import { useHuemulFilters } from "@/hooks/useHuemulFilters";
+import { usePageAccess } from "@/hooks/usePageAccess";
 
 import { search } from "@/services/search";
 import type { SearchType, SearchResultDocument, SearchResponse } from "@/services/search";
@@ -105,7 +108,8 @@ export default function SearchPage() {
   const { t: tAssets } = useTranslation("assets");
   const { t: tFilters } = useTranslation("huemul-filters");
   const [searchParams, setSearchParams] = useSearchParams();
-  const { selectedOrganizationId } = useOrganization();
+  const { selectedOrganizationId, organizationToken } = useOrganization();
+  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess("search");
 
   // ── async-combobox fetchers ──
   const fetchAssetTypes = useCallback(
@@ -152,6 +156,13 @@ export default function SearchPage() {
   // (filterDefs → hook → values → filterDefs).
   const currentSearchType = (searchParams.get("search_type") as SearchType) || "semantic";
 
+  // Cada filtro que pega al backend se gatea con el permiso del endpoint que
+  // dispara, no con el de la página (ver ia context/rbac-audit-guide.md).
+  const canFilterByAssetType = can("filterByAssetType");
+  const canFilterByTemplate = can("filterByTemplate");
+  const canFilterByUser = can("filterByUser");
+  const canFilterByCustomField = can("filterByCustomField");
+
   const filterDefs = useMemo<HuemulFilterDef[]>(() => {
     const groupSearch = tFilters("groups.search");
     const classification = tFilters("groups.classification");
@@ -183,38 +194,64 @@ export default function SearchPage() {
           { value: "content", label: t("page.typesContent") },
         ],
       },
-      {
-        key: "documentTypeId",
-        type: "async-combobox",
-        group: classification,
-        label: t("filters.assetType"),
-        placeholder: t("filters.all"),
-        fetchOptions: fetchAssetTypes,
-        pageSize: 20,
-      },
-      {
-        key: "templateId",
-        type: "async-combobox",
-        group: classification,
-        label: t("filters.template"),
-        placeholder: t("filters.all"),
-        fetchOptions: fetchTemplates,
-        pageSize: 20,
-      },
-      {
-        key: "ownerValue",
-        type: "async-combobox",
-        group: classification,
-        label: t("filters.ownerScope"),
-        placeholder: t("filters.allOwners"),
-        fetchOptions: fetchUsers,
-        pageSize: 20,
-        staticOptions: [
-          { value: "__me__", label: t("filters.ownerMe"), description: t("filters.ownerMeDescription") },
-        ],
-        staticOptionsLabel: t("filters.ownerScopeLabel"),
-        asyncResultsLabel: t("filters.ownerUsersLabel"),
-      },
+      // Sin filterByAssetType: se omite la entrada entera (elimina su chip
+      // sin tocar useHuemulFilters, mismo patrón que /diagrams).
+      ...(canFilterByAssetType
+        ? [
+            {
+              key: "documentTypeId",
+              type: "async-combobox" as const,
+              group: classification,
+              label: t("filters.assetType"),
+              placeholder: t("filters.all"),
+              fetchOptions: fetchAssetTypes,
+              pageSize: 20,
+            },
+          ]
+        : []),
+      ...(canFilterByTemplate
+        ? [
+            {
+              key: "templateId",
+              type: "async-combobox" as const,
+              group: classification,
+              label: t("filters.template"),
+              placeholder: t("filters.all"),
+              fetchOptions: fetchTemplates,
+              pageSize: 20,
+            },
+          ]
+        : []),
+      // Sin filterByUser: se degrada a un select estático de una sola opción
+      // ("Mis assets") en vez de omitir la entrada — la key también la
+      // escribe el flujo __me__, y omitirla dejaría un valor huérfano fuera
+      // de chips/clearAll (mismo patrón que /home).
+      canFilterByUser
+        ? ({
+            key: "ownerValue",
+            type: "async-combobox",
+            group: classification,
+            label: t("filters.ownerScope"),
+            placeholder: t("filters.allOwners"),
+            fetchOptions: fetchUsers,
+            pageSize: 20,
+            staticOptions: [
+              { value: "__me__", label: t("filters.ownerMe"), description: t("filters.ownerMeDescription") },
+            ],
+            staticOptionsLabel: t("filters.ownerScopeLabel"),
+            asyncResultsLabel: t("filters.ownerUsersLabel"),
+          } as HuemulFilterDef)
+        : ({
+            key: "ownerValue",
+            type: "select",
+            group: classification,
+            label: t("filters.ownerScope"),
+            allValue: "",
+            options: [
+              { value: "", label: t("filters.allOwners") },
+              { value: "__me__", label: t("filters.ownerMe") },
+            ],
+          } as HuemulFilterDef),
       {
         key: "lifecycleState",
         type: "select",
@@ -235,19 +272,23 @@ export default function SearchPage() {
       { key: "estimatedPublicationDate", type: "date-range", group: dates, label: t("filters.estimatedPublicationDate") },
       { key: "reviewDate", type: "date-range", group: dates, label: t("filters.reviewDate") },
       { key: "auditDate", type: "date-range", group: dates, label: t("filters.auditDate") },
-      {
-        key: "customFieldFilter",
-        type: "custom",
-        multiEntry: true,
-        group: t("filters.customFieldsGroup"),
-        label: t("filters.customFields"),
-        render: ({ value, setValue }) => (
-          <HuemulCustomFieldFilter
-            value={Array.isArray(value) ? (value as string[]) : []}
-            onChange={(next) => setValue(next)}
-          />
-        ),
-      },
+      ...(canFilterByCustomField
+        ? [
+            {
+              key: "customFieldFilter",
+              type: "custom" as const,
+              multiEntry: true,
+              group: t("filters.customFieldsGroup"),
+              label: t("filters.customFields"),
+              render: ({ value, setValue }: { value: HuemulFilterValue; setValue: (v: HuemulFilterValue) => void }) => (
+                <HuemulCustomFieldFilter
+                  value={Array.isArray(value) ? (value as string[]) : []}
+                  onChange={(next) => setValue(next)}
+                />
+              ),
+            },
+          ]
+        : []),
       {
         key: "filterWithLlm",
         type: "boolean",
@@ -261,7 +302,19 @@ export default function SearchPage() {
       { key: "hasUnresolvedComments", type: "boolean", group: other, label: t("filters.unresolvedComments") },
       { key: "hasPendingAiSuggestion", type: "boolean", group: other, label: t("filters.pendingAiSuggestion") },
     ];
-  }, [t, tAssets, tFilters, fetchAssetTypes, fetchTemplates, fetchUsers, currentSearchType]);
+  }, [
+    t,
+    tAssets,
+    tFilters,
+    fetchAssetTypes,
+    fetchTemplates,
+    fetchUsers,
+    currentSearchType,
+    canFilterByAssetType,
+    canFilterByTemplate,
+    canFilterByUser,
+    canFilterByCustomField,
+  ]);
 
   const {
     values,
@@ -338,10 +391,28 @@ export default function SearchPage() {
           ? (values.customFieldFilter as string[]).filter(Boolean)
           : undefined,
       }),
-    enabled: hasActiveSearch && !!selectedOrganizationId,
+    enabled:
+      hasActiveSearch &&
+      !!selectedOrganizationId &&
+      !!organizationToken &&
+      can("performSearch"),
   });
 
   const canSearch = !!queryDraft.trim() || hasActiveSearch;
+
+  if (isLoadingPermissions) {
+    return (
+      <div className="flex h-full flex-col gap-4 p-6 md:p-8">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-96 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (!canAccessPage) {
+    return <HuemulAccessDenied />;
+  }
 
   const header = (
     <div className="flex flex-col gap-3">

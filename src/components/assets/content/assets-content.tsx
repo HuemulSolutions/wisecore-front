@@ -27,6 +27,7 @@ import { HuemulExpandableText } from "@/huemul/components/huemul-expandable-text
 import { AssetsNotificationsSheet } from "@/components/assets/content/assets-notifications-sheet";
 import { LifecycleHistorySheet } from "@/components/assets/content/lifecycle-history-sheet";
 import { AssetDiagramsSheet } from "@/components/assets/content/asset-diagrams-sheet";
+import { AssetsRelatedDocuments } from "@/components/assets/content/assets-related-documents";
 
 import {
   DropdownMenu,
@@ -78,8 +79,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
-import { computeFrontendPermissions } from '@/hooks/useDocumentAccess';
-import type { ContentSection, FrontendPermissions, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
+import { useAssetContentPermissions } from '@/hooks/useDocumentAccess';
+import { usePageAccess } from '@/hooks/usePageAccess';
+import type { ContentSection, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
 import type { FormValuesSectionPayload } from '@/types/sections/core';
 import { CustomFieldsList } from './assets-custom-fields-list';
 import { SectionIndexContext } from '@/contexts/section-index-context';
@@ -159,6 +161,7 @@ export function AssetContent({
   const isMobile = useIsMobile();
   const { selectedOrganizationId } = useOrganization();
   const { canCreate, canAccessTemplates, canAccessAssets, canAccessDiagrams } = useUserPermissions();
+  const { can } = usePageAccess('asset');
   const { handleCreateAsset: openCreateAssetDialog } = useNavKnowledgeActions();
   const { guardedAction } = useOptionalEditingGuard();
   const { isOpen: isGlobalPanelOpen } = useGlobalPanel();
@@ -470,6 +473,9 @@ export function AssetContent({
     mutationFn: withRefresh(
       async ({ executionId, name }: { executionId: string; name: string }) => {
         if (!selectedOrganizationId) throw new Error('Missing organization');
+        // Renombrar una versión es escritura sobre el asset: sin asset:u no se
+        // muta (el botón ya está oculto, esto cubre el permiso revocado en vivo).
+        if (!can('updateAssetContent')) throw new Error('Missing permission');
         return updateExecutionName(executionId, name, selectedOrganizationId);
       },
       queryClient,
@@ -504,6 +510,16 @@ export function AssetContent({
 
   // Sidebar and sheets
   const [activeTab, setActiveTab] = useState<'toc' | 'custom-fields'>('toc');
+  // Los custom fields son un recurso propio (custom_fields), no del asset: el tab
+  // y su query exigen el permiso de listarlos.
+  const canListCustomFields = can('listCustomFields');
+  const canCreateCustomField = can('createCustomField');
+  const canListNotifications = can('listNotifications');
+  const canListExecutionRelationships = can('listExecutionRelationships');
+  // El tab activo no puede quedar apuntando a un tab que el usuario no puede ver.
+  useEffect(() => {
+    if (activeTab === 'custom-fields' && !canListCustomFields) setActiveTab('toc');
+  }, [activeTab, canListCustomFields]);
   const [isTocSidebarOpen, setIsTocSidebarOpen] = useState(true);
   const [isSectionSheetOpen, setIsSectionSheetOpen] = useState(false);
   const [isDependenciesSheetOpen, setIsDependenciesSheetOpen] = useState(false);
@@ -929,7 +945,7 @@ export function AssetContent({
       page: customFieldsPage,
       page_size: CUSTOM_FIELDS_PAGE_SIZE
     }),
-    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && activeTab === 'custom-fields',
+    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && activeTab === 'custom-fields' && canListCustomFields,
     staleTime: 60000, // Cache for 1 minute
     placeholderData: (prev) => prev,
   });
@@ -1158,27 +1174,17 @@ export function AssetContent({
   // Lifecycle permissions from the document content response
   const lifecyclePermissions = documentContent?.lifecycle_permissions as LifecyclePermissions | undefined;
 
-  // Whether the user can see the asset content: at least one permission must be true.
-  // If permissions haven't loaded yet (undefined), default to allowing access.
-  const canViewContent = useMemo(() => {
-    if (!lifecyclePermissions) return true;
-    return (
-      lifecyclePermissions.view ||
-      lifecyclePermissions.create ||
-      lifecyclePermissions.edit ||
-      lifecyclePermissions.review ||
-      lifecyclePermissions.approve ||
-      lifecyclePermissions.publish ||
-      lifecyclePermissions.archive
-    );
-  }, [lifecyclePermissions]);
-
-  // Computed frontend permissions: combines lifecycle_permissions + lifecycle_status.stage
-  // to express high-level UI capabilities (e.g. canEditSections, canExecuteAI)
-  const frontendPermissions = useMemo<FrontendPermissions>(
-    () => computeFrontendPermissions(lifecyclePermissions, documentContent?.lifecycle_status),
-    [lifecyclePermissions, documentContent?.lifecycle_status]
-  );
+  // Permisos del panel: cruza lifecycle_permissions + lifecycle_status.stage con
+  // las capacidades RBAC globales (regla AND — ver useAssetContentPermissions).
+  // canViewContent / isViewOnly / canSwitchToEditorMode viven ahí y no acá para
+  // que la política de "sin lifecycle configurado" se decida en un solo lugar.
+  const {
+    frontendPermissions,
+    rbac: assetRbac,
+    canViewContent,
+    isViewOnly,
+    canSwitchToEditorMode,
+  } = useAssetContentPermissions(lifecyclePermissions, documentContent?.lifecycle_status);
 
   // Execution lifecycle transitions (complete/return, publish, archive, restore,
   // assign version, re-run external publish) — shared controller also used by
@@ -1187,8 +1193,10 @@ export function AssetContent({
     documentId: selectedFile?.id,
     executionId: selectedExecutionId || documentContent?.execution_id,
     organizationId: selectedOrganizationId,
+    documentTypeId: documentContent?.document_type?.id,
     lifecycleStatus: documentContent?.lifecycle_status,
     lifecyclePermissions,
+    rbac: { canTransition: assetRbac.updateAssetContent },
     extraRefreshKeys: () => [['document', selectedFile?.id], ['executions', selectedFile?.id]],
     onBeforeAdvance: () => preserveScrollPosition(),
     onViewChanges: (previousExecutionId, currentExecutionId) => {
@@ -1196,30 +1204,6 @@ export function AssetContent({
       setIsVersionCompareSheetOpen(true);
     },
   });
-
-  // Whether the reader/editor toggle is available: only in "edit" stage with create/edit permissions.
-  // In all other stages (review, approve, publish, archive) the user stays in reader mode.
-  const canSwitchToEditorMode = useMemo(() => {
-    const isEditStage = documentContent?.lifecycle_status?.stage === 'edit';
-    return isEditStage && !!(
-      lifecyclePermissions?.create ||
-      lifecyclePermissions?.edit
-    );
-  }, [lifecyclePermissions, documentContent?.lifecycle_status?.stage]);
-
-  // Whether the user has no content-editing permissions (view-only).
-  // View-only users can only see the title, version info, and version selector.
-  const isViewOnly = useMemo(() => {
-    if (!lifecyclePermissions) return false;
-    return (
-      !lifecyclePermissions.create &&
-      !lifecyclePermissions.edit &&
-      !lifecyclePermissions.review &&
-      !lifecyclePermissions.approve &&
-      !lifecyclePermissions.publish &&
-      !lifecyclePermissions.archive
-    );
-  }, [lifecyclePermissions]);
 
   // Set initial view mode based on lifecycle permissions (once per document+execution):
   // - view only  → reader mode, no toggle
@@ -1999,8 +1983,10 @@ export function AssetContent({
                 </div>
               )}
 
-              {/* Mobile action: create new version (always visible if user has create permission) */}
-              {(!lifecyclePermissions || lifecyclePermissions.create) && (
+              {/* Mobile action: create new version. El propio HuemulButton hace el
+                  AND lifecycle × RBAC (requiredAccess + checkGlobalPermissions +
+                  resource), así que no hace falta repetir la condición afuera
+                  — y repetirla con `!lifecyclePermissions ||` la abría de más. */}
               <HuemulButton
                 requiredAccess={["create"]}
                 requireAll={false}
@@ -2025,7 +2011,6 @@ export function AssetContent({
                   <Play className="h-4 w-4" />
                 )}
               </HuemulButton>
-              )}
               
               {frontendPermissions.canAccessSectionSheet && (
                 <SectionSheet
@@ -2197,8 +2182,8 @@ export function AssetContent({
                 <RefreshCw className={`h-4 w-4 ${isRefreshingContent ? 'animate-spin' : ''}`} />
               </HuemulButton>
               
-              {/* Clone Button - create permission only */}
-              {lifecyclePermissions?.create && selectedExecutionId && (
+              {/* Clone Button - create permission only (lifecycle × RBAC) */}
+              {lifecyclePermissions?.create && can('createVersion') && selectedExecutionId && (
                 <HuemulButton
                   onClick={() => void setTimeout(() => openCloneDialog(), 0)}
                   size="sm"
@@ -2210,8 +2195,8 @@ export function AssetContent({
                 </HuemulButton>
               )}
               
-              {/* Export Dropdown - available to any user with lifecycle permissions */}
-              {!isViewOnly && (lifecyclePermissions?.view || lifecyclePermissions?.create || lifecyclePermissions?.edit || lifecyclePermissions?.review || lifecyclePermissions?.approve || lifecyclePermissions?.publish || lifecyclePermissions?.archive) && (
+              {/* Export Dropdown - available to any user with lifecycle permissions + RBAC de lectura */}
+              {!isViewOnly && can('exportVersion') && (lifecyclePermissions?.view || lifecyclePermissions?.create || lifecyclePermissions?.edit || lifecyclePermissions?.review || lifecyclePermissions?.approve || lifecyclePermissions?.publish || lifecyclePermissions?.archive) && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <HuemulButton
@@ -2256,8 +2241,8 @@ export function AssetContent({
                 </DropdownMenu>
               )}
               
-              {/* Delete Options - edit or create permission + edit stage only */}
-              {(lifecyclePermissions?.edit || lifecyclePermissions?.create) && documentContent?.lifecycle_status?.stage === 'edit' && (
+              {/* Delete Options - edit or create permission + edit stage + asset:d */}
+              {(lifecyclePermissions?.edit || lifecyclePermissions?.create) && can('deleteVersion') && documentContent?.lifecycle_status?.stage === 'edit' && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <HuemulButton
@@ -2373,22 +2358,24 @@ export function AssetContent({
                               queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, id] });
                             })}
                             onOpenVersionManagement={() => setIsVersionManagementSheetOpen(true)}
-                            onRenameVersion={(exec) => {
+                            onRenameVersion={frontendPermissions.canEditSections ? (exec) => {
                               setExecutionToRename({ id: exec.id, name: exec.name });
                               setTimeout(() => setIsRenameVersionDialogOpen(true), 0);
-                            }}
+                            } : undefined}
                             dropdownAlign="end"
                           />
                         )}
-                        <HuemulButton
-                          size="sm"
-                          variant="ghost"
-                          icon={Bell}
-                          iconClassName="h-4 w-4"
-                          className="h-7 w-7 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
-                          tooltip={t('content.notificationsTooltip')}
-                          onClick={() => setIsNotificationsSheetOpen(true)}
-                        />
+                        {canListNotifications && (
+                          <HuemulButton
+                            size="sm"
+                            variant="ghost"
+                            icon={Bell}
+                            iconClassName="h-4 w-4"
+                            className="h-7 w-7 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                            tooltip={t('content.notificationsTooltip')}
+                            onClick={() => setIsNotificationsSheetOpen(true)}
+                          />
+                        )}
                         {!isViewOnly && (
                           <MoreOptionsDropdown
                             isViewMode={isViewMode}
@@ -2396,12 +2383,17 @@ export function AssetContent({
                             lifecyclePermissions={lifecyclePermissions}
                             frontendPermissions={frontendPermissions}
                             lifecycleStatus={documentContent?.lifecycle_status}
+                            finalLifecycleStage={lifecycle.finalLifecycleStage}
                             selectedExecutionId={selectedExecutionId}
                             hasTemplateName={!!documentContent?.template_name}
                             canCreateTemplate={canCreate('template')}
+                            canManageGrants={can('manageAssetLifecycleGrants')}
+                            canCloneVersion={can('createVersion')}
+                            canExportVersion={can('exportVersion')}
+                            canDeleteVersion={can('deleteVersion')}
                             isRefreshing={isRefreshingContent}
                             isLoadingContent={isLoadingContent}
-                            hasTocItems={tocItems.length > 0}
+                            hasTocItems={!!documentContent?.content}
                             isDocumentType={selectedFile.type === 'document'}
                             hasDocumentContent={!!documentContent?.content}
                             isTocSidebarOpen={isTocSidebarOpen}
@@ -2546,7 +2538,7 @@ export function AssetContent({
                 />
 
                 {/* TOC Toggle button - desktop only */}
-                {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 &&
+                {selectedFile.type === 'document' && documentContent?.content &&
                  (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
                   <HuemulButton
                     size="sm"
@@ -3134,7 +3126,7 @@ export function AssetContent({
       </ResizablePanel>
 
       {/* Table of Contents Sidebar - only show for documents with content and not during full/full-single executions */}
-      {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && 
+      {selectedFile.type === 'document' && documentContent?.content &&
        isTocSidebarOpen &&
        (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
         <>
@@ -3143,7 +3135,7 @@ export function AssetContent({
             <div className="flex flex-col h-full min-h-0 bg-card overflow-hidden">
                 {/* Header con tabs — banda gris a sangre */}
                 <div className="shrink-0 bg-muted/50 border-b border-border px-3 py-2.5">
-                  <div className="grid w-full grid-cols-2 gap-1">
+                  <div className={cn("grid w-full gap-1", canListCustomFields ? "grid-cols-2" : "grid-cols-1")}>
                     <button
                       onClick={() => setActiveTab('toc')}
                       className={cn(
@@ -3155,23 +3147,37 @@ export function AssetContent({
                     >
                       <span className="line-clamp-2 text-center leading-tight">{t('content.contentTab')}</span>
                     </button>
-                    <button
-                      onClick={() => setActiveTab('custom-fields')}
-                      className={cn(
-                        "flex items-center justify-center text-xs py-1.5 px-2 rounded-md transition-all hover:cursor-pointer",
-                        activeTab === 'custom-fields'
-                          ? "bg-background border border-border shadow-sm text-foreground font-medium"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <span className="line-clamp-2 text-center leading-tight">{t('content.customFieldsTab')}</span>
-                    </button>
+                    {canListCustomFields && (
+                      <button
+                        onClick={() => setActiveTab('custom-fields')}
+                        className={cn(
+                          "flex items-center justify-center text-xs py-1.5 px-2 rounded-md transition-all hover:cursor-pointer",
+                          activeTab === 'custom-fields'
+                            ? "bg-background border border-border shadow-sm text-foreground font-medium"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <span className="line-clamp-2 text-center leading-tight">{t('content.customFieldsTab')}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
-                {activeTab === 'toc' ? (
-                  <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2 py-2">
-                    <TableOfContents items={tocItems} />
-                  </div>
+                {activeTab === 'toc' || !canListCustomFields ? (
+                  <>
+                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2 py-2">
+                      <TableOfContents items={tocItems} />
+                    </div>
+                    {canListExecutionRelationships && (
+                      <AssetsRelatedDocuments
+                        organizationId={selectedOrganizationId}
+                        executionId={selectedExecutionId || documentContent?.execution_id}
+                        currentDocumentId={selectedFile?.id}
+                        versionLabel={getExecutionDisplayLabel(selectedExecutionInfo)}
+                        canOpenDiagrams={can('openDiagramsCanvas')}
+                        canListAssetTypes={can('listAssetTypes')}
+                      />
+                    )}
+                  </>
                 ) : (
                   <div className="flex-1 min-h-0 overflow-hidden">
                     <CustomFieldsList
@@ -3184,7 +3190,9 @@ export function AssetContent({
                       onRefresh={handleRefreshCustomFields}
                       uploadingImageFieldId={uploadingImageFieldId}
                       isRefreshing={isRefreshingCustomFields}
-                      canEdit={frontendPermissions.canEditSections}
+                      canCreate={frontendPermissions.canEditSections}
+                      canUpdate={frontendPermissions.canEditSections}
+                      canDelete={frontendPermissions.canEditSections}
                       page={customFieldsPage}
                       pageSize={CUSTOM_FIELDS_PAGE_SIZE}
                       totalItems={customFieldsData?.total}
@@ -3380,6 +3388,7 @@ export function AssetContent({
         onAdd={handleCreateCustomFieldDocument}
         onImageUploadStart={handleImageUploadStart}
         onImageUploadComplete={handleImageUploadComplete}
+        canCreateCustomField={canCreateCustomField}
       />
 
       {/* Edit Custom Field Document Sheet (Unified) */}
@@ -3435,11 +3444,15 @@ export function AssetContent({
       />
 
       {/* Asset Permissions Sheet */}
-      <AssetLifecycleSheet
-        asset={selectedFile?.type === 'document' ? { id: selectedFile.id, name: documentContent?.document_name || selectedFile.name, document_type_id: documentContent?.document_type?.id ?? selectedFile.document_type?.id ?? null } : null}
-        open={isPermissionsSheetOpen}
-        onOpenChange={setIsPermissionsSheetOpen}
-      />
+      {/* Defensa en profundidad: el gate real vive dentro del sheet (se monta
+          también desde nav-knowledge-provider), acá solo se evita montarlo. */}
+      {can('manageAssetLifecycleGrants') && (
+        <AssetLifecycleSheet
+          asset={selectedFile?.type === 'document' ? { id: selectedFile.id, name: documentContent?.document_name || selectedFile.name, document_type_id: documentContent?.document_type?.id ?? selectedFile.document_type?.id ?? null } : null}
+          open={isPermissionsSheetOpen}
+          onOpenChange={setIsPermissionsSheetOpen}
+        />
+      )}
 
       {/* Asset Info Sheet */}
       <AssetsInfoSheet
@@ -3479,14 +3492,16 @@ export function AssetContent({
       )}
 
       {/* Notifications Sheet */}
-      <AssetsNotificationsSheet
-        open={isNotificationsSheetOpen}
-        onOpenChange={setIsNotificationsSheetOpen}
-        documentId={selectedFile?.id ?? ''}
-        executionId={selectedExecutionId}
-        organizationId={selectedOrganizationId ?? ''}
-        allExecutions={allExecutions}
-      />
+      {canListNotifications && (
+        <AssetsNotificationsSheet
+          open={isNotificationsSheetOpen}
+          onOpenChange={setIsNotificationsSheetOpen}
+          documentId={selectedFile?.id ?? ''}
+          executionId={selectedExecutionId}
+          organizationId={selectedOrganizationId ?? ''}
+          allExecutions={allExecutions}
+        />
+      )}
 
       {/* Lifecycle History Sheet */}
       <LifecycleHistorySheet

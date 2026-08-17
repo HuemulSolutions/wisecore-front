@@ -1,6 +1,6 @@
 // Asset type page component props (the asset-types management module)
 import type { ReactNode } from 'react'
-import type { AssetTypeWithRoles } from './asset-types'
+import type { AssetTypeWithRoles, TemplatesSaveApiRef } from './asset-types'
 import type { AssetTypePageState } from './asset-types'
 import type { useAssetTypeMutations } from '@/hooks/useAssetTypes'
 import type { HuemulTablePagination } from '@/huemul/components/huemul-table'
@@ -27,6 +27,45 @@ export interface CreateDocumentTypeProps {
   onOpenChange?: (open: boolean) => void
   documentType?: AssetTypeWithRoles | null
   type?: 'document' | 'asset'
+  /**
+   * El mismo sheet hace POST (crear) o PUT (editar) según venga `documentType`,
+   * así que el consumidor debe resolver `asset_type:c` o `asset_type:u` y pasar
+   * el resultado. Obligatoria y sin default: ver punto 9 del checklist en
+   * ia context/rbac-audit-guide.md.
+   */
+  canSave: boolean
+}
+
+// ----------------------------------------
+// Asset Type Config Sheet (tabs)
+// ----------------------------------------
+
+export type AssetTypeConfigTab = 'general' | 'lifecycle' | 'templates'
+
+export interface AssetTypeConfigSheetProps {
+  assetType: AssetTypeWithRoles | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  organizationId: string
+  /** `asset_type:u` — habilita el tab General y su botón Guardar. */
+  canUpdate: boolean
+  /** `manageLinkedTemplates` — habilita el tab Plantillas. */
+  canManageTemplates: boolean
+  /** `manageLifecycle` — habilita el tab Ciclo de vida. */
+  canManageLifecycle: boolean
+}
+
+// ----------------------------------------
+// Asset Type Templates Panel (tab «Plantillas»)
+// ----------------------------------------
+
+export interface AssetTypeTemplatesPanelProps {
+  documentTypeId: string
+  /** Solo dispara el fetch cuando el tab/panel está visible. */
+  enabled?: boolean
+  /** Publica `save`/`isDirty`/`discard` hacia el footer del sheet. `null` al desmontar. */
+  onDirtyChange?: (state: { isDirty: boolean }) => void
+  saveApiRef?: TemplatesSaveApiRef
 }
 
 // ----------------------------------------
@@ -101,16 +140,17 @@ export interface AssetTypePageHeaderProps {
 
 export interface AssetTypeTableProps {
   assetTypes: AssetTypeWithRoles[]
-  onEditAssetType: (assetType: AssetTypeWithRoles) => void
+  /** Abre el sheet de configuración (general + plantillas + ciclo de vida). */
+  onConfigureAssetType: (assetType: AssetTypeWithRoles) => void
   onDeleteAssetType: (assetType: AssetTypeWithRoles) => void
   onCloneAssetType: (assetType: AssetTypeWithRoles) => void
-  onLifecycle: (assetType: AssetTypeWithRoles) => void
   onViewRelationships: (assetType: AssetTypeWithRoles) => void
-  onManageTemplates: (assetType: AssetTypeWithRoles) => void
   pagination?: HuemulTablePagination
-  canUpdate?: boolean
+  /** True si el usuario puede abrir al menos un tab del sheet de configuración. */
+  canConfigure?: boolean
   canDelete?: boolean
   canViewRelationships?: boolean
+  canClone?: boolean
   isLoading?: boolean
   isFetching?: boolean
   selectedIds: Set<string>

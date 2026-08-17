@@ -48,7 +48,11 @@ export interface CustomFieldsListProps {
   onRefresh: () => void
   uploadingImageFieldId?: string | null
   isRefreshing?: boolean
-  canEdit?: boolean
+  // Permisos separados por acción (defaults `false`, secure-by-default): un
+  // único `canEdit` no distinguía crear de editar de borrar.
+  canCreate?: boolean
+  canUpdate?: boolean
+  canDelete?: boolean
   /** Paginación del listado — si se omite onPageChange, no se muestra el footer de paginación. */
   page?: number
   pageSize?: number
@@ -118,6 +122,11 @@ export interface AssetFileTreeProps {
   // En false, el resultado de onRefresh/onLoadChildren es autoritativo:
   // solo queda expandido lo que venga marcado en esa respuesta.
   preserveExpandedOnRefresh?: boolean
+  /**
+   * Qué nodos puede arrastrar el usuario (mover por drag&drop).
+   * Default: todos. Ver la nota en HuemulFileTreeProps.canDragNode.
+   */
+  canDragNode?: (node: FileNode) => boolean
 }
 
 export interface FileTreeRef extends HuemulFileTreeRef {}

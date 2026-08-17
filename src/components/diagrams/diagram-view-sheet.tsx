@@ -16,8 +16,8 @@ export interface DiagramViewSheetProps {
 }
 
 // Read-only diagram viewer: pan/zoom + info side panels, no editing. To actually
-// edit relationships the user is sent to the assets page in relations mode, where
-// the asset tree is available to drag/drop and relate assets.
+// edit relationships the user is sent to /diagrams, donde el árbol de assets está
+// disponible para arrastrar y relacionar.
 export function DiagramViewSheet({ open, onOpenChange, diagramId, organizationId }: DiagramViewSheetProps) {
   const { t } = useTranslation("diagrams")
   const buildPath = useOrgPath()
@@ -30,7 +30,7 @@ export function DiagramViewSheet({ open, onOpenChange, diagramId, organizationId
 
   const handleEdit = () => {
     if (!diagramId) return
-    window.open(buildPath(`/asset?diagram=${diagramId}`), "_blank", "noopener,noreferrer")
+    window.open(buildPath(`/diagrams?diagram=${diagramId}`), "_blank", "noopener,noreferrer")
   }
 
   return (

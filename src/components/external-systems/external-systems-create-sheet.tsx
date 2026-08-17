@@ -21,6 +21,7 @@ export function ExternalSystemCreateSheet({
   open,
   onOpenChange,
   organizationId,
+  canCreate,
 }: ExternalSystemCreateSheetProps) {
   const { t } = useTranslation(["external-systems", "common"])
   const [formData, setFormData] = useState<CreateExternalSystemRequest>(INITIAL_FORM)
@@ -37,6 +38,7 @@ export function ExternalSystemCreateSheet({
   ) => setFormData((prev) => ({ ...prev, [field]: value }))
 
   const handleSubmit = async () => {
+    if (!canCreate) return
     await new Promise<void>((resolve, reject) => {
       createExternalSystem.mutate(formData, {
         onSuccess: () => {
@@ -47,6 +49,8 @@ export function ExternalSystemCreateSheet({
       })
     })
   }
+
+  if (!canCreate) return null
 
   return (
     <HuemulSheet

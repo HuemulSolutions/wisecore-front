@@ -9,6 +9,7 @@ export type { CustomFieldTemplateEmptyStateProps } from '@/types/templates';
 
 export function CustomFieldTemplateEmptyState({
   onAddCustomFieldTemplate,
+  canCreate = false,
 }: CustomFieldTemplateEmptyStateProps) {
   const { t } = useTranslation('templates')
   return (
@@ -17,23 +18,25 @@ export function CustomFieldTemplateEmptyState({
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg bg-muted">
           <FileText className="h-7 w-7 text-muted-foreground" />
         </div>
-        
+
         <h3 className="mt-5 text-lg font-semibold text-foreground">
           {t('customFields.emptyTitle')}
         </h3>
-        
+
         <p className="mt-2 text-sm text-muted-foreground max-w-md">
-          {t('customFields.emptyDescription')}
+          {canCreate ? t('customFields.emptyDescription') : t('customFields.emptyDescriptionReadOnly')}
         </p>
-        
-        <Button
-          onClick={onAddCustomFieldTemplate}
-          className="mt-7 hover:cursor-pointer h-9 px-4"
-          size="sm"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          {t('customFields.addCustomField')}
-        </Button>
+
+        {canCreate && (
+          <Button
+            onClick={onAddCustomFieldTemplate}
+            className="mt-7 hover:cursor-pointer h-9 px-4"
+            size="sm"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {t('customFields.addCustomField')}
+          </Button>
+        )}
       </div>
     </Card>
   )

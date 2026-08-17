@@ -68,7 +68,7 @@ export function AssetDiagramsSheet({ open, onOpenChange, documentId, organizatio
     if (!documentId) return;
     const params = new URLSearchParams({ diagram: "new", seedAsset: documentId });
     if (executionId) params.set("seedExecution", executionId);
-    window.open(buildPath(`/asset?${params}`), "_blank", "noopener,noreferrer");
+    window.open(buildPath(`/diagrams?${params}`), "_blank", "noopener,noreferrer");
   };
 
   return (

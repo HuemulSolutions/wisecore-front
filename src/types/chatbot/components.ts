@@ -19,4 +19,9 @@ export interface ConversationListProps {
   activeConversationId: string | null
   /** Called after deleting the active conversation so the parent can reset the view. */
   onDeletedActiveConversation?: () => void
+  /**
+   * Eje RBAC del panel Wisy (`asset:l|r`, ver useWisyAccess). Obligatoria y sin
+   * default: un default permisivo es indistinguible de "todavía no lo gatearon".
+   */
+  canManage: boolean
 }

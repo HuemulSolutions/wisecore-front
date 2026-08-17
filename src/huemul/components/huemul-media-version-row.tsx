@@ -26,7 +26,8 @@ export function downloadVersion(version: MediaVersion | null | undefined) {
 export interface MediaVersionRowProps {
   version: MediaVersion
   isCurrent: boolean
-  onDelete: () => void
+  /** Sin este callback no se renderiza el botón de borrar (el consumidor lo omite sin `media:d`). */
+  onDelete?: () => void
 }
 
 export function MediaVersionRow({ version, isCurrent, onDelete }: MediaVersionRowProps) {
@@ -73,14 +74,16 @@ export function MediaVersionRow({ version, isCurrent, onDelete }: MediaVersionRo
           tooltip={t("detail.download")}
           onClick={() => downloadVersion(version)}
         />
-        <HuemulButton
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 hover:cursor-pointer text-muted-foreground hover:text-destructive"
-          icon={Trash2}
-          tooltip={t("detail.deleteVersion")}
-          onClick={onDelete}
-        />
+        {onDelete && (
+          <HuemulButton
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 hover:cursor-pointer text-muted-foreground hover:text-destructive"
+            icon={Trash2}
+            tooltip={t("detail.deleteVersion")}
+            onClick={onDelete}
+          />
+        )}
       </div>
     </div>
   )

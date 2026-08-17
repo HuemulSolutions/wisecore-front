@@ -387,12 +387,12 @@ export function ExecutionRelationshipCreateDialog({
         <div className="flex flex-col gap-1.5 p-3 bg-muted/50 rounded-lg text-xs">
           <div className="flex items-start gap-2">
             <div className="h-3 w-3 rounded-full shrink-0 mt-0.5" style={{ backgroundColor: source.color || "#94a3b8" }} />
-            <span className="font-medium line-clamp-2 break-words">{source.name}</span>
+            <span className="font-medium line-clamp-2 wrap-break-word">{source.name}</span>
           </div>
           <span className="text-muted-foreground pl-1">↓</span>
           <div className="flex items-start gap-2">
             <div className="h-3 w-3 rounded-full shrink-0 mt-0.5" style={{ backgroundColor: target.color || "#94a3b8" }} />
-            <span className="font-medium line-clamp-2 break-words">{target.name}</span>
+            <span className="font-medium line-clamp-2 wrap-break-word">{target.name}</span>
           </div>
         </div>
 

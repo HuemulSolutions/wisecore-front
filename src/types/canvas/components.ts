@@ -21,7 +21,7 @@ export interface CanvasPageHeaderProps {
   isLoading?: boolean
   searchTerm?: string
   onSearchChange: (value: string) => void
-  canManage?: boolean
+  canCreate?: boolean
 }
 
 export interface CanvasTableProps {
@@ -29,7 +29,8 @@ export interface CanvasTableProps {
   onEdit: (canvas: Canvas) => void
   onDelete: (canvas: Canvas) => void
   pagination?: HuemulTablePagination
-  canManage?: boolean
+  canUpdate?: boolean
+  canDelete?: boolean
   isLoading?: boolean
   isFetching?: boolean
 }

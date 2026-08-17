@@ -13,6 +13,8 @@ export function EmbeddingProviderEditDialog({
   provider,
   onSubmit,
   isSubmitting,
+  canCreate,
+  canUpdate,
 }: EmbeddingProviderEditDialogProps) {
   const [apiKey, setApiKey] = useState("")
   const [endpoint, setEndpoint] = useState("")
@@ -47,7 +49,13 @@ export function EmbeddingProviderEditDialog({
   const requiresEndpoint = provider.endpoint === true
   const requiresDeployment = provider.deployment === true
 
+  // El mismo sheet hace POST (configurar) o PUT (editar) según el estado del
+  // provider: el permiso a exigir depende de cuál de los dos dispara.
+  const canSave = isConfiguring ? canCreate : canUpdate
+
   const handleSave = async () => {
+    if (!canSave) return
+
     const data: { name: string; key?: string; endpoint?: string; deployment?: string } = {
       name: providerKey,
     }
@@ -58,6 +66,8 @@ export function EmbeddingProviderEditDialog({
 
     onSubmit(data)
   }
+
+  if (!canSave) return null
 
   const isFormValid =
     (!requiresApiKey || apiKey.trim() !== "") &&

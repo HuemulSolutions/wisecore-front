@@ -5,7 +5,7 @@ import {
   useExternalSecrets,
   useExternalSecretMutations,
 } from "@/hooks/useExternalSecrets"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
@@ -27,11 +27,11 @@ export function ExternalSystemSecretsTab({
 }: ExternalSystemSecretsTabProps) {
   const { t } = useTranslation(["external-secrets", "common"])
 
-  const { isOrgAdmin, hasPermission } = useUserPermissions()
-  const canCreate = isOrgAdmin || hasPermission("external_secret:c")
-  const canUpdate = isOrgAdmin || hasPermission("external_secret:u")
-  const canDelete = isOrgAdmin || hasPermission("external_secret:d")
-  const canList   = isOrgAdmin || hasPermission("external_secret:l") || hasPermission("external_secret:r")
+  const { can } = usePageAccess("external-systems")
+  const canCreate = can("createSecret")
+  const canUpdate = can("updateSecret")
+  const canDelete = can("deleteSecret")
+  const canList   = can("listSecrets")
 
   const [page, setPage] = useState(1)
   const [showAddDialog, setShowAddDialog] = useState(false)

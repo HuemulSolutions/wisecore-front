@@ -14,7 +14,7 @@ export type { CreateAuthTypeDialogProps } from '@/types/auth-types'
 
 const EMPTY_SAML2: Saml2Params = { client_id: "", tenant_id: "", request_url: "" }
 
-export function CreateAuthTypeDialog({ open, onOpenChange }: CreateAuthTypeDialogProps) {
+export function CreateAuthTypeDialog({ open, onOpenChange, canManage = false }: CreateAuthTypeDialogProps) {
   const { t } = useTranslation(['auth-types', 'common'])
   const [formData, setFormData] = useState<CreateAuthTypeRequest>({
     name: "",
@@ -23,10 +23,12 @@ export function CreateAuthTypeDialog({ open, onOpenChange }: CreateAuthTypeDialo
   })
   const [saml2Params, setSaml2Params] = useState<Saml2Params>(EMPTY_SAML2)
 
-  const { data: authTypeTypes } = useAuthTypeTypes(open)
+  const { data: authTypeTypes } = useAuthTypeTypes(open && canManage)
   const { createAuthType } = useAuthTypeMutations()
 
   const isSaml2 = formData.type === "saml2"
+
+  if (!canManage) return null
 
   const handleSubmit = async () => {
     const payload: CreateAuthTypeRequest = {

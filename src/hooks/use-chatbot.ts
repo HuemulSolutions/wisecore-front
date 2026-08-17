@@ -8,6 +8,7 @@ import {
 } from "@/services/chatbot";
 import { useOrganization } from "@/contexts/organization-context";
 import { useMessagePolling } from "@/hooks/use-message-polling";
+import { useWisyAccess } from "@/hooks/useWisyAccess";
 import type {
   ChatMessage,
   ConversationReference,
@@ -127,6 +128,10 @@ export function useChatbot({
 }: UseChatbotProps = {}): UseChatbotReturn {
   const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
+  // Choke point de escritura del chatbot: `sendMessage` crea la conversación y
+  // manda el mensaje con el contexto de trabajo (ids de documento/ejecución),
+  // así que necesita el mismo eje de lectura que el resto del panel.
+  const { canUseWisy } = useWisyAccess();
 
   const mergeAssistantMessage = useCallback(
     (nextAssistantMessage: ChatMessage) => {
@@ -231,8 +236,10 @@ export function useChatbot({
       llmId?: string;
     }
   >({
-    mutationFn: ({ conversationId: convId, content, workingContext: wc, llmId }) =>
-      sendMessageService(convId, content, wc, llmId),
+    mutationFn: ({ conversationId: convId, content, workingContext: wc, llmId }) => {
+      if (!canUseWisy) return Promise.reject(new Error("Missing permission"));
+      return sendMessageService(convId, content, wc, llmId);
+    },
     onSuccess: (data, variables) => {
       // Replace the optimistic user message ID with the real one
       setMessages((prev) =>
@@ -280,6 +287,7 @@ export function useChatbot({
 
   const sendMessage = useCallback(
     async (content: string) => {
+      if (!canUseWisy) return;
       const trimmed = content.trim();
       if (!trimmed || isSendingRef.current) return;
       isSendingRef.current = true;
@@ -347,7 +355,7 @@ export function useChatbot({
         llmId: selectedLlmId,
       });
     },
-    [conversationId, references, queryClient, selectedLlmId, selectedOrganizationId, sendMutation, workingContext, workingContextItems]
+    [canUseWisy, conversationId, references, queryClient, selectedLlmId, selectedOrganizationId, sendMutation, workingContext, workingContextItems]
   );
 
   const resetSendMutation = sendMutation.reset;
@@ -379,6 +387,7 @@ export function useChatbot({
 
   const loadConversation = useCallback(
     async (targetConversationId: string) => {
+      if (!canUseWisy) return;
       // Reset polling state
       setPendingAssistantId(null);
       isSendingRef.current = false;
@@ -406,7 +415,7 @@ export function useChatbot({
         setIsLoadingConversation(false);
       }
     },
-    []
+    [canUseWisy]
   );
 
   return {

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { getAllTemplates, createTemplateExpress } from "@/services/templates"
 import { workflowQueryKeys } from "@/hooks/useWorkflows"
+import { useNavKnowledgeRefresh } from "@/contexts/nav-knowledge-context"
 import { DEFAULT_PAGE_SIZE } from "@/huemul/constants"
 import type { CreateExpressBody, WorkflowTemplateItem } from "@/types/templates"
 
@@ -54,6 +55,7 @@ export function useWorkflowTemplates(organizationId: string, options: UseWorkflo
 
 export function useCreateTemplateExpress(organizationId: string) {
   const queryClient = useQueryClient()
+  const refreshFileTree = useNavKnowledgeRefresh()
   const { t } = useTranslation("workflow")
 
   return useMutation({
@@ -69,6 +71,12 @@ export function useCreateTemplateExpress(organizationId: string) {
     meta: { successMessage: t("expressSheet.success") },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: workflowQueryKeys.listBase() })
+      // El backend crea el documento dentro de Workflows/<relación>, creando la
+      // subcarpeta si no existía: la biblioteca cacheada queda desactualizada.
+      queryClient.invalidateQueries({ queryKey: ["library"] })
+      // Noop mientras el árbol no esté montado (/workflow no lo monta), pero
+      // mantiene el patrón invalidate + refresh del resto de mutaciones de assets.
+      refreshFileTree()
     },
   })
 }

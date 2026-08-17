@@ -11,6 +11,7 @@ export function AddCustomFieldDocumentSheet({
   onAdd,
   onImageUploadStart,
   onImageUploadComplete,
+  canCreateCustomField,
 }: AddCustomFieldDocumentDialogProps) {
   // Fetch custom field document sources (lazy loading: only when sheet is open)
   const { data: sources = [], isLoading: isLoadingSources } = useQuery({
@@ -35,6 +36,8 @@ export function AddCustomFieldDocumentSheet({
       isLoadingSources={isLoadingSources}
       onImageUploadStart={onImageUploadStart}
       onImageUploadComplete={onImageUploadComplete}
+      // `custom_fields:c` resuelto por assets-content.tsx vía usePageAccess.
+      canCreateCustomField={canCreateCustomField}
     />
   )
 }

@@ -1,5 +1,6 @@
 import type { DocumentType } from '@/types/document-types'
 import type { ExecutionRelationshipType, ExecutionRelationshipAttributeValue } from '@/types/execution-relationships'
+import type { Diagram } from '@/types/diagrams'
 import type React from 'react'
 
 // ─── Canvas ───────────────────────────────────────────────────────────────────
@@ -69,10 +70,22 @@ export interface EditingDiagram {
 
 // Free-standing canvas decorations — not tied to an asset. Persisted as Diagram `texts`:
 // a "text" has no border, a "container" is a bordered box whose `content` is its title
-// (the backend rejects blank `content`, so a container can't be an empty box).
-export type CanvasElementKind = 'text' | 'container'
+// (the backend rejects blank `content`, so a container can't be an empty box), and a
+// "role" is a free-floating circle labeled with an RBAC role's name.
+export type CanvasElementKind = 'text' | 'container' | 'role'
 
-// A text/container element to seed the canvas with on mount, at an explicit saved
+// An RBAC role assigned to a canvas element (container acting as a lane, or a
+// free-standing role node). Stashed inside `DiagramText.position` on save — see
+// `buildInitialCanvasElements` / `save-as-diagram-sheet.tsx` — since the backend has
+// no first-class role_id column on diagram_texts yet. No `color`: roles have no
+// assignable color anywhere in the app (no such field on the role form), so nothing
+// here should imply one — the container/node keep using their own element color.
+export interface CanvasElementRole {
+  id: string
+  name: string
+}
+
+// A text/container/role element to seed the canvas with on mount, at an explicit saved
 // position/size (used to reopen a previously-saved Diagram for editing).
 export interface InitialCanvasElement {
   kind: CanvasElementKind
@@ -81,6 +94,7 @@ export interface InitialCanvasElement {
   position: { x: number; y: number }
   width: number
   height: number
+  role?: CanvasElementRole
 }
 
 export interface RelationshipsCanvasProps {
@@ -95,6 +109,10 @@ export interface RelationshipsCanvasProps {
   // Saved text/container elements to seed the canvas with on mount.
   initialElements?: InitialCanvasElement[]
   editingDiagram?: EditingDiagram
+  // Fired after a successful create/update from the "Save as Diagram" sheet, with the
+  // resulting Diagram — lets the caller (e.g. NewDiagramCanvas) sync its own state/URL
+  // now that the canvas has been promoted into "editing" mode for it.
+  onDiagramSaved?: (diagram: Diagram) => void
   // View-only mode: no dragging, connecting, resizing, inline editing, or toolbars —
   // just pan/zoom and the informational side panels. Used by the diagram viewer sheet;
   // real editing happens back on the assets page in relations mode.
@@ -110,6 +128,9 @@ export interface AssetTypeSidebarProps {
   page: number
   pageSize: number
   onRefresh?: () => void
+  // Hides the "role" drag item when the user can't list roles (same gate as the
+  // toolbar's "Add Role" button and the @role mention picker).
+  canPickRole?: boolean
 }
 
 export interface AssetTypeDraggableItemProps {

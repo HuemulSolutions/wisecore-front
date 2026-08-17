@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
+import { useOrganization } from "@/contexts/organization-context"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
@@ -20,7 +21,8 @@ export default function AssignRoleToUsersDialog({
   role,
   open,
   onOpenChange,
-  onSuccess
+  onSuccess,
+  canAssign
 }: AssignRoleToUsersDialogProps) {
   const { t } = useTranslation(['roles', 'common'])
   const [searchInput, setSearchInput] = useState("")
@@ -30,9 +32,10 @@ export default function AssignRoleToUsersDialog({
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const queryClient = useQueryClient()
+  const { selectedOrganizationId } = useOrganization()
 
-  // Fetch role with all users when sheet is open
-  const { data: roleUsersResponse, isLoading, error, refetch } = useRoleWithAllUsers(role?.id || '', open && !!role, page, pageSize, searchQuery || undefined)
+  // Fetch role with all users when sheet is open y hay permiso de asignar
+  const { data: roleUsersResponse, isLoading, error, refetch } = useRoleWithAllUsers(role?.id || '', open && !!role && canAssign, page, pageSize, searchQuery || undefined)
   const { assignUsersToRole } = useRoleMutations()
 
   const users = roleUsersResponse?.data?.users || []
@@ -60,7 +63,7 @@ export default function AssignRoleToUsersDialog({
   // Invalidate queries when sheet opens
   useEffect(() => {
     if (open && role) {
-      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roleWithAllUsers(role.id, page, pageSize, searchQuery || undefined) })
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roleWithAllUsers(selectedOrganizationId, role.id, page, pageSize, searchQuery || undefined) })
     }
   }, [open, role?.id, queryClient])
 
@@ -68,7 +71,7 @@ export default function AssignRoleToUsersDialog({
   const hasPrevious = page > 1
 
   const handleSubmit = async (): Promise<void> => {
-    if (!role) return
+    if (!role || !canAssign) return
 
     await new Promise<void>((resolve, reject) => {
       assignUsersToRole.mutate({
@@ -116,7 +119,7 @@ export default function AssignRoleToUsersDialog({
   const hasErrors = !!error
   const isDataLoading = isLoading
 
-  if (!role) return null
+  if (!role || !canAssign) return null
 
   return (
     <HuemulSheet

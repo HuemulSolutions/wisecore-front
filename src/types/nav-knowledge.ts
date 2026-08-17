@@ -29,6 +29,4 @@ export interface NavKnowledgeContextValue {
   setRootPage: (page: number) => void
   setRootPageSize: (size: number) => void
   setHasNextRootPage: (hasNext: boolean) => void
-  isRelationsMode: boolean
-  setIsRelationsMode: (mode: boolean) => void
 }
