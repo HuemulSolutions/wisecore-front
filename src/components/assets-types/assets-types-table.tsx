@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
-import { Trash2, FileStack, Copy, GitMerge, Settings2 } from "lucide-react"
+import { Trash2, FileStack, Copy, GitMerge, Settings2, Tags as TagsIcon } from "lucide-react"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import type { AssetTypeTableProps } from '@/types/assets'
@@ -22,11 +22,13 @@ export default function AssetTypeTable({
   onDeleteAssetType,
   onCloneAssetType,
   onViewRelationships,
+  onViewTags,
   pagination,
   canConfigure = false,
   canDelete = false,
   canViewRelationships = false,
   canClone = false,
+  canViewTags = false,
   isLoading = false,
   isFetching = false,
   selectedIds,
@@ -92,6 +94,12 @@ export default function AssetTypeTable({
       label: t('actions.cloneAssetType'),
       icon: Copy,
       onClick: onCloneAssetType
+    }] : []),
+    ...(canViewTags ? [{
+      key: "tags" as const,
+      label: t('actions.viewTags'),
+      icon: TagsIcon,
+      onClick: onViewTags
     }] : []),
     ...(canDelete ? [{
       key: "delete" as const,

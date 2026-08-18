@@ -1,4 +1,7 @@
 const translations = {
+  filters: {
+    filteredByTag: { en: "Filtered by tag:", es: "Filtrado por etiqueta:" },
+  },
   create: {
     title: { en: "New Template", es: "Nueva Plantilla" },
     description: { en: "Complete the fields below to create a new template.", es: "Completa los campos para crear una nueva plantilla." },
@@ -60,6 +63,7 @@ const translations = {
     mediaTab: { en: "Media", es: "Media" },
     refreshSections: { en: "Refresh sections", es: "Actualizar secciones" },
     refreshCustomFields: { en: "Refresh custom fields", es: "Actualizar campos personalizados" },
+    tagsLabel: { en: "Tags", es: "Etiquetas" },
     cloneTemplate: { en: "Clone template", es: "Clonar plantilla" },
     cloneSuccess: { en: "Template cloned successfully", es: "Plantilla clonada correctamente" },
     cloneDialogTitle: { en: "Clone template", es: "Clonar plantilla" },

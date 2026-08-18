@@ -9,6 +9,7 @@ import { AssetTypeConfigSheet } from "@/components/assets-types/assets-types-con
 import { AssetTypeRelationshipsSheet } from "@/components/assets-types/assets-types-relationships-sheet"
 import { AssetTypeExportDialog } from "@/components/assets-types/assets-types-export-dialog"
 import { AssetTypeImportSheet } from "@/components/assets-types/assets-types-import-sheet"
+import { TagsObjectSheet } from "@/components/tags"
 import type { AssetTypePageDialogsProps } from '@/types/assets'
 
 export type { AssetTypePageDialogsProps } from '@/types/assets'
@@ -157,6 +158,21 @@ export default function AssetTypePageDialogs({
           }
         }}
         onImportSuccess={onImportSuccess}
+      />
+
+      {/* Tags Sheet — asignar/ver etiquetas del tipo de activo */}
+      <TagsObjectSheet
+        open={!!state.tagsAssetType}
+        onOpenChange={(open) => {
+          if (!open) {
+            onCloseDialog('tagsAssetType')
+          }
+        }}
+        objectType="document_type"
+        objectId={state.tagsAssetType?.document_type_id ?? ""}
+        objectName={state.tagsAssetType?.document_type_name}
+        canAssign={can('manageTags')}
+        canView={can('viewTags')}
       />
     </>
   )

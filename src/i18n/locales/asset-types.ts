@@ -1,4 +1,7 @@
 const translations = {
+  filters: {
+    filteredByTag: { en: "Filtered by tag:", es: "Filtrado por etiqueta:" },
+  },
   header: {
     title: { en: "Asset Types", es: "Tipos de Activo" },
     createAssetType: { en: "Create Asset Type", es: "Crear Tipo de Activo" },
@@ -24,6 +27,7 @@ const translations = {
     deleteAssetType: { en: "Delete Asset Type", es: "Eliminar Tipo de Activo" },
     viewRelationships: { en: "View Relationships", es: "Ver Relaciones" },
     configureAssetType: { en: "Asset Type Settings", es: "Configuración Tipo de Activo" },
+    viewTags: { en: "Tags", es: "Etiquetas" },
   },
   config: {
     title: { en: "Asset type settings", es: "Configuración del tipo de activo" },

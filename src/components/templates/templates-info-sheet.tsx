@@ -7,6 +7,8 @@ import {
   HuemulInfoSection,
   HuemulInfoItem,
 } from "@/huemul/components/huemul-info-display";
+import { useObjectTags } from "@/hooks/useTags";
+import { HuemulTagChip } from "@/huemul/components/huemul-tag-chip";
 import type { TemplateInfoSheetProps } from '@/types/templates';
 export type { TemplateInfoSheetProps } from '@/types/templates';
 
@@ -19,8 +21,14 @@ export function TemplateInfoSheet({
   selectedTemplate,
   sectionsCount,
   docxTemplatesCount,
+  canViewTags = false,
 }: TemplateInfoSheetProps) {
-  const { t } = useTranslation(["templates", "common"]);
+  const { t } = useTranslation(["templates", "tags", "common"]);
+
+  const templateIdForTags = templateData?.id ?? selectedTemplate?.id;
+  const { data: assignedTags = [] } = useObjectTags("template", templateIdForTags ?? "", {
+    enabled: open && canViewTags && !!templateIdForTags,
+  });
 
   const name = templateData?.name ?? selectedTemplate?.name ?? "—";
   const description = templateData?.description;
@@ -94,6 +102,17 @@ export function TemplateInfoSheet({
               />
             )}
           </HuemulInfoSection>
+
+          {/* Tags */}
+          {canViewTags && assignedTags.length > 0 && (
+            <HuemulInfoSection title={t("tags:assign.assignedLabel")}>
+              <div className="flex flex-wrap gap-1.5 py-1">
+                {assignedTags.map((tag) => (
+                  <HuemulTagChip key={tag.id} label={tag.name} color={tag.color} size="sm" />
+                ))}
+              </div>
+            </HuemulInfoSection>
+          )}
 
           {/* Content */}
           <HuemulInfoSection title={t("templates:infoSheet.sectionStats")}>

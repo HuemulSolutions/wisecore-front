@@ -747,6 +747,7 @@ const translations = {
     notificationsClose: { en: "Close", es: "Cerrar" },
     assetInfo: { en: "Asset information", es: "Información del activo" },
     assetPermissions: { en: "Asset permissions", es: "Permisos del activo" },
+    tagsLabel: { en: "Tags", es: "Etiquetas" },
     diagramsLabel: { en: "Diagrams", es: "Diagramas" },
     assetInfoTitle: { en: "Asset Information", es: "Información del Activo" },
     assetInfoDescription: { en: "Detailed metadata and status of this asset.", es: "Metadatos y estado detallado de este activo." },

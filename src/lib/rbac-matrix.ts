@@ -110,6 +110,10 @@ export const RBAC_PAGES = {
       createMedia: "media:c",
       updateMedia: "media:u",
       deleteMedia: "media:d",
+      // Sheet de etiquetas asignadas al template (TagsObjectSheet, object_type
+      // "template"). GET/POST/DELETE /tags/{id}/objects piden tag:r / tag:u.
+      viewTags: "tag:r",
+      manageTags: "tag:u",
     },
   },
   organizations: {
@@ -193,6 +197,12 @@ export const RBAC_PAGES = {
       deleteTemplateSection: "template_section:d",
       // El canvas de relaciones y los diagramas ya no viven acá: se movieron a
       // la página /diagrams, que declara sus propias features.
+
+      // Sheet de etiquetas asignadas al documento (TagsObjectSheet,
+      // object_type "document"). GET/POST/DELETE /tags/{id}/objects piden
+      // tag:r / tag:u.
+      viewTags: "tag:r",
+      manageTags: "tag:u",
     },
   },
   search: {
@@ -210,6 +220,9 @@ export const RBAC_PAGES = {
       filterByTemplate: ["template:l", "template:r"],
       filterByUser: ["user:l", "user:r"],
       filterByCustomField: ["custom_fields:l", "custom_fields:r"],
+      // Filtro por etiqueta (tag_id) — GET /tags/ pide tag:r|l. Sin confirmar
+      // que /search/ acepte tag_id (ver types/search/core.ts).
+      filterByTag: ["tag:l", "tag:r"],
     },
   },
   models: {
@@ -317,6 +330,11 @@ export const RBAC_PAGES = {
       listLinkedTemplates: ["asset_type:l", "asset_type:r"],
       manageLinkedTemplates: "asset_type:u",
       listRelationships: ["asset_type_relationship:l", "asset_type_relationship:r"],
+      // Sheet de etiquetas asignadas al tipo de activo (TagsObjectSheet,
+      // object_type "document_type"). GET/POST/DELETE /tags/{id}/objects
+      // piden tag:r / tag:u.
+      viewTags: "tag:r",
+      manageTags: "tag:u",
     },
   },
   "custom-fields": {

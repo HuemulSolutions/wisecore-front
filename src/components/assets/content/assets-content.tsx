@@ -27,6 +27,7 @@ import { HuemulExpandableText } from "@/huemul/components/huemul-expandable-text
 import { AssetsNotificationsSheet } from "@/components/assets/content/assets-notifications-sheet";
 import { LifecycleHistorySheet } from "@/components/assets/content/lifecycle-history-sheet";
 import { AssetDiagramsSheet } from "@/components/assets/content/asset-diagrams-sheet";
+import { TagsObjectSheet } from "@/components/tags";
 import { AssetsRelatedDocuments } from "@/components/assets/content/assets-related-documents";
 
 import {
@@ -536,7 +537,10 @@ export function AssetContent({
   const [isVersionCompareSheetOpen, setIsVersionCompareSheetOpen] = useState(false);
   const [versionCompareOverride, setVersionCompareOverride] = useState<{ left?: string; right?: string } | null>(null);
   const [isPermissionsSheetOpen, setIsPermissionsSheetOpen] = useState(false);
-  
+  const [isTagsSheetOpen, setIsTagsSheetOpen] = useState(false);
+  const canViewTags = can('viewTags');
+  const canManageTags = can('manageTags');
+
   // Effects to trigger on-demand loading
   useEffect(() => {
     // Load full document when section sheet is opened
@@ -2391,6 +2395,7 @@ export function AssetContent({
                             canCloneVersion={can('createVersion')}
                             canExportVersion={can('exportVersion')}
                             canDeleteVersion={can('deleteVersion')}
+                            canViewTags={canViewTags && selectedFile.type === 'document'}
                             isRefreshing={isRefreshingContent}
                             isLoadingContent={isLoadingContent}
                             hasTocItems={!!documentContent?.content}
@@ -2409,6 +2414,7 @@ export function AssetContent({
                             onToggleToc={() => setIsTocSidebarOpen((prev) => !prev)}
                             onOpenInfo={() => setIsInfoSheetOpen(true)}
                             onOpenLifecycleHistory={() => setIsLifecycleHistorySheetOpen(true)}
+                            onOpenTags={() => setIsTagsSheetOpen(true)}
                             canAccessDiagrams={canAccessDiagrams}
                             onOpenDiagrams={() => setIsDiagramsSheetOpen(true)}
                             onOpenPermissions={() => setIsPermissionsSheetOpen(true)}
@@ -3460,7 +3466,21 @@ export function AssetContent({
         onOpenChange={setIsInfoSheetOpen}
         documentContent={documentContent}
         selectedExecutionInfo={selectedExecutionInfo}
+        canViewTags={canViewTags}
       />
+
+      {/* Tags Sheet — asignar/ver etiquetas del documento */}
+      {canViewTags && selectedFile?.type === 'document' && (
+        <TagsObjectSheet
+          open={isTagsSheetOpen}
+          onOpenChange={setIsTagsSheetOpen}
+          objectType="document"
+          objectId={selectedFile.id}
+          objectName={documentContent?.document_name || selectedFile.name}
+          canAssign={canManageTags}
+          canView={canViewTags}
+        />
+      )}
 
       {/* Version Management Sheet */}
       {allExecutions && selectedOrganizationId && (

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import {
   getTags,
   getTag,
@@ -84,10 +85,11 @@ export function useObjectTags(objectType: TagObjectType, objectId: string, optio
 // Tags mutations hook
 export function useTagMutations() {
   const queryClient = useQueryClient()
+  const { t } = useTranslation('tags')
 
   const createMutation = useMutation({
     mutationFn: createTag,
-    meta: { successMessage: 'Tag created successfully' },
+    meta: { successMessage: t('mutations.createSuccess') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: tagsQueryKeys.lists() })
     },
@@ -95,7 +97,7 @@ export function useTagMutations() {
 
   const updateMutation = useMutation({
     mutationFn: ({ tagId, data }: { tagId: string; data: UpdateTagRequest }) => updateTag(tagId, data),
-    meta: { successMessage: 'Tag updated successfully' },
+    meta: { successMessage: t('mutations.updateSuccess') },
     onSuccess: () => {
       // Nombre/color cambian también en by-object y en las listas de objetos.
       queryClient.invalidateQueries({ queryKey: tagsQueryKeys.all })
@@ -104,17 +106,21 @@ export function useTagMutations() {
 
   const deleteMutation = useMutation({
     mutationFn: (tagId: string) => deleteTag(tagId),
-    meta: { successMessage: 'Tag deleted successfully' },
+    meta: { successMessage: t('mutations.deleteSuccess') },
     onSuccess: () => {
       // El borrado arrastra en cascada todas las asignaciones: soltar by-object completo.
       queryClient.invalidateQueries({ queryKey: tagsQueryKeys.all })
     },
   })
 
+  // assign/unassign SIN successMessage: el sheet de asignación guarda en
+  // inmediato, un toast por cada chip agregado/quitado sería ruido — el
+  // propio chip apareciendo/desapareciendo ya es el feedback (ver
+  // tags-object-sheet.tsx). Los errores sí se muestran vía el onError
+  // global de mutations en src/lib/query-client.ts.
   const assignMutation = useMutation({
     mutationFn: ({ tagId, data }: { tagId: string; data: AssignTagObjectRequest }) =>
       assignTagToObject(tagId, data),
-    meta: { successMessage: 'Tag assigned successfully' },
     onSuccess: (_data, { data }) => {
       queryClient.invalidateQueries({ queryKey: tagsQueryKeys.objects() })
       queryClient.invalidateQueries({ queryKey: tagsQueryKeys.objectTags(data.object_type, data.object_id) })
@@ -124,7 +130,6 @@ export function useTagMutations() {
   const unassignMutation = useMutation({
     mutationFn: ({ tagId, objectType, objectId }: { tagId: string; objectType: TagObjectType; objectId: string }) =>
       unassignTagFromObject(tagId, objectType, objectId),
-    meta: { successMessage: 'Tag unassigned successfully' },
     onSuccess: (_data, { objectType, objectId }) => {
       queryClient.invalidateQueries({ queryKey: tagsQueryKeys.objects() })
       queryClient.invalidateQueries({ queryKey: tagsQueryKeys.objectTags(objectType, objectId) })

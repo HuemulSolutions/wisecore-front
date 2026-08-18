@@ -145,12 +145,15 @@ export interface AssetTypeTableProps {
   onDeleteAssetType: (assetType: AssetTypeWithRoles) => void
   onCloneAssetType: (assetType: AssetTypeWithRoles) => void
   onViewRelationships: (assetType: AssetTypeWithRoles) => void
+  onViewTags: (assetType: AssetTypeWithRoles) => void
   pagination?: HuemulTablePagination
   /** True si el usuario puede abrir al menos un tab del sheet de configuración. */
   canConfigure?: boolean
   canDelete?: boolean
   canViewRelationships?: boolean
   canClone?: boolean
+  /** tag:r — acción de fila que abre el sheet de etiquetas asignadas. */
+  canViewTags?: boolean
   isLoading?: boolean
   isFetching?: boolean
   selectedIds: Set<string>

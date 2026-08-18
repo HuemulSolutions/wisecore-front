@@ -17,6 +17,25 @@ const translations = {
   actions: {
     editTag: { en: "Edit tag", es: "Editar etiqueta" },
     deleteTag: { en: "Delete tag", es: "Eliminar etiqueta" },
+    viewObjects: { en: "View objects", es: "Ver objetos" },
+    viewTemplates: { en: "View templates", es: "Ver plantillas" },
+    viewAssetTypes: { en: "View asset types", es: "Ver tipos de activo" },
+    viewDocuments: { en: "View documents", es: "Ver documentos" },
+  },
+  mutations: {
+    createSuccess: { en: "Tag created successfully", es: "Etiqueta creada correctamente" },
+    updateSuccess: { en: "Tag updated successfully", es: "Etiqueta actualizada correctamente" },
+    deleteSuccess: { en: "Tag deleted successfully", es: "Etiqueta eliminada correctamente" },
+  },
+  assign: {
+    title: { en: "Tags", es: "Etiquetas" },
+    titleWithName: { en: "Tags for {{name}}", es: "Etiquetas de {{name}}" },
+    searchPlaceholder: { en: "Search tags...", es: "Buscar etiquetas..." },
+    assignedLabel: { en: "Assigned tags", es: "Etiquetas asignadas" },
+    empty: { en: "No tags assigned", es: "Sin etiquetas asignadas" },
+    emptyDescription: { en: "This object has no tags yet.", es: "Este objeto todavía no tiene etiquetas." },
+    noPermission: { en: "You don't have permission to view tags.", es: "No tenés permiso para ver las etiquetas." },
+    removeTag: { en: "Remove tag", es: "Quitar etiqueta" },
   },
   form: {
     namePlaceholder: { en: "e.g. Urgent", es: "ej. Urgente" },

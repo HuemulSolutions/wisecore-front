@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileText, Loader2, RefreshCw, Edit3, Trash2, Sparkles, Copy } from "lucide-react";
+import { FileText, Loader2, RefreshCw, Edit3, Trash2, Sparkles, Copy, Tags as TagsIcon } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
+import { TagsObjectSheet } from "@/components/tags";
 import { TemplateInfoSheet } from "./templates-info-sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
@@ -49,6 +50,8 @@ export function TemplateContent({
   canCreateMedia,
   canUpdateMedia,
   canDeleteMedia,
+  canViewTags,
+  canManageTags,
 }: TemplateContentProps) {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -62,6 +65,7 @@ export function TemplateContent({
   const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isInfoSheetOpen, setIsInfoSheetOpen] = useState(false);
+  const [isTagsSheetOpen, setIsTagsSheetOpen] = useState(false);
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
   const [isGeneratingIndividual, setIsGeneratingIndividual] = useState(false);
 
@@ -266,6 +270,18 @@ export function TemplateContent({
                         tooltip={t('common:refresh')}
                         className="h-8 w-8 p-0 hover:bg-gray-100"
                         onClick={() => { refetch(); }}
+                      />
+                    )}
+                    {canViewTags && (
+                      <HuemulButton
+                        icon={TagsIcon}
+                        iconClassName="h-4 w-4 text-gray-600"
+                        variant="ghost"
+                        size="sm"
+                        disabled={isGenerating}
+                        tooltip={t('templates:content.tagsLabel')}
+                        className="h-8 w-8 p-0 hover:bg-gray-100"
+                        onClick={() => setIsTagsSheetOpen(true)}
                       />
                     )}
                     {canCreate && (
@@ -490,7 +506,21 @@ export function TemplateContent({
         templateData={templateData}
         selectedTemplate={selectedTemplate}
         sectionsCount={orderedSections.length}
+        canViewTags={canViewTags}
       />
+
+      {/* Tags Sheet — asignar/ver etiquetas del template */}
+      {canViewTags && selectedTemplate && (
+        <TagsObjectSheet
+          open={isTagsSheetOpen}
+          onOpenChange={setIsTagsSheetOpen}
+          objectType="template"
+          objectId={selectedTemplate.id}
+          objectName={templateData?.name ?? selectedTemplate.name}
+          canAssign={canManageTags}
+          canView={canViewTags}
+        />
+      )}
     </div>
   );
 }

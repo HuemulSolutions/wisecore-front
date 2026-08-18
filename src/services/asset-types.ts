@@ -23,7 +23,13 @@ export const getAssetTypes = async (page: number = 1, pageSize: number = 100, se
 };
 
 // Get all asset types with roles
-export const getAssetTypesWithRoles = async (page: number = 1, pageSize: number = 10, search?: string): Promise<AssetTypesWithRolesResponse> => {
+// NOTA: tagId sin confirmar contra backend — a diferencia de getAssetTypes,
+// este endpoint (list_with_all_roles) no estaba entre los que el backend ya
+// soporta con tag_id. Se envía igual: si el backend lo ignora, el filtro
+// simplemente no aplica (no filtrar client-side acá, rompería la paginación
+// que ya viene del backend). Verificar contra backend antes de dar el
+// filtro por funcionando end-to-end.
+export const getAssetTypesWithRoles = async (page: number = 1, pageSize: number = 10, search?: string, tagId?: string): Promise<AssetTypesWithRolesResponse> => {
   const params = new URLSearchParams({
     page: page.toString(),
     page_size: pageSize.toString()
@@ -31,6 +37,9 @@ export const getAssetTypesWithRoles = async (page: number = 1, pageSize: number 
 
   if (search) {
     params.append('search', search);
+  }
+  if (tagId) {
+    params.set('tag_id', tagId);
   }
 
   const response = await httpClient.get(`${backendUrl}/role-doctype/document-types/list_with_all_roles?${params.toString()}`);

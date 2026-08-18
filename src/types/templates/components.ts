@@ -29,6 +29,10 @@ export interface TemplateContentProps {
   canCreateMedia: boolean;
   canUpdateMedia: boolean;
   canDeleteMedia: boolean;
+  /** tag:r — ver el sheet de etiquetas asignadas al template. */
+  canViewTags: boolean;
+  /** tag:u — asignar/quitar etiquetas del template. */
+  canManageTags: boolean;
 }
 
 export interface DocxTemplateCardProps {
@@ -79,6 +83,8 @@ export interface TemplateInfoSheetProps {
   selectedTemplate: TemplateItem | null;
   sectionsCount: number;
   docxTemplatesCount?: number;
+  /** tag:r — muestra la sección de etiquetas asignadas (solo lectura). */
+  canViewTags?: boolean;
 }
 
 export interface TemplateSectionsListProps {

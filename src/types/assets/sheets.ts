@@ -90,6 +90,8 @@ export interface AssetsInfoSheetProps {
   onOpenChange: (open: boolean) => void
   documentContent: any
   selectedExecutionInfo: any
+  /** tag:r — muestra la sección de etiquetas asignadas (solo lectura). */
+  canViewTags?: boolean
 }
 
 // ----------------------------------------

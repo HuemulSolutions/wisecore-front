@@ -26,10 +26,10 @@ export function useAssetTypes(tagId?: string) {
 }
 
 // Hook for fetching asset types with roles
-export function useAssetTypesWithRoles(page: number = 1, pageSize: number = 100, enabled: boolean = true, search?: string) {
+export function useAssetTypesWithRoles(page: number = 1, pageSize: number = 100, enabled: boolean = true, search?: string, tagId?: string) {
   return useQuery({
-    queryKey: [...assetTypeQueryKeys.listWithRoles(), page, pageSize, search ?? ''],
-    queryFn: () => getAssetTypesWithRoles(page, pageSize, search),
+    queryKey: [...assetTypeQueryKeys.listWithRoles(), page, pageSize, search ?? '', tagId ?? ''],
+    queryFn: () => getAssetTypesWithRoles(page, pageSize, search, tagId),
     placeholderData: (prev) => prev,
     enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes

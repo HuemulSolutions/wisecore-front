@@ -2,16 +2,14 @@
 
 import { useTranslation } from "react-i18next"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
+import { HuemulTagChip } from "@/huemul/components/huemul-tag-chip"
 import type { TagFormFieldsProps } from '@/types/tags'
 
 export type { TagFormFieldsProps } from '@/types/tags'
 
-const FALLBACK_DOT_COLOR = "#94a3b8"
-
 export function TagFormFields({ formData, onChange, errors = {}, disabled = false }: TagFormFieldsProps) {
   const { t } = useTranslation(['tags', 'common'])
 
-  const previewColor = formData.color || FALLBACK_DOT_COLOR
   const previewName = formData.name.trim() || t('form.previewPlaceholder')
 
   return (
@@ -49,17 +47,7 @@ export function TagFormFields({ formData, onChange, errors = {}, disabled = fals
       <div className="space-y-1.5">
         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('form.previewLabel')}</span>
         <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium"
-            style={{
-              backgroundColor: `${previewColor}1a`,
-              borderColor: previewColor,
-              color: previewColor,
-            }}
-          >
-            <span className="size-1.5 rounded-full" style={{ backgroundColor: previewColor }} />
-            {previewName}
-          </span>
+          <HuemulTagChip label={previewName} color={formData.color} />
           <span className="text-sm text-muted-foreground">{t('form.previewCaption')}</span>
         </div>
       </div>
