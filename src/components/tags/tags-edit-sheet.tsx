@@ -3,14 +3,14 @@
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import { Edit } from "lucide-react"
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { useTagMutations } from "@/hooks/useTags"
 import { TagFormFields } from "./tags-form-fields"
-import type { EditTagDialogProps, TagFormData } from '@/types/tags'
+import type { EditTagSheetProps, TagFormData } from '@/types/tags'
 
-export type { EditTagDialogProps } from '@/types/tags'
+export type { EditTagSheetProps } from '@/types/tags'
 
-export function TagsEditDialog({ open, onOpenChange, tag, canUpdate = false }: EditTagDialogProps) {
+export function TagsEditSheet({ open, onOpenChange, tag, canUpdate = false }: EditTagSheetProps) {
   const { t } = useTranslation(['tags', 'common'])
   const [formData, setFormData] = useState<TagFormData>({ name: "", color: null, description: null })
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -65,18 +65,19 @@ export function TagsEditDialog({ open, onOpenChange, tag, canUpdate = false }: E
   }
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
       title={t('editDialog.title')}
       icon={Edit}
-      maxWidth="sm:max-w-md"
+      size="md"
+      cancelLabel={t('common:cancel')}
       saveAction={{
         label: t('common:update'),
         onClick: handleSubmit,
       }}
     >
       <TagFormFields formData={formData} onChange={handleChange} errors={errors} />
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }

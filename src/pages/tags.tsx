@@ -14,8 +14,8 @@ import {
   TagsTable,
   TagsErrorState,
   TagsLoadingState,
-  TagsCreateDialog,
-  TagsEditDialog,
+  TagsCreateSheet,
+  TagsEditSheet,
   TagsDeleteDialog,
 } from "@/components/tags"
 
@@ -124,13 +124,13 @@ export default function TagsPage() {
         ]}
       />
 
-      <TagsCreateDialog
+      <TagsCreateSheet
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         canCreate={canCreate}
       />
 
-      <TagsEditDialog
+      <TagsEditSheet
         open={!!editingTag}
         onOpenChange={(open) => !open && setEditingTag(null)}
         tag={editingTag}

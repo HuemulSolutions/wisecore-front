@@ -3,16 +3,16 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Plus } from "lucide-react"
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { useTagMutations } from "@/hooks/useTags"
 import { TagFormFields } from "./tags-form-fields"
-import type { CreateTagDialogProps, TagFormData } from '@/types/tags'
+import type { CreateTagSheetProps, TagFormData } from '@/types/tags'
 
-export type { CreateTagDialogProps } from '@/types/tags'
+export type { CreateTagSheetProps } from '@/types/tags'
 
 const EMPTY_FORM: TagFormData = { name: "", color: null, description: null }
 
-export function TagsCreateDialog({ open, onOpenChange, canCreate = false }: CreateTagDialogProps) {
+export function TagsCreateSheet({ open, onOpenChange, canCreate = false }: CreateTagSheetProps) {
   const { t } = useTranslation(['tags', 'common'])
   const [formData, setFormData] = useState<TagFormData>(EMPTY_FORM)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -58,18 +58,19 @@ export function TagsCreateDialog({ open, onOpenChange, canCreate = false }: Crea
   }
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
       title={t('createDialog.title')}
       icon={Plus}
-      maxWidth="sm:max-w-md"
+      size="md"
+      cancelLabel={t('common:cancel')}
       saveAction={{
         label: t('common:create'),
         onClick: handleSubmit,
       }}
     >
       <TagFormFields formData={formData} onChange={handleChange} errors={errors} />
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }

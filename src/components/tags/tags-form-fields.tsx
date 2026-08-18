@@ -27,11 +27,12 @@ export function TagFormFields({ formData, onChange, errors = {}, disabled = fals
         required
       />
       <HuemulField
-        type="color"
+        type="color-swatches"
         label={t('form.colorLabel')}
         name="color"
         value={formData.color ?? ""}
         onChange={(value) => onChange("color", (value as string) || null)}
+        description={t('form.colorHint')}
         disabled={disabled}
       />
       <HuemulField
@@ -46,8 +47,8 @@ export function TagFormFields({ formData, onChange, errors = {}, disabled = fals
       />
 
       <div className="space-y-1.5">
-        <span className="text-xs font-medium text-muted-foreground">{t('form.previewLabel')}</span>
-        <div>
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('form.previewLabel')}</span>
+        <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
           <span
             className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium"
             style={{
@@ -59,6 +60,7 @@ export function TagFormFields({ formData, onChange, errors = {}, disabled = fals
             <span className="size-1.5 rounded-full" style={{ backgroundColor: previewColor }} />
             {previewName}
           </span>
+          <span className="text-sm text-muted-foreground">{t('form.previewCaption')}</span>
         </div>
       </div>
     </HuemulFieldGroup>

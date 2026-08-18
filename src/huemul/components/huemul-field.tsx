@@ -514,6 +514,97 @@ function ColorField({
   );
 }
 
+// ── Color Swatches Field ────────────────────────────────────────────────────
+
+const DEFAULT_SWATCH_COLORS = [
+  "#DC2626", "#EA580C", "#92400E", "#0F766E", "#0891B2",
+  "#2563EB", "#7C3AED", "#DB2777", "#334155", "#94A3B8",
+];
+
+function ColorSwatchesField({
+  fieldId,
+  value,
+  onChange,
+  options,
+  disabled,
+  error,
+  inputClassName,
+}: {
+  fieldId: string;
+  value?: string | number | boolean;
+  onChange?: (value: string | number | boolean) => void;
+  options?: HuemulFieldOption[];
+  disabled?: boolean;
+  error?: string;
+  inputClassName?: string;
+}) {
+  const color = String(value || "");
+  const [inputValue, setInputValue] = React.useState(color);
+
+  React.useEffect(() => {
+    setInputValue(String(value || ""));
+  }, [value]);
+
+  const swatches = options && options.length > 0
+    ? options.map((o) => o.value)
+    : DEFAULT_SWATCH_COLORS;
+
+  const handleSwatchClick = (swatchColor: string) => {
+    setInputValue(swatchColor);
+    onChange?.(swatchColor);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInputValue(val);
+    onChange?.(val);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {swatches.map((swatchColor) => {
+          const isSelected = color.toLowerCase() === swatchColor.toLowerCase();
+          return (
+            <button
+              key={swatchColor}
+              type="button"
+              disabled={disabled}
+              aria-label={swatchColor}
+              aria-pressed={isSelected}
+              className={cn(
+                "flex size-9 shrink-0 items-center justify-center rounded-md border transition-all hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50",
+                isSelected
+                  ? "border-ring ring-2 ring-ring ring-offset-2 ring-offset-background"
+                  : "border-border",
+              )}
+              style={{ backgroundColor: swatchColor }}
+              onClick={() => handleSwatchClick(swatchColor)}
+            >
+              {isSelected && <Check className="size-4 text-white" />}
+            </button>
+          );
+        })}
+      </div>
+      <Input
+        id={fieldId}
+        type="text"
+        value={inputValue}
+        onChange={handleInputChange}
+        disabled={disabled}
+        aria-invalid={!!error || undefined}
+        autoComplete="off"
+        className={cn(
+          "max-w-50 font-mono uppercase",
+          error && "border-destructive ring-destructive/20 dark:ring-destructive/40",
+          inputClassName,
+        )}
+        placeholder="#000000"
+      />
+    </div>
+  );
+}
+
 // ── File Field ────────────────────────────────────────────────────────────
 
 function FileInputField({
@@ -1801,6 +1892,19 @@ export function HuemulField({
       case "color":
         return (
           <ColorField
+            fieldId={fieldId}
+            value={value}
+            onChange={onChange}
+            options={options}
+            disabled={disabled}
+            error={error}
+            inputClassName={inputClassName}
+          />
+        );
+
+      case "color-swatches":
+        return (
+          <ColorSwatchesField
             fieldId={fieldId}
             value={value}
             onChange={onChange}

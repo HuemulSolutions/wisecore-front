@@ -22,10 +22,12 @@ const translations = {
     namePlaceholder: { en: "e.g. Urgent", es: "ej. Urgente" },
     nameRequired: { en: "Name is required", es: "El nombre es obligatorio" },
     colorLabel: { en: "Color", es: "Color" },
+    colorHint: { en: "Free text: saved exactly as sent.", es: "Texto libre: se guarda tal cual se envía." },
     descriptionLabel: { en: "Description", es: "Descripción" },
     descriptionPlaceholder: { en: "Optional description", es: "Descripción opcional" },
     previewLabel: { en: "Preview", es: "Vista previa" },
     previewPlaceholder: { en: "Tag name", es: "Nombre de la etiqueta" },
+    previewCaption: { en: "how it will look in an object's detail", es: "como se verá en el detalle de un objeto" },
   },
   createDialog: {
     title: { en: "New tag", es: "Nueva etiqueta" },

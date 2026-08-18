@@ -13,13 +13,13 @@ export interface TagFormFieldsProps {
   disabled?: boolean
 }
 
-export interface CreateTagDialogProps {
+export interface CreateTagSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   canCreate?: boolean
 }
 
-export interface EditTagDialogProps {
+export interface EditTagSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   tag: Tag | null

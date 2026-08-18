@@ -5,7 +5,7 @@ import type { Value } from 'platejs'
 export type HuemulFieldType =
   | "text" | "email" | "password" | "number" | "tel" | "url" | "time"
   | "datetime" | "textarea" | "select" | "checkbox" | "switch" | "file"
-  | "combobox" | "color" | "date" | "date-range" | "radio" | "richtext"
+  | "combobox" | "color" | "color-swatches" | "date" | "date-range" | "radio" | "richtext"
   | "async-combobox" | "json"
   | "yes-no" | "linear-scale" | "rating";
 
