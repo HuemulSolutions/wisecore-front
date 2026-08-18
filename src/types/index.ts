@@ -84,3 +84,4 @@ export type { EmptyStateProps as UserPageEmptyStateProps } from './users/compone
 export * from './rbac'
 export * from './search'
 export * from './section-execution'
+export * from './tags'

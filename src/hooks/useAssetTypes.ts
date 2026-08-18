@@ -5,7 +5,7 @@ import type { DocumentTypeTemplateLinkBody } from "@/types/assets"
 // Query keys
 export const assetTypeQueryKeys = {
   all: ['asset-types'] as const,
-  list: () => [...assetTypeQueryKeys.all, 'list'] as const,
+  list: (tagId?: string) => [...assetTypeQueryKeys.all, 'list', tagId ?? ''] as const,
   listWithRoles: () => [...assetTypeQueryKeys.all, 'list-with-roles'] as const,
   detail: (id: string) => [...assetTypeQueryKeys.all, 'detail', id] as const,
   templates: (documentTypeId: string) =>
@@ -13,10 +13,10 @@ export const assetTypeQueryKeys = {
 }
 
 // Hook for fetching asset types
-export function useAssetTypes() {
+export function useAssetTypes(tagId?: string) {
   return useQuery({
-    queryKey: assetTypeQueryKeys.list(),
-    queryFn: () => getAssetTypes(),
+    queryKey: assetTypeQueryKeys.list(tagId),
+    queryFn: () => getAssetTypes(1, 100, undefined, tagId),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 5 * 60 * 1000, // 5 minutes cache
     refetchOnMount: true, // Refetch on mount to ensure fresh data

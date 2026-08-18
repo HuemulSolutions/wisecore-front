@@ -10,12 +10,13 @@ export type { AssetType, AssetTypesResponse, RoleAccess, AssetTypeWithRoles, Ass
 // cambio de organización activa.
 
 // Get all asset types
-export const getAssetTypes = async (page: number = 1, pageSize: number = 100, search?: string): Promise<AssetTypesResponse> => {
+export const getAssetTypes = async (page: number = 1, pageSize: number = 100, search?: string, tagId?: string): Promise<AssetTypesResponse> => {
   const params = new URLSearchParams({
     page: page.toString(),
     page_size: pageSize.toString(),
   });
   if (search?.trim()) params.set('search', search.trim());
+  if (tagId) params.set('tag_id', tagId);
   const response = await httpClient.get(`${backendUrl}/document_types?${params}`);
 
   return response.json();
