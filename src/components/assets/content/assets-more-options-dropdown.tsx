@@ -1,7 +1,6 @@
 import {
   MoreVertical,
   Tag,
-  Tags as TagsIcon,
   Undo2,
   Check,
   Globe,
@@ -86,8 +85,6 @@ interface MoreOptionsDropdownProps {
   canExportVersion: boolean;
   /** asset:d — borrar versión y borrar documento */
   canDeleteVersion: boolean;
-  /** tag:r — ver el sheet de etiquetas asignadas al documento */
-  canViewTags: boolean;
   isRefreshing: boolean;
   isLoadingContent: boolean;
   hasTocItems: boolean;
@@ -108,7 +105,6 @@ interface MoreOptionsDropdownProps {
   onToggleToc: () => void;
   onOpenInfo: () => void;
   onOpenLifecycleHistory: () => void;
-  onOpenTags: () => void;
   canAccessDiagrams: boolean;
   onOpenDiagrams: () => void;
   onOpenPermissions: () => void;
@@ -144,7 +140,6 @@ export function MoreOptionsDropdown({
   canCloneVersion,
   canExportVersion,
   canDeleteVersion,
-  canViewTags,
   isRefreshing,
   isLoadingContent,
   hasTocItems,
@@ -163,7 +158,6 @@ export function MoreOptionsDropdown({
   onToggleToc,
   onOpenInfo,
   onOpenLifecycleHistory,
-  onOpenTags,
   canAccessDiagrams,
   onOpenDiagrams,
   onOpenPermissions,
@@ -356,17 +350,6 @@ export function MoreOptionsDropdown({
           >
             <ShieldCheck className="mr-2 h-4 w-4" />
             {t("content.assetPermissions")}
-          </DropdownMenuItem>
-        )}
-
-        {/* ── Etiquetas (ver/asignar tags del documento) ── */}
-        {canViewTags && (
-          <DropdownMenuItem
-            onSelect={() => setTimeout(onOpenTags, 0)}
-            className="hover:cursor-pointer"
-          >
-            <TagsIcon className="mr-2 h-4 w-4" />
-            {t("content.tagsLabel")}
           </DropdownMenuItem>
         )}
 

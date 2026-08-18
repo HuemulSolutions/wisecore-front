@@ -76,8 +76,6 @@ export interface AssetTypePageState {
   viewRelationshipsAssetType: AssetTypeWithRoles | null;
   showExportDialog: boolean;
   showImportSheet: boolean;
-  /** Tipo de activo abierto en el sheet de etiquetas asignadas (TagsObjectSheet). */
-  tagsAssetType: AssetTypeWithRoles | null;
 }
 
 export interface AssetTypePageActions {

@@ -32,6 +32,7 @@ import { HuemulCombobox } from "@/huemul/components/huemul-combobox";
 
 import { cn } from "@/lib/utils";
 import { NUMERIC_DATE_PATTERN } from "@/lib/format-date-range";
+import { DEFAULT_SWATCH_COLORS } from "@/huemul/constants";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -515,11 +516,6 @@ function ColorField({
 }
 
 // ── Color Swatches Field ────────────────────────────────────────────────────
-
-const DEFAULT_SWATCH_COLORS = [
-  "#DC2626", "#EA580C", "#92400E", "#0F766E", "#0891B2",
-  "#2563EB", "#7C3AED", "#DB2777", "#334155", "#94A3B8",
-];
 
 function ColorSwatchesField({
   fieldId,

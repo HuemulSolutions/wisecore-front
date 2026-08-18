@@ -110,7 +110,7 @@ export const RBAC_PAGES = {
       createMedia: "media:c",
       updateMedia: "media:u",
       deleteMedia: "media:d",
-      // Sheet de etiquetas asignadas al template (TagsObjectSheet, object_type
+      // Popover de etiquetas asignadas al template (TagsObjectPicker, object_type
       // "template"). GET/POST/DELETE /tags/{id}/objects piden tag:r / tag:u.
       viewTags: "tag:r",
       manageTags: "tag:u",
@@ -198,7 +198,7 @@ export const RBAC_PAGES = {
       // El canvas de relaciones y los diagramas ya no viven acá: se movieron a
       // la página /diagrams, que declara sus propias features.
 
-      // Sheet de etiquetas asignadas al documento (TagsObjectSheet,
+      // Popover de etiquetas asignadas al documento (TagsObjectPicker,
       // object_type "document"). GET/POST/DELETE /tags/{id}/objects piden
       // tag:r / tag:u.
       viewTags: "tag:r",
@@ -330,7 +330,7 @@ export const RBAC_PAGES = {
       listLinkedTemplates: ["asset_type:l", "asset_type:r"],
       manageLinkedTemplates: "asset_type:u",
       listRelationships: ["asset_type_relationship:l", "asset_type_relationship:r"],
-      // Sheet de etiquetas asignadas al tipo de activo (TagsObjectSheet,
+      // Popover de etiquetas asignadas al tipo de activo (TagsObjectPicker,
       // object_type "document_type"). GET/POST/DELETE /tags/{id}/objects
       // piden tag:r / tag:u.
       viewTags: "tag:r",

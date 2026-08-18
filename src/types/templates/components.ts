@@ -83,8 +83,10 @@ export interface TemplateInfoSheetProps {
   selectedTemplate: TemplateItem | null;
   sectionsCount: number;
   docxTemplatesCount?: number;
-  /** tag:r — muestra la sección de etiquetas asignadas (solo lectura). */
+  /** tag:r — muestra la sección de etiquetas asignadas. */
   canViewTags?: boolean;
+  /** tag:u — permite asignar/quitar etiquetas desde la sección. Sin esto, solo lectura. */
+  canManageTags?: boolean;
 }
 
 export interface TemplateSectionsListProps {

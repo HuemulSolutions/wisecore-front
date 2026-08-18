@@ -33,6 +33,7 @@ export function HuemulTagChip({
   disabled = false,
   size = "md",
   className,
+  removeLabel,
 }: HuemulTagChipProps) {
   const { t } = useTranslation("common");
   const resolvedColor = color || FALLBACK_COLOR;
@@ -57,7 +58,7 @@ export function HuemulTagChip({
           type="button"
           onClick={onRemove}
           disabled={disabled}
-          aria-label={t("close", "Close")}
+          aria-label={removeLabel ?? t("close", "Close")}
           className="-mr-1 inline-flex size-3.5 shrink-0 items-center justify-center rounded-full opacity-60 transition-opacity hover:cursor-pointer hover:opacity-100 disabled:pointer-events-none disabled:opacity-30"
         >
           <X className="size-3" />

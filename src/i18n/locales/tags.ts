@@ -28,14 +28,7 @@ const translations = {
     deleteSuccess: { en: "Tag deleted successfully", es: "Etiqueta eliminada correctamente" },
   },
   assign: {
-    title: { en: "Tags", es: "Etiquetas" },
-    titleWithName: { en: "Tags for {{name}}", es: "Etiquetas de {{name}}" },
-    searchPlaceholder: { en: "Search tags...", es: "Buscar etiquetas..." },
     assignedLabel: { en: "Assigned tags", es: "Etiquetas asignadas" },
-    empty: { en: "No tags assigned", es: "Sin etiquetas asignadas" },
-    emptyDescription: { en: "This object has no tags yet.", es: "Este objeto todavía no tiene etiquetas." },
-    noPermission: { en: "You don't have permission to view tags.", es: "No tenés permiso para ver las etiquetas." },
-    removeTag: { en: "Remove tag", es: "Quitar etiqueta" },
   },
   form: {
     namePlaceholder: { en: "e.g. Urgent", es: "ej. Urgente" },
@@ -66,6 +59,25 @@ const translations = {
   errorState: {
     failedToLoad: { en: "Failed to load tags", es: "Error al cargar las etiquetas" },
     errorDescription: { en: "There was an error loading the data. Please try again.", es: "Hubo un error al cargar los datos. Por favor, intenta de nuevo." },
+  },
+  picker: {
+    addTag: { en: "Add tag", es: "Añadir etiqueta" },
+    searchPlaceholder: { en: "Search or create...", es: "Buscar o crear..." },
+    noResults: { en: "No tags found", es: "No se encontraron etiquetas" },
+    noResultsCannotCreate: { en: "No matching tags. This picker only lists existing tags.", es: "Sin etiquetas coincidentes. Este selector solo lista etiquetas existentes." },
+    createAndAssign: { en: "Create \"{{name}}\" and assign", es: "Crear \"{{name}}\" y asignar" },
+    duplicateName: { en: "A tag with that name already exists.", es: "Ya existe una etiqueta con ese nombre." },
+    selectExisting: { en: "Select the existing tag from the list above.", es: "Seleccioná la etiqueta existente de la lista de arriba." },
+    applyingTo: { en: "Applying to {{count}} objects", es: "Aplicando a {{count}} objetos" },
+    partialHint: { en: "\"–\" means only some of the selected objects have this tag.", es: "\"–\" significa que solo algunos de los objetos seleccionados tienen esta etiqueta." },
+    allLabel: { en: "all", es: "todas" },
+    partialLabel: { en: "partial", es: "parcial" },
+    keyboardHint: { en: "↑↓ navigate · Enter toggle · Esc close", es: "↑↓ navegar · Enter alternar · Esc cerrar" },
+    manageTags: { en: "Manage tags", es: "Administrar etiquetas" },
+    removeTag: { en: "Remove {{name}}", es: "Quitar {{name}}" },
+    moreCount: { en: "+{{count}}", es: "+{{count}}" },
+    empty: { en: "No tags assigned", es: "Sin etiquetas asignadas" },
+    loading: { en: "Loading...", es: "Cargando..." },
   },
 }
 

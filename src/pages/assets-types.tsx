@@ -44,7 +44,6 @@ export default function AssetTypesPage() {
     viewRelationshipsAssetType: null,
     showExportDialog: false,
     showImportSheet: false,
-    tagsAssetType: null,
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
@@ -86,9 +85,6 @@ export default function AssetTypesPage() {
   // El sheet de configuración agrupa general + plantillas + ciclo de vida:
   // basta con poder abrir uno de esos tabs.
   const canConfigureDocumentType = canUpdateDocumentType || canManageTemplates || canManageLifecycle
-  // canManageTags (tag:u) se resuelve dentro de AssetTypePageDialogs, que ya
-  // llama a usePageAccess('asset-types') por su cuenta para montar el sheet.
-  const canViewTags = can('viewTags')
 
   // Fetch asset types and mutations - solo si tiene permisos
   const { data: assetTypesResponse, isLoading, isFetching, error } = useAssetTypesWithRoles(page, pageSize, canListDocumentTypes, state.searchTerm || undefined, tagId)
@@ -227,10 +223,6 @@ export default function AssetTypesPage() {
     updateState({ viewRelationshipsAssetType: assetType })
   }
 
-  const handleViewTags = (assetType: AssetTypeWithRoles) => {
-    updateState({ tagsAssetType: assetType })
-  }
-
   const relTotalItems = documentTypes.length
   const relHasNext = relPage * RELATIONSHIP_PAGE_SIZE < relTotalItems
   const relHasPrevious = relPage > 1
@@ -297,12 +289,10 @@ export default function AssetTypesPage() {
                 onDeleteAssetType={handleDeleteAssetType}
                 onCloneAssetType={handleCloneAssetType}
                 onViewRelationships={handleViewRelationships}
-                onViewTags={handleViewTags}
                 canConfigure={canConfigureDocumentType}
                 canDelete={canDeleteDocumentType}
                 canViewRelationships={canListRelationships}
                 canClone={canCloneDocumentType}
-                canViewTags={canViewTags}
                 isLoading={isTableLoading}
                 isFetching={isTableFetching}
                 selectedIds={selectedExportIds}

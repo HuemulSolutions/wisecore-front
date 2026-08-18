@@ -1,5 +1,6 @@
 import type { Tag, TagObjectType } from './core'
 import type { HuemulTablePagination } from '@/huemul/components/huemul-table'
+import type { HuemulTagPickerVariant } from '@/types/huemul'
 
 export interface TagsPageHeaderProps {
   searchTerm: string
@@ -30,20 +31,18 @@ export interface TagsErrorStateProps {
 }
 
 /**
- * Sheet reutilizable para asignar/quitar etiquetas de un objeto etiquetable
- * (documento, template o tipo de activo). Se abre desde la pantalla del
- * propio objeto — no desde /tags. Guardado inmediato: cada alta/baja del
- * combobox dispara su propia mutación (la API es idempotente por par).
+ * Wrapper de dominio sobre `HuemulTagPicker`: resuelve `TagObjectType`, cablea
+ * `useObjectTags`/`useTagMutations` y expone el popover de asignación anclado
+ * en el lugar donde ya está la información (campo de detalle, celda de tabla).
  */
-export interface TagsObjectSheetProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+export interface TagsObjectPickerProps {
   objectType: TagObjectType
-  objectId: string
-  /** Nombre del objeto para el título ("Etiquetas de <nombre>"). Opcional. */
-  objectName?: string
-  /** Puede asignar/quitar etiquetas (tag:u). Sin esto, el sheet es de solo lectura. */
-  canAssign?: boolean
-  /** Puede ver las etiquetas asignadas (tag:r). Sin esto, no se monta contenido. */
+  /** Objetos sobre los que se aplica: 1 elemento en field/cell, N en bulk. */
+  objectIds: string[]
+  variant: HuemulTagPickerVariant
+  /** Puede ver las etiquetas asignadas (tag:r/tag:l). Sin esto, se muestra vacío. */
   canView?: boolean
+  /** Puede asignar/quitar (tag:u). Sin esto, el picker es de solo lectura. */
+  canAssign?: boolean
+  className?: string
 }

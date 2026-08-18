@@ -7,4 +7,6 @@ export interface HuemulTagChipProps {
   disabled?: boolean
   size?: "sm" | "md"
   className?: string
+  /** aria-label del botón de quitar. Default: `common:close` (el componente es de dominio genérico y no puede asumir un namespace de negocio). */
+  removeLabel?: string
 }

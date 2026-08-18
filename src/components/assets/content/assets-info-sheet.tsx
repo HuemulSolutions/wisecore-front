@@ -9,8 +9,7 @@ import {
 } from "@/huemul/components/huemul-info-display";
 import { formatApiDateTime } from "@/lib/utils";
 import { useUserById } from "@/hooks/useUsers";
-import { useObjectTags } from "@/hooks/useTags";
-import { HuemulTagChip } from "@/huemul/components/huemul-tag-chip";
+import { TagsObjectPicker } from "@/components/tags";
 import type { AssetsInfoSheetProps } from '@/types/assets';
 export type { AssetsInfoSheetProps } from '@/types/assets';
 
@@ -92,13 +91,11 @@ export function AssetsInfoSheet({
   documentContent,
   selectedExecutionInfo,
   canViewTags = false,
+  canManageTags = false,
 }: AssetsInfoSheetProps) {
   const { t } = useTranslation(["assets", "tags", "common"]);
 
   const documentId: string | undefined = documentContent?.document_id;
-  const { data: assignedTags = [] } = useObjectTags("document", documentId ?? "", {
-    enabled: open && canViewTags && !!documentId,
-  });
 
   const copyId = (id: string) => {
     navigator.clipboard.writeText(id).then(() => {
@@ -158,12 +155,16 @@ export function AssetsInfoSheet({
         </HuemulInfoSection>
 
         {/* Tags */}
-        {canViewTags && assignedTags.length > 0 && (
+        {canViewTags && documentId && (
           <HuemulInfoSection title={t("tags:assign.assignedLabel")}>
-            <div className="flex flex-wrap gap-1.5 py-1">
-              {assignedTags.map((tag) => (
-                <HuemulTagChip key={tag.id} label={tag.name} color={tag.color} size="sm" />
-              ))}
+            <div className="py-1">
+              <TagsObjectPicker
+                objectType="document"
+                objectIds={[documentId]}
+                variant="field"
+                canView={open && canViewTags}
+                canAssign={canManageTags}
+              />
             </div>
           </HuemulInfoSection>
         )}

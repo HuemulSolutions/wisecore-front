@@ -12,6 +12,7 @@ import {
   getObjectTags,
 } from "@/services/tags"
 import type {
+  Tag,
   GetTagsParams,
   GetTagObjectsParams,
   UpdateTagRequest,
@@ -113,15 +114,37 @@ export function useTagMutations() {
     },
   })
 
-  // assign/unassign SIN successMessage: el sheet de asignación guarda en
+  // assign/unassign SIN successMessage: el picker de asignación guarda en
   // inmediato, un toast por cada chip agregado/quitado sería ruido — el
   // propio chip apareciendo/desapareciendo ya es el feedback (ver
-  // tags-object-sheet.tsx). Los errores sí se muestran vía el onError
+  // huemul-tag-picker.tsx). Los errores sí se muestran vía el onError
   // global de mutations en src/lib/query-client.ts.
+  //
+  // Optimista: el chip se pinta/quita antes de que responda el backend
+  // (mismo patrón que useTemplateSectionLifecycleAccess.applyOptimisticAccess),
+  // con rollback en onError. `tag` es opcional porque el llamador puede no
+  // tener el objeto completo a mano (ej. quitar por id); sin él se omite el
+  // patch optimista de assign y sólo queda la invalidación en onSettled.
   const assignMutation = useMutation({
-    mutationFn: ({ tagId, data }: { tagId: string; data: AssignTagObjectRequest }) =>
+    mutationFn: ({ tagId, data }: { tagId: string; data: AssignTagObjectRequest; tag?: Tag }) =>
       assignTagToObject(tagId, data),
-    onSuccess: (_data, { data }) => {
+    onMutate: async ({ tagId, data, tag }) => {
+      const queryKey = tagsQueryKeys.objectTags(data.object_type, data.object_id)
+      await queryClient.cancelQueries({ queryKey })
+      const snapshot = queryClient.getQueryData<Tag[]>(queryKey)
+      if (tag) {
+        queryClient.setQueryData<Tag[]>(queryKey, (prev) => {
+          const list = prev ?? []
+          if (list.some((t) => t.id === tagId)) return list
+          return [...list, tag].sort((a, b) => a.name.localeCompare(b.name))
+        })
+      }
+      return { queryKey, snapshot }
+    },
+    onError: (_error, _vars, context) => {
+      if (context) queryClient.setQueryData(context.queryKey, context.snapshot)
+    },
+    onSettled: (_data, _error, { data }) => {
       queryClient.invalidateQueries({ queryKey: tagsQueryKeys.objects() })
       queryClient.invalidateQueries({ queryKey: tagsQueryKeys.objectTags(data.object_type, data.object_id) })
     },
@@ -130,7 +153,17 @@ export function useTagMutations() {
   const unassignMutation = useMutation({
     mutationFn: ({ tagId, objectType, objectId }: { tagId: string; objectType: TagObjectType; objectId: string }) =>
       unassignTagFromObject(tagId, objectType, objectId),
-    onSuccess: (_data, { objectType, objectId }) => {
+    onMutate: async ({ tagId, objectType, objectId }) => {
+      const queryKey = tagsQueryKeys.objectTags(objectType, objectId)
+      await queryClient.cancelQueries({ queryKey })
+      const snapshot = queryClient.getQueryData<Tag[]>(queryKey)
+      queryClient.setQueryData<Tag[]>(queryKey, (prev) => (prev ?? []).filter((t) => t.id !== tagId))
+      return { queryKey, snapshot }
+    },
+    onError: (_error, _vars, context) => {
+      if (context) queryClient.setQueryData(context.queryKey, context.snapshot)
+    },
+    onSettled: (_data, _error, { objectType, objectId }) => {
       queryClient.invalidateQueries({ queryKey: tagsQueryKeys.objects() })
       queryClient.invalidateQueries({ queryKey: tagsQueryKeys.objectTags(objectType, objectId) })
     },
