@@ -331,9 +331,6 @@ export const RBAC_PAGES = {
   },
   tags: {
     route: "tags",
-    // Capa de datos únicamente: la página se construye en una pasada
-    // posterior. Ver src/types/tags.ts, src/services/tags.ts, src/hooks/useTags.ts.
-    pending: true,
     routePermissions: ["tag:r", "tag:l"],
     features: {
       listTags: ["tag:l", "tag:r"],

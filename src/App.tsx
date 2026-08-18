@@ -24,6 +24,7 @@ const UsersPage = lazy(() => import("./pages/users"));
 const Roles = lazy(() => import("./pages/roles"));
 const AssetTypesPage = lazy(() => import("./pages/assets-types"));
 const CustomFieldsPage = lazy(() => import("./pages/custom-fields"));
+const TagsPage = lazy(() => import("./pages/tags"));
 const CanvasPage = lazy(() => import("./pages/canvas"));
 const DiagramsPage = lazy(() => import("./pages/diagrams"));
 const GlobalAdminPage = lazy(() => import("./pages/global-admin"));
@@ -118,6 +119,11 @@ export default function App() {
             <Route path="custom-fields" element={
               <PermissionProtectedRoute permissions={[...RBAC_PAGES["custom-fields"].routePermissions]}>
                 <CustomFieldsPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="tags" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.tags.routePermissions]}>
+                <TagsPage />
               </PermissionProtectedRoute>
             } />
 
