@@ -25,10 +25,14 @@ export interface WorkflowItem {
  * pantalla completa, ver workflow-fill.tsx) con solo los IDs de la URL —
  * document_name/internal_code quedan opcionales para que el panel caiga a
  * los que trae `GET /documents/{id}/content` en vez de mostrar un string
- * vacío. WorkflowItem lo satisface tal cual.
+ * vacío. execution_id también queda opcional: la redirección post-creación
+ * de workflow-fill.tsx (/workflow/share/execution/:documentId, sin
+ * executionId) solo tiene el documentId — WorkflowDetailPanel ya resuelve la
+ * ejecución por defecto cuando executionId es undefined (mismo camino que un
+ * express recién creado con `row` en null). WorkflowItem lo satisface tal cual.
  */
-export type WorkflowRowRef = Pick<WorkflowItem, "document_id" | "execution_id"> &
-  Partial<Pick<WorkflowItem, "document_name" | "internal_code">>
+export type WorkflowRowRef = Pick<WorkflowItem, "document_id"> &
+  Partial<Pick<WorkflowItem, "execution_id" | "document_name" | "internal_code">>
 
 export interface WorkflowsResponse {
   data: WorkflowItem[]

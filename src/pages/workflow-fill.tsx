@@ -1,19 +1,26 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useParams } from "react-router-dom"
+import { useParams, useLocation } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { Loader2, CheckCircle2, RotateCcw, AlertCircle } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
+import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { useWorkflowTemplates, useCreateTemplateExpress } from "@/hooks/useWorkflowTemplates"
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { WorkflowDetailPanel } from "@/components/workflow"
-import type { CreateExpressResult, WorkflowTemplateItem } from "@/types/templates"
+import { WORKFLOW_SHARE_EXECUTION_PATH, WORKFLOW_SHARE_TEMPLATE_PATH } from "@/lib/workflow-share-url"
+import type { WorkflowTemplateItem } from "@/types/templates"
 import type { WorkflowRowRef } from "@/types/workflow"
 
 type ShareMode = "template" | "execution"
+
+/** Viaja en el history state de la redirección post-creación — ver navigate() más abajo. */
+interface FillLocationState {
+  fromTemplate?: { documentTypeId: string; templateId: string }
+}
 
 /**
  * Vista compartida a pantalla completa (ver ia context/fullscreen-share-route-guide.md).
@@ -23,9 +30,12 @@ type ShareMode = "template" | "execution"
  *
  * Dos modos según la ruta (ver workflow-share-url.ts):
  * - "template" (:documentTypeId/:templateId): cada persona que abre el link crea
- *   SU propio documento express y responde su copia.
- * - "execution" (:documentId/:executionId): todas las personas responden el MISMO
- *   documento ya existente.
+ *   SU propio documento express y responde su copia. Apenas se crea, la página
+ *   REDIRIGE (replace) a la ruta "execution" de abajo — la identidad del
+ *   documento pasa a vivir en la URL, así un refresh nunca vuelve a crear otro.
+ * - "execution" (:documentId, con o sin :executionId): responde un documento ya
+ *   existente. Sin executionId (destino de la redirección de arriba) se resuelve
+ *   la ejecución por defecto — mismo camino que un express recién creado.
  */
 export default function WorkflowFillPage() {
   const { t } = useTranslation("workflow")
@@ -35,21 +45,22 @@ export default function WorkflowFillPage() {
     documentId?: string
     executionId?: string
   }>()
+  const location = useLocation()
+  const navigate = useOrgNavigate()
   const { selectedOrganizationId, organizationToken } = useOrganization()
   const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess("workflow")
 
   const mode: ShareMode = params.templateId ? "template" : "execution"
+  const fromTemplate = (location.state as FillLocationState | null)?.fromTemplate ?? null
 
-  const [createdDoc, setCreatedDoc] = useState<CreateExpressResult | null>(null)
   const [finished, setFinished] = useState(false)
   // Distinto de un `error` de la query de contenido (eso ya lo maneja el propio
-  // panel): esto es "el POST .../express falló" — sin esto, documentId se queda
-  // en null para siempre y el panel cae en su spinner de carga sin salida.
+  // panel): esto es "el POST .../express falló" — sin esto, el usuario se queda
+  // en el spinner de carga del panel sin ningún mensaje.
   const [autoCreateError, setAutoCreateError] = useState(false)
   // El efecto de auto-arranque de abajo no depende de nada que cambie al
-  // reintentar (mismo template, mismo documentId=null): sin este contador en
-  // sus deps, "Reintentar" limpiaría el error pero nunca volvería a llamar
-  // al mutate.
+  // reintentar (mismo template): sin este contador en sus deps, "Reintentar"
+  // limpiaría el error pero nunca volvería a llamar al mutate.
   const [retryToken, setRetryToken] = useState(0)
   const autoStartedRef = useRef(false)
 
@@ -91,21 +102,35 @@ export default function WorkflowFillPage() {
   const template =
     mode === "template" ? (stillResolvingTemplate ? null : (resolvedTemplate ?? fallbackTemplate)) : null
 
+  // Ancla el documento recién creado en la URL: reemplaza la ruta de template por
+  // la de ejecución (sin executionId, ver App.tsx) para que un refresh posterior
+  // ya no pase por ninguna lógica de creación. `state.fromTemplate` es lo único
+  // que "Responder otro" necesita para volver al link original.
+  const anchorCreatedDocument = useCallback(
+    (documentId: string, documentTypeId: string, templateId: string) => {
+      navigate(`/${WORKFLOW_SHARE_EXECUTION_PATH}/${documentId}`, {
+        replace: true,
+        state: { fromTemplate: { documentTypeId, templateId } } satisfies FillLocationState,
+      })
+    },
+    [navigate],
+  )
+
   // Arranque automático: mismo criterio que el onStart de las tarjetas en
   // pages/workflow.tsx — si el template no exige nombre, se crea de una.
   useEffect(() => {
     if (mode !== "template" || !canCreateExpress) return
-    if (autoStartedRef.current || createdDoc) return
+    if (autoStartedRef.current) return
     if (!template || template.require_name_on_express) return
     autoStartedRef.current = true
     createExpress
       .mutateAsync({ documentTypeId: template.document_type_id, templateId: template.id, body: { name: "" } })
-      .then(setCreatedDoc)
+      .then((result) => anchorCreatedDocument(result.id, template.document_type_id, template.id))
       .catch(() => {
         autoStartedRef.current = false
         setAutoCreateError(true)
       })
-  }, [mode, canCreateExpress, template, createdDoc, createExpress, retryToken])
+  }, [mode, canCreateExpress, template, createExpress, retryToken, anchorCreatedDocument])
 
   const handleSubmitName = useCallback(
     (name: string, description?: string) => {
@@ -113,10 +138,10 @@ export default function WorkflowFillPage() {
       setAutoCreateError(false)
       createExpress
         .mutateAsync({ documentTypeId: template.document_type_id, templateId: template.id, body: { name, description } })
-        .then(setCreatedDoc)
+        .then((result) => anchorCreatedDocument(result.id, template.document_type_id, template.id))
         .catch(() => setAutoCreateError(true))
     },
-    [template, canCreateExpress, createExpress],
+    [template, canCreateExpress, createExpress, anchorCreatedDocument],
   )
 
   const handleRetryAutoCreate = useCallback(() => {
@@ -126,14 +151,14 @@ export default function WorkflowFillPage() {
   }, [])
 
   const handleAnswerAnother = useCallback(() => {
-    autoStartedRef.current = false
-    setCreatedDoc(null)
-    setFinished(false)
-    setAutoCreateError(false)
-  }, [])
+    if (!fromTemplate) return
+    navigate(`/${WORKFLOW_SHARE_TEMPLATE_PATH}/${fromTemplate.documentTypeId}/${fromTemplate.templateId}`, {
+      replace: true,
+    })
+  }, [fromTemplate, navigate])
 
   const row: WorkflowRowRef | null =
-    mode === "execution" && params.documentId && params.executionId
+    mode === "execution" && params.documentId
       ? { document_id: params.documentId, execution_id: params.executionId }
       : null
 
@@ -159,9 +184,9 @@ export default function WorkflowFillPage() {
 
   // Crear el express exige asset:c (ver useCreateTemplateExpress). Sin este
   // gate explícito el auto-arranque de abajo se queda mudo: nunca llama al
-  // mutate, documentId no se resuelve nunca y el panel cae en su spinner de
-  // carga sin salida (mismo criterio que canCreate en pages/workflow.tsx,
-  // que ahí oculta directamente las tarjetas de "Iniciar").
+  // mutate, la URL nunca se redirige y el panel cae en su spinner de carga
+  // sin salida (mismo criterio que canCreate en pages/workflow.tsx, que ahí
+  // oculta directamente las tarjetas de "Iniciar").
   if (mode === "template" && !canCreateExpress) {
     return <HuemulAccessDenied variant="inline" description={t("fill.noCreatePermission")} />
   }
@@ -175,7 +200,7 @@ export default function WorkflowFillPage() {
           </div>
           <p className="text-sm font-semibold text-foreground">{t("fill.finishedTitle")}</p>
           <p className="text-xs text-muted-foreground">{t("fill.finishedDescription")}</p>
-          {mode === "template" && (
+          {fromTemplate && (
             <HuemulButton
               variant="outline"
               size="sm"
@@ -203,7 +228,7 @@ export default function WorkflowFillPage() {
   // camino solo existe cuando require_name_on_express es true), así que la propia
   // página ofrece "Reintentar". El toast de error global (query-client.ts) ya avisó
   // el motivo; esto evita que la pantalla se quede en el spinner sin salida.
-  if (mode === "template" && autoCreateError && !createdDoc && template && !template.require_name_on_express) {
+  if (mode === "template" && autoCreateError && template && !template.require_name_on_express) {
     return (
       <div className="flex h-full items-center justify-center p-6">
         <div className="flex max-w-sm flex-col items-center gap-3 text-center">
@@ -232,7 +257,6 @@ export default function WorkflowFillPage() {
       showLifecycle={false}
       row={row}
       template={mode === "template" ? (template ?? undefined) : undefined}
-      createdDoc={createdDoc}
       isCreating={createExpress.isPending}
       onSubmitName={handleSubmitName}
       onClose={() => {}}

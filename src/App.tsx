@@ -191,6 +191,14 @@ export default function App() {
                 <WorkflowFillPage />
               </PermissionProtectedRoute>
             } />
+            {/* Sin executionId: destino de la redirección automática apenas se crea un
+                express desde un link de template (ver workflow-fill.tsx) — WorkflowDetailPanel
+                ya resuelve la ejecución por defecto cuando executionId es undefined. */}
+            <Route path="workflow/share/execution/:documentId" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.workflow.routePermissions]}>
+                <WorkflowFillPage />
+              </PermissionProtectedRoute>
+            } />
           </Route>
 
           {/* Catch-all: redirect unknown paths to root */}
