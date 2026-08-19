@@ -25,6 +25,8 @@ import type { WorkflowRowRef } from "@/types/workflow"
 import type { WorkflowTemplateItem, CreateExpressResult } from "@/types/templates"
 import type { FormValuesSectionPayload } from "@/types/sections/core"
 import type { ReviewStatus } from "@/types/section-execution"
+import { applyFormValuesPatch } from "@/components/assets/content/utils/patch-document-content"
+import { isFormSectionApplicable } from "@/components/workflow/workflow-section-stats"
 
 interface WorkflowDetailPanelProps {
   /** Fila existente seleccionada en la tabla (o solo los IDs, en la vista compartida). */
@@ -135,13 +137,38 @@ export function WorkflowDetailPanel({
     queryClient.invalidateQueries({ queryKey: ["document-content", documentId] })
   }, [queryClient, documentId])
 
+  // Solo secciones form "aplicables" (ver ia context/dependencias-condicionales-formularios-guide.md):
+  // el backend ya no devuelve en /content las que quedan sin ninguna pregunta visible, y este
+  // filtro es el espejo cliente que cubre el intervalo hasta el próximo refetch.
   const formSections = React.useMemo(
-    () => (data?.content ?? []).filter((s) => s.section_type === "form"),
+    () => (data?.content ?? []).filter((s) => s.section_type === "form" && isFormSectionApplicable(s)),
     [data],
   )
   // step === null → pantalla de resumen (ver WorkflowSectionsSummary), sin sección "actual".
   const currentSection = step !== null ? formSections[step] : undefined
   const isLastStep = step !== null && step >= formSections.length - 1
+
+  // Si la sección del paso actual deja de aplicar (una respuesta ocultó todas sus preguntas) u
+  // otra sección recién aplicable se inserta antes, formSections cambia de largo/orden y el
+  // índice numérico de `step` puede quedar apuntando a la sección equivocada o fuera de rango.
+  // Se ancla comparando contra la lista anterior: si la sección que estaba en `step` sigue
+  // presente (en otra posición), el paso se recalcula sobre su nueva posición; si desapareció,
+  // cae en la que ocupa su lugar (o al resumen si no queda ninguna sección aplicable).
+  const prevFormSectionsRef = React.useRef(formSections)
+  React.useEffect(() => {
+    const prevSections = prevFormSectionsRef.current
+    prevFormSectionsRef.current = formSections
+    if (prevSections === formSections || step === null) return
+    const anchorId = prevSections[step]?.id
+    const anchoredIndex = anchorId ? formSections.findIndex((s) => s.id === anchorId) : -1
+    const nextStep =
+      anchoredIndex !== -1
+        ? anchoredIndex
+        : formSections.length === 0
+          ? null
+          : Math.min(step, formSections.length - 1)
+    if (nextStep !== step) setStep(nextStep)
+  }, [formSections, step])
 
   // Autoguardado (PATCH /form_values): parchea en el caché solo la sección devuelta,
   // sin refetch de /content — mismo patrón que assets-content.tsx. También refresca
@@ -149,21 +176,7 @@ export function WorkflowDetailPanel({
   const handleSectionUpdate = React.useCallback(
     (payload?: FormValuesSectionPayload[]) => {
       if (!payload?.length || !documentId) return
-      const groupsBySectionId = new Map(payload.map((p) => [p.section_execution_id, p]))
-      queryClient.setQueriesData(
-        { queryKey: ["document-content", documentId] },
-        (old: { content?: ContentSection[] } | undefined) => {
-          if (!old?.content || !Array.isArray(old.content)) return old
-          return {
-            ...old,
-            content: old.content.map((s) => {
-              const group = groupsBySectionId.get(s.id)
-              if (!group) return s
-              return { ...s, form_fields: group.form_fields, section_name: group.section_name ?? s.section_name }
-            }),
-          }
-        },
-      )
+      applyFormValuesPatch(queryClient, documentId, payload)
     },
     [queryClient, documentId],
   )
