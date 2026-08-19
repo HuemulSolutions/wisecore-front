@@ -149,6 +149,7 @@ const translations = {
     },
     fill: {
       submitResponses: { en: "Submit responses", es: "Guardar respuestas" },
+      answer: { en: "Answer", es: "Responder" },
       doneEditing: { en: "Done editing", es: "Dejar de editar" },
       requiredFieldsNote: { en: "Fields marked with * are required", es: "Los campos con * son obligatorios" },
       requiredError: { en: "Complete the required fields", es: "Completa los campos obligatorios" },
