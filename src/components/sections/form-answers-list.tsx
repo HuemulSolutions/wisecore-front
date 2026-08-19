@@ -32,9 +32,9 @@ export function FormAnswersList({ fields, emptyLabel, className }: FormAnswersLi
           <SectionFieldSeparator key={field.id || fieldIndex} name={field.field_name} />
         ) : (
           <div key={field.id || fieldIndex} className="space-y-1 border-b pb-3 last:border-b-0 last:pb-0">
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm font-semibold text-gray-900">
               {field.field_name}
-              {field.required && <span className="text-destructive"> *</span>}
+              {field.required && <span className="text-red-500"> *</span>}
             </p>
             <FormFieldAnswerValue field={field} />
           </div>
