@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
-import { Workflow as WorkflowIcon, Trash2 } from "lucide-react"
+import { Workflow as WorkflowIcon, Trash2, Share2 } from "lucide-react"
 import { HuemulTable } from "@/huemul/components/huemul-table"
 import type { HuemulTableAction, HuemulTableColumn, HuemulTablePagination } from "@/huemul/components/huemul-table"
 import { HuemulLifecycleBadge } from "@/huemul/components/huemul-lifecycle-badge"
@@ -21,6 +21,8 @@ interface WorkflowTableProps {
    * call-site futuro no herede un default permisivo. */
   canDelete: boolean
   onDelete: (item: WorkflowItem) => void
+  /** Abre el diálogo con el link para responder esta ejecución. Quien ve la fila puede compartirla. */
+  onShare: (item: WorkflowItem) => void
 }
 
 export function WorkflowTable({
@@ -34,6 +36,7 @@ export function WorkflowTable({
   pagination,
   canDelete,
   onDelete,
+  onShare,
 }: WorkflowTableProps) {
   const { t } = useTranslation("workflow")
 
@@ -84,17 +87,26 @@ export function WorkflowTable({
     },
   ]
 
-  const actions: HuemulTableAction<WorkflowItem>[] = canDelete
-    ? [
-        {
-          key: "delete",
-          label: t("actions.delete"),
-          icon: Trash2,
-          onClick: onDelete,
-          destructive: true,
-        },
-      ]
-    : []
+  const actions: HuemulTableAction<WorkflowItem>[] = [
+    {
+      key: "share",
+      label: t("actions.share"),
+      icon: Share2,
+      onClick: onShare,
+      separator: canDelete,
+    },
+    ...(canDelete
+      ? [
+          {
+            key: "delete",
+            label: t("actions.delete"),
+            icon: Trash2,
+            onClick: onDelete,
+            destructive: true,
+          } as HuemulTableAction<WorkflowItem>,
+        ]
+      : []),
+  ]
 
   // Resaltado de fila sin columna de checkboxes: `selectedKeys` sin `selectable`
   // (ver JSDoc en types/huemul/table.ts) genera el par de fondos opacos que la

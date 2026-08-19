@@ -573,6 +573,34 @@ export default function AppLayout() {
     queryClient.invalidateQueries()
   }, [queryClient, selectedOrganizationId])
 
+  // Vista compartida de workflow a pantalla completa (ver
+  // ia context/fullscreen-share-route-guide.md): mismos providers que el resto
+  // de la app (Chatbot/GlobalPanel/Tooltip/EditingGuard/NavKnowledge, de los
+  // que depende AssetFormSection), pero SIN header/nav/LlmConfigBanner/
+  // GlobalPanelOutlet — quien abre el link no debe ver ni tocar el resto de
+  // la organización. Todos los efectos de arriba (OrgSync, returnUrl, etc.)
+  // siguen corriendo igual: solo cambia lo que se renderiza.
+  const isBareRoute = /^\/workflow\/share\//.test(stripOrgPrefix(location.pathname))
+  if (isBareRoute) {
+    return (
+      <ChatbotProvider resetKey={selectedOrganizationId ?? 'no-org'}>
+        <GlobalPanelProvider>
+          <TooltipProvider>
+            <EditingGuardProvider>
+              <NavKnowledgeProvider>
+                <div className="flex flex-col h-screen overflow-hidden">
+                  <Suspense fallback={<PageSkeleton />}>
+                    <Outlet />
+                  </Suspense>
+                </div>
+              </NavKnowledgeProvider>
+            </EditingGuardProvider>
+          </TooltipProvider>
+        </GlobalPanelProvider>
+      </ChatbotProvider>
+    )
+  }
+
   return (
     <ChatbotProvider resetKey={selectedOrganizationId ?? 'no-org'}>
       <GlobalPanelProvider>

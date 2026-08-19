@@ -25,11 +25,16 @@ import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants
 import { getDocumentTypes } from "@/services/document-types"
 import { getUsers } from "@/services/users"
 import { getAllTemplates } from "@/services/templates"
-import { WorkflowTable, WorkflowDetailPanel, WorkflowTemplateCards } from "@/components/workflow"
+import { WorkflowTable, WorkflowDetailPanel, WorkflowTemplateCards, WorkflowShareDialog } from "@/components/workflow"
+import { buildTemplateShareUrl, buildExecutionShareUrl } from "@/lib/workflow-share-url"
 import type { WorkflowItem } from "@/types/workflow"
 import type { WorkflowTemplateItem, CreateExpressResult } from "@/types/templates"
 import type { HuemulFilterDef, HuemulFilterValue, HuemulDateRangeValue } from "@/types/huemul"
 import type { ExecutionLifecycleState } from "@/types/execution"
+
+type SharingState =
+  | { kind: "template"; url: string; name: string }
+  | { kind: "execution"; url: string; name: string }
 
 export default function WorkflowPage() {
   const { t } = useTranslation("workflow")
@@ -51,9 +56,34 @@ export default function WorkflowPage() {
   const [expressTemplate, setExpressTemplate] = useState<WorkflowTemplateItem | null>(null)
   const [expressDoc, setExpressDoc] = useState<CreateExpressResult | null>(null)
   const [deletingRow, setDeletingRow] = useState<WorkflowItem | null>(null)
+  const [sharing, setSharing] = useState<SharingState | null>(null)
 
   const createExpress = useCreateTemplateExpress(selectedOrganizationId ?? "")
   const { deleteWorkflow } = useWorkflowMutations(selectedOrganizationId ?? "")
+
+  const handleShareTemplate = useCallback(
+    (item: WorkflowTemplateItem) => {
+      if (!selectedOrganizationId) return
+      setSharing({
+        kind: "template",
+        url: buildTemplateShareUrl(selectedOrganizationId, item.document_type_id, item.id),
+        name: item.name,
+      })
+    },
+    [selectedOrganizationId],
+  )
+
+  const handleShareExecution = useCallback(
+    (item: WorkflowItem) => {
+      if (!selectedOrganizationId) return
+      setSharing({
+        kind: "execution",
+        url: buildExecutionShareUrl(selectedOrganizationId, item.document_id, item.execution_id),
+        name: item.document_name,
+      })
+    },
+    [selectedOrganizationId],
+  )
 
   const fetchDocumentTypes = useCallback(
     async ({ search: s }: FetchOptionsParams): Promise<FetchOptionsResult> => {
@@ -423,6 +453,7 @@ export default function WorkflowPage() {
                   pageSize={templatesPageSize}
                   hasNext={templatesHasNext}
                   onPageChange={setTemplatesPage}
+                  onShare={handleShareTemplate}
                   onStart={(item) => {
                     if (!canCreateExpress) return
                     setSelectedRow(null)
@@ -455,6 +486,7 @@ export default function WorkflowPage() {
                     }}
                     canDelete={canDelete}
                     onDelete={setDeletingRow}
+                    onShare={handleShareExecution}
                     pagination={{
                       page: workflowsResponse?.page || page,
                       pageSize: workflowsResponse?.page_size || pageSize,
@@ -502,6 +534,17 @@ export default function WorkflowPage() {
             show: selectedRow != null || expressTemplate != null,
           },
         ]}
+      />
+
+      <WorkflowShareDialog
+        open={!!sharing}
+        onOpenChange={(open) => !open && setSharing(null)}
+        url={sharing?.url ?? null}
+        description={
+          sharing?.kind === "template"
+            ? t("share.templateDescription", { name: sharing.name })
+            : t("share.executionDescription", { name: sharing?.name })
+        }
       />
 
       {canDelete && (

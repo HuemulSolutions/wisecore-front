@@ -1,7 +1,8 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, Edit3, ListChecks, RefreshCw } from "lucide-react"
+import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, Edit3, ListChecks, RefreshCw, Eye } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -20,14 +21,14 @@ import { lifecycleAllows } from "@/hooks/useDocumentAccess"
 import { workflowQueryKeys } from "@/hooks/useWorkflows"
 import { useLifecycleActions } from "@/hooks/useLifecycleActions"
 import type { AssetContentResponse, ContentSection } from "@/types/assets"
-import type { WorkflowItem } from "@/types/workflow"
+import type { WorkflowRowRef } from "@/types/workflow"
 import type { WorkflowTemplateItem, CreateExpressResult } from "@/types/templates"
 import type { FormValuesSectionPayload } from "@/types/sections/core"
 import type { ReviewStatus } from "@/types/section-execution"
 
 interface WorkflowDetailPanelProps {
-  /** Fila existente seleccionada en la tabla. */
-  row?: WorkflowItem | null
+  /** Fila existente seleccionada en la tabla (o solo los IDs, en la vista compartida). */
+  row?: WorkflowRowRef | null
   /** Template elegido desde las tarjetas para iniciar un express nuevo. */
   template?: WorkflowTemplateItem | null
   /** Documento ya creado por el padre para este template (express sin/ con nombre). */
@@ -37,6 +38,20 @@ interface WorkflowDetailPanelProps {
   /** El usuario envió el paso de nombre/descripción — el padre dispara la creación. */
   onSubmitName?: (name: string, description?: string) => void
   onClose: () => void
+  /**
+   * "panel": columna derecha de /workflow (default). "fullscreen": vista
+   * compartida a pantalla completa (workflow-fill.tsx) — ancha el contenido
+   * y agranda el header.
+   */
+  variant?: "panel" | "fullscreen"
+  /** Oculta el botón de cerrar del header. Default true (no aplica en fullscreen: no hay panel que cerrar). */
+  showClose?: boolean
+  /** Oculta el lápiz de editar nombre/código. Default true (se oculta para quien solo responde). */
+  showAssetEdit?: boolean
+  /** Oculta el badge y las acciones de ciclo de vida. Default true. */
+  showLifecycle?: boolean
+  /** Se llama en vez de handleClose al terminar el último paso. Default: handleClose. */
+  onFinish?: () => void
 }
 
 /**
@@ -53,7 +68,13 @@ export function WorkflowDetailPanel({
   isCreating,
   onSubmitName,
   onClose,
+  variant = "panel",
+  showClose = true,
+  showAssetEdit = true,
+  showLifecycle = true,
+  onFinish,
 }: WorkflowDetailPanelProps) {
+  const isFullscreen = variant === "fullscreen"
   const { t } = useTranslation(["workflow", "sections"])
   const { t: tCommon } = useTranslation("common")
   const { selectedOrganizationId } = useOrganization()
@@ -176,14 +197,21 @@ export function WorkflowDetailPanel({
   // Solo se invoca mientras se está respondiendo un paso (step !== null).
   const goNext = React.useCallback(() => {
     if (isLastStep) {
-      handleClose()
+      if (onFinish) {
+        onFinish()
+      } else {
+        handleClose()
+      }
     } else {
       setStep((s) => (s ?? -1) + 1)
     }
-  }, [isLastStep, handleClose])
+  }, [isLastStep, onFinish, handleClose])
 
-  const documentName = editedAsset?.name ?? row?.document_name ?? createdDoc?.name ?? template?.name
-  const internalCode = editedAsset?.internalCode ?? row?.internal_code
+  // Fallback a `data` (respuesta de /content): la vista compartida solo trae
+  // los IDs de la URL, sin el WorkflowItem completo con nombre/código.
+  const documentName =
+    editedAsset?.name ?? row?.document_name ?? createdDoc?.name ?? template?.name ?? data?.document_name
+  const internalCode = editedAsset?.internalCode ?? row?.internal_code ?? data?.internal_code ?? undefined
 
   // Cruce lifecycle × RBAC (AND, ver ia context/rbac-audit-guide.md): el lifecycle
   // contesta "¿sos el editor DE ESTE documento?" y RBAC "¿tu rol te permite escribir
@@ -207,7 +235,12 @@ export function WorkflowDetailPanel({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between gap-2 border-b p-4 shrink-0">
+      <div
+        className={cn(
+          "flex items-center justify-between gap-2 border-b p-4 shrink-0",
+          isFullscreen && "px-4 py-4 sm:px-8",
+        )}
+      >
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">{documentName}</p>
           {internalCode && <p className="truncate text-xs font-mono text-muted-foreground">{internalCode}</p>}
@@ -230,7 +263,7 @@ export function WorkflowDetailPanel({
               className="h-8 w-8 p-0"
             />
           )}
-          {documentId && !needsNameStep && canUpdateAssetContent && (
+          {documentId && !needsNameStep && showAssetEdit && canUpdateAssetContent && (
             <HuemulButton
               variant="ghost"
               size="sm"
@@ -240,25 +273,34 @@ export function WorkflowDetailPanel({
               className="h-8 w-8 p-0"
             />
           )}
-          <HuemulButton
-            variant="ghost"
-            size="sm"
-            icon={X}
-            tooltip={t("panel.close")}
-            onClick={handleClose}
-            className="h-8 w-8 p-0"
-          />
+          {showClose && (
+            <HuemulButton
+              variant="ghost"
+              size="sm"
+              icon={X}
+              tooltip={t("panel.close")}
+              onClick={handleClose}
+              className="h-8 w-8 p-0"
+            />
+          )}
         </div>
       </div>
 
-      {data?.lifecycle_status && !needsNameStep && (
+      {showLifecycle && data?.lifecycle_status && !needsNameStep && (
         <div className="flex items-center justify-between gap-2 border-b px-4 py-2 shrink-0 flex-wrap">
           <HuemulLifecycleStageBadge status={data.lifecycle_status} />
           <HuemulLifecycleActions controller={lifecycle} variant="row" showRerunExternalPublish />
         </div>
       )}
 
-      <div className="flex-1 overflow-auto p-4">
+      <div className={cn("flex-1 overflow-auto p-4", isFullscreen && "sm:px-8")}>
+        <div className={cn(isFullscreen && "mx-auto w-full max-w-3xl")}>
+        {isFullscreen && !needsNameStep && documentId && !isLoading && !error && !canAnswerForm && (
+          <div className="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            <Eye className="h-4 w-4 shrink-0" />
+            {t("fill.readOnlyNotice")}
+          </div>
+        )}
         {needsNameStep ? (
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
@@ -329,10 +371,16 @@ export function WorkflowDetailPanel({
             onSavingChange={setIsFormSaving}
           />
         )}
+        </div>
       </div>
 
       {!needsNameStep && documentId && !isLoading && !error && formSections.length > 0 && step !== null && (
-        <div className="flex items-center justify-between gap-2 border-t p-4 shrink-0">
+        <div
+          className={cn(
+            "flex items-center justify-between gap-2 border-t p-4 shrink-0",
+            isFullscreen && "px-4 py-4 sm:px-8",
+          )}
+        >
           <div className="flex items-center gap-2">
             <HuemulButton
               variant="outline"

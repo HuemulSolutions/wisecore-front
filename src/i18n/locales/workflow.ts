@@ -42,6 +42,7 @@ const translations = {
   },
   actions: {
     delete: { en: "Delete", es: "Eliminar" },
+    share: { en: "Share", es: "Compartir" },
   },
   deleteDialog: {
     title: { en: "Delete workflow item", es: "Eliminar elemento de workflow" },
@@ -92,6 +93,37 @@ const translations = {
       sectionsAnswered: { en: "{{answered}} of {{total}} sections answered", es: "{{answered}} de {{total}} secciones respondidas" },
       questionsCount: { en: "{{answered}}/{{total}} questions", es: "{{answered}}/{{total}} preguntas" },
     },
+  },
+  share: {
+    dialogTitle: { en: "Share workflow", es: "Compartir workflow" },
+    templateDescription: {
+      en: "Anyone who opens this link creates their own copy of \"{{name}}\" and answers it independently.",
+      es: "Quien abra este link crea su propia copia de \"{{name}}\" y la responde de forma independiente.",
+    },
+    executionDescription: {
+      en: "Anyone who opens this link answers the same document: \"{{name}}\".",
+      es: "Quien abra este link responde el mismo documento: \"{{name}}\".",
+    },
+    copy: { en: "Copy link", es: "Copiar link" },
+    copied: { en: "Copied", es: "Copiado" },
+    copyFailed: { en: "Couldn't copy the link", es: "No se pudo copiar el link" },
+    close: { en: "Close", es: "Cerrar" },
+    openInNewTab: { en: "Open in new tab", es: "Abrir en pestaña nueva" },
+    cardTooltip: { en: "Share this workflow", es: "Compartir este workflow" },
+  },
+  fill: {
+    finishedTitle: { en: "Answers submitted", es: "Respuestas enviadas" },
+    finishedDescription: {
+      en: "Thanks for completing this form. You can close this tab now.",
+      es: "Gracias por completar este formulario. Ya puedes cerrar esta pestaña.",
+    },
+    answerAnother: { en: "Answer another", es: "Responder otro" },
+    readOnlyNotice: {
+      en: "You don't have permission to answer this form — you can only view it.",
+      es: "No tienes permiso para responder este formulario — solo puedes verlo.",
+    },
+    notFound: { en: "This link is invalid or incomplete", es: "Este link no es válido o está incompleto" },
+    templateFallbackName: { en: "Workflow", es: "Workflow" },
   },
 }
 
