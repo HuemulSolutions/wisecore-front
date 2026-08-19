@@ -436,14 +436,18 @@ export function SectionForm({
     .filter(section => section.type === 'form' && (section.order ?? 0) < currentSectionOrder)
     .flatMap(section => section.form_fields ?? []);
 
-  // Secciones disponibles como dependencia (excluye la sección actual en modo edit).
-  // El combobox multi-select maneja el toggle de las ya seleccionadas por su cuenta.
+  // Secciones candidatas a dependencia (excluye la sección actual en modo edit).
   const availableSections = existingSections.filter(section => {
     if (mode === 'edit' && item && section.id === item.id) {
       return false;
     }
     return true;
   });
+
+  // Opciones del desplegable: las ya agregadas no se listan (se quitan con la × del chip).
+  const dependencyOptions = availableSections.filter(
+    section => !selectedDependencies.some(dep => dep.id === section.id)
+  );
 
   // Notificar cambios en la validación
   const isFormValid = (() => {
@@ -654,7 +658,8 @@ export function SectionForm({
               value={selectedDependencies.map(dep => dep.id)}
               onValueChange={(val) => handleDependenciesChange(val as string[])}
               multiSelect
-              options={availableSections.map(s => ({ value: s.id, label: s.name }))}
+              options={dependencyOptions.map(s => ({ value: s.id, label: s.name }))}
+              selectedOptions={selectedDependencies.map(dep => ({ value: dep.id, label: dep.name }))}
               disabled={isPending || availableSections.length === 0}
               placeholder={availableSections.length === 0 ? t('form.dependencies.placeholderEmpty') : t('form.dependencies.placeholder')}
             />
