@@ -78,7 +78,7 @@ export function RelationshipCreateDialog({
               className="h-3 w-3 rounded-full shrink-0 mt-0.5"
               style={{ backgroundColor: sourceDocumentType?.color || "#94a3b8" }}
             />
-            <span className="font-medium line-clamp-2 break-words">
+            <span className="font-medium line-clamp-2 wrap-break-word">
               {sourceDocumentType?.name ?? sourceDocumentTypeId}
             </span>
           </div>
@@ -88,7 +88,7 @@ export function RelationshipCreateDialog({
               className="h-3 w-3 rounded-full shrink-0 mt-0.5"
               style={{ backgroundColor: targetDocumentType?.color || "#94a3b8" }}
             />
-            <span className="font-medium line-clamp-2 break-words">
+            <span className="font-medium line-clamp-2 wrap-break-word">
               {targetDocumentType?.name ?? targetDocumentTypeId}
             </span>
           </div>

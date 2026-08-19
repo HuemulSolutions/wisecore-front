@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
-import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check, Image, Bell, BellRing, Workflow, Coins, KeyRound, Tag } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText, Menu, Network, Workflow } from "lucide-react"
 import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from "react"
 import { useTranslation } from "react-i18next"
 import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
@@ -13,28 +13,20 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
   Sheet,
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { OrganizationSelectionDialog } from "@/components/organization/organization-selection-dialog"
 import { OrganizationSwitcher } from "@/components/organization/organization-switcher"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useAuth } from "@/contexts/auth-context"
 import { RBAC_PAGES } from "@/lib/rbac-matrix"
+import { HeaderSettingsMenu } from "@/components/layout/header-settings-menu"
+import { HeaderUserMenu } from "@/components/layout/header-user-menu"
 
 import { ChatbotProvider } from "@/contexts/chatbot-provider"
 import { NavKnowledgeProvider } from "@/contexts/nav-knowledge-provider"
@@ -392,44 +384,10 @@ export default function AppLayout() {
     (isInSelectionFlow && !!organizationToken && permissionsLoading)
   )
   
-  // Filtrar opciones del menú de configuración basándose en permisos
-  // NOTA: isOrgAdmin hace bypass de permisos, isRootAdmin NO
-  // Cada OR usa el MISMO permiso que el guard de ruta del ítem que habilita
-  // (antes `asset-types` entraba por el helper canAccessDocumentTypes, de 5
-  // acciones: un rol con solo asset_type:c abría el grupo sin ningún ítem
-  // dentro). El bypass de isOrgAdmin ya vive dentro de hasAnyPermission.
-  // `diagrams` ya no está acá: dejó de ser un ítem del dropdown para pasar al
-  // nav central (ver navigationItems).
-  const hasAssetManagementAccess = hasAnyPermission(RBAC_PAGES["asset-types"].routePermissions) || hasAnyPermission(RBAC_PAGES.canvas.routePermissions) || hasAnyPermission(RBAC_PAGES["custom-fields"].routePermissions) || hasAnyPermission(RBAC_PAGES.media.routePermissions)
-  // Grupo "Herramientas": operación masiva (/advanced), no configuración.
-  const hasToolsAccess = hasAnyPermission(RBAC_PAGES.advanced.routePermissions)
-  const canAccessOrganizationsPage = hasAnyPermission(RBAC_PAGES.organizations.routePermissions)
-  // Antes usaba el helper canAccessModels (10 permisos, incluye llm:c/llm:d),
-  // más ancho que el guard de ruta — ver ia context/rbac-audit-guide.md.
+  // Permiso de la página Modelos: lo consume el LlmConfigBanner además del
+  // menú de settings (HeaderSettingsMenu), por eso queda acá y no solo en el
+  // registro del menú.
   const canAccessModelsPage = hasAnyPermission(RBAC_PAGES.models.routePermissions)
-  // Antes usaba el helper canAccessRoles (5 acciones), más ancho que el guard
-  // de ruta (rbac:r|l) — mismo criterio que canAccessModelsPage.
-  const canAccessRolesPage = hasAnyPermission(RBAC_PAGES.roles.routePermissions)
-  // Antes usaba el helper canAccessUsers (5 acciones), más ancho que el guard
-  // de ruta (user:r|l) — mismo criterio que canAccessRolesPage. Con el helper,
-  // un rol con solo user:c abría el grupo Administration sin ningún ítem.
-  const canAccessUsersPage = hasAnyPermission(RBAC_PAGES.users.routePermissions)
-  // Antes usaba el helper canAccessExternalSystems (5 acciones), más ancho que
-  // el guard de ruta — mismo criterio que los cuatro anteriores.
-  const canAccessExternalSystemsPage = hasAnyPermission(RBAC_PAGES["external-systems"].routePermissions)
-  const canAccessTokenUsagePage = hasAnyPermission(RBAC_PAGES["token-usage"].routePermissions)
-  const hasAdministrationAccess = canAccessUsersPage || canAccessRolesPage || canAccessModelsPage || canAccessOrganizationsPage || canAccessExternalSystemsPage || canAccessTokenUsagePage || isRootAdmin
-  // Antes terminaba en `|| !!organizationToken`, un OR que existía solo para
-  // habilitar el ítem de Media (la única entrada sin permiso propio) y que
-  // abría el dropdown entero a cualquier usuario con token de organización.
-  const hasSettingsAccess = hasToolsAccess || hasAssetManagementAccess || hasAdministrationAccess || isRootAdmin
-
-  // Generate initials from user name
-  const getUserInitials = (firstName: string, lastName: string): string => {
-    const first = firstName?.charAt(0) || ''
-    const last = lastName?.charAt(0) || ''
-    return (first + last).toUpperCase()
-  }
 
   const handleSignOut = () => {
     logout()
@@ -711,271 +669,23 @@ export default function AppLayout() {
               </Tooltip>
               
               {/* Settings dropdown */}
-              {hasSettingsAccess && (() => {
-                const currentPath = stripOrgPrefix(location.pathname)
-                const isSettingsActive = (path: string) => currentPath === path || currentPath.startsWith(path + '/')
-                const isAnySettingsActive = [
-                  '/advanced',
-                  '/asset-types', '/custom-fields', '/canvas', '/media',
-                  '/organizations', '/global-admin', '/users', '/roles', '/models', '/auth-types', '/external-systems', '/token-usage'
-                ].some(isSettingsActive)
-
-                const settingsItemClass = (path: string) => cn(
-                  'hover:cursor-pointer flex items-center gap-2',
-                  isSettingsActive(path) && 'bg-accent text-accent-foreground font-medium'
-                )
-                const settingsIconClass = (path: string) => cn(
-                  'h-4 w-4 shrink-0',
-                  isSettingsActive(path) ? 'text-accent-foreground' : 'text-muted-foreground'
-                )
-
-                return (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={cn(
-                        'h-8 w-8 p-0 hover:cursor-pointer',
-                        isAnySettingsActive && 'bg-accent text-accent-foreground'
-                      )}
-                    >
-                      <Settings className="h-4 w-4" />
-                      <span className="sr-only">{t('header.settingsMenuSrOnly')}</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-52">
-                    {hasToolsAccess && (
-                      <DropdownMenuGroup>
-                        <DropdownMenuLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
-                          {t('settings.tools')}
-                        </DropdownMenuLabel>
-                        <DropdownMenuItem asChild>
-                          <Link to={buildPath("/advanced")} className={settingsItemClass('/advanced')}>
-                            <Zap className={settingsIconClass('/advanced')} />
-                            <span className="flex-1">{t('settings.advanced')}</span>
-                            {isSettingsActive('/advanced') && <Check className="h-3.5 w-3.5 ml-auto" />}
-                          </Link>
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                    )}
-
-                    {hasToolsAccess && (hasAssetManagementAccess || hasAdministrationAccess) && <DropdownMenuSeparator />}
-
-                    {hasAssetManagementAccess && (
-                      <DropdownMenuGroup>
-                        <DropdownMenuLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
-                          {t('settings.assetManagement')}
-                        </DropdownMenuLabel>
-                        {hasAnyPermission(RBAC_PAGES["asset-types"].routePermissions) && (
-                          <DropdownMenuItem asChild>
-                            <Link to={buildPath("/asset-types")} className={settingsItemClass('/asset-types')}>
-                              <FileStack className={settingsIconClass('/asset-types')} />
-                              <span className="flex-1">{t('settings.assetTypes')}</span>
-                              {isSettingsActive('/asset-types') && <Check className="h-3.5 w-3.5 ml-auto" />}
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
-                        {hasAnyPermission(RBAC_PAGES["custom-fields"].routePermissions) && (
-                          <DropdownMenuItem asChild>
-                            <Link to={buildPath("/custom-fields")} className={settingsItemClass('/custom-fields')}>
-                              <Settings2 className={settingsIconClass('/custom-fields')} />
-                              <span className="flex-1">{t('settings.customFields')}</span>
-                              {isSettingsActive('/custom-fields') && <Check className="h-3.5 w-3.5 ml-auto" />}
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
-                        {hasAnyPermission(RBAC_PAGES.tags.routePermissions) && (
-                          <DropdownMenuItem asChild>
-                            <Link to={buildPath("/tags")} className={settingsItemClass('/tags')}>
-                              <Tag className={settingsIconClass('/tags')} />
-                              <span className="flex-1">{t('settings.tags')}</span>
-                              {isSettingsActive('/tags') && <Check className="h-3.5 w-3.5 ml-auto" />}
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
-
-                        {hasAnyPermission(RBAC_PAGES.canvas.routePermissions) && (
-                          <DropdownMenuItem asChild>
-                            <Link to={buildPath("/canvas")} className={settingsItemClass('/canvas')}>
-                              <LayoutPanelTop className={settingsIconClass('/canvas')} />
-                              <span className="flex-1">{t('settings.canvas')}</span>
-                              {isSettingsActive('/canvas') && <Check className="h-3.5 w-3.5 ml-auto" />}
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
-                        {hasAnyPermission(RBAC_PAGES.media.routePermissions) && (
-                          <DropdownMenuItem asChild>
-                            <Link to={buildPath("/media")} className={settingsItemClass('/media')}>
-                              <Image className={settingsIconClass('/media')} />
-                              <span className="flex-1">{t('settings.media')}</span>
-                              {isSettingsActive('/media') && <Check className="h-3.5 w-3.5 ml-auto" />}
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuGroup>
-                    )}
-
-                    {hasAssetManagementAccess && hasAdministrationAccess && <DropdownMenuSeparator />}
-                    
-                    {hasAdministrationAccess && (
-                      <DropdownMenuGroup>
-                        <DropdownMenuLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
-                          {t('settings.administration')}
-                        </DropdownMenuLabel>
-                        {canAccessOrganizationsPage && (
-                          <DropdownMenuItem asChild>
-                            <Link to={buildPath("/organizations")} className={settingsItemClass('/organizations')}>
-                              <Building2 className={settingsIconClass('/organizations')} />
-                              <span className="flex-1">{t('settings.organizations')}</span>
-                              {isSettingsActive('/organizations') && <Check className="h-3.5 w-3.5 ml-auto" />}
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
-                        {isRootAdmin && (
-                          <DropdownMenuItem asChild>
-                            <Link to="/global-admin" className={settingsItemClass('/global-admin')}>
-                              <ShieldCheck className={settingsIconClass('/global-admin')} />
-                              <span className="flex-1">{t('settings.globalAdminSettings')}</span>
-                              {isSettingsActive('/global-admin') && <Check className="h-3.5 w-3.5 ml-auto" />}
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
-                        {canAccessUsersPage && (
-                          <DropdownMenuItem asChild>
-                            <Link to={buildPath("/users")} className={settingsItemClass('/users')}>
-                              <Users className={settingsIconClass('/users')} />
-                              <span className="flex-1">{t('settings.users')}</span>
-                              {isSettingsActive('/users') && <Check className="h-3.5 w-3.5 ml-auto" />}
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
-                        {canAccessRolesPage && (
-                          <DropdownMenuItem asChild>
-                            <Link to={buildPath("/roles")} className={settingsItemClass('/roles')}>
-                              <Shield className={settingsIconClass('/roles')} />
-                              <span className="flex-1">{t('settings.roles')}</span>
-                              {isSettingsActive('/roles') && <Check className="h-3.5 w-3.5 ml-auto" />}
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
-                        {canAccessModelsPage && (
-                          <DropdownMenuItem asChild>
-                            <Link to={buildPath("/models")} className={settingsItemClass('/models')}>
-                              <Blocks className={settingsIconClass('/models')} />
-                              <span className="flex-1">{t('settings.models')}</span>
-                              {isSettingsActive('/models') && <Check className="h-3.5 w-3.5 ml-auto" />}
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
-                        {isRootAdmin && (
-                          <DropdownMenuItem asChild>
-                            <Link to={buildPath("/auth-types")} className={settingsItemClass('/auth-types')}>
-                              <Shield className={settingsIconClass('/auth-types')} />
-                              <span className="flex-1">{t('settings.authTypes')}</span>
-                              {isSettingsActive('/auth-types') && <Check className="h-3.5 w-3.5 ml-auto" />}
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
-                        {/* Mismo permiso que el guard de ruta: `canAccessExternalSystems`
-                            (5 acciones) mostraba el ítem a roles que la ruta rebotaba. */}
-                        {hasAnyPermission([...RBAC_PAGES["external-systems"].routePermissions]) && (
-                          <DropdownMenuItem asChild>
-                            <Link to={buildPath("/external-systems")} className={settingsItemClass('/external-systems')}>
-                              <Network className={settingsIconClass('/external-systems')} />
-                              <span className="flex-1">{t('settings.externalSystems')}</span>
-                              {isSettingsActive('/external-systems') && <Check className="h-3.5 w-3.5 ml-auto" />}
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
-                        {(hasAnyPermission(RBAC_PAGES["token-usage"].routePermissions)) && (
-                          <DropdownMenuItem asChild>
-                            <Link to={buildPath("/token-usage")} className={settingsItemClass('/token-usage')}>
-                              <Coins className={settingsIconClass('/token-usage')} />
-                              <span className="flex-1">{t('settings.tokenUsage')}</span>
-                              {isSettingsActive('/token-usage') && <Check className="h-3.5 w-3.5 ml-auto" />}
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuGroup>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                )
-              })()}
+              <HeaderSettingsMenu
+                organizationToken={organizationToken}
+                onOpenApiTokens={handleOpenApiTokens}
+              />
 
               {/* User menu (initials only) */}
               {user && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative hover:cursor-pointer">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src="" alt={`${user.name} ${user.last_name}`} />
-                        <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold text-xs">
-                          {getUserInitials(user.name, user.last_name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      {organizationToken && canListNotifications &&unreadNotificationsCount > 0 && (
-                        <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-medium leading-none">
-                          {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
-                        </span>
-                      )}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel className="font-normal">
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium">{user.name} {user.last_name}</p>
-                        <p className="text-xs text-muted-foreground">{user.email}</p>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      className="hover:cursor-pointer" 
-                      onSelect={handleUpdateProfile}
-                    >
-                      <User className="h-4 w-4 mr-2" />
-                      {t('header.updateProfile')}
-                    </DropdownMenuItem>
-                    {organizationToken && canListNotifications &&(
-                      <DropdownMenuItem
-                        className="hover:cursor-pointer"
-                        onSelect={handleOpenNotifications}
-                      >
-                        <BellRing className="h-4 w-4 mr-2" />
-                        {t('header.notifications')}
-                        {unreadNotificationsCount > 0 && (
-                          <span className="ml-auto inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-medium leading-none">
-                            {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
-                          </span>
-                        )}
-                      </DropdownMenuItem>
-                    )}
-                    {organizationToken && (
-                      <DropdownMenuItem
-                        className="hover:cursor-pointer"
-                        onSelect={handleOpenSubscriptions}
-                      >
-                        <Bell className="h-4 w-4 mr-2" />
-                        {t('header.mySubscriptions')}
-                      </DropdownMenuItem>
-                    )}
-                    {organizationToken && isOrgAdmin && (
-                      <DropdownMenuItem
-                        className="hover:cursor-pointer"
-                        onSelect={handleOpenApiTokens}
-                      >
-                        <KeyRound className="h-4 w-4 mr-2" />
-                        {t('header.apiTokens')}
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="hover:cursor-pointer text-red-600" onClick={handleSignOut}>
-                      <LogOut className="h-4 w-4 mr-2" />
-                      {t('header.signOut')}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <HeaderUserMenu
+                  user={user}
+                  organizationToken={organizationToken}
+                  canListNotifications={canListNotifications}
+                  unreadNotificationsCount={unreadNotificationsCount}
+                  onUpdateProfile={handleUpdateProfile}
+                  onOpenNotifications={handleOpenNotifications}
+                  onOpenSubscriptions={handleOpenSubscriptions}
+                  onSignOut={handleSignOut}
+                />
               )}
             </div>
           </header>
