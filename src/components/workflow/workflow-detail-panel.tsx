@@ -342,16 +342,16 @@ export function WorkflowDetailPanel({
               disabled={isFormSaving}
               onClick={() => setStep(null)}
             />
-            <HuemulButton
-              variant="outline"
-              size="sm"
-              icon={ChevronLeft}
-              label={t("wizard.back")}
-              // En el origen "fila de la tabla" el paso 0 vuelve al resumen; un express nuevo
-              // no tiene resumen (nunca hubo `row`), así que ahí el botón queda deshabilitado.
-              disabled={(step === 0 && !row) || isFormSaving}
-              onClick={() => setStep((s) => (s === 0 ? (row ? null : 0) : Math.max(0, (s ?? 1) - 1)))}
-            />
+            {step > 0 && (
+              <HuemulButton
+                variant="outline"
+                size="sm"
+                icon={ChevronLeft}
+                label={t("wizard.back")}
+                disabled={isFormSaving}
+                onClick={() => setStep((s) => Math.max(0, (s ?? 1) - 1))}
+              />
+            )}
           </div>
           <HuemulButton
             size="sm"
