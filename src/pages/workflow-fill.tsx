@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import { Loader2, CheckCircle2, RotateCcw } from "lucide-react"
+import { Loader2, CheckCircle2, RotateCcw, AlertCircle } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { useWorkflowTemplates, useCreateTemplateExpress } from "@/hooks/useWorkflowTemplates"
@@ -42,6 +42,15 @@ export default function WorkflowFillPage() {
 
   const [createdDoc, setCreatedDoc] = useState<CreateExpressResult | null>(null)
   const [finished, setFinished] = useState(false)
+  // Distinto de un `error` de la query de contenido (eso ya lo maneja el propio
+  // panel): esto es "el POST .../express falló" — sin esto, documentId se queda
+  // en null para siempre y el panel cae en su spinner de carga sin salida.
+  const [autoCreateError, setAutoCreateError] = useState(false)
+  // El efecto de auto-arranque de abajo no depende de nada que cambie al
+  // reintentar (mismo template, mismo documentId=null): sin este contador en
+  // sus deps, "Reintentar" limpiaría el error pero nunca volvería a llamar
+  // al mutate.
+  const [retryToken, setRetryToken] = useState(0)
   const autoStartedRef = useRef(false)
 
   // Igual que canCreateExpress en pages/workflow.tsx: crear un express exige
@@ -94,24 +103,33 @@ export default function WorkflowFillPage() {
       .then(setCreatedDoc)
       .catch(() => {
         autoStartedRef.current = false
+        setAutoCreateError(true)
       })
-  }, [mode, canCreateExpress, template, createdDoc, createExpress])
+  }, [mode, canCreateExpress, template, createdDoc, createExpress, retryToken])
 
   const handleSubmitName = useCallback(
     (name: string, description?: string) => {
       if (!template || !canCreateExpress) return
+      setAutoCreateError(false)
       createExpress
         .mutateAsync({ documentTypeId: template.document_type_id, templateId: template.id, body: { name, description } })
         .then(setCreatedDoc)
-        .catch(() => {})
+        .catch(() => setAutoCreateError(true))
     },
     [template, canCreateExpress, createExpress],
   )
+
+  const handleRetryAutoCreate = useCallback(() => {
+    autoStartedRef.current = false
+    setAutoCreateError(false)
+    setRetryToken((n) => n + 1)
+  }, [])
 
   const handleAnswerAnother = useCallback(() => {
     autoStartedRef.current = false
     setCreatedDoc(null)
     setFinished(false)
+    setAutoCreateError(false)
   }, [])
 
   const row: WorkflowRowRef | null =
@@ -137,6 +155,15 @@ export default function WorkflowFillPage() {
 
   if (mode === "template" && !params.documentTypeId) {
     return <HuemulAccessDenied variant="inline" description={t("fill.notFound")} />
+  }
+
+  // Crear el express exige asset:c (ver useCreateTemplateExpress). Sin este
+  // gate explícito el auto-arranque de abajo se queda mudo: nunca llama al
+  // mutate, documentId no se resuelve nunca y el panel cae en su spinner de
+  // carga sin salida (mismo criterio que canCreate en pages/workflow.tsx,
+  // que ahí oculta directamente las tarjetas de "Iniciar").
+  if (mode === "template" && !canCreateExpress) {
+    return <HuemulAccessDenied variant="inline" description={t("fill.noCreatePermission")} />
   }
 
   if (finished) {
@@ -167,6 +194,32 @@ export default function WorkflowFillPage() {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  // Falló el auto-create (backend real: 403/404/500) para un template que NO pide
+  // nombre — el panel nunca tiene un formulario donde mostrar el reintento (ese
+  // camino solo existe cuando require_name_on_express es true), así que la propia
+  // página ofrece "Reintentar". El toast de error global (query-client.ts) ya avisó
+  // el motivo; esto evita que la pantalla se quede en el spinner sin salida.
+  if (mode === "template" && autoCreateError && !createdDoc && template && !template.require_name_on_express) {
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <div className="flex max-w-sm flex-col items-center gap-3 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+            <AlertCircle className="h-6 w-6 text-red-600" />
+          </div>
+          <p className="text-sm font-semibold text-foreground">{t("fill.createError")}</p>
+          <HuemulButton
+            variant="outline"
+            size="sm"
+            icon={RotateCcw}
+            label={t("fill.retry")}
+            onClick={handleRetryAutoCreate}
+            className="mt-2"
+          />
+        </div>
       </div>
     )
   }

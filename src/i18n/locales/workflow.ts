@@ -124,6 +124,15 @@ const translations = {
     },
     notFound: { en: "This link is invalid or incomplete", es: "Este link no es válido o está incompleto" },
     templateFallbackName: { en: "Workflow", es: "Workflow" },
+    noCreatePermission: {
+      en: "You don't have permission to create a document from this link.",
+      es: "No tienes permiso para crear un documento desde este link.",
+    },
+    createError: {
+      en: "Something went wrong creating this document.",
+      es: "Ocurrió un error al crear este documento.",
+    },
+    retry: { en: "Retry", es: "Reintentar" },
   },
 }
 
