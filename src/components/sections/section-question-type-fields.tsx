@@ -203,6 +203,7 @@ export function SectionQuestionTypeFields({
               value={jsonbToInputValue(field.min_value)}
               onChange={(v) => onUpdate({ min_value: v === "" ? null : v })}
               placeholder={t("form.formFields.noLimit")}
+              allowDecimal={qt === QUESTION_TYPE.decimal}
               disabled={isPending}
             />
             <HuemulField
@@ -211,6 +212,7 @@ export function SectionQuestionTypeFields({
               value={jsonbToInputValue(field.max_value)}
               onChange={(v) => onUpdate({ max_value: v === "" ? null : v })}
               placeholder={t("form.formFields.noLimit")}
+              allowDecimal={qt === QUESTION_TYPE.decimal}
               disabled={isPending}
             />
           </div>

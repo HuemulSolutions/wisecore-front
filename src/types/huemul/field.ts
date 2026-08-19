@@ -78,6 +78,9 @@ export interface HuemulFieldProps {
   min?: number;
   max?: number;
   step?: number;
+  /** Para type="number": si es true, permite separador decimal y siempre muestra al menos un
+   *  decimal (ej. 567 -> "567,0") para distinguirlo visualmente de un campo entero. Default false. */
+  allowDecimal?: boolean;
   /** For type="time"/"datetime": include the seconds column/segment. Default true. */
   withSeconds?: boolean;
   minLabel?: string;
