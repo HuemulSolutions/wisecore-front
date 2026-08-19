@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, RefreshCw, Edit, Trash2, FileUp, FileJson, Search, X, FolderUp, ShieldCheck, Sparkles } from "lucide-react"
+import { Plus, File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, RefreshCw, Edit, Trash2, FileUp, FileJson, FolderUp, ShieldCheck, Sparkles } from "lucide-react"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -10,7 +10,6 @@ import type { MenuAction } from "@/types/menu-action"
 
 import {
   SidebarGroup,
-  SidebarGroupLabel,
 } from "@/components/ui/sidebar"
 import {
   DropdownMenu,
@@ -19,8 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { HuemulButton } from "@/huemul/components/huemul-button"
-import { Input } from "@/components/ui/input"
+import { HuemulPanelHeader } from "@/huemul/components/huemul-panel-header"
 import { FileTree } from "@/components/assets/content/assets-file-tree"
 import type { FileNode } from "@/types/assets"
 import { useLocation } from "react-router-dom"
@@ -53,7 +51,15 @@ function renderKnowledgeFolderIcon(node: FileNode, isExpanded: boolean) {
     : <Folder className="h-3.5 w-3.5 text-blue-500 shrink-0" />
 }
 
-export function NavKnowledgeHeader() {
+export interface NavKnowledgeHeaderProps {
+  /**
+   * Botón de refresco del árbol. Se apaga en las páginas que ya ofrecen un
+   * refresh en su `PageHeader` (un botón por contenedor, no por endpoint).
+   */
+  showRefresh?: boolean
+}
+
+export function NavKnowledgeHeader({ showRefresh = true }: NavKnowledgeHeaderProps = {}) {
   const { t } = useTranslation('layout')
   const { selectedOrganizationId } = useOrganization()
   const { fileTreeRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch } = useNavKnowledge()
@@ -85,37 +91,21 @@ export function NavKnowledgeHeader() {
     return null
   }
 
-  const handleToggleSearch = () => {
-    if (isSearchOpen) {
-      setSearchTerm('')
-      setCommittedSearch('')
-    }
-    setIsSearchOpen(!isSearchOpen)
-  }
-
   return (
-    <SidebarGroup className="py-0">
-      <div className="flex items-center justify-between">
-        <SidebarGroupLabel className="py-0 text-xs">{t('knowledge.sectionTitle')}</SidebarGroupLabel>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 hover:cursor-pointer"
-            onClick={handleToggleSearch}
-          >
-            {isSearchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
-          </Button>
-          <HuemulButton
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            icon={RefreshCw}
-            iconClassName="h-4 w-4"
-            tooltip={t('common:refresh')}
-            loading={isRefreshingTree}
-            onClick={handleRefreshTree}
-          />
+    <HuemulPanelHeader
+      title={t('knowledge.sectionTitle')}
+      search={{
+        value: searchTerm,
+        onChange: setSearchTerm,
+        onCommit: setCommittedSearch,
+        placeholder: t('knowledge.searchPlaceholder'),
+        open: isSearchOpen,
+        onOpenChange: setIsSearchOpen,
+      }}
+      onRefresh={showRefresh ? handleRefreshTree : undefined}
+      isRefreshing={isRefreshingTree}
+      actions={
+        <>
           {hasAnyCreatePermission && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -193,21 +183,9 @@ export function NavKnowledgeHeader() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-        </div>
-      </div>
-      {isSearchOpen && (
-        <div className="px-2 pt-1 pb-1">
-          <Input
-            placeholder={t('knowledge.searchPlaceholder')}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') setCommittedSearch(searchTerm) }}
-            className="h-7 text-xs"
-            autoFocus
-          />
-        </div>
-      )}
-    </SidebarGroup>
+        </>
+      }
+    />
   )
 }
 

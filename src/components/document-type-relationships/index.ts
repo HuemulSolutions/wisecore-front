@@ -1,4 +1,5 @@
 export { AssetTypeSidebar } from "./asset-type-sidebar"
+export { DocumentTypeRelationshipsPageHeader } from "./document-type-relationships-page-header"
 export { AssetTypeNode, MemoizedAssetTypeNode } from "./asset-type-node"
 export { RelationshipEdge, MemoizedRelationshipEdge } from "./relationship-edge"
 export { RelationshipCreateDialog, RelationshipEditDialog } from "./relationship-dialogs"
