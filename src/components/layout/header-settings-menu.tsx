@@ -78,11 +78,11 @@ export function HeaderSettingsMenu({ organizationToken, onOpenApiTokens }: Heade
           <span className="sr-only">{t("header.settingsMenuSrOnly")}</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-160 max-w-[calc(100vw-2rem)] p-2">
-        <div className="columns-1 sm:columns-2 lg:columns-3 gap-4">
+      <DropdownMenuContent align="end" className="w-160 max-w-[calc(100vw-2rem)] p-3">
+        <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 [column-rule:1px_solid_var(--border)]">
           {visibleGroups.map((group) => (
-            <DropdownMenuGroup key={group.id} className="mb-3 inline-block w-full break-inside-avoid align-top">
-              <DropdownMenuLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
+            <DropdownMenuGroup key={group.id} className="mb-4 last:mb-0 inline-block w-full break-inside-avoid align-top">
+              <DropdownMenuLabel className="px-2 pt-1 pb-1 text-sm font-semibold text-foreground">
                 {t(group.labelKey)}
               </DropdownMenuLabel>
               {group.entries.map((entry) => {
