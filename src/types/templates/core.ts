@@ -19,6 +19,11 @@ export interface CloneTemplateResult {
   custom_fields_copied: number;
   docx_templates_copied: number;
   document_types_copied: number;
+  // Contexto y dependencias de nivel template (ver ia context/ del cambio de
+  // backend). Es una copia one-shot, sin sincronización posterior — no se
+  // muestran en la UI del clone hoy, igual que el resto de estos contadores.
+  contexts_copied: number;
+  dependencies_copied: number;
 }
 
 export interface TemplatesResponse {
