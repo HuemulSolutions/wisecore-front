@@ -6,6 +6,15 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Normaliza un string para comparación de búsqueda: minúsculas y sin acentos/diacríticos.
+ * Usar para matches "contiene" case-insensitive que también deben ignorar tildes
+ * (ej. buscar "espana" debe encontrar "España").
+ */
+export function normalizeForSearch(value: string): string {
+  return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase()
+}
+
+/**
  * Get the user's locale from browser settings
  */
 export function getUserLocale(): string {

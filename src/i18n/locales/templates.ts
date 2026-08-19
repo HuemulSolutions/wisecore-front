@@ -1,4 +1,7 @@
 const translations = {
+  filters: {
+    filteredByTag: { en: "Filtered by tag:", es: "Filtrado por etiqueta:" },
+  },
   create: {
     title: { en: "New Template", es: "Nueva Plantilla" },
     description: { en: "Complete the fields below to create a new template.", es: "Completa los campos para crear una nueva plantilla." },

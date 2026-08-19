@@ -1,4 +1,7 @@
 const translations = {
+  filters: {
+    filteredByTag: { en: "Filtered by tag:", es: "Filtrado por etiqueta:" },
+  },
   header: {
     title: { en: "Asset Types", es: "Tipos de Activo" },
     createAssetType: { en: "Create Asset Type", es: "Crear Tipo de Activo" },

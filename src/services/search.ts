@@ -11,6 +11,7 @@ export async function search({
     search_type = 'semantic',
     document_type_id,
     template_id,
+    tag_id,
     created_by,
     lifecycle_state,
     filter_with_llm = true,
@@ -42,6 +43,8 @@ export async function search({
     params.set('page_size', String(page_size));
     if (document_type_id != null) params.set('document_type_id', document_type_id);
     if (template_id != null) params.set('template_id', template_id);
+    // Sin confirmar contra backend — ver nota en types/search/core.ts.
+    if (tag_id != null) params.set('tag_id', tag_id);
     if (created_by != null) params.set('created_by', created_by);
     if (lifecycle_state != null) params.set('lifecycle_state', lifecycle_state);
     if (owner_scope != null) params.set('owner_scope', owner_scope);

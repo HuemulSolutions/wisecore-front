@@ -13,9 +13,9 @@ export interface FormAnswersListProps {
 }
 
 /**
- * Lista de solo lectura pregunta/respuesta de una sección form — extraída de
- * workflow-section-answers-sheet.tsx para reutilizarse también fuera del sheet de workflow
- * (ver asset-form-section-reader.tsx). No recibe `filePreview`: solo tiene sentido con subidas
+ * Lista de solo lectura pregunta/respuesta de una sección form — compartida entre el resumen
+ * de workflow (ver workflow-sections-summary.tsx) y el modo lector del asset (ver
+ * asset-form-section-reader.tsx). No recibe `filePreview`: solo tiene sentido con subidas
  * de la sesión actual (ver asset-form-section.tsx), ausentes en toda vista puramente lectora.
  */
 export function FormAnswersList({ fields, emptyLabel, className }: FormAnswersListProps) {
@@ -32,9 +32,9 @@ export function FormAnswersList({ fields, emptyLabel, className }: FormAnswersLi
           <SectionFieldSeparator key={field.id || fieldIndex} name={field.field_name} />
         ) : (
           <div key={field.id || fieldIndex} className="space-y-1 border-b pb-3 last:border-b-0 last:pb-0">
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm font-semibold text-gray-900">
               {field.field_name}
-              {field.required && <span className="text-destructive"> *</span>}
+              {field.required && <span className="text-red-500"> *</span>}
             </p>
             <FormFieldAnswerValue field={field} />
           </div>

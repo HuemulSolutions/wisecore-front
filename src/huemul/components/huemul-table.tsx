@@ -378,17 +378,18 @@ export function HuemulTable<T>({
               : data.map((item) => {
                   const key = getRowKey(item)
                   const visibleActions = actions?.filter((a) => !a.show || a.show(item)) ?? []
-                  const isSelected = selectable && selected.has(key)
+                  // `selectable` controla SOLO la columna de checkboxes. `selectedKeys` sin
+                  // `selectable` = resaltado de fila sin multi-selección (patrón master-detail).
+                  const isSelected = selected.has(key)
                   const customRowClass = getRowClassName?.(item)
                   const rowExtraClass = customRowClass ?? (isSelected ? "bg-primary/5 hover:bg-primary/10" : "")
-                  // La celda de acciones es sticky: necesita un fondo siempre opaco (nunca
-                  // una clase con alpha) para tapar las columnas que quedan por debajo al
-                  // hacer scroll horizontal, así que no puede reusar `rowExtraClass` tal cual.
-                  const stickyExtraClass =
-                    customRowClass ??
-                    (isSelected
-                      ? "bg-[color-mix(in_srgb,var(--primary)_5%,var(--card))] group-hover:bg-[color-mix(in_srgb,var(--primary)_10%,var(--card))]"
-                      : "bg-background group-hover:bg-[color-mix(in_srgb,var(--muted)_30%,var(--card))]")
+                  // La celda de acciones es sticky: su fondo debe ser SIEMPRE opaco para tapar las
+                  // columnas que pasan por debajo al scrollear en horizontal. Por eso NO reusa
+                  // `getRowClassName` (puede venir vacío o con alpha, p. ej. `bg-primary/5`) —
+                  // el resaltado de fila se expresa vía `selectedKeys`, no vía className.
+                  const stickyExtraClass = isSelected
+                    ? "bg-[color-mix(in_srgb,var(--primary)_5%,var(--card))] group-hover:bg-[color-mix(in_srgb,var(--primary)_10%,var(--card))]"
+                    : "bg-background group-hover:bg-[color-mix(in_srgb,var(--muted)_30%,var(--card))]"
                   const canExpand = hasExpand && (isExpandable?.(item) ?? true)
                   const isExpanded = canExpand && expanded.has(key)
 

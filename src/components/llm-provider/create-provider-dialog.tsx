@@ -161,8 +161,8 @@ export function CreateProviderDialog({
           <HuemulField
             label={t('createProviderDialog.endpointLabel')}
             name="endpoint"
-            type="password"
-            placeholder="https://api.example.com/v1"
+            type="url"
+            placeholder={t('createProviderDialog.endpointPlaceholder')}
             value={endpoint}
             onChange={(v) => setEndpoint(String(v))}
             required
@@ -174,7 +174,7 @@ export function CreateProviderDialog({
           <HuemulField
             label={t('createProviderDialog.deploymentLabel')}
             name="deployment"
-            type="password"
+            type="text"
             placeholder={t('createProviderDialog.deploymentPlaceholder')}
             value={deployment}
             onChange={(v) => setDeployment(String(v))}

@@ -2,14 +2,17 @@
 
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
+import { useSearchParams } from "react-router-dom"
 import { Settings2, Copy, Trash2 } from "lucide-react"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
 import { useAssetTypesWithRoles, useAssetTypeMutations } from "@/hooks/useAssetTypes"
 import { useDocumentTypes, documentTypeQueryKeys } from "@/hooks/useDocumentTypes"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
+import { useTag } from "@/hooks/useTags"
 import { useQueryClient } from "@tanstack/react-query"
 import { useOrganization } from "@/contexts/organization-context"
+import { HuemulTagChip } from "@/huemul/components/huemul-tag-chip"
 import type { CanvasNodeAction } from "@/types/document-type-relationships"
 
 // Components
@@ -51,6 +54,17 @@ export default function AssetTypesPage() {
   const [relPage, setRelPage] = useState(1)
   const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set())
   const [pinnedNewAssetType, setPinnedNewAssetType] = useState<AssetTypeWithRoles | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tagId = searchParams.get("tag_id") || undefined
+  const { data: activeTag } = useTag(tagId ?? "", !!tagId)
+  const clearTagFilter = () => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete("tag_id")
+      return next
+    })
+    setPage(1)
+  }
 
   // Permisos
   const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('asset-types')
@@ -73,7 +87,7 @@ export default function AssetTypesPage() {
   const canConfigureDocumentType = canUpdateDocumentType || canManageTemplates || canManageLifecycle
 
   // Fetch asset types and mutations - solo si tiene permisos
-  const { data: assetTypesResponse, isLoading, isFetching, error } = useAssetTypesWithRoles(page, pageSize, canListDocumentTypes, state.searchTerm || undefined)
+  const { data: assetTypesResponse, isLoading, isFetching, error } = useAssetTypesWithRoles(page, pageSize, canListDocumentTypes, state.searchTerm || undefined, tagId)
   const assetTypeMutations = useAssetTypeMutations()
 
   // Fetch document types for the relationship canvas
@@ -224,27 +238,35 @@ export default function AssetTypesPage() {
       <HuemulPageLayout
         key={viewMode}
         header={
-          <AssetTypePageHeader
-            assetTypeCount={assetTypes.length}
-            onCreateAssetType={() => updateState({ showCreateDialog: true })}
-            onRefresh={handleRefresh}
-            isLoading={isRefreshing || isFetching || isFetchingDocTypes}
-            hasError={!!error}
-            searchTerm={state.searchTerm}
-            onSearchChange={(value) => {
-              updateState({ searchTerm: value })
-              setPage(1)
-              setPinnedNewAssetType(null)
-            }}
-            canCreate={canCreateDocumentType}
-            viewMode={viewMode}
-            onViewModeChange={canListRelationships ? setViewMode : undefined}
-            onExport={() => updateState({ showExportDialog: true })}
-            onImport={() => updateState({ showImportSheet: true })}
-            canExport={canExportDocumentTypes}
-            canImport={canImportDocumentTypes}
-            exportSelectedCount={selectedExportIds.size}
-          />
+          <>
+            <AssetTypePageHeader
+              assetTypeCount={assetTypes.length}
+              onCreateAssetType={() => updateState({ showCreateDialog: true })}
+              onRefresh={handleRefresh}
+              isLoading={isRefreshing || isFetching || isFetchingDocTypes}
+              hasError={!!error}
+              searchTerm={state.searchTerm}
+              onSearchChange={(value) => {
+                updateState({ searchTerm: value })
+                setPage(1)
+                setPinnedNewAssetType(null)
+              }}
+              canCreate={canCreateDocumentType}
+              viewMode={viewMode}
+              onViewModeChange={canListRelationships ? setViewMode : undefined}
+              onExport={() => updateState({ showExportDialog: true })}
+              onImport={() => updateState({ showImportSheet: true })}
+              canExport={canExportDocumentTypes}
+              canImport={canImportDocumentTypes}
+              exportSelectedCount={selectedExportIds.size}
+            />
+            {activeTag && (
+              <div className="flex items-center gap-2 pt-2">
+                <span className="text-xs text-muted-foreground">{t('filters.filteredByTag')}</span>
+                <HuemulTagChip label={activeTag.name} color={activeTag.color} size="sm" onRemove={clearTagFilter} />
+              </div>
+            )}
+          </>
         }
         headerClassName="p-6 md:p-8 pb-0 md:pb-0"
         columns={viewMode !== 'relationships' || !canListRelationships ? [

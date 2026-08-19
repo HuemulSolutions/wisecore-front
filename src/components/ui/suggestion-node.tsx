@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import {
   type SuggestionConfig,
   suggestionPlugin,
-} from '@/components/plate-editor/components/suggestion-kit';
+} from '@/components/plate-editor/components/suggestion-plugin';
 
 const suggestionVariants = cva(
   cn(

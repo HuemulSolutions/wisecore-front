@@ -14,6 +14,7 @@ const translations = {
     all: { en: "All", es: "Todos" },
     assetType: { en: "Asset Type", es: "Tipo de Activo" },
     template: { en: "Template", es: "Plantilla" },
+    tag: { en: "Tag", es: "Etiqueta" },
     createdBy: { en: "Created By", es: "Creado por" },
     lifecycleState: { en: "Lifecycle State", es: "Estado de Ciclo de Vida" },
     filterWithLlm: { en: "Filter results using AI for semantic relevance", es: "Filtrar resultados usando IA por relevancia semántica" },

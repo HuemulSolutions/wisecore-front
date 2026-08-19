@@ -13,7 +13,7 @@ import { uploadMedia } from "@/services/media";
 import type { FormFieldValue, FormValuesSectionPayload } from "@/types/sections/core";
 import type { ReviewStatus } from "@/types/section-execution";
 import { isMediaToken } from "@/lib/plate-media-utils";
-import { Check, FileX, Info, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, FileX, Info, Loader2, X } from "lucide-react";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
   MULTI_SELECT_QUESTION_TYPES,
@@ -188,6 +188,12 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   const lastSavedAnswersRef = useRef<AnswerMap>(buildInitialAnswers(sortedFields));
 
   const editing = isEditing && canInteract && hasEditableFields;
+
+  // Aviso de autoguardado descartable — solo por la sesión de edición actual, sin persistencia.
+  const [autoSaveHintDismissed, setAutoSaveHintDismissed] = useState(false);
+  useEffect(() => {
+    if (!editing) setAutoSaveHintDismissed(false);
+  }, [editing]);
 
   // Notifica al padre el isSaving del guardado final (botón Enviar), para que pueda
   // deshabilitar/mostrar loading en su propia barra de acciones.
@@ -619,10 +625,18 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
 
   return (
     <div className="w-full">
-      {editing && (
-        <div className="mb-4 flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
-          <Info className="h-3.5 w-3.5 shrink-0" />
-          {t("form.fill.autoSaveHint")}
+      {editing && !autoSaveHintDismissed && (
+        <div className="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          <span className="flex-1">{t("form.fill.autoSaveHint")}</span>
+          <button
+            type="button"
+            onClick={() => setAutoSaveHintDismissed(true)}
+            aria-label={t("common:close")}
+            className="shrink-0 text-amber-700/70 hover:text-amber-900 hover:cursor-pointer"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       )}
       <div className="space-y-5">

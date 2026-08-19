@@ -49,6 +49,7 @@ export type PermissionResource =
   | 'custom_fields'
   | 'media'
   | 'canvas'
-  | 'discussion';
+  | 'discussion'
+  | 'tag';
 
 export type Permission = `${PermissionResource}:${PermissionAction}` | 'folder:manage_groups';

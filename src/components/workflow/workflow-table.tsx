@@ -1,11 +1,10 @@
-import type { ReactNode } from "react"
+import { useMemo, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
-import { Workflow as WorkflowIcon } from "lucide-react"
+import { Workflow as WorkflowIcon, Trash2, Share2 } from "lucide-react"
 import { HuemulTable } from "@/huemul/components/huemul-table"
-import type { HuemulTableColumn, HuemulTablePagination } from "@/huemul/components/huemul-table"
+import type { HuemulTableAction, HuemulTableColumn, HuemulTablePagination } from "@/huemul/components/huemul-table"
 import { HuemulLifecycleBadge } from "@/huemul/components/huemul-lifecycle-badge"
 import { formatRelativeTime } from "@/lib/format-relative-time"
-import { cn } from "@/lib/utils"
 import type { WorkflowItem } from "@/types/workflow"
 import { WorkflowProgressBar } from "./workflow-progress-bar"
 
@@ -18,6 +17,12 @@ interface WorkflowTableProps {
   selectedExecutionId?: string | null
   onSelectRow: (item: WorkflowItem) => void
   pagination: HuemulTablePagination
+  /** `asset:d` — DELETE /documents/{id}. Obligatoria (sin default) para que un
+   * call-site futuro no herede un default permisivo. */
+  canDelete: boolean
+  onDelete: (item: WorkflowItem) => void
+  /** Abre el diálogo con el link para responder esta ejecución. Quien ve la fila puede compartirla. */
+  onShare: (item: WorkflowItem) => void
 }
 
 export function WorkflowTable({
@@ -29,6 +34,9 @@ export function WorkflowTable({
   selectedExecutionId,
   onSelectRow,
   pagination,
+  canDelete,
+  onDelete,
+  onShare,
 }: WorkflowTableProps) {
   const { t } = useTranslation("workflow")
 
@@ -79,16 +87,44 @@ export function WorkflowTable({
     },
   ]
 
+  const actions: HuemulTableAction<WorkflowItem>[] = [
+    {
+      key: "share",
+      label: t("actions.share"),
+      icon: Share2,
+      onClick: onShare,
+      separator: canDelete,
+    },
+    ...(canDelete
+      ? [
+          {
+            key: "delete",
+            label: t("actions.delete"),
+            icon: Trash2,
+            onClick: onDelete,
+            destructive: true,
+          } as HuemulTableAction<WorkflowItem>,
+        ]
+      : []),
+  ]
+
+  // Resaltado de fila sin columna de checkboxes: `selectedKeys` sin `selectable`
+  // (ver JSDoc en types/huemul/table.ts) genera el par de fondos opacos que la
+  // celda sticky de acciones necesita, en vez de un className con alpha.
+  const selectedKeys = useMemo(
+    () => new Set(selectedExecutionId ? [selectedExecutionId] : []),
+    [selectedExecutionId],
+  )
+
   return (
     <HuemulTable
       data={data}
       columns={columns}
+      actions={actions}
       className="h-full"
       maxHeight=""
       getRowKey={(item) => item.execution_id}
-      getRowClassName={(item) =>
-        cn(item.execution_id === selectedExecutionId && "bg-primary/5 hover:bg-primary/10")
-      }
+      selectedKeys={selectedKeys}
       isLoading={isLoading}
       isFetching={isFetching}
       error={error}

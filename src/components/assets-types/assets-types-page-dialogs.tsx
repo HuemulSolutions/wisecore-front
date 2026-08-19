@@ -95,6 +95,8 @@ export default function AssetTypePageDialogs({
         canUpdate={canUpdate('asset_type')}
         canManageTemplates={can('manageLinkedTemplates')}
         canManageLifecycle={can('manageLifecycle')}
+        canViewTags={can('viewTags')}
+        canManageTags={can('manageTags')}
       />
 
       {/* Delete Asset Type Dialog */}

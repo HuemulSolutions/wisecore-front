@@ -1,10 +1,11 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, Eye } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulReviewStatusBadge } from "@/huemul/components/huemul-review-status-badge";
 import { HuemulNumberedStatusCard } from "@/huemul/components/huemul-numbered-status-card";
-import { WorkflowSectionAnswersSheet } from "@/components/workflow/workflow-section-answers-sheet";
+import { FormAnswersList } from "@/components/sections/form-answers-list";
+import { computeSectionStats } from "@/components/workflow/workflow-section-stats";
 import type { ContentSection } from "@/types/assets";
 import type { ReviewStatus } from "@/types/section-execution";
 
@@ -17,57 +18,58 @@ export interface WorkflowSectionsSummaryProps {
 
 /**
  * Pantalla de resumen mostrada antes de entrar al wizard de respuesta (ver
- * workflow-detail-panel.tsx): una tarjeta por sección form del documento, con su estado,
- * progreso y accesos directos ("Ver respuestas" abre un sheet de solo lectura; "Ir a la
- * sección" entra al wizard en ese paso).
+ * workflow-detail-panel.tsx): una tarjeta colapsable por sección form del documento, con su
+ * estado y progreso. Al desplegarla se ven las respuestas inline (misma lista que el modo
+ * lector del asset, ver asset-form-section-reader.tsx). "Ir a la sección" entra al wizard en
+ * ese paso sin afectar el estado de expansión.
  */
 export function WorkflowSectionsSummary({ sections, onGoToSection }: WorkflowSectionsSummaryProps) {
-  const { t } = useTranslation("workflow");
-  const [openIndex, setOpenIndex] = React.useState<number | null>(null);
+  const { t } = useTranslation(["workflow", "sections"]);
+  const [openIds, setOpenIds] = React.useState<Set<string>>(() => new Set());
 
-  const openSection = openIndex !== null ? sections[openIndex] ?? null : null;
+  const setSectionOpen = React.useCallback((id: string, open: boolean) => {
+    setOpenIds((prev) => {
+      const next = new Set(prev);
+      if (open) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  }, []);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3">
-        {sections.map((section, index) => (
+    <div className="flex flex-col gap-3">
+      {sections.map((section, index) => {
+        const { fields, questions, answeredCount } = computeSectionStats(section);
+        return (
           <HuemulNumberedStatusCard
             key={section.id}
+            collapsible
+            open={openIds.has(section.id)}
+            onOpenChange={(open) => setSectionOpen(section.id, open)}
             number={index + 1}
             title={section.section_name ?? ""}
             tone={section.review_status === "finished" ? "success" : "warning"}
             headerExtra={
               <HuemulReviewStatusBadge status={section.review_status as ReviewStatus | null} sectionType="form" />
             }
+            subtitle={t("sections:form.fill.answeredCount", { answered: answeredCount, total: questions.length })}
             actions={
-              <>
-                <HuemulButton
-                  variant="outline"
-                  size="sm"
-                  icon={Eye}
-                  label={t("wizard.summary.viewAnswers")}
-                  onClick={() => setOpenIndex(index)}
-                />
-                <HuemulButton
-                  size="sm"
-                  icon={ArrowRight}
-                  iconPosition="right"
-                  label={t("wizard.summary.goToSection")}
-                  onClick={() => onGoToSection(index)}
-                />
-              </>
+              <HuemulButton
+                size="xs"
+                icon={ArrowRight}
+                iconPosition="right"
+                label={t("wizard.summary.goToSection")}
+                onClick={() => onGoToSection(index)}
+              />
             }
-          />
-        ))}
-      </div>
-
-      <WorkflowSectionAnswersSheet
-        open={openIndex !== null}
-        onOpenChange={(open) => !open && setOpenIndex(null)}
-        section={openSection}
-        stepIndex={openIndex}
-        onGoToSection={onGoToSection}
-      />
+          >
+            <FormAnswersList fields={fields} emptyLabel={t("wizard.summary.noAnswers")} />
+          </HuemulNumberedStatusCard>
+        );
+      })}
     </div>
   );
 }

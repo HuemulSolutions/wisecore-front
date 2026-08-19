@@ -44,6 +44,13 @@ export interface RbacPageSpec {
   nav?: RbacNavSpec;
   /** Permisos por affordance (botón, tab, acción de fila, etc). */
   features?: Record<string, FeatureSpec>;
+  /**
+   * Permisos declarados antes de que exista la página (la capa de datos ya
+   * está, la UI llega después). El validador de RBAC (scripts/validate-rbac.mjs)
+   * salta para estas entradas los chequeos de ruta y de nav. Quitar el flag
+   * al construir la página.
+   */
+  pending?: boolean;
 }
 
 export const RBAC_PAGES = {
@@ -103,6 +110,10 @@ export const RBAC_PAGES = {
       createMedia: "media:c",
       updateMedia: "media:u",
       deleteMedia: "media:d",
+      // Popover de etiquetas asignadas al template (TagsObjectPicker, object_type
+      // "template"). GET/POST/DELETE /tags/{id}/objects piden tag:r / tag:u.
+      viewTags: "tag:r",
+      manageTags: "tag:u",
     },
   },
   organizations: {
@@ -186,6 +197,12 @@ export const RBAC_PAGES = {
       deleteTemplateSection: "template_section:d",
       // El canvas de relaciones y los diagramas ya no viven acá: se movieron a
       // la página /diagrams, que declara sus propias features.
+
+      // Popover de etiquetas asignadas al documento (TagsObjectPicker,
+      // object_type "document"). GET/POST/DELETE /tags/{id}/objects piden
+      // tag:r / tag:u.
+      viewTags: "tag:r",
+      manageTags: "tag:u",
     },
   },
   search: {
@@ -203,6 +220,9 @@ export const RBAC_PAGES = {
       filterByTemplate: ["template:l", "template:r"],
       filterByUser: ["user:l", "user:r"],
       filterByCustomField: ["custom_fields:l", "custom_fields:r"],
+      // Filtro por etiqueta (tag_id) — GET /tags/ pide tag:r|l. Sin confirmar
+      // que /search/ acepte tag_id (ver types/search/core.ts).
+      filterByTag: ["tag:l", "tag:r"],
     },
   },
   models: {
@@ -310,6 +330,11 @@ export const RBAC_PAGES = {
       listLinkedTemplates: ["asset_type:l", "asset_type:r"],
       manageLinkedTemplates: "asset_type:u",
       listRelationships: ["asset_type_relationship:l", "asset_type_relationship:r"],
+      // Popover de etiquetas asignadas al tipo de activo (TagsObjectPicker,
+      // object_type "document_type"). GET/POST/DELETE /tags/{id}/objects
+      // piden tag:r / tag:u.
+      viewTags: "tag:r",
+      manageTags: "tag:u",
     },
   },
   "custom-fields": {
@@ -320,6 +345,23 @@ export const RBAC_PAGES = {
       createCustomField: "custom_fields:c",
       updateCustomField: "custom_fields:u",
       deleteCustomField: "custom_fields:d",
+    },
+  },
+  tags: {
+    route: "tags",
+    routePermissions: ["tag:r", "tag:l"],
+    features: {
+      listTags: ["tag:l", "tag:r"],
+      createTag: "tag:c",
+      updateTag: "tag:u",
+      deleteTag: "tag:d",
+      // Asignar/quitar una etiqueta de un objeto valida tag:u en el backend
+      // (POST y DELETE /tags/{id}/objects), no tag:c / tag:d.
+      assignTagToObject: "tag:u",
+      unassignTagFromObject: "tag:u",
+      // GET /tags/{id}/objects y GET /tags/by-object/... piden tag:r.
+      listTagObjects: "tag:r",
+      listObjectTags: "tag:r",
     },
   },
   canvas: {
@@ -488,6 +530,8 @@ export const RBAC_PAGES = {
       listAssetTypes: ["asset_type:l", "asset_type:r"], // filtro documentTypeId
       listUsers: ["user:l", "user:r"], // filtro ownerValue
       listCustomFields: ["custom_fields:l", "custom_fields:r"], // filtro customFieldFilter
+      // DELETE /documents/{id} — borra el activo entero (documento + ejecuciones).
+      deleteAsset: "asset:d",
     },
   },
   "global-admin": {

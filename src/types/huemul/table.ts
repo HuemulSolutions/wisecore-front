@@ -85,7 +85,11 @@ export interface HuemulTableProps<T> {
   columnsStorageKey?: string
   /** Habilita una columna líder de checkboxes para seleccionar filas. */
   selectable?: boolean
-  /** Keys (según `getRowKey`) de las filas seleccionadas. Requerido si `selectable`. */
+  /**
+   * Keys (según `getRowKey`) de las filas seleccionadas. Requerido si `selectable`.
+   * También puede usarse SIN `selectable` (sin columna de checkboxes) para resaltar
+   * la fila activa en un layout master-detail — ver `WorkflowTable`.
+   */
   selectedKeys?: Set<string>
   /** Callback con el nuevo Set de keys seleccionadas. Requerido si `selectable`. */
   onSelectionChange?: (keys: Set<string>) => void

@@ -41,6 +41,8 @@ export interface SearchParams {
   search_type?: SearchType;
   document_type_id?: string | null;
   template_id?: string | null;
+  /** Sin confirmar contra backend — verificar antes de dar el filtro por funcionando end-to-end. */
+  tag_id?: string | null;
   created_by?: string | null;
   lifecycle_state?: string | null;
   filter_with_llm?: boolean;

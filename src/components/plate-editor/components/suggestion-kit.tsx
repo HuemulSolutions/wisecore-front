@@ -1,41 +1,17 @@
 'use client';
 
-import type { ExtendConfig, Path } from 'platejs';
-
-import {
-  type BaseSuggestionConfig,
-  BaseSuggestionPlugin,
-} from '@platejs/suggestion';
 import { isSlateEditor, isSlateString } from 'platejs';
-import { toTPlatePlugin } from 'platejs/react';
 
 import {
   SuggestionLeaf,
   SuggestionLineBreak,
 } from '@/components/ui/suggestion-node';
 
-import { discussionPlugin } from './discussion-kit';
+import { suggestionPlugin as baseSuggestionPlugin } from './suggestion-plugin';
 
-export type SuggestionConfig = ExtendConfig<
-  BaseSuggestionConfig,
-  {
-    activeId: string | null;
-    hoverId: string | null;
-    uniquePathMap: Map<string, Path>;
-  }
->;
+export type { SuggestionConfig } from './suggestion-plugin';
 
-export const suggestionPlugin = toTPlatePlugin<SuggestionConfig>(
-  BaseSuggestionPlugin,
-  ({ editor }) => ({
-    options: {
-      activeId: null,
-      currentUserId: editor.getOption(discussionPlugin, 'currentUserId'),
-      hoverId: null,
-      uniquePathMap: new Map(),
-    },
-  })
-).configure({
+export const suggestionPlugin = baseSuggestionPlugin.configure({
   handlers: {
     // unset active suggestion when clicking outside of suggestion
     onClick: ({ api, event, setOption, type }) => {
