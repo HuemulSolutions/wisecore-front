@@ -123,20 +123,23 @@ export function WorkflowDetailPanel({
   const isLastStep = step !== null && step >= formSections.length - 1
 
   // Autoguardado (PATCH /form_values): parchea en el caché solo la sección devuelta,
-  // sin refetch de /content — mismo patrón que assets-content.tsx.
+  // sin refetch de /content — mismo patrón que assets-content.tsx. También refresca
+  // section_name si vino no-null, para que el header del wizard quede al día.
   const handleSectionUpdate = React.useCallback(
     (payload?: FormValuesSectionPayload[]) => {
       if (!payload?.length || !documentId) return
-      const formFieldsBySectionId = new Map(payload.map((p) => [p.section_execution_id, p.form_fields]))
+      const groupsBySectionId = new Map(payload.map((p) => [p.section_execution_id, p]))
       queryClient.setQueriesData(
         { queryKey: ["document-content", documentId] },
         (old: { content?: ContentSection[] } | undefined) => {
           if (!old?.content || !Array.isArray(old.content)) return old
           return {
             ...old,
-            content: old.content.map((s) =>
-              formFieldsBySectionId.has(s.id) ? { ...s, form_fields: formFieldsBySectionId.get(s.id) } : s,
-            ),
+            content: old.content.map((s) => {
+              const group = groupsBySectionId.get(s.id)
+              if (!group) return s
+              return { ...s, form_fields: group.form_fields, section_name: group.section_name ?? s.section_name }
+            }),
           }
         },
       )

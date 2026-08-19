@@ -66,6 +66,10 @@ export interface FormFieldValue {
 // ai/manual/reference (esos tipos no tienen form_fields).
 export interface FormValuesSectionPayload {
   section_execution_id: string;
+  // null si la sección no tiene nombre asignado ni en la ejecución ni en la sección
+  // del documento (mismo criterio que current_step.section_name en GET /workflows/).
+  // Vive a nivel del grupo, una vez por sección — no dentro de cada form_field.
+  section_name: string | null;
   form_fields: FormFieldValue[];
 }
 
@@ -78,6 +82,8 @@ export interface FormAnswerRequest {
 
 // Respuesta de PATCH /section_executions/{id}/form_answer. A diferencia de form_values,
 // es por sección: form_fields trae solo las preguntas de la section_execution respondida.
+// No incluye section_name (a diferencia de FormValuesSectionPayload) — si se necesita en
+// este flujo hay que resolverlo aparte (ej. ContentSection.section_name de /content).
 export interface FormAnswerPayload {
   answered_field: FormFieldValue;
   // Próxima pregunta visible y respondible sin valor; null cuando no queda ninguna.
