@@ -530,6 +530,8 @@ export const RBAC_PAGES = {
       listAssetTypes: ["asset_type:l", "asset_type:r"], // filtro documentTypeId
       listUsers: ["user:l", "user:r"], // filtro ownerValue
       listCustomFields: ["custom_fields:l", "custom_fields:r"], // filtro customFieldFilter
+      // DELETE /documents/{id} — borra el activo entero (documento + ejecuciones).
+      deleteAsset: "asset:d",
     },
   },
   "global-admin": {

@@ -3,16 +3,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useQueryClient } from "@tanstack/react-query"
-import { RefreshCw, Loader2 } from "lucide-react"
+import { RefreshCw, Loader2, Trash2 } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
-import { useWorkflows, workflowQueryKeys } from "@/hooks/useWorkflows"
+import { useWorkflows, useWorkflowMutations, workflowQueryKeys } from "@/hooks/useWorkflows"
 import { useWorkflowTemplates, useCreateTemplateExpress, workflowTemplateQueryKeys } from "@/hooks/useWorkflowTemplates"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useHuemulFilters } from "@/hooks/useHuemulFilters"
 import { useGridColumns } from "@/hooks/useGridColumns"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulFilterButton } from "@/huemul/components/huemul-filter-button"
 import { HuemulFilterChips } from "@/huemul/components/huemul-filter-chips"
@@ -42,14 +43,17 @@ export default function WorkflowPage() {
   // Crear un express es la única razón por la que existen las tarjetas de
   // templates: sin `asset:c` no se listan ni se pega a GET /templates/.
   const canCreateExpress = can("createExpressAsset") && can("listTemplates")
+  const canDelete = can("deleteAsset")
 
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [selectedRow, setSelectedRow] = useState<WorkflowItem | null>(null)
   const [expressTemplate, setExpressTemplate] = useState<WorkflowTemplateItem | null>(null)
   const [expressDoc, setExpressDoc] = useState<CreateExpressResult | null>(null)
+  const [deletingRow, setDeletingRow] = useState<WorkflowItem | null>(null)
 
   const createExpress = useCreateTemplateExpress(selectedOrganizationId ?? "")
+  const { deleteWorkflow } = useWorkflowMutations(selectedOrganizationId ?? "")
 
   const fetchDocumentTypes = useCallback(
     async ({ search: s }: FetchOptionsParams): Promise<FetchOptionsResult> => {
@@ -449,6 +453,8 @@ export default function WorkflowPage() {
                       setExpressDoc(null)
                       setSelectedRow(item)
                     }}
+                    canDelete={canDelete}
+                    onDelete={setDeletingRow}
                     pagination={{
                       page: workflowsResponse?.page || page,
                       pageSize: workflowsResponse?.page_size || pageSize,
@@ -497,6 +503,22 @@ export default function WorkflowPage() {
           },
         ]}
       />
+
+      {canDelete && (
+        <HuemulAlertDialog
+          open={!!deletingRow}
+          onOpenChange={(open) => !open && setDeletingRow(null)}
+          title={t("deleteDialog.title")}
+          description={t("deleteDialog.description", { name: deletingRow?.document_name })}
+          actionLabel={tCommon("delete")}
+          actionIcon={Trash2}
+          onAction={async () => {
+            if (!deletingRow) return
+            await deleteWorkflow.mutateAsync(deletingRow.document_id)
+            if (selectedRow?.document_id === deletingRow.document_id) setSelectedRow(null)
+          }}
+        />
+      )}
     </>
   )
 }
