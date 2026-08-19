@@ -536,7 +536,9 @@ export function AssetContent({
   const [isVersionCompareSheetOpen, setIsVersionCompareSheetOpen] = useState(false);
   const [versionCompareOverride, setVersionCompareOverride] = useState<{ left?: string; right?: string } | null>(null);
   const [isPermissionsSheetOpen, setIsPermissionsSheetOpen] = useState(false);
-  
+  const canViewTags = can('viewTags');
+  const canManageTags = can('manageTags');
+
   // Effects to trigger on-demand loading
   useEffect(() => {
     // Load full document when section sheet is opened
@@ -731,21 +733,26 @@ export function AssetContent({
 
   // Con payload (autoguardado de formularios): parchea en el caché solo las secciones
   // form devueltas por el PATCH /form_values, sin refetch de /documents/{id}/content
-  // (que traería también las secciones ai/manual/reference sin necesidad).
+  // (que traería también las secciones ai/manual/reference sin necesidad). También
+  // refresca section_name si vino no-null, para que TOC/headers queden al día sin
+  // refetch. Nota: si el PATCH devuelve una sección que no está en el caché, se ignora
+  // (solo reemplaza, nunca agrega) — limitación conocida.
   // Sin payload (resto de ediciones de sección): comportamiento previo, invalida y refetch.
   const handleSectionUpdate = useCallback((payload?: FormValuesSectionPayload[]) => {
     const fileId = selectedFileIdRef.current;
     if (payload?.length) {
-      const formFieldsBySectionId = new Map(payload.map((p) => [p.section_execution_id, p.form_fields]));
+      const groupsBySectionId = new Map(payload.map((p) => [p.section_execution_id, p]));
       queryClient.setQueriesData(
         { queryKey: ['document-content', fileId] },
         (old: { content?: ContentSection[] } | undefined) => {
           if (!old?.content || !Array.isArray(old.content)) return old;
           return {
             ...old,
-            content: old.content.map((s) =>
-              formFieldsBySectionId.has(s.id) ? { ...s, form_fields: formFieldsBySectionId.get(s.id) } : s,
-            ),
+            content: old.content.map((s) => {
+              const group = groupsBySectionId.get(s.id);
+              if (!group) return s;
+              return { ...s, form_fields: group.form_fields, section_name: group.section_name ?? s.section_name };
+            }),
           };
         },
       );
@@ -3460,6 +3467,8 @@ export function AssetContent({
         onOpenChange={setIsInfoSheetOpen}
         documentContent={documentContent}
         selectedExecutionInfo={selectedExecutionInfo}
+        canViewTags={canViewTags}
+        canManageTags={canManageTags}
       />
 
       {/* Version Management Sheet */}

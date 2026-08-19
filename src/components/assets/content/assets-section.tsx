@@ -64,6 +64,16 @@ function SectionExecutionInner({
     const [isEditing, setIsEditing] = useState(
         sectionType === 'form' && readyToEdit && canEditSections && formHasEditableFields && !isFormAnswered
     );
+    // Responder el formulario sin salir del modo lector del asset — atajo sobre la tarjeta
+    // del reader (ver AssetFormSectionReader), independiente del `isEditing` de modo editor.
+    const [isAnsweringInReader, setIsAnsweringInReader] = useState(false);
+    const canAnswerInReader = sectionType === 'form' && canEditSections && formHasEditableFields;
+
+    // Si el usuario cambia a modo editor mientras respondía desde el reader, se corta ese modo
+    // para no terminar con dos formularios (reader + editor) montados a la vez.
+    useEffect(() => {
+        if (readyToEdit) setIsAnsweringInReader(false);
+    }, [readyToEdit]);
     const [isAiEditDialogOpen, setIsAiEditDialogOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     // Ref al form de la sección: el botón Enviar/Cancelar vive en la barra de acciones de acá
@@ -130,9 +140,9 @@ function SectionExecutionInner({
 
     // Sync editing state with the guard context
     useEffect(() => {
-        setIsSectionEditing(isEditing);
+        setIsSectionEditing(isEditing || isAnsweringInReader);
         return () => setIsSectionEditing(false);
-    }, [isEditing, setIsSectionEditing]);
+    }, [isEditing, isAnsweringInReader, setIsSectionEditing]);
 
     // Handle entering edit mode with scroll position preservation - Updated for ScrollArea
     const handleStartEditing = () => {
@@ -787,7 +797,30 @@ function SectionExecutionInner({
                         section={{ form_fields: sectionExecution.form_fields, review_status: reviewStatus }}
                         sectionName={sectionName}
                         sectionIndex={sectionIndex ?? 0}
-                    />
+                        canAnswer={canAnswerInReader}
+                        isAnswering={isAnsweringInReader}
+                        isSaving={isFormSaving}
+                        onStartAnswering={() => setIsAnsweringInReader(true)}
+                        onDoneAnswering={() => formSectionRef.current?.exit()}
+                    >
+                        {isAnsweringInReader && (
+                            <AssetFormSection
+                                ref={formSectionRef}
+                                sectionExecutionId={sectionExecution.id}
+                                formFields={sectionExecution.form_fields ?? []}
+                                status={status}
+                                organizationId={selectedOrganizationId ?? undefined}
+                                documentId={documentId}
+                                canInteract={canEditSections}
+                                isEditing
+                                onExitEditing={() => setIsAnsweringInReader(false)}
+                                reviewStatus={reviewStatus}
+                                onReviewStatusChange={setReviewStatus}
+                                onUpdate={onUpdate}
+                                onSavingChange={setIsFormSaving}
+                            />
+                        )}
+                    </AssetFormSectionReader>
                 ) : (
                     /* Form section: render fillable/read-only form instead of the Plate editor */
                     <div className="pt-4 pr-2 w-full">

@@ -9,6 +9,7 @@ import {
 } from "@/huemul/components/huemul-info-display";
 import { formatApiDateTime } from "@/lib/utils";
 import { useUserById } from "@/hooks/useUsers";
+import { TagsObjectPicker } from "@/components/tags";
 import type { AssetsInfoSheetProps } from '@/types/assets';
 export type { AssetsInfoSheetProps } from '@/types/assets';
 
@@ -89,8 +90,12 @@ export function AssetsInfoSheet({
   onOpenChange,
   documentContent,
   selectedExecutionInfo,
+  canViewTags = false,
+  canManageTags = false,
 }: AssetsInfoSheetProps) {
-  const { t } = useTranslation(["assets", "common"]);
+  const { t } = useTranslation(["assets", "tags", "common"]);
+
+  const documentId: string | undefined = documentContent?.document_id;
 
   const copyId = (id: string) => {
     navigator.clipboard.writeText(id).then(() => {
@@ -148,6 +153,21 @@ export function AssetsInfoSheet({
             </>
           )}
         </HuemulInfoSection>
+
+        {/* Tags */}
+        {canViewTags && documentId && (
+          <HuemulInfoSection title={t("tags:assign.assignedLabel")}>
+            <div className="py-1">
+              <TagsObjectPicker
+                objectType="document"
+                objectIds={[documentId]}
+                variant="field"
+                canView={open && canViewTags}
+                canAssign={canManageTags}
+              />
+            </div>
+          </HuemulInfoSection>
+        )}
 
         {/* Version */}
         <HuemulInfoSection title={t("content.info.version")}>

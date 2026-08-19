@@ -23,6 +23,7 @@ import type { SearchType, SearchResultDocument, SearchResponse } from "@/service
 import { getAssetTypes } from "@/services/asset-types";
 import { getUsers } from "@/services/users";
 import { getAllTemplates } from "@/services/templates";
+import { getTags } from "@/services/tags";
 import { useOrganization } from "@/contexts/organization-context";
 import { DocumentResult } from "@/components/search/search-document-result";
 import { SearchResultsSkeleton } from "@/components/search/search-results-skeleton";
@@ -60,6 +61,7 @@ function parseValuesFromURL(params: URLSearchParams): HuemulFilterValues {
     searchType: (params.get("search_type") as SearchType) || "semantic",
     documentTypeId: params.get("document_type_id") ?? "",
     templateId: params.get("template_id") ?? "",
+    tagId: params.get("tag_id") ?? "",
     ownerValue: params.get("owner") ?? "",
     lifecycleState: params.get("lifecycle_state") ?? "__all__",
     filterWithLlm: params.get("filter_with_llm") !== "false",
@@ -80,6 +82,7 @@ function buildURLFromValues(values: HuemulFilterValues): URLSearchParams {
   params.set("search_type", String(values.searchType ?? "semantic"));
   if (values.documentTypeId) params.set("document_type_id", String(values.documentTypeId));
   if (values.templateId) params.set("template_id", String(values.templateId));
+  if (values.tagId) params.set("tag_id", String(values.tagId));
   if (values.ownerValue) params.set("owner", String(values.ownerValue));
   if (values.lifecycleState && values.lifecycleState !== "__all__") {
     params.set("lifecycle_state", String(values.lifecycleState));
@@ -134,6 +137,17 @@ export default function SearchPage() {
     [selectedOrganizationId],
   );
 
+  const fetchTags = useCallback(
+    async ({ search: s, page, pageSize }: FetchOptionsParams): Promise<FetchOptionsResult> => {
+      const res = await getTags({ search: s || undefined, page, page_size: pageSize });
+      return {
+        options: (res.data ?? []).map((tag) => ({ value: tag.id, label: tag.name, color: tag.color ?? undefined })),
+        hasMore: res.has_next ?? false,
+      };
+    },
+    [],
+  );
+
   const fetchUsers = useCallback(
     async ({ search: s, page, pageSize }: FetchOptionsParams): Promise<FetchOptionsResult> => {
       const res = await getUsers(selectedOrganizationId ?? undefined, page, pageSize, s);
@@ -162,6 +176,7 @@ export default function SearchPage() {
   const canFilterByTemplate = can("filterByTemplate");
   const canFilterByUser = can("filterByUser");
   const canFilterByCustomField = can("filterByCustomField");
+  const canFilterByTag = can("filterByTag");
 
   const filterDefs = useMemo<HuemulFilterDef[]>(() => {
     const groupSearch = tFilters("groups.search");
@@ -218,6 +233,22 @@ export default function SearchPage() {
               label: t("filters.template"),
               placeholder: t("filters.all"),
               fetchOptions: fetchTemplates,
+              pageSize: 20,
+            },
+          ]
+        : []),
+      // Sin confirmar contra backend que /search/ acepte tag_id — ver
+      // types/search/core.ts. La UI queda lista igual; si el backend lo
+      // ignora, el filtro simplemente no aplica.
+      ...(canFilterByTag
+        ? [
+            {
+              key: "tagId",
+              type: "async-combobox" as const,
+              group: classification,
+              label: t("filters.tag"),
+              placeholder: t("filters.all"),
+              fetchOptions: fetchTags,
               pageSize: 20,
             },
           ]
@@ -308,10 +339,12 @@ export default function SearchPage() {
     tFilters,
     fetchAssetTypes,
     fetchTemplates,
+    fetchTags,
     fetchUsers,
     currentSearchType,
     canFilterByAssetType,
     canFilterByTemplate,
+    canFilterByTag,
     canFilterByUser,
     canFilterByCustomField,
   ]);
@@ -368,6 +401,7 @@ export default function SearchPage() {
         search_type: searchTypeForQuery,
         document_type_id: (values.documentTypeId as string) || null,
         template_id: (values.templateId as string) || null,
+        tag_id: (values.tagId as string) || null,
         owner_scope: values.ownerValue === "__me__" ? "me" : undefined,
         created_by: values.ownerValue && values.ownerValue !== "__me__" ? String(values.ownerValue) : undefined,
         lifecycle_state:

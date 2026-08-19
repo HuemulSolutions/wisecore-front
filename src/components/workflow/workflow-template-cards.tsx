@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Share2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -20,6 +20,8 @@ interface WorkflowTemplateCardsProps {
   hasNext: boolean
   onPageChange: (page: number) => void
   onStart: (item: WorkflowTemplateItem) => void
+  /** Abre el diálogo con el link para que otro usuario cree su propio express desde este template. */
+  onShare: (item: WorkflowTemplateItem) => void
 }
 
 const GRID_CLASSNAME = "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
@@ -33,6 +35,7 @@ export function WorkflowTemplateCards({
   hasNext,
   onPageChange,
   onStart,
+  onShare,
 }: WorkflowTemplateCardsProps) {
   const { t } = useTranslation("workflow")
   const [visible, setVisible] = useState(true)
@@ -128,6 +131,18 @@ export function WorkflowTemplateCards({
                   <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground" title={item.name}>
                     {item.name}
                   </p>
+                  <button
+                    type="button"
+                    aria-label={t("share.cardTooltip")}
+                    title={t("share.cardTooltip")}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onShare(item)
+                    }}
+                    className="shrink-0 rounded-md p-1 text-muted-foreground hover:cursor-pointer hover:bg-accent hover:text-foreground transition-colors"
+                  >
+                    <Share2 className="size-3.5" />
+                  </button>
                   <span className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-primary">
                     {t("availableTemplates.start")}
                     <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />

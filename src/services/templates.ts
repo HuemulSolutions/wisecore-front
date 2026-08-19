@@ -23,6 +23,9 @@ export async function getAllTemplates(organizationId: string, search?: string, p
     if (filters?.mostrar_en_workflow !== undefined && filters.mostrar_en_workflow !== null) {
         params.set('mostrar_en_workflow', String(filters.mostrar_en_workflow));
     }
+    if (filters?.tag_id) {
+        params.set('tag_id', filters.tag_id);
+    }
     const response = await httpClient.get(`${backendUrl}/templates/?${params.toString()}`, {
         headers: {
             'X-Org-Id': organizationId,

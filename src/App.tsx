@@ -24,6 +24,7 @@ const UsersPage = lazy(() => import("./pages/users"));
 const Roles = lazy(() => import("./pages/roles"));
 const AssetTypesPage = lazy(() => import("./pages/assets-types"));
 const CustomFieldsPage = lazy(() => import("./pages/custom-fields"));
+const TagsPage = lazy(() => import("./pages/tags"));
 const CanvasPage = lazy(() => import("./pages/canvas"));
 const DiagramsPage = lazy(() => import("./pages/diagrams"));
 const GlobalAdminPage = lazy(() => import("./pages/global-admin"));
@@ -32,6 +33,7 @@ const ExternalSystemsPage = lazy(() => import("./pages/external-systems"));
 const DocumentTypeRelationshipsPage = lazy(() => import("./pages/document-type-relationships"));
 const MediaPage = lazy(() => import("./pages/media"));
 const WorkflowPage = lazy(() => import("./pages/workflow"));
+const WorkflowFillPage = lazy(() => import("./pages/workflow-fill"));
 const TokenUsagePage = lazy(() => import("./pages/token-usage"));
 
 export default function App() {
@@ -120,6 +122,11 @@ export default function App() {
                 <CustomFieldsPage />
               </PermissionProtectedRoute>
             } />
+            <Route path="tags" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.tags.routePermissions]}>
+                <TagsPage />
+              </PermissionProtectedRoute>
+            } />
 
             <Route path="canvas" element={
               <PermissionProtectedRoute permissions={[...RBAC_PAGES.canvas.routePermissions]}>
@@ -166,6 +173,30 @@ export default function App() {
             <Route path="workflow" element={
               <PermissionProtectedRoute permissions={[...RBAC_PAGES.workflow.routePermissions]}>
                 <WorkflowPage />
+              </PermissionProtectedRoute>
+            } />
+            {/* Vista compartida a pantalla completa (ver ia context/fullscreen-share-route-guide.md).
+                `path` va como string literal (no template literal) a propósito: scripts/validate-rbac.mjs
+                solo reconoce rutas reales con `path` de tipo StringLiteral en su AST — un template literal
+                queda invisible para el validador. Debe coincidir con WORKFLOW_SHARE_TEMPLATE_PATH /
+                WORKFLOW_SHARE_EXECUTION_PATH en lib/workflow-share-url.ts (mismo primer segmento
+                "workflow" → hereda RBAC_PAGES.workflow sin tocar la matriz). */}
+            <Route path="workflow/share/template/:documentTypeId/:templateId" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.workflow.routePermissions]}>
+                <WorkflowFillPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="workflow/share/execution/:documentId/:executionId" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.workflow.routePermissions]}>
+                <WorkflowFillPage />
+              </PermissionProtectedRoute>
+            } />
+            {/* Sin executionId: destino de la redirección automática apenas se crea un
+                express desde un link de template (ver workflow-fill.tsx) — WorkflowDetailPanel
+                ya resuelve la ejecución por defecto cuando executionId es undefined. */}
+            <Route path="workflow/share/execution/:documentId" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.workflow.routePermissions]}>
+                <WorkflowFillPage />
               </PermissionProtectedRoute>
             } />
           </Route>

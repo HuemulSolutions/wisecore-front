@@ -24,6 +24,7 @@ const translations = {
     assetTypes: { en: "Asset Types", es: "Tipos de Activo" },
     assetTypeRelationships: { en: "Asset Type Relationships", es: "Relaciones de Tipos de Activo" },
     customFields: { en: "Custom Fields", es: "Campos Personalizados" },
+    tags: { en: "Tags", es: "Etiquetas" },
     canvas: { en: "Canvas", es: "Canvas" },
     media: { en: "Media", es: "Media" },
     administration: { en: "Administration", es: "Administración" },

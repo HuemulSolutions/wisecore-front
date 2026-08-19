@@ -62,6 +62,7 @@ export interface GetTemplatesFilters {
   document_type_id?: string | null;
   can_create_express?: boolean | null;
   mostrar_en_workflow?: boolean | null;
+  tag_id?: string | null;
 }
 
 // POST /document_types/{document_type_id}/templates/{template_id}/express

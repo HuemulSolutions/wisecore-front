@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
-import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check, Image, Bell, BellRing, Workflow, Coins, KeyRound } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check, Image, Bell, BellRing, Workflow, Coins, KeyRound, Tag } from "lucide-react"
 import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from "react"
 import { useTranslation } from "react-i18next"
 import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
@@ -573,6 +573,34 @@ export default function AppLayout() {
     queryClient.invalidateQueries()
   }, [queryClient, selectedOrganizationId])
 
+  // Vista compartida de workflow a pantalla completa (ver
+  // ia context/fullscreen-share-route-guide.md): mismos providers que el resto
+  // de la app (Chatbot/GlobalPanel/Tooltip/EditingGuard/NavKnowledge, de los
+  // que depende AssetFormSection), pero SIN header/nav/LlmConfigBanner/
+  // GlobalPanelOutlet — quien abre el link no debe ver ni tocar el resto de
+  // la organización. Todos los efectos de arriba (OrgSync, returnUrl, etc.)
+  // siguen corriendo igual: solo cambia lo que se renderiza.
+  const isBareRoute = /^\/workflow\/share\//.test(stripOrgPrefix(location.pathname))
+  if (isBareRoute) {
+    return (
+      <ChatbotProvider resetKey={selectedOrganizationId ?? 'no-org'}>
+        <GlobalPanelProvider>
+          <TooltipProvider>
+            <EditingGuardProvider>
+              <NavKnowledgeProvider>
+                <div className="flex flex-col h-screen overflow-hidden">
+                  <Suspense fallback={<PageSkeleton />}>
+                    <Outlet />
+                  </Suspense>
+                </div>
+              </NavKnowledgeProvider>
+            </EditingGuardProvider>
+          </TooltipProvider>
+        </GlobalPanelProvider>
+      </ChatbotProvider>
+    )
+  }
+
   return (
     <ChatbotProvider resetKey={selectedOrganizationId ?? 'no-org'}>
       <GlobalPanelProvider>
@@ -754,6 +782,15 @@ export default function AppLayout() {
                               <Settings2 className={settingsIconClass('/custom-fields')} />
                               <span className="flex-1">{t('settings.customFields')}</span>
                               {isSettingsActive('/custom-fields') && <Check className="h-3.5 w-3.5 ml-auto" />}
+                            </Link>
+                          </DropdownMenuItem>
+                        )}
+                        {hasAnyPermission(RBAC_PAGES.tags.routePermissions) && (
+                          <DropdownMenuItem asChild>
+                            <Link to={buildPath("/tags")} className={settingsItemClass('/tags')}>
+                              <Tag className={settingsIconClass('/tags')} />
+                              <span className="flex-1">{t('settings.tags')}</span>
+                              {isSettingsActive('/tags') && <Check className="h-3.5 w-3.5 ml-auto" />}
                             </Link>
                           </DropdownMenuItem>
                         )}

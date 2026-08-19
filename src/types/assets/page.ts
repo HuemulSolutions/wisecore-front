@@ -53,6 +53,10 @@ export interface AssetTypeConfigSheetProps {
   canManageTemplates: boolean
   /** `manageLifecycle` — habilita el tab Ciclo de vida. */
   canManageLifecycle: boolean
+  /** tag:r — muestra la sección de etiquetas en el tab General. */
+  canViewTags?: boolean
+  /** tag:u — permite asignar/quitar etiquetas desde la sección. Sin esto, solo lectura. */
+  canManageTags?: boolean
 }
 
 // ----------------------------------------

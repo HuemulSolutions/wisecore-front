@@ -49,6 +49,8 @@ export function TemplateContent({
   canCreateMedia,
   canUpdateMedia,
   canDeleteMedia,
+  canViewTags,
+  canManageTags,
 }: TemplateContentProps) {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -490,6 +492,8 @@ export function TemplateContent({
         templateData={templateData}
         selectedTemplate={selectedTemplate}
         sectionsCount={orderedSections.length}
+        canViewTags={canViewTags}
+        canManageTags={canManageTags}
       />
     </div>
   );

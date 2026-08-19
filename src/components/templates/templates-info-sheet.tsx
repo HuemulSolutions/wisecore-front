@@ -7,6 +7,7 @@ import {
   HuemulInfoSection,
   HuemulInfoItem,
 } from "@/huemul/components/huemul-info-display";
+import { TagsObjectPicker } from "@/components/tags";
 import type { TemplateInfoSheetProps } from '@/types/templates';
 export type { TemplateInfoSheetProps } from '@/types/templates';
 
@@ -19,8 +20,12 @@ export function TemplateInfoSheet({
   selectedTemplate,
   sectionsCount,
   docxTemplatesCount,
+  canViewTags = false,
+  canManageTags = false,
 }: TemplateInfoSheetProps) {
-  const { t } = useTranslation(["templates", "common"]);
+  const { t } = useTranslation(["templates", "tags", "common"]);
+
+  const templateIdForTags = templateData?.id ?? selectedTemplate?.id;
 
   const name = templateData?.name ?? selectedTemplate?.name ?? "—";
   const description = templateData?.description;
@@ -94,6 +99,21 @@ export function TemplateInfoSheet({
               />
             )}
           </HuemulInfoSection>
+
+          {/* Tags */}
+          {canViewTags && templateIdForTags && (
+            <HuemulInfoSection title={t("tags:assign.assignedLabel")}>
+              <div className="py-1">
+                <TagsObjectPicker
+                  objectType="template"
+                  objectIds={[templateIdForTags]}
+                  variant="field"
+                  canView={open && canViewTags}
+                  canAssign={canManageTags}
+                />
+              </div>
+            </HuemulInfoSection>
+          )}
 
           {/* Content */}
           <HuemulInfoSection title={t("templates:infoSheet.sectionStats")}>

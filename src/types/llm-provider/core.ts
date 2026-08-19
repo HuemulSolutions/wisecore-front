@@ -4,9 +4,12 @@ export interface LLMProvider {
   type: string;
   display_name: string;
   is_managed: boolean;
+  /** Write-only: el backend nunca la devuelve. */
   key?: string;
-  endpoint?: string;
-  deployment?: string;
+  /** Desencriptado en texto plano por el backend. null si el tipo de proveedor no lo usa. */
+  endpoint?: string | null;
+  /** Desencriptado en texto plano por el backend. null si el tipo de proveedor no lo usa. */
+  deployment?: string | null;
   created_at?: string;
   updated_at?: string;
 }

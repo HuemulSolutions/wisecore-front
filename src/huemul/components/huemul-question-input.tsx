@@ -109,11 +109,14 @@ export function HuemulQuestionInput({
           type="number"
           label={label}
           placeholder={placeholder}
-          step={isDecimal ? undefined : 1}
+          allowDecimal={isDecimal}
           min={typeof min === "number" ? min : undefined}
           max={typeof max === "number" ? max : undefined}
           value={numberValue}
-          onChange={(v) => onChange(v === "" ? null : Number(v))}
+          onChange={(v) => {
+            const n = v === "" ? null : Number(v)
+            onChange(n === null || !Number.isFinite(n) ? null : n)
+          }}
           disabled={disabled}
           error={error}
         />
@@ -255,11 +258,14 @@ export function HuemulQuestionInput({
           type="number"
           label={label}
           placeholder={placeholder}
-          step={1}
+          allowDecimal={false}
           min={typeof min === "number" ? min : undefined}
           max={typeof max === "number" ? max : undefined}
           value={numberValue}
-          onChange={(v) => onChange(v === "" ? null : Number(v))}
+          onChange={(v) => {
+            const n = v === "" ? null : Number(v)
+            onChange(n === null || !Number.isFinite(n) ? null : n)
+          }}
           disabled={disabled}
           error={error}
         />
@@ -271,10 +277,14 @@ export function HuemulQuestionInput({
           type="number"
           label={label}
           placeholder={placeholder}
+          allowDecimal
           min={typeof min === "number" ? min : undefined}
           max={typeof max === "number" ? max : undefined}
           value={numberValue}
-          onChange={(v) => onChange(v === "" ? null : Number(v))}
+          onChange={(v) => {
+            const n = v === "" ? null : Number(v)
+            onChange(n === null || !Number.isFinite(n) ? null : n)
+          }}
           disabled={disabled}
           error={error}
         />

@@ -3,16 +3,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useQueryClient } from "@tanstack/react-query"
-import { RefreshCw, Loader2 } from "lucide-react"
+import { RefreshCw, Loader2, Trash2 } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
-import { useWorkflows, workflowQueryKeys } from "@/hooks/useWorkflows"
+import { useWorkflows, useWorkflowMutations, workflowQueryKeys } from "@/hooks/useWorkflows"
 import { useWorkflowTemplates, useCreateTemplateExpress, workflowTemplateQueryKeys } from "@/hooks/useWorkflowTemplates"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useHuemulFilters } from "@/hooks/useHuemulFilters"
 import { useGridColumns } from "@/hooks/useGridColumns"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulFilterButton } from "@/huemul/components/huemul-filter-button"
 import { HuemulFilterChips } from "@/huemul/components/huemul-filter-chips"
@@ -24,11 +25,16 @@ import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants
 import { getDocumentTypes } from "@/services/document-types"
 import { getUsers } from "@/services/users"
 import { getAllTemplates } from "@/services/templates"
-import { WorkflowTable, WorkflowDetailPanel, WorkflowTemplateCards } from "@/components/workflow"
+import { WorkflowTable, WorkflowDetailPanel, WorkflowTemplateCards, WorkflowShareDialog } from "@/components/workflow"
+import { buildTemplateShareUrl, buildExecutionShareUrl } from "@/lib/workflow-share-url"
 import type { WorkflowItem } from "@/types/workflow"
 import type { WorkflowTemplateItem, CreateExpressResult } from "@/types/templates"
 import type { HuemulFilterDef, HuemulFilterValue, HuemulDateRangeValue } from "@/types/huemul"
 import type { ExecutionLifecycleState } from "@/types/execution"
+
+type SharingState =
+  | { kind: "template"; url: string; name: string }
+  | { kind: "execution"; url: string; name: string }
 
 export default function WorkflowPage() {
   const { t } = useTranslation("workflow")
@@ -42,14 +48,42 @@ export default function WorkflowPage() {
   // Crear un express es la única razón por la que existen las tarjetas de
   // templates: sin `asset:c` no se listan ni se pega a GET /templates/.
   const canCreateExpress = can("createExpressAsset") && can("listTemplates")
+  const canDelete = can("deleteAsset")
 
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [selectedRow, setSelectedRow] = useState<WorkflowItem | null>(null)
   const [expressTemplate, setExpressTemplate] = useState<WorkflowTemplateItem | null>(null)
   const [expressDoc, setExpressDoc] = useState<CreateExpressResult | null>(null)
+  const [deletingRow, setDeletingRow] = useState<WorkflowItem | null>(null)
+  const [sharing, setSharing] = useState<SharingState | null>(null)
 
   const createExpress = useCreateTemplateExpress(selectedOrganizationId ?? "")
+  const { deleteWorkflow } = useWorkflowMutations(selectedOrganizationId ?? "")
+
+  const handleShareTemplate = useCallback(
+    (item: WorkflowTemplateItem) => {
+      if (!selectedOrganizationId) return
+      setSharing({
+        kind: "template",
+        url: buildTemplateShareUrl(selectedOrganizationId, item.document_type_id, item.id),
+        name: item.name,
+      })
+    },
+    [selectedOrganizationId],
+  )
+
+  const handleShareExecution = useCallback(
+    (item: WorkflowItem) => {
+      if (!selectedOrganizationId) return
+      setSharing({
+        kind: "execution",
+        url: buildExecutionShareUrl(selectedOrganizationId, item.document_id, item.execution_id),
+        name: item.document_name,
+      })
+    },
+    [selectedOrganizationId],
+  )
 
   const fetchDocumentTypes = useCallback(
     async ({ search: s }: FetchOptionsParams): Promise<FetchOptionsResult> => {
@@ -419,6 +453,7 @@ export default function WorkflowPage() {
                   pageSize={templatesPageSize}
                   hasNext={templatesHasNext}
                   onPageChange={setTemplatesPage}
+                  onShare={handleShareTemplate}
                   onStart={(item) => {
                     if (!canCreateExpress) return
                     setSelectedRow(null)
@@ -449,6 +484,9 @@ export default function WorkflowPage() {
                       setExpressDoc(null)
                       setSelectedRow(item)
                     }}
+                    canDelete={canDelete}
+                    onDelete={setDeletingRow}
+                    onShare={handleShareExecution}
                     pagination={{
                       page: workflowsResponse?.page || page,
                       pageSize: workflowsResponse?.page_size || pageSize,
@@ -497,6 +535,33 @@ export default function WorkflowPage() {
           },
         ]}
       />
+
+      <WorkflowShareDialog
+        open={!!sharing}
+        onOpenChange={(open) => !open && setSharing(null)}
+        url={sharing?.url ?? null}
+        description={
+          sharing?.kind === "template"
+            ? t("share.templateDescription", { name: sharing.name })
+            : t("share.executionDescription", { name: sharing?.name })
+        }
+      />
+
+      {canDelete && (
+        <HuemulAlertDialog
+          open={!!deletingRow}
+          onOpenChange={(open) => !open && setDeletingRow(null)}
+          title={t("deleteDialog.title")}
+          description={t("deleteDialog.description", { name: deletingRow?.document_name })}
+          actionLabel={tCommon("delete")}
+          actionIcon={Trash2}
+          onAction={async () => {
+            if (!deletingRow) return
+            await deleteWorkflow.mutateAsync(deletingRow.document_id)
+            if (selectedRow?.document_id === deletingRow.document_id) setSelectedRow(null)
+          }}
+        />
+      )}
     </>
   )
 }

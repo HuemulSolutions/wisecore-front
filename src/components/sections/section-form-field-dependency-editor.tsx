@@ -82,6 +82,7 @@ export function SectionFormFieldDependencyEditor({
           label={t("form.formFields.dependency.value")}
           value={typeof condition.value === "number" ? condition.value : ""}
           onChange={(v) => updateCondition(index, { value: v === "" ? undefined : Number(v) })}
+          allowDecimal={target.data_type === "decimal"}
           disabled={disabled}
         />
       );

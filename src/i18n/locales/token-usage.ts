@@ -12,8 +12,8 @@ const translations = {
     estimatedCost: { en: "Estimated cost", es: "Costo estimado" },
     estimatedCostSubtitle: { en: "USD this period", es: "USD este período" },
     partialCoverage: {
-      en: "Partial pricing — some tokens have no price configured",
-      es: "Cobertura parcial — algunos tokens no tienen precio configurado",
+      en: "Partial pricing — recalculated daily once priced",
+      es: "Cobertura parcial — se recalcula a diario con precio",
     },
     activeLlms: { en: "Active LLMs", es: "LLMs activos" },
     activeUsers: { en: "Active users", es: "Usuarios activos" },
