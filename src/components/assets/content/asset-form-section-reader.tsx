@@ -62,7 +62,7 @@ export function AssetFormSectionReader({
     isAnswering ? (
       <HuemulButton
         variant="outline"
-        size="sm"
+        size="xs"
         icon={Eye}
         loading={isSaving}
         disabled={isSaving}
@@ -72,7 +72,7 @@ export function AssetFormSectionReader({
     ) : (
       <HuemulButton
         variant="outline"
-        size="sm"
+        size="xs"
         icon={Edit3}
         label={answeredCount > 0 ? t("form.fill.editResponses") : t("form.fill.answer")}
         onClick={onStartAnswering}

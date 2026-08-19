@@ -58,7 +58,7 @@ export function WorkflowSectionsSummary({ sections, onGoToSection }: WorkflowSec
             subtitle={t("sections:form.fill.answeredCount", { answered: answeredCount, total: questions.length })}
             actions={
               <HuemulButton
-                size="sm"
+                size="xs"
                 icon={ArrowRight}
                 iconPosition="right"
                 label={t("wizard.summary.goToSection")}

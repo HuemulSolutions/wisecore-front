@@ -39,9 +39,10 @@ export interface HuemulNumberedStatusCardProps {
  * workflow-sections-summary.tsx (su segundo consumidor es asset-form-section-reader.tsx, que
  * usa la variante `collapsible`). Sin i18n interno: `title`/`subtitle` llegan traducidos.
  *
- * `collapsible` + `actions` pueden convivir: el header se parte en un bloque clicable
- * (CollapsibleTrigger, con círculo/título/chevron) y los `actions` como hermano fuera del
- * trigger, para que sus botones no queden anidados dentro del <button> del trigger.
+ * `collapsible` + `actions` pueden convivir: el header se parte en dos CollapsibleTrigger
+ * hermanos (círculo/título por un lado, chevron al final por el otro) con los `actions` en
+ * el medio, para que ese chevron cierre la fila y sus botones no queden anidados dentro de
+ * un <button>.
  */
 export function HuemulNumberedStatusCard({
   number,
@@ -84,7 +85,7 @@ export function HuemulNumberedStatusCard({
   const actionsBlock = actions && <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">{actions}</div>;
 
   const chevron = (
-    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+    <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />
   );
 
   if (!collapsible) {
@@ -103,12 +104,14 @@ export function HuemulNumberedStatusCard({
       <Card className={cn("relative overflow-hidden p-0", className)}>
         <div className="flex w-full flex-row items-start gap-3 p-4">
           {accent}
-          <CollapsibleTrigger className="group flex min-w-0 flex-1 flex-row items-start gap-3 text-left">
+          <CollapsibleTrigger className="flex min-w-0 flex-1 flex-row items-start gap-3 text-left">
             {circle}
             {titleBlock}
-            {chevron}
           </CollapsibleTrigger>
           {actionsBlock}
+          <CollapsibleTrigger className="group flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted">
+            {chevron}
+          </CollapsibleTrigger>
         </div>
         <CollapsibleContent>
           <div className="border-t px-4 pb-4 pt-3">{children}</div>
