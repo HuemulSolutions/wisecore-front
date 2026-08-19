@@ -74,15 +74,12 @@ const translations = {
     noFormSections: { en: "This template has no form sections", es: "Este template no tiene secciones de formulario" },
     summary: {
       tooltip: { en: "Back to summary", es: "Volver al resumen" },
-      stepLabel: { en: "Step {{number}}", es: "Paso {{number}}" },
       // answeredCount vive en sections:form.fill.answeredCount (compartido con el modo lector del asset).
       missingRequired: { en: "{{count}} required pending", es: "{{count}} obligatorias pendientes" },
       goToSection: { en: "Go to section", es: "Ir a la sección" },
       noAnswers: { en: "No answers in this section yet", es: "Esta sección aún no tiene respuestas" },
-      viewAnswers: { en: "View answers", es: "Ver respuestas" },
       sectionsAnswered: { en: "{{answered}} of {{total}} sections answered", es: "{{answered}} de {{total}} secciones respondidas" },
       questionsCount: { en: "{{answered}}/{{total}} questions", es: "{{answered}}/{{total}} preguntas" },
-      copy: { en: "Copy answers", es: "Copiar respuestas" },
     },
   },
 }
