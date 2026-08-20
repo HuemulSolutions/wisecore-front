@@ -39,13 +39,8 @@ const translations = {
   },
   sidebar: {
     title: { en: "Asset Types", es: "Tipos de Activo" },
-    dragHint: {
-      en: "Drag to canvas to add",
-      es: "Arrastra al canvas para agregar",
-    },
     empty: { en: "No asset types found", es: "No se encontraron tipos de activo" },
     noResults: { en: "No results for \"{{term}}\"", es: "Sin resultados para \"{{term}}\"" },
-    refresh: { en: "Refresh list", es: "Refrescar lista" },
     container: { en: "Container", es: "Contenedor" },
     text: { en: "Text", es: "Texto" },
     role: { en: "Role", es: "Rol" },
@@ -58,6 +53,16 @@ const translations = {
     connectHint: {
       en: "Connect two asset type nodes to create a relationship",
       es: "Conecta dos nodos de tipos de activo para crear una relación",
+    },
+    // Modo `execution` (/diagrams): la fuente de arrastre es el árbol de
+    // conocimiento, no la paleta de tipos de activo.
+    emptyExecution: {
+      en: "Drag assets here to start building a diagram",
+      es: "Arrastra activos aquí para comenzar a construir un diagrama",
+    },
+    connectHintExecution: {
+      en: "Connect two asset nodes to create a relationship",
+      es: "Conecta dos nodos de activo para crear una relación",
     },
     clearAll: { en: "Clear canvas", es: "Limpiar canvas" },
     clearConfirm: {

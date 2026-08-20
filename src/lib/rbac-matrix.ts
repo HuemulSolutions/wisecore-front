@@ -114,6 +114,26 @@ export const RBAC_PAGES = {
       // "template"). GET/POST/DELETE /tags/{id}/objects piden tag:r / tag:u.
       viewTags: "tag:r",
       manageTags: "tag:u",
+      // Contexto y dependencias a nivel de template (tabs "Contexto" /
+      // "Dependencias" del detalle). GET /templates/{id}/context y
+      // /dependencies exigen template:r específico (con solo template:l el
+      // tab existiría y se comería un 403 mudo). No existe recurso
+      // template_context en PermissionResource: `context` es el recurso del
+      // contexto de DOCUMENTO y no aplica acá.
+      listTemplateContext: "template:r",
+      manageTemplateContext: "template:u",
+      listTemplateDependencies: "template:r",
+      manageTemplateDependencies: "template:u",
+      // El picker de documentos del alta de dependencia es el árbol de
+      // conocimiento (GET /library).
+      listAssetsForDependency: ["asset:l", "asset:r"],
+      listFoldersForDependency: ["folder:l", "folder:r"],
+      // version_mode="specific" lista executions del documento dependido
+      // (DependencyVersionDialog ya gatea con canList('version')).
+      listVersionsForDependency: ["version:l", "version:r"],
+      // "Ver activo" desde la fila de dependencia abre /asset/{id}, cuyo
+      // guard exige asset:r|l.
+      openAsset: ["asset:r", "asset:l"],
     },
   },
   organizations: {
@@ -428,6 +448,10 @@ export const RBAC_PAGES = {
       listFolders: ["folder:l", "folder:r"], // nivel document (tree picker)
       listExecutions: ["section_execution:l", "section_execution:r"], // nivel execution
       listTemplates: ["template:l", "template:r"], // nivel template
+      // El select de modelo del sheet de generación lee GET /llms/ (recurso ajeno):
+      // sin permiso el select se comería un 403 mudo. Mismo criterio que
+      // `listLlms` en la vista de ejecuciones (línea 464).
+      listLlms: ["llm:l", "llm:r"],
     },
   },
   advanced: {

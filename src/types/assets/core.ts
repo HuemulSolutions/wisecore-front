@@ -389,6 +389,13 @@ export interface ContentSection {
   ai_suggestion_error?: string | null;
   review_status?: 'editing' | 'reviewing' | 'finished' | null;
   form_fields?: import('../sections/core').FormFieldValue[];
+  /**
+   * Acceso de esta sección en la etapa/step actual del ciclo de vida, según
+   * `template_section_lifecycle_access` (ver src/types/templates/section-lifecycle-access.ts).
+   * Ausente = el backend todavía no distingue acceso por sección (todo `form_fields`
+   * manda su propio `can_answer`); no asumir `'edit'` por default en ese caso.
+   */
+  access?: import('../templates/section-lifecycle-access').TemplateSectionAccess;
 }
 
 export interface LibraryContentProps {

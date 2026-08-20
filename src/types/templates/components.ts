@@ -33,6 +33,16 @@ export interface TemplateContentProps {
   canViewTags: boolean;
   /** tag:u — asignar/quitar etiquetas del template. */
   canManageTags: boolean;
+  /** template:r — GET /templates/{id}/context (tab Contexto). */
+  canListTemplateContext: boolean;
+  /** template:u — POST/PATCH/DELETE de contexto del template. */
+  canManageTemplateContext: boolean;
+  /** template:r — GET /templates/{id}/dependencies (tab Dependencias). */
+  canListTemplateDependencies: boolean;
+  /** template:u — POST/PATCH/DELETE de dependencias del template. */
+  canManageTemplateDependencies: boolean;
+  /** asset:l|r + folder:l|r — el picker de documentos del alta de dependencia. */
+  canPickAssetsForDependencies: boolean;
 }
 
 export interface DocxTemplateCardProps {

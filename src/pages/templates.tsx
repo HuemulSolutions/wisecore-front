@@ -78,6 +78,17 @@ export default function Templates() {
   const canViewTags = hasPermission('tag:r');
   const canManageTags = hasPermission('tag:u');
 
+  // Permisos específicos — contexto y dependencias del template (tabs propios).
+  // GET exige template:r —no basta con template:l— y toda escritura template:u.
+  const canListTemplateContext = canRead('template');
+  const canManageTemplateContext = canUpdate('template');
+  const canListTemplateDependencies = canRead('template');
+  const canManageTemplateDependencies = canUpdate('template');
+  // El picker de documentos del alta de dependencia necesita listar carpetas
+  // y documentos; sin eso el botón abriría un árbol vacío (fail-closed).
+  const canPickAssetsForDependencies =
+    hasAnyPermission(['asset:l', 'asset:r']) && hasAnyPermission(['folder:l', 'folder:r']);
+
   // Estados principales
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -220,6 +231,11 @@ export default function Templates() {
               canDeleteMedia={canDeleteMedia}
               canViewTags={canViewTags}
               canManageTags={canManageTags}
+              canListTemplateContext={canListTemplateContext}
+              canManageTemplateContext={canManageTemplateContext}
+              canListTemplateDependencies={canListTemplateDependencies}
+              canManageTemplateDependencies={canManageTemplateDependencies}
+              canPickAssetsForDependencies={canPickAssetsForDependencies}
             />
           ),
           defaultSize: 85,

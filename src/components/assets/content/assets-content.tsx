@@ -83,6 +83,8 @@ import { useAssetContentPermissions } from '@/hooks/useDocumentAccess';
 import { usePageAccess } from '@/hooks/usePageAccess';
 import type { ContentSection, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
 import type { FormValuesSectionPayload } from '@/types/sections/core';
+import { applyFormValuesPatch } from '@/components/assets/content/utils/patch-document-content';
+import { isFormSectionApplicable } from '@/components/workflow/workflow-section-stats';
 import { CustomFieldsList } from './assets-custom-fields-list';
 import { SectionIndexContext } from '@/contexts/section-index-context';
 import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
@@ -102,9 +104,12 @@ import { getExecutionDisplayLabel } from './utils/version-utils';
 import { VersionSelectorDropdown } from './assets-version-selector';
 import { ViewModeToggle } from './assets-view-mode-toggle';
 import { MoreOptionsDropdown } from './assets-more-options-dropdown';
+import { CUSTOM_FIELD_DOCUMENTS_PAGE_SIZE, customFieldDocumentsQueryKeys } from '@/hooks/useCustomFieldDocuments';
 
 // Tamaño de página del listado de campos personalizados en el panel lateral (angosto).
-const CUSTOM_FIELDS_PAGE_SIZE = 100;
+// Compartido con la validación preventiva del lifecycle (useCustomFieldDocuments) —
+// misma query key, un solo fetch.
+const CUSTOM_FIELDS_PAGE_SIZE = CUSTOM_FIELD_DOCUMENTS_PAGE_SIZE;
 
 /** Recursively extract all text from a Plate JSON node. */
 function extractPlateText(node: unknown): string {
@@ -740,22 +745,8 @@ export function AssetContent({
   // Sin payload (resto de ediciones de sección): comportamiento previo, invalida y refetch.
   const handleSectionUpdate = useCallback((payload?: FormValuesSectionPayload[]) => {
     const fileId = selectedFileIdRef.current;
-    if (payload?.length) {
-      const groupsBySectionId = new Map(payload.map((p) => [p.section_execution_id, p]));
-      queryClient.setQueriesData(
-        { queryKey: ['document-content', fileId] },
-        (old: { content?: ContentSection[] } | undefined) => {
-          if (!old?.content || !Array.isArray(old.content)) return old;
-          return {
-            ...old,
-            content: old.content.map((s) => {
-              const group = groupsBySectionId.get(s.id);
-              if (!group) return s;
-              return { ...s, form_fields: group.form_fields, section_name: group.section_name ?? s.section_name };
-            }),
-          };
-        },
-      );
+    if (payload?.length && fileId) {
+      applyFormValuesPatch(queryClient, fileId, payload);
       return;
     }
     queryClient.invalidateQueries({ queryKey: ['document-content', fileId] });
@@ -946,7 +937,7 @@ export function AssetContent({
 
   // Fetch custom fields for the document
   const { data: customFieldsData, isLoading: isLoadingCustomFields } = useQuery({
-    queryKey: ['custom-field-documents', selectedFile?.id, customFieldsPage, CUSTOM_FIELDS_PAGE_SIZE],
+    queryKey: customFieldDocumentsQueryKeys.byDocument(selectedFile?.id, customFieldsPage, CUSTOM_FIELDS_PAGE_SIZE),
     queryFn: () => getCustomFieldDocumentsByDocument({
       document_id: selectedFile!.id,
       page: customFieldsPage,
@@ -1210,6 +1201,13 @@ export function AssetContent({
       setVersionCompareOverride({ left: previousExecutionId, right: currentExecutionId });
       setIsVersionCompareSheetOpen(true);
     },
+    canListCustomFields,
+    onOpenCustomFields: canListCustomFields
+      ? () => {
+          setActiveTab('custom-fields');
+          setIsTocSidebarOpen(true);
+        }
+      : undefined,
   });
 
   // Set initial view mode based on lifecycle permissions (once per document+execution):
@@ -2988,7 +2986,13 @@ export function AssetContent({
                           // In reader mode, hide sections with empty content — except sections
                           // in scope of an in-progress 'single'/'from' execution: there the empty
                           // content is transient and must show skeleton + feedback, not disappear.
-                          if (isViewMode && section.section_type !== 'form' && !isSectionInScope(index) && isSectionContentEmpty(section)) {
+                          // Form sections use a different emptiness check: "no aplica" (mirrors the
+                          // backend rule, ver ia context/dependencias-condicionales-formularios-guide.md)
+                          // instead of markdown/plate content.
+                          const sectionIsHidden = section.section_type === 'form'
+                            ? !isFormSectionApplicable(section)
+                            : isSectionContentEmpty(section);
+                          if (isViewMode && !isSectionInScope(index) && sectionIsHidden) {
                             return null;
                           }
                           

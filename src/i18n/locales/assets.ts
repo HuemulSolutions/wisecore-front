@@ -254,6 +254,13 @@ const translations = {
     errorRestore: { en: "Failed to restore asset. Please try again.", es: "Error al restaurar el activo. Intenta de nuevo." },
     successAdvance: { en: "Asset advanced successfully!", es: "Activo avanzado correctamente" },
     errorAdvance: { en: "Failed to advance asset. Please try again.", es: "Error al avanzar el activo. Intenta de nuevo." },
+    requiredCustomFields: {
+      warningTitle: { en: "Required custom fields without value", es: "Campos personalizados obligatorios sin valor" },
+      warning: { en: "The asset cannot leave the draft state until these required custom fields are filled in:", es: "El activo no podrá salir del estado borrador hasta que se completen estos campos personalizados obligatorios:" },
+      errorTitle: { en: "Required custom fields are missing", es: "Faltan campos personalizados obligatorios" },
+      errorDescription: { en: "The asset cannot advance because these required custom fields have no value:", es: "El activo no puede avanzar porque estos campos personalizados obligatorios no tienen valor:" },
+      goToFields: { en: "Go to custom fields", es: "Ir a campos personalizados" },
+    },
     commentLabel: { en: "Comment", es: "Comentario" },
     commentPlaceholder: { en: "Add a comment about this action...", es: "Agrega un comentario sobre esta acción..." },
     changeSummaryLabel: { en: "Version changes", es: "Cambios de la versión" },

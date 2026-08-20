@@ -7,3 +7,8 @@ export type { TemplateContentProps, TemplateHeaderProps, TemplateSectionsListPro
 // Import directly from '@/types/templates/add-section-dialog' if needed.
 export * from './hooks'
 export * from './section-lifecycle-access'
+// context.ts / dependencies.ts: export selectivo — TemplateDependency es un
+// alias de Dependency (@/types/dependency/sheets) y no queremos que un
+// `export *` lo reexporte con un nombre que choque si ese barrel cambia.
+export type { TemplateContext, CreateTemplateContextRequest, UpdateTemplateContextRequest, UseTemplateContextsOptions } from './context'
+export type { TemplateDependency, TemplateDependenciesResponse, CreateTemplateDependencyRequest, UpdateTemplateDependencyRequest, UseTemplateDependenciesOptions } from './dependencies'

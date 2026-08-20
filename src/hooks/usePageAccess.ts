@@ -4,6 +4,22 @@ import { RBAC_PAGES, type RbacPageKey, type RbacPageSpec } from "@/lib/rbac-matr
 import type { Permission } from "@/lib/jwt-utils";
 
 /**
+ * Regla de "¿puede ver esta página?" en forma de función pura, para usarla
+ * fuera de un componente (p.ej. filtrando una lista de entradas de menú).
+ * Es EXACTAMENTE la misma lógica que usa `usePageAccess` — no crear una
+ * segunda definición de esta regla en otro archivo (ver
+ * ia context/rbac-audit-guide.md sobre helpers que divergen del guard de ruta).
+ */
+export function resolvePageAccess(
+  page: RbacPageSpec,
+  ctx: { hasAnyPermission: (ps: Permission[]) => boolean; isRootAdmin: boolean }
+): boolean {
+  if (page.requireRootAdmin) return ctx.isRootAdmin;
+  if (!page.routePermissions || page.routePermissions.length === 0) return true;
+  return ctx.hasAnyPermission(page.routePermissions as Permission[]);
+}
+
+/**
  * Deriva accesos de página/feature desde la matriz declarativa `RBAC_PAGES`
  * (ver src/lib/rbac-matrix.ts), en vez de repetir `hasPermission('x:y')` a
  * mano en cada página. El bypass de `isOrgAdmin` ya está aplicado dentro de
@@ -34,11 +50,10 @@ export function usePageAccess<K extends RbacPageKey>(pageKey: K) {
   // los declara todos.
   const page = RBAC_PAGES[pageKey] as RbacPageSpec;
 
-  const canAccessPage = useMemo(() => {
-    if (page.requireRootAdmin) return isRootAdmin;
-    if (!page.routePermissions || page.routePermissions.length === 0) return true;
-    return hasAnyPermission(page.routePermissions as Permission[]);
-  }, [hasAnyPermission, isRootAdmin, page]);
+  const canAccessPage = useMemo(
+    () => resolvePageAccess(page, { hasAnyPermission, isRootAdmin }),
+    [hasAnyPermission, isRootAdmin, page]
+  );
 
   const can = useCallback(
     (feature: keyof NonNullable<FeaturesOf<K>>): boolean => {

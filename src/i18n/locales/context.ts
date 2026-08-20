@@ -69,6 +69,60 @@ const translations = {
     collapse: { en: "Collapse", es: "Colapsar" },
     expand: { en: "Expand", es: "Expandir" },
   },
+  // templates-context-tab.tsx / templates-context-dialog.tsx — contexto a
+  // nivel de TEMPLATE. Namespace compartido con el de documento (mismo
+  // recurso), pero con textos propios: acá no hay contexto de archivo y el
+  // sustantivo es "plantilla", no "activo".
+  templateTab: {
+    title: { en: "Context", es: "Contexto" },
+    description: {
+      en: "Text context copied to every document created from this template.",
+      es: "Contexto de texto que se copia a cada documento creado desde esta plantilla.",
+    },
+    count: { en: "{{count}} contexts", es: "{{count}} contextos" },
+    addButton: { en: "Add context", es: "Agregar contexto" },
+    empty: { en: "No context configured", es: "Sin contextos configurados" },
+    emptyHint: {
+      en: "Add context to provide additional information for documents created from this template.",
+      es: "Agrega contexto para proporcionar información adicional a los documentos creados desde esta plantilla.",
+    },
+    editTitle: { en: "Edit context", es: "Editar contexto" },
+    deleteTitle: { en: "Delete context", es: "Eliminar contexto" },
+    createDialog: {
+      title: { en: "Add context", es: "Agregar contexto" },
+      description: {
+        en: "Enter a name and content for the context.",
+        es: "Ingresa un nombre y contenido para el contexto.",
+      },
+      submit: { en: "Add", es: "Agregar" },
+    },
+    editDialog: {
+      title: { en: "Edit context", es: "Editar contexto" },
+      description: {
+        en: "Update the name and content of this context.",
+        es: "Actualiza el nombre y el contenido de este contexto.",
+      },
+      submit: { en: "Save changes", es: "Guardar cambios" },
+    },
+    deleteDialog: {
+      title: { en: "Delete context", es: "Eliminar contexto" },
+      description: {
+        en: "Are you sure you want to delete this context? This action cannot be undone. It won't affect documents already created from this template.",
+        es: "¿Estás seguro de que deseas eliminar este contexto? Esta acción no se puede deshacer. No afecta a los documentos ya creados desde esta plantilla.",
+      },
+    },
+    fields: {
+      name: { en: "Context name", es: "Nombre del contexto" },
+      namePlaceholder: { en: "Enter context name", es: "Ingresa el nombre del contexto" },
+      content: { en: "Context content", es: "Contenido del contexto" },
+      contentPlaceholder: { en: "Enter context content", es: "Ingresa el contenido del contexto" },
+    },
+    toast: {
+      created: { en: "Context added successfully", es: "Contexto agregado exitosamente" },
+      updated: { en: "Context updated successfully", es: "Contexto actualizado exitosamente" },
+      deleted: { en: "Context deleted successfully", es: "Contexto eliminado exitosamente" },
+    },
+  },
   // assets-context-sheet.tsx
   sheet: {
     manageContext: { en: "Manage Context", es: "Gestionar Contexto" },

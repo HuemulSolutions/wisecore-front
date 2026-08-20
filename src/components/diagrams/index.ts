@@ -1,4 +1,5 @@
 export { DiagramsTable } from "./diagrams-table"
+export { DiagramsPageHeader } from "./diagrams-page-header"
 export { DiagramsPageSkeleton } from "./diagrams-page-skeleton"
 export { DiagramsPageEmptyState } from "./diagrams-page-empty-state"
 export { DiagramsContentEmptyState } from "./diagrams-content-empty-state"

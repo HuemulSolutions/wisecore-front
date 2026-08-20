@@ -277,7 +277,7 @@ export function SectionQuestionTypeFields({
             options={[1, 5, 10, 25, 50].map((n) => ({ value: String(n), label: `${n} MB` }))}
             selectSize="sm"
             disabled={isPending}
-            className="max-w-[160px]"
+            className="max-w-40"
           />
         </div>
       );
@@ -355,7 +355,7 @@ export function SectionQuestionTypeFields({
             options={[3, 4, 5, 6, 7, 8, 9, 10].map((n) => ({ value: String(n), label: String(n) }))}
             selectSize="sm"
             disabled={isPending}
-            className="max-w-[160px]"
+            className="max-w-40"
           />
           <QuestionTypePreview questionType={qt} maxValue={stars} />
         </div>

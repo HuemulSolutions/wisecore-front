@@ -2,20 +2,19 @@
 
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { GitMerge, Edit2, Activity, Copy, Trash2 } from "lucide-react"
+import { Edit2, Activity, Copy, Trash2 } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
 import { useDocumentTypes } from "@/hooks/useDocumentTypes"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { AssetTypePageEmptyState } from "@/components/assets-types"
 import { useAssetTypeMutations } from "@/hooks/useAssetTypes"
-import { AssetTypeSidebar, RelationshipsCanvas } from "@/components/document-type-relationships"
+import { AssetTypeSidebar, DocumentTypeRelationshipsPageHeader, RelationshipsCanvas } from "@/components/document-type-relationships"
 import CreateDocumentType from "@/components/assets-types/assets-types-create"
 import AssetTypeLifecycleDialog from "@/components/assets-types/assets-types-lifecycle-dialog"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { HuemulPagination } from "@/huemul/components/huemul-pagination"
-import { HuemulField } from "@/huemul/components/huemul-field"
 import type { AssetTypeWithRoles } from "@/services/asset-types"
 import type { CanvasNodeAction } from "@/types/document-type-relationships"
 
@@ -65,9 +64,8 @@ export default function DocumentTypeRelationshipsPage() {
   const [cloningAssetType, setCloningAssetType] = useState<AssetTypeWithRoles | null>(null)
   const [deletingAssetType, setDeletingAssetType] = useState<AssetTypeWithRoles | null>(null)
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setSearch(searchInput)
+  const handleSearchCommit = (value: string) => {
+    setSearch(value)
     setPage(1)
   }
 
@@ -153,40 +151,23 @@ export default function DocumentTypeRelationshipsPage() {
     <>
       <HuemulPageLayout
         header={
-          <div className="flex items-center gap-3 px-6 py-4">
-            <GitMerge className="h-5 w-5 text-muted-foreground" />
-            <div>
-              <h1 className="text-base font-semibold">{t("document-type-relationships:header.title")}</h1>
-              <p className="text-xs text-muted-foreground">{t("document-type-relationships:header.subtitle")}</p>
-            </div>
-          </div>
+          <DocumentTypeRelationshipsPageHeader
+            onRefresh={refetch}
+            isLoading={isFetching}
+          />
         }
+        headerClassName="px-4 py-3 md:px-6 md:py-4"
         columns={[
           {
-            header: {
-              content: (
-                <div className="px-3 py-2 border-b bg-muted/20">
-                  <form onSubmit={handleSearchSubmit}>
-                    <HuemulField
-                      type="text"
-                      value={searchInput}
-                      onChange={(v) => setSearchInput(v as string)}
-                      placeholder={t("document-type-relationships:header.searchPlaceholder")}
-                      className="gap-0"
-                      inputClassName="h-8 text-xs"
-                    />
-                  </form>
-                </div>
-              ),
-            },
             content: (
               <AssetTypeSidebar
                 items={documentTypes}
                 isLoading={isLoading}
-                isFetching={isFetching}
                 page={page}
                 pageSize={pageSize}
-                onRefresh={refetch}
+                search={searchInput}
+                onSearchChange={setSearchInput}
+                onSearchCommit={handleSearchCommit}
               />
             ),
             defaultSize: 20,
