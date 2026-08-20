@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { useOrgNavigate } from '@/hooks/useOrgRouter';
 import {
@@ -9,10 +10,11 @@ import {
   GitBranch,
   ExternalLink,
   MessageCircle,
-  Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { HuemulPageLayout } from '@/huemul/components/huemul-page-layout';
+import { PageSkeleton } from '@/components/ui/page-skeleton';
 import { DEFAULT_PAGE_SIZE } from '@/huemul/constants';
 import { HuemulSheet } from '@/huemul/components/huemul-sheet';
 import { HuemulTable } from '@/huemul/components/huemul-table';
@@ -59,9 +61,11 @@ function getInitials(name: string): string {
 export default function Home() {
   const { t } = useTranslation('home');
   const { t: tAssets } = useTranslation('assets');
+  const { t: tCommon } = useTranslation('common');
   const { selectedOrganizationId, organizationToken } = useOrganization();
   const { user } = useAuth();
   const navigate = useOrgNavigate();
+  const queryClient = useQueryClient();
   // /home no tiene guard de ruta (es el destino de todo rebote), así que cada
   // panel se gatea a sí mismo. Ver ia context/rbac-audit-guide.md.
   const { can, isLoading: isLoadingPermissions } = usePageAccess('home');
@@ -94,7 +98,12 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<string | null>(null);
 
-  const { data: stats, isLoading: statsLoading } = useDocumentStatistics(
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isFetching: statsFetching,
+    refetch: refetchStats,
+  } = useDocumentStatistics(
     selectedOrganizationId ?? '',
     !!selectedOrganizationId && !!organizationToken && can('readStatistics'),
   );
@@ -323,23 +332,39 @@ export default function Home() {
 
   const executions = data?.data ?? [];
 
+  // Un solo botón agrupa las 3 queries de la página (regla de un botón por
+  // contenedor, no por endpoint): ejecuciones, KPIs y contador de
+  // notificaciones. Este último se invalida en vez de refetchearse porque
+  // useUnreadNotificationsCount solo devuelve el número, no un refetch.
+  const handleRefresh = useCallback(() => {
+    void refetch();
+    void refetchStats();
+    void queryClient.invalidateQueries({
+      queryKey: ['notifications', 'unread-count', selectedOrganizationId],
+    });
+  }, [refetch, refetchStats, queryClient, selectedOrganizationId]);
+
   // La acción abre /asset/{id}, cuya ruta exige asset:r|l: sin el permiso el
   // usuario aterrizaría en un rebote del guard en vez de en el asset.
-  const tableActions: HuemulTableAction<Execution>[] = can('openAsset')
-    ? [
-        {
-          key: 'openAsset',
-          label: t('executionsTable.actions.openAsset'),
-          icon: ExternalLink,
-          onClick: (item) => {
-            const url = `${window.location.origin}/${selectedOrganizationId}/asset/${item.document_id}?execution=${item.id}`;
-            window.open(url, '_blank', 'noopener,noreferrer');
-          },
-        },
-      ]
-    : [];
+  const tableActions: HuemulTableAction<Execution>[] = useMemo(
+    () =>
+      can('openAsset')
+        ? [
+            {
+              key: 'openAsset',
+              label: t('executionsTable.actions.openAsset'),
+              icon: ExternalLink,
+              onClick: (item) => {
+                const url = `${window.location.origin}/${selectedOrganizationId}/asset/${item.document_id}?execution=${item.id}`;
+                window.open(url, '_blank', 'noopener,noreferrer');
+              },
+            },
+          ]
+        : [],
+    [can, selectedOrganizationId, t],
+  );
 
-  const columns: HuemulTableColumn<Execution>[] = [
+  const columns: HuemulTableColumn<Execution>[] = useMemo(() => [
     {
       key: 'documentName',
       label: t('executionsTable.columns.documentName'),
@@ -462,7 +487,7 @@ export default function Home() {
         </span>
       ),
     },
-  ];
+  ], [t]);
 
   const toggleLifecycleState = useCallback((state: ExecutionLifecycleState) => {
     handleFilterChange('lifecycleState', values.lifecycleState === state ? '__all__' : state);
@@ -550,6 +575,15 @@ export default function Home() {
           {t(`greeting.${greetingPeriod}`, { name: user?.name ?? '' })}
         </h1>
         <div className="flex items-center gap-2">
+          <HuemulButton
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            icon={RefreshCw}
+            tooltip={tCommon('refresh')}
+            loading={isFetching || statsFetching}
+            onClick={handleRefresh}
+          />
           {canCreateAsset && (
             <HuemulButton
               variant="outline"
@@ -596,11 +630,7 @@ export default function Home() {
   // Nunca un 403 de página completa: /home es el destino de todo rebote, así
   // que se degrada panel por panel y siempre queda algo alcanzable.
   if (isLoadingPermissions) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   return (
@@ -609,6 +639,7 @@ export default function Home() {
         className="bg-gray-50"
         headerClassName="border-b-0 bg-gray-50"
         header={header}
+        withHandle
         columns={[
           {
             content: (

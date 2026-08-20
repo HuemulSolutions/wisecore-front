@@ -26,7 +26,6 @@ import {
   type AssetTypePageState
 } from "@/components/assets-types"
 import { AssetTypeSidebar, RelationshipsCanvas } from "@/components/document-type-relationships"
-import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulPagination } from "@/huemul/components/huemul-pagination"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
@@ -227,9 +226,8 @@ export default function AssetTypesPage() {
   const relHasNext = relPage * RELATIONSHIP_PAGE_SIZE < relTotalItems
   const relHasPrevious = relPage > 1
 
-  const handleRelSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setRelSearch(relSearchInput)
+  const handleRelSearchCommit = (value: string) => {
+    setRelSearch(value)
     setRelPage(1)
   }
 
@@ -319,29 +317,16 @@ export default function AssetTypesPage() {
           },
         ] : [
           {
-            header: {
-              content: (
-                <div className="px-3 py-2 border-b bg-muted/20">
-                  <form onSubmit={handleRelSearchSubmit}>
-                    <HuemulField
-                      type="text"
-                      value={relSearchInput}
-                      onChange={(v) => setRelSearchInput(v as string)}
-                      placeholder={t('header.searchPlaceholder')}
-                      className="gap-0"
-                      inputClassName="h-8 text-xs"
-                    />
-                  </form>
-                </div>
-              ),
-            },
             content: (
               <AssetTypeSidebar
                 items={documentTypes}
                 isLoading={isLoadingDocTypes}
-                isFetching={isFetchingDocTypes}
                 page={relPage}
                 pageSize={RELATIONSHIP_PAGE_SIZE}
+                search={relSearchInput}
+                onSearchChange={setRelSearchInput}
+                onSearchCommit={handleRelSearchCommit}
+                searchPlaceholder={t('header.searchPlaceholder')}
               />
             ),
             defaultSize: 20,

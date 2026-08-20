@@ -61,6 +61,8 @@ const translations = {
     sectionsTab: { en: "Sections", es: "Secciones" },
     customFieldsTab: { en: "Custom Fields", es: "Campos Personalizados" },
     mediaTab: { en: "Media", es: "Media" },
+    contextTab: { en: "Context", es: "Contexto" },
+    dependenciesTab: { en: "Dependencies", es: "Dependencias" },
     refreshSections: { en: "Refresh sections", es: "Actualizar secciones" },
     refreshCustomFields: { en: "Refresh custom fields", es: "Actualizar campos personalizados" },
     cloneTemplate: { en: "Clone template", es: "Clonar plantilla" },

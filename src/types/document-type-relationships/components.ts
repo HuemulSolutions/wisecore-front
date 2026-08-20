@@ -124,10 +124,16 @@ export interface RelationshipsCanvasProps {
 export interface AssetTypeSidebarProps {
   items: DocumentType[]
   isLoading?: boolean
-  isFetching?: boolean
   page: number
   pageSize: number
-  onRefresh?: () => void
+  // Búsqueda del panel: vive en el header del sidebar (HuemulPanelHeader), no en
+  // el header de la columna del layout, para que todos los paneles laterales del
+  // producto expongan la búsqueda en el mismo lugar.
+  search?: string
+  onSearchChange?: (value: string) => void
+  /** Commit de la búsqueda (Enter): es cuando se consulta al servidor. */
+  onSearchCommit?: (value: string) => void
+  searchPlaceholder?: string
   // Hides the "role" drag item when the user can't list roles (same gate as the
   // toolbar's "Add Role" button and the @role mention picker).
   canPickRole?: boolean

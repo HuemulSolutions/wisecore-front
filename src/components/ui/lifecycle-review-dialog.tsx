@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
-import { Zap, GitCompare, Loader2 } from "lucide-react"
+import { Zap, GitCompare, Loader2, AlertCircle } from "lucide-react"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import MdxEditor from "@/components/layout/mdx-editor"
 
@@ -29,6 +29,14 @@ interface LifecycleReviewDialogProps {
   onViewChanges?: () => void
   /** True while the change summary is still being fetched/generated. */
   isSummaryLoading?: boolean
+  /**
+   * Custom fields obligatorios sin valor. Solo llega con contenido cuando la
+   * transición sale de `draft` (el controller lo gatea). Es un aviso: el
+   * botón de confirmar NO se deshabilita, el backend es la fuente de verdad.
+   */
+  missingRequiredCustomFields?: string[]
+  /** Omitir para ocultar el link: la superficie no tiene tab de campos personalizados. */
+  onGoToCustomFields?: () => void
 }
 
 export function LifecycleReviewDialog({
@@ -47,6 +55,8 @@ export function LifecycleReviewDialog({
   canViewChanges = false,
   onViewChanges,
   isSummaryLoading = false,
+  missingRequiredCustomFields = [],
+  onGoToCustomFields,
 }: LifecycleReviewDialogProps) {
   const { t } = useTranslation(["assets", "common"])
   const [comment, setComment] = useState("")
@@ -86,6 +96,31 @@ export function LifecycleReviewDialog({
       }}
     >
       <div className="space-y-4">
+        {missingRequiredCustomFields.length > 0 && (
+          <Alert variant="destructive">
+            <AlertCircle />
+            <AlertTitle>{t("lifecycle.requiredCustomFields.warningTitle")}</AlertTitle>
+            <AlertDescription className="flex flex-col items-start gap-2">
+              <span>{t("lifecycle.requiredCustomFields.warning")}</span>
+              <ul className="list-disc pl-5">
+                {missingRequiredCustomFields.map((name) => (
+                  <li key={name}>{name}</li>
+                ))}
+              </ul>
+              {onGoToCustomFields && (
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 hover:cursor-pointer"
+                  onClick={onGoToCustomFields}
+                >
+                  {t("lifecycle.requiredCustomFields.goToFields")}
+                </Button>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="review-comment">

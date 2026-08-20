@@ -38,7 +38,7 @@ export function WorkflowTable({
   onDelete,
   onShare,
 }: WorkflowTableProps) {
-  const { t } = useTranslation("workflow")
+  const { t } = useTranslation(["workflow", "common"])
 
   // Cada celda envuelve su contenido en un div clickeable: no hay onRowClick nativo en
   // HuemulTable, así que el click de fila se implementa a nivel de celda (mismo patrón
@@ -99,7 +99,7 @@ export function WorkflowTable({
       ? [
           {
             key: "delete",
-            label: t("actions.delete"),
+            label: t("common:delete"),
             icon: Trash2,
             onClick: onDelete,
             destructive: true,

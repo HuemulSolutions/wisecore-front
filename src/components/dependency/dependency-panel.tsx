@@ -2,28 +2,18 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  File,
-  Trash2,
   Link2,
-  ExternalLink,
-  GitBranch,
   Loader2,
   AlertCircle,
   RefreshCw,
-  MoreVertical,
   Plus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { HuemulButton } from "@/huemul/components/huemul-button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { HuemulAssetTreePickerDialog } from "@/huemul/components/huemul-asset-tree-picker";
 import { RemoveDependencyDialog } from "@/components/dependency/dependency-delete-dialog";
 import { DependencyVersionDialog } from "@/components/dependency/dependency-version-dialog";
+import { DependencyListItem } from "@/components/dependency/dependency-list-item";
 import { getDocumentDependencies, addDocumentDependency, updateDocumentDependency, removeDocumentDependency } from "@/services/dependencies";
 import { useOrganization } from "@/contexts/organization-context";
 import { useEffectiveOrgId } from "@/hooks/useOrgRouter";
@@ -32,16 +22,6 @@ import { handleApiError } from "@/lib/error-utils";
 import type { Dependency, AddDependencySheetProps, UpdateDependencyVersionRequest } from "@/types/dependency/sheets";
 
 export type { AddDependencySheetProps } from "@/types/dependency/sheets";
-
-function getVersionModeBadgeLabel(dependency: Dependency, t: (key: string) => string): string {
-  if (dependency.version_mode === 'specific') {
-    return dependency.depends_on_execution_name || t('versionMode.badge.specificFallback');
-  }
-  if (dependency.version_mode === 'latest_approved') {
-    return t('versionMode.badge.latestApproved');
-  }
-  return t('versionMode.badge.published');
-}
 
 // `canEdit` es secure-by-default (punto 9 del checklist): su único call-site
 // (assets-dependencies-sheet.tsx) ya lo pasa explícito desde el cruce lifecycle × RBAC.
@@ -223,64 +203,14 @@ export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = f
                         ) : (
                             <ul className="divide-y divide-gray-100">
                                 {dependencies.map((dependency) => (
-                                    <li key={dependency.id} className="flex items-center gap-3 px-2 py-2.5">
-                                        <File
-                                            className="h-4 w-4 shrink-0"
-                                            style={{ color: dependency.document_type?.color || "currentColor" }}
-                                        />
-                                        <div className="min-w-0 flex-1">
-                                            <p className="text-sm font-medium text-gray-900 truncate">
-                                                {dependency.document_name}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground truncate">
-                                                {[
-                                                    dependency.document_type?.name,
-                                                    getVersionModeBadgeLabel(dependency, t),
-                                                    dependency.section_name
-                                                        ? t('list.sectionLabel', { name: dependency.section_name })
-                                                        : null,
-                                                ].filter(Boolean).join(' · ')}
-                                            </p>
-                                        </div>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <HuemulButton
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    icon={MoreVertical}
-                                                    iconClassName="h-3.5 w-3.5"
-                                                    className="h-7 w-7 p-0 shrink-0 text-gray-400 hover:text-gray-700 hover:bg-gray-200 hover:cursor-pointer"
-                                                />
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem
-                                                    className="hover:cursor-pointer"
-                                                    onSelect={() => setTimeout(() => window.open(`/${orgId}/asset/${dependency.document_id}`, '_blank'), 0)}
-                                                >
-                                                    <ExternalLink className="mr-2 h-4 w-4" />
-                                                    {t('viewDocument')}
-                                                </DropdownMenuItem>
-                                                {canEdit && (
-                                                    <DropdownMenuItem
-                                                        className="hover:cursor-pointer"
-                                                        onSelect={() => setTimeout(() => handleChangeVersion(dependency), 0)}
-                                                    >
-                                                        <GitBranch className="mr-2 h-4 w-4" />
-                                                        {t('changeVersion')}
-                                                    </DropdownMenuItem>
-                                                )}
-                                                {canEdit && (
-                                                    <DropdownMenuItem
-                                                        className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
-                                                        onSelect={() => setTimeout(() => handleRemoveDependency(dependency), 0)}
-                                                    >
-                                                        <Trash2 className="mr-2 h-4 w-4" />
-                                                        {t('removeDependency')}
-                                                    </DropdownMenuItem>
-                                                )}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </li>
+                                    <DependencyListItem
+                                        key={dependency.id}
+                                        dependency={dependency}
+                                        orgId={orgId}
+                                        canEdit={canEdit}
+                                        onChangeVersion={handleChangeVersion}
+                                        onRemove={handleRemoveDependency}
+                                    />
                                 ))}
                             </ul>
                         )}

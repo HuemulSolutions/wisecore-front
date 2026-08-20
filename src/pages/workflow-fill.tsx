@@ -38,7 +38,7 @@ interface FillLocationState {
  *   la ejecución por defecto — mismo camino que un express recién creado.
  */
 export default function WorkflowFillPage() {
-  const { t } = useTranslation("workflow")
+  const { t } = useTranslation(["workflow", "common"])
   const params = useParams<{
     documentTypeId?: string
     templateId?: string
@@ -240,7 +240,7 @@ export default function WorkflowFillPage() {
             variant="outline"
             size="sm"
             icon={RotateCcw}
-            label={t("fill.retry")}
+            label={t("common:retry")}
             onClick={handleRetryAutoCreate}
             className="mt-2"
           />

@@ -53,6 +53,7 @@ export function MediaReferencePicker({
   const { can } = usePageAccess('media')
   const canCreate = can('createMedia')
   const canDeleteMedia = can('deleteMedia')
+  const canListModels = can('listLlms')
 
   // Default the picker scope to the editor context (asset / version); fall back to
   // the document, then organization.
@@ -216,6 +217,7 @@ export function MediaReferencePicker({
         organizationId={organizationId}
         canCreate={canCreate}
         canDelete={canDeleteMedia}
+        canListModels={canListModels}
         onInsert={handleGeneratedInsert}
       />
     </HuemulSheet>

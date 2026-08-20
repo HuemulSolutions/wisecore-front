@@ -25,8 +25,11 @@ export async function testImageGenerationConnection(): Promise<ImageGenerationTe
 
 /**
  * Genera una imagen a partir de un prompt y la persiste como Media real de la
- * organización (level "organization", origin "wisecore", prompt como name/summary).
- * Puede tardar decenas de segundos.
+ * organización (level "organization", origin "wisecore", prompt como name/summary
+ * por defecto, o `name` si se especifica). Acepta `llm_id` para elegir el modelo
+ * (por defecto el primer LLM `image_output` configurado) y `media_id` +
+ * `save_as_new_version` para versionar una Media existente en vez de crear una
+ * nueva. Puede tardar decenas de segundos.
  */
 export async function generateImage(
   organizationId: string,

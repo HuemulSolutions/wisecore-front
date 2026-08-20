@@ -34,6 +34,8 @@ export interface PageHeaderProps {
   icon: LucideIcon
   /** Page title */
   title: string
+  /** Optional one-line description shown under the title */
+  subtitle?: string
   /** Badges to display next to actions */
   badges?: PageHeaderBadge[]
   /** Show refresh button */

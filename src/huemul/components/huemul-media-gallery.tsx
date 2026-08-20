@@ -1,20 +1,70 @@
-import { AlertCircle, RefreshCw, Inbox } from "lucide-react"
+import { AlertCircle, RefreshCw, Inbox, MoreVertical, Sparkles } from "lucide-react"
 import { formatRelativeTime } from "@/lib/format-relative-time"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { formatBytes } from "@/lib/format-bytes"
 import { isImage, MediaIcon } from "./huemul-media-icon"
 import type { Media } from "@/types/media"
 import type { ViewMode } from "./huemul-view-toggle"
 
+// ─── Menú "Regenerar con IA" ────────────────────────────────────────────────
+
+function RegenerateMenu({
+  onRegenerate,
+  regenerateLabel,
+  triggerClassName,
+}: {
+  onRegenerate: () => void
+  regenerateLabel?: string
+  triggerClassName?: string
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={regenerateLabel}
+          onClick={(e) => e.stopPropagation()}
+          className={triggerClassName}
+        >
+          <MoreVertical className="h-3.5 w-3.5" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenuItem onClick={onRegenerate}>
+          <Sparkles className="h-3.5 w-3.5 mr-2" />
+          {regenerateLabel}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 // ─── Gallery card ─────────────────────────────────────────────────────────────
 
-function MediaCard({ item, onClick }: { item: Media; onClick: () => void }) {
+function MediaCard({
+  item,
+  onClick,
+  onRegenerate,
+  regenerateLabel,
+}: {
+  item: Media
+  onClick: () => void
+  onRegenerate?: (item: Media) => void
+  regenerateLabel?: string
+}) {
   const version = item.current_version
   const name = item.name ?? version?.original_filename ?? item.id
   const contentType = version?.content_type
+  const canRegenerate = onRegenerate && isImage(contentType)
 
   return (
     <div
@@ -39,6 +89,13 @@ function MediaCard({ item, onClick }: { item: Media; onClick: () => void }) {
           <span className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[10px] font-mono px-1.5 py-0.5 rounded">
             v{version.version_number}
           </span>
+        )}
+        {canRegenerate && (
+          <RegenerateMenu
+            onRegenerate={() => onRegenerate(item)}
+            regenerateLabel={regenerateLabel}
+            triggerClassName="absolute top-1.5 right-1.5 rounded-md bg-black/60 p-1 text-white opacity-0 transition-opacity hover:bg-black/80 hover:cursor-pointer group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none"
+          />
         )}
       </div>
 
@@ -71,10 +128,21 @@ function MediaCard({ item, onClick }: { item: Media; onClick: () => void }) {
 
 // ─── List row ─────────────────────────────────────────────────────────────────
 
-function MediaRow({ item, onClick }: { item: Media; onClick: () => void }) {
+function MediaRow({
+  item,
+  onClick,
+  onRegenerate,
+  regenerateLabel,
+}: {
+  item: Media
+  onClick: () => void
+  onRegenerate?: (item: Media) => void
+  regenerateLabel?: string
+}) {
   const version = item.current_version
   const name = item.name ?? version?.original_filename ?? item.id
   const contentType = version?.content_type
+  const canRegenerate = onRegenerate && isImage(contentType)
 
   return (
     <div
@@ -114,6 +182,13 @@ function MediaRow({ item, onClick }: { item: Media; onClick: () => void }) {
           {formatRelativeTime(item.created_at)}
         </span>
       )}
+      {canRegenerate && (
+        <RegenerateMenu
+          onRegenerate={() => onRegenerate(item)}
+          regenerateLabel={regenerateLabel}
+          triggerClassName="shrink-0 rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground hover:cursor-pointer group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none"
+        />
+      )}
     </div>
   )
 }
@@ -132,6 +207,9 @@ export interface HuemulMediaGalleryProps {
   emptyDescription: string
   loadError: string
   retryLabel?: string
+  /** Ítem "Regenerar con IA" del menú de cada tarjeta/fila de imagen. Ausente = sin menú. */
+  onRegenerate?: (item: Media) => void
+  regenerateLabel?: string
 }
 
 export function HuemulMediaGallery({
@@ -146,6 +224,8 @@ export function HuemulMediaGallery({
   emptyDescription,
   loadError,
   retryLabel = "Retry",
+  onRegenerate,
+  regenerateLabel,
 }: HuemulMediaGalleryProps) {
   if (isError) {
     return (
@@ -177,7 +257,15 @@ export function HuemulMediaGallery({
           ? Array.from({ length: 12 }).map((_, i) => (
               <Skeleton key={i} className="h-14 w-full rounded-lg" />
             ))
-          : items.map((item) => <MediaRow key={item.id} item={item} onClick={() => onSelect(item)} />)}
+          : items.map((item) => (
+              <MediaRow
+                key={item.id}
+                item={item}
+                onClick={() => onSelect(item)}
+                onRegenerate={onRegenerate}
+                regenerateLabel={regenerateLabel}
+              />
+            ))}
       </div>
     )
   }
@@ -197,7 +285,15 @@ export function HuemulMediaGallery({
               <Skeleton className="h-3 w-1/2" />
             </div>
           ))
-        : items.map((item) => <MediaCard key={item.id} item={item} onClick={() => onSelect(item)} />)}
+        : items.map((item) => (
+            <MediaCard
+              key={item.id}
+              item={item}
+              onClick={() => onSelect(item)}
+              onRegenerate={onRegenerate}
+              regenerateLabel={regenerateLabel}
+            />
+          ))}
     </div>
   )
 }

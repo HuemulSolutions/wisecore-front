@@ -20,7 +20,7 @@ interface WorkflowShareDialogProps {
  * clipboard compartido en el repo).
  */
 export function WorkflowShareDialog({ open, onOpenChange, url, description }: WorkflowShareDialogProps) {
-  const { t } = useTranslation("workflow")
+  const { t } = useTranslation(["workflow", "common"])
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export function WorkflowShareDialog({ open, onOpenChange, url, description }: Wo
       description={description}
       icon={Share2}
       showCancelButton
-      cancelLabel={t("share.close")}
+      cancelLabel={t("common:close")}
       extraActions={[
         {
           label: t("share.openInNewTab"),

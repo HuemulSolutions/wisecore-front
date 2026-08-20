@@ -1,6 +1,13 @@
 import type { TFunction } from "i18next"
 import { QUESTION_TYPE } from "@/components/sections/question-type-meta"
 
+/**
+ * Valida el borrador en edición del sheet (value: string | string[], un solo
+ * campo). Contraparte para el registro persistido CustomFieldDocument (con
+ * columnas tipadas, donde 0/false son valores válidos):
+ * src/lib/custom-field-required-utils.ts — si cambian las reglas de
+ * "obligatorio sin valor", tocar los dos.
+ */
 interface ValidateCustomFieldValueParams {
   dataType: string
   questionType?: string
