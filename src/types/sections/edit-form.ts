@@ -1,6 +1,7 @@
 import type { Section } from './add'
+import type { SectionDependencyConfig } from './core'
 
-export interface EditFormItem {
+export interface EditFormItem extends SectionDependencyConfig {
   id: string;
   name: string;
   prompt: string;
@@ -16,7 +17,7 @@ export interface EditFormItem {
   form_fields?: import('./core').SectionFormField[];
 }
 
-export interface EditFormItemForBackend {
+export interface EditFormItemForBackend extends SectionDependencyConfig {
   id: string;
   name: string;
   type?: "ai" | "manual" | "reference" | "form";

@@ -16,12 +16,25 @@ export function applyFormValuesPatch(
 ): void {
   const queryKey = { queryKey: ['document-content', documentId] };
   const cachedIds = new Set<string>();
+  // field_id referenciados por el depends_on de alguna SECCIÓN cacheada (de cualquier
+  // tipo). A diferencia de los triggers a nivel de pregunta, PATCH /form_values NUNCA
+  // recalcula ni devuelve los flags de sección (is_visible/can_answer) — si el PATCH
+  // tocó uno de estos ids, la visibilidad de otra sección pudo cambiar sin que este
+  // payload lo refleje, así que hay que refetch en vez de parchear. Ver
+  // "ia context/dependencias-condicionales-formularios-guide.md" §3.2.
+  const sectionTriggerIds = new Set<string>();
   for (const [, data] of queryClient.getQueriesData<{ content?: ContentSection[] }>(queryKey)) {
-    for (const section of data?.content ?? []) cachedIds.add(section.id);
+    for (const section of data?.content ?? []) {
+      cachedIds.add(section.id);
+      for (const cond of section.depends_on ?? []) sectionTriggerIds.add(cond.field_id);
+    }
   }
 
   const hasUnknownSection = payload.some((p) => !cachedIds.has(p.section_execution_id));
-  if (hasUnknownSection) {
+  const touchedSectionTrigger = payload.some((p) =>
+    p.form_fields.some((f) => f.field_id && sectionTriggerIds.has(f.field_id)),
+  );
+  if (hasUnknownSection || touchedSectionTrigger) {
     queryClient.invalidateQueries(queryKey);
     return;
   }

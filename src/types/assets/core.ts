@@ -389,6 +389,17 @@ export interface ContentSection {
   ai_suggestion_error?: string | null;
   review_status?: 'editing' | 'reviewing' | 'finished' | null;
   form_fields?: import('../sections/core').FormFieldValue[];
+  depends_on?: import('../sections/core').FieldDependencyCondition[] | null;
+  show_when_inactive?: boolean;
+  /**
+   * Calculados por el backend a partir de depends_on/show_when_inactive propio de
+   * la sección (ver "ia context/dependencias-condicionales-formularios-guide.md" §3.2).
+   * Una sección con is_visible:false y show_when_inactive falsy ni siquiera llega en
+   * /content — estos flags solo están presentes en las secciones que sí llegan.
+   * Ausentes (sin depends_on) equivalen a true.
+   */
+  is_visible?: boolean;
+  can_answer?: boolean;
   /**
    * Acceso de esta sección en la etapa/step actual del ciclo de vida, según
    * `template_section_lifecycle_access` (ver src/types/templates/section-lifecycle-access.ts).

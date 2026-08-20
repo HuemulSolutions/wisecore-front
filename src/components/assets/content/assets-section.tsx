@@ -51,6 +51,7 @@ function SectionExecutionInner({
     status,
     canEditSections = false,
     onCreateSectionFromSelection,
+    sectionCanAnswer = true,
     // onCopyLink,
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
@@ -61,13 +62,17 @@ function SectionExecutionInner({
     const formHasEditableFields = (sectionExecution.form_fields ?? []).some(isFieldAnswerable);
     const isFormAnswered = !!status && status !== 'pending';
     // Un formulario pendiente sin respuestas arranca directamente en modo edición.
+    // sectionCanAnswer=false (depends_on propio de la sección no cumplido, ver
+    // "ia context/dependencias-condicionales-formularios-guide.md" §3.2) bloquea entrar en
+    // modo edición aunque AssetFormSection ya vaya a forzar can_answer:false por campo —
+    // evita que el usuario abra el formulario para encontrarlo todo deshabilitado.
     const [isEditing, setIsEditing] = useState(
-        sectionType === 'form' && readyToEdit && canEditSections && formHasEditableFields && !isFormAnswered
+        sectionType === 'form' && readyToEdit && canEditSections && sectionCanAnswer && formHasEditableFields && !isFormAnswered
     );
     // Responder el formulario sin salir del modo lector del asset — atajo sobre la tarjeta
     // del reader (ver AssetFormSectionReader), independiente del `isEditing` de modo editor.
     const [isAnsweringInReader, setIsAnsweringInReader] = useState(false);
-    const canAnswerInReader = sectionType === 'form' && canEditSections && formHasEditableFields;
+    const canAnswerInReader = sectionType === 'form' && canEditSections && sectionCanAnswer && formHasEditableFields;
 
     // Si el usuario cambia a modo editor mientras respondía desde el reader, se corta ese modo
     // para no terminar con dos formularios (reader + editor) montados a la vez.
@@ -420,6 +425,17 @@ function SectionExecutionInner({
                                 <span className="mx-1.5 text-[10px] text-blue-300">•</span>
                                 <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-600/70">
                                     {sectionTypeLabel}
+                                </span>
+                            </div>
+                        )}
+                        {/* Sección con depends_on propio no cumplido, mostrada por show_when_inactive:true */}
+                        {!sectionCanAnswer && (
+                            <div
+                                className="flex items-center rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1"
+                                title={t('form.fill.sectionInactive', { ns: 'sections' })}
+                            >
+                                <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                                    {t('form.fill.sectionInactive', { ns: 'sections' })}
                                 </span>
                             </div>
                         )}
@@ -831,7 +847,7 @@ function SectionExecutionInner({
                             status={status}
                             organizationId={selectedOrganizationId ?? undefined}
                             documentId={documentId}
-                            canInteract={readyToEdit && canEditSections}
+                            canInteract={readyToEdit && canEditSections && sectionCanAnswer}
                             isEditing={isEditing}
                             onExitEditing={handleCancelEdit}
                             reviewStatus={reviewStatus}

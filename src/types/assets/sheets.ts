@@ -1,5 +1,6 @@
 // Sheet / drawer component props for the assets module
 import type { LifecyclePermissions } from './core'
+import type { SectionDependencyConfig, SectionFormField } from '../sections/core'
 
 // ----------------------------------------
 // Context Sheet
@@ -133,7 +134,7 @@ export interface SectionsConfigExecution {
   created_at?: string
 }
 
-export interface SectionsConfigSection {
+export interface SectionsConfigSection extends SectionDependencyConfig {
   id: string
   name: string
   type?: "ai" | "manual" | "reference" | "form"
@@ -145,7 +146,7 @@ export interface SectionsConfigSection {
   reference_mode?: "latest" | "specific"
   reference_execution_id?: string
   not_in_execution?: boolean | null
-  form_fields?: import('../sections/core').SectionFormField[]
+  form_fields?: SectionFormField[]
 }
 
 export interface SectionsConfigResponse {

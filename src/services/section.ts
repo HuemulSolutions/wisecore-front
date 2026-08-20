@@ -1,7 +1,7 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { logger } from "@/lib/logger";
-import type { SectionFormField } from "@/types/sections/core";
+import type { SectionDependencyConfig, SectionFormField } from "@/types/sections/core";
 
 export async function createSection(
     sectionData: {
@@ -20,7 +20,7 @@ export async function createSection(
         form_fields?: SectionFormField[];
         execution_id?: string;
         output?: string;
-    },
+    } & SectionDependencyConfig,
     organizationId: string
 ) {
     const response = await httpClient.post(`${backendUrl}/sections/`, {
@@ -56,7 +56,7 @@ export async function updateSection(
         propagate_to_executions?: boolean;
         execution_id?: string;
         form_fields?: SectionFormField[];
-    },
+    } & SectionDependencyConfig,
     organizationId: string
 ) {
     const response = await httpClient.put(`${backendUrl}/sections/${sectionId}`, sectionData, {

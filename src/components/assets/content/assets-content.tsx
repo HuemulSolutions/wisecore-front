@@ -87,7 +87,7 @@ import { usePageAccess } from '@/hooks/usePageAccess';
 import type { ContentSection, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
 import type { FormValuesSectionPayload } from '@/types/sections/core';
 import { applyFormValuesPatch } from '@/components/assets/content/utils/patch-document-content';
-import { isFormSectionApplicable } from '@/components/workflow/workflow-section-stats';
+import { isSectionAnswerable, isSectionApplicable, isSectionVisible } from '@/components/workflow/workflow-section-stats';
 import { CustomFieldsList } from './assets-custom-fields-list';
 import { SectionIndexContext } from '@/contexts/section-index-context';
 import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
@@ -3011,6 +3011,15 @@ export function AssetContent({
                               {documentContent.content.map((section: ContentSection, index: number) => {
                           const realSectionId = section.section_id;
 
+                          // Sección con depends_on propio no cumplido y sin show_when_inactive: el
+                          // backend ya no la devuelve en /content, pero puede seguir en caché tras un
+                          // parche local (PATCH /form_values de otra sección) — se descarta siempre,
+                          // en editor y en lector (a diferencia del chequeo de abajo, que solo aplica
+                          // en modo lector). Ver ia context/dependencias-condicionales-formularios-guide.md §3.2.
+                          if (!isSectionVisible(section)) {
+                            return null;
+                          }
+
                           // In reader mode, hide sections with empty content — except sections
                           // in scope of an in-progress 'single'/'from' execution: there the empty
                           // content is transient and must show skeleton + feedback, not disappear.
@@ -3018,12 +3027,12 @@ export function AssetContent({
                           // backend rule, ver ia context/dependencias-condicionales-formularios-guide.md)
                           // instead of markdown/plate content.
                           const sectionIsHidden = section.section_type === 'form'
-                            ? !isFormSectionApplicable(section)
+                            ? !isSectionApplicable(section)
                             : isSectionContentEmpty(section);
                           if (isViewMode && !isSectionInScope(index) && sectionIsHidden) {
                             return null;
                           }
-                          
+
                           return (
                             <SectionIndexContext.Provider key={`${section.id}-${index}`} value={index}>
                               <div id={`section-${index}`} className="relative">
@@ -3064,6 +3073,7 @@ export function AssetContent({
                                   onOpenExecuteSheet={handleCreateExecutionFromSection(index, realSectionId)}
                                   sectionType={section.section_type}
                                   sectionName={section.section_name}
+                                  sectionCanAnswer={isSectionAnswerable(section)}
                                   canEditSections={frontendPermissions.canEditSections}
                                   onCreateSectionFromSelection={handleCreateSectionFromSelection(index)}
                                   onCopyLink={realSectionId ? () => handleCopySectionLink(realSectionId) : undefined}

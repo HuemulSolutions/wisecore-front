@@ -147,6 +147,22 @@ const translations = {
       questionTypeRequired: { en: "Select a question type for every field", es: "Selecciona un tipo de pregunta para cada campo" },
       customFieldRequired: { en: "Select a custom field for custom field questions", es: "Selecciona un campo personalizado para las preguntas de tipo campo personalizado" },
     },
+    sectionDependency: {
+      title: { en: "Show this section only if…", es: "Mostrar esta sección solo si…" },
+      hint: {
+        en: "Evaluated against answers from earlier sections. All conditions combine with AND.",
+        es: "Se evalúa contra las respuestas de secciones anteriores. Todas las condiciones se combinan con Y.",
+      },
+      noEarlierFields: {
+        en: "No questions in earlier sections to condition this section on.",
+        es: "No hay preguntas en secciones anteriores para condicionar esta sección.",
+      },
+      showWhenInactive: { en: "Show disabled when inactive", es: "Mostrar deshabilitada cuando no está activa" },
+      showWhenInactiveHint: {
+        en: "If off, the section stays hidden until the condition is met.",
+        es: "Si está apagado, la sección permanece oculta hasta que se cumpla la condición.",
+      },
+    },
     fill: {
       submitResponses: { en: "Submit responses", es: "Guardar respuestas" },
       answer: { en: "Answer", es: "Responder" },
@@ -184,6 +200,10 @@ const translations = {
       fileUploading_block: { en: "Wait for the file to finish uploading", es: "Espera a que el archivo termine de subirse" },
       fileDownload: { en: "Download file", es: "Descargar archivo" },
       fileUnavailable: { en: "File unavailable", es: "Archivo no disponible" },
+      sectionInactive: {
+        en: "This section is inactive based on the answers given.",
+        es: "Esta sección está inactiva según las respuestas dadas.",
+      },
     },
     formFields: {
       label: { en: "Form Fields", es: "Campos del Formulario" },

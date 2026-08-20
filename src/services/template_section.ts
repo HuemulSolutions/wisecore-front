@@ -1,7 +1,7 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { logger } from "@/lib/logger";
-import type { SectionFormField } from "@/types/sections/core";
+import type { SectionDependencyConfig, SectionFormField } from "@/types/sections/core";
 
 // Las secciones ahora vienen incluidas cuando obtenemos el template por ID
 // No necesitamos un endpoint separado para obtener las secciones
@@ -20,7 +20,7 @@ export async function createTemplateSection(
         form_fields?: SectionFormField[];
         propagate_to_documents?: boolean;
         document_ids?: string[];
-    },
+    } & SectionDependencyConfig,
     organizationId: string
 ) {
     const response = await httpClient.post(`${backendUrl}/template_section/`, {
@@ -51,7 +51,7 @@ export async function updateTemplateSection(
         form_fields?: SectionFormField[];
         propagate_to_sections?: boolean;
         document_ids?: string[];
-    },
+    } & SectionDependencyConfig,
     organizationId: string
 ) {
     const response = await httpClient.put(`${backendUrl}/template_section/${sectionId}`, sectionData, {

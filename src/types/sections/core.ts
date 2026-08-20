@@ -18,6 +18,14 @@ export interface FieldDependencyCondition {
   value?: unknown; // omitido/ignorado para is_empty / is_not_empty
 }
 
+// Dependencia condicional a nivel de SECCIÓN (mismo formato y operadores que a nivel
+// de pregunta, ver "ia context/dependencias-condicionales-formularios-guide.md" §3.2).
+// Aplica a cualquier tipo de sección (form/manual/ai/reference), no solo `form`.
+export interface SectionDependencyConfig {
+  depends_on?: FieldDependencyCondition[] | null;
+  show_when_inactive?: boolean;
+}
+
 export interface SectionFormField {
   id?: string;                          // id de la fila section_form (presente en lecturas)
   field_id: string;
@@ -113,7 +121,7 @@ export interface FormFieldConfig {
   max_size_mb?: number;
 }
 
-export interface SortableSectionItem {
+export interface SortableSectionItem extends SectionDependencyConfig {
   id: string
   name: string
   prompt: string
@@ -128,7 +136,7 @@ export interface SortableSectionItem {
   form_fields?: SectionFormField[]
 }
 
-export interface SortableSectionSheetItem {
+export interface SortableSectionSheetItem extends SectionDependencyConfig {
   id: string
   name: string
   prompt: string
