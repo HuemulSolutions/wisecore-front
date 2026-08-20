@@ -4,6 +4,17 @@ export interface AssetBreadcrumb {
   path: string;
 }
 
+export interface LibraryContentAssetExecution {
+  id: string;
+  version_major: number | null;
+  version_minor: number | null;
+  version_patch: number | null;
+  /** Nombre libre de la versión (ej. "Release Q3"), no el string armado desde major.minor.patch */
+  version: string;
+  status: LibraryContentLifecycleState;
+  created_at: string;
+}
+
 export interface LibraryContentAsset {
   id: string;
   name: string;
@@ -18,6 +29,11 @@ export interface LibraryContentAsset {
   has_unresolved_comments?: boolean;
   matching_execution_count?: number;
   matching_execution_ids?: string[];
+  // Solo presentes cuando la request usa include_executions=true
+  execution_count?: number;
+  current_execution_id?: string;
+  latest_execution_id?: string | null;
+  executions?: LibraryContentAssetExecution[];
 }
 
 export type LibraryContentFolderType = 'personal' | 'global' | 'forms' | 'grupal' | 'area' | 'sin_carpeta';
@@ -61,4 +77,10 @@ export interface GetLibraryContentFilters {
   estimated_publication_date?: string | null;
   review_date?: string | null;
   audit_date?: string | null;
+}
+
+export interface GetLibraryContentOptions {
+  includeExecutions?: boolean;
+  /** Modo lote: ignora folderId/search/filters/focusAssetId. Incompatible con ellos (400 del backend). */
+  assetIds?: string[];
 }
