@@ -46,6 +46,10 @@ export interface UseLifecycleActionsOptions {
   onBeforeAdvance?: () => void
   /** Opens a version-compare view for the approval step's "ver cambios" action. Omit to hide that action. */
   onViewChanges?: (previousExecutionId: string, currentExecutionId: string) => void
+  /** `custom_fields:l|r` del scope de la página. Gatea la query que alimenta la validación de obligatorios sin valor. */
+  canListCustomFields?: boolean
+  /** Abre el tab de campos personalizados del documento. Omitir donde ese tab no existe (WorkflowDetailPanel): el botón "Ir a campos personalizados" se oculta. */
+  onOpenCustomFields?: () => void
 }
 
 export interface LifecycleActionsController {
@@ -68,6 +72,8 @@ export interface LifecycleActionsController {
   setIsRestoreDialogOpen: (open: boolean) => void
   isAssignVersionDialogOpen: boolean
   setIsAssignVersionDialogOpen: (open: boolean) => void
+  isRequiredCustomFieldsDialogOpen: boolean
+  setIsRequiredCustomFieldsDialogOpen: (open: boolean) => void
 
   checkMutation: UseMutationResult<unknown, unknown, { comment?: string; run_external_review?: boolean } | undefined>
   rejectMutation: UseMutationResult<unknown, unknown, { comment: string; target_state?: string; target_step_id?: string } | undefined>
@@ -85,6 +91,12 @@ export interface LifecycleActionsController {
   canViewChanges: boolean
   isSummaryLoading: boolean
   handleViewChanges: () => void
+  /** Obligatorios sin valor para el aviso preventivo. Vacío si la transición no sale de draft. */
+  missingRequiredCustomFields: string[]
+  /** Campos que el backend reportó al rechazar la transición (local, o parseados del detail como fallback). */
+  requiredCustomFieldsError: string[]
+  /** Passthrough de la opción homónima; undefined = la superficie no tiene tab de custom fields. */
+  onOpenCustomFields?: () => void
 }
 
 // ----------------------------------------

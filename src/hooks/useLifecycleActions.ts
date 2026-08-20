@@ -1,9 +1,12 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { handleApiError } from "@/lib/error-utils"
+import { ApiError, handleApiError } from "@/lib/error-utils"
 import { withRefresh } from "@/lib/query-utils"
+import { logger } from "@/lib/logger"
+import { parseMissingRequiredCustomFieldsDetail } from "@/lib/custom-field-required-utils"
 import { useExternalReviewActions } from "@/hooks/useLifecycle"
+import { useMissingRequiredCustomFields } from "@/hooks/useCustomFieldDocuments"
 import { executionLifecycleQueryKeys } from "@/hooks/useExecutionLifecycle"
 import { getDocumentTypeById } from "@/services/document-types"
 import {
@@ -22,6 +25,7 @@ import type {
 } from "@/types/lifecycle"
 
 const VERSION_REQUIRED_CODE = "VERSION_REQUIRED_FOR_APPROVAL"
+const REQUIRED_CUSTOM_FIELDS_CODE = "CUSTOM_FIELD_DOCUMENT_REQUIRED_VALUE_MISSING"
 
 /** Defensa en profundidad: los botones ya no se renderizan sin `asset:u`. */
 const NO_TRANSITION_PERMISSION = "Missing permission to transition the lifecycle"
@@ -51,6 +55,8 @@ export function useLifecycleActions({
   extraRefreshKeys,
   onBeforeAdvance,
   onViewChanges,
+  canListCustomFields = false,
+  onOpenCustomFields,
 }: UseLifecycleActionsOptions): LifecycleActionsController {
   const { t } = useTranslation(["assets", "common"])
   const queryClient = useQueryClient()
@@ -71,6 +77,8 @@ export function useLifecycleActions({
   const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false)
   const [isAssignVersionDialogOpen, setIsAssignVersionDialogOpenState] = useState(false)
   const [pendingVersionAction, setPendingVersionAction] = useState<PendingVersionLifecycleAction | null>(null)
+  const [isRequiredCustomFieldsDialogOpen, setIsRequiredCustomFieldsDialogOpen] = useState(false)
+  const [requiredCustomFieldsError, setRequiredCustomFieldsError] = useState<string[]>([])
 
   // Closing the assign-version dialog (by any path — cancel, backdrop click, or
   // after a successful/failed confirm) must drop any pending retry action, or a
@@ -81,6 +89,40 @@ export function useLifecycleActions({
   }
 
   const refreshKeys = () => [["document-content", documentId], ...(extraRefreshKeys?.() ?? [])]
+
+  // El backend valida los custom fields obligatorios al salir de `draft`
+  // (y al pasar in_approval -> approved). `will_advance_phase` distingue
+  // "completar este step avanza la fase" de "avanza solo el step": sin él
+  // el aviso preventivo dispararía falsas alarmas en steps intermedios de
+  // draft.
+  const isLeavingDraft = lifecycleStatus?.state === "draft" && !!lifecycleStatus?.will_advance_phase
+
+  const { missingFieldNames } = useMissingRequiredCustomFields({
+    documentId,
+    organizationId,
+    enabled: isCheckDialogOpen && isLeavingDraft && canListCustomFields,
+  })
+
+  /**
+   * Lista de campos para el diálogo de error: se prefiere el cálculo local
+   * sobre custom_field_documents y se cae al detail (texto libre) cuando la
+   * query no está disponible (sin permiso, error disparado desde `advance`
+   * sin haber abierto el diálogo, cache vacío). Si ninguna de las dos da
+   * nombres, devuelve false y gana el toast genérico — nunca un diálogo
+   * vacío.
+   */
+  const handleRequiredCustomFieldsError = (error: unknown): boolean => {
+    const parsed = parseMissingRequiredCustomFieldsDetail(ApiError.isApiError(error) ? error.detail : null)
+    const names = missingFieldNames.length > 0 ? missingFieldNames : parsed.fieldNames
+    if (names.length === 0) return false
+    if (missingFieldNames.length > 0 && parsed.fieldNames.length > 0 && names.length !== parsed.fieldNames.length) {
+      // Señal de que las reglas locales de "sin valor" se desalinearon del backend.
+      logger.warn("[lifecycle] required custom fields mismatch", { local: names, backend: parsed.fieldNames })
+    }
+    setRequiredCustomFieldsError(names)
+    setIsRequiredCustomFieldsDialogOpen(true)
+    return true
+  }
 
   const checkMutation = useMutation({
     mutationFn: withRefresh(
@@ -104,6 +146,7 @@ export function useLifecycleActions({
       handleApiError(error, {
         fallbackMessage: t("lifecycle.errorComplete"),
         onErrorCode: (code) => {
+          if (code === REQUIRED_CUSTOM_FIELDS_CODE) return handleRequiredCustomFieldsError(error)
           if (code !== VERSION_REQUIRED_CODE) return false
           setPendingVersionAction({ kind: "complete", options: variables })
           setIsAssignVersionDialogOpen(true)
@@ -167,6 +210,7 @@ export function useLifecycleActions({
       handleApiError(error, {
         fallbackMessage: t("lifecycle.errorAdvance"),
         onErrorCode: (code) => {
+          if (code === REQUIRED_CUSTOM_FIELDS_CODE) return handleRequiredCustomFieldsError(error)
           if (code !== VERSION_REQUIRED_CODE) return false
           setPendingVersionAction({ kind: "advance", options: variables })
           setIsAssignVersionDialogOpen(true)
@@ -282,6 +326,8 @@ export function useLifecycleActions({
     setIsRestoreDialogOpen,
     isAssignVersionDialogOpen,
     setIsAssignVersionDialogOpen,
+    isRequiredCustomFieldsDialogOpen,
+    setIsRequiredCustomFieldsDialogOpen,
 
     checkMutation,
     rejectMutation,
@@ -298,5 +344,9 @@ export function useLifecycleActions({
     canViewChanges: !!changeSummaryQuery.data?.previous_execution_id,
     isSummaryLoading,
     handleViewChanges,
+
+    missingRequiredCustomFields: isLeavingDraft ? missingFieldNames : [],
+    requiredCustomFieldsError,
+    onOpenCustomFields,
   }
 }

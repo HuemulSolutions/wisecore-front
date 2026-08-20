@@ -104,9 +104,12 @@ import { getExecutionDisplayLabel } from './utils/version-utils';
 import { VersionSelectorDropdown } from './assets-version-selector';
 import { ViewModeToggle } from './assets-view-mode-toggle';
 import { MoreOptionsDropdown } from './assets-more-options-dropdown';
+import { CUSTOM_FIELD_DOCUMENTS_PAGE_SIZE, customFieldDocumentsQueryKeys } from '@/hooks/useCustomFieldDocuments';
 
 // Tamaño de página del listado de campos personalizados en el panel lateral (angosto).
-const CUSTOM_FIELDS_PAGE_SIZE = 100;
+// Compartido con la validación preventiva del lifecycle (useCustomFieldDocuments) —
+// misma query key, un solo fetch.
+const CUSTOM_FIELDS_PAGE_SIZE = CUSTOM_FIELD_DOCUMENTS_PAGE_SIZE;
 
 /** Recursively extract all text from a Plate JSON node. */
 function extractPlateText(node: unknown): string {
@@ -934,7 +937,7 @@ export function AssetContent({
 
   // Fetch custom fields for the document
   const { data: customFieldsData, isLoading: isLoadingCustomFields } = useQuery({
-    queryKey: ['custom-field-documents', selectedFile?.id, customFieldsPage, CUSTOM_FIELDS_PAGE_SIZE],
+    queryKey: customFieldDocumentsQueryKeys.byDocument(selectedFile?.id, customFieldsPage, CUSTOM_FIELDS_PAGE_SIZE),
     queryFn: () => getCustomFieldDocumentsByDocument({
       document_id: selectedFile!.id,
       page: customFieldsPage,
@@ -1198,6 +1201,13 @@ export function AssetContent({
       setVersionCompareOverride({ left: previousExecutionId, right: currentExecutionId });
       setIsVersionCompareSheetOpen(true);
     },
+    canListCustomFields,
+    onOpenCustomFields: canListCustomFields
+      ? () => {
+          setActiveTab('custom-fields');
+          setIsTocSidebarOpen(true);
+        }
+      : undefined,
   });
 
   // Set initial view mode based on lifecycle permissions (once per document+execution):

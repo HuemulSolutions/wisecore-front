@@ -3,15 +3,16 @@ import { LifecycleReviewDialog } from "@/components/ui/lifecycle-review-dialog"
 import { LifecycleRollbackDialog } from "@/components/ui/lifecycle-rollback-dialog"
 import { LifecyclePublishDialog } from "@/components/ui/lifecycle-publish-dialog"
 import { LifecycleCommentDialog } from "@/components/ui/lifecycle-comment-dialog"
+import { LifecycleRequiredCustomFieldsDialog } from "@/components/ui/lifecycle-required-custom-fields-dialog"
 import { AssignVersionDialog } from "@/components/assets/dialogs/assets-assign-version-dialog"
 import type { HuemulLifecycleDialogsProps } from "@/types/lifecycle"
 
 /**
- * Mounts the five confirmation dialogs (complete/return, publish, archive,
- * restore, assign version) for a `useLifecycleActions` controller. Kept
- * separate from `HuemulLifecycleActions` because assets-content renders the
- * action buttons twice (mobile header + desktop metadata row) but only needs
- * one copy of these dialogs.
+ * Mounts the six confirmation dialogs (complete/return, publish, archive,
+ * restore, assign version, required custom fields) for a `useLifecycleActions`
+ * controller. Kept separate from `HuemulLifecycleActions` because
+ * assets-content renders the action buttons twice (mobile header + desktop
+ * metadata row) but only needs one copy of these dialogs.
  */
 export function HuemulLifecycleDialogs({
   controller,
@@ -21,6 +22,16 @@ export function HuemulLifecycleDialogs({
 }: HuemulLifecycleDialogsProps) {
   const { t } = useTranslation(["assets", "common"])
   const { status } = controller
+
+  // Ir al tab de campos personalizados cierra el diálogo que lo lanzó: el tab
+  // vive en el sidebar, tapado por el overlay del diálogo.
+  const goToCustomFields = controller.onOpenCustomFields
+    ? () => {
+        controller.setIsCheckDialogOpen(false)
+        controller.setIsRequiredCustomFieldsDialogOpen(false)
+        controller.onOpenCustomFields!()
+      }
+    : undefined
 
   return (
     <>
@@ -42,6 +53,8 @@ export function HuemulLifecycleDialogs({
         canViewChanges={controller.canViewChanges}
         isSummaryLoading={controller.isSummaryLoading}
         onViewChanges={controller.handleViewChanges}
+        missingRequiredCustomFields={controller.missingRequiredCustomFields}
+        onGoToCustomFields={goToCustomFields}
       />
 
       <LifecycleRollbackDialog
@@ -112,6 +125,13 @@ export function HuemulLifecycleDialogs({
         executionId={executionId}
         organizationId={organizationId}
         existingVersions={existingVersions}
+      />
+
+      <LifecycleRequiredCustomFieldsDialog
+        open={controller.isRequiredCustomFieldsDialogOpen}
+        onOpenChange={controller.setIsRequiredCustomFieldsDialogOpen}
+        fieldNames={controller.requiredCustomFieldsError}
+        onGoToCustomFields={goToCustomFields}
       />
     </>
   )

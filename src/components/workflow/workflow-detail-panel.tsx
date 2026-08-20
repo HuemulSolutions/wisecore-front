@@ -244,6 +244,10 @@ export function WorkflowDetailPanel({
     lifecyclePermissions: data?.lifecycle_permissions,
     rbac: { canTransition: canUpdateAssetContent },
     extraRefreshKeys: () => [workflowQueryKeys.listBase()],
+    // Sin onOpenCustomFields: el panel de workflow no tiene tab de campos
+    // personalizados. El diálogo oculta el botón y queda solo con "Cerrar" +
+    // la lista de campos (que sigue siendo la información útil).
+    canListCustomFields: can("listCustomFields"),
   })
 
   return (
