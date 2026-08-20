@@ -54,6 +54,7 @@ export function useLifecycleActions({
   rbac,
   extraRefreshKeys,
   onBeforeAdvance,
+  onAfterComplete,
   onViewChanges,
   canListCustomFields = false,
   onOpenCustomFields,
@@ -139,6 +140,7 @@ export function useLifecycleActions({
     onSuccess: () => {
       setIsCheckDialogOpen(false)
       queryClient.invalidateQueries({ queryKey: executionLifecycleQueryKeys.eventsBase() })
+      onAfterComplete?.()
     },
     meta: { successMessage: t("lifecycle.successComplete") },
     onError: (error, variables: { comment?: string; run_external_review?: boolean } | undefined) => {

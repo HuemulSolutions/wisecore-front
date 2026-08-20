@@ -44,6 +44,8 @@ export interface UseLifecycleActionsOptions {
   extraRefreshKeys?: () => QueryKey[]
   /** Runs right before an advance (publish/archive) mutation fires — e.g. to preserve scroll position. */
   onBeforeAdvance?: () => void
+  /** Runs after `checkMutation` (complete/return the current step) succeeds — e.g. to close a wizard that chained into this transition. */
+  onAfterComplete?: () => void
   /** Opens a version-compare view for the approval step's "ver cambios" action. Omit to hide that action. */
   onViewChanges?: (previousExecutionId: string, currentExecutionId: string) => void
   /** `custom_fields:l|r` del scope de la página. Gatea la query que alimenta la validación de obligatorios sin valor. */

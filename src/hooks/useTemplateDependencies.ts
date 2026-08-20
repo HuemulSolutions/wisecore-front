@@ -25,7 +25,7 @@ export function useTemplateDependencies(
     enabled: enabled !== false && !!organizationId && !!templateId,
     // Obligatorio con paginación en la query key: sin esto, cada cambio de
     // página vuelve a isLoading=true y blanquea el panel (refresh-button-guide §4).
-    placeholderData: (previousData: unknown) => previousData,
+    placeholderData: (prev) => prev,
   })
 }
 

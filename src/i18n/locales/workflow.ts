@@ -78,6 +78,7 @@ const translations = {
   wizard: {
     back: { en: "Back", es: "Atrás" },
     finish: { en: "Finish", es: "Finalizar" },
+    finishAndAdvance: { en: "Finish and advance", es: "Finalizar y avanzar" },
     noFormSections: { en: "This template has no form sections", es: "Este template no tiene secciones de formulario" },
     summary: {
       tooltip: { en: "Back to summary", es: "Volver al resumen" },
@@ -115,6 +116,14 @@ const translations = {
     readOnlyNotice: {
       en: "You don't have permission to answer this form — you can only view it.",
       es: "No tienes permiso para responder este formulario — solo puedes verlo.",
+    },
+    readOnlyStageNotice: {
+      en: "This document is in {{stage}}: fields can no longer be answered.",
+      es: "Este documento está en {{stage}}: los campos ya no se pueden responder.",
+    },
+    readOnlySectionNotice: {
+      en: "This section is read-only at this stage — you can view it but not answer it.",
+      es: "Esta sección es de solo lectura en esta etapa — puedes verla pero no responderla.",
     },
     notFound: { en: "This link is invalid or incomplete", es: "Este link no es válido o está incompleto" },
     templateFallbackName: { en: "Workflow", es: "Workflow" },

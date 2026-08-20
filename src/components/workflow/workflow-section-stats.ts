@@ -32,9 +32,14 @@ export function computeSectionStats(section: ContentSection): SectionStats {
   // así que tampoco debe sumar al total del contador "respondidas/total".
   const questions = fields.filter((f) => f.question_type !== QUESTION_TYPE.label && isFieldVisible(f));
   const answeredCount = questions.filter((f) => hasAnswer(resolvedValueOf(f))).length;
-  const missingRequired = questions.filter(
-    (f) => isFieldAnswerable(f) && f.required && !hasAnswer(resolvedValueOf(f)),
-  ).length;
+  // Una sección `access: 'view'` (ver template_section_lifecycle_access) no se
+  // puede responder aunque el backend no haya marcado cada campo con
+  // `can_answer: false` individualmente — sin este corte, sus obligatorios sin
+  // valor quedarían "pendientes" para siempre en el resumen del wizard.
+  const missingRequired =
+    section.access === "view"
+      ? 0
+      : questions.filter((f) => isFieldAnswerable(f) && f.required && !hasAnswer(resolvedValueOf(f))).length;
   return { fields, questions, answeredCount, missingRequired };
 }
 
