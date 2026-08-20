@@ -40,6 +40,9 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById, exportDocuments } from "@/services/assets";
 import { useDocumentMediaUrls } from "@/hooks/useDocumentMediaUrls";
 import { MediaUrlProvider } from "@/contexts/media-url-context";
+import { MentionRefsProvider } from "@/contexts/mention-refs-context";
+import { RoleRefsProvider } from "@/contexts/role-refs-context";
+import { collectMentionAssetIds, hasAnyRoleReference } from "@/lib/plate-mention-utils";
 import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, updateExecutionName } from "@/services/executions";
 import { useSectionsExecutionStatus } from './hooks/useSectionsExecutionStatus';
 import { getDefaultLLM } from "@/services/llms";
@@ -902,6 +905,29 @@ export function AssetContent({
     refetchOnWindowFocus: false,
     staleTime: 30000, // Cache for 30 seconds
   });
+
+  // Ids de todos los assets referenciados por menciones (@) en el contenido, para
+  // resolverlos en un solo lote (asset_ids + include_executions) en vez de confiar
+  // en el snapshot que cada chip trae guardado en su propio nodo Plate. También se
+  // detecta si hay al menos una referencia a un rol, para gatear el fetch de
+  // useRolesMap (trae TODOS los roles de la org) solo cuando hace falta.
+  const { mentionAssetIds, hasRoleReferences } = useMemo(() => {
+    if (!Array.isArray(documentContent?.content)) return { mentionAssetIds: [] as string[], hasRoleReferences: false };
+    const ids = new Set<string>();
+    let hasRoles = false;
+    for (const section of documentContent.content) {
+      for (const raw of section.plate_content ?? []) {
+        try {
+          const parsed = JSON.parse(raw);
+          collectMentionAssetIds(parsed, ids);
+          if (!hasRoles) hasRoles = hasAnyRoleReference(parsed);
+        } catch {
+          // Contenido plate_content malformado — se ignora, la chip cae al snapshot.
+        }
+      }
+    }
+    return { mentionAssetIds: Array.from(ids), hasRoleReferences: hasRoles };
+  }, [documentContent?.content]);
 
   // Lightweight periodic refresh of media download URLs (images/files embedded in
   // the content), so a tab left open longer than the backend's SAS TTL doesn't end
@@ -2944,6 +2970,8 @@ export function AssetContent({
                     if (documentContent?.content) {
                       return (
                         <MediaUrlProvider freshUrls={mediaUrlsData?.media_urls ?? null}>
+                        <MentionRefsProvider assetIds={mentionAssetIds} organizationId={selectedOrganizationId ?? undefined}>
+                        <RoleRefsProvider enabled={hasRoleReferences}>
                         <div className={`prose prose-gray prose-sm md:prose-base max-w-full${isViewMode ? ' [&>*+*]:mt-0' : ''}`}>
                           {/* Template instructions callout - shown once at the top */}
                           {documentContent.template_instructions?.trim() && (
@@ -3060,6 +3088,8 @@ export function AssetContent({
                             <Markdown>{documentContent.content}</Markdown>
                           )}
                         </div>
+                        </RoleRefsProvider>
+                        </MentionRefsProvider>
                         </MediaUrlProvider>
                       );
                     }
