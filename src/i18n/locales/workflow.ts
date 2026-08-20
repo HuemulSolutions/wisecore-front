@@ -41,7 +41,6 @@ const translations = {
     description: { en: "No documents in progress matching your search", es: "No hay documentos en curso que coincidan con tu búsqueda" },
   },
   actions: {
-    delete: { en: "Delete", es: "Eliminar" },
     share: { en: "Share", es: "Compartir" },
   },
   deleteDialog: {
@@ -57,7 +56,6 @@ const translations = {
     noCurrentStep: { en: "This item has no current step", es: "Este elemento no tiene un paso actual" },
     sectionNotFound: { en: "Section not found in the document content", es: "No se encontró la sección en el contenido del documento" },
     loadError: { en: "Failed to load the form fields", es: "Error al cargar los campos del formulario" },
-    close: { en: "Close", es: "Cerrar" },
     edit: { en: "Edit asset", es: "Editar activo" },
   },
   availableTemplates: {
@@ -69,7 +67,6 @@ const translations = {
     nextPage: { en: "Next workflows", es: "Workflows siguientes" },
   },
   expressSheet: {
-    title: { en: "Start workflow", es: "Iniciar workflow" },
     welcomeTitle: { en: "Let's start: {{template}}", es: "Empecemos: {{template}}" },
     welcomeDescription: { en: "Give this new asset a name (and optionally a description) so it's easy to identify later.", es: "Dale un nombre a este nuevo activo (y opcionalmente una descripción) para que sea fácil de identificar más adelante." },
     name: { en: "Name", es: "Nombre" },
@@ -79,10 +76,8 @@ const translations = {
     success: { en: "Document created successfully", es: "Documento creado correctamente" },
   },
   wizard: {
-    next: { en: "Next", es: "Siguiente" },
     back: { en: "Back", es: "Atrás" },
     finish: { en: "Finish", es: "Finalizar" },
-    creating: { en: "Creating...", es: "Creando..." },
     noFormSections: { en: "This template has no form sections", es: "Este template no tiene secciones de formulario" },
     summary: {
       tooltip: { en: "Back to summary", es: "Volver al resumen" },
@@ -107,7 +102,6 @@ const translations = {
     copy: { en: "Copy link", es: "Copiar link" },
     copied: { en: "Copied", es: "Copiado" },
     copyFailed: { en: "Couldn't copy the link", es: "No se pudo copiar el link" },
-    close: { en: "Close", es: "Cerrar" },
     openInNewTab: { en: "Open in new tab", es: "Abrir en pestaña nueva" },
     cardTooltip: { en: "Share this workflow", es: "Compartir este workflow" },
   },
@@ -132,7 +126,6 @@ const translations = {
       en: "Something went wrong creating this document.",
       es: "Ocurrió un error al crear este documento.",
     },
-    retry: { en: "Retry", es: "Reintentar" },
   },
 }
 

@@ -295,7 +295,7 @@ export function WorkflowDetailPanel({
               variant="ghost"
               size="sm"
               icon={X}
-              tooltip={t("panel.close")}
+              tooltip={tCommon("close")}
               onClick={handleClose}
               className="h-8 w-8 p-0"
             />
@@ -351,7 +351,7 @@ export function WorkflowDetailPanel({
               />
             </div>
             <HuemulButton
-              label={t("wizard.next")}
+              label={tCommon("next")}
               loading={isCreating}
               disabled={nameValue.trim().length === 0}
               onClick={handleCreateWithName}
@@ -422,7 +422,7 @@ export function WorkflowDetailPanel({
             size="sm"
             icon={isLastStep ? Check : ChevronRight}
             iconPosition="right"
-            label={isLastStep ? t("wizard.finish") : t("wizard.next")}
+            label={isLastStep ? t("wizard.finish") : tCommon("next")}
             disabled={isFormSaving}
             // Sin permiso de escritura el wizard sigue navegable pero no pasa por
             // `exit()`: ese handle guarda los cambios Y marca la sección como
