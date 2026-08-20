@@ -62,6 +62,7 @@ export default function MediaPage() {
   const canCreate = can("createMedia")
   const canUpdate = can("updateMedia")
   const canDeleteMedia = can("deleteMedia")
+  const canListModels = can("listLlms")
 
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
@@ -70,6 +71,7 @@ export default function MediaPage() {
   const [detailOpen, setDetailOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [generateOpen, setGenerateOpen] = useState(false)
+  const [generateTarget, setGenerateTarget] = useState<{ mediaId: string; name: string } | null>(null)
   const [pinnedMediaIds, setPinnedMediaIds] = useState<string[]>([])
   const [viewMode, setViewMode] = useMediaViewMode()
 
@@ -246,6 +248,14 @@ export default function MediaPage() {
                       setSelectedItem(item)
                       setDetailOpen(true)
                     }}
+                    onRegenerate={canCreate ? (item) => {
+                      setGenerateTarget({
+                        mediaId: item.id,
+                        name: item.name ?? item.current_version?.original_filename ?? item.id,
+                      })
+                      setGenerateOpen(true)
+                    } : undefined}
+                    regenerateLabel={t("generate.regenerateWithAI")}
                     emptyTitle={needsParent ? t("emptySelectParentTitle") : t("emptyTitle")}
                     emptyDescription={needsParent ? t("emptySelectParentDescription") : t("emptyDescription")}
                     loadError={t("loadError")}
@@ -296,18 +306,22 @@ export default function MediaPage() {
 
     <HuemulMediaGenerateSheet
       open={generateOpen}
-      onOpenChange={setGenerateOpen}
+      onOpenChange={(v) => { setGenerateOpen(v); if (!v) setGenerateTarget(null) }}
       organizationId={selectedOrganizationId}
       canCreate={canCreate}
       canDelete={canDeleteMedia}
+      canListModels={canListModels}
+      initialVersionTarget={generateTarget}
       onGenerated={(img) => {
         if (level !== "organization" && pinnedMediaIds.length === 0) {
           toast.info(t("generate.hiddenByFilters"))
         }
         setPinnedMediaIds((prev) => [img.media_id, ...prev])
       }}
-      onDiscarded={(mediaId) => {
-        setPinnedMediaIds((prev) => prev.filter((id) => id !== mediaId))
+      onDiscarded={(mediaId, mediaDeleted) => {
+        if (mediaDeleted) {
+          setPinnedMediaIds((prev) => prev.filter((id) => id !== mediaId))
+        }
       }}
     />
   </>

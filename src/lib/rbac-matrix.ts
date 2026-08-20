@@ -448,6 +448,10 @@ export const RBAC_PAGES = {
       listFolders: ["folder:l", "folder:r"], // nivel document (tree picker)
       listExecutions: ["section_execution:l", "section_execution:r"], // nivel execution
       listTemplates: ["template:l", "template:r"], // nivel template
+      // El select de modelo del sheet de generación lee GET /llms/ (recurso ajeno):
+      // sin permiso el select se comería un 403 mudo. Mismo criterio que
+      // `listLlms` en la vista de ejecuciones (línea 464).
+      listLlms: ["llm:l", "llm:r"],
     },
   },
   advanced: {

@@ -5,8 +5,9 @@ import { toast } from "sonner"
 
 import { useImageGenerationMutations } from "@/hooks/useImageGeneration"
 import { useMediaMutations } from "@/hooks/useMedia"
+import { useImageLlms } from "@/hooks/useImageLlms"
 import { getMediaDownloadUrl } from "@/services/media"
-import { getErrorMessage, handleApiError } from "@/lib/error-utils"
+import { getErrorMessage, handleApiError, isErrorCode } from "@/lib/error-utils"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { HuemulSheet } from "./huemul-sheet"
 import { HuemulField } from "./huemul-field"
@@ -14,7 +15,15 @@ import { HuemulButton } from "./huemul-button"
 import { HuemulAspectRatioSelector } from "./huemul-aspect-ratio-selector"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import { IMAGE_ASPECT_RATIOS, type ImageAspectRatio, type GeneratedImage } from "@/types/image-generation"
+import {
+  IMAGE_ASPECT_RATIOS,
+  type ImageAspectRatio,
+  type GeneratedImage,
+  type GenerateImageRequest,
+} from "@/types/image-generation"
+
+/** Valor centinela del select de modelo: no se manda `llm_id` (elección del backend). */
+const AUTO_LLM_VALUE = "auto"
 
 const RATIO_KEY: Record<ImageAspectRatio, string> = {
   "1:1": "square",
@@ -36,16 +45,29 @@ export interface HuemulMediaGenerateSheetProps {
    * gatea con la escritura del recurso que produce. Obligatoria (sin default).
    */
   canCreate: boolean
-  /** `media:d` — descartar una imagen generada llama a `DELETE /media/{id}`. */
+  /** `media:d` — descartar una imagen generada llama a `DELETE /media/{id}` (o a borrar solo la versión). */
   canDelete: boolean
+  /**
+   * `llm:l|llm:r` — el selector de modelo lee `GET /llms/` (recurso ajeno al
+   * sheet). Sin permiso el select no se renderiza y se genera con el modelo
+   * automático del backend.
+   */
+  canListModels: boolean
+  /**
+   * Media existente a versionar, precargada desde el menú "Regenerar con IA"
+   * de la galería. Cuando se define, el sheet abre con "Guardar como nueva
+   * versión" activado y sin selector de historial de sesión propio.
+   */
+  initialVersionTarget?: { mediaId: string; name: string } | null
   /** Se dispara tras cada generación exitosa (para fijar la imagen en la galería). */
   onGenerated?: (image: GeneratedImage) => void
   /**
-   * Se dispara tras descartar una imagen: la media ya fue borrada en el
-   * backend y quitada del historial local. El padre debe desfijar el pin
-   * correspondiente en la galería.
+   * Se dispara tras descartar una imagen. `mediaDeleted` distingue si se borró
+   * la Media completa (imagen sin versionar) o solo la versión descartada
+   * (media con más versiones detrás): el padre solo debe desfijar el pin de
+   * la galería en el primer caso.
    */
-  onDiscarded?: (mediaId: string) => void
+  onDiscarded?: (mediaId: string, mediaDeleted: boolean) => void
   /**
    * Cuando se define, el lienzo muestra un botón primario para insertar la
    * imagen seleccionada en el contexto que abrió el sheet (p.ej. referencia
@@ -61,6 +83,8 @@ export function HuemulMediaGenerateSheet({
   organizationId,
   canCreate,
   canDelete,
+  canListModels,
+  initialVersionTarget,
   onGenerated,
   onDiscarded,
   onInsert,
@@ -68,7 +92,10 @@ export function HuemulMediaGenerateSheet({
   const { t } = useTranslation("media")
   const { t: tCommon } = useTranslation("common")
   const [prompt, setPrompt] = useState("")
+  const [name, setName] = useState("")
+  const [llmId, setLlmId] = useState<string>(AUTO_LLM_VALUE)
   const [aspectRatio, setAspectRatio] = useState<ImageAspectRatio>("1:1")
+  const [saveAsNewVersion, setSaveAsNewVersion] = useState(false)
   const [history, setHistory] = useState<GeneratedImage[]>([])
   const [selected, setSelected] = useState<GeneratedImage | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -77,10 +104,20 @@ export function HuemulMediaGenerateSheet({
   const [isFullscreen, setIsFullscreen] = useState(false)
   const openRef = useRef(open)
   const { generateImage } = useImageGenerationMutations(organizationId)
-  const { deleteMedia } = useMediaMutations(organizationId)
+  const { deleteMedia, deleteMediaVersion } = useMediaMutations(organizationId)
+  const { data: imageLlms } = useImageLlms(open && canListModels)
   const isPending = generateImage.isPending
 
   useEffect(() => { openRef.current = open }, [open])
+
+  // Al abrir con un destino precargado (menú "Regenerar con IA" de la
+  // galería), arranca con "Guardar como nueva versión" activado.
+  useEffect(() => {
+    if (open && initialVersionTarget) setSaveAsNewVersion(true)
+  }, [open, initialVersionTarget])
+
+  const versionTarget = initialVersionTarget
+    ?? (selected ? { mediaId: selected.media_id, name: name.trim() || t("generate.sessionImage") } : null)
 
   useEffect(() => {
     if (!isPending) return
@@ -91,7 +128,10 @@ export function HuemulMediaGenerateSheet({
 
   function reset() {
     setPrompt("")
+    setName("")
+    setLlmId(AUTO_LLM_VALUE)
     setAspectRatio("1:1")
+    setSaveAsNewVersion(false)
     setHistory([])
     setSelected(null)
     setPreviewUrl(null)
@@ -100,6 +140,7 @@ export function HuemulMediaGenerateSheet({
     setIsFullscreen(false)
     generateImage.reset()
     deleteMedia.reset()
+    deleteMediaVersion.reset()
   }
 
   function selectImage(img: GeneratedImage) {
@@ -111,12 +152,26 @@ export function HuemulMediaGenerateSheet({
   async function handleGenerate() {
     const trimmed = prompt.trim()
     if (!canCreate || !trimmed || isPending) return
+    const body: GenerateImageRequest = {
+      prompt: trimmed,
+      aspect_ratio: aspectRatio,
+      ...(llmId !== AUTO_LLM_VALUE && { llm_id: llmId }),
+      ...(name.trim() && { name: name.trim() }),
+      ...(saveAsNewVersion && versionTarget && {
+        media_id: versionTarget.mediaId,
+        save_as_new_version: true,
+      }),
+    }
     try {
-      const img = await generateImage.mutateAsync({ prompt: trimmed, aspect_ratio: aspectRatio })
+      const img = await generateImage.mutateAsync(body)
       if (!openRef.current) return // el usuario cerró el sheet mientras generaba
       setHistory((prev) => [img, ...prev])
       selectImage(img)
-      toast.success(t("generate.success"))
+      if (img.version_number && img.version_number > 1) {
+        toast.success(t("generate.versionSuccess", { name: versionTarget?.name, version: img.version_number }))
+      } else {
+        toast.success(t("generate.success"))
+      }
       onGenerated?.(img)
     } catch {
       // El error ya se muestra en el lienzo vía generateImage.isError.
@@ -125,15 +180,23 @@ export function HuemulMediaGenerateSheet({
   }
 
   async function handleDiscard() {
-    if (!canDelete || !selected || deleteMedia.isPending) return
-    const mediaId = selected.media_id
+    if (!canDelete || !selected) return
+    if (deleteMedia.isPending || deleteMediaVersion.isPending) return
+    const { media_id: mediaId, version_number: versionNumber } = selected
+    // Si la imagen es una versión (v2+) de una media con historia previa, solo
+    // se borra esa versión; borrar la media entera se llevaría las anteriores.
+    const isVersion = !!versionNumber && versionNumber > 1
     try {
-      await deleteMedia.mutateAsync(mediaId)
+      if (isVersion) {
+        await deleteMediaVersion.mutateAsync({ mediaId, versionNumber })
+      } else {
+        await deleteMedia.mutateAsync(mediaId)
+      }
     } catch (err) {
       handleApiError(err, { fallbackMessage: t("generate.discardError") })
       return
     }
-    const rest = history.filter((img) => img.media_id !== mediaId)
+    const rest = history.filter((img) => img.file_identifier !== selected.file_identifier)
     setHistory(rest)
     if (rest.length) {
       selectImage(rest[0])
@@ -142,8 +205,8 @@ export function HuemulMediaGenerateSheet({
       setPreviewUrl(null)
       setPreviewFailed(false)
     }
-    onDiscarded?.(mediaId)
-    toast.success(t("generate.discardSuccess"))
+    onDiscarded?.(mediaId, !isVersion)
+    toast.success(isVersion ? t("generate.discardVersionSuccess") : t("generate.discardSuccess"))
   }
 
   function handleDownload() {
@@ -173,6 +236,13 @@ export function HuemulMediaGenerateSheet({
   const canvasBoxStyle = {
     aspectRatio: `${rw} / ${rh}`,
     width: `min(100cqw, calc(100cqh * ${rw} / ${rh}))`,
+  }
+
+  function generateErrorMessage(err: unknown) {
+    if (isErrorCode(err, "IMAGE_LLM_INVALID_CAPABILITY")) return t("generate.errors.invalidModel")
+    if (isErrorCode(err, "MEDIA_NOT_IMAGE")) return t("generate.errors.notImage")
+    if (isErrorCode(err, "LIFECYCLE_PERMISSION_DENIED")) return t("generate.errors.versionForbidden")
+    return getErrorMessage(err, t("generate.error"))
   }
 
   if (!canCreate) return null
@@ -206,6 +276,32 @@ export function HuemulMediaGenerateSheet({
             autoFocus
           />
 
+          <HuemulField
+            type="text"
+            label={t("generate.name")}
+            value={name}
+            onChange={(v) => setName(String(v ?? ""))}
+            placeholder={t("generate.namePlaceholder")}
+            helpText={t("generate.nameHelp")}
+            maxLength={120}
+            disabled={isPending}
+          />
+
+          {canListModels && (
+            <HuemulField
+              type="select"
+              label={t("generate.model")}
+              value={llmId}
+              onChange={(v) => setLlmId(String(v ?? AUTO_LLM_VALUE))}
+              disabled={isPending}
+              helpText={imageLlms?.length ? t("generate.modelHelp") : t("generate.modelEmpty")}
+              options={[
+                { value: AUTO_LLM_VALUE, label: t("generate.modelAuto") },
+                ...(imageLlms ?? []).map((llm) => ({ value: llm.id, label: llm.name })),
+              ]}
+            />
+          )}
+
           <HuemulAspectRatioSelector
             label={t("generate.format")}
             value={aspectRatio}
@@ -218,6 +314,18 @@ export function HuemulMediaGenerateSheet({
               title: t(`generate.ratios.${RATIO_KEY[ratio]}`),
             }))}
           />
+
+          {versionTarget && (
+            <HuemulField
+              type="switch"
+              labelFirst
+              label={t("generate.saveAsVersion", { name: versionTarget.name })}
+              description={t("generate.saveAsVersionHelp")}
+              value={saveAsNewVersion}
+              onChange={(v) => setSaveAsNewVersion(Boolean(v))}
+              disabled={isPending}
+            />
+          )}
         </div>
 
         <div className="shrink-0 space-y-2 border-t bg-background px-6 py-4">
@@ -258,7 +366,7 @@ export function HuemulMediaGenerateSheet({
                 </div>
                 <p className="text-sm font-medium text-destructive">{t("generate.error")}</p>
                 <p className="text-xs text-muted-foreground">
-                  {getErrorMessage(generateImage.error, t("generate.error"))}
+                  {generateErrorMessage(generateImage.error)}
                 </p>
                 <HuemulButton
                   size="sm"
@@ -324,7 +432,7 @@ export function HuemulMediaGenerateSheet({
                   size="sm"
                   icon={Trash2}
                   label={t("generate.discard")}
-                  loading={deleteMedia.isPending}
+                  loading={deleteMedia.isPending || deleteMediaVersion.isPending}
                   className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                   onClick={handleDiscard}
                 />
@@ -345,19 +453,24 @@ export function HuemulMediaGenerateSheet({
             <div className="flex min-w-0 gap-2 overflow-x-auto pb-1">
               {history.map((img) => (
                 <button
-                  key={img.media_id}
+                  key={img.file_identifier}
                   type="button"
-                  aria-pressed={selected?.media_id === img.media_id}
+                  aria-pressed={selected?.file_identifier === img.file_identifier}
                   onClick={() => selectImage(img)}
                   className={cn(
-                    "size-14 shrink-0 overflow-hidden rounded-md border bg-muted transition-colors hover:cursor-pointer hover:opacity-90",
+                    "relative size-14 shrink-0 overflow-hidden rounded-md border bg-muted transition-colors hover:cursor-pointer hover:opacity-90",
                     "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-                    selected?.media_id === img.media_id
+                    selected?.file_identifier === img.file_identifier
                       ? "border-primary ring-2 ring-primary/40"
                       : "border-border",
                   )}
                 >
                   <img src={img.url} alt="" className="size-full object-cover" />
+                  {!!img.version_number && img.version_number > 1 && (
+                    <span className="absolute bottom-0.5 right-0.5 rounded bg-black/60 px-1 text-[9px] font-mono text-white">
+                      v{img.version_number}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>

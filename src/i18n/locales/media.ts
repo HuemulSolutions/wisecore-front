@@ -124,6 +124,32 @@ const translations = {
       en: "The prompt is stored as the media name and summary.",
       es: "El prompt se guarda como nombre y resumen de la media.",
     },
+    name: { en: "Name", es: "Nombre" },
+    namePlaceholder: { en: "e.g. Kitten picture", es: "ej. Imagen gatito" },
+    nameHelp: {
+      en: "Optional. If left empty, the prompt is used as the name.",
+      es: "Opcional. Si se deja vacío, se usa el prompt como nombre.",
+    },
+    model: { en: "Model", es: "Modelo" },
+    modelAuto: { en: "Automatic", es: "Automático" },
+    modelHelp: {
+      en: "Choose which configured model generates the image.",
+      es: "Elige qué modelo configurado genera la imagen.",
+    },
+    modelEmpty: {
+      en: "No models with image generation are configured.",
+      es: "No hay modelos con generación de imágenes configurados.",
+    },
+    saveAsVersion: {
+      en: "Save as a new version of \"{{name}}\"",
+      es: "Guardar como nueva versión de \"{{name}}\"",
+    },
+    saveAsVersionHelp: {
+      en: "If disabled, the result is saved as a new, separate image.",
+      es: "Si se desactiva, el resultado se guarda como una imagen nueva y separada.",
+    },
+    sessionImage: { en: "this image", es: "esta imagen" },
+    regenerateWithAI: { en: "Regenerate with AI", es: "Regenerar con IA" },
     aspectRatio: { en: "Aspect ratio", es: "Relación de aspecto" },
     format: { en: "Format", es: "Formato" },
     ratios: {
@@ -162,12 +188,31 @@ const translations = {
       es: "Cada generación se guarda en Media a nivel organización.",
     },
     success: { en: "Image generated and saved", es: "Imagen generada y guardada" },
+    versionSuccess: {
+      en: "{{name}} - v{{version}} generated and saved",
+      es: "{{name}} - v{{version}} generada y guardada",
+    },
     error: { en: "Failed to generate the image", es: "Error al generar la imagen" },
     discardSuccess: { en: "Image discarded", es: "Imagen descartada" },
+    discardVersionSuccess: { en: "Version discarded", es: "Versión descartada" },
     discardError: { en: "Failed to discard the image", es: "Error al descartar la imagen" },
     hiddenByFilters: {
       en: "The new image was saved at organization level; clear the filters to see it.",
       es: "La nueva imagen se guardó a nivel organización; limpia los filtros para verla.",
+    },
+    errors: {
+      invalidModel: {
+        en: "The selected model does not support image generation.",
+        es: "El modelo seleccionado no admite generación de imágenes.",
+      },
+      notImage: {
+        en: "The selected media is not an image and can't be versioned this way.",
+        es: "La media seleccionada no es una imagen y no se puede versionar así.",
+      },
+      versionForbidden: {
+        en: "You don't have permission to add a new version to this media.",
+        es: "No tienes permiso para agregar una nueva versión a esta media.",
+      },
     },
   },
 }
