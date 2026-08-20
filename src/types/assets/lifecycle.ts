@@ -200,6 +200,17 @@ export interface TemplateSectionAccessMatrixProps {
   enabled?: boolean
 }
 
+// ----------------------------------------
+// Section conditions (depends_on a nivel de TemplateSection)
+// ----------------------------------------
+
+export interface TemplateSectionConditionsProps {
+  /** Plantilla cuyas secciones se pueden condicionar. */
+  templateId: string
+  /** Solo dispara el fetch cuando la vista de configuración está visible. */
+  enabled?: boolean
+}
+
 export interface LifecycleStepPanelProps {
   documentTypeId: string
   /** Tipo de etapa configurada (`edit`, `review`, `create`…). */
