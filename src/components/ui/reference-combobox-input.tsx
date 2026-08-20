@@ -13,6 +13,9 @@ import {
   Folder,
   Shield,
   CornerDownRight,
+  Check,
+  AlertTriangle,
+  RotateCcw,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -29,7 +32,7 @@ import {
   hasPendingNewerExecution,
 } from '@/lib/library-executions';
 import { getExecutionCompactLabel, getExecutionVersionNumber } from '@/components/assets/content/utils/version-utils';
-import { Badge } from '@/components/ui/badge';
+import { assetRowSwatch, roleRowSwatch } from '@/lib/reference-colors';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HighlightedText } from '@/components/ui/highlighted-text';
 import type { LibraryContentAsset, LibraryContentAssetExecution, LibraryContentFolder } from '@/types/folders';
@@ -52,6 +55,19 @@ type TrailSegment = { id: string | null; name: string };
 
 const VERSIONS_SHOWN_DEFAULT = 5;
 
+/** Clases compartidas por toda fila del panel — selección vía `data-active-item`
+ * (lo setea Ariakit) y `group` para que hijos (badge, subtítulo) reaccionen con
+ * `group-data-[active-item=true]:` sin tener que leer `activeId` en JS. */
+const ROW_CLASS =
+  'group h-auto min-h-9.5 items-center justify-between gap-[9px] rounded-[8px] px-2 py-[9px] hover:bg-[#f1f5f9] data-[active-item=true]:bg-[#eef4ff] data-[active-item=true]:shadow-[inset_2.5px_0_0_#2563eb]';
+const SECTION_LABEL_CLASS =
+  'mt-0 mb-0 px-[6px] pt-0 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-[#a3adba]';
+// Cada sección (Carpetas / Activos / Roles) es su propia tarjeta — no solo un
+// título gris — para que se lea como bloques separados en vez de una lista
+// continua, sobre todo cuando conviven 2-3 secciones al abrir "@" sin término.
+const GROUP_CLASS = 'rounded-[8px] border border-[#eef1f5] bg-[#fbfcfd] p-1.5 not-last:mb-1.5';
+const SUBTITLE_CLASS = 'truncate text-[11px] text-[#94a3b8] group-data-[active-item=true]:text-[#6b8fd6]';
+
 /** `nombre@1.0.7` — atajo tipiado que fija una versión sin pasar por la vista de versión. */
 function parseVersionShorthand(search: string): { namePart: string; versionPart: string } | null {
   const match = /^(.+)@([\w.]+)$/.exec(search);
@@ -63,19 +79,113 @@ function normalizeForCompare(s: string): string {
   return s.trim().toLowerCase();
 }
 
+// ─── Piezas chicas reutilizadas ────────────────────────────────────────────────
+
+function Kbd({ children }: { children: React.ReactNode }) {
+  return <span className="rounded-[3px] bg-[#eef1f5] px-1 py-px font-mono">{children}</span>;
+}
+
+/** Punto de color antes del título de cada sección — refuerza qué tipo es cada
+ * tarjeta (mismo color que usan los swatches de fila, ver reference-colors.ts)
+ * además del borde/fondo propio de `GROUP_CLASS`. */
+function SectionLabel({ children, dotColor }: { children: React.ReactNode; dotColor: string }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: dotColor }} />
+      {children}
+    </span>
+  );
+}
+
+function VersionBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="shrink-0 rounded-[4px] bg-[#eef1f5] px-1.5 py-0.5 font-mono text-[10.5px] font-semibold text-[#475569] group-data-[active-item=true]:bg-[#dbe7fe] group-data-[active-item=true]:text-[#1d4ed8]">
+      {children}
+    </span>
+  );
+}
+
+function FilterChip({
+  active,
+  count,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  count: number;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onClick}
+      className={cn(
+        'flex h-6 items-center gap-1 rounded-full border px-[9px] text-[11.5px] font-medium hover:cursor-pointer',
+        active
+          ? 'border-transparent bg-[#2563eb] font-semibold text-white'
+          : 'border-[#e2e8f0] text-[#64748b] hover:bg-[#f4f6f9] hover:text-[#0f172a]'
+      )}
+    >
+      {label}
+      <span className={cn('tabular-nums', active ? 'text-white/80' : 'text-[#a3adba]')}>{count}</span>
+    </button>
+  );
+}
+
+/** Cola que liga el panel al caret — sigue `currentPlacement` del store del combobox
+ * (el mismo store de Popover: Ariakit corre el posicionamiento de floating-ui
+ * dentro de `useComboboxPopover` aunque nunca se renderice un `<Popover>` propio)
+ * para invertirse cuando el panel se abre hacia arriba. Diamante CSS simple en vez
+ * del `PopoverArrow` de Ariakit: ese componente dibuja un SVG que imita el borde
+ * calculado del popover, muy distinto del cuadrado rotado que pide el diseño 6c. */
+function PanelArrow() {
+  const store = useComboboxContext();
+  const placement = store?.useState('currentPlacement') ?? 'bottom';
+  const isTop = placement.startsWith('top');
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'absolute left-1/2 z-10 size-3 -translate-x-1/2 rotate-45 bg-white',
+        isTop ? '-bottom-1.5 border-r border-b border-[#b8c4d4]' : '-top-1.5 border-l border-t border-[#b8c4d4]'
+      )}
+    />
+  );
+}
+
+function SkeletonRows() {
+  return (
+    <div className="flex flex-col gap-1 p-1">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="flex min-h-9.5 items-center gap-[9px] px-2 py-[9px]">
+          <Skeleton className="size-6 shrink-0 rounded-[6px]" />
+          <div className="flex-1 space-y-1">
+            <Skeleton className="h-3 w-2/3" />
+            <Skeleton className="h-2.5 w-1/3" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Filas ────────────────────────────────────────────────────────────────────
 
 function AssetRow({
   asset,
   term,
+  showPath = true,
   onDrillIn,
 }: {
   asset: LibraryContentAsset;
   term: string;
+  showPath?: boolean;
   onDrillIn: (asset: LibraryContentAsset) => void;
 }) {
   const current = getCurrentExecution(asset);
-  const color = asset.document_type?.color;
+  const swatch = assetRowSwatch(asset.document_type?.color);
 
   return (
     <InlineComboboxItem
@@ -90,27 +200,23 @@ function AssetRow({
       selectValueOnClick={false}
       hideOnClick={false}
       onClick={() => onDrillIn(asset)}
-      className="h-auto min-h-9.5 items-center justify-between gap-2 rounded-xl py-1.5"
+      className={ROW_CLASS}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <span
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] bg-muted"
-          style={{ color: color || undefined }}
-        >
+      <div className="flex min-w-0 flex-1 items-center gap-[9px]">
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-[6px]" style={{ backgroundColor: swatch.background, color: swatch.color }}>
           <File className="h-3.5 w-3.5" />
         </span>
         <div className="min-w-0 flex-1">
           <HighlightedText text={asset.name} term={term} className="block truncate text-[13px] font-medium text-[#0f172a]" />
-          <p className="flex items-center gap-1 truncate text-[11px] text-[#64748b]">
-            {color && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />}
+          <p className={SUBTITLE_CLASS}>
             {asset.document_type?.name}
-            {(asset.folder_path ?? asset.folder_name) && <span> · {asset.folder_path ?? asset.folder_name}</span>}
+            {showPath && (asset.folder_path ?? asset.folder_name) && <span> · {asset.folder_path ?? asset.folder_name}</span>}
           </p>
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
-        {current && <span className="text-xs text-[#64748b]">{getExecutionCompactLabel(current)}</span>}
-        <ChevronRight className="h-4 w-4 shrink-0 text-[#94a3b8]" />
+        {current && <VersionBadge>{getExecutionCompactLabel(current)}</VersionBadge>}
+        <ChevronRight className="h-4 w-4 shrink-0 text-[#94a3b8] group-data-[active-item=true]:text-[#2563eb]" />
       </div>
     </InlineComboboxItem>
   );
@@ -130,15 +236,15 @@ function FolderRow({ folder, onEnter }: { folder: LibraryContentFolder; onEnter:
       selectValueOnClick={false}
       hideOnClick={false}
       onClick={() => onEnter(folder)}
-      className="h-auto min-h-9.5 items-center justify-between gap-2 rounded-xl py-1.5"
+      className={ROW_CLASS}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] bg-muted text-[#64748b]">
+      <div className="flex min-w-0 flex-1 items-center gap-[9px]">
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-[6px] bg-[#eef1f5] text-[#64748b]">
           <Folder className="h-3.5 w-3.5" />
         </span>
         <span className="truncate text-[13px] font-medium text-[#0f172a]">{folder.name}</span>
       </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-[#94a3b8]" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-[#94a3b8] group-data-[active-item=true]:text-[#2563eb]" />
     </InlineComboboxItem>
   );
 }
@@ -156,31 +262,23 @@ function RoleRow({
 }) {
   const { t } = useTranslation('editor');
   const parent = role.parent_role_id ? rolesMap[role.parent_role_id] : undefined;
+  const swatch = roleRowSwatch(role.color);
 
   return (
-    <InlineComboboxItem
-      id={role.id}
-      value={role.id}
-      label={role.name}
-      onClick={() => onSelect(role)}
-      className="h-auto min-h-9.5 items-center gap-2 rounded-xl py-1.5"
-    >
-      <span
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted"
-        style={{ backgroundColor: role.color, color: role.color ? '#fff' : undefined }}
-      >
+    <InlineComboboxItem id={role.id} value={role.id} label={role.name} onClick={() => onSelect(role)} className={ROW_CLASS}>
+      <span className="flex size-6 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: swatch.background, color: swatch.color }}>
         <Shield className="h-3.5 w-3.5" />
       </span>
       <div className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
           <HighlightedText text={role.name} term={term} className="truncate text-[13px] font-medium text-[#0f172a]" />
           {role.is_position && (
-            <Badge variant="outline" className="h-4 shrink-0 px-1 py-0 text-[9px]">
+            <span className="shrink-0 rounded-[4px] bg-[#eef1f5] px-1.5 py-0.5 text-[9px] font-semibold text-[#475569] group-data-[active-item=true]:bg-[#dbe7fe] group-data-[active-item=true]:text-[#1d4ed8]">
               {t('mention.position')}
-            </Badge>
+            </span>
           )}
         </span>
-        <p className="truncate text-[11px] text-[#64748b]">
+        <p className={SUBTITLE_CLASS}>
           {parent ? (
             <span className="inline-flex items-center gap-1">
               <CornerDownRight className="h-3 w-3 shrink-0" />
@@ -198,25 +296,58 @@ function RoleRow({
 
 // ─── Breadcrumb del modo explorar ─────────────────────────────────────────────
 
-function FolderBreadcrumb({ trail, onNavigate }: { trail: TrailSegment[]; onNavigate: (index: number) => void }) {
+function FolderBreadcrumb({
+  trail,
+  countsLabel,
+  onNavigate,
+}: {
+  trail: TrailSegment[];
+  countsLabel?: string;
+  onNavigate: (index: number) => void;
+}) {
   return (
-    <div className="flex items-center gap-1 overflow-x-auto border-b border-[#e0e6ee] px-3 py-1.5 text-[11px] text-[#64748b]">
-      {trail.map((segment, index) => (
-        <React.Fragment key={segment.id ?? 'root'}>
-          {index > 0 && <span className="shrink-0 text-[#cbd5e1]">/</span>}
-          <button
-            type="button"
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => onNavigate(index)}
-            className={cn(
-              'shrink-0 rounded px-1 hover:cursor-pointer hover:bg-accent',
-              index === trail.length - 1 ? 'font-medium text-[#0f172a]' : 'hover:underline'
-            )}
-          >
-            {segment.name}
-          </button>
-        </React.Fragment>
-      ))}
+    <div className="flex items-center justify-between gap-2 border-b border-[#eef1f5] px-3 py-1.5">
+      <div className="flex min-w-0 items-center gap-1 overflow-x-auto text-[11px]">
+        {trail.map((segment, index) => (
+          <React.Fragment key={segment.id ?? 'root'}>
+            {index > 0 && <span className="shrink-0 text-[#cbd5e1]">›</span>}
+            <button
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => onNavigate(index)}
+              className={cn(
+                'shrink-0 rounded px-1 hover:cursor-pointer hover:bg-[#f1f5f9]',
+                index === trail.length - 1 ? 'font-semibold text-[#0f172a]' : 'text-[#64748b] hover:underline'
+              )}
+            >
+              {segment.name}
+            </button>
+          </React.Fragment>
+        ))}
+      </div>
+      {countsLabel && <span className="shrink-0 text-[10.5px] text-[#94a3b8]">{countsLabel}</span>}
+    </div>
+  );
+}
+
+// ─── Cabecera del panel (estado del propio menú) ──────────────────────────────
+
+function PanelHeader({ term, browsing, countLabel }: { term: string; browsing: boolean; countLabel?: string }) {
+  const { t } = useTranslation('editor');
+  return (
+    <div className="flex items-center gap-2 border-b border-[#e6ebf1] bg-[#f8fafc] px-[11px] pt-[10px] pb-[9px]">
+      <span className="flex size-[22px] shrink-0 items-center justify-center rounded-[6px] bg-[#0f172a] text-[12px] font-semibold text-white">
+        @
+      </span>
+      <span className="flex min-w-0 flex-1 items-center overflow-hidden">
+        {browsing ? (
+          <span className="truncate text-[13px] text-[#94a3b8]">{t('mention.browsePlaceholder')}</span>
+        ) : (
+          <span className="truncate text-[13px] text-[#0f172a]">{term}</span>
+        )}
+        <span className="ml-px h-[14px] w-[1.5px] shrink-0 bg-[#2563eb]" />
+      </span>
+      {countLabel && <span className="shrink-0 text-[10.5px] text-[#94a3b8]">{countLabel}</span>}
     </div>
   );
 }
@@ -225,18 +356,19 @@ function FolderBreadcrumb({ trail, onNavigate }: { trail: TrailSegment[]; onNavi
 
 function VersionHeader({ asset, onBack }: { asset: LibraryContentAsset; onBack: () => void }) {
   const { t } = useTranslation('editor');
+  const swatch = assetRowSwatch(asset.document_type?.color);
   return (
-    <div className="flex items-center gap-2 border-b border-[#e0e6ee] px-3 py-2">
+    <div className="flex items-center gap-2 border-b border-[#eef1f5] px-3 py-2">
       <button
         type="button"
         onMouseDown={(event) => event.preventDefault()}
         onClick={onBack}
         aria-label={t('mention.shortcuts.back')}
-        className="shrink-0 rounded-md p-0.5 hover:cursor-pointer hover:bg-accent"
+        className="shrink-0 rounded-md p-0.5 hover:cursor-pointer hover:bg-[#f1f5f9]"
       >
         <ChevronRight className="h-4 w-4 rotate-180 text-[#64748b]" />
       </button>
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] bg-muted" style={{ color: asset.document_type?.color }}>
+      <span className="flex size-6 shrink-0 items-center justify-center rounded-[6px]" style={{ backgroundColor: swatch.background, color: swatch.color }}>
         <File className="h-3.5 w-3.5" />
       </span>
       <div className="min-w-0">
@@ -267,30 +399,38 @@ function VersionBody({
 
   return (
     <>
-      <InlineComboboxGroup>
+      <InlineComboboxGroup className={GROUP_CLASS}>
         <InlineComboboxItem
           id="__follow_latest__"
           value="__follow_latest__"
           label={t('mention.followLatest')}
           onClick={() => onPick('latest')}
-          className="h-auto min-h-9.5 items-center justify-between gap-2 rounded-xl py-1.5"
+          className={cn(ROW_CLASS, 'bg-[#eef4ff] shadow-[inset_2.5px_0_0_#2563eb]')}
         >
-          <div>
-            <p className="text-[13px] font-medium text-[#0f172a]">{t('mention.followLatest')}</p>
-            <p className="text-[11px] text-[#64748b]">
-              {t('mention.followLatestNote', { version: current ? getExecutionCompactLabel(current) : '' })}
-            </p>
+          <div className="flex min-w-0 flex-1 items-center gap-[9px]">
+            <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-[#2563eb] text-white">
+              <Check className="h-2.5 w-2.5" />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-[13px] font-medium text-[#0f172a]">{t('mention.followLatest')}</p>
+              <p className="truncate text-[11px] text-[#64748b]">
+                {t('mention.followLatestNote', { version: current ? getExecutionCompactLabel(current) : '' })}
+              </p>
+            </div>
           </div>
-          <Badge variant="outline" className="shrink-0 text-[10px]">{t('mention.recommended')}</Badge>
+          <span className="shrink-0 rounded-[4px] bg-[#dbe7fe] px-1.5 py-0.5 text-[10px] font-semibold text-[#1d4ed8]">
+            {t('mention.recommended')}
+          </span>
         </InlineComboboxItem>
       </InlineComboboxGroup>
 
-      <InlineComboboxGroup>
-        <InlineComboboxGroupLabel>
+      <InlineComboboxGroup className={GROUP_CLASS}>
+        <InlineComboboxGroupLabel className={SECTION_LABEL_CLASS}>
           {t('mention.pinAVersion', { count: asset.execution_count ?? executions.length })}
         </InlineComboboxGroupLabel>
         {shown.map((execution) => {
           const versionNumber = getExecutionVersionNumber(execution);
+          const isCurrent = execution.id === asset.current_execution_id;
           return (
             <InlineComboboxItem
               key={execution.id}
@@ -298,21 +438,26 @@ function VersionBody({
               value={execution.id}
               label={getExecutionCompactLabel(execution)}
               onClick={() => onPick('pinned', execution)}
-              className="h-auto min-h-9.5 items-center justify-between gap-2 rounded-xl py-1.5"
+              className={ROW_CLASS}
             >
-              {versionNumber ? (
-                <span className="flex items-baseline gap-2">
-                  <span className="text-[13px] font-medium text-[#0f172a]">v{versionNumber}</span>
-                  {execution.version && <span className="text-[12px] text-[#64748b]">{execution.version}</span>}
+              <div className="flex min-w-0 flex-1 items-center gap-[9px]">
+                <span className="size-4 shrink-0 rounded-full border-[1.5px] border-[#dbe1e9]" />
+                {versionNumber ? (
+                  <span className="flex items-baseline gap-2">
+                    <span className="font-mono text-[13px] font-semibold text-[#0f172a]">v{versionNumber}</span>
+                    {execution.version && <span className="text-[11.5px] text-[#64748b]">{execution.version}</span>}
+                  </span>
+                ) : (
+                  <span className="text-[13px] font-medium text-[#0f172a]">{execution.version || '—'}</span>
+                )}
+              </div>
+              {isCurrent && (
+                <span className="shrink-0 rounded-[4px] bg-[#eef1f5] px-1.5 py-0.5 text-[10.5px] font-semibold text-[#475569]">
+                  {t('mention.current')}
                 </span>
-              ) : (
-                <span className="text-[13px] font-medium text-[#0f172a]">{execution.version || '—'}</span>
               )}
-              {execution.id === asset.current_execution_id && (
-                <Badge variant="outline" className="shrink-0 text-[10px]">{t('mention.current')}</Badge>
-              )}
-              {pending && execution.id === pending.id && execution.id !== asset.current_execution_id && (
-                <span className="shrink-0 text-[10px] text-muted-foreground">{t('mention.pendingVersion')}</span>
+              {pending && execution.id === pending.id && !isCurrent && (
+                <span className="shrink-0 text-[10px] text-[#94a3b8]">{t('mention.pendingVersion')}</span>
               )}
             </InlineComboboxItem>
           );
@@ -322,7 +467,7 @@ function VersionBody({
             type="button"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => setShowAll(true)}
-            className="mx-1 flex h-6.5 items-center rounded-sm px-3 text-left text-xs text-muted-foreground hover:cursor-pointer hover:bg-accent"
+            className="mx-1 flex h-6.5 items-center rounded-sm px-3 text-left text-xs text-[#94a3b8] hover:cursor-pointer hover:bg-[#f1f5f9]"
           >
             {t('mention.showMore', { count: remaining })}
           </button>
@@ -332,28 +477,63 @@ function VersionBody({
   );
 }
 
-// ─── Barra de atajos (común a las dos vistas) ─────────────────────────────────
+// ─── Pie de atajos (común a las tres vistas) ──────────────────────────────────
 
 function ShortcutsFooter({
-  view,
+  mode,
+  activeIsRole,
   canGoUp,
-  showingAssets,
+  shorthandHint,
 }: {
-  view: View;
-  canGoUp: boolean;
-  showingAssets: boolean;
+  mode: 'results' | 'browse' | 'version';
+  activeIsRole?: boolean;
+  canGoUp?: boolean;
+  shorthandHint?: string;
 }) {
   const { t } = useTranslation('editor');
   return (
-    <div className="flex items-center gap-3 border-t border-[#e0e6ee] px-3 py-1.5 text-[11px] text-[#94a3b8]">
-      <span>↑↓ {t('mention.shortcuts.navigate')}</span>
-      <span>↵ {view === 'results' && showingAssets ? t('mention.shortcuts.chooseVersion') : t('mention.shortcuts.insert')}</span>
-      {view === 'version' ? (
-        <span>← {t('mention.shortcuts.back')}</span>
-      ) : canGoUp ? (
-        <span>← {t('mention.shortcuts.up')}</span>
-      ) : null}
-      <span>esc {t('mention.shortcuts.close')}</span>
+    <div className="flex items-center justify-between border-t border-[#eef1f5] bg-[#f8fafc] px-[11px] py-[7px] text-[10.5px] text-[#94a3b8]">
+      <div className="flex items-center gap-3">
+        <span className="flex items-center gap-1">
+          <Kbd>↑↓</Kbd>
+          {t('mention.shortcuts.navigate')}
+        </span>
+        {mode === 'browse' ? (
+          <>
+            <span className="flex items-center gap-1">
+              <Kbd>→</Kbd>
+              {t('mention.shortcuts.enter')}
+            </span>
+            {canGoUp && (
+              <span className="flex items-center gap-1">
+                <Kbd>←</Kbd>
+                {t('mention.shortcuts.up')}
+              </span>
+            )}
+          </>
+        ) : mode === 'version' ? (
+          <>
+            <span className="flex items-center gap-1">
+              <Kbd>↵</Kbd>
+              {t('mention.shortcuts.insert')}
+            </span>
+            <span className="flex items-center gap-1">
+              <Kbd>←</Kbd>
+              {t('mention.shortcuts.back')}
+            </span>
+          </>
+        ) : (
+          <span className="flex items-center gap-1">
+            <Kbd>↵</Kbd>
+            {activeIsRole ? t('mention.shortcuts.insert') : t('mention.shortcuts.chooseVersion')}
+          </span>
+        )}
+      </div>
+      <span className="flex items-center gap-1">
+        {mode === 'version' && shorthandHint && <span className="font-mono text-[#94a3b8]">{shorthandHint}</span>}
+        <Kbd>esc</Kbd>
+        {t('mention.shortcuts.close')}
+      </span>
     </div>
   );
 }
@@ -376,7 +556,8 @@ function ReferenceComboboxBody({
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const [view, setView] = React.useState<View>('results');
-  const [typeFilter, setTypeFilter] = React.useState<TypeFilter>('asset');
+  // Pestañas excluyentes (no toggles independientes) — Activos por defecto.
+  const [activeFilter, setActiveFilter] = React.useState<TypeFilter>('asset');
   const [versionAsset, setVersionAsset] = React.useState<LibraryContentAsset | null>(null);
   const [trail, setTrail] = React.useState<TrailSegment[]>(() => [{ id: null, name: t('mention.browseRoot') }]);
 
@@ -385,27 +566,66 @@ function ReferenceComboboxBody({
   const browsing = effectiveTerm.length === 0;
   const currentFolderId = trail[trail.length - 1]?.id ?? null;
 
-  const showingAssets = typeFilter === 'asset';
-
-  const { assets: searchAssets, roles, canPickRole, assetsLoading: searchLoading, rolesLoading } = useMentionSearch(
-    organizationId,
-    effectiveTerm,
-    !browsing
-  );
+  const {
+    assets: searchAssets,
+    roles,
+    canPickAssets,
+    canPickRole,
+    assetsLoading: searchLoading,
+    rolesLoading,
+    assetsHasNext,
+    rolesHasNext,
+    assetsIsError,
+    rolesIsError,
+    refetchAssets,
+    refetchRoles,
+  } = useMentionSearch(organizationId, effectiveTerm, !browsing);
   const { byId: rolesMap } = useRolesMap(canPickRole);
-  const { folders: currentFolders, assets: folderAssets, hasNext: folderHasNext, isLoading: folderLoading } = useMentionFolderContent(
-    organizationId,
-    currentFolderId,
-    showingAssets && browsing
-  );
 
-  const showingRoles = typeFilter === 'role' && canPickRole;
+  // Pestañas excluyentes: exactamente un tipo visible. Cada uno además depende
+  // de su propio permiso RBAC (mismo criterio que ya regía Roles) — si falta
+  // `canPickAssets` la pestaña "Activos" ni se muestra (ver abajo), así que la
+  // selección cae a Roles en vez de quedar en un estado vacío sin salida.
+  const showingAssets = activeFilter === 'asset' && canPickAssets;
+  const showingRoles = (activeFilter === 'role' || !canPickAssets) && canPickRole;
+  const showingFolderBrowse = showingAssets && browsing;
+
+  const {
+    folders: currentFolders,
+    assets: folderAssets,
+    hasNext: folderHasNext,
+    isLoading: folderLoading,
+    isError: folderIsError,
+    refetch: folderRefetch,
+  } = useMentionFolderContent(organizationId, currentFolderId, showingFolderBrowse);
+
   const displayedAssets = browsing ? folderAssets : searchAssets;
   const assetsListLoading = browsing ? folderLoading : searchLoading;
-  const activeLoading = showingAssets ? assetsListLoading : (showingRoles && rolesLoading);
+  const activeLoading = (showingAssets && assetsListLoading) || (showingRoles && rolesLoading);
+  // Roles se piden siempre desde `useMentionSearch`, incluso en modo "explorar
+  // carpetas" (los roles no tienen carpeta) — su error cuenta sin importar `browsing`.
+  const isError = (showingAssets && (browsing ? folderIsError : assetsIsError)) || (showingRoles && rolesIsError);
 
-  const totalCount = displayedAssets.length + (canPickRole ? roles.length : 0);
-  const shownCount = (showingAssets ? displayedAssets.length : 0) + (showingRoles ? roles.length : 0);
+  const activeId = store?.useState('activeId');
+  const activeIsRole = showingRoles && roles.some((role) => role.id === activeId);
+
+  const shownAssetsCount = showingAssets ? displayedAssets.length : 0;
+  const shownRolesCount = showingRoles ? roles.length : 0;
+  const shownCount = shownAssetsCount + shownRolesCount;
+  const assetsMore = showingAssets && (browsing ? folderHasNext : assetsHasNext);
+  const rolesMore = showingRoles && rolesHasNext;
+  const headerCountLabel = showingFolderBrowse
+    ? undefined
+    : assetsMore || rolesMore
+      ? t('mention.resultsCountMore', { count: shownCount })
+      : t('mention.resultsCount', { count: shownCount });
+  const folderCountsLabel = showingFolderBrowse
+    ? t('mention.folderCounts', {
+        folders: `${currentFolders.length}${folderHasNext ? '+' : ''}`,
+        assets: `${folderAssets.length}${folderHasNext ? '+' : ''}`,
+      })
+    : undefined;
+
 
   const handleSelectAsset = (asset: LibraryContentAsset) => {
     insertAssetReference(asset, 'latest');
@@ -437,6 +657,15 @@ function ReferenceComboboxBody({
     setTrail((prev) => prev.slice(0, index + 1));
   };
 
+  const handleSearchAll = () => {
+    setTrail((prev) => (prev.length > 1 ? [prev[0]] : prev));
+  };
+
+  const handleRetry = () => {
+    if (showingAssets) void (browsing ? folderRefetch() : refetchAssets());
+    if (showingRoles) void refetchRoles();
+  };
+
   const handleKeyDownCapture = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter' && view === 'results' && shorthand) {
       const asset = searchAssets.find((a) => normalizeForCompare(a.name) === normalizeForCompare(shorthand.namePart));
@@ -456,8 +685,17 @@ function ReferenceComboboxBody({
     if (view === 'results' && event.key === 'ArrowRight') {
       const atEnd = !!input && input.selectionStart === input.value.length && input.selectionEnd === input.value.length;
       if (!atEnd) return;
-      const activeId = store?.getState().activeId;
-      const activeAsset = displayedAssets.find((asset) => asset.id === activeId);
+      const activeItemId = store?.getState().activeId;
+      if (showingFolderBrowse) {
+        const activeFolder = currentFolders.find((folder) => `folder-${folder.id}` === activeItemId);
+        if (activeFolder) {
+          event.preventDefault();
+          event.stopPropagation();
+          handleEnterFolder(activeFolder);
+          return;
+        }
+      }
+      const activeAsset = displayedAssets.find((asset) => asset.id === activeItemId);
       if (activeAsset) {
         event.preventDefault();
         event.stopPropagation();
@@ -475,7 +713,7 @@ function ReferenceComboboxBody({
       return;
     }
 
-    if (view === 'results' && event.key === 'ArrowLeft' && showingAssets && browsing && trail.length > 1) {
+    if (view === 'results' && event.key === 'ArrowLeft' && showingFolderBrowse && trail.length > 1) {
       const atStart = !!input && input.selectionStart === 0 && input.selectionEnd === 0;
       if (!atStart) return;
       event.preventDefault();
@@ -484,76 +722,100 @@ function ReferenceComboboxBody({
     }
   };
 
-  const emptyMessage = view === 'results' && showingAssets && browsing ? t('mention.emptyFolder') : t('mention.noResults');
+  const emptyMessage = browsing
+    ? showingAssets
+      ? t('mention.emptyFolder')
+      : t('mention.noResults')
+    : t('mention.noResultsFor', { term: effectiveTerm });
+
+  const versionShorthandHint = versionAsset
+    ? `@${versionAsset.name}@${getExecutionVersionNumber(getCurrentExecution(versionAsset)) ?? ''}`
+    : undefined;
 
   return (
-    <div onKeyDownCapture={handleKeyDownCapture}>
+    <div onKeyDownCapture={handleKeyDownCapture} className="relative">
       {/* Texto real tecleado — se muestra inline en el documento en el punto del "@" (mismo
           mecanismo que "/"); el popover de abajo es solo el panel de resultados flotante. */}
       <InlineComboboxInput ref={inputRef} placeholder={t('mention.searchPlaceholder')} />
 
-      <InlineComboboxContent className="flex max-h-105 w-110 flex-col overflow-hidden rounded-[10px] border border-[#e0e6ee] p-0 shadow-[0_8px_22px_rgba(15,23,42,0.1)]">
+      <InlineComboboxContent
+        // El `InlineComboboxContent` base (inline-combobox.tsx) trae su propio
+        // `max-h-72` (288px) — sin un `max-h-*` propio acá, ese default sobrevive
+        // el merge de tailwind-merge y el `flex-1` de la lista interna (más abajo,
+        // `max-h-105`) nunca llega a usarse: no le queda espacio disponible.
+        // `fitViewport` hace que, además, todo el panel se achique solo si no
+        // entra en la pantalla, en vez de recortarse contra el borde.
+        className="flex max-h-140 w-110 flex-col overflow-hidden rounded-[12px] border border-[#b8c4d4] bg-white p-0 shadow-[0_0_0_4px_rgba(37,99,235,0.12),0_22px_48px_-14px_rgba(15,23,42,0.4)]"
+        gutter={10}
+        fitViewport
+      >
+        <PanelArrow />
+
         {view === 'results' ? (
           <>
-            <div className="flex items-center justify-between gap-2 border-b border-[#e0e6ee] px-3 py-1.5">
-              <div className="flex items-center gap-1.5">
-                {(['asset', 'role'] as const)
-                  .filter((key) => key !== 'role' || canPickRole)
-                  .map((key) => {
-                    const count = key === 'asset' ? displayedAssets.length : roles.length;
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => setTypeFilter(key)}
-                        className={cn(
-                          'flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium hover:cursor-pointer',
-                          typeFilter === key ? 'border-[#2563eb] bg-[#eef4ff] text-[#2563eb]' : 'border-[#e0e6ee] text-[#64748b]'
-                        )}
-                      >
-                        {key === 'asset' ? t('mention.filterAssets') : t('mention.filterRoles')}
-                        <span className="tabular-nums">{count}</span>
-                      </button>
-                    );
-                  })}
-              </div>
-              <span className="shrink-0 text-[11px] text-[#94a3b8]">{t('mention.shownOfTotal', { shown: shownCount, total: totalCount })}</span>
+            <PanelHeader term={search} browsing={browsing} countLabel={headerCountLabel} />
+
+            <div className="flex items-center gap-1.5 px-[10px] py-1">
+              {canPickAssets && (
+                <FilterChip active={showingAssets} count={displayedAssets.length} label={t('mention.filterAssets')} onClick={() => setActiveFilter('asset')} />
+              )}
+              {canPickRole && (
+                <FilterChip active={showingRoles} count={roles.length} label={t('mention.filterRoles')} onClick={() => setActiveFilter('role')} />
+              )}
             </div>
-            {showingAssets && browsing && <FolderBreadcrumb trail={trail} onNavigate={handleNavigateTrail} />}
+
+            {showingFolderBrowse && <FolderBreadcrumb trail={trail} countsLabel={folderCountsLabel} onNavigate={handleNavigateTrail} />}
           </>
         ) : (
           versionAsset && <VersionHeader asset={versionAsset} onBack={handleBack} />
         )}
 
-        <div className="flex-1 overflow-y-auto p-1">
-          {/* Montado en las dos vistas: cuando no hay ítems (carpeta vacía, sin resultados)
-              sostiene `hasEmpty` para que el popover no se cierre solo. */}
+        <div className="max-h-105 flex-1 overflow-y-auto p-1">
+          {/* Montado en las tres vistas: cuando no hay ítems (carpeta vacía, sin resultados,
+              error) sostiene `hasEmpty` para que el popover no se cierre solo. */}
           <InlineComboboxEmpty>
-            <div className="flex flex-col items-start gap-1 px-1 py-2">
-              <p className="text-xs text-muted-foreground">{emptyMessage}</p>
-            </div>
+            {isError ? (
+              <div className="flex flex-col items-start gap-1.5 px-2 py-3">
+                <p className="flex items-center gap-1.5 text-xs text-[#b91c1c]">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  {t('mention.searchError')}
+                </p>
+                <button
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={handleRetry}
+                  className="flex items-center gap-1 rounded-md px-1 text-xs font-medium text-[#2563eb] hover:cursor-pointer hover:underline"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  {t('mention.retry')}
+                </button>
+              </div>
+            ) : activeLoading ? null : (
+              <div className="flex flex-col items-start gap-1 px-1 py-2">
+                <p className="text-xs text-muted-foreground">{emptyMessage}</p>
+                {!browsing && showingAssets && (
+                  <button
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={handleSearchAll}
+                    className="rounded-md px-1 text-xs font-medium text-[#2563eb] hover:cursor-pointer hover:underline"
+                  >
+                    {t('mention.searchAllAssets')}
+                  </button>
+                )}
+              </div>
+            )}
           </InlineComboboxEmpty>
 
           {view === 'results' ? (
             <>
-              {activeLoading && (
-                <div className="flex flex-col gap-1 p-1">
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} className="flex items-center gap-2 px-2 py-1.5">
-                      <Skeleton className="h-6 w-6 shrink-0 rounded-md" />
-                      <div className="flex-1 space-y-1">
-                        <Skeleton className="h-3 w-2/3" />
-                        <Skeleton className="h-2.5 w-1/3" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {activeLoading && <SkeletonRows />}
 
-              {showingAssets && browsing && currentFolders.length > 0 && (
-                <InlineComboboxGroup>
-                  <InlineComboboxGroupLabel>{t('mention.groupFolders')}</InlineComboboxGroupLabel>
+              {showingFolderBrowse && currentFolders.length > 0 && (
+                <InlineComboboxGroup className={GROUP_CLASS}>
+                  <InlineComboboxGroupLabel className={SECTION_LABEL_CLASS}>
+                    <SectionLabel dotColor="#94a3b8">{t('mention.groupFolders')}</SectionLabel>
+                  </InlineComboboxGroupLabel>
                   {currentFolders.map((folder) => (
                     <FolderRow key={folder.id} folder={folder} onEnter={handleEnterFolder} />
                   ))}
@@ -561,21 +823,27 @@ function ReferenceComboboxBody({
               )}
 
               {showingAssets && displayedAssets.length > 0 && (
-                <InlineComboboxGroup>
-                  <InlineComboboxGroupLabel>{t('mention.groupDocuments')}</InlineComboboxGroupLabel>
+                <InlineComboboxGroup className={GROUP_CLASS}>
+                  <InlineComboboxGroupLabel className={SECTION_LABEL_CLASS}>
+                    <SectionLabel dotColor="#1d4ed8">
+                      {showingFolderBrowse ? t('mention.groupAssetsInFolder') : t('mention.groupDocuments')}
+                    </SectionLabel>
+                  </InlineComboboxGroupLabel>
                   {displayedAssets.map((asset) => (
-                    <AssetRow key={asset.id} asset={asset} term={effectiveTerm} onDrillIn={handleDrillIn} />
+                    <AssetRow key={asset.id} asset={asset} term={effectiveTerm} showPath={!showingFolderBrowse} onDrillIn={handleDrillIn} />
                   ))}
                 </InlineComboboxGroup>
               )}
 
-              {showingAssets && browsing && folderHasNext && (
+              {showingFolderBrowse && folderHasNext && (
                 <p className="px-3 py-1.5 text-[11px] text-[#94a3b8]">{t('mention.moreItems')}</p>
               )}
 
               {showingRoles && roles.length > 0 && (
-                <InlineComboboxGroup>
-                  <InlineComboboxGroupLabel>{t('mention.groupRoles')}</InlineComboboxGroupLabel>
+                <InlineComboboxGroup className={GROUP_CLASS}>
+                  <InlineComboboxGroupLabel className={SECTION_LABEL_CLASS}>
+                    <SectionLabel dotColor="#6d28d9">{t('mention.groupRoles')}</SectionLabel>
+                  </InlineComboboxGroupLabel>
                   {roles.map((role) => (
                     <RoleRow key={role.id} role={role} term={effectiveTerm} rolesMap={rolesMap} onSelect={handleSelectRole} />
                   ))}
@@ -595,7 +863,12 @@ function ReferenceComboboxBody({
           )}
         </div>
 
-        <ShortcutsFooter view={view} canGoUp={showingAssets && browsing && trail.length > 1} showingAssets={showingAssets} />
+        <ShortcutsFooter
+          mode={view === 'version' ? 'version' : showingFolderBrowse ? 'browse' : 'results'}
+          activeIsRole={activeIsRole}
+          canGoUp={showingFolderBrowse && trail.length > 1}
+          shorthandHint={versionShorthandHint}
+        />
       </InlineComboboxContent>
     </div>
   );
@@ -646,7 +919,11 @@ export function ReferenceComboboxInput(props: PlateElementProps<TComboboxInputEl
   );
 
   return (
-    <PlateElement {...props} as="span">
+    <PlateElement
+      {...props}
+      as="span"
+      className="rounded-[3px] bg-[#fff5d6] px-[3px] py-px font-semibold text-[#92400e] shadow-[0_0_0_1.5px_#f3d68a]"
+    >
       <InlineCombobox element={element} trigger="@" filter={false} defaultValue={element.value || ''} value={search} setValue={setSearch}>
         <ReferenceComboboxBody
           organizationId={organizationId}

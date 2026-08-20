@@ -11,7 +11,7 @@ export function HighlightedText({ text, term, className }: { text: string; term:
     <span className={className}>
       {fragments.map((fragment, index) =>
         fragment.matched ? (
-          <mark key={index} className="rounded-[2px] bg-[#ffe9a8] text-inherit">
+          <mark key={index} className="rounded-[2px] bg-[#ffe08a] font-semibold text-inherit">
             {fragment.text}
           </mark>
         ) : (

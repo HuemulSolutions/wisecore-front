@@ -8,14 +8,10 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
 import { useResolvedRoleReference } from '@/contexts/role-refs-context';
+import { roleChipSwatch } from '@/lib/reference-colors';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import type { RoleReferenceElement as RoleReferenceElementType } from '@/types/reference';
-
-function tintFromColor(color?: string | null): string | undefined {
-  if (!color || !/^#[0-9a-fA-F]{6}$/.test(color)) return undefined;
-  return `${color}1A`;
-}
 
 export function RoleReferenceNode(props: PlateElementProps<RoleReferenceElementType>) {
   const { element, editor } = props;
@@ -23,6 +19,7 @@ export function RoleReferenceNode(props: PlateElementProps<RoleReferenceElementT
   const focused = useFocused();
   const { t } = useTranslation('editor');
   const resolved = useResolvedRoleReference(element);
+  const swatch = roleChipSwatch(resolved.color);
 
   const handleRemove = () => {
     const path = editor.api.findPath(element);
@@ -37,7 +34,7 @@ export function RoleReferenceNode(props: PlateElementProps<RoleReferenceElementT
         resolved.isMissing && 'opacity-50 line-through decoration-1',
         selected && focused && 'ring-2 ring-ring'
       )}
-      style={{ backgroundColor: tintFromColor(resolved.color), color: resolved.color || undefined }}
+      style={{ backgroundColor: swatch.background, color: swatch.color }}
       attributes={{
         ...props.attributes,
         contentEditable: false,
@@ -47,7 +44,7 @@ export function RoleReferenceNode(props: PlateElementProps<RoleReferenceElementT
       <HoverCard>
         <HoverCardTrigger asChild>
           <span className="inline-flex items-center gap-1">
-            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: resolved.color || 'currentColor' }} />
+            <span className="size-1.75 shrink-0 rounded-full" style={{ backgroundColor: swatch.color }} />
             <span className="truncate">{resolved.name}</span>
           </span>
         </HoverCardTrigger>

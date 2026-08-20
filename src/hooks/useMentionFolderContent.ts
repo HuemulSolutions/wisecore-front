@@ -40,5 +40,12 @@ export function useMentionFolderContent(organizationId: string | undefined, fold
   const folders: LibraryContentFolder[] = query.data?.folders ?? [];
   const assets: LibraryContentAsset[] = query.data?.assets ?? [];
 
-  return { folders, assets, hasNext: query.data?.has_next ?? false, isLoading: query.isLoading };
+  return {
+    folders,
+    assets,
+    hasNext: query.data?.has_next ?? false,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
+  };
 }

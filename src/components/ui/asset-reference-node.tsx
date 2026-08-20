@@ -13,16 +13,11 @@ import { useEffectiveOrgId, useOrgPath } from '@/hooks/useOrgRouter';
 import { useResolvedAssetReference } from '@/contexts/mention-refs-context';
 import { getCurrentExecution } from '@/lib/library-executions';
 import { getExecutionCompactLabel } from '@/components/assets/content/utils/version-utils';
+import { assetChipPalette } from '@/lib/reference-colors';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { AssetReferenceElement as AssetReferenceElementType } from '@/types/reference';
-
-/** Fondo tenue derivado del color del tipo de documento (mismo cálculo que assets-related-documents.tsx). */
-function tintFromColor(color?: string | null): string | undefined {
-  if (!color || !/^#[0-9a-fA-F]{6}$/.test(color)) return undefined;
-  return `${color}1A`;
-}
 
 export function AssetReferenceNode(props: PlateElementProps<AssetReferenceElementType>) {
   const { element, editor } = props;
@@ -59,17 +54,21 @@ export function AssetReferenceNode(props: PlateElementProps<AssetReferenceElemen
 
   const asset = resolved.asset;
   const currentExecution = asset ? getCurrentExecution(asset) : null;
+  const palette = assetChipPalette(resolved.color);
+  // "última" fijo mientras `versionMode: 'latest'` — el número real que resuelve hoy
+  // queda para el hover card (`hoverCard.followsLatest`), no para la chip en sí.
+  const versionBadgeLabel = element.versionMode === 'latest' ? t('mention.latestBadge') : resolved.displayVersionLabel;
 
   return (
     <PlateElement
       {...props}
       className={cn(
-        'inline-flex items-center gap-1 rounded-[5px] px-1.5 py-0.5 align-baseline font-medium text-sm',
+        'inline-flex items-center gap-1 rounded-[5px] border px-1.5 py-0.5 align-baseline font-medium text-sm',
         !resolved.isMissing && 'cursor-pointer',
         resolved.isMissing && 'opacity-50 line-through decoration-1',
         selected && focused && 'ring-2 ring-ring'
       )}
-      style={{ backgroundColor: tintFromColor(resolved.color), color: resolved.color || undefined }}
+      style={{ backgroundColor: palette.background, borderColor: palette.border, color: palette.color }}
       attributes={{
         ...props.attributes,
         contentEditable: false,
@@ -82,10 +81,10 @@ export function AssetReferenceNode(props: PlateElementProps<AssetReferenceElemen
             className="inline-flex items-center gap-1"
             onMouseDown={(event) => { if (event.button === 0) handleOpen(); }}
           >
-            <File className="h-3.5 w-3.5 shrink-0" />
+            <File className="h-3 w-3 shrink-0" />
             <span className="truncate">{resolved.name}</span>
-            {resolved.displayVersionLabel && (
-              <span className="text-xs opacity-80">{resolved.displayVersionLabel}</span>
+            {versionBadgeLabel && (
+              <span className="font-mono text-xs opacity-80">{versionBadgeLabel}</span>
             )}
             {resolved.isStale && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />}
           </span>
@@ -111,11 +110,20 @@ export function AssetReferenceNode(props: PlateElementProps<AssetReferenceElemen
               </p>
 
               {resolved.isStale && (
-                <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
-                  {t('mention.hoverCard.staleWarning', {
-                    pinned: resolved.displayVersionLabel,
-                    latest: resolved.latestVersionLabel,
-                  })}
+                <div className="flex items-center justify-between gap-2 rounded-md border border-[#fde68a] bg-[#fffbeb] p-2 text-xs text-amber-900">
+                  <span>
+                    {t('mention.hoverCard.staleWarning', {
+                      pinned: resolved.displayVersionLabel,
+                      latest: resolved.latestVersionLabel,
+                    })}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setVersion('latest')}
+                    className="shrink-0 font-medium text-[#92400e] underline hover:cursor-pointer"
+                  >
+                    {t('mention.updateToLatest')}
+                  </button>
                 </div>
               )}
 
