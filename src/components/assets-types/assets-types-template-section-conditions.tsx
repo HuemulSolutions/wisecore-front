@@ -97,7 +97,9 @@ function SectionConditionCard({
       try {
         await updateTemplateSection(
           section.id,
-          { depends_on: nextConditions, show_when_inactive: nextShowWhenInactive },
+          // `name` es requerido por UpdateTemplateSection aunque el PUT sea parcial
+          // (el resto de campos planos se conservan si no viajan): sin él responde 422.
+          { name: section.name, depends_on: nextConditions, show_when_inactive: nextShowWhenInactive },
           organizationId,
         )
         onSaved()
@@ -131,7 +133,11 @@ function SectionConditionCard({
     if (!canManage || isRemoving) return
     setIsRemoving(true)
     try {
-      await updateTemplateSection(section.id, { depends_on: [], show_when_inactive: false }, organizationId)
+      await updateTemplateSection(
+        section.id,
+        { name: section.name, depends_on: [], show_when_inactive: false },
+        organizationId,
+      )
       onSaved()
       onRemoved(section.id)
     } catch {
