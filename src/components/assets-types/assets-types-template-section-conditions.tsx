@@ -4,16 +4,26 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Loader2, Plus, Shield, X } from "lucide-react"
+import { Check, Plus, Shield, X } from "lucide-react"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { Skeleton } from "@/components/ui/skeleton"
-import { PanelCard, PanelIconButton } from "@/components/assets-types/assets-types-lifecycle-ui"
+import {
+  PanelCard,
+  PanelDirtyBadge,
+  PanelIconButton,
+  PanelPillButton,
+} from "@/components/assets-types/assets-types-lifecycle-ui"
 import { SectionFormFieldDependencyEditor } from "@/components/sections/section-form-field-dependency-editor"
 import { sectionHasValidDependencies } from "@/components/sections/validate-form-field-dependencies"
 import { QUESTION_TYPE } from "@/components/sections/question-type-meta"
+import {
+  buildTemplateSectionUpdatePayload,
+  type TemplateSectionSnapshot,
+} from "@/components/sections/build-template-section-update-payload"
 import { getTemplateById } from "@/services/templates"
 import { updateTemplateSection } from "@/services/template_section"
+import { handleApiError } from "@/lib/error-utils"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import type { TemplateSectionConditionsProps } from "@/types/assets"
@@ -21,18 +31,28 @@ import type { FieldDependencyCondition, SectionFormField } from "@/types/section
 
 export type { TemplateSectionConditionsProps } from "@/types/assets"
 
-/** Fila de la lista: una sección de la plantilla (misma forma que necesita el picker de campos). */
-interface ConditionSection {
-  id: string
-  name: string
-  order: number
-  type?: string
-  form_fields?: SectionFormField[]
+/** Fila de la lista: una sección de la plantilla (misma forma que necesita el picker de
+ * campos), más lo que exige el PUT completo de `template_section`. */
+interface ConditionSection extends TemplateSectionSnapshot {
+  /** Orden normalizado para ordenar la lista y filtrar targets. `order` conserva el valor
+   * crudo del backend porque viaja en el PUT — no fabricar uno acá. */
+  sortOrder: number
   depends_on?: FieldDependencyCondition[] | null
   show_when_inactive?: boolean
 }
 
-const SAVE_DEBOUNCE_MS = 500
+/** Merge de las claves *presentes* en `patch` sobre `base`: las que el backend no
+ * devolvió (`undefined`) conservan el valor que ya tenía la sección cacheada. */
+function mergeDefinedKeys(
+  base: Record<string, unknown>,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  const merged = { ...base }
+  for (const [key, value] of Object.entries(patch)) {
+    if (value !== undefined) merged[key] = value
+  }
+  return merged
+}
 
 /** Chip "Sección" — mismo acento morado que ya usa el módulo para secciones (ver
  * ACCESS_STYLE.edit en assets-types-template-sections-matrix.tsx y el ícono FileText
@@ -51,8 +71,8 @@ function SectionChip() {
  * Tarjeta de condición de UNA sección: chip + nombre + botón quitar, y el editor de
  * condiciones reusado tal cual del dominio de secciones (mismo dato que
  * sections-form.tsx, un segundo punto de entrada). El guardado es directo por
- * sección (igual que TemplateSectionAccessMatrix), no pasa por el batch-save del
- * footer del sheet.
+ * sección — con botón "Guardar" propio en la tarjeta, no automático — y no pasa por
+ * el batch-save del footer del sheet.
  */
 function SectionConditionCard({
   section,
@@ -64,84 +84,102 @@ function SectionConditionCard({
   section: ConditionSection
   availableFields: SectionFormField[]
   canManage: boolean
-  onSaved: () => void
+  onSaved: (updatedSection: unknown) => void
   onRemoved: (sectionId: string) => void
 }) {
-  const { t } = useTranslation("asset-types")
+  const { t } = useTranslation(["asset-types", "common"])
   const { selectedOrganizationId } = useOrganization()
   const organizationId = selectedOrganizationId ?? ""
 
   const [conditions, setConditions] = React.useState<FieldDependencyCondition[]>(section.depends_on ?? [])
   const [showWhenInactive, setShowWhenInactive] = React.useState(section.show_when_inactive ?? false)
+  const [isDirty, setIsDirty] = React.useState(false)
   const [isSaving, setIsSaving] = React.useState(false)
   const [isRemoving, setIsRemoving] = React.useState(false)
 
   // Reflejar lo que llegue del servidor tras un refetch (otra pestaña, otro editor
-  // de esta misma condición en sections-form.tsx) sin pisar una edición en curso.
-  const pendingRef = React.useRef(false)
+  // de esta misma condición en sections-form.tsx) sin pisar una edición sin guardar.
+  // Se reacciona al CAMBIO del valor del servidor, no a `isDirty`: si dependiera de
+  // `isDirty`, el `setIsDirty(false)` de un guardado exitoso volvería a correr el
+  // efecto con la sección todavía vieja del caché y vaciaría lo recién guardado.
+  const serverSnapshot = JSON.stringify([section.depends_on ?? [], section.show_when_inactive ?? false])
+  const lastServerSnapshot = React.useRef(serverSnapshot)
+  const isDirtyRef = React.useRef(isDirty)
+  isDirtyRef.current = isDirty
   React.useEffect(() => {
-    if (pendingRef.current) return
-    setConditions(section.depends_on ?? [])
-    setShowWhenInactive(section.show_when_inactive ?? false)
-  }, [section.depends_on, section.show_when_inactive])
-
-  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  React.useEffect(() => () => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-  }, [])
-
-  const persist = React.useCallback(
-    async (nextConditions: FieldDependencyCondition[], nextShowWhenInactive: boolean) => {
-      setIsSaving(true)
-      pendingRef.current = true
-      try {
-        await updateTemplateSection(
-          section.id,
-          // `name` es requerido por UpdateTemplateSection aunque el PUT sea parcial
-          // (el resto de campos planos se conservan si no viajan): sin él responde 422.
-          { name: section.name, depends_on: nextConditions, show_when_inactive: nextShowWhenInactive },
-          organizationId,
-        )
-        onSaved()
-      } catch {
-        toast.error(t("templates.conditions.saveError"))
-      } finally {
-        setIsSaving(false)
-        pendingRef.current = false
-      }
-    },
-    [section.id, organizationId, onSaved, t],
-  )
+    if (serverSnapshot === lastServerSnapshot.current) return
+    lastServerSnapshot.current = serverSnapshot
+    if (isDirtyRef.current) return
+    const [nextConditions, nextShowWhenInactive] = JSON.parse(serverSnapshot) as [
+      FieldDependencyCondition[],
+      boolean,
+    ]
+    setConditions(nextConditions)
+    setShowWhenInactive(nextShowWhenInactive)
+  }, [serverSnapshot])
 
   const handleChange = (nextConditions: FieldDependencyCondition[], nextShowWhenInactive: boolean) => {
     setConditions(nextConditions)
     setShowWhenInactive(nextShowWhenInactive)
+    setIsDirty(true)
+  }
 
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    // El backend no valida field_id a nivel de sección (ver ia context/
-    // dependencias-condicionales-formularios-guide.md §3.2) — no dispara el PUT
-    // mientras el estado no sea válido, para no dejar la sección inactiva en
-    // silencio por una condición a medio completar. El error ya se ve inline
-    // (SectionFormFieldDependencyEditor lo calcula con las mismas reglas).
-    if (!sectionHasValidDependencies(nextConditions, availableFields)) return
-    debounceRef.current = setTimeout(() => {
-      void persist(nextConditions, nextShowWhenInactive)
-    }, SAVE_DEBOUNCE_MS)
+  // El backend no valida field_id a nivel de sección (ver ia context/
+  // dependencias-condicionales-formularios-guide.md §3.2), así que no se habilita el
+  // guardado mientras el estado no sea válido: una condición a medio completar dejaría
+  // la sección inactiva en silencio. El detalle del error ya se ve inline
+  // (SectionFormFieldDependencyEditor lo calcula con las mismas reglas), y
+  // sectionHasValidDependencies ignora las filas sin field_id — de ahí el every().
+  const isComplete =
+    conditions.every((c) => c.field_id.trim()) && sectionHasValidDependencies(conditions, availableFields)
+  const canSave = canManage && isDirty && isComplete && !isSaving && !isRemoving
+
+  const handleSave = async () => {
+    if (!canSave) return
+    setIsSaving(true)
+    try {
+      const updated = await updateTemplateSection(
+        section.id,
+        // El PUT de template_section no admite payload parcial (sin `name` responde 422;
+        // solo con `name` + depends_on, 500): se reenvía la sección completa, igual que
+        // sections-form.tsx en modo edit.
+        buildTemplateSectionUpdatePayload(section, {
+          depends_on: conditions.filter((c) => c.field_id.trim()),
+          show_when_inactive: showWhenInactive,
+        }),
+        organizationId,
+      )
+      setIsDirty(false)
+      onSaved(updated)
+      toast.success(t("templates.conditions.saveSuccess"))
+    } catch (error) {
+      handleApiError(error, { fallbackMessage: t("templates.conditions.saveError") })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleRemove = async () => {
     if (!canManage || isRemoving) return
+    // Tarjeta agregada en esta sesión y nunca persistida: se quita en local, sin PUT.
+    // Se mira también el estado local porque el GET del template no devuelve
+    // `depends_on`: sin eso, la X nunca limpiaría una condición ya guardada.
+    if (!section.depends_on?.length && conditions.length === 0) {
+      onRemoved(section.id)
+      return
+    }
     setIsRemoving(true)
     try {
-      await updateTemplateSection(
+      const updated = await updateTemplateSection(
         section.id,
-        { name: section.name, depends_on: [], show_when_inactive: false },
+        buildTemplateSectionUpdatePayload(section, { depends_on: [], show_when_inactive: false }),
         organizationId,
       )
-      onSaved()
+      setIsDirty(false)
+      onSaved(updated)
       onRemoved(section.id)
-    } catch {
-      toast.error(t("templates.conditions.saveError"))
+    } catch (error) {
+      handleApiError(error, { fallbackMessage: t("templates.conditions.saveError") })
       setIsRemoving(false)
     }
   }
@@ -154,7 +192,7 @@ function SectionConditionCard({
           <span className="truncate text-[13px] font-medium text-[#0f172a]" title={section.name}>
             {section.name}
           </span>
-          {isSaving && <Loader2 className="size-3.5 shrink-0 animate-spin text-[#94a3b8]" />}
+          {isDirty && <PanelDirtyBadge label={t("templates.conditions.unsaved")} />}
         </div>
         {canManage && (
           <PanelIconButton
@@ -175,9 +213,20 @@ function SectionConditionCard({
           showWhenInactive={showWhenInactive}
           availableFields={availableFields}
           onChange={handleChange}
-          disabled={!canManage || isRemoving}
+          disabled={!canManage || isRemoving || isSaving}
         />
       </div>
+      {canManage && (
+        <div className="flex justify-end pt-2">
+          <PanelPillButton
+            icon={Check}
+            label={isSaving ? t("common:saving") : t("common:save")}
+            onClick={() => void handleSave()}
+            disabled={!canSave}
+            tone="primary"
+          />
+        </div>
+      )}
     </PanelCard>
   )
 }
@@ -214,8 +263,11 @@ export function TemplateSectionConditions({ templateId, enabled = true }: Templa
     const raw: unknown = templateData?.sections ?? templateData?.template_sections ?? []
     if (!Array.isArray(raw)) return []
     return raw
-      .map((section: ConditionSection, index: number) => ({ ...section, order: section.order ?? index }))
-      .sort((a, b) => a.order - b.order)
+      .map((section: TemplateSectionSnapshot, index: number) => ({
+        ...section,
+        sortOrder: section.order ?? index,
+      }))
+      .sort((a, b) => a.sortOrder - b.sortOrder)
   }, [templateData])
 
   // Targets del picker de campo: mismo criterio que sections-form.tsx
@@ -224,7 +276,7 @@ export function TemplateSectionConditions({ templateId, enabled = true }: Templa
   const availableFieldsFor = React.useCallback(
     (targetOrder: number): SectionFormField[] =>
       sections
-        .filter((s) => s.type === "form" && s.order < targetOrder)
+        .filter((s) => s.type === "form" && s.sortOrder < targetOrder)
         .flatMap((s) => s.form_fields ?? [])
         .filter((f) => f.question_type !== QUESTION_TYPE.label),
     [sections],
@@ -256,9 +308,37 @@ export function TemplateSectionConditions({ templateId, enabled = true }: Templa
     setPickerOpen(false)
   }
 
-  const handleSaved = React.useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ["template", templateId] })
-  }, [queryClient, templateId])
+  // El PUT devuelve la sección actualizada: se parchea el caché con ella en vez de
+  // invalidar. `GET /templates/{id}` no devuelve `depends_on`/`show_when_inactive` en
+  // sus secciones, así que un refetch borraría de la vista la condición recién
+  // guardada. El merge es parcial y por clave presente: la respuesta del PUT es plana
+  // (no trae `form_fields` ni `dependencies`) y esta misma query key la consume
+  // TemplateSectionAccessMatrix — reemplazar la sección entera rompería el picker de
+  // campos y la matriz de accesos.
+  const handleSaved = React.useCallback(
+    (updatedSection: unknown) => {
+      const updated = updatedSection as (Partial<TemplateSectionSnapshot> & { id?: string }) | null
+      if (!updated?.id) {
+        void queryClient.invalidateQueries({ queryKey: ["template", templateId] })
+        return
+      }
+      queryClient.setQueryData(["template", templateId], (prev: unknown) => {
+        if (!prev || typeof prev !== "object") return prev
+        const template = prev as Record<string, unknown>
+        const key = Array.isArray(template.sections)
+          ? "sections"
+          : Array.isArray(template.template_sections)
+            ? "template_sections"
+            : null
+        if (!key) return prev
+        const patched = (template[key] as Record<string, unknown>[]).map((s) =>
+          s.id === updated.id ? mergeDefinedKeys(s, updated as Record<string, unknown>) : s,
+        )
+        return { ...template, [key]: patched }
+      })
+    },
+    [queryClient, templateId],
+  )
 
   const handleRemoved = React.useCallback((sectionId: string) => {
     setAddedIds((prev) => {
@@ -299,7 +379,7 @@ export function TemplateSectionConditions({ templateId, enabled = true }: Templa
               <SectionConditionCard
                 key={section.id}
                 section={section}
-                availableFields={availableFieldsFor(section.order)}
+                availableFields={availableFieldsFor(section.sortOrder)}
                 canManage={canManage}
                 onSaved={handleSaved}
                 onRemoved={handleRemoved}

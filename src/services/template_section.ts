@@ -42,6 +42,7 @@ export async function updateTemplateSection(
     sectionData: {
         name?: string;
         type?: "ai" | "manual" | "reference" | "form";
+        order?: number;
         prompt?: string;
         manual_input?: string;
         reference_section_id?: string;

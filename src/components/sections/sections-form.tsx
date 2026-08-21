@@ -91,6 +91,11 @@ export function SectionForm({
   const [sectionShowWhenInactive, setSectionShowWhenInactive] = useState(
     mode === 'edit' && item ? (item.show_when_inactive ?? false) : false
   );
+  // `GET /templates/{id}` no devuelve depends_on/show_when_inactive en sus secciones, así
+  // que en modo edit el estado arranca vacío aunque la sección SÍ tenga una condición
+  // guardada. Si se enviara igual, editar cualquier otra cosa de la sección la borraría en
+  // silencio. Solo se envían si el usuario tocó el editor, o si el item trajo el valor.
+  const [sectionDependencyTouched, setSectionDependencyTouched] = useState(false);
   const [selectedDependencies, setSelectedDependencies] = useState<Array<{id: string; name: string}>>(
     mode === 'edit' && item ? item.dependencies : []
   );
@@ -238,6 +243,7 @@ export function SectionForm({
     setFormFields((item.form_fields || []).map(withFieldKey));
     setSectionDependsOn(item.depends_on ?? []);
     setSectionShowWhenInactive(item.show_when_inactive ?? false);
+    setSectionDependencyTouched(false);
 
     // Si hay un reference_section_id y referenced_document_id, establecer selectedAsset y selectedSection
     if (refSectionId && refDocumentId && (item as any).type === 'reference') {
@@ -428,11 +434,16 @@ export function SectionForm({
         submitData.form_fields = formFields.map((f, idx) => ({ ...stripFieldKey(f), order: idx + 1 }));
       }
 
-      // Dependencia condicional de la sección — se envía siempre (también vacía): el
-      // backend conserva el valor previo si estas claves no viajan, así que omitirlas
-      // en modo edit haría imposible borrar una dependencia ya guardada.
-      submitData.depends_on = sectionDependsOn.filter(c => c.field_id.trim());
-      submitData.show_when_inactive = sectionShowWhenInactive;
+      // Dependencia condicional de la sección — se envía siempre que el estado local sea
+      // confiable (el usuario tocó el editor, o el item trajo el valor del backend),
+      // también vacía: el backend conserva el valor previo si estas claves no viajan, así
+      // que omitirlas cuando el usuario sí editó haría imposible borrar una dependencia
+      // ya guardada. Al revés, enviarlas cuando el GET nunca entregó el valor borraría en
+      // silencio la condición existente.
+      if (sectionDependencyTouched || item?.depends_on !== undefined) {
+        submitData.depends_on = sectionDependsOn.filter(c => c.field_id.trim());
+        submitData.show_when_inactive = sectionShowWhenInactive;
+      }
 
       if (hasTemplate) {
         submitData.propagate_to_template = propagateToTemplate;
@@ -892,6 +903,7 @@ export function SectionForm({
         onChange={(conditions, showWhenInactive) => {
           setSectionDependsOn(conditions);
           setSectionShowWhenInactive(showWhenInactive);
+          setSectionDependencyTouched(true);
           markDirty();
         }}
         disabled={isPending}

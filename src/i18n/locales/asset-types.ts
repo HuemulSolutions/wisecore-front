@@ -150,6 +150,8 @@ const translations = {
       noSections: { en: "This template has no sections yet.", es: "Esta plantilla todavía no tiene secciones." },
       noSectionsToAdd: { en: "All sections already have a condition", es: "Todas las secciones ya tienen una condición" },
       noConditionsYet: { en: "No sections have conditions yet.", es: "Ninguna sección tiene condiciones todavía." },
+      unsaved: { en: "Unsaved", es: "Sin guardar" },
+      saveSuccess: { en: "Condition saved", es: "Condición guardada" },
       saveError: { en: "The condition could not be saved.", es: "No se pudo guardar la condición." },
       accessDenied: { en: "You don't have permission to view section conditions.", es: "No tienes permiso para ver las condiciones de sección." },
     },
