@@ -5,15 +5,23 @@ import { getDocumentTypes, createDocumentType, deleteDocumentType } from "@/serv
 export const documentTypeQueryKeys = {
   all: ['document-types'] as const,
   lists: () => [...documentTypeQueryKeys.all, 'list'] as const,
-  list: (params?: { search?: string; tag_id?: string }) => [...documentTypeQueryKeys.lists(), params] as const,
+  list: (params?: { page?: number; page_size?: number; search?: string; tag_id?: string; document_type_folder_id?: string }) =>
+    [...documentTypeQueryKeys.lists(), params] as const,
 }
 
 // Hook for fetching document types
-export function useDocumentTypes(options?: { search?: string; tag_id?: string; enabled?: boolean }) {
-  const { search, tag_id, enabled = true } = options ?? {}
+export function useDocumentTypes(options?: {
+  page?: number
+  page_size?: number
+  search?: string
+  tag_id?: string
+  document_type_folder_id?: string
+  enabled?: boolean
+}) {
+  const { page, page_size, search, tag_id, document_type_folder_id, enabled = true } = options ?? {}
   return useQuery({
-    queryKey: documentTypeQueryKeys.list({ search, tag_id }),
-    queryFn: () => getDocumentTypes({ search, tag_id }),
+    queryKey: documentTypeQueryKeys.list({ page, page_size, search, tag_id, document_type_folder_id }),
+    queryFn: () => getDocumentTypes({ page, page_size, search, tag_id, document_type_folder_id }),
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 0,
     placeholderData: (prev) => prev,

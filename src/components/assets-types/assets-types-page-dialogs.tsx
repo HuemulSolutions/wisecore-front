@@ -9,6 +9,8 @@ import { AssetTypeConfigSheet } from "@/components/assets-types/assets-types-con
 import { AssetTypeRelationshipsSheet } from "@/components/assets-types/assets-types-relationships-sheet"
 import { AssetTypeExportDialog } from "@/components/assets-types/assets-types-export-dialog"
 import { AssetTypeImportSheet } from "@/components/assets-types/assets-types-import-sheet"
+import { AssetTypeFolderCreateSheet } from "@/components/assets-types/assets-types-folder-create-sheet"
+import { AssetTypeFolderEditSheet } from "@/components/assets-types/assets-types-folder-edit-sheet"
 import type { AssetTypePageDialogsProps } from '@/types/assets'
 
 export type { AssetTypePageDialogsProps } from '@/types/assets'
@@ -159,6 +161,28 @@ export default function AssetTypePageDialogs({
           }
         }}
         onImportSuccess={onImportSuccess}
+      />
+
+      {/* Create Folder Sheet */}
+      <AssetTypeFolderCreateSheet
+        open={state.creatingFolder}
+        onOpenChange={(open) => {
+          if (!open) {
+            onUpdateState({ creatingFolder: false })
+          }
+        }}
+      />
+
+      {/* Edit / Delete Folder Sheet */}
+      <AssetTypeFolderEditSheet
+        folder={state.editingFolder}
+        open={!!state.editingFolder}
+        onOpenChange={(open) => {
+          if (!open) {
+            onCloseDialog('editingFolder')
+          }
+        }}
+        canDelete={can('deleteFolder')}
       />
     </>
   )

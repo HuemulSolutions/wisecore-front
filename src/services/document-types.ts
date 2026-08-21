@@ -10,10 +10,19 @@ export type { DocumentType, DocumentTypeDetail, DocumentTypeDetailResponse, Docu
 // cambio de organización activa.
 
 // Get all document types
-export const getDocumentTypes = async (params?: { search?: string; tag_id?: string }): Promise<DocumentTypesResponse> => {
+export const getDocumentTypes = async (params?: {
+  page?: number
+  page_size?: number
+  search?: string
+  tag_id?: string
+  document_type_folder_id?: string
+}): Promise<DocumentTypesResponse> => {
   const query = new URLSearchParams()
+  if (params?.page) query.set('page', params.page.toString())
+  if (params?.page_size) query.set('page_size', params.page_size.toString())
   if (params?.search?.trim()) query.set('search', params.search.trim())
   if (params?.tag_id) query.set('tag_id', params.tag_id)
+  if (params?.document_type_folder_id) query.set('document_type_folder_id', params.document_type_folder_id)
   const qs = query.toString()
 
   const response = await httpClient.fetch(`${backendUrl}/document_types/${qs ? `?${qs}` : ''}`, {

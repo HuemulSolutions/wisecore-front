@@ -1,5 +1,6 @@
 // Asset Types - Types for the asset type management module
 import type { MutableRefObject } from 'react';
+import type { DocumentTypeFolder } from '../document-type-folders';
 
 // ========================================
 // Core Asset Type Types (from service)
@@ -76,6 +77,10 @@ export interface AssetTypePageState {
   viewRelationshipsAssetType: AssetTypeWithRoles | null;
   showExportDialog: boolean;
   showImportSheet: boolean;
+  /** Sheet de creación de carpeta abierto. */
+  creatingFolder: boolean;
+  /** Carpeta abierta en el sheet de edición/eliminación. */
+  editingFolder: DocumentTypeFolder | null;
 }
 
 export interface AssetTypePageActions {

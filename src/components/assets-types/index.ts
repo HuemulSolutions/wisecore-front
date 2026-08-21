@@ -10,6 +10,8 @@ export { AssetTypeConfigSheet } from './assets-types-config-sheet'
 export { AssetTypeTemplatesPanel } from './assets-types-templates-panel'
 export { AssetTypeExportDialog } from './assets-types-export-dialog'
 export { AssetTypeImportSheet } from './assets-types-import-sheet'
+export { AssetTypeFolderCreateSheet } from './assets-types-folder-create-sheet'
+export { AssetTypeFolderEditSheet } from './assets-types-folder-edit-sheet'
 export type { AssetTypePageState, AssetTypePageActions } from '@/types/assets'
 
 // Re-export utility functions

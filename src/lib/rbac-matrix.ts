@@ -355,6 +355,12 @@ export const RBAC_PAGES = {
       // piden tag:r / tag:u.
       viewTags: "tag:r",
       manageTags: "tag:u",
+      // Carpetas de tipos de documento (document_type_folder): reutilizan
+      // asset_type:* — el endpoint de mover por drag & drop
+      // (POST /document_type_folders/{id}/document_types) también pide asset_type:u.
+      createFolder: "asset_type:c",
+      updateFolder: "asset_type:u",
+      deleteFolder: "asset_type:d",
     },
   },
   "custom-fields": {

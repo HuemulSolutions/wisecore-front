@@ -2,6 +2,8 @@
 import type { ReactNode } from 'react'
 import type { AssetTypeWithRoles, TemplatesSaveApiRef } from './asset-types'
 import type { AssetTypePageState } from './asset-types'
+import type { AssetTypeTreeRow } from './folders'
+import type { DocumentTypeFolder } from '../document-type-folders'
 import type { useAssetTypeMutations } from '@/hooks/useAssetTypes'
 import type { HuemulTablePagination } from '@/huemul/components/huemul-table'
 
@@ -136,6 +138,8 @@ export interface AssetTypePageHeaderProps {
   canImport?: boolean
   /** Cantidad de filas seleccionadas para exportar; deshabilita Exportar si es 0. */
   exportSelectedCount?: number
+  onCreateFolder?: () => void
+  canCreateFolder?: boolean
 }
 
 // ----------------------------------------
@@ -143,18 +147,29 @@ export interface AssetTypePageHeaderProps {
 // ----------------------------------------
 
 export interface AssetTypeTableProps {
-  assetTypes: AssetTypeWithRoles[]
+  /** Filas aplanadas del árbol: carpetas + tipos de documento anidados/sin carpeta. */
+  rows: AssetTypeTreeRow[]
+  expandedFolderIds: Set<string>
+  onExpandedFolderIdsChange: (ids: Set<string>) => void
   /** Abre el sheet de configuración (general + plantillas + ciclo de vida). */
   onConfigureAssetType: (assetType: AssetTypeWithRoles) => void
   onDeleteAssetType: (assetType: AssetTypeWithRoles) => void
   onCloneAssetType: (assetType: AssetTypeWithRoles) => void
   onViewRelationships: (assetType: AssetTypeWithRoles) => void
+  /** Abre el sheet de edición/eliminación de la carpeta. */
+  onEditFolder: (folder: DocumentTypeFolder) => void
+  /** Saca un tipo de documento de su carpeta actual (menú de la fila). */
+  onRemoveFromFolder: (assetType: AssetTypeWithRoles, folderId: string) => void
+  /** Drag & drop: mueve uno o varios tipos de documento a la carpeta destino. */
+  onMoveAssetTypesToFolder: (assetTypeIds: string[], folderId: string) => void
   pagination?: HuemulTablePagination
   /** True si el usuario puede abrir al menos un tab del sheet de configuración. */
   canConfigure?: boolean
   canDelete?: boolean
   canViewRelationships?: boolean
   canClone?: boolean
+  /** `asset_type:u` — habilita drag & drop, renombrar carpeta y "Quitar de la carpeta". */
+  canManageFolders?: boolean
   isLoading?: boolean
   isFetching?: boolean
   selectedIds: Set<string>
