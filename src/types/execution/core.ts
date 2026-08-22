@@ -1,5 +1,5 @@
 export type ExecutionStatus = 'completed' | 'failed' | 'running' | 'pending' | 'queued'
-export type ExecutionLifecycleState = 'draft' | 'in_review' | 'in_approval' | 'approved' | 'published' | 'archived'
+export type ExecutionLifecycleState = 'draft' | 'in_review' | 'in_approval' | 'approved' | 'published' | 'archived' | 'finalized'
 
 export interface Execution {
   id: string

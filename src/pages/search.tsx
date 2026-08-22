@@ -297,6 +297,7 @@ export default function SearchPage() {
           { value: "approved", label: tAssets("lifecycle.stateLabels.approved") },
           { value: "published", label: tAssets("lifecycle.stateLabels.published") },
           { value: "archived", label: tAssets("lifecycle.stateLabels.archived") },
+          { value: "finalized", label: tAssets("lifecycle.stateLabels.finalized") },
         ],
       },
       { key: "expirationDate", type: "date-range", group: dates, label: t("filters.expirationDate") },

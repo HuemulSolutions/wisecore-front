@@ -246,12 +246,13 @@ const translations = {
     archiveFromApprovedDescription: { en: "Are you sure you want to archive this asset directly? This will skip the publication step. Archived assets can still be viewed but are no longer active.", es: "¿Estás seguro de que quieres archivar este activo directamente? Esto omitirá el paso de publicación. Los activos archivados aún pueden ser vistos pero ya no estarán activos." },
     archiveConfirm: { en: "Archive", es: "Archivar" },
     restore: { en: "Restore", es: "Restaurar" },
-    tooltipRestore: { en: "Restore this archived asset to approval", es: "Restaurar este activo archivado a aprobación" },
+    tooltipRestore: { en: "Reopen this asset's lifecycle", es: "Reabrir el ciclo de vida de este activo" },
     restoreTitle: { en: "Restore Asset", es: "Restaurar Activo" },
-    restoreDescription: { en: "Are you sure you want to restore this asset? It will move back to the approval phase and you will need to complete the approval steps and assign a new version again before it can be approved or published.", es: "¿Estás seguro de que quieres restaurar este activo? Volverá a la fase de aprobación y deberás completar nuevamente los pasos de aprobación y asignar una nueva versión antes de que pueda ser aprobado o publicado." },
+    restoreDescription: { en: "Are you sure you want to restore this asset? It will move back to the corresponding stage of its lifecycle and you will need to complete that stage's steps again before it can be finalized.", es: "¿Estás seguro de que quieres restaurar este activo? Volverá a la etapa correspondiente de su ciclo de vida y deberás completar nuevamente los pasos de esa etapa antes de que pueda finalizarse." },
     restoreConfirm: { en: "Restore", es: "Restaurar" },
     successRestore: { en: "Asset restored successfully!", es: "Activo restaurado correctamente" },
     errorRestore: { en: "Failed to restore asset. Please try again.", es: "Error al restaurar el activo. Intenta de nuevo." },
+    errorLocked: { en: "This version already finished its lifecycle and can no longer be edited. Refresh to see its current state.", es: "Esta versión ya terminó su ciclo de vida y no se puede editar. Actualiza para ver su estado actual." },
     successAdvance: { en: "Asset advanced successfully!", es: "Activo avanzado correctamente" },
     errorAdvance: { en: "Failed to advance asset. Please try again.", es: "Error al avanzar el activo. Intenta de nuevo." },
     requiredCustomFields: {
@@ -281,6 +282,7 @@ const translations = {
       approved: { en: "Approved", es: "Aprobado" },
       published: { en: "Published", es: "Publicado" },
       archived: { en: "Archived", es: "Archivado" },
+      finalized: { en: "Finalized", es: "Finalizado" },
     },
     stageLabels: {
       create: { en: "Creator", es: "Creador" },

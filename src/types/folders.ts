@@ -1,3 +1,5 @@
+import type { ExecutionLifecycleState } from './execution';
+
 export interface AssetBreadcrumb {
   id: string;
   name: string;
@@ -56,13 +58,7 @@ export interface LibraryContent {
   has_next: boolean;
 }
 
-export type LibraryContentLifecycleState =
-  | 'draft'
-  | 'in_review'
-  | 'in_approval'
-  | 'approved'
-  | 'published'
-  | 'archived';
+export type LibraryContentLifecycleState = ExecutionLifecycleState;
 
 export type LibraryContentOwnerScope = 'all' | 'me';
 
