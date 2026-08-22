@@ -171,7 +171,7 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = false }: 
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".txt,.md,.pdf,.doc,.docx"
+                  accept=".txt,.md,.pdf,.doc,.docx,.xlsx,.xlsm"
                   className="hidden"
                   onChange={handleFileInputChange}
                 />
