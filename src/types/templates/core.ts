@@ -5,6 +5,8 @@ export interface TemplateItem {
   instructions?: string | null;
   asset_kind?: string | null;
   canvas_id?: string | null;
+  /** Habilita view/edit propio por sección y etapa del ciclo de vida (default false). */
+  section_lifecycle_access_enabled?: boolean;
 }
 
 export interface CloneTemplateRequest {

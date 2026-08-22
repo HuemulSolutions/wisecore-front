@@ -64,6 +64,10 @@ type InlineComboboxProps = {
   children: React.ReactNode;
   element: TElement;
   trigger: string;
+  /** Búsqueda inicial del combobox (no controlada) — para reabrir un combobox ya
+   * con texto tipeado, ej. al reconvertir un `@algo` huérfano en `mention_input`
+   * (ver mention-kit.tsx). Ignorado si `value`/`setValue` están controlados. */
+  defaultValue?: string;
   filter?: FilterFn | false;
   hideWhenNoValue?: boolean;
   showTrigger?: boolean;
@@ -73,6 +77,7 @@ type InlineComboboxProps = {
 
 const InlineCombobox = ({
   children,
+  defaultValue = '',
   element,
   filter = defaultFilter,
   hideWhenNoValue = false,
@@ -85,7 +90,7 @@ const InlineCombobox = ({
   const inputRef = React.useRef<HTMLInputElement>(null);
   const cursorState = useHTMLInputCursorState(inputRef);
 
-  const [valueState, setValueState] = React.useState('');
+  const [valueState, setValueState] = React.useState(defaultValue);
   const hasValueProp = valueProp !== undefined;
   const value = hasValueProp ? valueProp : valueState;
 
@@ -179,6 +184,7 @@ const InlineCombobox = ({
 
   const store = useComboboxStore({
     // open: ,
+    defaultValue,
     setValue: (newValue) => React.startTransition(() => setValue(newValue)),
   });
 
@@ -215,7 +221,7 @@ const InlineComboboxInput = ({
   className,
   ref: propRef,
   ...props
-}: React.HTMLAttributes<HTMLInputElement> & {
+}: React.InputHTMLAttributes<HTMLInputElement> & {
   ref?: React.RefObject<HTMLInputElement | null>;
 }) => {
   const {
@@ -328,6 +334,7 @@ const InlineComboboxItem = ({
   group,
   keywords,
   label,
+  keepInput = false,
   onClick,
   ...props
 }: {
@@ -335,6 +342,10 @@ const InlineComboboxItem = ({
   group?: string;
   keywords?: string[];
   label?: string;
+  /** Cuando es `true`, el click NO borra/cancela el `mention_input` (`removeInput`)
+   * antes de correr `onClick` — para filas que navegan dentro del mismo popover
+   * (ej. entrar a una carpeta) en vez de insertar algo y cerrar. */
+  keepInput?: boolean;
 } & ComboboxItemProps &
   Required<Pick<ComboboxItemProps, 'value'>>) => {
   const { value } = props;
@@ -358,7 +369,7 @@ const InlineComboboxItem = ({
     <ComboboxItem
       className={cn(comboboxItemVariants(), className)}
       onClick={(event) => {
-        removeInput(focusEditor);
+        if (!keepInput) removeInput(focusEditor);
         onClick?.(event);
       }}
       {...props}

@@ -169,4 +169,10 @@ export interface SectionExecutionProps {
   onCopyLink?: () => void
   /** Definiciones de los form fields de la sección (solo type="form") */
   formFieldDefinitions?: import('../sections/core').SectionFormField[]
+  /**
+   * false si el depends_on propio de la sección no se cumple (con show_when_inactive:true
+   * sigue visible pero inactiva). Ausente/true = sin restricción. Ver
+   * "ia context/dependencias-condicionales-formularios-guide.md" §3.2.
+   */
+  sectionCanAnswer?: boolean
 }

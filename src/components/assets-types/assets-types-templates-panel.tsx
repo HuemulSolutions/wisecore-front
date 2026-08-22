@@ -43,6 +43,7 @@ import {
   SettingToggleRow,
 } from "@/components/assets-types/assets-types-lifecycle-ui"
 import { TemplateSectionAccessMatrix } from "@/components/assets-types/assets-types-template-sections-matrix"
+import { TemplateSectionConditions } from "@/components/assets-types/assets-types-template-section-conditions"
 import { assetTypeQueryKeys, useDocumentTypeTemplates, useAssetTypeMutations } from "@/hooks/useAssetTypes"
 import { updateDocumentTypeTemplate } from "@/services/asset-types"
 import { getAllTemplates } from "@/services/templates"
@@ -137,6 +138,7 @@ function TemplateDetailView({
   const { t } = useTranslation("asset-types")
   const [workflowConfigOpen, setWorkflowConfigOpen] = React.useState(true)
   const [sectionAccessOpen, setSectionAccessOpen] = React.useState(true)
+  const [conditionsOpen, setConditionsOpen] = React.useState(true)
 
   return (
     <div className="flex flex-col gap-4">
@@ -221,6 +223,23 @@ function TemplateDetailView({
             templateId={template.template_id}
             documentTypeId={documentTypeId}
           />
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Condiciones: depends_on/show_when_inactive a nivel de TemplateSection (ver
+          ia context/dependencias-condicionales-formularios-guide.md §3.2). Mismo dato
+          que se edita en sections-form.tsx — este es un punto de entrada centralizado
+          por plantilla. Escribe la entidad TemplateSection directamente, así que
+          persiste al instante como "Permisos por sección" arriba. */}
+      <Collapsible open={conditionsOpen} onOpenChange={setConditionsOpen}>
+        <CollapsibleTrigger className="flex w-full items-center gap-2 py-1 hover:cursor-pointer">
+          <ChevronDown
+            className={cn("size-3.5 text-[#94a3b8] transition-transform", !conditionsOpen && "-rotate-90")}
+          />
+          <PanelSectionLabel label={t("templates.conditions.title")} />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3">
+          <TemplateSectionConditions templateId={template.template_id} />
         </CollapsibleContent>
       </Collapsible>
     </div>

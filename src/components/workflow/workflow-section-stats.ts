@@ -26,27 +26,43 @@ export interface SectionStats {
   missingRequired: number;
 }
 
+// Espejo cliente de los flags de SECCIÓN calculados por el backend a partir de su propio
+// depends_on/show_when_inactive (ver "ia context/dependencias-condicionales-formularios-guide.md"
+// §3.2). Igual que isFieldVisible/isFieldAnswerable: el front nunca evalúa depends_on,
+// solo lee lo que el backend ya calculó. Ausentes (sin depends_on) equivalen a true.
+export function isSectionVisible(section: ContentSection): boolean {
+  return section.is_visible !== false;
+}
+export function isSectionAnswerable(section: ContentSection): boolean {
+  return isSectionVisible(section) && section.can_answer !== false;
+}
+
 export function computeSectionStats(section: ContentSection): SectionStats {
   const fields = [...(section.form_fields ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   // Solo preguntas visibles: una oculta por depends_on no está en pantalla,
   // así que tampoco debe sumar al total del contador "respondidas/total".
   const questions = fields.filter((f) => f.question_type !== QUESTION_TYPE.label && isFieldVisible(f));
   const answeredCount = questions.filter((f) => hasAnswer(resolvedValueOf(f))).length;
-  // Una sección `access: 'view'` (ver template_section_lifecycle_access) no se
-  // puede responder aunque el backend no haya marcado cada campo con
-  // `can_answer: false` individualmente — sin este corte, sus obligatorios sin
-  // valor quedarían "pendientes" para siempre en el resumen del wizard.
+  // Una sección con `can_edit: false` (permiso por sección resuelto por el backend)
+  // o inactiva por su propio depends_on de sección no se puede responder aunque el
+  // backend no haya marcado cada campo con `can_answer: false` individualmente
+  // (show_when_inactive:true sí lo hace, pero no hay que depender de eso acá) — sin
+  // este corte, sus obligatorios sin valor quedarían "pendientes" para siempre en
+  // el resumen del wizard.
   const missingRequired =
-    section.access === "view"
+    section.can_edit === false || !isSectionAnswerable(section)
       ? 0
       : questions.filter((f) => isFieldAnswerable(f) && f.required && !hasAnswer(resolvedValueOf(f))).length;
   return { fields, questions, answeredCount, missingRequired };
 }
 
-// Espejo cliente de la regla del backend: una sección form sin ninguna pregunta
-// visible "no aplica". El backend ya no la devuelve en /content; este helper cubre
-// el intervalo entre el parche de caché del PATCH /form_values y el próximo refetch.
-export function isFormSectionApplicable(section: ContentSection): boolean {
+// Espejo cliente de la regla del backend: una sección "no aplica" por dos motivos
+// independientes — (a) depends_on propio de la sección no se cumple (is_visible:false),
+// o (b) es tipo form y ninguna de sus preguntas quedó visible. El backend ya no la
+// devuelve en /content en ninguno de los dos casos; este helper cubre el intervalo
+// entre el parche de caché del PATCH /form_values y el próximo refetch.
+export function isSectionApplicable(section: ContentSection): boolean {
+  if (!isSectionVisible(section)) return false;
   if (section.section_type !== "form") return true;
   return (section.form_fields ?? []).some(
     (f) => f.question_type !== QUESTION_TYPE.label && isFieldVisible(f),

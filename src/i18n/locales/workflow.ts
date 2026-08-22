@@ -125,6 +125,10 @@ const translations = {
       en: "This section is read-only at this stage — you can view it but not answer it.",
       es: "Esta sección es de solo lectura en esta etapa — puedes verla pero no responderla.",
     },
+    readOnlyInactiveSectionNotice: {
+      en: "This section is inactive based on your answers — you can view it but not answer it.",
+      es: "Esta sección está inactiva según tus respuestas — puedes verla pero no responderla.",
+    },
     notFound: { en: "This link is invalid or incomplete", es: "Este link no es válido o está incompleto" },
     templateFallbackName: { en: "Workflow", es: "Workflow" },
     noCreatePermission: {

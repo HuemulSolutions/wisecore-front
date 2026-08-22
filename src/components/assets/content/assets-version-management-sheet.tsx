@@ -208,7 +208,11 @@ function ExecutionDetail({
           <span className="text-xs font-medium uppercase tracking-wide">{t('versionManagement.status')}</span>
           <StatusBadge status={execution.status} />
           <span className="text-xs font-medium uppercase tracking-wide">{t('versionManagement.lifecycle')}</span>
-          <span className="text-xs">{execution.lifecycle_state ?? '—'}</span>
+          <span className="text-xs">
+            {execution.lifecycle_state
+              ? t(`assets:lifecycle.stateLabels.${execution.lifecycle_state}`, { defaultValue: execution.lifecycle_state })
+              : '—'}
+          </span>
           <span className="text-xs font-medium uppercase tracking-wide">{t('versionManagement.createdAt')}</span>
           <span className="text-xs">{formatApiDateTime(execution.created_at)}</span>
           {execution.version && (

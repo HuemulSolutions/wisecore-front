@@ -1,19 +1,24 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useSearchParams } from "react-router-dom"
+import { toast } from "sonner"
 import { Settings2, Copy, Trash2 } from "lucide-react"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
-import { useAssetTypesWithRoles, useAssetTypeMutations } from "@/hooks/useAssetTypes"
+import { useAssetTypeMutations } from "@/hooks/useAssetTypes"
 import { useDocumentTypes, documentTypeQueryKeys } from "@/hooks/useDocumentTypes"
+import { useDocumentTypeFolders, useDocumentTypeFolderMutations, documentTypeFolderQueryKeys } from "@/hooks/useDocumentTypeFolders"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useTag } from "@/hooks/useTags"
 import { useQueryClient } from "@tanstack/react-query"
 import { useOrganization } from "@/contexts/organization-context"
 import { HuemulTagChip } from "@/huemul/components/huemul-tag-chip"
 import type { CanvasNodeAction } from "@/types/document-type-relationships"
+import type { DocumentType } from "@/types/document-types"
+import type { DocumentTypeFolder } from "@/types/document-type-folders"
+import type { HuemulTableFolder } from "@/huemul/components/huemul-table"
 
 // Components
 import {
@@ -32,6 +37,28 @@ import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants
 
 const RELATIONSHIP_PAGE_SIZE = 100
 
+// Pantalla de administración con volumen bajo: alcanza con traer todo (carpetas
+// y tipos de documento) de una vez y agrupar/paginar en cliente para poder
+// mostrar el árbol carpeta → tipos sin que la paginación separe una carpeta
+// de su contenido.
+const TREE_FETCH_PAGE_SIZE = 1000
+
+function toAssetTypeWithRoles(dt: DocumentType): AssetTypeWithRoles {
+  return {
+    document_type_id: dt.id,
+    document_type_name: dt.name,
+    document_type_color: dt.color,
+    document_type_created_date: dt.created_at,
+    document_count: dt.document_count,
+    roles: [],
+    document_type_folder_id: dt.document_type_folder_id,
+  }
+}
+
+type RootItem =
+  | { kind: 'folder'; folder: DocumentTypeFolder }
+  | { kind: 'type'; dt: DocumentType }
+
 export default function AssetTypesPage() {
   const { t } = useTranslation('asset-types')
   const [state, setState] = useState<AssetTypePageState>({
@@ -43,6 +70,7 @@ export default function AssetTypesPage() {
     viewRelationshipsAssetType: null,
     showExportDialog: false,
     showImportSheet: false,
+    deletingFolder: null,
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
@@ -53,6 +81,7 @@ export default function AssetTypesPage() {
   const [relPage, setRelPage] = useState(1)
   const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set())
   const [pinnedNewAssetType, setPinnedNewAssetType] = useState<AssetTypeWithRoles | null>(null)
+  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set())
   const [searchParams, setSearchParams] = useSearchParams()
   const tagId = searchParams.get("tag_id") || undefined
   const { data: activeTag } = useTag(tagId ?? "", !!tagId)
@@ -81,12 +110,26 @@ export default function AssetTypesPage() {
   const canManageLifecycle = can('manageLifecycle')
   const canManageTemplates = can('manageLinkedTemplates')
   const canCloneDocumentType = can('cloneAssetType')
+  const canCreateFolder = can('createFolder')
+  const canManageFolders = can('updateFolder')
+  const canDeleteFolder = can('deleteFolder')
   // El sheet de configuración agrupa general + plantillas + ciclo de vida:
   // basta con poder abrir uno de esos tabs.
   const canConfigureDocumentType = canUpdateDocumentType || canManageTemplates || canManageLifecycle
 
-  // Fetch asset types and mutations - solo si tiene permisos
-  const { data: assetTypesResponse, isLoading, isFetching, error } = useAssetTypesWithRoles(page, pageSize, canListDocumentTypes, state.searchTerm || undefined, tagId)
+  // Fetch document type folders + document types (todo, sin paginar en el
+  // servidor) para poder armar el árbol carpeta → tipos.
+  const { data: foldersResponse, isLoading: isLoadingFolders, isFetching: isFetchingFolders } = useDocumentTypeFolders({
+    page_size: TREE_FETCH_PAGE_SIZE,
+    enabled: canListDocumentTypes,
+  })
+  const { data: typesResponse, isLoading: isLoadingTypes, isFetching: isFetchingTypes, error } = useDocumentTypes({
+    page_size: TREE_FETCH_PAGE_SIZE,
+    search: state.searchTerm || undefined,
+    tag_id: tagId,
+    enabled: canListDocumentTypes,
+  })
+  const folderMutations = useDocumentTypeFolderMutations()
   const assetTypeMutations = useAssetTypeMutations()
 
   // Fetch document types for the relationship canvas
@@ -96,10 +139,12 @@ export default function AssetTypesPage() {
   })
   const documentTypes = docTypesResponse?.data ?? []
 
+  const isLoading = isLoadingFolders || isLoadingTypes
+  const isFetching = isFetchingFolders || isFetchingTypes
   const { showPageLoader, isTableLoading, isTableFetching } = useTableLoadingState({
     isLoading,
     isFetching,
-    hasData: !!assetTypesResponse,
+    hasData: !!typesResponse && !!foldersResponse,
   })
 
   // State update helpers (defined early so nodeActions can use them)
@@ -155,6 +200,98 @@ export default function AssetTypesPage() {
     }] : []),
   ]
 
+  // ── Árbol carpeta → tipos de documento ─────────────────────────────────────
+  const folders = foldersResponse?.data ?? []
+  const allTypes = typesResponse?.data ?? []
+  const folderById = new Map(folders.map((f) => [f.id, f]))
+
+  const typesByFolder = new Map<string, DocumentType[]>()
+  const rootTypes: DocumentType[] = []
+  for (const dt of allTypes) {
+    if (dt.document_type_folder_id && folderById.has(dt.document_type_folder_id)) {
+      const list = typesByFolder.get(dt.document_type_folder_id) ?? []
+      list.push(dt)
+      typesByFolder.set(dt.document_type_folder_id, list)
+    } else {
+      rootTypes.push(dt)
+    }
+  }
+
+  const sortedFolders = [...folders].sort((a, b) => a.name.localeCompare(b.name))
+  const sortedRootTypes = [...rootTypes].sort((a, b) => a.name.localeCompare(b.name))
+
+  // Con búsqueda activa, auto-expandir las carpetas que tengan algún match —
+  // si no, los resultados quedan escondidos dentro de una carpeta colapsada.
+  useEffect(() => {
+    if (!state.searchTerm) return
+    setExpandedFolderIds((prev) => {
+      const next = new Set(prev)
+      let changed = false
+      for (const folder of folders) {
+        if ((typesByFolder.get(folder.id)?.length ?? 0) > 0 && !next.has(folder.id)) {
+          next.add(folder.id)
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.searchTerm, allTypes, folders])
+
+  const rootItems: RootItem[] = [
+    ...sortedFolders.map((folder) => ({ kind: 'folder' as const, folder })),
+    ...sortedRootTypes.map((dt) => ({ kind: 'type' as const, dt })),
+  ]
+  const totalRootItems = rootItems.length
+  const pageStart = (page - 1) * pageSize
+  let pagedRootItems = rootItems.slice(pageStart, pageStart + pageSize)
+  const hasNextPage = pageStart + pageSize < totalRootItems
+  const hasPreviousPage = page > 1
+
+  // Fija el tipo de documento recién creado al tope de la página actual.
+  if (pinnedNewAssetType) {
+    const pinnedId = pinnedNewAssetType.document_type_id
+    const existing = allTypes.find((dt) => dt.id === pinnedId)
+    const pinnedDt: DocumentType = existing ?? {
+      id: pinnedId,
+      name: pinnedNewAssetType.document_type_name,
+      color: pinnedNewAssetType.document_type_color,
+      requires_iso_strict_versioning: true,
+      final_lifecycle_stage: "publish",
+      created_at: pinnedNewAssetType.document_type_created_date || new Date().toISOString(),
+      updated_at: pinnedNewAssetType.document_type_created_date || new Date().toISOString(),
+      document_count: pinnedNewAssetType.document_count,
+      document_type_folder_id: null,
+    }
+    pagedRootItems = [
+      { kind: 'type', dt: pinnedDt },
+      ...pagedRootItems.filter((item) => !(item.kind === 'type' && item.dt.id === pinnedId)),
+    ]
+  }
+
+  // `HuemulTable` arma el árbol (carpeta → hijos) a partir de `data` + `folders` — la
+  // página solo necesita entregarle los tipos de raíz de esta página, más los hijos de
+  // cada carpeta visible que esté expandida (los de una carpeta colapsada no hace falta
+  // mandarlos: el conteo del badge viene de `folderItemCounts`, no de `data`).
+  const pageFolders: DocumentTypeFolder[] = pagedRootItems
+    .filter((item): item is Extract<RootItem, { kind: 'folder' }> => item.kind === 'folder')
+    .map((item) => item.folder)
+  const pageRootTypes: DocumentType[] = pagedRootItems
+    .filter((item): item is Extract<RootItem, { kind: 'type' }> => item.kind === 'type')
+    .map((item) => item.dt)
+
+  const folderItemCounts: Record<string, number> = {}
+  for (const folder of pageFolders) folderItemCounts[folder.id] = typesByFolder.get(folder.id)?.length ?? 0
+
+  const data: AssetTypeWithRoles[] = [
+    ...pageRootTypes.map(toAssetTypeWithRoles),
+    ...pageFolders.flatMap((folder) =>
+      expandedFolderIds.has(folder.id)
+        ? [...(typesByFolder.get(folder.id) ?? [])].sort((a, b) => a.name.localeCompare(b.name)).map(toAssetTypeWithRoles)
+        : []
+    ),
+  ]
+
   // Loading permissions check
   if (isLoadingPermissions) {
     return <AssetTypePageSkeleton />
@@ -170,23 +307,14 @@ export default function AssetTypesPage() {
     return <AssetTypePageSkeleton />
   }
 
-  const rawAssetTypes = assetTypesResponse?.data || []
-  const effectivePageSize = assetTypesResponse?.page_size || pageSize
-  const assetTypes = pinnedNewAssetType
-    ? [
-        rawAssetTypes.find((a) => a.document_type_id === pinnedNewAssetType.document_type_id) ?? pinnedNewAssetType,
-        ...rawAssetTypes.filter((a) => a.document_type_id !== pinnedNewAssetType.document_type_id),
-      ].slice(0, effectivePageSize)
-    : rawAssetTypes
-
   // Function to refresh data
   const handleRefresh = async () => {
     setIsRefreshing(true)
     setPinnedNewAssetType(null)
     try {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['asset-types', 'list-with-roles'] }),
         queryClient.invalidateQueries({ queryKey: documentTypeQueryKeys.all }),
+        queryClient.invalidateQueries({ queryKey: documentTypeFolderQueryKeys.listBase() }),
       ])
     } finally {
       setIsRefreshing(false)
@@ -222,6 +350,66 @@ export default function AssetTypesPage() {
     updateState({ viewRelationshipsAssetType: assetType })
   }
 
+  // Folder handlers
+  const handleCreateFolder = (name: string) => {
+    return folderMutations.createFolder.mutateAsync({ name }).then((folder): HuemulTableFolder => {
+      // Sin meta.successMessage en la mutación (ver useDocumentTypeFolders.ts): el toast
+      // con "Deshacer" es de acá, no del genérico de MutationCache — el snapshot para
+      // deshacer es la operación inversa (borrar la carpeta recién creada), capturado en
+      // este cierre y no en una ref compartida (bug de undo que se repetía en el
+      // prototipo de referencia — dos creaciones seguidas deshacían siempre la última).
+      toast.success(t('folders.createdToast', { name: folder.name }), {
+        duration: 4000,
+        action: {
+          label: t('common:undo'),
+          onClick: () => { folderMutations.deleteFolder.mutate(folder.id) },
+        },
+      })
+      return { id: folder.id, name: folder.name }
+    })
+  }
+
+  const handleRenameFolder = async (folderId: string, name: string) => {
+    await folderMutations.updateFolder.mutateAsync({ id: folderId, data: { name } })
+  }
+
+  const handleDeleteFolderRequest = (folder: DocumentTypeFolder) => {
+    updateState({ deletingFolder: folder })
+  }
+
+  // Cubre drag & drop y el menú "Mover a carpeta"/"Quitar de la carpeta" de la fila:
+  // mover a una carpeta usa `assignDocumentTypes`, sacarlo (folderId null) usa
+  // `removeDocumentType` con la carpeta de origen. El toast de éxito lleva "Deshacer",
+  // que dispara la operación inversa exacta — capturada acá, no en un estado compartido.
+  const handleMoveAssetType = (assetTypeId: string, folderId: string | null) => {
+    const dt = allTypes.find((d) => d.id === assetTypeId)
+    const previousFolderId = dt?.document_type_folder_id ?? null
+    if (previousFolderId === folderId) return
+    const name = dt?.name ?? ''
+
+    const performMove = (toFolderId: string | null, fromFolderId: string | null) =>
+      toFolderId === null
+        ? folderMutations.removeDocumentType.mutateAsync({ folderId: fromFolderId as string, documentTypeId: assetTypeId })
+        : folderMutations.assignDocumentTypes.mutateAsync({ folderId: toFolderId, data: { document_type_ids: [assetTypeId] } })
+
+    performMove(folderId, previousFolderId)
+      .then(() => {
+        const message = folderId
+          ? t('folders.movedToast', { name, folder: folderById.get(folderId)?.name ?? '' })
+          : t('folders.removedToast', { name })
+        toast.success(message, {
+          duration: 6000,
+          action: {
+            label: t('common:undo'),
+            onClick: () => {
+              performMove(previousFolderId, folderId).catch(() => toast.error(t('folders.moveError')))
+            },
+          },
+        })
+      })
+      .catch(() => toast.error(t('folders.moveError')))
+  }
+
   const relTotalItems = documentTypes.length
   const relHasNext = relPage * RELATIONSHIP_PAGE_SIZE < relTotalItems
   const relHasPrevious = relPage > 1
@@ -238,7 +426,7 @@ export default function AssetTypesPage() {
         header={
           <>
             <AssetTypePageHeader
-              assetTypeCount={assetTypes.length}
+              assetTypeCount={totalRootItems}
               onCreateAssetType={() => updateState({ showCreateDialog: true })}
               onRefresh={handleRefresh}
               isLoading={isRefreshing || isFetching || isFetchingDocTypes}
@@ -275,31 +463,43 @@ export default function AssetTypesPage() {
                 message={error.message}
                 onRetry={handleRefresh}
               />
-            ) : assetTypes.length === 0 ? (
+            ) : totalRootItems === 0 ? (
               <AssetTypeContentEmptyState
                 type="empty"
                 onCreateFirst={canCreateDocumentType ? () => updateState({ showCreateDialog: true }) : undefined}
               />
             ) : (
               <AssetTypeTable
-                assetTypes={assetTypes}
+                data={data}
+                folders={pageFolders}
+                folderItemCounts={folderItemCounts}
+                expandedFolderIds={expandedFolderIds}
+                onExpandedFolderIdsChange={setExpandedFolderIds}
                 onConfigureAssetType={handleConfigureAssetType}
                 onDeleteAssetType={handleDeleteAssetType}
                 onCloneAssetType={handleCloneAssetType}
                 onViewRelationships={handleViewRelationships}
+                onCreateFolder={handleCreateFolder}
+                onRenameFolder={handleRenameFolder}
+                onDeleteFolderRequest={handleDeleteFolderRequest}
+                onMoveAssetType={handleMoveAssetType}
                 canConfigure={canConfigureDocumentType}
                 canDelete={canDeleteDocumentType}
                 canViewRelationships={canListRelationships}
                 canClone={canCloneDocumentType}
+                canManageFolders={canManageFolders}
+                canCreateFolder={canCreateFolder}
+                canDeleteFolder={canDeleteFolder}
                 isLoading={isTableLoading}
                 isFetching={isTableFetching}
                 selectedIds={selectedExportIds}
                 onSelectionChange={setSelectedExportIds}
                 pagination={{
-                  page: assetTypesResponse?.page || page,
-                  pageSize: assetTypesResponse?.page_size || pageSize,
-                  hasNext: assetTypesResponse?.has_next,
-                  hasPrevious: (assetTypesResponse?.page || page) > 1,
+                  page,
+                  pageSize,
+                  totalItems: totalRootItems,
+                  hasNext: hasNextPage,
+                  hasPrevious: hasPreviousPage,
                   onPageChange: (newPage: number) => {
                     setPinnedNewAssetType(null)
                     setPage(newPage)

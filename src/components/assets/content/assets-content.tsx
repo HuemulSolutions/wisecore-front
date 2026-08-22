@@ -40,6 +40,9 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById, exportDocuments } from "@/services/assets";
 import { useDocumentMediaUrls } from "@/hooks/useDocumentMediaUrls";
 import { MediaUrlProvider } from "@/contexts/media-url-context";
+import { MentionRefsProvider } from "@/contexts/mention-refs-context";
+import { RoleRefsProvider } from "@/contexts/role-refs-context";
+import { collectMentionAssetIds, hasAnyRoleReference } from "@/lib/plate-mention-utils";
 import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, updateExecutionName } from "@/services/executions";
 import { useSectionsExecutionStatus } from './hooks/useSectionsExecutionStatus';
 import { getDefaultLLM } from "@/services/llms";
@@ -84,7 +87,7 @@ import { usePageAccess } from '@/hooks/usePageAccess';
 import type { ContentSection, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
 import type { FormValuesSectionPayload } from '@/types/sections/core';
 import { applyFormValuesPatch } from '@/components/assets/content/utils/patch-document-content';
-import { isFormSectionApplicable } from '@/components/workflow/workflow-section-stats';
+import { isSectionAnswerable, isSectionApplicable, isSectionVisible } from '@/components/workflow/workflow-section-stats';
 import { CustomFieldsList } from './assets-custom-fields-list';
 import { SectionIndexContext } from '@/contexts/section-index-context';
 import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
@@ -902,6 +905,29 @@ export function AssetContent({
     refetchOnWindowFocus: false,
     staleTime: 30000, // Cache for 30 seconds
   });
+
+  // Ids de todos los assets referenciados por menciones (@) en el contenido, para
+  // resolverlos en un solo lote (asset_ids + include_executions) en vez de confiar
+  // en el snapshot que cada chip trae guardado en su propio nodo Plate. También se
+  // detecta si hay al menos una referencia a un rol, para gatear el fetch de
+  // useRolesMap (trae TODOS los roles de la org) solo cuando hace falta.
+  const { mentionAssetIds, hasRoleReferences } = useMemo(() => {
+    if (!Array.isArray(documentContent?.content)) return { mentionAssetIds: [] as string[], hasRoleReferences: false };
+    const ids = new Set<string>();
+    let hasRoles = false;
+    for (const section of documentContent.content) {
+      for (const raw of section.plate_content ?? []) {
+        try {
+          const parsed = JSON.parse(raw);
+          collectMentionAssetIds(parsed, ids);
+          if (!hasRoles) hasRoles = hasAnyRoleReference(parsed);
+        } catch {
+          // Contenido plate_content malformado — se ignora, la chip cae al snapshot.
+        }
+      }
+    }
+    return { mentionAssetIds: Array.from(ids), hasRoleReferences: hasRoles };
+  }, [documentContent?.content]);
 
   // Lightweight periodic refresh of media download URLs (images/files embedded in
   // the content), so a tab left open longer than the backend's SAS TTL doesn't end
@@ -2944,6 +2970,8 @@ export function AssetContent({
                     if (documentContent?.content) {
                       return (
                         <MediaUrlProvider freshUrls={mediaUrlsData?.media_urls ?? null}>
+                        <MentionRefsProvider assetIds={mentionAssetIds} organizationId={selectedOrganizationId ?? undefined}>
+                        <RoleRefsProvider enabled={hasRoleReferences}>
                         <div className={`prose prose-gray prose-sm md:prose-base max-w-full${isViewMode ? ' [&>*+*]:mt-0' : ''}`}>
                           {/* Template instructions callout - shown once at the top */}
                           {documentContent.template_instructions?.trim() && (
@@ -2983,6 +3011,15 @@ export function AssetContent({
                               {documentContent.content.map((section: ContentSection, index: number) => {
                           const realSectionId = section.section_id;
 
+                          // Sección con depends_on propio no cumplido y sin show_when_inactive: el
+                          // backend ya no la devuelve en /content, pero puede seguir en caché tras un
+                          // parche local (PATCH /form_values de otra sección) — se descarta siempre,
+                          // en editor y en lector (a diferencia del chequeo de abajo, que solo aplica
+                          // en modo lector). Ver ia context/dependencias-condicionales-formularios-guide.md §3.2.
+                          if (!isSectionVisible(section)) {
+                            return null;
+                          }
+
                           // In reader mode, hide sections with empty content — except sections
                           // in scope of an in-progress 'single'/'from' execution: there the empty
                           // content is transient and must show skeleton + feedback, not disappear.
@@ -2990,12 +3027,12 @@ export function AssetContent({
                           // backend rule, ver ia context/dependencias-condicionales-formularios-guide.md)
                           // instead of markdown/plate content.
                           const sectionIsHidden = section.section_type === 'form'
-                            ? !isFormSectionApplicable(section)
+                            ? !isSectionApplicable(section)
                             : isSectionContentEmpty(section);
                           if (isViewMode && !isSectionInScope(index) && sectionIsHidden) {
                             return null;
                           }
-                          
+
                           return (
                             <SectionIndexContext.Provider key={`${section.id}-${index}`} value={index}>
                               <div id={`section-${index}`} className="relative">
@@ -3036,7 +3073,11 @@ export function AssetContent({
                                   onOpenExecuteSheet={handleCreateExecutionFromSection(index, realSectionId)}
                                   sectionType={section.section_type}
                                   sectionName={section.section_name}
-                                  canEditSections={frontendPermissions.canEditSections}
+                                  sectionCanAnswer={isSectionAnswerable(section)}
+                                  // `can_edit` viene del backend ya resuelto (org admin, rol/step, o
+                                  // fallback al permiso del documento — ver ContentSection.can_edit).
+                                  // `null`/`undefined` no restringe: el flag no aplica a esta sección.
+                                  canEditSections={frontendPermissions.canEditSections && section.can_edit !== false}
                                   onCreateSectionFromSelection={handleCreateSectionFromSelection(index)}
                                   onCopyLink={realSectionId ? () => handleCopySectionLink(realSectionId) : undefined}
                                 />
@@ -3060,6 +3101,8 @@ export function AssetContent({
                             <Markdown>{documentContent.content}</Markdown>
                           )}
                         </div>
+                        </RoleRefsProvider>
+                        </MentionRefsProvider>
                         </MediaUrlProvider>
                       );
                     }
