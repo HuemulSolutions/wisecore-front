@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Eye, Loader2, Minus, Pencil, Plus, RefreshCw, Shield } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import { getTemplateById } from "@/services/templates"
+import { SettingToggleRow } from "@/components/assets-types/assets-types-lifecycle-ui"
+import { getTemplateById, updateTemplate } from "@/services/templates"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import {
@@ -115,6 +116,7 @@ export function TemplateSectionAccessMatrix({
   const canReadSections = hasAnyPermission(["template_section:r", "template_section:l"])
   const canManage = canUpdate("template_section")
   const canCreateStep = canUpdate("asset_type")
+  const canToggleAccess = canUpdate("template")
 
   const queryEnabled = enabled && !!organizationId && !!templateId && canReadSections
 
@@ -136,6 +138,30 @@ export function TemplateSectionAccessMatrix({
     isLoading: isLoadingSteps,
     isFetching: isFetchingSteps,
   } = useAllLifecycleSteps(documentTypeId, queryEnabled)
+
+  const accessEnabled = templateData?.section_lifecycle_access_enabled === true
+  const canEditCells = canManage && accessEnabled
+
+  const setAccessEnabledMutation = useMutation({
+    mutationFn: (value: boolean) =>
+      updateTemplate(templateId, { section_lifecycle_access_enabled: value }, organizationId),
+    onMutate: async (value: boolean) => {
+      const queryKey = ["template", templateId]
+      await queryClient.cancelQueries({ queryKey })
+      const snapshot = queryClient.getQueryData(queryKey)
+      queryClient.setQueryData(queryKey, (previous: typeof templateData) =>
+        previous ? { ...previous, section_lifecycle_access_enabled: value } : previous,
+      )
+      return { snapshot }
+    },
+    onError: (_error, _value, context) => {
+      queryClient.setQueryData(["template", templateId], context?.snapshot)
+      toast.error(t("templates.sectionAccess.enableError"))
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["template", templateId] })
+    },
+  })
 
   const sections = React.useMemo<MatrixSection[]>(() => {
     const raw: unknown = templateData?.sections ?? templateData?.template_sections ?? []
@@ -208,7 +234,7 @@ export function TemplateSectionAccessMatrix({
     access: TemplateSectionAccess | null,
   ) => {
     setOpenCell(null)
-    if (!canManage) return
+    if (!canEditCells) return
     try {
       if (access === null) {
         await clearAccess.mutateAsync({ templateSectionId: sectionId, lifecycleStepId: stepId })
@@ -260,6 +286,19 @@ export function TemplateSectionAccessMatrix({
 
   return (
     <div className="flex flex-col gap-3">
+      <SettingToggleRow
+        className="rounded-[10px] border border-[#e5eaf0] bg-white px-3 py-2.5"
+        label={t("templates.sectionAccess.enableLabel")}
+        description={t("templates.sectionAccess.enableHint")}
+        checked={accessEnabled}
+        disabled={!canToggleAccess || setAccessEnabledMutation.isPending || isLoadingTemplate}
+        onChange={(value) => setAccessEnabledMutation.mutate(value)}
+      />
+
+      {!accessEnabled && (
+        <p className="text-[12px] text-[#94a3b8]">{t("templates.sectionAccess.disabledNotice")}</p>
+      )}
+
       {/* Leyenda + refresh — nunca scrollea con la tabla */}
       <div className="flex shrink-0 items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-2">
@@ -295,7 +334,12 @@ export function TemplateSectionAccessMatrix({
         </div>
       </div>
 
-      <div className="max-h-[420px] overflow-auto rounded-[10px] border border-[#e5eaf0] bg-white">
+      <div
+        className={cn(
+          "max-h-[420px] overflow-auto rounded-[10px] border border-[#e5eaf0] bg-white",
+          !accessEnabled && "opacity-60",
+        )}
+      >
         {isLoading ? (
           <div className="flex flex-col gap-2 p-4">
             <Skeleton className="h-10 w-full" />
@@ -430,10 +474,10 @@ export function TemplateSectionAccessMatrix({
                               type="button"
                               aria-label={ariaLabel}
                               title={ariaLabel}
-                              disabled={!canManage || pending}
+                              disabled={!canEditCells || pending}
                               className={cn(
                                 "inline-flex size-7 items-center justify-center rounded-full transition-colors",
-                                !canManage || pending
+                                !canEditCells || pending
                                   ? "cursor-default"
                                   : "hover:cursor-pointer hover:bg-[#f1f5f9]",
                               )}

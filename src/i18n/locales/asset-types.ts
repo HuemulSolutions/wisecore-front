@@ -128,6 +128,10 @@ const translations = {
     unsavedChanges: { en: "Unsaved changes in templates", es: "Cambios sin guardar en plantillas" },
     sectionAccess: {
       title: { en: "Section permissions", es: "Permisos por sección" },
+      enableLabel: { en: "Independent section permissions", es: "Permisos independientes por sección" },
+      enableHint: { en: "Applies to the whole template, across every asset type. Sections without explicit configuration keep inheriting the document's permission.", es: "Aplica a la plantilla completa, en todos los tipos de activo. Las secciones sin configuración explícita siguen heredando el permiso del documento." },
+      disabledNotice: { en: "Turn on section permissions to configure them.", es: "Activá los permisos por sección para poder configurarlos." },
+      enableError: { en: "The section permissions setting could not be changed.", es: "No se pudo cambiar la configuración de permisos por sección." },
       hint: { en: "Click a cell to set what each section shows during that lifecycle stage. Changes are saved immediately.", es: "Haz click en una celda para definir qué muestra cada sección durante esa etapa del ciclo de vida. Los cambios se guardan al instante." },
       sectionColumn: { en: "Section", es: "Sección" },
       legendHidden: { en: "No access", es: "Sin acceso" },
