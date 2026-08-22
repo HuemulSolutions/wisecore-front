@@ -147,6 +147,13 @@ export interface SectionsConfigSection extends SectionDependencyConfig {
   reference_execution_id?: string
   not_in_execution?: boolean | null
   form_fields?: SectionFormField[]
+  /**
+   * Permiso de edición de esta sección ya resuelto por el backend para el usuario
+   * actual (ver ContentSection.can_edit en src/types/assets/core.ts y
+   * src/hooks/useDocumentSectionAccess.ts). `null`/ausente = no aplica, hereda del
+   * documento.
+   */
+  can_edit?: boolean | null
 }
 
 export interface SectionsConfigResponse {

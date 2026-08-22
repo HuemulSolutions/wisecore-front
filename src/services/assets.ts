@@ -2,7 +2,7 @@ import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { downloadBlobResponse } from "@/lib/blob-download";
 import { logger } from "@/lib/logger";
-import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, ImportDocumentFromUrlParams, ImportDocumentAsyncResponse, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics, DocumentStatisticsResponse, DocumentMediaUrls, DocumentMediaUrlsResponse } from "@/types/assets";
+import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, ImportDocumentFromUrlParams, ImportDocumentAsyncResponse, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics, DocumentStatisticsResponse, DocumentMediaUrls, DocumentMediaUrlsResponse, DocumentSectionAccessItem } from "@/types/assets";
 
 export type { ImportDocumentFromFileParams, ImportDocumentFromUrlParams, ImportDocumentAsyncResponse, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics };
 
@@ -61,7 +61,10 @@ export async function deleteDocument(documentId: string, organizationId: string)
   return true;
 }
 
-export async function getDocumentSections(documentId: string, organizationId: string) {
+export async function getDocumentSections(
+  documentId: string,
+  organizationId: string,
+): Promise<DocumentSectionAccessItem[]> {
   const response = await httpClient.get(`${backendUrl}/documents/${documentId}/sections`, {
     headers: {
       'X-Org-Id': organizationId,

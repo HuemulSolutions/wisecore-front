@@ -5,6 +5,8 @@ import { Plus, List, PlusCircle, Sparkles, BetweenHorizontalStart, ChevronDown }
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { useOrganization } from "@/contexts/organization-context";
+import { usePageAccess } from "@/hooks/usePageAccess";
+import { useInvalidateDocumentSectionAccess } from "@/hooks/useDocumentSectionAccess";
 import type { SectionSheetProps, SectionsConfigExecution, SectionsConfigResponse } from '@/types/assets';
 export type { SectionSheetProps } from '@/types/assets';
 import {
@@ -51,15 +53,19 @@ export function SectionSheet({
   const { t } = useTranslation(['sections', 'common']);
   const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
+  const { can } = usePageAccess('asset');
+  const invalidateSectionAccess = useInvalidateDocumentSectionAccess();
   const [isAddingSectionDialogOpen, setIsAddingSectionDialogOpen] = useState(false);
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
   const [linkingSectionId, setLinkingSectionId] = useState<string | null>(null);
   const [selectedConfigExecutionId, setSelectedConfigExecutionId] = useState<string | null>(executionInfo?.id || executionId || null);
   const autoSelectedActiveRef = useRef(false);
 
-  // Whether the current user can edit (add / update / delete / reorder) sections
-  // Requires edit/create permission AND the document must be in the 'edit' stage
-  const canEditSections = !!(lifecyclePermissions?.edit || lifecyclePermissions?.create) && stage === 'edit';
+  // Whether the current user can edit (add / update / delete / reorder) sections.
+  // Requires edit/create permission AND the document must be in the 'edit' stage AND
+  // RBAC de escritura sobre el asset (antes faltaba este tercer eje — ver
+  // computeFrontendPermissions en src/hooks/useDocumentAccess.ts, misma regla AND).
+  const canEditSections = !!(lifecyclePermissions?.edit || lifecyclePermissions?.create) && stage === 'edit' && can('updateAssetContent');
 
   useEffect(() => {
     setSelectedConfigExecutionId(executionInfo?.id || executionId || null);
@@ -137,7 +143,7 @@ export function SectionSheet({
         return createSection(payload, selectedOrganizationId!);
       },
       queryClient,
-      () => [['document', selectedFile?.id], ['document-content', selectedFile?.id], ['document-sections-config', selectedFile?.id]],
+      () => [['document', selectedFile?.id], ['document-content', selectedFile?.id], ['document-sections-config', selectedFile?.id], ['document-section-access', selectedFile?.id]],
     ),
     onSuccess: () => {
       setIsAddingSectionDialogOpen(false);
@@ -153,6 +159,7 @@ export function SectionSheet({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
+      invalidateSectionAccess(selectedFile?.id);
     },
   });
 
@@ -164,6 +171,7 @@ export function SectionSheet({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
+      invalidateSectionAccess(selectedFile?.id);
     },
   });
 
@@ -174,6 +182,7 @@ export function SectionSheet({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
+      invalidateSectionAccess(selectedFile?.id);
     },
   });
 
@@ -457,7 +466,12 @@ export function SectionSheet({
               <DndContext sensors={canEditSections ? sensors : []} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={orderedSections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
                   <div className="space-y-3">
-                    {orderedSections.map((section: any) => (
+                    {orderedSections.map((section: any) => {
+                      // Sin fila propia (`can_edit` ausente/null) => sigue el permiso general
+                      // del sheet. Con `can_edit: false` => de solo lectura acá aunque el resto
+                      // de la lista sea editable (ver ContentSection.can_edit).
+                      const sectionCanEdit = section.can_edit !== false;
+                      return (
                       <div key={section.id} className="border rounded-lg bg-white">
                         <SortableSectionSheet
                           item={section}
@@ -481,8 +495,9 @@ export function SectionSheet({
                           useExecutionDeleteDialog={true}
                           hasTemplate={hasTemplateId}
                           isDisabledSection={section.not_in_execution === true}
-                          canUpdate={canEditSections}
-                          canDelete={canEditSections}
+                          canUpdate={canEditSections && sectionCanEdit}
+                          canDelete={canEditSections && sectionCanEdit}
+                          hasOwnLifecycleRule={canEditSections && !sectionCanEdit}
                           isAddToCurrentVersionPending={linkingSectionId === section.id && linkSectionToCurrentVersionMutation.isPending}
                           onAddToCurrentVersion={(sectionId: string) => {
                             if (!executionInfo?.id && !executionId) {
@@ -494,7 +509,8 @@ export function SectionSheet({
                           }}
                         />
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </SortableContext>
               </DndContext>

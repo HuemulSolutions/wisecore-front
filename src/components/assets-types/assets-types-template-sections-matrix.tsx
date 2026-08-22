@@ -503,11 +503,19 @@ export function TemplateSectionAccessMatrix({
             {sections.map((section, rowIndex) => {
               const isLast = rowIndex === sections.length - 1
               const accessByStep = accessBySection.get(section.id)
+              const roleAccessByStep = roleAccessBySection.get(section.id)
+              // Una sección con al menos una fila configurada (global o por rol, en
+              // cualquier step) deja de heredar del documento en TODAS sus celdas —
+              // incluidas las que se ven vacías. Ver "ia context/permisos-seccion-lifecycle-guide.md".
+              const hasOwnRules =
+                accessEnabled &&
+                (((accessByStep?.size ?? 0) > 0) ||
+                  [...(roleAccessByStep?.values() ?? [])].some((byRole) => byRole.size > 0))
               return (
                 <div key={section.id} className="group contents">
                   <div
                     className={cn(
-                      "sticky left-0 z-10 flex min-w-0 items-center bg-white px-3 py-2.5 transition-colors group-hover:bg-[#fafbfd]",
+                      "sticky left-0 z-10 flex min-w-0 items-center gap-1.5 bg-white px-3 py-2.5 transition-colors group-hover:bg-[#fafbfd]",
                       !isLast && "border-b border-[#eef1f5]",
                     )}
                   >
@@ -517,6 +525,14 @@ export function TemplateSectionAccessMatrix({
                     >
                       {section.name}
                     </span>
+                    {hasOwnRules && (
+                      <span
+                        className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700"
+                        title={t("templates.sectionAccess.ownRulesTooltip")}
+                      >
+                        {t("templates.sectionAccess.ownRulesBadge")}
+                      </span>
+                    )}
                   </div>
 
                   {steps.map((step) => {

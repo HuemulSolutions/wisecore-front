@@ -803,7 +803,7 @@ export function SectionForm({
                   const sectionId = val as string;
                   setReferenceSectionId(sectionId);
                   const section = assetSections?.find((s: any) => s.id === sectionId);
-                  if (section) setSelectedSection({ id: section.id, name: section.name });
+                  if (section) setSelectedSection({ id: section.id, name: section.name ?? '' });
                   markDirty();
                 }}
                 disabled={isPending || isLoadingSections}

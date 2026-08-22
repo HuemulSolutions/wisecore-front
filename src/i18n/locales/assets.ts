@@ -380,6 +380,8 @@ const translations = {
     saveFailed: { en: "Failed to save section content. Please try again.", es: "Error al guardar el contenido de la sección. Intenta de nuevo." },
     aiSuggestionActionFailed: { en: "Failed to process the AI suggestion. Please try again.", es: "Error al procesar la sugerencia de IA. Intenta de nuevo." },
     untitled: { en: "Untitled section", es: "Sección sin título" },
+    readOnlyByLifecycleRule: { en: "Read-only in this stage", es: "Solo lectura en esta etapa" },
+    readOnlyByLifecycleRuleTooltip: { en: "This section has its own access rules for the current lifecycle stage — you can't edit it, even though you can edit the rest of the document.", es: "Esta sección tiene reglas propias de acceso para la etapa actual del ciclo de vida — no podés editarla, aunque sí puedas editar el resto del documento." },
     executionInProgress: { en: "Execution in progress", es: "Ejecución en progreso" },
     openExecuteSheet: { en: "Open Execute Sheet", es: "Abrir Panel de Ejecución" },
     askAiToEdit: { en: "Ask AI to edit", es: "Pedir a la IA que edite" },

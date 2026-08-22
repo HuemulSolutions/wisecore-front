@@ -86,6 +86,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { useAssetContentPermissions } from '@/hooks/useDocumentAccess';
+import {
+  useDocumentSectionAccess,
+  useInvalidateDocumentSectionAccess,
+  canViewSection,
+  resolveSectionCanEdit,
+} from '@/hooks/useDocumentSectionAccess';
 import { usePageAccess } from '@/hooks/usePageAccess';
 import type { ContentSection, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
 import type { FormValuesSectionPayload } from '@/types/sections/core';
@@ -256,7 +262,10 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['library'] });
-      
+      // Nueva sección → puede tener sus propias filas de acceso configuradas más tarde;
+      // refresca la lista de secciones con `view` (ver useDocumentSectionAccess).
+      invalidateSectionAccess(selectedFile?.id);
+
       setIsDirectSectionDialogOpen(false);
       setSectionInsertPosition(undefined);
     },
@@ -277,7 +286,8 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
-      
+      invalidateSectionAccess(selectedFile?.id);
+
       setIsSectionExecutionDialogOpen(false);
       setAfterFromSectionId(null);
     },
@@ -734,6 +744,7 @@ export function AssetContent({
         queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] }),
         queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] }),
         queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] }),
+        queryClient.invalidateQueries({ queryKey: ['document-section-access', selectedFile?.id] }),
       ]);
     } finally {
       setIsRefreshingContent(false);
@@ -774,6 +785,9 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document-content', fileId] });
       queryClient.invalidateQueries({ queryKey: ['document', fileId] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', fileId] });
+      // El sheet pudo crear/editar/borrar/reordenar secciones — refresca la lista de
+      // secciones con `view` (ver useDocumentSectionAccess).
+      invalidateSectionAccess(fileId);
     }
     setIsSectionSheetOpen(open);
   }, [queryClient]);
@@ -911,6 +925,15 @@ export function AssetContent({
     refetchOnWindowFocus: false,
     staleTime: 30000, // Cache for 30 seconds
   });
+
+  // Permiso de sección por ciclo de vida (view/can_edit) — /content no lo trae, así que
+  // se resuelve aparte contra GET /documents/{id}/sections. Ver
+  // "ia context/permisos-seccion-lifecycle-guide.md" y src/hooks/useDocumentSectionAccess.ts.
+  const sectionAccess = useDocumentSectionAccess(
+    selectedFile?.type === 'document' ? selectedFile?.id : undefined,
+    selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
+  );
+  const invalidateSectionAccess = useInvalidateDocumentSectionAccess();
 
   // Ids de todos los assets referenciados por menciones (@) en el contenido, para
   // resolverlos en un solo lote (asset_ids + include_executions) en vez de confiar
@@ -2764,8 +2787,10 @@ export function AssetContent({
                   </div>
                 )}
                 
-                {isLoadingContent ? (
-                  // Show skeleton loader with consistent height to prevent layout shift
+                {isLoadingContent || sectionAccess.isLoading ? (
+                  // Show skeleton loader with consistent height to prevent layout shift.
+                  // También cubre sectionAccess: sin la lista de secciones con `view`, no hay
+                  // forma de saber si alguna del array de /content debe ocultarse.
                   <div className="space-y-6 animate-pulse min-h-150">
                     {/* Title skeleton */}
                     <div className="h-8 bg-gray-200 rounded w-3/4"></div>
@@ -3123,6 +3148,13 @@ export function AssetContent({
                             return null;
                           }
 
+                          // Sin `view` sobre esta sección según el permiso por ciclo de vida
+                          // (resuelto aparte, /content no lo trae — ver sectionAccess arriba).
+                          // Fail-open si la lista de acceso no está disponible.
+                          if (!canViewSection(section, sectionAccess)) {
+                            return null;
+                          }
+
                           // In reader mode, hide sections with empty content — except sections
                           // in scope of an in-progress 'single'/'from' execution: there the empty
                           // content is transient and must show skeleton + feedback, not disappear.
@@ -3177,10 +3209,14 @@ export function AssetContent({
                                   sectionType={section.section_type}
                                   sectionName={section.section_name}
                                   sectionCanAnswer={isSectionAnswerable(section)}
-                                  // `can_edit` viene del backend ya resuelto (org admin, rol/step, o
-                                  // fallback al permiso del documento — ver ContentSection.can_edit).
-                                  // `null`/`undefined` no restringe: el flag no aplica a esta sección.
-                                  canEditSections={frontendPermissions.canEditSections && section.can_edit !== false}
+                                  // Resuelto contra sectionAccess (GET /documents/{id}/sections), no
+                                  // contra section.can_edit (siempre undefined, /content no lo manda).
+                                  // `null` no restringe: el flag no aplica a esta sección/documento.
+                                  canEditSections={frontendPermissions.canEditSections && resolveSectionCanEdit(section, sectionAccess) !== false}
+                                  // Distingue "no podés editar el documento" (canEditSections en false
+                                  // por RBAC/lifecycle/etapa) de "esta sección puntual es de solo
+                                  // lectura en esta etapa" — para el badge/tooltip en la barra de la sección.
+                                  readOnlyBySectionRule={frontendPermissions.canEditSections && resolveSectionCanEdit(section, sectionAccess) === false}
                                   onCreateSectionFromSelection={handleCreateSectionFromSelection(index)}
                                   onCopyLink={realSectionId ? () => handleCopySectionLink(realSectionId) : undefined}
                                 />

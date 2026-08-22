@@ -410,13 +410,32 @@ export interface ContentSection {
    */
   access?: import('../templates/section-lifecycle-access').TemplateSectionAccess;
   /**
-   * Permiso de EDICIÓN de esta sección ya resuelto por el backend para el usuario
-   * actual (org admin, resolución por rol/step, o fallback al permiso del
-   * documento si la sección no tiene filas propias — ver
-   * src/types/templates/section-lifecycle-access.ts). `null`/ausente = el flag no
-   * aplica a esta sección/documento; en ese caso el permiso lo sigue dando el
-   * documento completo, sin degradar por esto.
+   * Permiso de EDICIÓN de esta sección para el usuario actual (org admin,
+   * resolución por rol/step, o fallback al permiso del documento si la sección
+   * no tiene filas propias — ver src/types/templates/section-lifecycle-access.ts).
+   * `null`/ausente = el flag no aplica a esta sección/documento; en ese caso el
+   * permiso lo sigue dando el documento completo, sin degradar por esto.
+   *
+   * ⚠️ `GET /documents/{id}/content` (la fuente de este tipo) HOY NO manda este
+   * campo — llega siempre `undefined`. La autoridad real es
+   * `useDocumentSectionAccess` (src/hooks/useDocumentSectionAccess.ts), que lo
+   * resuelve desde `GET /documents/{id}/sections`. Este campo se deja tipado por
+   * si el backend lo suma más adelante a `/content`; hasta entonces no leer
+   * `section.can_edit` directo — usar `resolveSectionCanEdit(section, access)`.
    */
+  can_edit?: boolean | null;
+}
+
+/**
+ * Sección tal como la devuelve `GET /documents/{id}/sections`: el backend ya
+ * omite las secciones sin `view` para el usuario actual y resuelve `can_edit`
+ * (org admin, rol/step, o fallback al documento). Ver
+ * src/hooks/useDocumentSectionAccess.ts.
+ */
+export interface DocumentSectionAccessItem {
+  id: string; // section_id (definición), no section_execution id
+  name?: string;
+  order?: number;
   can_edit?: boolean | null;
 }
 

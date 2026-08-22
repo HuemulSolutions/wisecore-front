@@ -157,6 +157,8 @@ const translations = {
       noSections: { en: "This template has no sections yet.", es: "Esta plantilla todavía no tiene secciones." },
       noSteps: { en: "This asset type has no lifecycle stages configured.", es: "Este tipo de activo no tiene etapas del ciclo de vida configuradas." },
       accessDenied: { en: "You don't have permission to view section permissions.", es: "No tienes permiso para ver los permisos por sección." },
+      ownRulesBadge: { en: "Own rules", es: "Reglas propias" },
+      ownRulesTooltip: { en: "This section has at least one configured cell — it no longer inherits the document's permission in any stage, not even the ones left unconfigured. If it only has view rows, no one can edit it, not even the document owner.", es: "Esta sección tiene al menos una celda configurada — deja de heredar el permiso del documento en cualquier etapa, incluso en las que quedaron sin configurar. Si solo tiene filas de vista, nadie puede editarla, ni siquiera el dueño del documento." },
     },
     conditions: {
       title: { en: "Conditions", es: "Condiciones" },
