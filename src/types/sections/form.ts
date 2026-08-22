@@ -1,7 +1,7 @@
 import type { Section } from './add'
-import type { SectionFormField } from './core'
+import type { SectionDependencyConfig, SectionFormField } from './core'
 
-export interface SectionItem {
+export interface SectionItem extends SectionDependencyConfig {
   id: string;
   name: string;
   prompt: string;

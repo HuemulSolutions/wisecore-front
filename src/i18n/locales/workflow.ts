@@ -40,12 +40,22 @@ const translations = {
     title: { en: "No workflow items found", es: "No se encontraron elementos de workflow" },
     description: { en: "No documents in progress matching your search", es: "No hay documentos en curso que coincidan con tu búsqueda" },
   },
+  actions: {
+    share: { en: "Share", es: "Compartir" },
+  },
+  deleteDialog: {
+    title: { en: "Delete workflow item", es: "Eliminar elemento de workflow" },
+    description: {
+      en: "Are you sure you want to delete \"{{name}}\"? This deletes the asset and all its answers. This action cannot be undone.",
+      es: "¿Seguro que deseas eliminar \"{{name}}\"? Esto elimina el activo y todas sus respuestas. Esta acción no se puede deshacer.",
+    },
+    success: { en: "Workflow item deleted", es: "Elemento de workflow eliminado" },
+  },
   panel: {
     noSelection: { en: "Select a row to view its form fields", es: "Selecciona una fila para ver los campos del formulario" },
     noCurrentStep: { en: "This item has no current step", es: "Este elemento no tiene un paso actual" },
     sectionNotFound: { en: "Section not found in the document content", es: "No se encontró la sección en el contenido del documento" },
     loadError: { en: "Failed to load the form fields", es: "Error al cargar los campos del formulario" },
-    close: { en: "Close", es: "Cerrar" },
     edit: { en: "Edit asset", es: "Editar activo" },
   },
   availableTemplates: {
@@ -57,7 +67,6 @@ const translations = {
     nextPage: { en: "Next workflows", es: "Workflows siguientes" },
   },
   expressSheet: {
-    title: { en: "Start workflow", es: "Iniciar workflow" },
     welcomeTitle: { en: "Let's start: {{template}}", es: "Empecemos: {{template}}" },
     welcomeDescription: { en: "Give this new asset a name (and optionally a description) so it's easy to identify later.", es: "Dale un nombre a este nuevo activo (y opcionalmente una descripción) para que sea fácil de identificar más adelante." },
     name: { en: "Name", es: "Nombre" },
@@ -67,22 +76,68 @@ const translations = {
     success: { en: "Document created successfully", es: "Documento creado correctamente" },
   },
   wizard: {
-    next: { en: "Next", es: "Siguiente" },
     back: { en: "Back", es: "Atrás" },
     finish: { en: "Finish", es: "Finalizar" },
-    creating: { en: "Creating...", es: "Creando..." },
+    finishAndAdvance: { en: "Finish and advance", es: "Finalizar y avanzar" },
     noFormSections: { en: "This template has no form sections", es: "Este template no tiene secciones de formulario" },
     summary: {
       tooltip: { en: "Back to summary", es: "Volver al resumen" },
-      stepLabel: { en: "Step {{number}}", es: "Paso {{number}}" },
       // answeredCount vive en sections:form.fill.answeredCount (compartido con el modo lector del asset).
       missingRequired: { en: "{{count}} required pending", es: "{{count}} obligatorias pendientes" },
       goToSection: { en: "Go to section", es: "Ir a la sección" },
       noAnswers: { en: "No answers in this section yet", es: "Esta sección aún no tiene respuestas" },
-      viewAnswers: { en: "View answers", es: "Ver respuestas" },
       sectionsAnswered: { en: "{{answered}} of {{total}} sections answered", es: "{{answered}} de {{total}} secciones respondidas" },
       questionsCount: { en: "{{answered}}/{{total}} questions", es: "{{answered}}/{{total}} preguntas" },
-      copy: { en: "Copy answers", es: "Copiar respuestas" },
+    },
+  },
+  share: {
+    dialogTitle: { en: "Share workflow", es: "Compartir workflow" },
+    templateDescription: {
+      en: "Anyone who opens this link creates their own copy of \"{{name}}\" and answers it independently.",
+      es: "Quien abra este link crea su propia copia de \"{{name}}\" y la responde de forma independiente.",
+    },
+    executionDescription: {
+      en: "Anyone who opens this link answers the same document: \"{{name}}\".",
+      es: "Quien abra este link responde el mismo documento: \"{{name}}\".",
+    },
+    copy: { en: "Copy link", es: "Copiar link" },
+    copied: { en: "Copied", es: "Copiado" },
+    copyFailed: { en: "Couldn't copy the link", es: "No se pudo copiar el link" },
+    openInNewTab: { en: "Open in new tab", es: "Abrir en pestaña nueva" },
+    cardTooltip: { en: "Share this workflow", es: "Compartir este workflow" },
+  },
+  fill: {
+    finishedTitle: { en: "Answers submitted", es: "Respuestas enviadas" },
+    finishedDescription: {
+      en: "Thanks for completing this form. You can close this tab now.",
+      es: "Gracias por completar este formulario. Ya puedes cerrar esta pestaña.",
+    },
+    answerAnother: { en: "Answer another", es: "Responder otro" },
+    readOnlyNotice: {
+      en: "You don't have permission to answer this form — you can only view it.",
+      es: "No tienes permiso para responder este formulario — solo puedes verlo.",
+    },
+    readOnlyStageNotice: {
+      en: "This document is in {{stage}}: fields can no longer be answered.",
+      es: "Este documento está en {{stage}}: los campos ya no se pueden responder.",
+    },
+    readOnlySectionNotice: {
+      en: "This section is read-only at this stage — you can view it but not answer it.",
+      es: "Esta sección es de solo lectura en esta etapa — puedes verla pero no responderla.",
+    },
+    readOnlyInactiveSectionNotice: {
+      en: "This section is inactive based on your answers — you can view it but not answer it.",
+      es: "Esta sección está inactiva según tus respuestas — puedes verla pero no responderla.",
+    },
+    notFound: { en: "This link is invalid or incomplete", es: "Este link no es válido o está incompleto" },
+    templateFallbackName: { en: "Workflow", es: "Workflow" },
+    noCreatePermission: {
+      en: "You don't have permission to create a document from this link.",
+      es: "No tienes permiso para crear un documento desde este link.",
+    },
+    createError: {
+      en: "Something went wrong creating this document.",
+      es: "Ocurrió un error al crear este documento.",
     },
   },
 }

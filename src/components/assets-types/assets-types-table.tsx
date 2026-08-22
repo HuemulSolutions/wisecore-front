@@ -1,9 +1,9 @@
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Trash2, FileStack, Copy, GitMerge, Settings2 } from "lucide-react"
-import { type AssetTypeWithRoles } from "@/services/asset-types"
-import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTableFolders } from "@/huemul/components/huemul-table"
 import type { AssetTypeTableProps } from '@/types/assets'
+import type { AssetTypeWithRoles } from '@/types/assets'
 
 export type { AssetTypeTableProps } from '@/types/assets'
 
@@ -17,16 +17,27 @@ export const formatDate = (dateString: string) => {
 }
 
 export default function AssetTypeTable({
-  assetTypes,
+  data,
+  folders,
+  folderItemCounts,
+  expandedFolderIds,
+  onExpandedFolderIdsChange,
   onConfigureAssetType,
   onDeleteAssetType,
   onCloneAssetType,
   onViewRelationships,
+  onCreateFolder,
+  onRenameFolder,
+  onDeleteFolderRequest,
+  onMoveAssetType,
   pagination,
   canConfigure = false,
   canDelete = false,
   canViewRelationships = false,
   canClone = false,
+  canManageFolders = false,
+  canCreateFolder = false,
+  canDeleteFolder = false,
   isLoading = false,
   isFetching = false,
   selectedIds,
@@ -34,16 +45,16 @@ export default function AssetTypeTable({
 }: AssetTypeTableProps) {
   const { t } = useTranslation('asset-types')
 
-  // Define columns
   const columns: HuemulTableColumn<AssetTypeWithRoles>[] = [
     {
       key: "color",
       label: t('columns.color'),
-      render: (assetType) => (
+      primary: false,
+      render: (at) => (
         <div className="flex items-center gap-2">
-          <div 
-            className="w-6 h-6 rounded-full border border-border" 
-            style={{ backgroundColor: assetType.document_type_color }}
+          <div
+            className="w-6 h-6 rounded-full border border-border"
+            style={{ backgroundColor: at.document_type_color }}
           />
         </div>
       )
@@ -51,47 +62,43 @@ export default function AssetTypeTable({
     {
       key: "name",
       label: t('columns.name'),
-      render: (assetType) => (
-        <span className="text-xs font-medium text-foreground">{assetType.document_type_name}</span>
-      )
+      primary: true,
+      render: (at) => <span className="text-xs font-medium text-foreground">{at.document_type_name}</span>
     },
     {
       key: "count",
       label: t('columns.assetCount'),
-      render: (assetType) => (
+      render: (at) => (
         <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-          {t('columns.assets', { count: assetType.document_count || 0 })}
+          {t('columns.assets', { count: at.document_count || 0 })}
         </Badge>
       )
     },
     {
       key: "created",
       label: t('columns.created'),
-      render: (assetType) => (
-        <span className="text-xs text-foreground">{formatDate(assetType.document_type_created_date)}</span>
-      )
+      render: (at) => <span className="text-xs text-foreground">{formatDate(at.document_type_created_date)}</span>
     }
   ]
 
-  // Define actions - construir condicionalmente
   const actions: HuemulTableAction<AssetTypeWithRoles>[] = [
     ...(canConfigure ? [{
       key: "configure" as const,
       label: t('actions.configureAssetType'),
       icon: Settings2,
-      onClick: onConfigureAssetType
+      onClick: onConfigureAssetType,
     }] : []),
     ...(canViewRelationships ? [{
       key: "viewRelationships" as const,
       label: t('actions.viewRelationships'),
       icon: GitMerge,
-      onClick: onViewRelationships
+      onClick: onViewRelationships,
     }] : []),
     ...(canClone ? [{
       key: "clone" as const,
       label: t('actions.cloneAssetType'),
       icon: Copy,
-      onClick: onCloneAssetType
+      onClick: onCloneAssetType,
     }] : []),
     ...(canDelete ? [{
       key: "delete" as const,
@@ -103,12 +110,26 @@ export default function AssetTypeTable({
     }] : [])
   ]
 
+  const tableFolders: HuemulTableFolders<AssetTypeWithRoles> = {
+    folders: folders.map((f) => ({ id: f.id, name: f.name, itemCount: folderItemCounts[f.id] ?? 0 })),
+    getFolderId: (at) => at.document_type_folder_id ?? null,
+    openFolders: expandedFolderIds,
+    onOpenFoldersChange: onExpandedFolderIdsChange,
+    onMoveRow: (at, folderId) => onMoveAssetType(at.document_type_id, folderId),
+    onCreateFolder: (name) => onCreateFolder(name),
+    onRenameFolder: canManageFolders ? (folder, name) => onRenameFolder(folder.id, name) : undefined,
+    onDeleteFolder: canDeleteFolder ? (folder) => onDeleteFolderRequest({ id: folder.id, name: folder.name }) : undefined,
+    renderCount: (count) => t('folders.typesCount', { count }),
+    canDragRows: canManageFolders,
+    canCreateFolder,
+  }
+
   return (
     <HuemulTable
-      data={assetTypes}
+      data={data}
       columns={columns}
       actions={actions}
-      getRowKey={(assetType) => assetType.document_type_id}
+      getRowKey={(at) => at.document_type_id}
       emptyState={{
         icon: FileStack,
         title: t('emptyState.noAssetTypesFound'),
@@ -120,6 +141,7 @@ export default function AssetTypeTable({
       selectable
       selectedKeys={selectedIds}
       onSelectionChange={onSelectionChange}
+      folders={tableFolders}
     />
   )
 }

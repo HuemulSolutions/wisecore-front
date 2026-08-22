@@ -1879,8 +1879,12 @@ function RelationshipsCanvasFlow({
                 )}
               >
                 <GitMerge className="h-10 w-10 text-muted-foreground/40" />
-                <p className="text-sm text-muted-foreground">{t("canvas.empty")}</p>
-                <p className="text-xs text-muted-foreground/70">{t("canvas.connectHint")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {t(mode === 'execution' ? "canvas.emptyExecution" : "canvas.empty")}
+                </p>
+                <p className="text-xs text-muted-foreground/70">
+                  {t(mode === 'execution' ? "canvas.connectHintExecution" : "canvas.connectHint")}
+                </p>
               </div>
             </Panel>
           )}

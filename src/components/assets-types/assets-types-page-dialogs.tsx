@@ -9,6 +9,7 @@ import { AssetTypeConfigSheet } from "@/components/assets-types/assets-types-con
 import { AssetTypeRelationshipsSheet } from "@/components/assets-types/assets-types-relationships-sheet"
 import { AssetTypeExportDialog } from "@/components/assets-types/assets-types-export-dialog"
 import { AssetTypeImportSheet } from "@/components/assets-types/assets-types-import-sheet"
+import { useDocumentTypeFolderMutations } from "@/hooks/useDocumentTypeFolders"
 import type { AssetTypePageDialogsProps } from '@/types/assets'
 
 export type { AssetTypePageDialogsProps } from '@/types/assets'
@@ -27,6 +28,12 @@ export default function AssetTypePageDialogs({
   const { selectedOrganizationId } = useOrganization()
   const { canDelete, canCreate, canUpdate } = useUserPermissions()
   const { can } = usePageAccess('asset-types')
+  const { deleteFolder } = useDocumentTypeFolderMutations()
+
+  const handleDeleteFolder = async () => {
+    if (!state.deletingFolder) return
+    await deleteFolder.mutateAsync(state.deletingFolder.id)
+  }
 
   const handleDelete = async () => {
     if (!canDelete('asset_type') || !state.deletingAssetType) return
@@ -95,6 +102,8 @@ export default function AssetTypePageDialogs({
         canUpdate={canUpdate('asset_type')}
         canManageTemplates={can('manageLinkedTemplates')}
         canManageLifecycle={can('manageLifecycle')}
+        canViewTags={can('viewTags')}
+        canManageTags={can('manageTags')}
       />
 
       {/* Delete Asset Type Dialog */}
@@ -157,6 +166,22 @@ export default function AssetTypePageDialogs({
           }
         }}
         onImportSuccess={onImportSuccess}
+      />
+
+      {/* Delete Folder Dialog — crear/renombrar son inline en la tabla, solo el borrado confirma */}
+      <HuemulAlertDialog
+        open={!!state.deletingFolder}
+        onOpenChange={(open) => {
+          if (!open) {
+            onCloseDialog('deletingFolder')
+          }
+        }}
+        title={t('folders.deleteTitle')}
+        description={t('folders.deleteDescription', { name: state.deletingFolder?.name })}
+        onAction={handleDeleteFolder}
+        actionLabel={t('folders.delete')}
+        cancelLabel={t('common:cancel')}
+        actionVariant="destructive"
       />
     </>
   )

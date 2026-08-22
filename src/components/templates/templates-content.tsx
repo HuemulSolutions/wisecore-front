@@ -20,6 +20,8 @@ import { TemplateCustomFields } from "../templates-custom-fields/templates-custo
 import { CreateTemplateDialog } from "./templates-create-dialog";
 import { TemplateDocxList } from "./templates-docx-list";
 import { TemplateMediaTab } from "./templates-media-tab";
+import { TemplateContextTab } from "./templates-context-tab";
+import { TemplateDependenciesTab } from "./templates-dependencies-tab";
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
 import type { TemplateContentProps } from '@/types/templates';
 export type { TemplateContentProps } from '@/types/templates';
@@ -49,10 +51,17 @@ export function TemplateContent({
   canCreateMedia,
   canUpdateMedia,
   canDeleteMedia,
+  canViewTags,
+  canManageTags,
+  canListTemplateContext,
+  canManageTemplateContext,
+  canListTemplateDependencies,
+  canManageTemplateDependencies,
+  canPickAssetsForDependencies,
 }: TemplateContentProps) {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  const { t } = useTranslation(['templates', 'common']);
+  const { t } = useTranslation(['templates', 'context', 'dependencies', 'common']);
   const { selectedOrganizationId } = useOrganization();
 
   // Estados principales
@@ -74,10 +83,12 @@ export function TemplateContent({
       ([
         canListSections && "sections",
         canListCustomFields && "custom-fields",
+        canListTemplateContext && "context",
+        canListTemplateDependencies && "dependencies",
         canListMedia && "media",
         canListDocx && "docx-templates",
       ].filter(Boolean) as string[]),
-    [canListSections, canListCustomFields, canListMedia, canListDocx]
+    [canListSections, canListCustomFields, canListTemplateContext, canListTemplateDependencies, canListMedia, canListDocx]
   );
   const [requestedTab, setRequestedTab] = useState<string | null>(null);
   const activeTab = (requestedTab && availableTabs.includes(requestedTab)) ? requestedTab : availableTabs[0];
@@ -232,6 +243,22 @@ export function TemplateContent({
                         {t('templates:content.customFieldsTab')}
                       </TabsTrigger>
                     )}
+                    {canListTemplateContext && (
+                      <TabsTrigger
+                        value="context"
+                        className="relative h-10 px-4 py-2 bg-transparent border-0 rounded-none text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:text-foreground transition-colors data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary data-[state=active]:after:content-['']"
+                      >
+                        {t('templates:content.contextTab')}
+                      </TabsTrigger>
+                    )}
+                    {canListTemplateDependencies && (
+                      <TabsTrigger
+                        value="dependencies"
+                        className="relative h-10 px-4 py-2 bg-transparent border-0 rounded-none text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:text-foreground transition-colors data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary data-[state=active]:after:content-['']"
+                      >
+                        {t('templates:content.dependenciesTab')}
+                      </TabsTrigger>
+                    )}
                     {canListMedia && (
                       <TabsTrigger
                         value="media"
@@ -253,8 +280,8 @@ export function TemplateContent({
                   {/* Action Icons */}
                   <div className="flex items-center gap-1 mr-2">
                     {/* La pestaña "Secciones" usa los mismos datos del template (sin query propia),
-                        así que es la única que se refresca desde aquí; custom-fields/media/docx
-                        ya llevan su propio strip de refresh (§3 refresh-button-guide). */}
+                        así que es la única que se refresca desde aquí; custom-fields/context/
+                        dependencies/media/docx ya llevan su propio strip de refresh (§3 refresh-button-guide). */}
                     {activeTab === 'sections' && (
                       <HuemulButton
                         icon={RefreshCw}
@@ -398,6 +425,31 @@ export function TemplateContent({
                 </TabsContent>
               )}
 
+              {canListTemplateContext && (
+                <TabsContent value="context" className="mt-0 flex-1 flex flex-col overflow-hidden bg-gray-50">
+                  {selectedTemplate && (
+                    <TemplateContextTab
+                      templateId={selectedTemplate.id}
+                      organizationId={selectedOrganizationId!}
+                      canManage={canManageTemplateContext}
+                    />
+                  )}
+                </TabsContent>
+              )}
+
+              {canListTemplateDependencies && (
+                <TabsContent value="dependencies" className="mt-0 flex-1 flex flex-col overflow-hidden bg-gray-50">
+                  {selectedTemplate && (
+                    <TemplateDependenciesTab
+                      templateId={selectedTemplate.id}
+                      organizationId={selectedOrganizationId!}
+                      canManage={canManageTemplateDependencies}
+                      canPickAssets={canPickAssetsForDependencies}
+                    />
+                  )}
+                </TabsContent>
+              )}
+
               {canListMedia && (
                 <TabsContent value="media" className="mt-0 flex-1 flex flex-col overflow-hidden bg-gray-50">
                   {selectedTemplate && (
@@ -490,6 +542,8 @@ export function TemplateContent({
         templateData={templateData}
         selectedTemplate={selectedTemplate}
         sectionsCount={orderedSections.length}
+        canViewTags={canViewTags}
+        canManageTags={canManageTags}
       />
     </div>
   );

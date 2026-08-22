@@ -1,6 +1,10 @@
 const translations = {
   header: {
     title: { en: "Diagrams", es: "Diagramas" },
+    subtitle: {
+      en: "Drag assets from the knowledge tree onto the canvas to build a diagram",
+      es: "Arrastra activos del árbol de conocimiento al canvas para construir un diagrama",
+    },
     searchPlaceholder: { en: "Search diagrams...", es: "Buscar diagramas..." },
   },
   filters: {

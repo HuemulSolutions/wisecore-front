@@ -9,6 +9,7 @@ const LIFECYCLE_STATE_COLORS: Record<ExecutionLifecycleState, string> = {
   approved: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
   published: "bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-200",
   archived: "bg-gray-100 text-gray-800 dark:bg-gray-950 dark:text-gray-200",
+  finalized: "bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-200",
 }
 
 interface HuemulLifecycleBadgeProps {

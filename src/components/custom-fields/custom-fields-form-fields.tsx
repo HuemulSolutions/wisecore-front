@@ -215,6 +215,7 @@ export default function CustomFieldFormFields({
               value={jsonbToInputValue(minValue)}
               onChange={(v) => onMinValueChange(v === "" ? null : Number(v))}
               placeholder={t('sections:form.formFields.noLimit')}
+              allowDecimal={dataType === "decimal"}
               disabled={disabled}
             />
             <HuemulField
@@ -223,6 +224,7 @@ export default function CustomFieldFormFields({
               value={jsonbToInputValue(maxValue)}
               onChange={(v) => onMaxValueChange(v === "" ? null : Number(v))}
               placeholder={t('sections:form.formFields.noLimit')}
+              allowDecimal={dataType === "decimal"}
               disabled={disabled}
             />
           </div>

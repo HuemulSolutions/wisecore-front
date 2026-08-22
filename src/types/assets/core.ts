@@ -389,6 +389,34 @@ export interface ContentSection {
   ai_suggestion_error?: string | null;
   review_status?: 'editing' | 'reviewing' | 'finished' | null;
   form_fields?: import('../sections/core').FormFieldValue[];
+  depends_on?: import('../sections/core').FieldDependencyCondition[] | null;
+  show_when_inactive?: boolean;
+  /**
+   * Calculados por el backend a partir de depends_on/show_when_inactive propio de
+   * la sección (ver "ia context/dependencias-condicionales-formularios-guide.md" §3.2).
+   * Una sección con is_visible:false y show_when_inactive falsy ni siquiera llega en
+   * /content — estos flags solo están presentes en las secciones que sí llegan.
+   * Ausentes (sin depends_on) equivalen a true.
+   */
+  is_visible?: boolean;
+  can_answer?: boolean;
+  /**
+   * @deprecated Superado por `can_edit`. Era una lectura simple de la fila de
+   * `template_section_lifecycle_access` sin contemplar bypass de org admin ni el
+   * fallback al permiso del documento cuando la sección no tiene filas propias.
+   * Se mantiene tipado por si el backend lo sigue mandando, pero la app ya no lo
+   * lee para decidir si el usuario puede editar — usar `can_edit`.
+   */
+  access?: import('../templates/section-lifecycle-access').TemplateSectionAccess;
+  /**
+   * Permiso de EDICIÓN de esta sección ya resuelto por el backend para el usuario
+   * actual (org admin, resolución por rol/step, o fallback al permiso del
+   * documento si la sección no tiene filas propias — ver
+   * src/types/templates/section-lifecycle-access.ts). `null`/ausente = el flag no
+   * aplica a esta sección/documento; en ese caso el permiso lo sigue dando el
+   * documento completo, sin degradar por esto.
+   */
+  can_edit?: boolean | null;
 }
 
 export interface LibraryContentProps {

@@ -203,6 +203,7 @@ export function SectionQuestionTypeFields({
               value={jsonbToInputValue(field.min_value)}
               onChange={(v) => onUpdate({ min_value: v === "" ? null : v })}
               placeholder={t("form.formFields.noLimit")}
+              allowDecimal={qt === QUESTION_TYPE.decimal}
               disabled={isPending}
             />
             <HuemulField
@@ -211,6 +212,7 @@ export function SectionQuestionTypeFields({
               value={jsonbToInputValue(field.max_value)}
               onChange={(v) => onUpdate({ max_value: v === "" ? null : v })}
               placeholder={t("form.formFields.noLimit")}
+              allowDecimal={qt === QUESTION_TYPE.decimal}
               disabled={isPending}
             />
           </div>
@@ -275,7 +277,7 @@ export function SectionQuestionTypeFields({
             options={[1, 5, 10, 25, 50].map((n) => ({ value: String(n), label: `${n} MB` }))}
             selectSize="sm"
             disabled={isPending}
-            className="max-w-[160px]"
+            className="max-w-40"
           />
         </div>
       );
@@ -353,7 +355,7 @@ export function SectionQuestionTypeFields({
             options={[3, 4, 5, 6, 7, 8, 9, 10].map((n) => ({ value: String(n), label: String(n) }))}
             selectSize="sm"
             disabled={isPending}
-            className="max-w-[160px]"
+            className="max-w-40"
           />
           <QuestionTypePreview questionType={qt} maxValue={stars} />
         </div>

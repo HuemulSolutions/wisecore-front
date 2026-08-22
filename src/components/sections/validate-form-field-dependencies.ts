@@ -97,3 +97,14 @@ export function formFieldsHaveValidDependencies(
     return validateFieldDependencyConditions(field.field_id, conditions, availableFields).length === 0;
   });
 }
+
+// Espejo cliente para el depends_on de una SECCIÓN completa. A diferencia del nivel de
+// pregunta, el backend NO valida field_id acá (no devuelve 400: la sección queda inactiva
+// en silencio para siempre) — esta validación es la única red que tiene el usuario.
+// Sin ownFieldId no hay selfReference posible; el resto de las reglas aplica igual.
+export function sectionHasValidDependencies(
+  conditions: FieldDependencyCondition[],
+  availableFields: SectionFormField[],
+): boolean {
+  return validateFieldDependencyConditions("", conditions, availableFields).length === 0;
+}

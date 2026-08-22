@@ -11,11 +11,19 @@ import { validateFieldDependencyConditions, type FieldDependencyErrorCode } from
 
 interface SectionFormFieldDependencyEditorProps {
   ownFieldId: string;
+  // Id para el <Switch>/<Label> de show_when_inactive; default = ownFieldId. Necesario
+  // cuando ownFieldId es "" (dependencia a nivel de SECCIÓN, sin selfReference posible).
+  instanceId?: string;
   conditions: FieldDependencyCondition[];
   showWhenInactive: boolean;
   availableFields: SectionFormField[];
   onChange: (conditions: FieldDependencyCondition[], showWhenInactive: boolean) => void;
   disabled?: boolean;
+  // Overrides de texto para reusar este editor fuera del contexto de pregunta (ej.
+  // dependencia de sección, ver section-dependency-editor.tsx).
+  emptyFieldsMessage?: string;
+  showWhenInactiveLabel?: string;
+  showWhenInactiveHint?: string;
 }
 
 const NUMERIC_OPERATORS: FieldDependencyOperator[] = ["eq", "neq", "gt", "gte", "lt", "lte", "is_empty", "is_not_empty"];
@@ -35,13 +43,18 @@ function operatorsForTarget(target?: SectionFormField): FieldDependencyOperator[
 
 export function SectionFormFieldDependencyEditor({
   ownFieldId,
+  instanceId,
   conditions,
   showWhenInactive,
   availableFields,
   onChange,
   disabled,
+  emptyFieldsMessage,
+  showWhenInactiveLabel,
+  showWhenInactiveHint,
 }: SectionFormFieldDependencyEditorProps) {
   const { t } = useTranslation("sections");
+  const switchId = instanceId ?? ownFieldId;
 
   const conditionErrors = validateFieldDependencyConditions(ownFieldId, conditions, availableFields);
   const errorFor = (index: number): FieldDependencyErrorCode | undefined =>
@@ -82,6 +95,7 @@ export function SectionFormFieldDependencyEditor({
           label={t("form.formFields.dependency.value")}
           value={typeof condition.value === "number" ? condition.value : ""}
           onChange={(v) => updateCondition(index, { value: v === "" ? undefined : Number(v) })}
+          allowDecimal={target.data_type === "decimal"}
           disabled={disabled}
         />
       );
@@ -183,7 +197,11 @@ export function SectionFormFieldDependencyEditor({
   };
 
   if (availableFields.length === 0) {
-    return <p className="text-xs text-gray-400 italic">{t("form.formFields.dependency.noEarlierFields")}</p>;
+    return (
+      <p className="text-xs text-gray-400 italic">
+        {emptyFieldsMessage ?? t("form.formFields.dependency.noEarlierFields")}
+      </p>
+    );
   }
 
   return (
@@ -266,18 +284,20 @@ export function SectionFormFieldDependencyEditor({
       {conditions.length > 0 && (
         <div className="flex items-center gap-2 border-t border-gray-100 pt-2">
           <Switch
-            id={`show-when-inactive-${ownFieldId}`}
+            id={`show-when-inactive-${switchId}`}
             checked={showWhenInactive}
             onCheckedChange={(checked) => onChange(conditions, !!checked)}
             disabled={disabled}
           />
-          <Label htmlFor={`show-when-inactive-${ownFieldId}`} className="text-xs text-gray-600">
-            {t("form.formFields.dependency.showWhenInactive")}
+          <Label htmlFor={`show-when-inactive-${switchId}`} className="text-xs text-gray-600">
+            {showWhenInactiveLabel ?? t("form.formFields.dependency.showWhenInactive")}
           </Label>
         </div>
       )}
       {conditions.length > 0 && (
-        <p className="text-xs text-gray-400">{t("form.formFields.dependency.showWhenInactiveHint")}</p>
+        <p className="text-xs text-gray-400">
+          {showWhenInactiveHint ?? t("form.formFields.dependency.showWhenInactiveHint")}
+        </p>
       )}
     </div>
   );

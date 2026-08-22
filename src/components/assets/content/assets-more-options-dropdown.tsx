@@ -34,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { HuemulButton } from "@/huemul/components/huemul-button";
+import { isRestorableLifecycleState } from "@/lib/lifecycle-access";
 
 interface LifecycleStatus {
   stage: string;
@@ -260,7 +261,7 @@ export function MoreOptionsDropdown({
                   {t("lifecycle.archive")}
                 </DropdownMenuItem>
               )}
-            {lifecyclePermissions?.archive && lifecycleStatus.state === "archived" && (
+            {lifecyclePermissions?.archive && isRestorableLifecycleState(lifecycleStatus.state) && (
               <DropdownMenuItem
                 onSelect={() => setTimeout(onRestore, 0)}
                 className="hover:cursor-pointer"

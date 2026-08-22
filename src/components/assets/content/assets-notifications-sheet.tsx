@@ -427,7 +427,7 @@ export function AssetsNotificationsSheet({
             >
               {t("notifications.tab")}
               {unreadCount > 0 && (
-                <span className="inline-flex items-center justify-center h-4 min-w-[1rem] px-1 rounded-full bg-blue-600 text-white text-[10px] font-medium">
+                <span className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-blue-600 text-white text-[10px] font-medium">
                   {unreadCount}
                 </span>
               )}

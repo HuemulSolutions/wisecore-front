@@ -32,6 +32,7 @@ import { HuemulCombobox } from "@/huemul/components/huemul-combobox";
 
 import { cn } from "@/lib/utils";
 import { NUMERIC_DATE_PATTERN } from "@/lib/format-date-range";
+import { DEFAULT_SWATCH_COLORS } from "@/huemul/constants";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -86,6 +87,59 @@ function getBrowserDateLocale(): Locale {
   return DATE_FNS_LOCALE_MAP[lang]
     ?? DATE_FNS_LOCALE_MAP[lang.split('-')[0]]
     ?? enUS;
+}
+
+// ── Number locale helpers ───────────────────────────────────────────────────
+
+// Decimal separator for the browser's locale ("," for es-CL, "." for en-US, etc).
+function getDecimalSeparator(): "," | "." {
+  try {
+    const lang = typeof navigator !== 'undefined' ? navigator.language : 'en';
+    const part = new Intl.NumberFormat(lang).formatToParts(1.1).find((p) => p.type === "decimal");
+    return part?.value === "," ? "," : ".";
+  } catch {
+    return ".";
+  }
+}
+
+// Parses user-typed decimal text tolerating either "," or "." as the separator.
+// Returns null for incomplete/invalid states (e.g. "", "-", "1,", "1,,") — the
+// caller treats null as "still typing", not as a value to emit.
+function parseDecimalText(raw: string): number | null {
+  const normalized = raw.trim().replace(",", ".");
+  if (!/^-?\d+(\.\d+)?$/.test(normalized)) return null;
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : null;
+}
+
+// No thousands grouping — decimal capture only. `minDecimals` pads the fractional
+// part with trailing zeros (e.g. 567 -> "567,0") so a decimal field stays visually
+// distinct from an integer one even when the value has no fractional part.
+function formatDecimalText(n: number, sep: "," | ".", minDecimals = 0): string {
+  const [int, frac = ""] = String(n).split(".");
+  const padded = frac.padEnd(minDecimals, "0");
+  return padded ? `${int}${sep}${padded}` : int;
+}
+
+// Filters keystrokes without reformatting: digits, one leading "-", and at most
+// one decimal separator (typed as "," or ".", always displayed as `sep`).
+function sanitizeNumberText(raw: string, sep: "," | ".", allowDecimal: boolean): string {
+  let out = "";
+  let seenSeparator = false;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (ch === "-") {
+      if (i === 0) out += ch;
+    } else if (ch === "," || ch === ".") {
+      if (allowDecimal && !seenSeparator) {
+        out += sep;
+        seenSeparator = true;
+      }
+    } else if (ch >= "0" && ch <= "9") {
+      out += ch;
+    }
+  }
+  return out;
 }
 
 // ── Date/Time helpers ──────────────────────────────────────────────────────
@@ -514,6 +568,92 @@ function ColorField({
   );
 }
 
+// ── Color Swatches Field ────────────────────────────────────────────────────
+
+function ColorSwatchesField({
+  fieldId,
+  value,
+  onChange,
+  options,
+  disabled,
+  error,
+  inputClassName,
+}: {
+  fieldId: string;
+  value?: string | number | boolean;
+  onChange?: (value: string | number | boolean) => void;
+  options?: HuemulFieldOption[];
+  disabled?: boolean;
+  error?: string;
+  inputClassName?: string;
+}) {
+  const color = String(value || "");
+  const [inputValue, setInputValue] = React.useState(color);
+
+  React.useEffect(() => {
+    setInputValue(String(value || ""));
+  }, [value]);
+
+  const swatches = options && options.length > 0
+    ? options.map((o) => o.value)
+    : DEFAULT_SWATCH_COLORS;
+
+  const handleSwatchClick = (swatchColor: string) => {
+    setInputValue(swatchColor);
+    onChange?.(swatchColor);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInputValue(val);
+    onChange?.(val);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {swatches.map((swatchColor) => {
+          const isSelected = color.toLowerCase() === swatchColor.toLowerCase();
+          return (
+            <button
+              key={swatchColor}
+              type="button"
+              disabled={disabled}
+              aria-label={swatchColor}
+              aria-pressed={isSelected}
+              className={cn(
+                "flex size-9 shrink-0 items-center justify-center rounded-md border transition-all hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50",
+                isSelected
+                  ? "border-ring ring-2 ring-ring ring-offset-2 ring-offset-background"
+                  : "border-border",
+              )}
+              style={{ backgroundColor: swatchColor }}
+              onClick={() => handleSwatchClick(swatchColor)}
+            >
+              {isSelected && <Check className="size-4 text-white" />}
+            </button>
+          );
+        })}
+      </div>
+      <Input
+        id={fieldId}
+        type="text"
+        value={inputValue}
+        onChange={handleInputChange}
+        disabled={disabled}
+        aria-invalid={!!error || undefined}
+        autoComplete="off"
+        className={cn(
+          "max-w-50 font-mono uppercase",
+          error && "border-destructive ring-destructive/20 dark:ring-destructive/40",
+          inputClassName,
+        )}
+        placeholder="#000000"
+      />
+    </div>
+  );
+}
+
 // ── File Field ────────────────────────────────────────────────────────────
 
 function FileInputField({
@@ -731,6 +871,114 @@ function DateInputField({
         />
       </PopoverContent>
     </Popover>
+  );
+}
+
+// ── Number Field ─────────────────────────────────────────────────────────
+
+function NumberInputField({
+  fieldId,
+  name,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  readOnly,
+  required,
+  autoFocus,
+  autoComplete,
+  allowDecimal = false,
+  maxLength,
+  onKeyDown,
+  error,
+  inputClassName,
+}: {
+  fieldId: string;
+  name?: string;
+  value?: string | number | boolean;
+  onChange?: (value: string | number | boolean) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  readOnly?: boolean;
+  required?: boolean;
+  autoFocus?: boolean;
+  autoComplete?: string;
+  allowDecimal?: boolean;
+  maxLength?: number;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  error?: string;
+  inputClassName?: string;
+}) {
+  const sep = React.useMemo(getDecimalSeparator, []);
+  // A decimal field always shows at least one decimal (567 -> "567,0") so it
+  // stays visually distinct from an integer field. Integers never get one.
+  const minDecimals = allowDecimal ? 1 : 0;
+
+  const toDisplay = (v?: string | number | boolean): string => {
+    if (v === "" || v === null || v === undefined) return "";
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? formatDecimalText(n, sep, minDecimals) : "";
+  };
+
+  const [text, setText] = React.useState(() => toDisplay(value));
+
+  // Keep the visible text in sync when the controlled value changes externally,
+  // but don't clobber an in-progress edit that already parses to the same number
+  // (e.g. typing the trailing "0" of "567,0" while the prop still echoes back 567).
+  React.useEffect(() => {
+    const incoming = value === "" || value === null || value === undefined
+      ? null
+      : (typeof value === "number" ? value : Number(value));
+    const current = parseDecimalText(text);
+    if (incoming === current) return;
+    setText(toDisplay(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, sep]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const next = sanitizeNumberText(e.target.value, sep, allowDecimal);
+    setText(next);
+    if (next === "") {
+      onChange?.("");
+      return;
+    }
+    const parsed = parseDecimalText(next);
+    if (parsed !== null) onChange?.(parsed);
+    // else: still mid-edit (trailing separator, lone "-", etc.) — don't emit yet.
+  };
+
+  const handleBlur = () => {
+    if (text === "") return;
+    const parsed = parseDecimalText(text);
+    if (parsed === null) {
+      setText(toDisplay(value));
+      return;
+    }
+    // Preserve however many decimals the user typed, never fewer than the minimum.
+    const typedDecimals = text.split(sep)[1]?.length ?? 0;
+    setText(formatDecimalText(parsed, sep, Math.max(minDecimals, typedDecimals)));
+  };
+
+  return (
+    <Input
+      id={fieldId}
+      name={name}
+      type="text"
+      inputMode={allowDecimal ? "decimal" : "numeric"}
+      value={text}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      onKeyDown={onKeyDown}
+      placeholder={placeholder}
+      disabled={disabled}
+      readOnly={readOnly}
+      required={required}
+      autoFocus={autoFocus}
+      autoComplete={autoComplete ?? "off"}
+      maxLength={maxLength}
+      aria-invalid={!!error || undefined}
+      className={inputClassName}
+    />
   );
 }
 
@@ -1562,6 +1810,7 @@ export function HuemulField({
   min,
   max,
   step,
+  allowDecimal = false,
   withSeconds = true,
   checkLabel,
   richTextValue,
@@ -1603,10 +1852,7 @@ export function HuemulField({
 
   const handleInputChange = React.useCallback(
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      if (type === "number") {
-        const num = e.target.value === "" ? "" : Number(e.target.value);
-        onChange?.(num);
-      } else if (type === "file") {
+      if (type === "file") {
         // For file inputs, pass the file name(s) — actual File objects should be handled via refs
         onChange?.(e.target.value);
       } else {
@@ -1801,6 +2047,19 @@ export function HuemulField({
       case "color":
         return (
           <ColorField
+            fieldId={fieldId}
+            value={value}
+            onChange={onChange}
+            options={options}
+            disabled={disabled}
+            error={error}
+            inputClassName={inputClassName}
+          />
+        );
+
+      case "color-swatches":
+        return (
+          <ColorSwatchesField
             fieldId={fieldId}
             value={value}
             onChange={onChange}
@@ -2147,7 +2406,28 @@ export function HuemulField({
           />
         );
 
-      // text, email, password, number, tel, url
+      case "number":
+        return (
+          <NumberInputField
+            fieldId={fieldId}
+            name={name}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            disabled={disabled}
+            readOnly={readOnly}
+            required={required}
+            autoFocus={autoFocus}
+            autoComplete={autoComplete}
+            allowDecimal={allowDecimal}
+            maxLength={maxLength}
+            onKeyDown={onKeyDown}
+            error={error}
+            inputClassName={inputClassName}
+          />
+        );
+
+      // text, email, password, tel, url
       default:
         return (
           <Input

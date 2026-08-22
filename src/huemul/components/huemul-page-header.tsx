@@ -22,6 +22,7 @@ const ACTION_ICON_COLORS = [
 export function PageHeader({
   icon: Icon,
   title,
+  subtitle,
   badges = [],
   showRefresh = true,
   onRefresh,
@@ -77,9 +78,16 @@ export function PageHeader({
       {/* Header Row */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         {/* Title Section */}
-        <div className="flex items-center gap-2">
-          <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-          <h1 className="text-lg sm:text-xl font-semibold text-foreground">{title}</h1>
+        {/* Con subtítulo el bloque se alinea al tope: el icono acompaña al título,
+            no al centro de las dos líneas. */}
+        <div className={cn("flex gap-2", subtitle ? "items-start" : "items-center")}>
+          <Icon className={cn("w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0", subtitle && "mt-1")} />
+          <div className="flex flex-col">
+            <h1 className="text-lg sm:text-xl font-semibold text-foreground">{title}</h1>
+            {subtitle && (
+              <p className="text-xs text-muted-foreground">{subtitle}</p>
+            )}
+          </div>
         </div>
 
         {/* Actions Section */}

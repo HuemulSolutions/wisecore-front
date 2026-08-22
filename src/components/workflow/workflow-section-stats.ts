@@ -1,10 +1,7 @@
-import type { TFunction } from "i18next";
 import {
-  LABEL_QUESTION_TYPE,
   MULTI_SELECT_QUESTION_TYPES,
   QUESTION_TYPE,
   SINGLE_SELECT_QUESTION_TYPES,
-  formatFieldValueForCopy,
   hasAnswer,
   isFieldAnswerable,
   isFieldVisible,
@@ -29,28 +26,45 @@ export interface SectionStats {
   missingRequired: number;
 }
 
+// Espejo cliente de los flags de SECCIÓN calculados por el backend a partir de su propio
+// depends_on/show_when_inactive (ver "ia context/dependencias-condicionales-formularios-guide.md"
+// §3.2). Igual que isFieldVisible/isFieldAnswerable: el front nunca evalúa depends_on,
+// solo lee lo que el backend ya calculó. Ausentes (sin depends_on) equivalen a true.
+export function isSectionVisible(section: ContentSection): boolean {
+  return section.is_visible !== false;
+}
+export function isSectionAnswerable(section: ContentSection): boolean {
+  return isSectionVisible(section) && section.can_answer !== false;
+}
+
 export function computeSectionStats(section: ContentSection): SectionStats {
   const fields = [...(section.form_fields ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  const questions = fields.filter((f) => f.question_type !== QUESTION_TYPE.label);
+  // Solo preguntas visibles: una oculta por depends_on no está en pantalla,
+  // así que tampoco debe sumar al total del contador "respondidas/total".
+  const questions = fields.filter((f) => f.question_type !== QUESTION_TYPE.label && isFieldVisible(f));
   const answeredCount = questions.filter((f) => hasAnswer(resolvedValueOf(f))).length;
-  const missingRequired = questions.filter(
-    (f) => isFieldAnswerable(f) && f.required && !hasAnswer(resolvedValueOf(f)),
-  ).length;
+  // Una sección con `can_edit: false` (permiso por sección resuelto por el backend)
+  // o inactiva por su propio depends_on de sección no se puede responder aunque el
+  // backend no haya marcado cada campo con `can_answer: false` individualmente
+  // (show_when_inactive:true sí lo hace, pero no hay que depender de eso acá) — sin
+  // este corte, sus obligatorios sin valor quedarían "pendientes" para siempre en
+  // el resumen del wizard.
+  const missingRequired =
+    section.can_edit === false || !isSectionAnswerable(section)
+      ? 0
+      : questions.filter((f) => isFieldAnswerable(f) && f.required && !hasAnswer(resolvedValueOf(f))).length;
   return { fields, questions, answeredCount, missingRequired };
 }
 
-// Texto plano para copiar al portapapeles — mismo formateo que "Copiar" en
-// asset-form-section.tsx / assets-section.tsx (ver handleCopy, assets-section.tsx:226-246):
-// campos visibles, ordenados por `order`, `etiqueta` solo con el título, el resto
-// "nombre: valor" vía formatFieldValueForCopy (no reimplementar el formateo por question_type).
-export function serializeSectionAnswers(section: ContentSection, t: TFunction): string {
-  return [...(section.form_fields ?? [])]
-    .filter(isFieldVisible)
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-    .map((field) =>
-      field.question_type === LABEL_QUESTION_TYPE
-        ? formatFieldValueForCopy(field, t)
-        : `${field.field_name}: ${formatFieldValueForCopy(field, t)}`,
-    )
-    .join("\n");
+// Espejo cliente de la regla del backend: una sección "no aplica" por dos motivos
+// independientes — (a) depends_on propio de la sección no se cumple (is_visible:false),
+// o (b) es tipo form y ninguna de sus preguntas quedó visible. El backend ya no la
+// devuelve en /content en ninguno de los dos casos; este helper cubre el intervalo
+// entre el parche de caché del PATCH /form_values y el próximo refetch.
+export function isSectionApplicable(section: ContentSection): boolean {
+  if (!isSectionVisible(section)) return false;
+  if (section.section_type !== "form") return true;
+  return (section.form_fields ?? []).some(
+    (f) => f.question_type !== QUESTION_TYPE.label && isFieldVisible(f),
+  );
 }

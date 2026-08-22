@@ -26,6 +26,7 @@ import { useOrganization } from '@/contexts/organization-context';
 import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
+import { isSectionPermissionDeniedError } from '@/lib/section-permission-errors';
 import { logger } from '@/lib/logger';
 import { useTranslation } from 'react-i18next';
 import { AssetFormSection, type AssetFormSectionHandle } from '@/components/assets/content/asset-form-section';
@@ -51,6 +52,7 @@ function SectionExecutionInner({
     status,
     canEditSections = false,
     onCreateSectionFromSelection,
+    sectionCanAnswer = true,
     // onCopyLink,
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
@@ -61,9 +63,23 @@ function SectionExecutionInner({
     const formHasEditableFields = (sectionExecution.form_fields ?? []).some(isFieldAnswerable);
     const isFormAnswered = !!status && status !== 'pending';
     // Un formulario pendiente sin respuestas arranca directamente en modo edición.
+    // sectionCanAnswer=false (depends_on propio de la sección no cumplido, ver
+    // "ia context/dependencias-condicionales-formularios-guide.md" §3.2) bloquea entrar en
+    // modo edición aunque AssetFormSection ya vaya a forzar can_answer:false por campo —
+    // evita que el usuario abra el formulario para encontrarlo todo deshabilitado.
     const [isEditing, setIsEditing] = useState(
-        sectionType === 'form' && readyToEdit && canEditSections && formHasEditableFields && !isFormAnswered
+        sectionType === 'form' && readyToEdit && canEditSections && sectionCanAnswer && formHasEditableFields && !isFormAnswered
     );
+    // Responder el formulario sin salir del modo lector del asset — atajo sobre la tarjeta
+    // del reader (ver AssetFormSectionReader), independiente del `isEditing` de modo editor.
+    const [isAnsweringInReader, setIsAnsweringInReader] = useState(false);
+    const canAnswerInReader = sectionType === 'form' && canEditSections && sectionCanAnswer && formHasEditableFields;
+
+    // Si el usuario cambia a modo editor mientras respondía desde el reader, se corta ese modo
+    // para no terminar con dos formularios (reader + editor) montados a la vez.
+    useEffect(() => {
+        if (readyToEdit) setIsAnsweringInReader(false);
+    }, [readyToEdit]);
     const [isAiEditDialogOpen, setIsAiEditDialogOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     // Ref al form de la sección: el botón Enviar/Cancelar vive en la barra de acciones de acá
@@ -130,9 +146,9 @@ function SectionExecutionInner({
 
     // Sync editing state with the guard context
     useEffect(() => {
-        setIsSectionEditing(isEditing);
+        setIsSectionEditing(isEditing || isAnsweringInReader);
         return () => setIsSectionEditing(false);
-    }, [isEditing, setIsSectionEditing]);
+    }, [isEditing, isAnsweringInReader, setIsSectionEditing]);
 
     // Handle entering edit mode with scroll position preservation - Updated for ScrollArea
     const handleStartEditing = () => {
@@ -170,14 +186,29 @@ function SectionExecutionInner({
      * Silent auto-save triggered after a comment mark is added to the editor.
      * Persists plate_content (with the new mark) without affecting edit mode.
      */
+    // Autocorrige la UI cuando el backend rechaza una escritura por permiso de
+    // sección (403 SECTION_LIFECYCLE_PERMISSION_DENIED / LIFECYCLE_PERMISSION_DENIED):
+    // refresca el contenido para que la sección se re-renderice como solo lectura
+    // en vez de quedar mostrando controles que van a seguir fallando.
+    const invalidateContentOnPermissionDenied = (error: unknown) => {
+        if (isSectionPermissionDeniedError(error) && documentId) {
+            queryClient.invalidateQueries({ queryKey: ['document-content', documentId] });
+        }
+    };
+
     const handleAutoSavePlateContent = async (sId: string, markdown: string, pContent: string[]) => {
         // El autosave se dispara por marks de comentario, sin click: necesita su
         // propio gate (capa (c) de los gestos sin botón).
         if (!canEditSections) return;
         try {
             await modifyContent(sId, markdown, pContent);
-        } catch {
-            // Silent fail – auto-save is best-effort, not user-initiated
+        } catch (error) {
+            // Silent fail para fallas transitorias (best-effort, not user-initiated) —
+            // pero un rechazo por permiso es determinístico, no vale la pena callarlo.
+            if (isSectionPermissionDeniedError(error)) {
+                handleApiError(error, { fallbackMessage: t('section.saveFailed') });
+                invalidateContentOnPermissionDenied(error);
+            }
         }
     };
 
@@ -189,7 +220,7 @@ function SectionExecutionInner({
             setIsEditing(false);
             setAiPreview(null);
             onUpdate?.();
-            
+
             // Restore scroll position after save - Updated for ScrollArea
             setTimeout(() => {
                 const viewport = getScrollAreaViewport();
@@ -203,8 +234,15 @@ function SectionExecutionInner({
                     });
                 }
             }, 100);
-        } catch (e) {
-            logger.error('Error saving content', e);
+        } catch (error) {
+            logger.error('Error saving content', error);
+            handleApiError(error, { fallbackMessage: t('section.saveFailed') });
+            if (isSectionPermissionDeniedError(error)) {
+                // Seguir en modo edición sería engañoso acá: a diferencia de una falla
+                // transitoria, reintentar guardar va a fallar igual.
+                setIsEditing(false);
+                invalidateContentOnPermissionDenied(error);
+            }
         } finally {
             setIsSaving(false);
         }
@@ -260,6 +298,7 @@ function SectionExecutionInner({
             onUpdate?.();
         } catch (error) {
             handleApiError(error, { fallbackMessage: t('section.reviewStatusUpdateFailed') });
+            invalidateContentOnPermissionDenied(error);
         } finally {
             setIsUpdatingReviewStatus(false);
         }
@@ -342,6 +381,7 @@ function SectionExecutionInner({
             setIsAiSuggestionActive(true);
         } catch (error) {
             handleApiError(error, { fallbackMessage: t('section.executionFailed') });
+            invalidateContentOnPermissionDenied(error);
         }
         setIsAiEditDialogOpen(false);
     };
@@ -410,6 +450,17 @@ function SectionExecutionInner({
                                 <span className="mx-1.5 text-[10px] text-blue-300">•</span>
                                 <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-600/70">
                                     {sectionTypeLabel}
+                                </span>
+                            </div>
+                        )}
+                        {/* Sección con depends_on propio no cumplido, mostrada por show_when_inactive:true */}
+                        {!sectionCanAnswer && (
+                            <div
+                                className="flex items-center rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1"
+                                title={t('form.fill.sectionInactive', { ns: 'sections' })}
+                            >
+                                <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                                    {t('form.fill.sectionInactive', { ns: 'sections' })}
                                 </span>
                             </div>
                         )}
@@ -787,7 +838,30 @@ function SectionExecutionInner({
                         section={{ form_fields: sectionExecution.form_fields, review_status: reviewStatus }}
                         sectionName={sectionName}
                         sectionIndex={sectionIndex ?? 0}
-                    />
+                        canAnswer={canAnswerInReader}
+                        isAnswering={isAnsweringInReader}
+                        isSaving={isFormSaving}
+                        onStartAnswering={() => setIsAnsweringInReader(true)}
+                        onDoneAnswering={() => formSectionRef.current?.exit()}
+                    >
+                        {isAnsweringInReader && (
+                            <AssetFormSection
+                                ref={formSectionRef}
+                                sectionExecutionId={sectionExecution.id}
+                                formFields={sectionExecution.form_fields ?? []}
+                                status={status}
+                                organizationId={selectedOrganizationId ?? undefined}
+                                documentId={documentId}
+                                canInteract={canEditSections}
+                                isEditing
+                                onExitEditing={() => setIsAnsweringInReader(false)}
+                                reviewStatus={reviewStatus}
+                                onReviewStatusChange={setReviewStatus}
+                                onUpdate={onUpdate}
+                                onSavingChange={setIsFormSaving}
+                            />
+                        )}
+                    </AssetFormSectionReader>
                 ) : (
                     /* Form section: render fillable/read-only form instead of the Plate editor */
                     <div className="pt-4 pr-2 w-full">
@@ -798,7 +872,7 @@ function SectionExecutionInner({
                             status={status}
                             organizationId={selectedOrganizationId ?? undefined}
                             documentId={documentId}
-                            canInteract={readyToEdit && canEditSections}
+                            canInteract={readyToEdit && canEditSections && sectionCanAnswer}
                             isEditing={isEditing}
                             onExitEditing={handleCancelEdit}
                             reviewStatus={reviewStatus}
@@ -884,17 +958,29 @@ function SectionExecutionInner({
             aiSuggestionContent={sectionExecution.ai_suggestion_content}
             aiPreview={aiPreview}
             onReject={async () => {
-                await rejectAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
-                await queryClient.refetchQueries({ queryKey: ['document-content', documentId] });
-                setAiPreview(null);
-                setIsDiffOpen(false);
+                try {
+                    await rejectAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
+                    await queryClient.refetchQueries({ queryKey: ['document-content', documentId] });
+                    setAiPreview(null);
+                    setIsDiffOpen(false);
+                } catch (error) {
+                    // Dejar el diálogo abierto con el diff visible: el usuario ve el error
+                    // sin perder el estado de lo que estaba revisando.
+                    handleApiError(error, { fallbackMessage: t('section.aiSuggestionActionFailed') });
+                    invalidateContentOnPermissionDenied(error);
+                }
             }}
             onAccept={async () => {
-                await acceptAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
-                await queryClient.refetchQueries({ queryKey: ['document-content', documentId] });
-                setAiPreview(null);
-                setIsDiffOpen(false);
-                onUpdate?.();
+                try {
+                    await acceptAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
+                    await queryClient.refetchQueries({ queryKey: ['document-content', documentId] });
+                    setAiPreview(null);
+                    setIsDiffOpen(false);
+                    onUpdate?.();
+                } catch (error) {
+                    handleApiError(error, { fallbackMessage: t('section.aiSuggestionActionFailed') });
+                    invalidateContentOnPermissionDenied(error);
+                }
             }}
         />
         </div>

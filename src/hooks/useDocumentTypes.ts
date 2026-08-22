@@ -4,15 +4,24 @@ import { getDocumentTypes, createDocumentType, deleteDocumentType } from "@/serv
 // Query keys
 export const documentTypeQueryKeys = {
   all: ['document-types'] as const,
-  list: (search?: string) => [...documentTypeQueryKeys.all, 'list', search ?? ''] as const,
+  lists: () => [...documentTypeQueryKeys.all, 'list'] as const,
+  list: (params?: { page?: number; page_size?: number; search?: string; tag_id?: string; document_type_folder_id?: string }) =>
+    [...documentTypeQueryKeys.lists(), params] as const,
 }
 
 // Hook for fetching document types
-export function useDocumentTypes(options?: { search?: string; enabled?: boolean }) {
-  const { search, enabled = true } = options ?? {}
+export function useDocumentTypes(options?: {
+  page?: number
+  page_size?: number
+  search?: string
+  tag_id?: string
+  document_type_folder_id?: string
+  enabled?: boolean
+}) {
+  const { page, page_size, search, tag_id, document_type_folder_id, enabled = true } = options ?? {}
   return useQuery({
-    queryKey: documentTypeQueryKeys.list(search),
-    queryFn: () => getDocumentTypes({ search }),
+    queryKey: documentTypeQueryKeys.list({ page, page_size, search, tag_id, document_type_folder_id }),
+    queryFn: () => getDocumentTypes({ page, page_size, search, tag_id, document_type_folder_id }),
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 0,
     placeholderData: (prev) => prev,
@@ -28,7 +37,7 @@ export function useDocumentTypeMutations() {
     mutationFn: createDocumentType,
     meta: { successMessage: 'Asset type created successfully' },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: documentTypeQueryKeys.list() })
+      queryClient.invalidateQueries({ queryKey: documentTypeQueryKeys.lists() })
     },
   })
 
@@ -36,7 +45,7 @@ export function useDocumentTypeMutations() {
     mutationFn: deleteDocumentType,
     meta: { successMessage: 'Asset type deleted successfully' },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: documentTypeQueryKeys.list() })
+      queryClient.invalidateQueries({ queryKey: documentTypeQueryKeys.lists() })
     },
   })
 
@@ -46,7 +55,7 @@ export function useDocumentTypeMutations() {
     },
     meta: { successMessage: 'Asset types deleted successfully' },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: documentTypeQueryKeys.list() })
+      queryClient.invalidateQueries({ queryKey: documentTypeQueryKeys.lists() })
     },
   })
 

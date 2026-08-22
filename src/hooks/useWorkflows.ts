@@ -1,5 +1,7 @@
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import { getWorkflows } from "@/services/workflow"
+import { deleteDocument } from "@/services/assets"
 import type { UseWorkflowsOptions } from "@/types/workflow"
 export type { UseWorkflowsOptions }
 
@@ -105,4 +107,22 @@ export function useWorkflows(organizationId: string, options: UseWorkflowsOption
     gcTime: 5 * 60 * 1000,
     retry: 0,
   })
+}
+
+// ─── Mutations ────────────────────────────────────────────────────────────────
+
+export function useWorkflowMutations(organizationId: string) {
+  const { t } = useTranslation("workflow")
+  const queryClient = useQueryClient()
+
+  const deleteWorkflow = useMutation({
+    mutationFn: (documentId: string) => deleteDocument(documentId, organizationId),
+    meta: { successMessage: t("deleteDialog.success") },
+    onSuccess: (_data, documentId) => {
+      queryClient.invalidateQueries({ queryKey: workflowQueryKeys.listBase() })
+      queryClient.removeQueries({ queryKey: ["document-content", documentId] })
+    },
+  })
+
+  return { deleteWorkflow }
 }

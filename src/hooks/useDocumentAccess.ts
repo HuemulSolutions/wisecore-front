@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getAccessLevels } from '@/services/access-levels'
 import { usePageAccess } from '@/hooks/usePageAccess'
+import { isTerminalLifecycleState } from '@/lib/lifecycle-access'
 import type { FrontendPermissions, LifecyclePermissions, LifecycleStatus } from '@/types/assets'
 
 /**
@@ -98,6 +99,22 @@ export function lifecycleAllows(
 }
 
 /**
+ * ¿La etapa actual del documento admite responder formularios / editar contenido?
+ * Solo `edit`: `lifecycle_permissions.edit` es un permiso de ROL, no de etapa —
+ * el actor de un grupo de elaboración que además es revisor o aprobador lo sigue
+ * recibiendo en `true` durante `in_review` / `in_approval`, y sin este chequeo
+ * los campos quedaban editables ahí aunque el PATCH no fuera a persistir.
+ *
+ * `status === undefined` ⇒ `true`, mismo contrato fail-open que `lifecycleAllows`:
+ * un asset type sin lifecycle configurado vuelve legítimamente sin
+ * `lifecycle_status` y no debe perder la edición en silencio. El piso lo pone RBAC.
+ */
+export function lifecycleStageAllowsEditing(status: LifecycleStatus | undefined): boolean {
+  if (!status) return true
+  return status.stage === 'edit' && !isTerminalLifecycleState(status.state)
+}
+
+/**
  * Hook utilitario para validar lifecycle permissions de un documento.
  */
 export function useLifecyclePermissions(permissions?: LifecyclePermissions) {
@@ -171,7 +188,7 @@ export function computeFrontendPermissions(
   const hasApprove = permissions?.approve === true
   const hasPublish = permissions?.publish === true
   const hasArchive = permissions?.archive === true
-  const isEditStage = status?.stage === 'edit'
+  const isEditStage = status?.stage === 'edit' && !isTerminalLifecycleState(status?.state)
 
   return {
     canEditSections: (hasCreate || hasEdit) && isEditStage && rbac.updateAssetContent,

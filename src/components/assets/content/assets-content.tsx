@@ -40,6 +40,9 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById, exportDocuments } from "@/services/assets";
 import { useDocumentMediaUrls } from "@/hooks/useDocumentMediaUrls";
 import { MediaUrlProvider } from "@/contexts/media-url-context";
+import { MentionRefsProvider } from "@/contexts/mention-refs-context";
+import { RoleRefsProvider } from "@/contexts/role-refs-context";
+import { collectMentionAssetIds, hasAnyRoleReference } from "@/lib/plate-mention-utils";
 import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, updateExecutionName } from "@/services/executions";
 import { useSectionsExecutionStatus } from './hooks/useSectionsExecutionStatus';
 import { getDefaultLLM } from "@/services/llms";
@@ -83,6 +86,8 @@ import { useAssetContentPermissions } from '@/hooks/useDocumentAccess';
 import { usePageAccess } from '@/hooks/usePageAccess';
 import type { ContentSection, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
 import type { FormValuesSectionPayload } from '@/types/sections/core';
+import { applyFormValuesPatch } from '@/components/assets/content/utils/patch-document-content';
+import { isSectionAnswerable, isSectionApplicable, isSectionVisible } from '@/components/workflow/workflow-section-stats';
 import { CustomFieldsList } from './assets-custom-fields-list';
 import { SectionIndexContext } from '@/contexts/section-index-context';
 import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
@@ -102,9 +107,12 @@ import { getExecutionDisplayLabel } from './utils/version-utils';
 import { VersionSelectorDropdown } from './assets-version-selector';
 import { ViewModeToggle } from './assets-view-mode-toggle';
 import { MoreOptionsDropdown } from './assets-more-options-dropdown';
+import { CUSTOM_FIELD_DOCUMENTS_PAGE_SIZE, customFieldDocumentsQueryKeys } from '@/hooks/useCustomFieldDocuments';
 
 // Tamaño de página del listado de campos personalizados en el panel lateral (angosto).
-const CUSTOM_FIELDS_PAGE_SIZE = 100;
+// Compartido con la validación preventiva del lifecycle (useCustomFieldDocuments) —
+// misma query key, un solo fetch.
+const CUSTOM_FIELDS_PAGE_SIZE = CUSTOM_FIELD_DOCUMENTS_PAGE_SIZE;
 
 /** Recursively extract all text from a Plate JSON node. */
 function extractPlateText(node: unknown): string {
@@ -536,7 +544,9 @@ export function AssetContent({
   const [isVersionCompareSheetOpen, setIsVersionCompareSheetOpen] = useState(false);
   const [versionCompareOverride, setVersionCompareOverride] = useState<{ left?: string; right?: string } | null>(null);
   const [isPermissionsSheetOpen, setIsPermissionsSheetOpen] = useState(false);
-  
+  const canViewTags = can('viewTags');
+  const canManageTags = can('manageTags');
+
   // Effects to trigger on-demand loading
   useEffect(() => {
     // Load full document when section sheet is opened
@@ -731,24 +741,15 @@ export function AssetContent({
 
   // Con payload (autoguardado de formularios): parchea en el caché solo las secciones
   // form devueltas por el PATCH /form_values, sin refetch de /documents/{id}/content
-  // (que traería también las secciones ai/manual/reference sin necesidad).
+  // (que traería también las secciones ai/manual/reference sin necesidad). También
+  // refresca section_name si vino no-null, para que TOC/headers queden al día sin
+  // refetch. Nota: si el PATCH devuelve una sección que no está en el caché, se ignora
+  // (solo reemplaza, nunca agrega) — limitación conocida.
   // Sin payload (resto de ediciones de sección): comportamiento previo, invalida y refetch.
   const handleSectionUpdate = useCallback((payload?: FormValuesSectionPayload[]) => {
     const fileId = selectedFileIdRef.current;
-    if (payload?.length) {
-      const formFieldsBySectionId = new Map(payload.map((p) => [p.section_execution_id, p.form_fields]));
-      queryClient.setQueriesData(
-        { queryKey: ['document-content', fileId] },
-        (old: { content?: ContentSection[] } | undefined) => {
-          if (!old?.content || !Array.isArray(old.content)) return old;
-          return {
-            ...old,
-            content: old.content.map((s) =>
-              formFieldsBySectionId.has(s.id) ? { ...s, form_fields: formFieldsBySectionId.get(s.id) } : s,
-            ),
-          };
-        },
-      );
+    if (payload?.length && fileId) {
+      applyFormValuesPatch(queryClient, fileId, payload);
       return;
     }
     queryClient.invalidateQueries({ queryKey: ['document-content', fileId] });
@@ -905,6 +906,29 @@ export function AssetContent({
     staleTime: 30000, // Cache for 30 seconds
   });
 
+  // Ids de todos los assets referenciados por menciones (@) en el contenido, para
+  // resolverlos en un solo lote (asset_ids + include_executions) en vez de confiar
+  // en el snapshot que cada chip trae guardado en su propio nodo Plate. También se
+  // detecta si hay al menos una referencia a un rol, para gatear el fetch de
+  // useRolesMap (trae TODOS los roles de la org) solo cuando hace falta.
+  const { mentionAssetIds, hasRoleReferences } = useMemo(() => {
+    if (!Array.isArray(documentContent?.content)) return { mentionAssetIds: [] as string[], hasRoleReferences: false };
+    const ids = new Set<string>();
+    let hasRoles = false;
+    for (const section of documentContent.content) {
+      for (const raw of section.plate_content ?? []) {
+        try {
+          const parsed = JSON.parse(raw);
+          collectMentionAssetIds(parsed, ids);
+          if (!hasRoles) hasRoles = hasAnyRoleReference(parsed);
+        } catch {
+          // Contenido plate_content malformado — se ignora, la chip cae al snapshot.
+        }
+      }
+    }
+    return { mentionAssetIds: Array.from(ids), hasRoleReferences: hasRoles };
+  }, [documentContent?.content]);
+
   // Lightweight periodic refresh of media download URLs (images/files embedded in
   // the content), so a tab left open longer than the backend's SAS TTL doesn't end
   // up with broken media. Cadence is derived from the backend's own ttl_seconds.
@@ -939,7 +963,7 @@ export function AssetContent({
 
   // Fetch custom fields for the document
   const { data: customFieldsData, isLoading: isLoadingCustomFields } = useQuery({
-    queryKey: ['custom-field-documents', selectedFile?.id, customFieldsPage, CUSTOM_FIELDS_PAGE_SIZE],
+    queryKey: customFieldDocumentsQueryKeys.byDocument(selectedFile?.id, customFieldsPage, CUSTOM_FIELDS_PAGE_SIZE),
     queryFn: () => getCustomFieldDocumentsByDocument({
       document_id: selectedFile!.id,
       page: customFieldsPage,
@@ -1203,6 +1227,13 @@ export function AssetContent({
       setVersionCompareOverride({ left: previousExecutionId, right: currentExecutionId });
       setIsVersionCompareSheetOpen(true);
     },
+    canListCustomFields,
+    onOpenCustomFields: canListCustomFields
+      ? () => {
+          setActiveTab('custom-fields');
+          setIsTocSidebarOpen(true);
+        }
+      : undefined,
   });
 
   // Set initial view mode based on lifecycle permissions (once per document+execution):
@@ -2939,6 +2970,8 @@ export function AssetContent({
                     if (documentContent?.content) {
                       return (
                         <MediaUrlProvider freshUrls={mediaUrlsData?.media_urls ?? null}>
+                        <MentionRefsProvider assetIds={mentionAssetIds} organizationId={selectedOrganizationId ?? undefined}>
+                        <RoleRefsProvider enabled={hasRoleReferences}>
                         <div className={`prose prose-gray prose-sm md:prose-base max-w-full${isViewMode ? ' [&>*+*]:mt-0' : ''}`}>
                           {/* Template instructions callout - shown once at the top */}
                           {documentContent.template_instructions?.trim() && (
@@ -2978,13 +3011,28 @@ export function AssetContent({
                               {documentContent.content.map((section: ContentSection, index: number) => {
                           const realSectionId = section.section_id;
 
+                          // Sección con depends_on propio no cumplido y sin show_when_inactive: el
+                          // backend ya no la devuelve en /content, pero puede seguir en caché tras un
+                          // parche local (PATCH /form_values de otra sección) — se descarta siempre,
+                          // en editor y en lector (a diferencia del chequeo de abajo, que solo aplica
+                          // en modo lector). Ver ia context/dependencias-condicionales-formularios-guide.md §3.2.
+                          if (!isSectionVisible(section)) {
+                            return null;
+                          }
+
                           // In reader mode, hide sections with empty content — except sections
                           // in scope of an in-progress 'single'/'from' execution: there the empty
                           // content is transient and must show skeleton + feedback, not disappear.
-                          if (isViewMode && section.section_type !== 'form' && !isSectionInScope(index) && isSectionContentEmpty(section)) {
+                          // Form sections use a different emptiness check: "no aplica" (mirrors the
+                          // backend rule, ver ia context/dependencias-condicionales-formularios-guide.md)
+                          // instead of markdown/plate content.
+                          const sectionIsHidden = section.section_type === 'form'
+                            ? !isSectionApplicable(section)
+                            : isSectionContentEmpty(section);
+                          if (isViewMode && !isSectionInScope(index) && sectionIsHidden) {
                             return null;
                           }
-                          
+
                           return (
                             <SectionIndexContext.Provider key={`${section.id}-${index}`} value={index}>
                               <div id={`section-${index}`} className="relative">
@@ -3025,7 +3073,11 @@ export function AssetContent({
                                   onOpenExecuteSheet={handleCreateExecutionFromSection(index, realSectionId)}
                                   sectionType={section.section_type}
                                   sectionName={section.section_name}
-                                  canEditSections={frontendPermissions.canEditSections}
+                                  sectionCanAnswer={isSectionAnswerable(section)}
+                                  // `can_edit` viene del backend ya resuelto (org admin, rol/step, o
+                                  // fallback al permiso del documento — ver ContentSection.can_edit).
+                                  // `null`/`undefined` no restringe: el flag no aplica a esta sección.
+                                  canEditSections={frontendPermissions.canEditSections && section.can_edit !== false}
                                   onCreateSectionFromSelection={handleCreateSectionFromSelection(index)}
                                   onCopyLink={realSectionId ? () => handleCopySectionLink(realSectionId) : undefined}
                                 />
@@ -3049,6 +3101,8 @@ export function AssetContent({
                             <Markdown>{documentContent.content}</Markdown>
                           )}
                         </div>
+                        </RoleRefsProvider>
+                        </MentionRefsProvider>
                         </MediaUrlProvider>
                       );
                     }
@@ -3460,6 +3514,8 @@ export function AssetContent({
         onOpenChange={setIsInfoSheetOpen}
         documentContent={documentContent}
         selectedExecutionInfo={selectedExecutionInfo}
+        canViewTags={canViewTags}
+        canManageTags={canManageTags}
       />
 
       {/* Version Management Sheet */}

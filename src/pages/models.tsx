@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Plus, Edit, Trash2, Settings, Radio, Star, Timer, Loader2, Building2, MessageSquare, Image as ImageIcon } from 'lucide-react'
+import { Plus, Edit, Trash2, Settings, Radio, Star, Timer, Loader2, Building2, KeyRound, MessageSquare, Image as ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HuemulButton } from '@/huemul/components/huemul-button'
 import { HuemulTable } from '@/huemul/components/huemul-table'
@@ -51,6 +51,7 @@ import {
 } from '@/components/llm'
 import {
   EditProviderDialog,
+  ProviderApiKeyDialog,
   DeleteProviderDialog,
   CreateProviderDialog,
 } from '@/components/llm-provider'
@@ -59,7 +60,7 @@ import {
 } from '@/components/embedding-provider'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import type { LLM, CreateLLMRequest } from '@/types/models'
-import type { CreateLLMProviderRequest } from '@/types/llm-provider'
+import type { CreateLLMProviderRequest, LLMProvider } from '@/types/llm-provider'
 
 function getProviderColor(name: string) {
   const colors = ['bg-blue-500', 'bg-violet-500', 'bg-emerald-500', 'bg-orange-500', 'bg-pink-500', 'bg-cyan-500', 'bg-rose-500']
@@ -75,6 +76,7 @@ export default function Models() {
 
   // State management
   const [editingProvider, setEditingProvider] = useState<any>(null)
+  const [changingKeyProvider, setChangingKeyProvider] = useState<LLMProvider | null>(null)
   const [deletingProvider, setDeletingProvider] = useState<any>(null)
   const [editingModel, setEditingModel] = useState<LLM | null>(null)
   const [deletingModel, setDeletingModel] = useState<LLM | null>(null)
@@ -174,6 +176,15 @@ export default function Models() {
       queryClient.invalidateQueries({ queryKey: ['supportedProviders'] })
       queryClient.invalidateQueries({ queryKey: ['allProviders'] })
       setEditingProvider(null)
+    },
+  })
+
+  const updateProviderKeyMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: CreateLLMProviderRequest }) => updateProvider(id, data),
+    meta: { successMessage: t('toast.providerKeyUpdated') },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['allProviders'] })
+      setChangingKeyProvider(null)
     },
   })
 
@@ -343,6 +354,23 @@ export default function Models() {
   const handleEditModelProvider = (model: LLM) => {
     const provider = allProvidersList.find((p: any) => p.id === model.provider_id)
     if (provider) setEditingProvider(provider)
+  }
+
+  const handleChangeProviderKey = (model: LLM) => {
+    const provider = allProvidersList.find((p: any) => p.id === model.provider_id)
+    if (provider) setChangingKeyProvider(provider)
+  }
+
+  const handleUpdateProviderKey = (data: CreateLLMProviderRequest) => {
+    if (!changingKeyProvider || !canUpdateProvider) return
+    updateProviderKeyMutation.mutate({ id: changingKeyProvider.id, data })
+  }
+
+  const providerRequiresApiKey = (model: LLM) => {
+    const provider = allProvidersList.find((p: any) => p.id === model.provider_id)
+    if (!provider) return false
+    const supported = supportedProviders.find((p: any) => p.type === provider.type)
+    return !!supported?.requires_api_key
   }
 
   const handleDeleteModel = (model: LLM) => {
@@ -640,6 +668,12 @@ export default function Models() {
                     icon: Building2,
                     onClick: handleEditModelProvider,
                     disabled: (model: LLM) => !model.provider_id,
+                  }, {
+                    key: 'changeProviderKey',
+                    label: t('providerActions.changeApiKey'),
+                    icon: KeyRound,
+                    onClick: handleChangeProviderKey,
+                    disabled: (model: LLM) => !model.provider_id || !providerRequiresApiKey(model),
                   }] : []),
                   ...(canUpdateModel ? [{
                     key: 'edit',
@@ -846,6 +880,17 @@ export default function Models() {
         supportedProviders={supportedProviders as any[]}
         onSubmit={handleUpdateProvider}
         isUpdating={updateProviderMutation.isPending}
+        canUpdate={canUpdateProvider}
+      />
+
+      {/* Change Provider API Key Dialog */}
+      <ProviderApiKeyDialog
+        open={!!changingKeyProvider}
+        onOpenChange={() => setChangingKeyProvider(null)}
+        provider={changingKeyProvider}
+        supportedProviders={supportedProviders as any[]}
+        onSubmit={handleUpdateProviderKey}
+        isUpdating={updateProviderKeyMutation.isPending}
         canUpdate={canUpdateProvider}
       />
 

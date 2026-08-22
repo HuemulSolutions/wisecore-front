@@ -44,6 +44,13 @@ export interface RbacPageSpec {
   nav?: RbacNavSpec;
   /** Permisos por affordance (botón, tab, acción de fila, etc). */
   features?: Record<string, FeatureSpec>;
+  /**
+   * Permisos declarados antes de que exista la página (la capa de datos ya
+   * está, la UI llega después). El validador de RBAC (scripts/validate-rbac.mjs)
+   * salta para estas entradas los chequeos de ruta y de nav. Quitar el flag
+   * al construir la página.
+   */
+  pending?: boolean;
 }
 
 export const RBAC_PAGES = {
@@ -103,6 +110,30 @@ export const RBAC_PAGES = {
       createMedia: "media:c",
       updateMedia: "media:u",
       deleteMedia: "media:d",
+      // Popover de etiquetas asignadas al template (TagsObjectPicker, object_type
+      // "template"). GET/POST/DELETE /tags/{id}/objects piden tag:r / tag:u.
+      viewTags: "tag:r",
+      manageTags: "tag:u",
+      // Contexto y dependencias a nivel de template (tabs "Contexto" /
+      // "Dependencias" del detalle). GET /templates/{id}/context y
+      // /dependencies exigen template:r específico (con solo template:l el
+      // tab existiría y se comería un 403 mudo). No existe recurso
+      // template_context en PermissionResource: `context` es el recurso del
+      // contexto de DOCUMENTO y no aplica acá.
+      listTemplateContext: "template:r",
+      manageTemplateContext: "template:u",
+      listTemplateDependencies: "template:r",
+      manageTemplateDependencies: "template:u",
+      // El picker de documentos del alta de dependencia es el árbol de
+      // conocimiento (GET /library).
+      listAssetsForDependency: ["asset:l", "asset:r"],
+      listFoldersForDependency: ["folder:l", "folder:r"],
+      // version_mode="specific" lista executions del documento dependido
+      // (DependencyVersionDialog ya gatea con canList('version')).
+      listVersionsForDependency: ["version:l", "version:r"],
+      // "Ver activo" desde la fila de dependencia abre /asset/{id}, cuyo
+      // guard exige asset:r|l.
+      openAsset: ["asset:r", "asset:l"],
     },
   },
   organizations: {
@@ -186,6 +217,12 @@ export const RBAC_PAGES = {
       deleteTemplateSection: "template_section:d",
       // El canvas de relaciones y los diagramas ya no viven acá: se movieron a
       // la página /diagrams, que declara sus propias features.
+
+      // Popover de etiquetas asignadas al documento (TagsObjectPicker,
+      // object_type "document"). GET/POST/DELETE /tags/{id}/objects piden
+      // tag:r / tag:u.
+      viewTags: "tag:r",
+      manageTags: "tag:u",
     },
   },
   search: {
@@ -203,6 +240,9 @@ export const RBAC_PAGES = {
       filterByTemplate: ["template:l", "template:r"],
       filterByUser: ["user:l", "user:r"],
       filterByCustomField: ["custom_fields:l", "custom_fields:r"],
+      // Filtro por etiqueta (tag_id) — GET /tags/ pide tag:r|l. Sin confirmar
+      // que /search/ acepte tag_id (ver types/search/core.ts).
+      filterByTag: ["tag:l", "tag:r"],
     },
   },
   models: {
@@ -310,6 +350,17 @@ export const RBAC_PAGES = {
       listLinkedTemplates: ["asset_type:l", "asset_type:r"],
       manageLinkedTemplates: "asset_type:u",
       listRelationships: ["asset_type_relationship:l", "asset_type_relationship:r"],
+      // Popover de etiquetas asignadas al tipo de activo (TagsObjectPicker,
+      // object_type "document_type"). GET/POST/DELETE /tags/{id}/objects
+      // piden tag:r / tag:u.
+      viewTags: "tag:r",
+      manageTags: "tag:u",
+      // Carpetas de tipos de documento (document_type_folder): reutilizan
+      // asset_type:* — el endpoint de mover por drag & drop
+      // (POST /document_type_folders/{id}/document_types) también pide asset_type:u.
+      createFolder: "asset_type:c",
+      updateFolder: "asset_type:u",
+      deleteFolder: "asset_type:d",
     },
   },
   "custom-fields": {
@@ -320,6 +371,23 @@ export const RBAC_PAGES = {
       createCustomField: "custom_fields:c",
       updateCustomField: "custom_fields:u",
       deleteCustomField: "custom_fields:d",
+    },
+  },
+  tags: {
+    route: "tags",
+    routePermissions: ["tag:r", "tag:l"],
+    features: {
+      listTags: ["tag:l", "tag:r"],
+      createTag: "tag:c",
+      updateTag: "tag:u",
+      deleteTag: "tag:d",
+      // Asignar/quitar una etiqueta de un objeto valida tag:u en el backend
+      // (POST y DELETE /tags/{id}/objects), no tag:c / tag:d.
+      assignTagToObject: "tag:u",
+      unassignTagFromObject: "tag:u",
+      // GET /tags/{id}/objects y GET /tags/by-object/... piden tag:r.
+      listTagObjects: "tag:r",
+      listObjectTags: "tag:r",
     },
   },
   canvas: {
@@ -386,6 +454,10 @@ export const RBAC_PAGES = {
       listFolders: ["folder:l", "folder:r"], // nivel document (tree picker)
       listExecutions: ["section_execution:l", "section_execution:r"], // nivel execution
       listTemplates: ["template:l", "template:r"], // nivel template
+      // El select de modelo del sheet de generación lee GET /llms/ (recurso ajeno):
+      // sin permiso el select se comería un 403 mudo. Mismo criterio que
+      // `listLlms` en la vista de ejecuciones (línea 464).
+      listLlms: ["llm:l", "llm:r"],
     },
   },
   advanced: {
@@ -488,6 +560,8 @@ export const RBAC_PAGES = {
       listAssetTypes: ["asset_type:l", "asset_type:r"], // filtro documentTypeId
       listUsers: ["user:l", "user:r"], // filtro ownerValue
       listCustomFields: ["custom_fields:l", "custom_fields:r"], // filtro customFieldFilter
+      // DELETE /documents/{id} — borra el activo entero (documento + ejecuciones).
+      deleteAsset: "asset:d",
     },
   },
   "global-admin": {

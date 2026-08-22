@@ -135,6 +135,19 @@ function AssetRow({
     }
     setExpanded(true)
     if (executions === null) {
+      // La búsqueda ya pide include_executions=true, así que el asset trae sus
+      // versiones incluidas — sin esto, un request por documento expandido.
+      if (asset.executions) {
+        setExecutions(asset.executions.map((execution) => ({
+          id: execution.id,
+          name: execution.version,
+          version: execution.version,
+          version_major: execution.version_major,
+          version_minor: execution.version_minor,
+          version_patch: execution.version_patch,
+        })))
+        return
+      }
       setLoading(true)
       try {
         const data = await getExecutionsByDocumentId(asset.id, organizationId)
@@ -314,6 +327,9 @@ export function HuemulAssetTreePickerDialog({
   const effectiveMode: AssetPickerMode = mode === "document-with-version" ? subMode : mode
   // Tracks how to load each node's children in browse mode (folder vs document).
   const kindMap = useRef(new Map<string, NodeKind>())
+  // Assets ya listados (con sus executions embebidas vía include_executions), para
+  // que expandir un documento no dispare un request extra por getExecutionsByDocumentId.
+  const assetCache = useRef(new Map<string, LibraryContentAsset>())
   const disabledSet = useMemo(() => new Set(disabledIds ?? []), [disabledIds])
 
   const handleSelect = useCallback(
@@ -334,16 +350,20 @@ export function HuemulAssetTreePickerDialog({
       if (folderId && kind === "document") {
         const documentName = node?.name
         const color = node?.metadata?.color as string | null | undefined
-        const data = (await getExecutionsByDocumentId(folderId, organizationId)) as ExecutionItem[]
-        return (data ?? []).map((exec) => ({
+        // El listado de la carpeta ya trajo executions (include_executions=true);
+        // solo se recurre al request puntual si por algún motivo no quedó en cache.
+        const cached = assetCache.current.get(folderId)
+        const executions = cached?.executions
+          ?? ((await getExecutionsByDocumentId(folderId, organizationId)) as ExecutionItem[])
+        return (executions ?? []).map((exec) => ({
           id: exec.id,
-          name: getExecutionDisplayLabel(exec) || exec.name,
+          name: getExecutionDisplayLabel(exec) || (exec as ExecutionItem).name,
           type: "execution",
           metadata: { kind: "execution", documentId: folderId, documentName, version: exec.version, color },
         }))
       }
 
-      const content = await getLibraryContent(organizationId, folderId ?? undefined)
+      const content = await getLibraryContent(organizationId, folderId ?? undefined, 1, 1000, undefined, undefined, undefined, { includeExecutions: true })
 
       const folderNodes: HuemulTreeNode[] = (content.folders ?? []).map((f) => {
         kindMap.current.set(f.id, "folder")
@@ -352,6 +372,7 @@ export function HuemulAssetTreePickerDialog({
 
       const assetNodes: HuemulTreeNode[] = (content.assets ?? []).map((a) => {
         kindMap.current.set(a.id, "document")
+        assetCache.current.set(a.id, a)
         if (isExecutionMode(effectiveMode)) {
           // Documents are expandable (their executions are the leaves).
           return {
@@ -405,7 +426,7 @@ export function HuemulAssetTreePickerDialog({
       }
       setSearchLoading(true)
       try {
-        const content = await getLibraryContent(organizationId, undefined, 1, 1000, trimmed)
+        const content = await getLibraryContent(organizationId, undefined, 1, 1000, trimmed, undefined, undefined, { includeExecutions: true })
         setSearchData(content)
       } catch {
         setSearchData(null)

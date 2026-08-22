@@ -1,23 +1,30 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { getAllTemplates } from "@/services/templates";
 import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
+import { useTag } from "@/hooks/useTags";
 import { TemplateContent } from "@/components/templates/templates-content";
 import { TemplatesSidebar } from "@/components/templates/templates-sidebar";
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
 import { HuemulPagination } from "@/huemul/components/huemul-pagination";
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
+import { HuemulTagChip } from "@/huemul/components/huemul-tag-chip";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 import type { TemplateItem } from "@/types/templates"
 
 export default function Templates() {
+  const { t } = useTranslation('templates');
   const queryClient = useQueryClient();
     const navigate = useOrgNavigate();
   const { id: templateId } = useParams<{ id?: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tagId = searchParams.get("tag_id") || undefined;
+  const { data: activeTag } = useTag(tagId ?? "", !!tagId);
   const { selectedOrganizationId } = useOrganization();
 
   // Permisos
@@ -26,6 +33,7 @@ export default function Templates() {
   // (ver useUserPermissions.ts). Ver ia context/rbac-permissions-guide.md.
   const {
     hasAnyPermission,
+    hasPermission,
     canCreate,
     canRead,
     canUpdate,
@@ -66,6 +74,21 @@ export default function Templates() {
   const canUpdateMedia = canUpdate('media');
   const canDeleteMedia = canDelete('media');
 
+  // Permisos específicos — tag (sheet de etiquetas asignadas al template)
+  const canViewTags = hasPermission('tag:r');
+  const canManageTags = hasPermission('tag:u');
+
+  // Permisos específicos — contexto y dependencias del template (tabs propios).
+  // GET exige template:r —no basta con template:l— y toda escritura template:u.
+  const canListTemplateContext = canRead('template');
+  const canManageTemplateContext = canUpdate('template');
+  const canListTemplateDependencies = canRead('template');
+  const canManageTemplateDependencies = canUpdate('template');
+  // El picker de documentos del alta de dependencia necesita listar carpetas
+  // y documentos; sin eso el botón abriría un árbol vacío (fail-closed).
+  const canPickAssetsForDependencies =
+    hasAnyPermission(['asset:l', 'asset:r']) && hasAnyPermission(['folder:l', 'folder:r']);
+
   // Estados principales
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -73,10 +96,19 @@ export default function Templates() {
   const [pageSize] = useState(100);
   const hasRestoredRef = useRef(false);
 
+  const clearTagFilter = () => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("tag_id");
+      return next;
+    });
+    setPage(1);
+  };
+
   // Query para listar templates - solo si tiene permisos
   const { data: templatesData, error: queryError, isFetching } = useQuery({
-    queryKey: ["templates", selectedOrganizationId, searchTerm, page, pageSize],
-    queryFn: () => getAllTemplates(selectedOrganizationId!, searchTerm || undefined, page, pageSize),
+    queryKey: ["templates", selectedOrganizationId, searchTerm, page, pageSize, tagId],
+    queryFn: () => getAllTemplates(selectedOrganizationId!, searchTerm || undefined, page, pageSize, { tag_id: tagId }),
     enabled: !!selectedOrganizationId && canListTemplates,
     retry: false,
   });
@@ -118,6 +150,14 @@ export default function Templates() {
 
   return (
     <HuemulPageLayout
+      header={
+        activeTag ? (
+          <div className="flex items-center gap-2 border-b bg-muted/20 px-4 py-2">
+            <span className="text-xs text-muted-foreground">{t('filters.filteredByTag')}</span>
+            <HuemulTagChip label={activeTag.name} color={activeTag.color} size="sm" onRemove={clearTagFilter} />
+          </div>
+        ) : undefined
+      }
       columns={[
         {
           content: (
@@ -132,7 +172,7 @@ export default function Templates() {
                 navigate('/templates', { replace: true });
               }}
               organizationId={selectedOrganizationId}
-              onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId, searchTerm, page, pageSize] })}
+              onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId, searchTerm, page, pageSize, tagId] })}
               onSearch={(term) => { setSearchTerm(term); setPage(1); }}
               searchValue={searchTerm}
               canCreate={canCreateTemplate}
@@ -189,6 +229,13 @@ export default function Templates() {
               canCreateMedia={canCreateMedia}
               canUpdateMedia={canUpdateMedia}
               canDeleteMedia={canDeleteMedia}
+              canViewTags={canViewTags}
+              canManageTags={canManageTags}
+              canListTemplateContext={canListTemplateContext}
+              canManageTemplateContext={canManageTemplateContext}
+              canListTemplateDependencies={canListTemplateDependencies}
+              canManageTemplateDependencies={canManageTemplateDependencies}
+              canPickAssetsForDependencies={canPickAssetsForDependencies}
             />
           ),
           defaultSize: 85,

@@ -29,6 +29,20 @@ export interface TemplateContentProps {
   canCreateMedia: boolean;
   canUpdateMedia: boolean;
   canDeleteMedia: boolean;
+  /** tag:r — ver el sheet de etiquetas asignadas al template. */
+  canViewTags: boolean;
+  /** tag:u — asignar/quitar etiquetas del template. */
+  canManageTags: boolean;
+  /** template:r — GET /templates/{id}/context (tab Contexto). */
+  canListTemplateContext: boolean;
+  /** template:u — POST/PATCH/DELETE de contexto del template. */
+  canManageTemplateContext: boolean;
+  /** template:r — GET /templates/{id}/dependencies (tab Dependencias). */
+  canListTemplateDependencies: boolean;
+  /** template:u — POST/PATCH/DELETE de dependencias del template. */
+  canManageTemplateDependencies: boolean;
+  /** asset:l|r + folder:l|r — el picker de documentos del alta de dependencia. */
+  canPickAssetsForDependencies: boolean;
 }
 
 export interface DocxTemplateCardProps {
@@ -79,6 +93,10 @@ export interface TemplateInfoSheetProps {
   selectedTemplate: TemplateItem | null;
   sectionsCount: number;
   docxTemplatesCount?: number;
+  /** tag:r — muestra la sección de etiquetas asignadas. */
+  canViewTags?: boolean;
+  /** tag:u — permite asignar/quitar etiquetas desde la sección. Sin esto, solo lectura. */
+  canManageTags?: boolean;
 }
 
 export interface TemplateSectionsListProps {

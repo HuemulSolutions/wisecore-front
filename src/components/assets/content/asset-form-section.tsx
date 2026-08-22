@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { HuemulField } from "@/huemul/components/huemul-field";
@@ -7,13 +8,14 @@ import { HuemulFilePreview } from "@/huemul/components/huemul-file-preview";
 import { HuemulQuestionInput } from "@/huemul/components/huemul-question-input";
 import type { HuemulQuestionInputValue } from "@/huemul/components/huemul-question-input";
 import { handleApiError } from "@/lib/error-utils";
+import { isSectionPermissionDeniedError } from "@/lib/section-permission-errors";
 import { cn } from "@/lib/utils";
 import { updateReviewStatus, updateSectionFormValues } from "@/services/section_execution";
 import { uploadMedia } from "@/services/media";
 import type { FormFieldValue, FormValuesSectionPayload } from "@/types/sections/core";
 import type { ReviewStatus } from "@/types/section-execution";
 import { isMediaToken } from "@/lib/plate-media-utils";
-import { Check, FileX, Info, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, FileX, Info, Loader2, X } from "lucide-react";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
   MULTI_SELECT_QUESTION_TYPES,
@@ -107,6 +109,22 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   onSavingChange,
 }, ref) {
   const { t } = useTranslation(["sections", "common"]);
+  const queryClient = useQueryClient();
+
+  // Autocorrige la UI cuando el backend rechaza una escritura por permiso de
+  // sección (403 SECTION_LIFECYCLE_PERMISSION_DENIED / LIFECYCLE_PERMISSION_DENIED):
+  // refresca el contenido para que la sección se re-renderice como solo lectura
+  // en vez de quedar mostrando controles que van a seguir fallando. Cubre tanto
+  // /asset (assets-content.tsx) como el wizard de workflow (workflow-detail-panel.tsx):
+  // la key de ambos empieza con ['document-content', documentId].
+  const invalidateContentOnPermissionDenied = useCallback(
+    (error: unknown) => {
+      if (isSectionPermissionDeniedError(error) && documentId) {
+        queryClient.invalidateQueries({ queryKey: ['document-content', documentId] });
+      }
+    },
+    [queryClient, documentId],
+  );
 
   const sortedFields = useMemo(
     () => [...formFields].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
@@ -188,6 +206,12 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   const lastSavedAnswersRef = useRef<AnswerMap>(buildInitialAnswers(sortedFields));
 
   const editing = isEditing && canInteract && hasEditableFields;
+
+  // Aviso de autoguardado descartable — solo por la sesión de edición actual, sin persistencia.
+  const [autoSaveHintDismissed, setAutoSaveHintDismissed] = useState(false);
+  useEffect(() => {
+    if (!editing) setAutoSaveHintDismissed(false);
+  }, [editing]);
 
   // Notifica al padre el isSaving del guardado final (botón Enviar), para que pueda
   // deshabilitar/mostrar loading en su propia barra de acciones.
@@ -280,9 +304,10 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
           }, 1500);
         });
       })
-      .catch(() => {
+      .catch((error) => {
         // Best-effort: si falla, se reintenta en el próximo flush o al guardar con el botón.
         toast.error(t("form.fill.autoSaveError"), { id: toastId });
+        invalidateContentOnPermissionDenied(error);
       })
       .finally(() => {
         ids.forEach((id) => inFlightIdsRef.current.delete(id));
@@ -292,7 +317,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
           return next;
         });
       });
-  }, [onUpdate, organizationId, sectionExecutionId, sortedFields, t]);
+  }, [onUpdate, organizationId, sectionExecutionId, sortedFields, t, invalidateContentOnPermissionDenied]);
 
   const clearAutosaveTimers = useCallback(() => {
     if (commitTimeoutRef.current) clearTimeout(commitTimeoutRef.current);
@@ -416,6 +441,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
       } catch (error) {
         // Estado visual: no bloquea la salida de edición ni el avance del wizard.
         handleApiError(error, { fallbackMessage: t("form.fill.reviewStatusUpdateFailed") });
+        invalidateContentOnPermissionDenied(error);
       }
     }
     onExitEditing();
@@ -469,6 +495,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
       onUpdate?.(payload);
     } catch (error) {
       handleApiError(error, { fallbackMessage: t("form.fill.saveError") });
+      invalidateContentOnPermissionDenied(error);
       return;
     } finally {
       setIsSaving(false);
@@ -619,10 +646,18 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
 
   return (
     <div className="w-full">
-      {editing && (
-        <div className="mb-4 flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
-          <Info className="h-3.5 w-3.5 shrink-0" />
-          {t("form.fill.autoSaveHint")}
+      {editing && !autoSaveHintDismissed && (
+        <div className="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          <span className="flex-1">{t("form.fill.autoSaveHint")}</span>
+          <button
+            type="button"
+            onClick={() => setAutoSaveHintDismissed(true)}
+            aria-label={t("common:close")}
+            className="shrink-0 text-amber-700/70 hover:text-amber-900 hover:cursor-pointer"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       )}
       <div className="space-y-5">

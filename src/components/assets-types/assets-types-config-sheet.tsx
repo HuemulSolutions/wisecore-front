@@ -13,6 +13,7 @@ import {
 } from "@/components/assets-types/assets-types-general-form"
 import { AssetTypeTemplatesPanel } from "@/components/assets-types/assets-types-templates-panel"
 import { AssetTypeLifecyclePanel } from "@/components/assets-types/assets-types-lifecycle-dialog"
+import { TagsObjectPicker } from "@/components/tags"
 import type {
   AssetTypeConfigSheetProps,
   AssetTypeConfigTab,
@@ -40,16 +41,18 @@ export function AssetTypeConfigSheet({
   canUpdate,
   canManageTemplates,
   canManageLifecycle,
+  canViewTags = false,
+  canManageTags = false,
 }: AssetTypeConfigSheetProps) {
-  const { t } = useTranslation(["asset-types", "common"])
+  const { t } = useTranslation(["asset-types", "tags", "common"])
 
   const availableTabs = React.useMemo<AssetTypeConfigTab[]>(() => {
     const tabs: AssetTypeConfigTab[] = []
-    if (canUpdate) tabs.push("general")
+    if (canUpdate || canViewTags) tabs.push("general")
     if (canManageLifecycle) tabs.push("lifecycle")
     if (canManageTemplates) tabs.push("templates")
     return tabs
-  }, [canUpdate, canManageTemplates, canManageLifecycle])
+  }, [canUpdate, canViewTags, canManageTemplates, canManageLifecycle])
 
   const [activeTab, setActiveTab] = React.useState<AssetTypeConfigTab>(availableTabs[0] ?? "general")
   // Estado de la etapa abierta en «Permisos por rol»: alimenta el footer
@@ -264,15 +267,31 @@ export function AssetTypeConfigSheet({
                 value="general"
                 className="flex-1 overflow-y-auto px-6 pt-4 pb-4 mt-0"
               >
-                {form.isLoadingData ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : (
-                  <div className="max-w-xl">
-                    <AssetTypeGeneralFormFields form={form} type="asset" />
-                  </div>
-                )}
+                <div className="max-w-xl space-y-4">
+                  {canUpdate && (
+                    form.isLoadingData ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : (
+                      <AssetTypeGeneralFormFields form={form} type="asset" />
+                    )
+                  )}
+                  {canViewTags && documentTypeId && (
+                    <div>
+                      <p className="text-sm font-medium leading-snug mb-1.5">
+                        {t("tags:assign.assignedLabel")}
+                      </p>
+                      <TagsObjectPicker
+                        objectType="document_type"
+                        objectIds={[documentTypeId]}
+                        variant="field"
+                        canView={open && activeTab === "general" && canViewTags}
+                        canAssign={canManageTags}
+                      />
+                    </div>
+                  )}
+                </div>
               </TabsContent>
             )}
 

@@ -5,6 +5,8 @@ export interface TemplateItem {
   instructions?: string | null;
   asset_kind?: string | null;
   canvas_id?: string | null;
+  /** Habilita view/edit propio por sección y etapa del ciclo de vida (default false). */
+  section_lifecycle_access_enabled?: boolean;
 }
 
 export interface CloneTemplateRequest {
@@ -19,6 +21,11 @@ export interface CloneTemplateResult {
   custom_fields_copied: number;
   docx_templates_copied: number;
   document_types_copied: number;
+  // Contexto y dependencias de nivel template (ver ia context/ del cambio de
+  // backend). Es una copia one-shot, sin sincronización posterior — no se
+  // muestran en la UI del clone hoy, igual que el resto de estos contadores.
+  contexts_copied: number;
+  dependencies_copied: number;
 }
 
 export interface TemplatesResponse {
@@ -62,6 +69,7 @@ export interface GetTemplatesFilters {
   document_type_id?: string | null;
   can_create_express?: boolean | null;
   mostrar_en_workflow?: boolean | null;
+  tag_id?: string | null;
 }
 
 // POST /document_types/{document_type_id}/templates/{template_id}/express

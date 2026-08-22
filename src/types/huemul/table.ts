@@ -21,6 +21,12 @@ export interface HuemulTableColumn<T> {
   renderHeader?: () => ReactNode
   /** Fija la columna a la izquierda durante el scroll horizontal (ej. columna de rol/nombre). */
   sticky?: boolean
+  /**
+   * Marca la columna que aloja el chevron, el icono y el nombre de carpeta, más la
+   * indentación de las filas hijas, cuando la tabla usa `folders`. Default: la primera
+   * columna. Sin efecto si `folders` no está presente.
+   */
+  primary?: boolean
 }
 
 export interface HuemulTableActionItem<T> {
@@ -62,6 +68,42 @@ export interface HuemulTablePagination {
   pageSizeOptions?: number[]
 }
 
+// ----------------------------------------
+// Carpetas (agrupamiento de un nivel, opt-in — ver ia context/tabla-agrupada-drag-and-drop-guide.md)
+// ----------------------------------------
+
+export interface HuemulTableFolder {
+  id: string
+  name: string
+  /** Si se omite, se calcula contando los ítems de `data` cuya `getFolderId` apunta a esta carpeta. */
+  itemCount?: number
+}
+
+export interface HuemulTableFolders<T> {
+  folders: HuemulTableFolder[]
+  /** id de la carpeta que contiene el ítem, o `null` si está en la raíz. */
+  getFolderId: (item: T) => string | null
+  /** Carpetas expandidas (controlado). */
+  openFolders: Set<string>
+  onOpenFoldersChange: (next: Set<string>) => void
+  /** Mueve una fila: a una carpeta (`folderId`) o a la raíz (`null`). `index` solo es relevante con `foldersFirst: false`. */
+  onMoveRow: (item: T, folderId: string | null, index?: number) => void | Promise<void>
+  /** Crea una carpeta inline. Devolver la carpeta creada permite abrirla al instante. */
+  onCreateFolder: (name: string, index?: number) => void | Promise<HuemulTableFolder | void>
+  onRenameFolder?: (folder: HuemulTableFolder, name: string) => void | Promise<void>
+  onDeleteFolder?: (folder: HuemulTableFolder) => void
+  /** Texto del badge de conteo. Default: `t("itemsCount", { count })` (namespace `common`). */
+  renderCount?: (count: number) => ReactNode
+  /** false = las carpetas se ordenan junto a las filas de raíz, sin agruparlas primero. Default true. */
+  foldersFirst?: boolean
+  /** false = desactiva el auto-expandir al arrastrar sobre una carpeta cerrada. Default true. */
+  autoExpandOnHover?: boolean
+  /** false = oculta las tres afordancias de creación de carpeta. Default true. */
+  canCreateFolder?: boolean
+  /** false = desactiva el drag de filas (p. ej. por permisos). El menú "Mover a carpeta" sigue disponible. Default true. */
+  canDragRows?: boolean
+}
+
 export interface HuemulTableProps<T> {
   data: T[]
   columns: HuemulTableColumn<T>[]
@@ -85,7 +127,11 @@ export interface HuemulTableProps<T> {
   columnsStorageKey?: string
   /** Habilita una columna líder de checkboxes para seleccionar filas. */
   selectable?: boolean
-  /** Keys (según `getRowKey`) de las filas seleccionadas. Requerido si `selectable`. */
+  /**
+   * Keys (según `getRowKey`) de las filas seleccionadas. Requerido si `selectable`.
+   * También puede usarse SIN `selectable` (sin columna de checkboxes) para resaltar
+   * la fila activa en un layout master-detail — ver `WorkflowTable`.
+   */
   selectedKeys?: Set<string>
   /** Callback con el nuevo Set de keys seleccionadas. Requerido si `selectable`. */
   onSelectionChange?: (keys: Set<string>) => void
@@ -97,4 +143,6 @@ export interface HuemulTableProps<T> {
   expandedKeys?: Set<string>
   /** Callback con el nuevo Set de keys expandidas. Requerido si `renderExpanded`. */
   onExpandedChange?: (keys: Set<string>) => void
+  /** Agrupa `data` en carpetas de un nivel, con drag & drop nativo. Opt-in: sin esta prop la tabla se comporta como hoy. */
+  folders?: HuemulTableFolders<T>
 }
