@@ -1,4 +1,4 @@
-import { Download, FileStack, FolderPlus, GitMerge, Plus, Table2, Upload } from "lucide-react"
+import { Download, FileStack, GitMerge, Plus, Table2, Upload } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
 import type { AssetTypePageHeaderProps } from '@/types/assets'
@@ -21,8 +21,6 @@ export default function AssetTypePageHeader({
   canExport,
   canImport,
   exportSelectedCount = 0,
-  onCreateFolder,
-  canCreateFolder = false,
 }: AssetTypePageHeaderProps) {
   const { t } = useTranslation('asset-types')
 
@@ -37,11 +35,6 @@ export default function AssetTypePageHeader({
       isLoading={isLoading}
       hasError={hasError}
       additionalActions={[
-        ...(canCreateFolder && onCreateFolder && viewMode !== 'relationships' ? [{
-          label: t('folders.newFolder'),
-          icon: FolderPlus,
-          onClick: onCreateFolder,
-        }] : []),
         ...(canExport && onExport ? [{
           label: exportSelectedCount > 0 ? `${t('exportImport.exportButton')} (${exportSelectedCount})` : t('exportImport.exportButton'),
           icon: Upload,

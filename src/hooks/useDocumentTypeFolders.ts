@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query"
 import {
   getDocumentTypeFolders,
   createDocumentTypeFolder,
@@ -12,6 +12,7 @@ import type {
   UpdateDocumentTypeFolderData,
   AssignDocumentTypesToFolderData,
 } from "@/types/document-type-folders"
+import type { DocumentTypesResponse } from "@/types/document-types"
 import { documentTypeQueryKeys } from "@/hooks/useDocumentTypes"
 
 // Query keys
@@ -51,9 +52,30 @@ export function useDocumentTypeFolderMutations() {
     queryClient.invalidateQueries({ queryKey: documentTypeQueryKeys.all })
   }
 
+  // Parchea document_type_folder_id en toda la caché de listados de tipos de documento
+  // (cada combinación de filtros/página vive bajo su propia query key). El badge de
+  // conteo por carpeta en la página se deriva en cliente de esta misma lista, así que
+  // patchear acá alcanza para que el drag & drop no dependa del refetch para verse bien.
+  const patchDocumentTypeFolderId = (ids: Set<string>, nextFolderId: string | null) => {
+    const snapshot = queryClient.getQueriesData<DocumentTypesResponse>({ queryKey: documentTypeQueryKeys.all })
+    queryClient.setQueriesData<DocumentTypesResponse>({ queryKey: documentTypeQueryKeys.all }, (old) => {
+      if (!old) return old
+      return {
+        ...old,
+        data: old.data.map((dt) => (ids.has(dt.id) ? { ...dt, document_type_folder_id: nextFolderId } : dt)),
+      }
+    })
+    return snapshot
+  }
+
+  const rollback = (snapshot: [QueryKey, DocumentTypesResponse | undefined][]) => {
+    for (const [key, data] of snapshot) queryClient.setQueryData(key, data)
+  }
+
   const createFolder = useMutation({
     mutationFn: (data: CreateDocumentTypeFolderData) => createDocumentTypeFolder(data),
-    meta: { successMessage: 'Folder created successfully' },
+    // Sin meta.successMessage: la página muestra su propio toast (con "Deshacer" —
+    // ver assets-types.tsx) en vez del genérico de MutationCache.onSuccess.
     onSuccess: invalidateFolderAndTypeLists,
   })
 
@@ -73,13 +95,23 @@ export function useDocumentTypeFolderMutations() {
   const assignDocumentTypes = useMutation({
     mutationFn: ({ folderId, data }: { folderId: string; data: AssignDocumentTypesToFolderData }) =>
       assignDocumentTypesToFolder(folderId, data),
-    onSuccess: invalidateFolderAndTypeLists,
+    onMutate: async ({ folderId, data }) => {
+      await queryClient.cancelQueries({ queryKey: documentTypeQueryKeys.all })
+      return { snapshot: patchDocumentTypeFolderId(new Set(data.document_type_ids), folderId) }
+    },
+    onError: (_err, _vars, context) => context && rollback(context.snapshot),
+    onSettled: invalidateFolderAndTypeLists,
   })
 
   const removeDocumentType = useMutation({
     mutationFn: ({ folderId, documentTypeId }: { folderId: string; documentTypeId: string }) =>
       removeDocumentTypeFromFolder(folderId, documentTypeId),
-    onSuccess: invalidateFolderAndTypeLists,
+    onMutate: async ({ documentTypeId }) => {
+      await queryClient.cancelQueries({ queryKey: documentTypeQueryKeys.all })
+      return { snapshot: patchDocumentTypeFolderId(new Set([documentTypeId]), null) }
+    },
+    onError: (_err, _vars, context) => context && rollback(context.snapshot),
+    onSettled: invalidateFolderAndTypeLists,
   })
 
   return {

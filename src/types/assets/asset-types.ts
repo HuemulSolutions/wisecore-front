@@ -36,6 +36,8 @@ export interface AssetTypeWithRoles {
   document_type_created_date: string;
   document_count: number;
   roles: RoleAccess[];
+  /** Carpeta que lo contiene (vista de árbol de assets-types), o `null`/ausente si está en la raíz. */
+  document_type_folder_id?: string | null;
 }
 
 export interface AssetTypesWithRolesResponse {
@@ -77,10 +79,8 @@ export interface AssetTypePageState {
   viewRelationshipsAssetType: AssetTypeWithRoles | null;
   showExportDialog: boolean;
   showImportSheet: boolean;
-  /** Sheet de creación de carpeta abierto. */
-  creatingFolder: boolean;
-  /** Carpeta abierta en el sheet de edición/eliminación. */
-  editingFolder: DocumentTypeFolder | null;
+  /** Carpeta pendiente de confirmación de borrado (crear/renombrar son inline en la tabla). */
+  deletingFolder: DocumentTypeFolder | null;
 }
 
 export interface AssetTypePageActions {

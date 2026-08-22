@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useSearchParams } from "react-router-dom"
+import { toast } from "sonner"
 import { Settings2, Copy, Trash2 } from "lucide-react"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
@@ -17,8 +18,7 @@ import { HuemulTagChip } from "@/huemul/components/huemul-tag-chip"
 import type { CanvasNodeAction } from "@/types/document-type-relationships"
 import type { DocumentType } from "@/types/document-types"
 import type { DocumentTypeFolder } from "@/types/document-type-folders"
-import type { AssetTypeTreeRow } from "@/types/assets"
-import { assetTypeRowId, folderRowId, rawAssetTypeId, ASSET_TYPE_ROW_PREFIX } from "@/components/assets-types/asset-type-tree-utils"
+import type { HuemulTableFolder } from "@/huemul/components/huemul-table"
 
 // Components
 import {
@@ -51,6 +51,7 @@ function toAssetTypeWithRoles(dt: DocumentType): AssetTypeWithRoles {
     document_type_created_date: dt.created_at,
     document_count: dt.document_count,
     roles: [],
+    document_type_folder_id: dt.document_type_folder_id,
   }
 }
 
@@ -69,8 +70,7 @@ export default function AssetTypesPage() {
     viewRelationshipsAssetType: null,
     showExportDialog: false,
     showImportSheet: false,
-    creatingFolder: false,
-    editingFolder: null,
+    deletingFolder: null,
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
@@ -112,6 +112,7 @@ export default function AssetTypesPage() {
   const canCloneDocumentType = can('cloneAssetType')
   const canCreateFolder = can('createFolder')
   const canManageFolders = can('updateFolder')
+  const canDeleteFolder = can('deleteFolder')
   // El sheet de configuración agrupa general + plantillas + ciclo de vida:
   // basta con poder abrir uno de esos tabs.
   const canConfigureDocumentType = canUpdateDocumentType || canManageTemplates || canManageLifecycle
@@ -268,37 +269,28 @@ export default function AssetTypesPage() {
     ]
   }
 
-  const rows: AssetTypeTreeRow[] = []
-  for (const item of pagedRootItems) {
-    if (item.kind === 'folder') {
-      rows.push({
-        kind: 'folder',
-        id: folderRowId(item.folder.id),
-        folder: item.folder,
-        itemCount: typesByFolder.get(item.folder.id)?.length ?? 0,
-      })
-      if (expandedFolderIds.has(item.folder.id)) {
-        const children = [...(typesByFolder.get(item.folder.id) ?? [])].sort((a, b) => a.name.localeCompare(b.name))
-        for (const dt of children) {
-          rows.push({
-            kind: 'assetType',
-            id: assetTypeRowId(dt.id),
-            assetType: toAssetTypeWithRoles(dt),
-            folderId: item.folder.id,
-            depth: 1,
-          })
-        }
-      }
-    } else {
-      rows.push({
-        kind: 'assetType',
-        id: assetTypeRowId(item.dt.id),
-        assetType: toAssetTypeWithRoles(item.dt),
-        folderId: null,
-        depth: 0,
-      })
-    }
-  }
+  // `HuemulTable` arma el árbol (carpeta → hijos) a partir de `data` + `folders` — la
+  // página solo necesita entregarle los tipos de raíz de esta página, más los hijos de
+  // cada carpeta visible que esté expandida (los de una carpeta colapsada no hace falta
+  // mandarlos: el conteo del badge viene de `folderItemCounts`, no de `data`).
+  const pageFolders: DocumentTypeFolder[] = pagedRootItems
+    .filter((item): item is Extract<RootItem, { kind: 'folder' }> => item.kind === 'folder')
+    .map((item) => item.folder)
+  const pageRootTypes: DocumentType[] = pagedRootItems
+    .filter((item): item is Extract<RootItem, { kind: 'type' }> => item.kind === 'type')
+    .map((item) => item.dt)
+
+  const folderItemCounts: Record<string, number> = {}
+  for (const folder of pageFolders) folderItemCounts[folder.id] = typesByFolder.get(folder.id)?.length ?? 0
+
+  const data: AssetTypeWithRoles[] = [
+    ...pageRootTypes.map(toAssetTypeWithRoles),
+    ...pageFolders.flatMap((folder) =>
+      expandedFolderIds.has(folder.id)
+        ? [...(typesByFolder.get(folder.id) ?? [])].sort((a, b) => a.name.localeCompare(b.name)).map(toAssetTypeWithRoles)
+        : []
+    ),
+  ]
 
   // Loading permissions check
   if (isLoadingPermissions) {
@@ -359,16 +351,63 @@ export default function AssetTypesPage() {
   }
 
   // Folder handlers
-  const handleEditFolder = (folder: DocumentTypeFolder) => {
-    updateState({ editingFolder: folder })
+  const handleCreateFolder = (name: string) => {
+    return folderMutations.createFolder.mutateAsync({ name }).then((folder): HuemulTableFolder => {
+      // Sin meta.successMessage en la mutación (ver useDocumentTypeFolders.ts): el toast
+      // con "Deshacer" es de acá, no del genérico de MutationCache — el snapshot para
+      // deshacer es la operación inversa (borrar la carpeta recién creada), capturado en
+      // este cierre y no en una ref compartida (bug de undo que se repetía en el
+      // prototipo de referencia — dos creaciones seguidas deshacían siempre la última).
+      toast.success(t('folders.createdToast', { name: folder.name }), {
+        duration: 4000,
+        action: {
+          label: t('common:undo'),
+          onClick: () => { folderMutations.deleteFolder.mutate(folder.id) },
+        },
+      })
+      return { id: folder.id, name: folder.name }
+    })
   }
 
-  const handleRemoveFromFolder = (assetType: AssetTypeWithRoles, folderId: string) => {
-    folderMutations.removeDocumentType.mutate({ folderId, documentTypeId: assetType.document_type_id })
+  const handleRenameFolder = async (folderId: string, name: string) => {
+    await folderMutations.updateFolder.mutateAsync({ id: folderId, data: { name } })
   }
 
-  const handleMoveAssetTypesToFolder = (assetTypeIds: string[], folderId: string) => {
-    folderMutations.assignDocumentTypes.mutate({ folderId, data: { document_type_ids: assetTypeIds } })
+  const handleDeleteFolderRequest = (folder: DocumentTypeFolder) => {
+    updateState({ deletingFolder: folder })
+  }
+
+  // Cubre drag & drop y el menú "Mover a carpeta"/"Quitar de la carpeta" de la fila:
+  // mover a una carpeta usa `assignDocumentTypes`, sacarlo (folderId null) usa
+  // `removeDocumentType` con la carpeta de origen. El toast de éxito lleva "Deshacer",
+  // que dispara la operación inversa exacta — capturada acá, no en un estado compartido.
+  const handleMoveAssetType = (assetTypeId: string, folderId: string | null) => {
+    const dt = allTypes.find((d) => d.id === assetTypeId)
+    const previousFolderId = dt?.document_type_folder_id ?? null
+    if (previousFolderId === folderId) return
+    const name = dt?.name ?? ''
+
+    const performMove = (toFolderId: string | null, fromFolderId: string | null) =>
+      toFolderId === null
+        ? folderMutations.removeDocumentType.mutateAsync({ folderId: fromFolderId as string, documentTypeId: assetTypeId })
+        : folderMutations.assignDocumentTypes.mutateAsync({ folderId: toFolderId, data: { document_type_ids: [assetTypeId] } })
+
+    performMove(folderId, previousFolderId)
+      .then(() => {
+        const message = folderId
+          ? t('folders.movedToast', { name, folder: folderById.get(folderId)?.name ?? '' })
+          : t('folders.removedToast', { name })
+        toast.success(message, {
+          duration: 6000,
+          action: {
+            label: t('common:undo'),
+            onClick: () => {
+              performMove(previousFolderId, folderId).catch(() => toast.error(t('folders.moveError')))
+            },
+          },
+        })
+      })
+      .catch(() => toast.error(t('folders.moveError')))
   }
 
   const relTotalItems = documentTypes.length
@@ -406,8 +445,6 @@ export default function AssetTypesPage() {
               canExport={canExportDocumentTypes}
               canImport={canImportDocumentTypes}
               exportSelectedCount={selectedExportIds.size}
-              onCreateFolder={() => updateState({ creatingFolder: true })}
-              canCreateFolder={canCreateFolder}
             />
             {activeTag && (
               <div className="flex items-center gap-2 pt-2">
@@ -426,28 +463,33 @@ export default function AssetTypesPage() {
                 message={error.message}
                 onRetry={handleRefresh}
               />
-            ) : rows.length === 0 ? (
+            ) : totalRootItems === 0 ? (
               <AssetTypeContentEmptyState
                 type="empty"
                 onCreateFirst={canCreateDocumentType ? () => updateState({ showCreateDialog: true }) : undefined}
               />
             ) : (
               <AssetTypeTable
-                rows={rows}
+                data={data}
+                folders={pageFolders}
+                folderItemCounts={folderItemCounts}
                 expandedFolderIds={expandedFolderIds}
                 onExpandedFolderIdsChange={setExpandedFolderIds}
                 onConfigureAssetType={handleConfigureAssetType}
                 onDeleteAssetType={handleDeleteAssetType}
                 onCloneAssetType={handleCloneAssetType}
                 onViewRelationships={handleViewRelationships}
-                onEditFolder={handleEditFolder}
-                onRemoveFromFolder={handleRemoveFromFolder}
-                onMoveAssetTypesToFolder={handleMoveAssetTypesToFolder}
+                onCreateFolder={handleCreateFolder}
+                onRenameFolder={handleRenameFolder}
+                onDeleteFolderRequest={handleDeleteFolderRequest}
+                onMoveAssetType={handleMoveAssetType}
                 canConfigure={canConfigureDocumentType}
                 canDelete={canDeleteDocumentType}
                 canViewRelationships={canListRelationships}
                 canClone={canCloneDocumentType}
                 canManageFolders={canManageFolders}
+                canCreateFolder={canCreateFolder}
+                canDeleteFolder={canDeleteFolder}
                 isLoading={isTableLoading}
                 isFetching={isTableFetching}
                 selectedIds={selectedExportIds}
@@ -524,7 +566,7 @@ export default function AssetTypesPage() {
         onUpdateState={updateState}
         assetTypeMutations={assetTypeMutations}
         onImportSuccess={handleRefresh}
-        exportSelectedIds={[...selectedExportIds].filter((k) => k.startsWith(ASSET_TYPE_ROW_PREFIX)).map(rawAssetTypeId)}
+        exportSelectedIds={[...selectedExportIds]}
         onExported={() => setSelectedExportIds(new Set())}
         onAssetTypeCreated={handleAssetTypeCreated}
       />

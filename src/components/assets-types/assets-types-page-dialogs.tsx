@@ -9,8 +9,7 @@ import { AssetTypeConfigSheet } from "@/components/assets-types/assets-types-con
 import { AssetTypeRelationshipsSheet } from "@/components/assets-types/assets-types-relationships-sheet"
 import { AssetTypeExportDialog } from "@/components/assets-types/assets-types-export-dialog"
 import { AssetTypeImportSheet } from "@/components/assets-types/assets-types-import-sheet"
-import { AssetTypeFolderCreateSheet } from "@/components/assets-types/assets-types-folder-create-sheet"
-import { AssetTypeFolderEditSheet } from "@/components/assets-types/assets-types-folder-edit-sheet"
+import { useDocumentTypeFolderMutations } from "@/hooks/useDocumentTypeFolders"
 import type { AssetTypePageDialogsProps } from '@/types/assets'
 
 export type { AssetTypePageDialogsProps } from '@/types/assets'
@@ -29,6 +28,12 @@ export default function AssetTypePageDialogs({
   const { selectedOrganizationId } = useOrganization()
   const { canDelete, canCreate, canUpdate } = useUserPermissions()
   const { can } = usePageAccess('asset-types')
+  const { deleteFolder } = useDocumentTypeFolderMutations()
+
+  const handleDeleteFolder = async () => {
+    if (!state.deletingFolder) return
+    await deleteFolder.mutateAsync(state.deletingFolder.id)
+  }
 
   const handleDelete = async () => {
     if (!canDelete('asset_type') || !state.deletingAssetType) return
@@ -163,26 +168,20 @@ export default function AssetTypePageDialogs({
         onImportSuccess={onImportSuccess}
       />
 
-      {/* Create Folder Sheet */}
-      <AssetTypeFolderCreateSheet
-        open={state.creatingFolder}
+      {/* Delete Folder Dialog — crear/renombrar son inline en la tabla, solo el borrado confirma */}
+      <HuemulAlertDialog
+        open={!!state.deletingFolder}
         onOpenChange={(open) => {
           if (!open) {
-            onUpdateState({ creatingFolder: false })
+            onCloseDialog('deletingFolder')
           }
         }}
-      />
-
-      {/* Edit / Delete Folder Sheet */}
-      <AssetTypeFolderEditSheet
-        folder={state.editingFolder}
-        open={!!state.editingFolder}
-        onOpenChange={(open) => {
-          if (!open) {
-            onCloseDialog('editingFolder')
-          }
-        }}
-        canDelete={can('deleteFolder')}
+        title={t('folders.deleteTitle')}
+        description={t('folders.deleteDescription', { name: state.deletingFolder?.name })}
+        onAction={handleDeleteFolder}
+        actionLabel={t('folders.delete')}
+        cancelLabel={t('common:cancel')}
+        actionVariant="destructive"
       />
     </>
   )

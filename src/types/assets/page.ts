@@ -2,10 +2,9 @@
 import type { ReactNode } from 'react'
 import type { AssetTypeWithRoles, TemplatesSaveApiRef } from './asset-types'
 import type { AssetTypePageState } from './asset-types'
-import type { AssetTypeTreeRow } from './folders'
 import type { DocumentTypeFolder } from '../document-type-folders'
 import type { useAssetTypeMutations } from '@/hooks/useAssetTypes'
-import type { HuemulTablePagination } from '@/huemul/components/huemul-table'
+import type { HuemulTablePagination, HuemulTableFolder } from '@/huemul/components/huemul-table'
 
 // ----------------------------------------
 // Content Empty State
@@ -138,8 +137,6 @@ export interface AssetTypePageHeaderProps {
   canImport?: boolean
   /** Cantidad de filas seleccionadas para exportar; deshabilita Exportar si es 0. */
   exportSelectedCount?: number
-  onCreateFolder?: () => void
-  canCreateFolder?: boolean
 }
 
 // ----------------------------------------
@@ -147,8 +144,19 @@ export interface AssetTypePageHeaderProps {
 // ----------------------------------------
 
 export interface AssetTypeTableProps {
-  /** Filas aplanadas del árbol: carpetas + tipos de documento anidados/sin carpeta. */
-  rows: AssetTypeTreeRow[]
+  /**
+   * Tipos de documento de la página actual: los de raíz de esta página, más los hijos
+   * de cada carpeta visible cuya carpeta está expandida (`HuemulTable` inserta esos
+   * hijos justo después de su carpeta — la tabla ya no arma el árbol a mano).
+   */
+  data: AssetTypeWithRoles[]
+  /** Carpetas de la página actual. */
+  folders: DocumentTypeFolder[]
+  /**
+   * Conteo de tipos por carpeta, independiente de si está expandida (`typesByFolder`
+   * en la página ya lo deriva de la lista completa, no solo de `data`).
+   */
+  folderItemCounts: Record<string, number>
   expandedFolderIds: Set<string>
   onExpandedFolderIdsChange: (ids: Set<string>) => void
   /** Abre el sheet de configuración (general + plantillas + ciclo de vida). */
@@ -156,12 +164,14 @@ export interface AssetTypeTableProps {
   onDeleteAssetType: (assetType: AssetTypeWithRoles) => void
   onCloneAssetType: (assetType: AssetTypeWithRoles) => void
   onViewRelationships: (assetType: AssetTypeWithRoles) => void
-  /** Abre el sheet de edición/eliminación de la carpeta. */
-  onEditFolder: (folder: DocumentTypeFolder) => void
-  /** Saca un tipo de documento de su carpeta actual (menú de la fila). */
-  onRemoveFromFolder: (assetType: AssetTypeWithRoles, folderId: string) => void
-  /** Drag & drop: mueve uno o varios tipos de documento a la carpeta destino. */
-  onMoveAssetTypesToFolder: (assetTypeIds: string[], folderId: string) => void
+  /** Crea una carpeta nueva (input inline, sin sheet). */
+  onCreateFolder: (name: string) => Promise<HuemulTableFolder | void>
+  /** Renombra una carpeta existente (input inline, click en el nombre o "Renombrar" del menú). */
+  onRenameFolder: (folderId: string, name: string) => Promise<void>
+  /** Pide confirmación de borrado (abre el HuemulAlertDialog en AssetTypePageDialogs). */
+  onDeleteFolderRequest: (folder: DocumentTypeFolder) => void
+  /** Mueve un tipo de documento a una carpeta, o a la raíz si `folderId` es `null`. Cubre drag & drop y el menú "Mover a carpeta". */
+  onMoveAssetType: (assetTypeId: string, folderId: string | null) => void
   pagination?: HuemulTablePagination
   /** True si el usuario puede abrir al menos un tab del sheet de configuración. */
   canConfigure?: boolean
@@ -170,6 +180,10 @@ export interface AssetTypeTableProps {
   canClone?: boolean
   /** `asset_type:u` — habilita drag & drop, renombrar carpeta y "Quitar de la carpeta". */
   canManageFolders?: boolean
+  /** `asset_type:c` — habilita las afordancias de creación de carpeta. */
+  canCreateFolder?: boolean
+  /** `asset_type:d` — habilita "Eliminar" en el menú de la carpeta. */
+  canDeleteFolder?: boolean
   isLoading?: boolean
   isFetching?: boolean
   selectedIds: Set<string>
