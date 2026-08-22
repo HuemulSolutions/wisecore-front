@@ -89,6 +89,7 @@ const BlockCommentContent = ({
   children,
   commentNodes,
   draftCommentNode,
+  element,
   suggestionNodes,
 }: PlateElementProps & {
   blockPath: Path;
@@ -138,7 +139,7 @@ const BlockCommentContent = ({
     selected ||
     (isCommenting && !!draftCommentNode && commentingCurrent);
 
-  const anchorElement = React.useMemo(() => {
+  const resolveAnchorElement = React.useCallback(() => {
     let activeNode: NodeEntry | undefined;
 
     if (activeSuggestion) {
@@ -162,19 +163,34 @@ const BlockCommentContent = ({
       }
     }
 
-    if (!activeNode) return null;
+    // Fallback: si el nodo activo aún no tiene entrada en el DOM (por
+    // ejemplo, justo después de crear la mark draft), anclamos al bloque
+    // para nunca quedarnos sin referencia.
+    const target = activeNode?.[0] ?? element;
 
-    return editor.api.toDOMNode(activeNode[0])!;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return editor.api.toDOMNode(target) ?? null;
   }, [
-    open,
     activeSuggestion,
     activeCommentId,
-    editor.api,
+    editor,
+    element,
     suggestionNodes,
     draftCommentNode,
     commentNodes,
   ]);
+
+  const [anchorElement, setAnchorElement] =
+    React.useState<HTMLElement | null>(null);
+
+  // `toDOMNode` sólo resuelve contra nodos ya montados. Al crear un draft,
+  // slate-react todavía no pobló el WeakMap del nodo nuevo en el mismo pass
+  // de render, así que resolvemos el ancla en un layout effect (post-commit)
+  // en vez de en un useMemo (durante el render).
+  React.useLayoutEffect(() => {
+    if (!open) return;
+
+    setAnchorElement(resolveAnchorElement());
+  }, [open, resolveAnchorElement]);
 
   if (suggestionsCount + resolvedDiscussions.length === 0 && !draftCommentNode)
     return <div className="w-full">{children}</div>;
@@ -203,49 +219,51 @@ const BlockCommentContent = ({
           />
         )}
 
-        <PopoverContent
-          className="max-h-[min(50dvh,calc(-24px+var(--radix-popper-available-height)))] w-[380px] min-w-[130px] max-w-[calc(100vw-24px)] overflow-y-auto p-0 data-[state=closed]:opacity-0"
-          onCloseAutoFocus={(e) => e.preventDefault()}
-          onOpenAutoFocus={(e) => e.preventDefault()}
-          align="center"
-          side="bottom"
-        >
-          {isCommenting ? (
-            <CommentCreateForm className="p-4" focusOnMount />
-          ) : noneActive ? (
-            sortedMergedData.map((item, index) =>
-              isResolvedSuggestion(item) ? (
-                <BlockSuggestionCard
-                  key={item.suggestionId}
-                  idx={index}
-                  isLast={index === sortedMergedData.length - 1}
-                  suggestion={item}
-                />
-              ) : (
-                <BlockComment
-                  key={item.id}
-                  discussion={item}
-                  isLast={index === sortedMergedData.length - 1}
-                />
+        {anchorElement && (
+          <PopoverContent
+            className="max-h-[min(50dvh,calc(-24px+var(--radix-popper-available-height)))] w-[380px] min-w-[130px] max-w-[calc(100vw-24px)] overflow-y-auto p-0 data-[state=closed]:opacity-0"
+            onCloseAutoFocus={(e) => e.preventDefault()}
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            align="center"
+            side="bottom"
+          >
+            {isCommenting ? (
+              <CommentCreateForm className="p-4" focusOnMount />
+            ) : noneActive ? (
+              sortedMergedData.map((item, index) =>
+                isResolvedSuggestion(item) ? (
+                  <BlockSuggestionCard
+                    key={item.suggestionId}
+                    idx={index}
+                    isLast={index === sortedMergedData.length - 1}
+                    suggestion={item}
+                  />
+                ) : (
+                  <BlockComment
+                    key={item.id}
+                    discussion={item}
+                    isLast={index === sortedMergedData.length - 1}
+                  />
+                )
               )
-            )
-          ) : (
-            <>
-              {activeSuggestion && (
-                <BlockSuggestionCard
-                  key={activeSuggestion.suggestionId}
-                  idx={0}
-                  isLast={true}
-                  suggestion={activeSuggestion}
-                />
-              )}
+            ) : (
+              <>
+                {activeSuggestion && (
+                  <BlockSuggestionCard
+                    key={activeSuggestion.suggestionId}
+                    idx={0}
+                    isLast={true}
+                    suggestion={activeSuggestion}
+                  />
+                )}
 
-              {activeDiscussion && (
-                <BlockComment discussion={activeDiscussion} isLast={true} />
-              )}
-            </>
-          )}
-        </PopoverContent>
+                {activeDiscussion && (
+                  <BlockComment discussion={activeDiscussion} isLast={true} />
+                )}
+              </>
+            )}
+          </PopoverContent>
+        )}
 
         {totalCount > 0 && (
           <div className="relative left-0 size-0 select-none">
