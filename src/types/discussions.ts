@@ -26,6 +26,7 @@ export interface DiscussionComment {
   content_rich: string;
   user_id?: string;
   is_edited?: boolean;
+  is_public: boolean;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -53,15 +54,18 @@ export interface CreateDiscussionWithCommentRequest {
   section_execution_id: string;
   document_content: string;
   content_rich: string;
+  is_public?: boolean;
 }
 
 export interface CreateDiscussionCommentRequest {
   discussion_id: string;
   content_rich: string;
+  is_public?: boolean;
 }
 
 export interface UpdateDiscussionCommentRequest {
   content_rich: string;
+  is_public?: boolean;
 }
 
 // ========================================

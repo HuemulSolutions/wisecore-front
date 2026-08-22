@@ -1,4 +1,8 @@
 const translations = {
+  discussion: {
+    public: { en: "Public", es: "Público" },
+    private: { en: "Private", es: "Privado" },
+  },
   toolbar: {
     undo: { en: "Undo (Ctrl+Z)", es: "Deshacer (Ctrl+Z)" },
     redo: { en: "Redo (Ctrl+Y)", es: "Rehacer (Ctrl+Y)" },

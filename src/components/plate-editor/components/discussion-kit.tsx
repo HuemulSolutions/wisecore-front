@@ -27,17 +27,20 @@ export type DiscussionCallbacks = {
     documentContent: string;
     firstCommentRich: Value;
     discussionId: string;
+    isPublic: boolean;
   }) => Promise<string | undefined>;
   onResolveDiscussion?: (discussionId: string) => Promise<void>;
   onDeleteDiscussion?: (discussionId: string) => Promise<void>;
   onAddComment?: (
     discussionId: string,
     contentRich: Value,
+    isPublic: boolean,
   ) => Promise<string | undefined>;
   onUpdateComment?: (
     commentId: string,
     contentRich: Value,
     discussionId: string,
+    isPublic: boolean,
   ) => Promise<void>;
   onDeleteComment?: (
     commentId: string,

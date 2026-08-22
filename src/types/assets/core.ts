@@ -203,6 +203,7 @@ export interface LatestDiscussionComment {
   content_rich: string;
   user_id: string;
   is_edited: boolean;
+  is_public: boolean;
   created_at: string;
   created_by: string;
   updated_at: string;

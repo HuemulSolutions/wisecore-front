@@ -15,11 +15,14 @@ import {
 import {
   ArrowUpIcon,
   CheckIcon,
+  GlobeIcon,
+  LockIcon,
   MoreHorizontalIcon,
   PencilIcon,
   TrashIcon,
   XIcon,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { type Value, KEYS, nanoid, NodeApi } from 'platejs';
 import {
   Plate,
@@ -53,6 +56,7 @@ export type TComment = {
   createdAt: Date;
   discussionId: string;
   isEdited: boolean;
+  isPublic: boolean;
   userId: string;
 };
 
@@ -77,6 +81,7 @@ export function Comment(props: {
     onEditorClick,
   } = props;
 
+  const { t } = useTranslation('editor');
   const editor = useEditorRef();
   const userInfo = usePluginOption(discussionPlugin, 'user', comment.userId);
   const currentUserId = usePluginOption(discussionPlugin, 'currentUserId');
@@ -97,21 +102,12 @@ export function Comment(props: {
     await callbacks?.onResolveDiscussion?.(id);
   };
 
-  const removeDiscussion = async (id: string) => {
-    // Optimistic local update
-    const updatedDiscussions = editor
-      .getOption(discussionPlugin, 'discussions')
-      .filter((discussion) => discussion.id !== id);
-    editor.setOption(discussionPlugin, 'discussions', updatedDiscussions);
-    // Persist via API
-    await callbacks?.onDeleteDiscussion?.(id);
-  };
-
   const updateComment = async (input: {
     id: string;
     contentRich: Value;
     discussionId: string;
     isEdited: boolean;
+    isPublic: boolean;
   }) => {
     // Optimistic local update
     const updatedDiscussions = editor
@@ -124,6 +120,7 @@ export function Comment(props: {
                 ...comment,
                 contentRich: input.contentRich,
                 isEdited: true,
+                isPublic: input.isPublic,
                 updatedAt: new Date(),
               };
             }
@@ -135,7 +132,7 @@ export function Comment(props: {
       });
     editor.setOption(discussionPlugin, 'discussions', updatedDiscussions);
     // Persist via API
-    await callbacks?.onUpdateComment?.(input.id, input.contentRich, input.discussionId);
+    await callbacks?.onUpdateComment?.(input.id, input.contentRich, input.discussionId, input.isPublic);
   };
 
   const { tf } = useEditorPlugin(CommentPlugin);
@@ -153,8 +150,11 @@ export function Comment(props: {
     [initialValue]
   );
 
+  const [editIsPublic, setEditIsPublic] = React.useState(comment.isPublic);
+
   const onCancel = () => {
     setEditingId(null);
+    setEditIsPublic(comment.isPublic);
     commentEditor.tf.replaceNodes(initialValue, {
       at: [],
       children: true,
@@ -167,6 +167,7 @@ export function Comment(props: {
       contentRich: commentEditor.children,
       discussionId: comment.discussionId,
       isEdited: true,
+      isPublic: editIsPublic,
     });
     setEditingId(null);
   };
@@ -203,6 +204,7 @@ export function Comment(props: {
             {formatCommentDate(new Date(comment.createdAt))}
           </span>
           {comment.isEdited && <span>(edited)</span>}
+          {!comment.isPublic && <span className="ml-1">· {t('discussion.private')}</span>}
         </div>
 
         {isMyComment && (hovering || dropdownOpen) && (
@@ -223,12 +225,6 @@ export function Comment(props: {
                 setTimeout(() => {
                   commentEditor.tf.focus({ edge: 'endEditor' });
                 }, 0);
-              }}
-              onRemoveComment={() => {
-                if (discussionLength === 1) {
-                  tf.comment.unsetMark({ id: comment.discussionId });
-                  void removeDiscussion(comment.discussionId);
-                }
               }}
               comment={comment}
               dropdownOpen={dropdownOpen}
@@ -263,6 +259,24 @@ export function Comment(props: {
 
             {isEditing && (
               <div className="ml-auto flex shrink-0 gap-1">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="size-[28px] text-muted-foreground"
+                  title={editIsPublic ? t('discussion.public') : t('discussion.private')}
+                  onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                    e.stopPropagation();
+                    setEditIsPublic((prev) => !prev);
+                  }}
+                >
+                  {editIsPublic ? (
+                    <GlobeIcon className="size-4" />
+                  ) : (
+                    <LockIcon className="size-4" />
+                  )}
+                </Button>
+
                 <Button
                   size="icon"
                   variant="ghost"
@@ -304,7 +318,6 @@ function CommentMoreDropdown(props: {
   setDropdownOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setEditingId: React.Dispatch<React.SetStateAction<string | null>>;
   onCloseAutoFocus?: () => void;
-  onRemoveComment?: () => void;
 }) {
   const {
     comment,
@@ -312,7 +325,6 @@ function CommentMoreDropdown(props: {
     setDropdownOpen,
     setEditingId,
     onCloseAutoFocus,
-    onRemoveComment,
   } = props;
 
   const editor = useEditorRef();
@@ -352,8 +364,7 @@ function CommentMoreDropdown(props: {
     editor.setOption(discussionPlugin, 'discussions', updatedDiscussions);
     // Persist via API
     callbacks?.onDeleteComment?.(comment.id, comment.discussionId);
-    onRemoveComment?.();
-  }, [comment.discussionId, comment.id, editor, callbacks, onRemoveComment]);
+  }, [comment.discussionId, comment.id, editor, callbacks]);
 
   const onEditComment = React.useCallback(() => {
     selectedEditCommentRef.current = true;
@@ -429,6 +440,7 @@ export function CommentCreateForm({
   discussionId?: string;
   focusOnMount?: boolean;
 }) {
+  const { t } = useTranslation('editor');
   const discussions = usePluginOption(discussionPlugin, 'discussions');
   const callbacks = usePluginOption(discussionPlugin, 'callbacks');
 
@@ -438,6 +450,7 @@ export function CommentCreateForm({
 
   const userInfo = usePluginOption(discussionPlugin, 'currentUser');
   const [commentValue, setCommentValue] = React.useState<Value | undefined>();
+  const [isPublic, setIsPublic] = React.useState(true);
   const commentContent = React.useMemo(
     () =>
       commentValue
@@ -457,6 +470,8 @@ export function CommentCreateForm({
     if (!commentValue) return;
 
     commentEditor.tf.reset();
+    const commentIsPublic = isPublic;
+    setIsPublic(true);
 
     if (discussionId) {
       // Get existing discussion
@@ -474,6 +489,7 @@ export function CommentCreateForm({
               createdAt: new Date(),
               discussionId: localId,
               isEdited: false,
+              isPublic: commentIsPublic,
               userId: currentUserId,
             },
           ],
@@ -493,6 +509,7 @@ export function CommentCreateForm({
           documentContent: '',
           firstCommentRich: commentValue,
           discussionId: localId,
+          isPublic: commentIsPublic,
         });
         return;
       }
@@ -504,6 +521,7 @@ export function CommentCreateForm({
         createdAt: new Date(),
         discussionId,
         isEdited: false,
+        isPublic: commentIsPublic,
         userId: editor.getOption(discussionPlugin, 'currentUserId'),
       };
 
@@ -519,7 +537,7 @@ export function CommentCreateForm({
       editor.setOption(discussionPlugin, 'discussions', updatedDiscussions);
 
       // Persist via API
-      callbacks?.onAddComment?.(discussionId, commentValue);
+      callbacks?.onAddComment?.(discussionId, commentValue, commentIsPublic);
       return;
     }
 
@@ -547,6 +565,7 @@ export function CommentCreateForm({
           createdAt: new Date(),
           discussionId: _discussionId,
           isEdited: false,
+          isPublic: commentIsPublic,
           userId: currentUserId,
         },
       ],
@@ -578,6 +597,7 @@ export function CommentCreateForm({
       documentContent,
       firstCommentRich: commentValue,
       discussionId: _discussionId,
+      isPublic: commentIsPublic,
     });
 
     // If the backend assigned a different ID (its own UUID), update editor marks
@@ -611,7 +631,7 @@ export function CommentCreateForm({
         )
       );
     }
-  }, [commentValue, commentEditor.tf, discussionId, editor, discussions, callbacks]);
+  }, [commentValue, isPublic, commentEditor.tf, discussionId, editor, discussions, callbacks]);
 
   return (
     <div className={cn('flex w-full', className)}>
@@ -633,7 +653,7 @@ export function CommentCreateForm({
           <EditorContainer variant="comment">
             <Editor
               variant="comment"
-              className="min-h-[25px] grow pt-0.5 pr-8"
+              className="min-h-[25px] grow pt-0.5 pr-14"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
@@ -644,6 +664,24 @@ export function CommentCreateForm({
               autoComplete="off"
               autoFocus={autoFocus}
             />
+
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="absolute right-7 bottom-0.5 size-6 shrink-0 text-muted-foreground"
+              title={isPublic ? t('discussion.public') : t('discussion.private')}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsPublic((prev) => !prev);
+              }}
+            >
+              {isPublic ? (
+                <GlobeIcon className="size-4" />
+              ) : (
+                <LockIcon className="size-4" />
+              )}
+            </Button>
 
             <Button
               size="icon"

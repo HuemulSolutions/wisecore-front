@@ -79,6 +79,7 @@ function mapApiCommentToPlate(c: DiscussionComment): TComment {
     createdAt: new Date(c.created_at),
     userId: c.user_id ?? c.created_by ?? '',
     isEdited: c.is_edited ?? c.created_at !== c.updated_at,
+    isPublic: c.is_public,
   };
 }
 
@@ -176,6 +177,7 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
       documentContent: string;
       firstCommentRich: Value;
       discussionId: string;
+      isPublic: boolean;
     }) => {
       const discussion = await createDiscussionWithComment(
         {
@@ -183,6 +185,7 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
           section_execution_id: sectionExecutionId!,
           document_content: params.documentContent,
           content_rich: serializeRichContent(params.firstCommentRich),
+          is_public: params.isPublic,
         },
         selectedOrganizationId!,
       );
@@ -207,11 +210,12 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
   });
 
   const addCommentMutation = useMutation({
-    mutationFn: async (params: { discussionId: string; contentRich: Value }) => {
+    mutationFn: async (params: { discussionId: string; contentRich: Value; isPublic: boolean }) => {
       const comment = await createDiscussionComment(
         {
           discussion_id: params.discussionId,
           content_rich: serializeRichContent(params.contentRich),
+          is_public: params.isPublic,
         },
         selectedOrganizationId ?? undefined,
       );
@@ -225,14 +229,19 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
     mutationFn: async (params: {
       commentId: string;
       contentRich: Value;
+      isPublic: boolean;
     }) => {
       await updateDiscussionComment(
         params.commentId,
-        { content_rich: serializeRichContent(params.contentRich) },
+        {
+          content_rich: serializeRichContent(params.contentRich),
+          is_public: params.isPublic,
+        },
         selectedOrganizationId ?? undefined,
       );
     },
     onSuccess: () => invalidate(),
+    onError: () => invalidate(),
     meta: { successMessage: 'Comment updated' },
   });
 
@@ -244,6 +253,7 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
       );
     },
     onSuccess: () => invalidate(),
+    onError: () => invalidate(),
     meta: { successMessage: 'Comment deleted' },
   });
 
@@ -260,15 +270,16 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
       onDeleteDiscussion: async (discussionId) => {
         await deleteDiscussionMutation.mutateAsync(discussionId);
       },
-      onAddComment: async (discussionId, contentRich) => {
+      onAddComment: async (discussionId, contentRich, isPublic) => {
         const id = await addCommentMutation.mutateAsync({
           discussionId,
           contentRich,
+          isPublic,
         });
         return id;
       },
-      onUpdateComment: async (commentId, contentRich) => {
-        await updateCommentMutation.mutateAsync({ commentId, contentRich });
+      onUpdateComment: async (commentId, contentRich, _discussionId, isPublic) => {
+        await updateCommentMutation.mutateAsync({ commentId, contentRich, isPublic });
       },
       onDeleteComment: async (commentId, discussionId) => {
         await deleteCommentMutation.mutateAsync({ commentId, discussionId });
