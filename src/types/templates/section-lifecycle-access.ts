@@ -12,7 +12,14 @@ export interface TemplateSectionLifecycleAccess {
   id: string
   template_section_id: string
   lifecycle_step_id: string
-  /** Fila por rol en vez de global. Esta pasada solo lee/escribe filas con `role_id` ausente/null. */
+  /**
+   * `null`/ausente: fila GLOBAL — aplica a cualquiera con acceso al step (por
+   * `access_type`, ser dueño del documento, o un grant individual). Como mucho
+   * una fila global por (sección, step).
+   * Con valor: la fila aplica SOLO a ese rol del step — puede haber una por cada
+   * rol asociado, cada una con su propio nivel. El rol debe estar previamente
+   * asociado al step o el `PUT` falla.
+   */
   role_id?: string | null
   access: TemplateSectionAccess
 }
@@ -24,7 +31,7 @@ export interface TemplateSectionLifecycleAccessResponse {
 
 export interface SetTemplateSectionAccessRequest {
   access: TemplateSectionAccess
-  /** No se envía todavía — la UI de acceso por rol queda pendiente. */
+  /** Ver el comentario de `role_id` en `TemplateSectionLifecycleAccess`. */
   role_id?: string
 }
 

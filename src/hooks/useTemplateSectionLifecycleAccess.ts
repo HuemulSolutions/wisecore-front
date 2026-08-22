@@ -41,6 +41,9 @@ export interface MatrixStep {
  */
 export type SectionAccessByStep = ReadonlyMap<string, TemplateSectionAccess>
 
+/** Mapa `stepId -> (roleId -> access)` de una sección: los niveles propios por rol. */
+export type SectionRoleAccessByStep = ReadonlyMap<string, ReadonlyMap<string, TemplateSectionAccess>>
+
 /**
  * Solo las filas globales (sin `role_id`) cuentan para el acceso por defecto de
  * la sección — una fila por rol no debe pintarse como si aplicara a todos.
@@ -51,6 +54,22 @@ function toAccessBySection(access: TemplateLifecycleAccessMatrix['access']): Map
     if (row.role_id) continue
     const bySection = map.get(row.template_section_id) ?? new Map<string, TemplateSectionAccess>()
     bySection.set(row.lifecycle_step_id, row.access)
+    map.set(row.template_section_id, bySection)
+  }
+  return map
+}
+
+/** Solo las filas por rol (con `role_id`) — los niveles propios que overridean la fila global. */
+function toRoleAccessBySection(
+  access: TemplateLifecycleAccessMatrix['access'],
+): Map<string, Map<string, Map<string, TemplateSectionAccess>>> {
+  const map = new Map<string, Map<string, Map<string, TemplateSectionAccess>>>()
+  for (const row of access) {
+    if (!row.role_id) continue
+    const bySection = map.get(row.template_section_id) ?? new Map<string, Map<string, TemplateSectionAccess>>()
+    const byStep = bySection.get(row.lifecycle_step_id) ?? new Map<string, TemplateSectionAccess>()
+    byStep.set(row.role_id, row.access)
+    bySection.set(row.lifecycle_step_id, byStep)
     map.set(row.template_section_id, bySection)
   }
   return map
@@ -95,13 +114,14 @@ export function useTemplateLifecycleAccessMatrix(
   }, [data, documentTypeId])
 
   const accessBySection = useMemo(() => toAccessBySection(data?.access ?? []), [data])
+  const roleAccessBySection = useMemo(() => toRoleAccessBySection(data?.access ?? []), [data])
 
   const refetchAll = useCallback(
     () => queryClient.invalidateQueries({ queryKey }),
     [queryClient, queryKey],
   )
 
-  return { sections, steps, accessBySection, isLoading, isFetching, refetch, refetchAll }
+  return { sections, steps, accessBySection, roleAccessBySection, isLoading, isFetching, refetch, refetchAll }
 }
 
 // ─── Mutaciones: clave común, optimismo y pendientes por celda ──────────────
@@ -112,20 +132,32 @@ export function useTemplateLifecycleAccessMatrix(
 export const templateSectionAccessMutationKey = (organizationId: string) =>
   ['template-section-lifecycle-access', 'mutation', organizationId] as const
 
-type AccessMutationVariables = { templateSectionId: string; lifecycleStepId: string }
+type AccessMutationVariables = {
+  templateSectionId: string
+  lifecycleStepId: string
+  /** Ausente = fila global. Con valor, la escritura queda acotada a ese rol del step. */
+  roleId?: string | null
+}
 
-/** Clave de celda usada por el componente para pintar el spinner. */
-export const sectionAccessCellKey = (templateSectionId: string, lifecycleStepId: string) =>
-  `${templateSectionId}:${lifecycleStepId}`
+/**
+ * Clave de celda usada por el componente para pintar el spinner. Sin `roleId`
+ * identifica la celda entera (fila global); con `roleId` identifica la sub-fila
+ * de ese rol dentro del popover.
+ */
+export const sectionAccessCellKey = (
+  templateSectionId: string,
+  lifecycleStepId: string,
+  roleId?: string | null,
+) => (roleId ? `${templateSectionId}:${lifecycleStepId}:${roleId}` : `${templateSectionId}:${lifecycleStepId}`)
 
 function cellKeyFromVariables(variables: unknown): string | null {
   if (!variables || typeof variables !== 'object') return null
-  const { templateSectionId, lifecycleStepId } = variables as Partial<AccessMutationVariables>
+  const { templateSectionId, lifecycleStepId, roleId } = variables as Partial<AccessMutationVariables>
   if (typeof templateSectionId !== 'string' || typeof lifecycleStepId !== 'string') return null
-  return sectionAccessCellKey(templateSectionId, lifecycleStepId)
+  return sectionAccessCellKey(templateSectionId, lifecycleStepId, roleId)
 }
 
-/** Celdas con una escritura en vuelo, leídas de la mutation cache. */
+/** Celdas (y sub-filas por rol) con una escritura en vuelo, leídas de la mutation cache. */
 export function usePendingSectionAccessCells(organizationId: string): ReadonlySet<string> {
   const pendingCells = useMutationState({
     filters: { mutationKey: templateSectionAccessMutationKey(organizationId), status: 'pending' },
@@ -142,7 +174,8 @@ type MatrixSnapshot = TemplateLifecycleAccessMatrix | undefined
 /**
  * Aplica el cambio sobre la cache de la matriz completa y devuelve el snapshot
  * previo para el rollback de `onError`. `access === null` significa «volver a
- * heredar del documento» (quitar la fila global de esa celda).
+ * heredar del documento» (sin `roleId`) o «volver a seguir el nivel global»
+ * (con `roleId`).
  */
 async function applyOptimisticAccess(
   queryClient: QueryClient,
@@ -150,6 +183,7 @@ async function applyOptimisticAccess(
   templateId: string,
   templateSectionId: string,
   lifecycleStepId: string,
+  roleId: string | null,
   access: TemplateSectionAccess | null,
 ): Promise<MatrixSnapshot> {
   const queryKey = templateSectionAccessQueryKeys.matrix(organizationId, templateId)
@@ -158,25 +192,25 @@ async function applyOptimisticAccess(
   const snapshot = queryClient.getQueryData<TemplateLifecycleAccessMatrix>(queryKey)
   queryClient.setQueryData<TemplateLifecycleAccessMatrix>(queryKey, (previous) => {
     if (!previous) return previous
-    // Solo se toca la fila global (sin `role_id`) del par — una fila por rol
-    // en el mismo par queda intacta.
-    const without = previous.access.filter(
-      (row) =>
-        !(row.template_section_id === templateSectionId && row.lifecycle_step_id === lifecycleStepId && !row.role_id),
-    )
+    // Solo se toca la fila del `roleId` pedido (global cuando es `null`) — el
+    // resto de las filas del mismo par (sección, step) queda intacto.
+    const matchesTarget = (row: TemplateLifecycleAccessMatrix['access'][number]) =>
+      row.template_section_id === templateSectionId &&
+      row.lifecycle_step_id === lifecycleStepId &&
+      (row.role_id ?? null) === roleId
+    const without = previous.access.filter((row) => !matchesTarget(row))
     if (access === null) return { ...previous, access: without }
-    const existing = previous.access.find(
-      (row) => row.template_section_id === templateSectionId && row.lifecycle_step_id === lifecycleStepId && !row.role_id,
-    )
+    const existing = previous.access.find(matchesTarget)
     return {
       ...previous,
       access: [
         ...without,
         {
           // El id real lo asigna el backend; el refetch de `onSettled` lo reemplaza.
-          id: existing?.id ?? `optimistic-${templateSectionId}-${lifecycleStepId}`,
+          id: existing?.id ?? `optimistic-${templateSectionId}-${lifecycleStepId}-${roleId ?? 'global'}`,
           template_section_id: templateSectionId,
           lifecycle_step_id: lifecycleStepId,
+          role_id: roleId,
           access,
         },
       ],
@@ -206,18 +240,21 @@ export function useTemplateSectionAccessMutations(organizationId: string, templa
     mutationFn: ({
       templateSectionId,
       lifecycleStepId,
+      roleId,
       access,
     }: AccessMutationVariables & { access: TemplateSectionAccess }) =>
       setTemplateSectionLifecycleAccess(organizationId, templateSectionId, lifecycleStepId, {
         access,
+        ...(roleId ? { role_id: roleId } : {}),
       }),
-    onMutate: ({ templateSectionId, lifecycleStepId, access }) =>
+    onMutate: ({ templateSectionId, lifecycleStepId, roleId, access }) =>
       applyOptimisticAccess(
         queryClient,
         organizationId,
         templateId,
         templateSectionId,
         lifecycleStepId,
+        roleId ?? null,
         access,
       ).then((snapshot) => ({ snapshot })),
     onError: (_error, _variables, context) => restore(context?.snapshot),
@@ -226,15 +263,16 @@ export function useTemplateSectionAccessMutations(organizationId: string, templa
 
   const clearAccess = useMutation({
     mutationKey,
-    mutationFn: ({ templateSectionId, lifecycleStepId }: AccessMutationVariables) =>
-      clearTemplateSectionLifecycleAccess(organizationId, templateSectionId, lifecycleStepId),
-    onMutate: ({ templateSectionId, lifecycleStepId }) =>
+    mutationFn: ({ templateSectionId, lifecycleStepId, roleId }: AccessMutationVariables) =>
+      clearTemplateSectionLifecycleAccess(organizationId, templateSectionId, lifecycleStepId, roleId),
+    onMutate: ({ templateSectionId, lifecycleStepId, roleId }) =>
       applyOptimisticAccess(
         queryClient,
         organizationId,
         templateId,
         templateSectionId,
         lifecycleStepId,
+        roleId ?? null,
         null,
       ).then((snapshot) => ({ snapshot })),
     onError: (_error, _variables, context) => restore(context?.snapshot),

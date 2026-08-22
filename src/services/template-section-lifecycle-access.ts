@@ -40,13 +40,19 @@ export async function setTemplateSectionLifecycleAccess(
   })
 }
 
-/** Borra la fila: la sección vuelve a heredar el permiso del documento en ese step. */
+/**
+ * Borra la fila: sin `roleId`, la sección vuelve a heredar el permiso del
+ * documento en ese step (fila global). Con `roleId`, ese rol puntual vuelve a
+ * seguir el nivel global en vez de tener uno propio.
+ */
 export async function clearTemplateSectionLifecycleAccess(
   organizationId: string,
   templateSectionId: string,
   lifecycleStepId: string,
+  roleId?: string | null,
 ): Promise<void> {
-  await httpClient.delete(`${accessUrl(templateSectionId)}/${lifecycleStepId}`, {
+  const params = roleId ? `?${new URLSearchParams({ role_id: roleId }).toString()}` : ''
+  await httpClient.delete(`${accessUrl(templateSectionId)}/${lifecycleStepId}${params}`, {
     headers: { 'X-Org-Id': organizationId },
   })
 }
