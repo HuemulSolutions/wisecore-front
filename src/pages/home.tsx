@@ -188,6 +188,7 @@ export default function Home() {
           { value: 'approved', label: tAssets('lifecycle.stateLabels.approved') },
           { value: 'published', label: tAssets('lifecycle.stateLabels.published') },
           { value: 'archived', label: tAssets('lifecycle.stateLabels.archived') },
+          { value: 'finalized', label: tAssets('lifecycle.stateLabels.finalized') },
         ],
       },
       ...(canListAssetTypes

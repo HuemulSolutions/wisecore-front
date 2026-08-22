@@ -1,9 +1,11 @@
-export interface Section {
+import type { SectionDependencyConfig, SectionFormField } from './core'
+
+export interface Section extends SectionDependencyConfig {
   id: string;
   name: string;
   order?: number;
   type?: string;
-  form_fields?: import('./core').SectionFormField[];
+  form_fields?: SectionFormField[];
 }
 
 export interface AddSectionFormProps {

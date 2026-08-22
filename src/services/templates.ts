@@ -81,10 +81,11 @@ export async function updateTemplate(
         instructions?: string | null;
         asset_kind?: string | null;
         canvas_id?: string | null;
+        section_lifecycle_access_enabled?: boolean;
     },
     organizationId: string
 ) {
-    const payload: Record<string, string | null> = {};
+    const payload: Record<string, string | boolean | null> = {};
 
     if (updateData.name !== undefined) {
         payload.name = updateData.name;
@@ -104,6 +105,10 @@ export async function updateTemplate(
 
     if (updateData.canvas_id !== undefined) {
         payload.canvas_id = updateData.canvas_id;
+    }
+
+    if (updateData.section_lifecycle_access_enabled !== undefined) {
+        payload.section_lifecycle_access_enabled = updateData.section_lifecycle_access_enabled;
     }
 
     const response = await httpClient.put(`${backendUrl}/templates/${templateId}`, payload, {

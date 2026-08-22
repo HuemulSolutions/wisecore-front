@@ -82,6 +82,7 @@ import { BlockDiscussion } from '@/components/ui/block-discussion';
 import { SuggestionKit } from '@/components/plate-editor/components/suggestion-kit';
 import { EmojiKit } from '@/components/plate-editor/components/emoji-kit';
 import { MentionKit } from '@/components/plate-editor/components/mention-kit';
+import { ReferenceKit } from '@/components/plate-editor/components/reference-kit';
 import { SlashKit } from '@/components/plate-editor/components/slash-kit';
 import { DateKit } from '@/components/plate-editor/components/date-kit';
 import { TocKit } from '@/components/plate-editor/components/toc-kit';
@@ -498,6 +499,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
       ...SuggestionKit,
       ...EmojiKit,
       ...MentionKit,
+      ...ReferenceKit,
       ...SlashKit,
       ...DateKit,
       ...TocKit,

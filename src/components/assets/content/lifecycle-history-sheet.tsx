@@ -23,6 +23,7 @@ const LIFECYCLE_STATES: ExecutionLifecycleState[] = [
   "approved",
   "published",
   "archived",
+  "finalized",
 ];
 
 function isLifecycleState(state: string | null): state is ExecutionLifecycleState {

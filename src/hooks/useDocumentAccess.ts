@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getAccessLevels } from '@/services/access-levels'
 import { usePageAccess } from '@/hooks/usePageAccess'
+import { isTerminalLifecycleState } from '@/lib/lifecycle-access'
 import type { FrontendPermissions, LifecyclePermissions, LifecycleStatus } from '@/types/assets'
 
 /**
@@ -110,7 +111,7 @@ export function lifecycleAllows(
  */
 export function lifecycleStageAllowsEditing(status: LifecycleStatus | undefined): boolean {
   if (!status) return true
-  return status.stage === 'edit'
+  return status.stage === 'edit' && !isTerminalLifecycleState(status.state)
 }
 
 /**
@@ -187,7 +188,7 @@ export function computeFrontendPermissions(
   const hasApprove = permissions?.approve === true
   const hasPublish = permissions?.publish === true
   const hasArchive = permissions?.archive === true
-  const isEditStage = status?.stage === 'edit'
+  const isEditStage = status?.stage === 'edit' && !isTerminalLifecycleState(status?.state)
 
   return {
     canEditSections: (hasCreate || hasEdit) && isEditStage && rbac.updateAssetContent,

@@ -69,6 +69,15 @@ export function handleApiError(
       return; // Custom handler took care of it
     }
 
+    // Mensaje dedicado: el genérico del backend habla de "locked" sin contexto.
+    // Cubre tanto `archived` como `finalized` — mismo código de error para ambos.
+    if (error.code === 'EXECUTION_LIFECYCLE_LOCKED') {
+      if (showToast) {
+        toast.error(i18n.t('assets:lifecycle.errorLocked'));
+      }
+      return;
+    }
+
     // Solo saltar cuando httpClient ya lo manejó (logout + redirect).
     // No volver a adivinar aquí con el mismo heurístico de permisos: dos
     // copias de esa heurística fue justo lo que causó que un 401 de

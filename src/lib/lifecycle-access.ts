@@ -76,6 +76,35 @@ export function pipelineSortIndex(type: string): number {
   return idx === -1 ? LIFECYCLE_PIPELINE_ORDER.length : idx
 }
 
+// ─── Estados terminales ──────────────────────────────────────────────────────
+
+/**
+ * Estados en los que la ejecución ya terminó su flujo: el backend rechaza toda
+ * escritura con `EXECUTION_LIFECYCLE_LOCKED` (409). `finalized` es el terminal
+ * de los tipos de activo no-ISO (`requires_iso_strict_versioning: false`) con
+ * `final_lifecycle_stage` distinto de `"publish"`; `archived` sigue siendo el
+ * del flujo completo (`publish`) o el archivado manual explícito.
+ */
+export const TERMINAL_LIFECYCLE_STATES: ReadonlySet<string> = new Set([
+  "published",
+  "archived",
+  "finalized",
+])
+
+export function isTerminalLifecycleState(state: string | undefined): boolean {
+  return !!state && TERMINAL_LIFECYCLE_STATES.has(state)
+}
+
+/** Estados desde los que `POST /execution-lifecycle/{id}/restore` está habilitado. */
+export const RESTORABLE_LIFECYCLE_STATES: ReadonlySet<string> = new Set([
+  "archived",
+  "finalized",
+])
+
+export function isRestorableLifecycleState(state: string | undefined): boolean {
+  return !!state && RESTORABLE_LIFECYCLE_STATES.has(state)
+}
+
 // ─── Semántica de access_type ────────────────────────────────────────────────
 
 /** El propietario ejecuta el paso salvo que el acceso sea exclusivamente por roles. */

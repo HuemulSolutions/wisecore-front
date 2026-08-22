@@ -5,6 +5,8 @@ import remarkMath from 'remark-math';
 
 import { MEDIA_TOKEN_RE, isMediaToken } from '@/lib/plate-media-utils';
 import { MERMAID_KEY } from '@/lib/plate-mermaid-utils';
+import { ASSET_REFERENCE_KEY, ROLE_REFERENCE_KEY } from '@/lib/plate-reference-utils';
+import type { AssetReferenceElement, RoleReferenceElement } from '@/types/reference';
 
 /** Matches `![alt]({{MEDIA:<uuid>}})` — the markdown image form of the media token. */
 const MEDIA_IMAGE_RE = /^!\[([^\]]*)\]\((\{\{MEDIA:[0-9a-f-]{36}\}\})\)$/i;
@@ -57,6 +59,22 @@ export const MarkdownKit = [
             const code: string = slateNode.code ?? '';
             return { type: 'html', value: '```mermaid\n' + code + '\n```' } as any;
           },
+        },
+        // Referencias `@` (asset_reference/role_reference) — solo serialize, sin
+        // deserialize: el contenido siempre carga desde plate_content JSON, nunca
+        // se reconstruye desde Markdown (mismo criterio que MERMAID_KEY arriba).
+        // El nombre viene del snapshot del propio nodo (name/pinnedVersionLabel),
+        // no del caché de datos frescos — este paso corre fuera de React.
+        [ASSET_REFERENCE_KEY]: {
+          serialize: (slateNode: AssetReferenceElement) => ({
+            type: 'text',
+            value: slateNode.versionMode === 'pinned' && slateNode.pinnedVersionLabel
+              ? `@${slateNode.name}@${slateNode.pinnedVersionLabel}`
+              : `@${slateNode.name}`,
+          }),
+        },
+        [ROLE_REFERENCE_KEY]: {
+          serialize: (slateNode: RoleReferenceElement) => ({ type: 'text', value: `@${slateNode.name}` }),
         },
         // Deserialize raw HTML {{MEDIA:GUID}} tokens back into image nodes – both the
         // bare legacy token and the `![alt]({{MEDIA:GUID}})` markdown-image form.

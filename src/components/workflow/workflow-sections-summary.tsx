@@ -5,7 +5,7 @@ import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulReviewStatusBadge } from "@/huemul/components/huemul-review-status-badge";
 import { HuemulNumberedStatusCard } from "@/huemul/components/huemul-numbered-status-card";
 import { FormAnswersList } from "@/components/sections/form-answers-list";
-import { computeSectionStats } from "@/components/workflow/workflow-section-stats";
+import { computeSectionStats, isSectionAnswerable } from "@/components/workflow/workflow-section-stats";
 import type { ContentSection } from "@/types/assets";
 import type { ReviewStatus } from "@/types/section-execution";
 
@@ -43,6 +43,7 @@ export function WorkflowSectionsSummary({ sections, onGoToSection }: WorkflowSec
     <div className="flex flex-col gap-3">
       {sections.map((section, index) => {
         const { fields, questions, answeredCount } = computeSectionStats(section);
+        const isInactive = !isSectionAnswerable(section);
         return (
           <HuemulNumberedStatusCard
             key={section.id}
@@ -52,8 +53,16 @@ export function WorkflowSectionsSummary({ sections, onGoToSection }: WorkflowSec
             number={index + 1}
             title={section.section_name ?? ""}
             tone={section.review_status === "finished" ? "success" : "warning"}
+            className={isInactive ? "opacity-70" : undefined}
             headerExtra={
-              <HuemulReviewStatusBadge status={section.review_status as ReviewStatus | null} sectionType="form" />
+              <>
+                <HuemulReviewStatusBadge status={section.review_status as ReviewStatus | null} sectionType="form" />
+                {isInactive && (
+                  <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                    {t("sections:form.fill.sectionInactive")}
+                  </span>
+                )}
+              </>
             }
             subtitle={t("sections:form.fill.answeredCount", { answered: answeredCount, total: questions.length })}
             actions={

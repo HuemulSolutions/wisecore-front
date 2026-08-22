@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next"
 import { Tag, Undo2, Check, Globe, Archive, RotateCcw, RefreshCw } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
+import { isRestorableLifecycleState } from "@/lib/lifecycle-access"
 import type { HuemulLifecycleActionsProps } from "@/types/lifecycle"
 
 /**
@@ -40,7 +41,7 @@ export function HuemulLifecycleActions({
   const canPublish =
     permissions?.publish && status.state === "approved" && controller.finalLifecycleStage === "publish"
   const canArchive = permissions?.archive && (status.state === "approved" || status.state === "published")
-  const canRestore = permissions?.archive && status.state === "archived"
+  const canRestore = permissions?.archive && isRestorableLifecycleState(status.state)
   const canRerunExternalPublish = showRerunExternalPublish && permissions?.publish && status.state === "published"
 
   return (

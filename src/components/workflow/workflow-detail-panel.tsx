@@ -26,7 +26,7 @@ import type { WorkflowTemplateItem, CreateExpressResult } from "@/types/template
 import type { FormValuesSectionPayload } from "@/types/sections/core"
 import type { ReviewStatus } from "@/types/section-execution"
 import { applyFormValuesPatch } from "@/components/assets/content/utils/patch-document-content"
-import { isFormSectionApplicable } from "@/components/workflow/workflow-section-stats"
+import { isSectionAnswerable, isSectionApplicable } from "@/components/workflow/workflow-section-stats"
 
 interface WorkflowDetailPanelProps {
   /** Fila existente seleccionada en la tabla (o solo los IDs, en la vista compartida). */
@@ -141,7 +141,7 @@ export function WorkflowDetailPanel({
   // el backend ya no devuelve en /content las que quedan sin ninguna pregunta visible, y este
   // filtro es el espejo cliente que cubre el intervalo hasta el próximo refetch.
   const formSections = React.useMemo(
-    () => (data?.content ?? []).filter((s) => s.section_type === "form" && isFormSectionApplicable(s)),
+    () => (data?.content ?? []).filter((s) => s.section_type === "form" && isSectionApplicable(s)),
     [data],
   )
   // step === null → pantalla de resumen (ver WorkflowSectionsSummary), sin sección "actual".
@@ -224,23 +224,30 @@ export function WorkflowDetailPanel({
     lifecycleAllows(data?.lifecycle_permissions, "edit") &&
     lifecycleStageAllowsEditing(data?.lifecycle_status)
 
-  // Acceso de la sección actual según `template_section_lifecycle_access`
-  // (ver src/types/templates/section-lifecycle-access.ts). `undefined` = el
-  // backend todavía no distingue acceso por sección — no degrada a solo lectura
-  // por eso solo, `can_answer` en cada form_field sigue siendo la autoridad.
-  const canAnswerSection = canAnswerForm && currentSection?.access !== "view"
+  // `can_edit` viene del backend ya resuelto para el usuario actual (org admin,
+  // rol/step, o fallback al permiso del documento — ver
+  // src/types/templates/section-lifecycle-access.ts). `null`/`undefined` = el flag
+  // no aplica a esta sección/documento — no degrada a solo lectura por eso solo,
+  // `can_answer` en cada form_field sigue siendo la autoridad. isSectionAnswerable
+  // cubre el depends_on propio de la sección: con show_when_inactive:true la
+  // sección sigue en el wizard (isSectionApplicable la deja pasar) pero inactiva,
+  // así que acá también degrada a solo lectura.
+  const canAnswerSection =
+    canAnswerForm && currentSection?.can_edit !== false && (!currentSection || isSectionAnswerable(currentSection))
 
-  // Motivo del aviso de solo lectura: distingue "no tenés permiso/rol", "esta
-  // etapa ya no admite respuestas" y "esta sección es de solo lectura en esta
-  // etapa" — evita que el aviso de permiso confunda a alguien que sí puede
-  // responder el resto del formulario.
-  const readOnlyReason: "permission" | "stage" | "section" | null = canAnswerSection
+  // Motivo del aviso de solo lectura: distingue "no tenés permiso/rol", "esta etapa ya
+  // no admite respuestas", "esta sección está inactiva según las respuestas dadas" y
+  // "esta sección es de solo lectura en esta etapa" — evita que el aviso de permiso
+  // confunda a alguien que sí puede responder el resto del formulario.
+  const readOnlyReason: "permission" | "stage" | "sectionInactive" | "section" | null = canAnswerSection
     ? null
     : !canUpdateAssetContent || !lifecycleAllows(data?.lifecycle_permissions, "edit")
       ? "permission"
       : !lifecycleStageAllowsEditing(data?.lifecycle_status)
         ? "stage"
-        : "section"
+        : currentSection && !isSectionAnswerable(currentSection)
+          ? "sectionInactive"
+          : "section"
 
   // Se levanta justo antes de abrir el diálogo de "Completar" desde el botón de
   // Finalizar del wizard, para distinguir esa apertura de la del botón "Completar"
@@ -368,9 +375,11 @@ export function WorkflowDetailPanel({
                     defaultValue: data?.lifecycle_status?.stage,
                   }),
                 })
-              : readOnlyReason === "section"
-                ? t("fill.readOnlySectionNotice")
-                : t("fill.readOnlyNotice")}
+              : readOnlyReason === "sectionInactive"
+                ? t("fill.readOnlyInactiveSectionNotice")
+                : readOnlyReason === "section"
+                  ? t("fill.readOnlySectionNotice")
+                  : t("fill.readOnlyNotice")}
           </div>
         )}
         {needsNameStep ? (
