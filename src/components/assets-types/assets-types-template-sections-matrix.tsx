@@ -15,25 +15,16 @@ import { SettingToggleRow } from "@/components/assets-types/assets-types-lifecyc
 import { getTemplateById, updateTemplate } from "@/services/templates"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
-import {
-  useAllLifecycleSteps,
-  useLifecycleMutations,
-  lifecycleQueryKeys,
-} from "@/hooks/useLifecycle"
+import { useLifecycleMutations } from "@/hooks/useLifecycle"
 import {
   sectionAccessCellKey,
+  templateSectionAccessQueryKeys,
   usePendingSectionAccessCells,
+  useTemplateLifecycleAccessMatrix,
   useTemplateSectionAccessMutations,
-  useTemplateSectionsLifecycleAccess,
 } from "@/hooks/useTemplateSectionLifecycleAccess"
-import {
-  LIFECYCLE_GROUPABLE_TYPES,
-  buildAccessPayload,
-  isGroupableStepType,
-  pipelineSortIndex,
-} from "@/lib/lifecycle-access"
+import { LIFECYCLE_GROUPABLE_TYPES, buildAccessPayload, isGroupableStepType } from "@/lib/lifecycle-access"
 import type { TemplateSectionAccessMatrixProps } from "@/types/assets"
-import type { LifecycleStep } from "@/types/lifecycle"
 import type { TemplateSectionAccess } from "@/types/templates/section-lifecycle-access"
 
 export type { TemplateSectionAccessMatrixProps } from "@/types/assets"
@@ -41,19 +32,12 @@ export type { TemplateSectionAccessMatrixProps } from "@/types/assets"
 const SECTION_COLUMN_WIDTH = "232px"
 const ADD_GROUP_COLUMN_WIDTH = "150px"
 
-/** Fila de la matriz: una sección de la plantilla. */
-interface MatrixSection {
-  id: string
-  name: string
-  order: number
-}
-
 /** Cómo se pinta cada uno de los tres estados de una celda. */
 const ACCESS_STYLE: Record<
-  "hidden" | TemplateSectionAccess,
+  "inherit" | TemplateSectionAccess,
   { icon: typeof Eye; box: string; glyph: string }
 > = {
-  hidden: {
+  inherit: {
     icon: Minus,
     box: "border border-dashed border-[#cbd5e1] bg-white",
     glyph: "text-[#cbd5e1]",
@@ -75,7 +59,7 @@ function AccessGlyph({
   access,
   className,
 }: {
-  access: "hidden" | TemplateSectionAccess
+  access: "inherit" | TemplateSectionAccess
   className?: string
 }) {
   const style = ACCESS_STYLE[access]
@@ -95,12 +79,13 @@ function AccessGlyph({
 
 /**
  * Matriz sección × etapa del ciclo de vida de una plantilla vinculada a un tipo
- * de activo. Cada celda define qué ve esa sección durante esa etapa: oculta (sin
- * fila en el backend), solo lectura (`view`) o editable (`edit`).
+ * de activo. Cada celda define qué ve esa sección durante esa etapa: hereda el
+ * permiso del documento completo (sin fila en el backend), solo lectura (`view`)
+ * o editable (`edit`).
  *
  * Cada clic persiste al instante con actualización optimista, igual que la matriz
  * de permisos por rol: el endpoint es un upsert por par (sección, step) y volver a
- * «sin acceso» es un DELETE.
+ * «heredar» es un DELETE.
  */
 export function TemplateSectionAccessMatrix({
   templateId,
@@ -133,12 +118,6 @@ export function TemplateSectionAccessMatrix({
     retry: false,
   })
 
-  const {
-    data: stepsData,
-    isLoading: isLoadingSteps,
-    isFetching: isFetchingSteps,
-  } = useAllLifecycleSteps(documentTypeId, queryEnabled)
-
   const accessEnabled = templateData?.section_lifecycle_access_enabled === true
   const canEditCells = canManage && accessEnabled
 
@@ -163,32 +142,15 @@ export function TemplateSectionAccessMatrix({
     },
   })
 
-  const sections = React.useMemo<MatrixSection[]>(() => {
-    const raw: unknown = templateData?.sections ?? templateData?.template_sections ?? []
-    if (!Array.isArray(raw)) return []
-    return raw
-      .map((section: { id: string; name?: string; order?: number }, index: number) => ({
-        id: section.id,
-        name: section.name ?? "",
-        order: section.order ?? index,
-      }))
-      .sort((a, b) => a.order - b.order)
-  }, [templateData])
-
-  const sectionIds = React.useMemo(() => sections.map((s) => s.id), [sections])
-
-  const steps = React.useMemo<LifecycleStep[]>(() => {
-    const all = stepsData?.data?.steps ?? []
-    return [...all].sort((a, b) => {
-      const typeDiff = pipelineSortIndex(a.type) - pipelineSortIndex(b.type)
-      if (typeDiff !== 0) return typeDiff
-      return (a.order ?? 0) - (b.order ?? 0)
-    })
-  }, [stepsData])
-
-  const { accessBySection, isFetching: isFetchingAccess, refetchAll } =
-    useTemplateSectionsLifecycleAccess(organizationId, sectionIds, queryEnabled)
-  const { setAccess, clearAccess } = useTemplateSectionAccessMutations(organizationId)
+  const {
+    sections,
+    steps,
+    accessBySection,
+    isLoading: isLoadingMatrix,
+    isFetching: isFetchingMatrix,
+    refetchAll,
+  } = useTemplateLifecycleAccessMatrix(organizationId, templateId, documentTypeId, queryEnabled)
+  const { setAccess, clearAccess } = useTemplateSectionAccessMutations(organizationId, templateId)
   const pendingCells = usePendingSectionAccessCells(organizationId)
   const { createStep } = useLifecycleMutations(documentTypeId, null)
 
@@ -212,21 +174,18 @@ export function TemplateSectionAccessMatrix({
   )
 
   // Un solo handler para todas las queries de la superficie (refresh-button-guide §3):
-  // secciones del template, steps del ciclo de vida y accesos de cada sección.
+  // el flag del template y la matriz completa (secciones, steps y accesos).
   const handleRefresh = React.useCallback(async () => {
     setIsRefreshing(true)
     try {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["template", templateId] }),
-        queryClient.invalidateQueries({
-          queryKey: lifecycleQueryKeys.stepsByDocumentType(documentTypeId),
-        }),
         refetchAll(),
       ])
     } finally {
       setIsRefreshing(false)
     }
-  }, [queryClient, templateId, documentTypeId, refetchAll])
+  }, [queryClient, templateId, refetchAll])
 
   const handleSetAccess = async (
     sectionId: string,
@@ -264,6 +223,11 @@ export function TemplateSectionAccessMatrix({
         // `custom`/`custom_owner` la clave `role_ids` no puede viajar (422).
         ...buildAccessPayload({ accessType: "all", roleIds: [] }),
       })
+      // `createStep` invalida `stepsByDocumentType`, que esta matriz ya no lee:
+      // sin esto la columna del grupo nuevo no aparece hasta el próximo refresh manual.
+      await queryClient.invalidateQueries({
+        queryKey: templateSectionAccessQueryKeys.matrix(organizationId, templateId),
+      })
       setNewGroupName("")
       setIsAddingGroup(false)
     } catch {
@@ -282,7 +246,7 @@ export function TemplateSectionAccessMatrix({
     )
   }
 
-  const isLoading = isLoadingTemplate || isLoadingSteps
+  const isLoading = isLoadingTemplate || isLoadingMatrix
 
   return (
     <div className="flex flex-col gap-3">
@@ -304,13 +268,13 @@ export function TemplateSectionAccessMatrix({
         <div className="flex min-w-0 flex-col gap-2">
           <p className="text-[12px] text-[#64748b]">{t("templates.sectionAccess.hint")}</p>
           <div className="flex flex-wrap items-center gap-3">
-            {(["hidden", "view", "edit"] as const).map((access) => (
+            {(["inherit", "view", "edit"] as const).map((access) => (
               <span key={access} className="inline-flex items-center gap-1.5">
                 <AccessGlyph access={access} />
                 <span className="text-[12px] text-[#475569]">
                   {t(
-                    access === "hidden"
-                      ? "templates.sectionAccess.legendHidden"
+                    access === "inherit"
+                      ? "templates.sectionAccess.legendInherit"
                       : access === "view"
                         ? "templates.sectionAccess.legendView"
                         : "templates.sectionAccess.legendEdit",
@@ -328,7 +292,7 @@ export function TemplateSectionAccessMatrix({
             className="size-[30px]"
             icon={RefreshCw}
             tooltip={t("common:refresh")}
-            loading={isRefreshing || isFetchingTemplate || isFetchingSteps || isFetchingAccess}
+            loading={isRefreshing || isFetchingTemplate || isFetchingMatrix}
             onClick={handleRefresh}
           />
         </div>
@@ -485,7 +449,7 @@ export function TemplateSectionAccessMatrix({
                               {pending ? (
                                 <Loader2 className="size-3.5 animate-spin text-[#94a3b8]" />
                               ) : (
-                                <AccessGlyph access={current ?? "hidden"} />
+                                <AccessGlyph access={current ?? "inherit"} />
                               )}
                             </button>
                           </PopoverTrigger>
@@ -493,7 +457,7 @@ export function TemplateSectionAccessMatrix({
                             <div className="flex flex-col">
                               {(
                                 [
-                                  { value: null, key: "hidden", label: "legendHidden" },
+                                  { value: null, key: "inherit", label: "legendInherit" },
                                   { value: "view", key: "view", label: "legendView" },
                                   { value: "edit", key: "edit", label: "legendEdit" },
                                 ] as const

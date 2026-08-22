@@ -1,75 +1,107 @@
 import { useCallback, useMemo } from 'react'
-import { useMutation, useMutationState, useQueries, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useMutationState, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   clearTemplateSectionLifecycleAccess,
-  getTemplateSectionLifecycleAccess,
+  getTemplateLifecycleAccessMatrix,
   setTemplateSectionLifecycleAccess,
 } from '@/services/template-section-lifecycle-access'
+import { pipelineSortIndex } from '@/lib/lifecycle-access'
 import type {
+  TemplateLifecycleAccessMatrix,
   TemplateSectionAccess,
-  TemplateSectionLifecycleAccess,
 } from '@/types/templates/section-lifecycle-access'
 
 export const templateSectionAccessQueryKeys = {
   all: ['template-section-lifecycle-access'] as const,
-  section: (organizationId: string, templateSectionId: string) =>
-    [...templateSectionAccessQueryKeys.all, organizationId, templateSectionId] as const,
+  matrix: (organizationId: string, templateId: string) =>
+    [...templateSectionAccessQueryKeys.all, 'matrix', organizationId, templateId] as const,
+}
+
+/** Fila derivada: una sección de la plantilla. */
+export interface MatrixSection {
+  id: string
+  name: string
+  order: number
+}
+
+/** Fila derivada: un step del ciclo de vida del tipo de activo actual. */
+export interface MatrixStep {
+  id: string
+  document_type_id: string
+  type: string
+  name: string
+  order: number
 }
 
 /**
- * Mapa `stepId -> access` de una sección. Un step ausente del mapa está OCULTO
- * para esa sección — el backend no persiste ese caso (ver types/templates/section-lifecycle-access).
+ * Mapa `stepId -> access` de una sección. Un step ausente del mapa HEREDA el
+ * permiso del documento en esa etapa — el backend no persiste ese caso (ver
+ * types/templates/section-lifecycle-access).
  */
 export type SectionAccessByStep = ReadonlyMap<string, TemplateSectionAccess>
 
-function toAccessByStep(rows: TemplateSectionLifecycleAccess[]): Map<string, TemplateSectionAccess> {
-  return new Map(rows.map((row) => [row.lifecycle_step_id, row.access]))
+/**
+ * Solo las filas globales (sin `role_id`) cuentan para el acceso por defecto de
+ * la sección — una fila por rol no debe pintarse como si aplicara a todos.
+ */
+function toAccessBySection(access: TemplateLifecycleAccessMatrix['access']): Map<string, SectionAccessByStep> {
+  const map = new Map<string, Map<string, TemplateSectionAccess>>()
+  for (const row of access) {
+    if (row.role_id) continue
+    const bySection = map.get(row.template_section_id) ?? new Map<string, TemplateSectionAccess>()
+    bySection.set(row.lifecycle_step_id, row.access)
+    map.set(row.template_section_id, bySection)
+  }
+  return map
 }
 
 /**
- * Acceso de varias secciones a la vez: una query por sección en vez de una sola
- * lista, para que una mutación invalide solo la fila tocada y no toda la matriz.
+ * Matriz sección × step de una plantilla, en el contexto de un tipo de activo
+ * puntual: una sola query (`lifecycle_access_matrix`) en vez de un GET por
+ * sección. El endpoint devuelve los steps de TODOS los tipos de activo
+ * vinculados al template, así que se filtran por `documentTypeId` acá.
  */
-export function useTemplateSectionsLifecycleAccess(
+export function useTemplateLifecycleAccessMatrix(
   organizationId: string,
-  templateSectionIds: string[],
+  templateId: string,
+  documentTypeId: string,
   enabled: boolean = true,
 ) {
   const queryClient = useQueryClient()
+  const queryKey = templateSectionAccessQueryKeys.matrix(organizationId, templateId)
 
-  const results = useQueries({
-    queries: templateSectionIds.map((sectionId) => ({
-      queryKey: templateSectionAccessQueryKeys.section(organizationId, sectionId),
-      queryFn: () => getTemplateSectionLifecycleAccess(organizationId, sectionId),
-      enabled: enabled && !!organizationId && !!sectionId,
-      staleTime: 2 * 60 * 1000,
-      gcTime: 5 * 60 * 1000,
-      retry: 0,
-    })),
+  const { data, isLoading, isFetching, refetch } = useQuery({
+    queryKey,
+    queryFn: () => getTemplateLifecycleAccessMatrix(organizationId, templateId),
+    enabled: enabled && !!organizationId && !!templateId,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    retry: 0,
   })
 
-  const isLoading = results.some((r) => r.isLoading)
-  const isFetching = results.some((r) => r.isFetching)
-
-  // `results` es un array nuevo en cada render: la dependencia real es el
-  // contenido de cada query, no la identidad del array.
-  const accessSignature = results.map((r) => (r.data ? JSON.stringify(r.data) : '')).join('|')
-  const accessBySection = useMemo(() => {
-    const map = new Map<string, SectionAccessByStep>()
-    templateSectionIds.forEach((sectionId, index) => {
-      map.set(sectionId, toAccessByStep(results[index]?.data ?? []))
-    })
-    return map
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templateSectionIds.join('|'), accessSignature])
-
-  const refetchAll = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: templateSectionAccessQueryKeys.all }),
-    [queryClient],
+  const sections = useMemo<MatrixSection[]>(
+    () => [...(data?.sections ?? [])].sort((a, b) => a.order - b.order),
+    [data],
   )
 
-  return { accessBySection, isLoading, isFetching, refetchAll }
+  const steps = useMemo<MatrixStep[]>(() => {
+    const ownSteps = (data?.lifecycle_steps ?? []).filter((step) => step.document_type_id === documentTypeId)
+    return [...ownSteps].sort((a, b) => {
+      const typeDiff = pipelineSortIndex(a.type) - pipelineSortIndex(b.type)
+      if (typeDiff !== 0) return typeDiff
+      return a.order - b.order
+    })
+  }, [data, documentTypeId])
+
+  const accessBySection = useMemo(() => toAccessBySection(data?.access ?? []), [data])
+
+  const refetchAll = useCallback(
+    () => queryClient.invalidateQueries({ queryKey }),
+    [queryClient, queryKey],
+  )
+
+  return { sections, steps, accessBySection, isLoading, isFetching, refetch, refetchAll }
 }
 
 // ─── Mutaciones: clave común, optimismo y pendientes por celda ──────────────
@@ -105,60 +137,68 @@ export function usePendingSectionAccessCells(organizationId: string): ReadonlySe
   )
 }
 
-type AccessSnapshot = TemplateSectionLifecycleAccess[] | undefined
+type MatrixSnapshot = TemplateLifecycleAccessMatrix | undefined
 
 /**
- * Aplica el cambio sobre la cache de la sección y devuelve el snapshot previo
- * para el rollback de `onError`. `access === null` significa «volver a oculta».
+ * Aplica el cambio sobre la cache de la matriz completa y devuelve el snapshot
+ * previo para el rollback de `onError`. `access === null` significa «volver a
+ * heredar del documento» (quitar la fila global de esa celda).
  */
 async function applyOptimisticAccess(
   queryClient: QueryClient,
   organizationId: string,
+  templateId: string,
   templateSectionId: string,
   lifecycleStepId: string,
   access: TemplateSectionAccess | null,
-): Promise<AccessSnapshot> {
-  const queryKey = templateSectionAccessQueryKeys.section(organizationId, templateSectionId)
+): Promise<MatrixSnapshot> {
+  const queryKey = templateSectionAccessQueryKeys.matrix(organizationId, templateId)
   // Un GET en vuelo resolvería después del parche y lo pisaría con datos viejos.
   await queryClient.cancelQueries({ queryKey })
-  const snapshot = queryClient.getQueryData<TemplateSectionLifecycleAccess[]>(queryKey)
-  queryClient.setQueryData<TemplateSectionLifecycleAccess[]>(queryKey, (previous) => {
-    const rows = previous ?? []
-    const without = rows.filter((row) => row.lifecycle_step_id !== lifecycleStepId)
-    if (access === null) return without
-    const existing = rows.find((row) => row.lifecycle_step_id === lifecycleStepId)
-    return [
-      ...without,
-      {
-        // El id real lo asigna el backend; el refetch de `onSettled` lo reemplaza.
-        id: existing?.id ?? `optimistic-${templateSectionId}-${lifecycleStepId}`,
-        template_section_id: templateSectionId,
-        lifecycle_step_id: lifecycleStepId,
-        access,
-      },
-    ]
+  const snapshot = queryClient.getQueryData<TemplateLifecycleAccessMatrix>(queryKey)
+  queryClient.setQueryData<TemplateLifecycleAccessMatrix>(queryKey, (previous) => {
+    if (!previous) return previous
+    // Solo se toca la fila global (sin `role_id`) del par — una fila por rol
+    // en el mismo par queda intacta.
+    const without = previous.access.filter(
+      (row) =>
+        !(row.template_section_id === templateSectionId && row.lifecycle_step_id === lifecycleStepId && !row.role_id),
+    )
+    if (access === null) return { ...previous, access: without }
+    const existing = previous.access.find(
+      (row) => row.template_section_id === templateSectionId && row.lifecycle_step_id === lifecycleStepId && !row.role_id,
+    )
+    return {
+      ...previous,
+      access: [
+        ...without,
+        {
+          // El id real lo asigna el backend; el refetch de `onSettled` lo reemplaza.
+          id: existing?.id ?? `optimistic-${templateSectionId}-${lifecycleStepId}`,
+          template_section_id: templateSectionId,
+          lifecycle_step_id: lifecycleStepId,
+          access,
+        },
+      ],
+    }
   })
   return snapshot
 }
 
-export function useTemplateSectionAccessMutations(organizationId: string) {
+export function useTemplateSectionAccessMutations(organizationId: string, templateId: string) {
   const queryClient = useQueryClient()
   const mutationKey = templateSectionAccessMutationKey(organizationId)
+  const queryKey = templateSectionAccessQueryKeys.matrix(organizationId, templateId)
 
-  const restore = (templateSectionId: string, snapshot: AccessSnapshot) => {
-    queryClient.setQueryData(
-      templateSectionAccessQueryKeys.section(organizationId, templateSectionId),
-      snapshot,
-    )
+  const restore = (snapshot: MatrixSnapshot) => {
+    queryClient.setQueryData(queryKey, snapshot)
   }
 
   // Solo la última mutación en vuelo refetchea: dentro de `onSettled` la propia
   // mutación sigue contando como pending, así que `=== 1` significa «soy la última».
-  const invalidateWhenIdle = (templateSectionId: string) => {
+  const invalidateWhenIdle = () => {
     if (queryClient.isMutating({ mutationKey }) !== 1) return
-    return queryClient.invalidateQueries({
-      queryKey: templateSectionAccessQueryKeys.section(organizationId, templateSectionId),
-    })
+    return queryClient.invalidateQueries({ queryKey })
   }
 
   const setAccess = useMutation({
@@ -175,12 +215,13 @@ export function useTemplateSectionAccessMutations(organizationId: string) {
       applyOptimisticAccess(
         queryClient,
         organizationId,
+        templateId,
         templateSectionId,
         lifecycleStepId,
         access,
       ).then((snapshot) => ({ snapshot })),
-    onError: (_error, { templateSectionId }, context) => restore(templateSectionId, context?.snapshot),
-    onSettled: (_data, _error, { templateSectionId }) => invalidateWhenIdle(templateSectionId),
+    onError: (_error, _variables, context) => restore(context?.snapshot),
+    onSettled: () => invalidateWhenIdle(),
   })
 
   const clearAccess = useMutation({
@@ -191,12 +232,13 @@ export function useTemplateSectionAccessMutations(organizationId: string) {
       applyOptimisticAccess(
         queryClient,
         organizationId,
+        templateId,
         templateSectionId,
         lifecycleStepId,
         null,
       ).then((snapshot) => ({ snapshot })),
-    onError: (_error, { templateSectionId }, context) => restore(templateSectionId, context?.snapshot),
-    onSettled: (_data, _error, { templateSectionId }) => invalidateWhenIdle(templateSectionId),
+    onError: (_error, _variables, context) => restore(context?.snapshot),
+    onSettled: () => invalidateWhenIdle(),
   })
 
   return { setAccess, clearAccess }
