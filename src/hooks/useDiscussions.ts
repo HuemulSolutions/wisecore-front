@@ -4,6 +4,7 @@ import type { Value } from 'platejs';
 
 import { useAuth } from '@/contexts/auth-context';
 import { useOrganization } from '@/contexts/organization-context';
+import { parseApiDate } from '@/lib/utils';
 import { useUsers } from '@/hooks/useUsers';
 import {
   listDiscussions,
@@ -76,7 +77,7 @@ function mapApiCommentToPlate(c: DiscussionComment): TComment {
     id: c.id,
     discussionId: c.discussion_id,
     contentRich: parseRichContent(c.content_rich),
-    createdAt: new Date(c.created_at),
+    createdAt: parseApiDate(c.created_at),
     userId: c.user_id ?? c.created_by ?? '',
     isEdited: c.is_edited ?? c.created_at !== c.updated_at,
     isPublic: c.is_public,
@@ -89,10 +90,11 @@ function mapApiDiscussionToPlate(
   return {
     id: d.id,
     comments: (d.comments ?? []).map(mapApiCommentToPlate),
-    createdAt: new Date(d.created_at),
+    createdAt: parseApiDate(d.created_at),
     isResolved: d.is_resolved,
     userId: d.created_by ?? '',
     documentContent: d.document_content,
+    sectionExecutionId: d.section_execution_id,
   };
 }
 
@@ -136,6 +138,8 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
   const {
     data: discussionsResponse,
     isLoading: isLoadingDiscussions,
+    isFetching: isFetchingDiscussions,
+    refetch: refetchDiscussions,
   } = useQuery({
     queryKey: discussionQueryKeys.byDocument(documentId!),
     queryFn: () =>
@@ -295,6 +299,8 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
     currentUserId: user?.id ?? '',
     callbacks,
     isLoading: isLoadingDiscussions,
+    isFetching: isFetchingDiscussions,
+    refetch: refetchDiscussions,
     invalidate,
   };
 }

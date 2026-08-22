@@ -13,6 +13,9 @@ export type TDiscussion = {
   isResolved: boolean;
   userId: string;
   documentContent?: string;
+  /** section_execution_id of the section this thread belongs to. Absent on
+   * discussions optimistically created before the backend round-trip. */
+  sectionExecutionId?: string | null;
 };
 
 export type TDiscussionUser = {

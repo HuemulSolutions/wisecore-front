@@ -9,11 +9,6 @@ import { CommentPlugin } from '@platejs/comment/react';
 import { getTransientSuggestionKey } from '@platejs/suggestion';
 import { SuggestionPlugin } from '@platejs/suggestion/react';
 import {
-  MessageSquareTextIcon,
-  MessagesSquareIcon,
-  PencilLineIcon,
-} from 'lucide-react';
-import {
   type AnyPluginConfig,
   type NodeEntry,
   type Path,
@@ -23,9 +18,8 @@ import {
   PathApi,
   TextApi,
 } from 'platejs';
-import { useEditorPlugin, useEditorRef, usePluginOption } from 'platejs/react';
+import { useEditorRef, usePluginOption } from 'platejs/react';
 
-import { Button } from '@/components/ui/button';
 import {
   Popover,
   PopoverAnchor,
@@ -33,20 +27,19 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { commentPlugin } from '@/components/plate-editor/components/comment-kit';
-import {
-  type TDiscussion,
-  discussionPlugin,
-} from '@/components/plate-editor/components/discussion-kit';
+import type { TDiscussion } from '@/components/plate-editor/components/discussion-kit';
 import { suggestionPlugin } from '@/components/plate-editor/components/suggestion-kit';
-
-import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 import {
   BlockSuggestionCard,
   isResolvedSuggestion,
   useResolveSuggestion,
 } from './block-suggestion';
-import { Comment, CommentCreateForm } from './comment';
+import { cancelDraftComment } from './comment-draft-actions';
+import { DiscussionCreatePopover } from './discussion-create-popover';
+import { DiscussionMarginIndicator } from './discussion-margin-indicator';
+import { DiscussionThreadCard } from './discussion-thread-card';
+import { useResolvedDiscussion } from './useResolvedDiscussion';
 
 export const BlockDiscussion: RenderNodeWrapper<AnyPluginConfig> = (props) => {
   const { editor, element } = props;
@@ -102,8 +95,19 @@ const BlockCommentContent = ({
   const resolvedDiscussions = useResolvedDiscussion(commentNodes, blockPath);
 
   const suggestionsCount = resolvedSuggestions.length;
-  const discussionsCount = resolvedDiscussions.length;
-  const totalCount = suggestionsCount + discussionsCount;
+  const discussionsCount = resolvedDiscussions.reduce(
+    (n, d) => n + d.comments.length,
+    0
+  );
+  const totalCount = suggestionsCount + resolvedDiscussions.length;
+
+  const newestDiscussion = resolvedDiscussions.reduce<TDiscussion | undefined>(
+    (acc, d) =>
+      !acc || d.createdAt.getTime() > acc.createdAt.getTime() ? d : acc,
+    undefined
+  );
+  const lastAuthorId = newestDiscussion?.comments.at(-1)?.userId;
+  const highlightId = newestDiscussion?.id;
 
   const activeSuggestionId = usePluginOption(suggestionPlugin, 'activeId');
   const activeSuggestion =
@@ -201,11 +205,7 @@ const BlockCommentContent = ({
         open={open}
         onOpenChange={(_open_) => {
           if (!_open_ && isCommenting && draftCommentNode) {
-            editor.tf.unsetNodes(getDraftCommentKey(), {
-              at: [],
-              mode: 'lowest',
-              match: (n: any) => n[getDraftCommentKey()],
-            });
+            cancelDraftComment(editor);
           }
           setOpen(_open_);
         }}
@@ -221,46 +221,44 @@ const BlockCommentContent = ({
 
         {anchorElement && (
           <PopoverContent
-            className="max-h-[min(50dvh,calc(-24px+var(--radix-popper-available-height)))] w-[380px] min-w-[130px] max-w-[calc(100vw-24px)] overflow-y-auto p-0 data-[state=closed]:opacity-0"
+            className="w-[380px] min-w-[130px] max-w-[calc(100vw-24px)] overflow-visible border-none bg-transparent p-0 shadow-none data-[state=closed]:opacity-0"
             onCloseAutoFocus={(e) => e.preventDefault()}
             onOpenAutoFocus={(e) => e.preventDefault()}
             align="center"
             side="bottom"
           >
             {isCommenting ? (
-              <CommentCreateForm className="p-4" focusOnMount />
-            ) : noneActive ? (
-              sortedMergedData.map((item, index) =>
-                isResolvedSuggestion(item) ? (
-                  <BlockSuggestionCard
-                    key={item.suggestionId}
-                    idx={index}
-                    isLast={index === sortedMergedData.length - 1}
-                    suggestion={item}
-                  />
-                ) : (
-                  <BlockComment
-                    key={item.id}
-                    discussion={item}
-                    isLast={index === sortedMergedData.length - 1}
-                  />
-                )
-              )
+              <DiscussionCreatePopover className="rounded-xl border border-[#c9d4e3] bg-white shadow-comment-popover" />
             ) : (
-              <>
-                {activeSuggestion && (
-                  <BlockSuggestionCard
-                    key={activeSuggestion.suggestionId}
-                    idx={0}
-                    isLast={true}
-                    suggestion={activeSuggestion}
-                  />
-                )}
+              <div className="max-h-[min(50dvh,calc(-24px+var(--radix-popper-available-height)))] overflow-hidden overflow-y-auto rounded-xl border border-[#c9d4e3] bg-white shadow-comment-thread">
+                <div className="divide-y divide-[#eef2f7]">
+                  {noneActive ? (
+                    sortedMergedData.map((item) =>
+                      isResolvedSuggestion(item) ? (
+                        <BlockSuggestionCard
+                          key={item.suggestionId}
+                          suggestion={item}
+                        />
+                      ) : (
+                        <DiscussionThreadCard key={item.id} discussion={item} />
+                      )
+                    )
+                  ) : (
+                    <>
+                      {activeSuggestion && (
+                        <BlockSuggestionCard
+                          key={activeSuggestion.suggestionId}
+                          suggestion={activeSuggestion}
+                        />
+                      )}
 
-                {activeDiscussion && (
-                  <BlockComment discussion={activeDiscussion} isLast={true} />
-                )}
-              </>
+                      {activeDiscussion && (
+                        <DiscussionThreadCard discussion={activeDiscussion} />
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
             )}
           </PopoverContent>
         )}
@@ -268,122 +266,17 @@ const BlockCommentContent = ({
         {totalCount > 0 && (
           <div className="relative left-0 size-0 select-none">
             <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                className="!px-1.5 mt-1 ml-1 flex h-6 gap-1 py-0 text-muted-foreground/80 hover:text-muted-foreground/80 data-[active=true]:bg-muted"
-                data-active={open}
-                contentEditable={false}
-              >
-                {suggestionsCount > 0 && discussionsCount === 0 && (
-                  <PencilLineIcon className="size-4 shrink-0" />
-                )}
-
-                {suggestionsCount === 0 && discussionsCount > 0 && (
-                  <MessageSquareTextIcon className="size-4 shrink-0" />
-                )}
-
-                {suggestionsCount > 0 && discussionsCount > 0 && (
-                  <MessagesSquareIcon className="size-4 shrink-0" />
-                )}
-
-                <span className="font-semibold text-xs">{totalCount}</span>
-              </Button>
+              <DiscussionMarginIndicator
+                isActive={open}
+                commentCount={discussionsCount}
+                suggestionCount={suggestionsCount}
+                lastAuthorId={lastAuthorId}
+                highlightId={highlightId}
+              />
             </PopoverTrigger>
           </div>
         )}
       </Popover>
     </div>
   );
-};
-
-function BlockComment({
-  discussion,
-  isLast,
-}: {
-  discussion: TDiscussion;
-  isLast: boolean;
-}) {
-  const [editingId, setEditingId] = React.useState<string | null>(null);
-  const { canCreate } = useUserPermissions();
-  const canCreateDiscussion = canCreate('discussion');
-
-  return (
-    <React.Fragment key={discussion.id}>
-      <div className="p-4">
-        {discussion.comments.map((comment, index) => (
-          <Comment
-            key={comment.id ?? index}
-            comment={comment}
-            discussionLength={discussion.comments.length}
-            documentContent={discussion?.documentContent}
-            editingId={editingId}
-            index={index}
-            setEditingId={setEditingId}
-            showDocumentContent
-          />
-        ))}
-        {canCreateDiscussion && <CommentCreateForm discussionId={discussion.id} />}
-      </div>
-
-      {!isLast && <div className="h-px w-full bg-muted" />}
-    </React.Fragment>
-  );
-}
-
-const useResolvedDiscussion = (
-  commentNodes: NodeEntry<TCommentText>[],
-  blockPath: Path
-) => {
-  const { api, getOption, setOption } = useEditorPlugin(commentPlugin);
-
-  const discussions = usePluginOption(discussionPlugin, 'discussions');
-
-  commentNodes.forEach(([node]) => {
-    const id = api.comment.nodeId(node);
-    const map = getOption('uniquePathMap');
-
-    if (!id) return;
-
-    const previousPath = map.get(id);
-
-    // If there are no comment nodes in the corresponding path in the map, then update it.
-    if (PathApi.isPath(previousPath)) {
-      const nodes = api.comment.node({ id, at: previousPath });
-
-      if (!nodes) {
-        setOption('uniquePathMap', new Map(map).set(id, blockPath));
-        return;
-      }
-
-      return;
-    }
-    // TODO: fix throw error
-    setOption('uniquePathMap', new Map(map).set(id, blockPath));
-  });
-
-  const commentsIds = new Set(
-    commentNodes.map(([node]) => api.comment.nodeId(node)).filter(Boolean)
-  );
-
-  const resolvedDiscussions = discussions
-    .map((d: TDiscussion) => ({
-      ...d,
-      createdAt: new Date(d.createdAt),
-    }))
-    .filter((item: TDiscussion) => {
-      /** If comment cross blocks just show it in the first block */
-      const commentsPathMap = getOption('uniquePathMap');
-      const firstBlockPath = commentsPathMap.get(item.id);
-
-      if (!firstBlockPath) return false;
-      if (!PathApi.equals(firstBlockPath, blockPath)) return false;
-
-      return (
-        api.comment.has({ id: item.id }) &&
-        commentsIds.has(item.id) &&
-        !item.isResolved
-      );
-    });
-
-  return resolvedDiscussions;
 };

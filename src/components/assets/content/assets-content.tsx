@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Settings2, Bell, Sparkles } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Settings2, Bell, Sparkles, MessageSquareText } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
   ResizableHandle,
@@ -25,6 +25,9 @@ import { DocumentAccessControl } from "@/components/assets/content/assets-access
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulExpandableText } from "@/huemul/components/huemul-expandable-text";
 import { AssetsNotificationsSheet } from "@/components/assets/content/assets-notifications-sheet";
+import { AssetsDiscussionsSheet } from "@/components/assets/content/assets-discussions-sheet";
+import { DiscussionFocusProvider, useDiscussionFocus } from "@/contexts/discussion-focus-context";
+import { useDiscussions } from "@/hooks/useDiscussions";
 import { LifecycleHistorySheet } from "@/components/assets/content/lifecycle-history-sheet";
 import { AssetDiagramsSheet } from "@/components/assets/content/asset-diagrams-sheet";
 import { AssetsRelatedDocuments } from "@/components/assets/content/assets-related-documents";
@@ -168,11 +171,12 @@ export function AssetContent({
   const navigate = useOrgNavigate();
   const isMobile = useIsMobile();
   const { selectedOrganizationId } = useOrganization();
-  const { canCreate, canAccessTemplates, canAccessAssets, canAccessDiagrams } = useUserPermissions();
+  const { canCreate, canList, canAccessTemplates, canAccessAssets, canAccessDiagrams } = useUserPermissions();
   const { can } = usePageAccess('asset');
   const { handleCreateAsset: openCreateAssetDialog } = useNavKnowledgeActions();
   const { guardedAction } = useOptionalEditingGuard();
   const { isOpen: isGlobalPanelOpen } = useGlobalPanel();
+  const { requestFocus } = useDiscussionFocus();
   
   // Scroll restoration hook - maintains scroll position across re-renders
   const scrollRestoration = useScrollRestoration(
@@ -513,6 +517,7 @@ export function AssetContent({
   const [isRenameVersionDialogOpen, setIsRenameVersionDialogOpen] = useState(false);
   const [executionToRename, setExecutionToRename] = useState<{ id: string; name: string } | null>(null);
   const [isNotificationsSheetOpen, setIsNotificationsSheetOpen] = useState(false);
+  const [isDiscussionsSheetOpen, setIsDiscussionsSheetOpen] = useState(false);
   const [isLifecycleHistorySheetOpen, setIsLifecycleHistorySheetOpen] = useState(false);
   const [isDiagramsSheetOpen, setIsDiagramsSheetOpen] = useState(false);
 
@@ -523,6 +528,7 @@ export function AssetContent({
   const canListCustomFields = can('listCustomFields');
   const canCreateCustomField = can('createCustomField');
   const canListNotifications = can('listNotifications');
+  const canListDiscussions = canList('discussion');
   const canListExecutionRelationships = can('listExecutionRelationships');
   // El tab activo no puede quedar apuntando a un tab que el usuario no puede ver.
   useEffect(() => {
@@ -1499,6 +1505,65 @@ export function AssetContent({
     hasScrolledToSectionRef.current = null;
   }, [selectedFile?.id]);
 
+  // Discussions badge count — same query key as each section's DiscussionSync,
+  // so this dedupes against the editor's own fetch instead of adding one.
+  const { discussions: allDiscussions } = useDiscussions(
+    canListDiscussions ? selectedFile?.id : undefined
+  );
+  const openDiscussionsCount = useMemo(
+    () => allDiscussions.filter((d) => !d.isResolved).length,
+    [allDiscussions]
+  );
+
+  // Navigate from the discussions panel to the thread's section and activate it.
+  const handleFocusDiscussion = useCallback(
+    (discussionId: string, sectionExecutionId: string | null | undefined) => {
+      setIsDiscussionsSheetOpen(false);
+
+      if (!sectionExecutionId) {
+        toast.info(t('content.discussions.threadNoSection'));
+        return;
+      }
+
+      const sectionList = documentContent?.content;
+      const index = Array.isArray(sectionList)
+        ? (sectionList as ContentSection[]).findIndex((s) => s.id === sectionExecutionId)
+        : -1;
+
+      if (index === -1) {
+        toast.info(t('content.discussions.sectionNotInVersion'));
+        return;
+      }
+
+      const element = document.getElementById(`section-${index}`);
+      if (!element) {
+        toast.info(t('content.discussions.sectionHidden'));
+        return;
+      }
+
+      requestFocus(discussionId, sectionExecutionId);
+
+      const SCROLL_OFFSET = 40;
+      const viewport = element.closest('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+      if (viewport) {
+        const elementTop = element.getBoundingClientRect().top - viewport.getBoundingClientRect().top + viewport.scrollTop;
+        viewport.scrollTo({ top: elementTop - SCROLL_OFFSET, behavior: 'smooth' });
+      } else {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    },
+    [documentContent?.content, requestFocus, t]
+  );
+
+  const handleDiscussionFocusResolved = useCallback(
+    (outcome: 'activated' | 'mark-missing') => {
+      if (outcome === 'mark-missing') {
+        toast.info(t('content.discussions.threadNotHighlighted'));
+      }
+    },
+    [t]
+  );
+
   const sectionOptionsForExecutionDialog = useMemo(() => {
     const optionsById = new Map<string, string>();
 
@@ -1880,7 +1945,7 @@ export function AssetContent({
   }
 
   return (
-    <>
+    <DiscussionFocusProvider onResolve={handleDiscussionFocusResolved}>
     <ResizablePanelGroup direction="horizontal" className=" bg-gray-50">
       {/* Document Content */}
       <ResizablePanel defaultSize={80}>
@@ -2201,6 +2266,26 @@ export function AssetContent({
                 </DocumentAccessControl>
               )}
               
+              {/* Discussions Button - Mobile */}
+              {canListDiscussions && (
+                <div className="relative">
+                  <HuemulButton
+                    size="sm"
+                    variant="ghost"
+                    icon={MessageSquareText}
+                    iconClassName="h-4 w-4"
+                    className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors rounded-full"
+                    tooltip={t('content.discussions.commentsTooltip')}
+                    onClick={() => setIsDiscussionsSheetOpen(true)}
+                  />
+                  {openDiscussionsCount > 0 && (
+                    <span className="-top-0.5 -right-0.5 absolute inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 font-medium text-[10px] text-white">
+                      {openDiscussionsCount}
+                    </span>
+                  )}
+                </div>
+              )}
+
               {/* Refresh Button - Mobile */}
               <HuemulButton
                 size="sm"
@@ -2395,6 +2480,24 @@ export function AssetContent({
                             } : undefined}
                             dropdownAlign="end"
                           />
+                        )}
+                        {canListDiscussions && (
+                          <div className="relative">
+                            <HuemulButton
+                              size="sm"
+                              variant="ghost"
+                              icon={MessageSquareText}
+                              iconClassName="h-4 w-4"
+                              className="h-7 w-7 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                              tooltip={t('content.discussions.commentsTooltip')}
+                              onClick={() => setIsDiscussionsSheetOpen(true)}
+                            />
+                            {openDiscussionsCount > 0 && (
+                              <span className="-top-0.5 -right-0.5 absolute inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 font-medium text-[10px] text-white">
+                                {openDiscussionsCount}
+                              </span>
+                            )}
+                          </div>
                         )}
                         {canListNotifications && (
                           <HuemulButton
@@ -3576,6 +3679,17 @@ export function AssetContent({
         organizationId={selectedOrganizationId ?? ''}
         executionId={selectedExecutionId || documentContent?.execution_id || ''}
       />
-    </>
+
+      {/* Discussions Sheet */}
+      {canListDiscussions && selectedFile && (
+        <AssetsDiscussionsSheet
+          open={isDiscussionsSheetOpen}
+          onOpenChange={setIsDiscussionsSheetOpen}
+          documentId={selectedFile.id}
+          sections={Array.isArray(documentContent?.content) ? (documentContent.content as ContentSection[]) : []}
+          onFocusDiscussion={handleFocusDiscussion}
+        />
+      )}
+    </DiscussionFocusProvider>
   );
 }
