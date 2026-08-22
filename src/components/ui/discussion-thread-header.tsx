@@ -42,7 +42,7 @@ export function DiscussionThreadHeader({
   const canEditOpener = !!openerComment && currentUserId === openerComment.userId;
 
   return (
-    <div className="flex">
+    <div className="sticky top-0 z-10 flex">
       <div className="w-[3px] shrink-0 bg-blue-600" />
 
       <div className="flex min-w-0 flex-1 items-center gap-2 border-b border-[#e8edf3] bg-[#f6f8fb] px-3 py-2">

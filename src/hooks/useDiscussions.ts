@@ -4,6 +4,7 @@ import type { Value } from 'platejs';
 
 import { useAuth } from '@/contexts/auth-context';
 import { useOrganization } from '@/contexts/organization-context';
+import i18n from '@/i18n';
 import { parseApiDate } from '@/lib/utils';
 import { useUsers } from '@/hooks/useUsers';
 import {
@@ -11,6 +12,7 @@ import {
   createDiscussionWithComment,
   deleteDiscussion,
   resolveDiscussion,
+  unresolveDiscussion,
 } from '@/services/discussions';
 import {
   createDiscussionComment,
@@ -196,21 +198,28 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
       return discussion.id;
     },
     onSuccess: () => invalidate(),
-    meta: { successMessage: 'Discussion created' },
+    meta: { successMessage: i18n.t('assets:content.discussions.createdToast') },
   });
 
   const resolveDiscussionMutation = useMutation({
     mutationFn: (discussionId: string) =>
       resolveDiscussion(discussionId, selectedOrganizationId ?? undefined),
     onSuccess: () => invalidate(),
-    meta: { successMessage: 'Discussion resolved' },
+    meta: { successMessage: i18n.t('assets:content.discussions.resolvedToast') },
+  });
+
+  const unresolveDiscussionMutation = useMutation({
+    mutationFn: (discussionId: string) =>
+      unresolveDiscussion(discussionId, selectedOrganizationId ?? undefined),
+    onSuccess: () => invalidate(),
+    meta: { successMessage: i18n.t('assets:content.discussions.unresolvedToast') },
   });
 
   const deleteDiscussionMutation = useMutation({
     mutationFn: (discussionId: string) =>
       deleteDiscussion(discussionId, selectedOrganizationId ?? undefined),
     onSuccess: () => invalidate(),
-    meta: { successMessage: 'Discussion deleted' },
+    meta: { successMessage: i18n.t('assets:content.discussions.deletedToast') },
   });
 
   const addCommentMutation = useMutation({
@@ -226,7 +235,7 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
       return comment.id;
     },
     onSuccess: () => invalidate(),
-    meta: { successMessage: 'Comment added' },
+    meta: { successMessage: i18n.t('assets:content.discussions.commentAddedToast') },
   });
 
   const updateCommentMutation = useMutation({
@@ -246,7 +255,7 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
     },
     onSuccess: () => invalidate(),
     onError: () => invalidate(),
-    meta: { successMessage: 'Comment updated' },
+    meta: { successMessage: i18n.t('assets:content.discussions.commentUpdatedToast') },
   });
 
   const deleteCommentMutation = useMutation({
@@ -258,7 +267,7 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
     },
     onSuccess: () => invalidate(),
     onError: () => invalidate(),
-    meta: { successMessage: 'Comment deleted' },
+    meta: { successMessage: i18n.t('assets:content.discussions.commentDeletedToast') },
   });
 
   // ── Callbacks for the Plate discussion plugin ───────────────────────
@@ -270,6 +279,9 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
       },
       onResolveDiscussion: async (discussionId) => {
         await resolveDiscussionMutation.mutateAsync(discussionId);
+      },
+      onUnresolveDiscussion: async (discussionId) => {
+        await unresolveDiscussionMutation.mutateAsync(discussionId);
       },
       onDeleteDiscussion: async (discussionId) => {
         await deleteDiscussionMutation.mutateAsync(discussionId);
@@ -298,6 +310,12 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
     usersMap,
     currentUserId: user?.id ?? '',
     callbacks,
+    resolveDiscussion: resolveDiscussionMutation.mutateAsync,
+    isResolvingDiscussion: resolveDiscussionMutation.isPending,
+    unresolveDiscussion: unresolveDiscussionMutation.mutateAsync,
+    isUnresolvingDiscussion: unresolveDiscussionMutation.isPending,
+    deleteDiscussion: deleteDiscussionMutation.mutateAsync,
+    isDeletingDiscussion: deleteDiscussionMutation.isPending,
     isLoading: isLoadingDiscussions,
     isFetching: isFetchingDiscussions,
     refetch: refetchDiscussions,

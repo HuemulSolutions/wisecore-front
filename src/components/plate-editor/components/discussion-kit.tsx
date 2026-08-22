@@ -33,6 +33,7 @@ export type DiscussionCallbacks = {
     isPublic: boolean;
   }) => Promise<string | undefined>;
   onResolveDiscussion?: (discussionId: string) => Promise<void>;
+  onUnresolveDiscussion?: (discussionId: string) => Promise<void>;
   onDeleteDiscussion?: (discussionId: string) => Promise<void>;
   onAddComment?: (
     discussionId: string,

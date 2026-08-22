@@ -7,8 +7,11 @@ import {
   Check,
   ChevronDown,
   MessageSquareText,
+  MoreHorizontal,
   RefreshCw,
+  RotateCcw,
   Search,
+  Trash2,
   Users,
   X,
 } from 'lucide-react';
@@ -18,9 +21,16 @@ import { Avatar, AvatarFallback, AvatarGroup, AvatarImage } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { HighlightedText } from '@/components/ui/highlighted-text';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { HuemulAccessDenied } from '@/huemul/components/huemul-access-denied';
+import { HuemulAlertDialog } from '@/huemul/components/huemul-alert-dialog';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { HuemulSegmentedControl } from '@/huemul/components/huemul-segmented-control';
 import { HuemulSheet } from '@/huemul/components/huemul-sheet';
@@ -55,6 +65,7 @@ interface DiscussionRow {
   snippet: string;
   firstComment: TComment | undefined;
   firstCommentText: string;
+  replies: { comment: TComment; text: string }[];
   replyCount: number;
   hasPrivate: boolean;
   authorIds: string[];
@@ -80,12 +91,22 @@ export function AssetsDiscussionsSheet({
   onFocusDiscussion,
 }: AssetsDiscussionsSheetProps) {
   const { t } = useTranslation(['assets', 'common']);
-  const { canList } = useUserPermissions();
+  const { canList, canUpdate, canDelete } = useUserPermissions();
   const canListDiscussions = canList('discussion');
+  const canUpdateDiscussions = canUpdate('discussion');
+  const canDeleteDiscussions = canDelete('discussion');
 
-  const { discussions, usersMap, isLoading, isFetching, refetch } = useDiscussions(
-    canListDiscussions ? documentId : undefined
-  );
+  const {
+    discussions,
+    usersMap,
+    currentUserId,
+    isLoading,
+    isFetching,
+    refetch,
+    resolveDiscussion,
+    unresolveDiscussion,
+    deleteDiscussion,
+  } = useDiscussions(canListDiscussions ? documentId : undefined);
 
   const [search, setSearch] = React.useState('');
   const debouncedSearch = useDebounce(search, 200);
@@ -93,6 +114,33 @@ export function AssetsDiscussionsSheet({
   const [selectedAuthors, setSelectedAuthors] = React.useState<Set<string>>(new Set());
   const [authorPopoverOpen, setAuthorPopoverOpen] = React.useState(false);
   const [resolvedGroupOpen, setResolvedGroupOpen] = React.useState(false);
+  const [openRowMenuId, setOpenRowMenuId] = React.useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
+  const [discussionToDelete, setDiscussionToDelete] = React.useState<TDiscussion | null>(null);
+
+  const canManage = React.useCallback(
+    (discussion: TDiscussion) =>
+      canUpdateDiscussions || (!!currentUserId && currentUserId === discussion.userId),
+    [canUpdateDiscussions, currentUserId]
+  );
+  const canRemove = React.useCallback(
+    (discussion: TDiscussion) =>
+      canDeleteDiscussions || (!!currentUserId && currentUserId === discussion.userId),
+    [canDeleteDiscussions, currentUserId]
+  );
+
+  const handleResolve = (discussionId: string) => {
+    resolveDiscussion(discussionId);
+  };
+  const handleUnresolve = (discussionId: string) => {
+    unresolveDiscussion(discussionId);
+    setStatus('open');
+  };
+  const handleDeleteConfirm = async () => {
+    if (!discussionToDelete) return;
+    await deleteDiscussion(discussionToDelete.id);
+    setDiscussionToDelete(null);
+  };
 
   const sectionNameByExecutionId = React.useMemo(() => {
     const map = new Map<string, string>();
@@ -110,6 +158,9 @@ export function AssetsDiscussionsSheet({
         );
         const firstComment = sortedComments[0];
         const firstCommentText = firstComment ? commentPlainText(firstComment.contentRich) : '';
+        const replies = sortedComments
+          .slice(1)
+          .map((comment) => ({ comment, text: commentPlainText(comment.contentRich) }));
         const snippet = discussion.documentContent ?? '';
         const sectionName = discussion.sectionExecutionId
           ? sectionNameByExecutionId.get(discussion.sectionExecutionId) ??
@@ -133,6 +184,7 @@ export function AssetsDiscussionsSheet({
           snippet,
           firstComment,
           firstCommentText,
+          replies,
           replyCount: Math.max(0, discussion.comments.length - 1),
           hasPrivate,
           authorIds,
@@ -192,73 +244,173 @@ export function AssetsDiscussionsSheet({
         ? 'border-l-amber-700'
         : 'border-l-blue-600';
     const authorInfo = row.firstComment ? usersMap[row.firstComment.userId] : undefined;
+    const showMenu = canManage(row.discussion) || canRemove(row.discussion);
+    const menuOpen = openRowMenuId === row.discussion.id;
+    const isExpanded = expandedIds.has(row.discussion.id);
 
     return (
-      <button
+      <div
         key={row.discussion.id}
-        type="button"
-        onClick={() => onFocusDiscussion(row.discussion.id, row.discussion.sectionExecutionId)}
         className={cn(
-          'w-full rounded-[10px] border border-l-[3px] border-[#e2e8f0] bg-white p-3 text-left transition-opacity hover:border-[#c9d4e3]',
+          'group/row relative rounded-[10px] border border-l-[3px] border-[#e2e8f0] bg-white transition-opacity hover:border-[#c9d4e3]',
           borderColor,
           muted && 'opacity-60'
         )}
       >
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <span className="min-w-0 truncate text-[11.5px] text-slate-400">{row.sectionName}</span>
-          {row.hasPrivate && (
-            <Badge
-              variant="outline"
-              className="shrink-0 border-[#fadfb8] bg-[#fef3e2] px-1.5 py-0 font-semibold text-[10px] text-amber-700"
-            >
-              {t('content.discussions.privateBadge')}
-            </Badge>
-          )}
-        </div>
-
-        {row.snippet && (
-          <p
-            className={cn(
-              'mb-1.5 truncate text-[12.5px] text-slate-500 italic',
-              muted && 'line-through'
+        <button
+          type="button"
+          onClick={() => onFocusDiscussion(row.discussion.id, row.discussion.sectionExecutionId)}
+          className="w-full p-3 pr-9 text-left"
+        >
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="min-w-0 truncate text-[11.5px] text-slate-400">{row.sectionName}</span>
+            {row.hasPrivate && (
+              <Badge
+                variant="outline"
+                className="shrink-0 border-[#fadfb8] bg-[#fef3e2] px-1.5 py-0 font-semibold text-[10px] text-amber-700"
+              >
+                {t('content.discussions.privateBadge')}
+              </Badge>
             )}
-          >
-            «<HighlightedText text={row.snippet} term={debouncedSearch} />»
-          </p>
-        )}
+          </div>
 
-        {row.firstComment && (
-          <div className="flex gap-2">
-            <Avatar className="size-[22px] shrink-0">
-              <AvatarImage alt={authorInfo?.name} src={authorInfo?.avatarUrl} />
-              <AvatarFallback className="text-[10px]">{authorInfo?.name?.[0]}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-[13px] text-slate-900">
-                  {authorInfo?.name}
-                </span>
-                <span className="text-[11px] text-slate-400">
-                  {formatCommentDate(row.firstComment.createdAt)}
-                </span>
+          {row.snippet && (
+            <p
+              className={cn(
+                'mb-1.5 truncate text-[12.5px] text-slate-500 italic',
+                muted && 'line-through'
+              )}
+            >
+              «<HighlightedText text={row.snippet} term={debouncedSearch} />»
+            </p>
+          )}
+
+          {row.firstComment && (
+            <div className="flex gap-2">
+              <Avatar className="size-[22px] shrink-0">
+                <AvatarImage alt={authorInfo?.name} src={authorInfo?.avatarUrl} />
+                <AvatarFallback className="text-[10px]">{authorInfo?.name?.[0]}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold text-[13px] text-slate-900">
+                    {authorInfo?.name}
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    {formatCommentDate(row.firstComment.createdAt)}
+                  </span>
+                </div>
+                <p className="line-clamp-2 text-[12.5px] text-slate-700 leading-[1.45]">
+                  <HighlightedText text={row.firstCommentText} term={debouncedSearch} />
+                </p>
               </div>
-              <p className="line-clamp-2 text-[12.5px] text-slate-700 leading-[1.45]">
-                <HighlightedText text={row.firstCommentText} term={debouncedSearch} />
-              </p>
             </div>
+          )}
+        </button>
+
+        {row.replyCount > 0 && (
+          <div className="border-[#eef2f7] border-t px-3 pt-2 pb-3 pl-10.5">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpandedIds((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(row.discussion.id)) next.delete(row.discussion.id);
+                  else next.add(row.discussion.id);
+                  return next;
+                });
+              }}
+              className="font-medium text-[11.5px] text-blue-600 hover:underline"
+            >
+              {isExpanded
+                ? t('content.discussions.hideReplies')
+                : t('content.discussions.replies', { count: row.replyCount })}
+            </button>
+
+            {isExpanded && (
+              <div className="mt-2 max-h-64 space-y-2 overflow-y-auto border-blue-100 border-l-2 pl-2.5">
+                {row.replies.map(({ comment, text }) => {
+                  const replyAuthor = usersMap[comment.userId];
+                  return (
+                    <div key={comment.id} className="flex gap-2">
+                      <Avatar className="size-5 shrink-0">
+                        <AvatarImage alt={replyAuthor?.name} src={replyAuthor?.avatarUrl} />
+                        <AvatarFallback className="text-[9px]">
+                          {replyAuthor?.name?.[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-[12.5px] text-slate-900">
+                            {replyAuthor?.name}
+                          </span>
+                          <span className="text-[10.5px] text-slate-400">
+                            {formatCommentDate(comment.createdAt)}
+                          </span>
+                        </div>
+                        <p className="text-[12.5px] text-slate-700 leading-[1.45]">
+                          <HighlightedText text={text} term={debouncedSearch} />
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
-        {row.replyCount > 0 && (
-          <p className="mt-1.5 pl-[30px] font-medium text-[11.5px] text-blue-600">
-            {t('content.discussions.replies', { count: row.replyCount })}
-          </p>
+        {showMenu && (
+          <DropdownMenu
+            open={menuOpen}
+            onOpenChange={(next) => setOpenRowMenuId(next ? row.discussion.id : null)}
+          >
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={t('content.discussions.actionsLabel')}
+                onClick={(e) => e.stopPropagation()}
+                className={cn(
+                  'absolute top-2 right-2 flex size-6 items-center justify-center rounded-md text-slate-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-slate-600',
+                  'group-hover/row:opacity-100 group-focus-within/row:opacity-100',
+                  menuOpen && 'opacity-100'
+                )}
+              >
+                <MoreHorizontal className="size-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              {canManage(row.discussion) && !row.isResolved && (
+                <DropdownMenuItem onClick={() => handleResolve(row.discussion.id)}>
+                  <Check className="size-4" />
+                  {t('content.discussions.resolveAction')}
+                </DropdownMenuItem>
+              )}
+              {canManage(row.discussion) && row.isResolved && (
+                <DropdownMenuItem onClick={() => handleUnresolve(row.discussion.id)}>
+                  <RotateCcw className="size-4" />
+                  {t('content.discussions.unresolveAction')}
+                </DropdownMenuItem>
+              )}
+              {canRemove(row.discussion) && (
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setDiscussionToDelete(row.discussion)}
+                >
+                  <Trash2 className="size-4" />
+                  {t('content.discussions.deleteAction')}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
-      </button>
+      </div>
     );
   };
 
   return (
+    <>
     <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
@@ -266,8 +418,8 @@ export function AssetsDiscussionsSheet({
       description={t('content.discussions.description')}
       icon={MessageSquareText}
       showFooter={false}
-      maxWidth="sm:max-w-[372px]"
-      className="shadow-[-30px_0_60px_-20px_rgba(15,23,42,0.4)] sm:w-[372px]"
+      maxWidth="sm:max-w-2xl"
+      className="shadow-[-30px_0_60px_-20px_rgba(15,23,42,0.4)] sm:w-xl"
       headerExtra={
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="font-semibold">
@@ -460,5 +612,19 @@ export function AssetsDiscussionsSheet({
         </div>
       )}
     </HuemulSheet>
+
+    <HuemulAlertDialog
+      open={!!discussionToDelete}
+      onOpenChange={(next) => {
+        if (!next) setDiscussionToDelete(null);
+      }}
+      title={t('content.discussions.deleteTitle')}
+      description={t('content.discussions.deleteDescription', {
+        count: discussionToDelete?.comments.length ?? 0,
+      })}
+      actionLabel={t('content.discussions.deleteAction')}
+      onAction={handleDeleteConfirm}
+    />
+    </>
   );
 }

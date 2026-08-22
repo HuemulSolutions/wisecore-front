@@ -2,25 +2,22 @@
 
 import * as React from 'react';
 
-import { CommentPlugin } from '@platejs/comment/react';
-import { useEditorPlugin, useEditorRef, usePluginOption } from 'platejs/react';
+import { useEditorRef, usePluginOption } from 'platejs/react';
 
+import { commentPlugin } from '@/components/plate-editor/components/comment-kit';
 import { discussionPlugin } from '@/components/plate-editor/components/discussion-kit';
 
 /**
- * Resolves a discussion: marks it resolved locally, removes the comment
- * mark from the document, then persists via the API callback.
- *
- * Order matters (do not add `await` before `unsetMark`): the optimistic
- * `setOption` makes the thread disappear from `useResolvedDiscussion`
- * (it filters `!isResolved`), so the mark must be removed synchronously
- * right after, before the component that reads `activeId` can re-render
- * against a mark whose owning discussion no longer resolves.
+ * Resolves a discussion: marks it resolved locally, then persists via the
+ * API callback. The comment mark stays in the document — `CommentLeaf`
+ * stops highlighting it once its discussion is resolved, and
+ * `useResolvedDiscussion` filters it out of the popover — so reopening
+ * later (`useUnresolveDiscussion`) can restore the highlight without
+ * having lost the anchor.
  */
 export function useResolveDiscussion() {
   const editor = useEditorRef();
   const callbacks = usePluginOption(discussionPlugin, 'callbacks');
-  const { tf } = useEditorPlugin(CommentPlugin);
 
   return React.useCallback(
     (discussionId: string) => {
@@ -33,10 +30,14 @@ export function useResolveDiscussion() {
         );
       editor.setOption(discussionPlugin, 'discussions', updated);
 
-      tf.comment.unsetMark({ id: discussionId });
+      // Clear focus so the resolved thread's own `activeId` exception in
+      // `useResolvedDiscussion` doesn't keep its popover open.
+      if (editor.getOption(commentPlugin, 'activeId') === discussionId) {
+        editor.setOption(commentPlugin, 'activeId', null);
+      }
 
       void callbacks?.onResolveDiscussion?.(discussionId);
     },
-    [editor, callbacks, tf]
+    [editor, callbacks]
   );
 }

@@ -40,7 +40,7 @@ export function DiscussionThreadCard({ discussion }: DiscussionThreadCardProps) 
       </div>
 
       {canCreateDiscussion && (
-        <div className="border-[#eef2f7] border-t bg-[#fbfcfe] px-4 py-3">
+        <div className="sticky bottom-0 z-10 border-[#eef2f7] border-t bg-[#fbfcfe] px-4 py-3">
           <CommentCreateForm discussionId={discussion.id} />
         </div>
       )}
