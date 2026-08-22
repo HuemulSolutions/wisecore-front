@@ -3074,7 +3074,10 @@ export function AssetContent({
                                   sectionType={section.section_type}
                                   sectionName={section.section_name}
                                   sectionCanAnswer={isSectionAnswerable(section)}
-                                  canEditSections={frontendPermissions.canEditSections}
+                                  // `can_edit` viene del backend ya resuelto (org admin, rol/step, o
+                                  // fallback al permiso del documento — ver ContentSection.can_edit).
+                                  // `null`/`undefined` no restringe: el flag no aplica a esta sección.
+                                  canEditSections={frontendPermissions.canEditSections && section.can_edit !== false}
                                   onCreateSectionFromSelection={handleCreateSectionFromSelection(index)}
                                   onCopyLink={realSectionId ? () => handleCopySectionLink(realSectionId) : undefined}
                                 />

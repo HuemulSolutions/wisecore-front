@@ -224,15 +224,16 @@ export function WorkflowDetailPanel({
     lifecycleAllows(data?.lifecycle_permissions, "edit") &&
     lifecycleStageAllowsEditing(data?.lifecycle_status)
 
-  // Acceso de la sección actual según `template_section_lifecycle_access`
-  // (ver src/types/templates/section-lifecycle-access.ts). `undefined` = el
-  // backend todavía no distingue acceso por sección — no degrada a solo lectura
-  // por eso solo, `can_answer` en cada form_field sigue siendo la autoridad.
-  // isSectionAnswerable cubre el depends_on propio de la sección: con
-  // show_when_inactive:true la sección sigue en el wizard (isSectionApplicable la deja
-  // pasar) pero inactiva, así que acá también degrada a solo lectura.
+  // `can_edit` viene del backend ya resuelto para el usuario actual (org admin,
+  // rol/step, o fallback al permiso del documento — ver
+  // src/types/templates/section-lifecycle-access.ts). `null`/`undefined` = el flag
+  // no aplica a esta sección/documento — no degrada a solo lectura por eso solo,
+  // `can_answer` en cada form_field sigue siendo la autoridad. isSectionAnswerable
+  // cubre el depends_on propio de la sección: con show_when_inactive:true la
+  // sección sigue en el wizard (isSectionApplicable la deja pasar) pero inactiva,
+  // así que acá también degrada a solo lectura.
   const canAnswerSection =
-    canAnswerForm && currentSection?.access !== "view" && (!currentSection || isSectionAnswerable(currentSection))
+    canAnswerForm && currentSection?.can_edit !== false && (!currentSection || isSectionAnswerable(currentSection))
 
   // Motivo del aviso de solo lectura: distingue "no tenés permiso/rol", "esta etapa ya
   // no admite respuestas", "esta sección está inactiva según las respuestas dadas" y

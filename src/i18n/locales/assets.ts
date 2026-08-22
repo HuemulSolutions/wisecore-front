@@ -375,6 +375,8 @@ const translations = {
     executionFailed: { en: "Failed to execute section. Please try again.", es: "Error al ejecutar la sección. Intenta de nuevo." },
     sectionDeleted: { en: "Section deleted successfully!", es: "¡Sección eliminada correctamente!" },
     deleteFailed: { en: "Failed to delete section. Please try again.", es: "Error al eliminar la sección. Intenta de nuevo." },
+    saveFailed: { en: "Failed to save section content. Please try again.", es: "Error al guardar el contenido de la sección. Intenta de nuevo." },
+    aiSuggestionActionFailed: { en: "Failed to process the AI suggestion. Please try again.", es: "Error al procesar la sugerencia de IA. Intenta de nuevo." },
     untitled: { en: "Untitled section", es: "Sección sin título" },
     executionInProgress: { en: "Execution in progress", es: "Ejecución en progreso" },
     openExecuteSheet: { en: "Open Execute Sheet", es: "Abrir Panel de Ejecución" },

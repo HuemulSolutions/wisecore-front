@@ -43,13 +43,14 @@ export function computeSectionStats(section: ContentSection): SectionStats {
   // así que tampoco debe sumar al total del contador "respondidas/total".
   const questions = fields.filter((f) => f.question_type !== QUESTION_TYPE.label && isFieldVisible(f));
   const answeredCount = questions.filter((f) => hasAnswer(resolvedValueOf(f))).length;
-  // Una sección `access: 'view'` o inactiva por su propio depends_on de sección no se
-  // puede responder aunque el backend no haya marcado cada campo con `can_answer: false`
-  // individualmente (show_when_inactive:true sí lo hace, pero no hay que depender de
-  // eso acá) — sin este corte, sus obligatorios sin valor quedarían "pendientes" para
-  // siempre en el resumen del wizard.
+  // Una sección con `can_edit: false` (permiso por sección resuelto por el backend)
+  // o inactiva por su propio depends_on de sección no se puede responder aunque el
+  // backend no haya marcado cada campo con `can_answer: false` individualmente
+  // (show_when_inactive:true sí lo hace, pero no hay que depender de eso acá) — sin
+  // este corte, sus obligatorios sin valor quedarían "pendientes" para siempre en
+  // el resumen del wizard.
   const missingRequired =
-    section.access === "view" || !isSectionAnswerable(section)
+    section.can_edit === false || !isSectionAnswerable(section)
       ? 0
       : questions.filter((f) => isFieldAnswerable(f) && f.required && !hasAnswer(resolvedValueOf(f))).length;
   return { fields, questions, answeredCount, missingRequired };

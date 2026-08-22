@@ -26,6 +26,7 @@ import { useOrganization } from '@/contexts/organization-context';
 import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
+import { isSectionPermissionDeniedError } from '@/lib/section-permission-errors';
 import { logger } from '@/lib/logger';
 import { useTranslation } from 'react-i18next';
 import { AssetFormSection, type AssetFormSectionHandle } from '@/components/assets/content/asset-form-section';
@@ -185,14 +186,29 @@ function SectionExecutionInner({
      * Silent auto-save triggered after a comment mark is added to the editor.
      * Persists plate_content (with the new mark) without affecting edit mode.
      */
+    // Autocorrige la UI cuando el backend rechaza una escritura por permiso de
+    // sección (403 SECTION_LIFECYCLE_PERMISSION_DENIED / LIFECYCLE_PERMISSION_DENIED):
+    // refresca el contenido para que la sección se re-renderice como solo lectura
+    // en vez de quedar mostrando controles que van a seguir fallando.
+    const invalidateContentOnPermissionDenied = (error: unknown) => {
+        if (isSectionPermissionDeniedError(error) && documentId) {
+            queryClient.invalidateQueries({ queryKey: ['document-content', documentId] });
+        }
+    };
+
     const handleAutoSavePlateContent = async (sId: string, markdown: string, pContent: string[]) => {
         // El autosave se dispara por marks de comentario, sin click: necesita su
         // propio gate (capa (c) de los gestos sin botón).
         if (!canEditSections) return;
         try {
             await modifyContent(sId, markdown, pContent);
-        } catch {
-            // Silent fail – auto-save is best-effort, not user-initiated
+        } catch (error) {
+            // Silent fail para fallas transitorias (best-effort, not user-initiated) —
+            // pero un rechazo por permiso es determinístico, no vale la pena callarlo.
+            if (isSectionPermissionDeniedError(error)) {
+                handleApiError(error, { fallbackMessage: t('section.saveFailed') });
+                invalidateContentOnPermissionDenied(error);
+            }
         }
     };
 
@@ -204,7 +220,7 @@ function SectionExecutionInner({
             setIsEditing(false);
             setAiPreview(null);
             onUpdate?.();
-            
+
             // Restore scroll position after save - Updated for ScrollArea
             setTimeout(() => {
                 const viewport = getScrollAreaViewport();
@@ -218,8 +234,15 @@ function SectionExecutionInner({
                     });
                 }
             }, 100);
-        } catch (e) {
-            logger.error('Error saving content', e);
+        } catch (error) {
+            logger.error('Error saving content', error);
+            handleApiError(error, { fallbackMessage: t('section.saveFailed') });
+            if (isSectionPermissionDeniedError(error)) {
+                // Seguir en modo edición sería engañoso acá: a diferencia de una falla
+                // transitoria, reintentar guardar va a fallar igual.
+                setIsEditing(false);
+                invalidateContentOnPermissionDenied(error);
+            }
         } finally {
             setIsSaving(false);
         }
@@ -275,6 +298,7 @@ function SectionExecutionInner({
             onUpdate?.();
         } catch (error) {
             handleApiError(error, { fallbackMessage: t('section.reviewStatusUpdateFailed') });
+            invalidateContentOnPermissionDenied(error);
         } finally {
             setIsUpdatingReviewStatus(false);
         }
@@ -357,6 +381,7 @@ function SectionExecutionInner({
             setIsAiSuggestionActive(true);
         } catch (error) {
             handleApiError(error, { fallbackMessage: t('section.executionFailed') });
+            invalidateContentOnPermissionDenied(error);
         }
         setIsAiEditDialogOpen(false);
     };
@@ -933,17 +958,29 @@ function SectionExecutionInner({
             aiSuggestionContent={sectionExecution.ai_suggestion_content}
             aiPreview={aiPreview}
             onReject={async () => {
-                await rejectAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
-                await queryClient.refetchQueries({ queryKey: ['document-content', documentId] });
-                setAiPreview(null);
-                setIsDiffOpen(false);
+                try {
+                    await rejectAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
+                    await queryClient.refetchQueries({ queryKey: ['document-content', documentId] });
+                    setAiPreview(null);
+                    setIsDiffOpen(false);
+                } catch (error) {
+                    // Dejar el diálogo abierto con el diff visible: el usuario ve el error
+                    // sin perder el estado de lo que estaba revisando.
+                    handleApiError(error, { fallbackMessage: t('section.aiSuggestionActionFailed') });
+                    invalidateContentOnPermissionDenied(error);
+                }
             }}
             onAccept={async () => {
-                await acceptAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
-                await queryClient.refetchQueries({ queryKey: ['document-content', documentId] });
-                setAiPreview(null);
-                setIsDiffOpen(false);
-                onUpdate?.();
+                try {
+                    await acceptAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
+                    await queryClient.refetchQueries({ queryKey: ['document-content', documentId] });
+                    setAiPreview(null);
+                    setIsDiffOpen(false);
+                    onUpdate?.();
+                } catch (error) {
+                    handleApiError(error, { fallbackMessage: t('section.aiSuggestionActionFailed') });
+                    invalidateContentOnPermissionDenied(error);
+                }
             }}
         />
         </div>
