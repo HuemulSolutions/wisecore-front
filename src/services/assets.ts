@@ -2,7 +2,7 @@ import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { downloadBlobResponse } from "@/lib/blob-download";
 import { logger } from "@/lib/logger";
-import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, ImportDocumentFromUrlParams, ImportDocumentAsyncResponse, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics, DocumentStatisticsResponse, DocumentMediaUrls, DocumentMediaUrlsResponse } from "@/types/assets";
+import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, ImportDocumentFromUrlParams, ImportDocumentAsyncResponse, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics, DocumentStatisticsResponse, DocumentMediaUrls, DocumentMediaUrlsResponse, DocumentSectionAccessItem, AssetContentResponse } from "@/types/assets";
 
 export type { ImportDocumentFromFileParams, ImportDocumentFromUrlParams, ImportDocumentAsyncResponse, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics };
 
@@ -61,7 +61,10 @@ export async function deleteDocument(documentId: string, organizationId: string)
   return true;
 }
 
-export async function getDocumentSections(documentId: string, organizationId: string) {
+export async function getDocumentSections(
+  documentId: string,
+  organizationId: string,
+): Promise<DocumentSectionAccessItem[]> {
   const response = await httpClient.get(`${backendUrl}/documents/${documentId}/sections`, {
     headers: {
       'X-Org-Id': organizationId,
@@ -102,7 +105,11 @@ export async function createDocument(documentData: { name: string; description?:
   return data.data;
 }
 
-export async function getDocumentContent(documentId: string, organizationId: string, executionId?: string) {
+export async function getDocumentContent(
+  documentId: string,
+  organizationId: string,
+  executionId?: string,
+): Promise<AssetContentResponse['data']> {
   const url = new URL(`${backendUrl}/documents/${documentId}/content`);
   if (executionId) {
     url.searchParams.append('execution_id', executionId);
@@ -113,7 +120,7 @@ export async function getDocumentContent(documentId: string, organizationId: str
       'X-Org-Id': organizationId,
     },
   });
-  const data = await response.json();
+  const data = (await response.json()) as AssetContentResponse;
   logger.log('Document content fetched:', data.data);
   return data.data;
 }
@@ -159,7 +166,7 @@ export async function generateDocumentStructure(documentId: string, organization
 
 export async function updateDocument(
   documentId: string,
-  documentData: { name?: string; description?: string; internal_code?: string; document_type_id?: string; created_by?: string },
+  documentData: { name?: string; description?: string; internal_code?: string; document_type_id?: string; created_by?: string; context_required?: boolean },
   organizationId: string
 ) {
   const response = await httpClient.put(`${backendUrl}/documents/${documentId}`, documentData, {

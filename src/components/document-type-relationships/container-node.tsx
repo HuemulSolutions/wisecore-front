@@ -43,11 +43,11 @@ export function ContainerNode({ data, selected }: NodeProps<ContainerNodeType>) 
   const nodeContent = (
     <div
       className={cn(
-        "relative h-full w-full rounded-lg border-2 bg-transparent",
+        "relative h-full w-full rounded-2xl border border-dashed",
         "transition-shadow",
         selected ? "shadow-md" : "",
       )}
-      style={{ borderColor: color }}
+      style={{ borderColor: color, backgroundColor: "var(--diagram-container-fill)" }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -65,50 +65,52 @@ export function ContainerNode({ data, selected }: NodeProps<ContainerNodeType>) 
           minHeight={80}
         />
       )}
-      {/* Role badge — sits on top of the border line like a fieldset legend, so it
-          reads as the lane's label rather than competing with the title inside.
-          Takes the container's own color (not the role's) so it never introduces a
-          second color into the box; the soft fill is what sets it apart from the
-          solid border line underneath. Needs `overflow-hidden` gone from the root —
-          removed above — otherwise this gets clipped at the box edge. */}
-      {data.role && (
-        <span
-          // z-20: above NodeResizer's z-10 line/handles (rendered when selected) —
-          // otherwise the selection border line paints over this badge like a strikethrough.
-          className="nodrag absolute left-4 top-0 z-20 -translate-y-1/2 rounded-full bg-background p-0.5"
-          title={data.role.name}
-        >
-          <span
-            className="flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium"
-            style={{ backgroundColor: `${color}1F`, borderColor: color, color }}
-          >
-            <Shield className="h-2.5 w-2.5 shrink-0" />
-            <span className="max-w-35 truncate">{data.role.name}</span>
-          </span>
-        </span>
-      )}
       <div
-        className={cn("flex w-full items-center gap-1.5 px-2 py-1 select-none cursor-move", data.role && "pt-2.5")}
+        className="flex w-full items-center gap-2 px-3 pt-2 pb-1 select-none cursor-move"
         onDoubleClick={() => { if (!data.readOnly) setIsEditingTitle(true) }}
       >
-        {isEditingTitle ? (
-          <input
-            ref={inputRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") { e.preventDefault(); commit() }
-              if (e.key === "Escape") { setDraft(data.content); setIsEditingTitle(false) }
-            }}
-            className="nodrag min-w-0 flex-1 bg-transparent outline-none border-b border-dashed text-xs font-semibold"
-            style={{ color }}
-          />
-        ) : (
-          <span className="min-w-0 flex-1 truncate text-xs font-semibold" style={{ color }}>
-            {data.content}
-          </span>
-        )}
+        <div className="min-w-0 flex-1">
+          {isEditingTitle ? (
+            <input
+              ref={inputRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); commit() }
+                if (e.key === "Escape") { setDraft(data.content); setIsEditingTitle(false) }
+              }}
+              className="nodrag w-full min-w-0 bg-transparent outline-none border-b border-dashed text-[13px] font-semibold"
+              style={{ color }}
+            />
+          ) : (
+            <p className="min-w-0 truncate text-[13px] font-semibold" style={{ color }}>
+              {data.content}
+            </p>
+          )}
+        </div>
+        {/* Role chip — mirror of RoleNode's pill, aligned to the header's right edge.
+            Always índigo (the role palette), never the container's own color, so it
+            reads as "role attached" regardless of the container's border color. Shows
+            a neutral placeholder when no role is assigned instead of hiding entirely,
+            so the header's shape doesn't shift when a role gets assigned/cleared. */}
+        <span
+          className={cn(
+            "nodrag shrink-0 flex items-center gap-1 h-5.5 pl-1.5 pr-2.25 rounded-full border text-[11.5px] font-semibold",
+            data.role
+              ? "border-[var(--diagram-role-border)]"
+              : "border-border bg-muted text-muted-foreground",
+          )}
+          style={
+            data.role
+              ? { backgroundColor: "var(--diagram-role-fill)", color: "var(--diagram-role-icon-bg)" }
+              : undefined
+          }
+          title={data.role?.name}
+        >
+          <Shield className="h-2.75 w-2.75 shrink-0" />
+          <span className="max-w-35 truncate">{data.role?.name ?? t("node.noRole")}</span>
+        </span>
       </div>
     </div>
   )

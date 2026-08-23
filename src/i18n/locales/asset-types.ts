@@ -157,6 +157,8 @@ const translations = {
       noSections: { en: "This template has no sections yet.", es: "Esta plantilla todavía no tiene secciones." },
       noSteps: { en: "This asset type has no lifecycle stages configured.", es: "Este tipo de activo no tiene etapas del ciclo de vida configuradas." },
       accessDenied: { en: "You don't have permission to view section permissions.", es: "No tienes permiso para ver los permisos por sección." },
+      ownRulesBadge: { en: "Own rules", es: "Reglas propias" },
+      ownRulesTooltip: { en: "This section has at least one configured cell — it no longer inherits the document's permission in any stage, not even the ones left unconfigured. If it only has view rows, no one can edit it, not even the document owner.", es: "Esta sección tiene al menos una celda configurada — deja de heredar el permiso del documento en cualquier etapa, incluso en las que quedaron sin configurar. Si solo tiene filas de vista, nadie puede editarla, ni siquiera el dueño del documento." },
     },
     conditions: {
       title: { en: "Conditions", es: "Condiciones" },
@@ -248,8 +250,17 @@ const translations = {
       approve: { en: "Roles that can approve or reject this asset type", es: "Roles que pueden aprobar o rechazar este tipo de activo" },
       publish: { en: "Roles that can publish this asset type", es: "Roles que pueden publicar este tipo de activo" },
       archive: { en: "Roles that can archive this asset type", es: "Roles que pueden archivar este tipo de activo" },
-      view: { en: "Roles that can access this asset type in read mode", es: "Roles que pueden acceder en modo lectura" },
+      view: { en: "Roles that can open this asset type in any lifecycle stage", es: "Roles que pueden abrir este tipo de activo en cualquier etapa" },
     },
+    viewStepHint: {
+      en: "This step is the master switch for visibility: it decides who can open the document at all, in any stage. Access to other steps (Elaboration, Approval, Publication…) does not grant this on its own — a role also needs access here to be able to see the document.",
+      es: "Este paso es el interruptor maestro de visibilidad: decide quién puede abrir el documento, en cualquier etapa. El acceso a otros pasos (Elaboración, Aprobación, Publicación…) no otorga esto por sí solo — un rol también necesita acceso acá para poder ver el documento.",
+    },
+    viewStepMissingRolesWarning: {
+      en: "These roles have access to other steps but can't see the document: {{roles}}.",
+      es: "Estos roles tienen acceso a otros pasos pero no pueden ver el documento: {{roles}}.",
+    },
+    viewStepMissingRolesAction: { en: "Add all", es: "Agregar todos" },
     editTitle: { en: "Elaboration", es: "Elaboración" },
     editDescription: { en: "Roles that can edit this asset type", es: "Roles que pueden editar este tipo de activo" },
     groups: { en: "Groups", es: "Grupos" },

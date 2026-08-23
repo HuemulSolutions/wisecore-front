@@ -61,7 +61,9 @@ export interface ExecuteSheetProps {
   onExecutionComplete?: () => void
   onExecutionCreated?: (executionId: string, mode: 'full' | 'full-single' | 'single' | 'from', sectionIndex?: number) => void
   isMobile?: boolean
+  /** Deshabilita el botón "Ejecutar" del sheet (ej. can_generate=false). */
   disabled?: boolean
+  /** Motivo mostrado como tooltip/aviso cuando `disabled` es true. */
   disabledReason?: string
   selectedExecutionId?: string | null
   executionContext?: { type: 'header' | 'section', sectionIndex?: number, sectionId?: string } | null
@@ -147,6 +149,13 @@ export interface SectionsConfigSection extends SectionDependencyConfig {
   reference_execution_id?: string
   not_in_execution?: boolean | null
   form_fields?: SectionFormField[]
+  /**
+   * Permiso de edición de esta sección ya resuelto por el backend para el usuario
+   * actual (ver ContentSection.can_edit en src/types/assets/core.ts y
+   * src/hooks/useDocumentSectionAccess.ts). `null`/ausente = no aplica, hereda del
+   * documento.
+   */
+  can_edit?: boolean | null
 }
 
 export interface SectionsConfigResponse {

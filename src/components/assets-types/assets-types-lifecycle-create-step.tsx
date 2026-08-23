@@ -3,22 +3,30 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { Pencil } from "lucide-react"
 import { HuemulField } from "@/huemul/components/huemul-field"
-import { useLifecycleSteps, useLifecycleMutations, useLifecycleSlaUnits } from "@/hooks/useLifecycle"
+import {
+  useLifecycleSteps,
+  useAllLifecycleSteps,
+  useLifecycleMutations,
+  useLifecycleSlaUnits,
+  useLifecycleAccessRuleTypes,
+} from "@/hooks/useLifecycle"
 import { useRoles } from "@/hooks/useRbac"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
-import { deriveAccessType, stepRoleIds, buildAccessPayload } from "@/lib/lifecycle-access"
+import { deriveAccessType, stepRoleIds, buildAccessPayload, pipelineIndex } from "@/lib/lifecycle-access"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LifecyclePublishActionsSection } from "./assets-types-lifecycle-publish-actions"
 import {
+  AccessRulesEditor,
   ChipList,
   PanelFieldLabel,
+  PanelInfoHint,
   PanelPillButton,
   PanelSummaryRow,
   RemovableChip,
   SettingToggleList,
   SettingToggleRow,
 } from "./assets-types-lifecycle-ui"
-import type { CreateStepContentProps } from '@/types/assets'
+import type { CreateStepContentProps, EditStepCardAccessRule } from '@/types/assets'
 import type { LifecycleAccessType } from '@/types/lifecycle'
 
 /**
@@ -81,9 +89,11 @@ export function CreateStepContent({
   const { canUpdate } = useUserPermissions()
   const canManage = canUpdate('asset_type')
   const { data, isLoading } = useLifecycleSteps(documentTypeId, stepType, true)
+  const { data: allStepsData } = useAllLifecycleSteps(documentTypeId, true)
   const { data: rolesData } = useRoles(true, 1, 1000)
   const { updateStep } = useLifecycleMutations(documentTypeId, stepType)
   const { data: slaUnitsData } = useLifecycleSlaUnits()
+  const { data: accessRuleTypesData } = useLifecycleAccessRuleTypes()
   const stepAction = t(`lifecycle.stepActions.${stepType}`, { defaultValue: stepType })
 
   const step = data?.data?.steps?.[0] ?? null
@@ -92,6 +102,18 @@ export function CreateStepContent({
     value: u.value,
     label: t(`lifecycle.slaUnits.${u.value}`, { defaultValue: u.label }),
   }))
+  const accessRuleTypeOptions = accessRuleTypesData?.data ?? []
+
+  // Steps de otros tipos anteriores en el pipeline — candidatos para el
+  // `source_step_id` de la regla `step_actor_manager` (mismo criterio que
+  // `EditStepContent`). Para `create` (primer step del pipeline) queda vacío.
+  const earlierSteps = (allStepsData?.data?.steps ?? []).filter(
+    (s) => s.type !== stepType && pipelineIndex(s.type) !== -1 && pipelineIndex(s.type) < pipelineIndex(stepType)
+  )
+  const earlierStepOptions = earlierSteps.map((s) => ({
+    value: s.id,
+    label: s.name ?? t(`lifecycle.stepTypes.${s.type}`, { defaultValue: s.type }),
+  }))
 
   const [isDirty, setIsDirty] = useState(false)
   const [accessType, setAccessType] = useState<LifecycleAccessType>("all")
@@ -99,6 +121,7 @@ export function CreateStepContent({
   const [validFrom, setValidFrom] = useState<string | null>(null)
   const [validTo, setValidTo] = useState<string | null>(null)
   const [roleIds, setRoleIds] = useState<string[]>([])
+  const [accessRules, setAccessRules] = useState<EditStepCardAccessRule[]>([])
   const [slaEnabled, setSlaEnabled] = useState(false)
   const [slaValue, setSlaValue] = useState("")
   const [slaUnit, setSlaUnit] = useState("")
@@ -112,6 +135,7 @@ export function CreateStepContent({
     validFrom: string | null
     validTo: string | null
     roleIds: string[]
+    accessRules: EditStepCardAccessRule[]
     slaEnabled: boolean
     slaValue: string
     slaUnit: string
@@ -140,6 +164,9 @@ export function CreateStepContent({
     // que devuelva el backend no deben repoblar los chips (ver `stepRoleIds`).
     const nextRoleIds = stepRoleIds(step)
     setRoleIds((prev) => (sameIdList(prev, nextRoleIds) ? prev : nextRoleIds))
+    setAccessRules(
+      (step.access_rules ?? []).map((r) => ({ rule_type: r.rule_type, source_step_id: r.source_step_id }))
+    )
     if (hasSla) {
       setSlaEnabled(step.sla_value != null)
       setSlaValue(step.sla_value != null ? String(step.sla_value) : "")
@@ -160,6 +187,7 @@ export function CreateStepContent({
         // `custom`/`custom_owner` la clave `role_ids` no puede viajar, el backend
         // la rechaza con 422 incluso vacía.
         ...buildAccessPayload({ accessType, roleIds }),
+        access_rules: accessRules,
         ...(hasValidity && {
           valid_from: validFrom ? validFrom.split("T")[0] : null,
           valid_to: validTo ? validTo.split("T")[0] : null,
@@ -202,6 +230,7 @@ export function CreateStepContent({
       validFrom,
       validTo,
       roleIds,
+      accessRules,
       slaEnabled,
       slaValue,
       slaUnit,
@@ -218,6 +247,7 @@ export function CreateStepContent({
       setValidFrom(snapshot.validFrom)
       setValidTo(snapshot.validTo)
       setRoleIds(snapshot.roleIds)
+      setAccessRules(snapshot.accessRules)
       setSlaEnabled(snapshot.slaEnabled)
       setSlaValue(snapshot.slaValue)
       setSlaUnit(snapshot.slaUnit)
@@ -270,6 +300,22 @@ export function CreateStepContent({
     }
   }
 
+  // Roles con acceso a algún otro step del lifecycle pero sin acceso al step
+  // `view` — el gate real de visibilidad del documento. Sin este aviso, un
+  // admin puede asignar roles a Elaboración/Aprobación/etc. y asumir que ya
+  // pueden ver el documento, cuando en realidad `view` los sigue bloqueando.
+  const missingViewRoleIds =
+    stepType === "view" && isEditing && accessType !== "all"
+      ? Array.from(
+          new Set(
+            (allStepsData?.data?.steps ?? [])
+              .filter((s) => s.id !== step.id)
+              .flatMap((s) => s.step_roles.map((r) => r.role_id))
+          )
+        ).filter((id) => !roleIds.includes(id))
+      : []
+  const missingViewRoles = allRoles.filter((r) => missingViewRoleIds.includes(r.id))
+
   return (
     <div className="flex flex-col gap-3">
       {/* Cabecera — título de la tarjeta + acción de edición. El título de la
@@ -297,6 +343,39 @@ export function CreateStepContent({
           )
         )}
       </div>
+
+      {stepType === "view" && (
+        <PanelInfoHint>{t("lifecycle.viewStepHint")}</PanelInfoHint>
+      )}
+
+      {missingViewRoles.length > 0 && (
+        <PanelInfoHint
+          tone="warning"
+          action={
+            <PanelPillButton
+              label={t("lifecycle.viewStepMissingRolesAction")}
+              tone="primary"
+              onClick={() => {
+                setRoleIds([...roleIds, ...missingViewRoleIds])
+                if (useAllOrCustomOwner) {
+                  setAccessType(
+                    deriveAccessType({
+                      anyone: false,
+                      owner: ownerCanExecute,
+                      roleCount: roleIds.length + missingViewRoleIds.length,
+                    }),
+                  )
+                }
+                setIsDirty(true)
+              }}
+            />
+          }
+        >
+          {t("lifecycle.viewStepMissingRolesWarning", {
+            roles: missingViewRoles.map((r) => r.name).join(", "),
+          })}
+        </PanelInfoHint>
+      )}
 
       <div className="flex flex-col gap-3">
         {isEditing ? (
@@ -452,6 +531,21 @@ export function CreateStepContent({
               </div>
             )}
 
+            {/* Reglas adicionales — acceso por creador/jefatura (OR con los roles) */}
+            {showRolePicker && (
+              <AccessRulesEditor
+                accessRules={accessRules}
+                accessRuleTypeOptions={accessRuleTypeOptions}
+                earlierStepOptions={earlierStepOptions}
+                onChange={(rules) => {
+                  setAccessRules(rules)
+                  setIsDirty(true)
+                }}
+                disabled={ro}
+                t={t}
+              />
+            )}
+
             {/* Vigencia */}
             {hasValidity && (
               <div className="flex flex-col gap-1.5">
@@ -510,6 +604,27 @@ export function CreateStepContent({
                   {assignedRoles.map((r) => (
                     <RemovableChip key={r.id} label={r.name} />
                   ))}
+                </ChipList>
+              </PanelSummaryRow>
+            )}
+
+            {accessRules.length > 0 && (
+              <PanelSummaryRow label={t("lifecycle.summary.rules")}>
+                <ChipList>
+                  {accessRules.map((rule, index) => {
+                    const ruleLabel = t(`lifecycle.accessRuleTypes.${rule.rule_type}`, {
+                      defaultValue: accessRuleTypeOptions.find((o) => o.value === rule.rule_type)?.label ?? rule.rule_type,
+                    })
+                    const sourceLabel = rule.source_step_id
+                      ? earlierStepOptions.find((o) => o.value === rule.source_step_id)?.label ?? rule.source_step_id
+                      : null
+                    return (
+                      <RemovableChip
+                        key={`${rule.rule_type}-${rule.source_step_id ?? "none"}-${index}`}
+                        label={sourceLabel ? `${ruleLabel} (${sourceLabel})` : ruleLabel}
+                      />
+                    )
+                  })}
                 </ChipList>
               </PanelSummaryRow>
             )}

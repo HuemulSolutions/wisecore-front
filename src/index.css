@@ -45,6 +45,10 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-brand: var(--brand);
   --color-highlight: var(--highlight);
+  --shadow-comment-thread: 0 24px 50px -20px rgb(15 23 42 / .45), 0 1px 3px rgb(15 23 42 / .08);
+  --shadow-comment-popover: 0 20px 44px -16px rgb(15 23 42 / .45), 0 2px 6px rgb(15 23 42 / .06);
+  --shadow-comment-toolbar: 0 12px 28px -8px rgb(15 23 42 / .55);
+  --shadow-comment-pill: 0 6px 14px -4px rgb(37 99 235 / .6);
 }
 
 :root {
@@ -67,6 +71,14 @@
   --border: oklch(0.929 0.013 255.508);
   --border-hover: oklch(88.2% 0.059 254.128);
   --diagram-edge: oklch(0.84 0.028 257.417);
+  --diagram-role-fill: #eef2ff;
+  --diagram-role-border: #c7d2fe;
+  --diagram-role-icon-bg: #4f46e5;
+  --diagram-role-title: #312e81;
+  --diagram-role-meta: #6366f1;
+  --diagram-role-edge: #a5b4fc;
+  --diagram-container-fill: rgba(241, 244, 248, 0.72);
+  --diagram-container-label: #94a3b8;
   --input: oklch(0.929 0.013 255.508);
   --ring: oklch(0.704 0.04 256.788);
   --chart-1: oklch(0.646 0.222 41.116);
@@ -104,6 +116,14 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --diagram-edge: oklch(0.42 0.028 257.417);
+  --diagram-role-fill: rgba(99, 102, 241, 0.16);
+  --diagram-role-border: rgba(129, 140, 248, 0.55);
+  --diagram-role-icon-bg: #6366f1;
+  --diagram-role-title: #e0e7ff;
+  --diagram-role-meta: #a5b4fc;
+  --diagram-role-edge: #818cf8;
+  --diagram-container-fill: rgba(30, 41, 59, 0.55);
+  --diagram-container-label: #94a3b8;
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.551 0.027 264.364);
   --chart-1: oklch(0.488 0.243 264.376);

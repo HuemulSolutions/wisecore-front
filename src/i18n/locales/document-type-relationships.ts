@@ -28,6 +28,13 @@ const translations = {
     assignRole: { en: "Assign role", es: "Asignar rol" },
     changeRole: { en: "Change role", es: "Cambiar rol" },
     clearRole: { en: "Clear role", es: "Quitar rol" },
+    noRole: { en: "No role", es: "Sin rol" },
+    roleUnassigned: { en: "Unassigned", es: "Sin asignar" },
+    roleAssignedCount: {
+      en: "{{count}} container(s)",
+      es: "{{count}} contenedor(es)",
+    },
+    rolesColumnLabel: { en: "ROLES", es: "ROLES" },
     noRelationshipsFound: {
       en: "No relationships found for this asset type",
       es: "No se encontraron relaciones para este tipo de activo",
@@ -83,9 +90,29 @@ const translations = {
     addContainer: { en: "Add Container", es: "Agregar Contenedor" },
     addText: { en: "Add Text", es: "Agregar Texto" },
     addRole: { en: "Add Role", es: "Agregar Rol" },
-    roleConnectionsUnsupported: {
-      en: "Connections from role nodes aren't supported yet",
-      es: "Las conexiones desde nodos de rol aún no están soportadas",
+    roleAlreadyInCanvas: {
+      en: "That role is already on the canvas.",
+      es: "Ese rol ya está en el canvas.",
+    },
+    roleEdgeExecutionOnly: {
+      en: "Role connections are only available while editing a diagram",
+      es: "Las conexiones de rol solo están disponibles al editar un diagrama",
+    },
+    roleEdgeNoPermission: {
+      en: "You don't have permission to edit this diagram's connections.",
+      es: "No tienes permiso para editar las conexiones de este diagrama.",
+    },
+    roleEdgeInvalidEndpoint: {
+      en: "Both ends need to be ready first — pick a version for the asset or a role for the node.",
+      es: "Ambos extremos deben estar listos primero: elige una versión para el activo o un rol para el nodo.",
+    },
+    roleSelfLoopUnsupported: {
+      en: "A role can't connect to itself yet",
+      es: "Un rol aún no puede conectarse consigo mismo",
+    },
+    saveDetailsRequired: {
+      en: "Add at least one asset version or role node before saving",
+      es: "Agrega al menos una versión de activo o un nodo de rol antes de guardar",
     },
   },
   loadDiagramSheet: {
@@ -129,6 +156,24 @@ const translations = {
     edit: { en: "Edit", es: "Editar" },
     attributes: { en: "Attributes", es: "Atributos" },
     delete: { en: "Delete", es: "Eliminar" },
+    diagramEdge: { en: "Diagram connection", es: "Conexión del diagrama" },
+    diagramEdgeHint: {
+      en: "Only exists inside this diagram — no relationship is created in the backend.",
+      es: "Solo existe dentro de este diagrama: no se crea ninguna relación en el backend.",
+    },
+    rename: { en: "Rename", es: "Renombrar" },
+    removeFromDiagram: { en: "Remove from diagram", es: "Quitar del diagrama" },
+    role: { en: "Role", es: "Rol" },
+  },
+  roleEdgeDialog: {
+    createTitle: { en: "New connection", es: "Nueva conexión" },
+    renameTitle: { en: "Rename connection", es: "Renombrar conexión" },
+    nameLabel: { en: "Name", es: "Nombre" },
+    namePlaceholder: { en: "e.g. approves", es: "ej. aprueba" },
+    typeLabel: { en: "Type (optional)", es: "Tipo (opcional)" },
+    typePlaceholder: { en: "e.g. supervision", es: "ej. supervisión" },
+    hint: { en: "Only saved with this diagram.", es: "Se guarda solo en este diagrama." },
+    submitLabel: { en: "Save", es: "Guardar" },
   },
   nodePanel: {
     assetType: { en: "Asset Type", es: "Tipo de Activo" },

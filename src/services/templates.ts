@@ -34,11 +34,12 @@ export async function getAllTemplates(organizationId: string, search?: string, p
     return response.json();
 }
 
-export async function addTemplate( { name, description, instructions, organization_id }: { name: string, description?: string, instructions?: string, organization_id: string}) {
+export async function addTemplate( { name, description, instructions, organization_id, context_required }: { name: string, description?: string, instructions?: string, organization_id: string, context_required?: boolean }) {
     const response = await httpClient.post(`${backendUrl}/templates/`, {
         name,
         description: description || null,
-        instructions: instructions || null
+        instructions: instructions || null,
+        context_required: context_required ?? false,
     }, {
         headers: {
             'X-Org-Id': organization_id,
@@ -82,6 +83,7 @@ export async function updateTemplate(
         asset_kind?: string | null;
         canvas_id?: string | null;
         section_lifecycle_access_enabled?: boolean;
+        context_required?: boolean;
     },
     organizationId: string
 ) {
@@ -109,6 +111,10 @@ export async function updateTemplate(
 
     if (updateData.section_lifecycle_access_enabled !== undefined) {
         payload.section_lifecycle_access_enabled = updateData.section_lifecycle_access_enabled;
+    }
+
+    if (updateData.context_required !== undefined) {
+        payload.context_required = updateData.context_required;
     }
 
     const response = await httpClient.put(`${backendUrl}/templates/${templateId}`, payload, {

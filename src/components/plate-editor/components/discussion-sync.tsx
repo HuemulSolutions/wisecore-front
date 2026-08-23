@@ -55,8 +55,8 @@ export function DiscussionSync({ documentId, sectionExecutionId, onAfterDiscussi
         setTimeout(() => onAfterDiscussionMutation(), 0);
         return id;
       },
-      onAddComment: async (discussionId, contentRich) => {
-        const id = await callbacks.onAddComment?.(discussionId, contentRich);
+      onAddComment: async (discussionId, contentRich, isPublic) => {
+        const id = await callbacks.onAddComment?.(discussionId, contentRich, isPublic);
         onAfterDiscussionMutation();
         return id;
       },

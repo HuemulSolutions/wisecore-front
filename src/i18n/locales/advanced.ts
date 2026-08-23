@@ -86,7 +86,7 @@ const translations = {
       enqueued: { en: "Enqueued", es: "Encolados" },
       enqueuedDescription: { en: "Job was queued successfully and will be processed shortly", es: "El job fue encolado correctamente y se procesará en breve" },
       skipped: { en: "Skipped", es: "Omitidos" },
-      skippedDescription: { en: "Not processed due to an expected condition (e.g. no content to process)", es: "No se procesaron por una condición esperada (ej. sin contenido que procesar)" },
+      skippedDescription: { en: "Not processed due to an expected condition (e.g. no content to process, or the asset requires context that hasn't been configured)", es: "No se procesaron por una condición esperada (ej. sin contenido que procesar, o el activo requiere contexto que aún no fue configurado)" },
       failed: { en: "Failed", es: "Fallidos" },
       failedDescription: { en: "A real error occurred while processing these executions", es: "Ocurrió un error real al procesar estas ejecuciones" },
     },

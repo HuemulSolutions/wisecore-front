@@ -23,7 +23,7 @@ export function FloatingToolbarButtons({ onCreateSectionFromSelection, enableCom
       {showComments && <CommentToolbarButton />}
       {showCreateSection && (
         <>
-          {showComments && <ToolbarSeparator />}
+          {showComments && <ToolbarSeparator className="mx-1.5 my-2 bg-slate-700" />}
           <CreateSectionToolbarButton onCreateSection={onCreateSectionFromSelection!} />
         </>
       )}

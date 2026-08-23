@@ -21,12 +21,12 @@ export interface FormatRelativeTimeOptions {
  * - "20 may"         — same year, older than 48 hours  (monthFormat:'short')
  * - "20 de mayo, 2025" — different year
  */
-export function formatRelativeTime(dateString: string, options: FormatRelativeTimeOptions = {}): string {
+export function formatRelativeTime(dateInput: Date | string, options: FormatRelativeTimeOptions = {}): string {
   const { monthFormat = 'long', showTime = false, absolute = false } = options;
 
-  const date = parseApiDate(dateString);
+  const date = dateInput instanceof Date ? dateInput : parseApiDate(dateInput);
   const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
+  const diffMs = Math.max(0, now.getTime() - date.getTime());
   const diffMinutes = Math.floor(diffMs / 60_000);
   const diffHours = Math.floor(diffMs / 3_600_000);
 
@@ -64,8 +64,8 @@ export function formatRelativeTime(dateString: string, options: FormatRelativeTi
  * Formats a date string as a locale-aware absolute date (no relative time).
  * Uses the browser's language setting.
  */
-export function formatAbsoluteDate(dateString: string): string {
-  const date = parseApiDate(dateString);
+export function formatAbsoluteDate(dateInput: Date | string): string {
+  const date = dateInput instanceof Date ? dateInput : parseApiDate(dateInput);
   const locale = navigator.language || 'en-US';
   return date.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
 }

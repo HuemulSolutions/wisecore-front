@@ -47,6 +47,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { LifecycleReviewActionsSection } from "./assets-types-lifecycle-review-actions"
 import {
+  AccessRulesEditor,
   ChipList,
   PanelCard,
   PanelDirtyBadge,
@@ -131,22 +132,11 @@ function EditStepCard({
   onCancelEdit,
   onDoneEdit,
 }: EditStepCardProps) {
-  const [pendingRuleType, setPendingRuleType] = useState<AccessRuleType | "">("")
-  const [pendingSourceStepId, setPendingSourceStepId] = useState("")
-
   const assignedRoles = allRoles.filter((r) => card.roleIds.includes(r.id))
   const availableRoles = allRoles.filter((r) => !card.roleIds.includes(r.id))
-  // Non-repeatable rule types already present can't be added again (backend
-  // rejects exact rule_type+source_step_id duplicates); step_actor_manager can
-  // repeat with a different source step, so it stays selectable.
-  const addedSimpleRuleTypes = new Set(
-    card.accessRules.filter((r) => r.rule_type !== "step_actor_manager").map((r) => r.rule_type)
-  )
-  const availableRuleTypeOptions = accessRuleTypeOptions.filter(
-    (o) => !addedSimpleRuleTypes.has(o.value)
-  )
   // Prefer the i18n label so options follow the active language; fall back to
-  // the backend-provided label only when no translation key exists.
+  // the backend-provided label only when no translation key exists. Reused by
+  // the read-only summary below (the editable form delegates to `AccessRulesEditor`).
   const ruleTypeLabel = (ruleType: AccessRuleType) =>
     t(`lifecycle.accessRuleTypes.${ruleType}`, {
       defaultValue: accessRuleTypeOptions.find((o) => o.value === ruleType)?.label ?? ruleType,
@@ -164,26 +154,6 @@ function EditStepCard({
       default:
         return t("lifecycle.accessCustom")
     }
-  }
-
-  const handleAddAccessRule = () => {
-    if (!pendingRuleType) return
-    if (pendingRuleType === "step_actor_manager" && !pendingSourceStepId) return
-    onChange({
-      accessRules: [
-        ...card.accessRules,
-        {
-          rule_type: pendingRuleType,
-          source_step_id: pendingRuleType === "step_actor_manager" ? pendingSourceStepId : null,
-        },
-      ],
-    })
-    setPendingRuleType("")
-    setPendingSourceStepId("")
-  }
-
-  const handleRemoveAccessRule = (index: number) => {
-    onChange({ accessRules: card.accessRules.filter((_, i) => i !== index) })
   }
 
   const ro = !canManage
@@ -422,78 +392,14 @@ function EditStepCard({
                   </div>
 
                   {/* Reglas adicionales — acceso por creador/jefatura (OR con los roles) */}
-                  <div className="flex flex-col gap-1.5">
-                    <PanelFieldLabel disabled={ro}>
-                      {t("lifecycle.accessRules.title")}
-                    </PanelFieldLabel>
-                    {card.accessRules.length > 0 && (
-                      <ChipList>
-                        {card.accessRules.map((rule, index) => (
-                          <RemovableChip
-                            key={`${rule.rule_type}-${rule.source_step_id ?? "none"}-${index}`}
-                            label={`${ruleTypeLabel(rule.rule_type)}${
-                              sourceStepLabel(rule.source_step_id)
-                                ? ` (${sourceStepLabel(rule.source_step_id)})`
-                                : ""
-                            }`}
-                            disabled={ro}
-                            onRemove={ro ? undefined : () => handleRemoveAccessRule(index)}
-                          />
-                        ))}
-                      </ChipList>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <HuemulField
-                        type="select"
-                        label=""
-                        name={`access-rule-type-${card.id}`}
-                        value={pendingRuleType}
-                        options={availableRuleTypeOptions.map((o) => ({
-                          value: o.value,
-                          label: ruleTypeLabel(o.value),
-                        }))}
-                        placeholder={t("lifecycle.panel.addRulePlaceholder")}
-                        onChange={(v) => {
-                          setPendingRuleType((v as AccessRuleType) || "")
-                          setPendingSourceStepId("")
-                        }}
-                        disabled={ro}
-                        className="flex-1"
-                      />
-                      {pendingRuleType === "step_actor_manager" && (
-                        <HuemulField
-                          type="select"
-                          label=""
-                          name={`access-rule-source-${card.id}`}
-                          value={pendingSourceStepId}
-                          options={earlierStepOptions}
-                          placeholder={t("lifecycle.accessRules.sourceStepPlaceholder")}
-                          onChange={(v) => setPendingSourceStepId(String(v ?? ""))}
-                          disabled={ro}
-                          className="flex-1"
-                        />
-                      )}
-                      <button
-                        type="button"
-                        onClick={handleAddAccessRule}
-                        title={t("lifecycle.accessRules.add")}
-                        aria-label={t("lifecycle.accessRules.add")}
-                        disabled={
-                          ro ||
-                          !pendingRuleType ||
-                          (pendingRuleType === "step_actor_manager" && !pendingSourceStepId)
-                        }
-                        className="inline-flex size-8 shrink-0 items-center justify-center rounded-xl border border-[#dde4ec] text-[#64748b] transition-colors hover:cursor-pointer hover:bg-[#f8fafc] hover:text-[#334155] disabled:pointer-events-none disabled:opacity-50"
-                      >
-                        <Plus className="size-4" />
-                      </button>
-                    </div>
-                    {pendingRuleType === "step_actor_manager" && (
-                      <p className="text-[11px] text-[#94a3b8]">
-                        {t("lifecycle.accessRules.stepActorManagerNote")}
-                      </p>
-                    )}
-                  </div>
+                  <AccessRulesEditor
+                    accessRules={card.accessRules}
+                    accessRuleTypeOptions={accessRuleTypeOptions}
+                    earlierStepOptions={earlierStepOptions}
+                    onChange={(accessRules) => onChange({ accessRules })}
+                    disabled={ro}
+                    t={t}
+                  />
                 </>
               )}
             </>

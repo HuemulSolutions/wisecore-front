@@ -39,7 +39,8 @@ import { HuemulButton } from "@/huemul/components/huemul-button"
 import { MemoizedAssetTypeNode, type AssetTypeNodeData } from "./asset-type-node"
 import { MemoizedTextNode, type CanvasElementNodeData } from "./text-node"
 import { MemoizedContainerNode } from "./container-node"
-import { MemoizedRoleNode, ROLE_NODE_ENABLED } from "./role-node"
+import { MemoizedRoleNode, type RoleNodeMeta } from "./role-node"
+import { RoleColumnLabel } from "./role-column-label"
 import { ElementPanel } from "./element-panel"
 import { HuemulRolePickerDialog } from "@/huemul/components/huemul-role-picker"
 import { MemoizedRelationshipEdge, type RelationshipEdgeData } from "./relationship-edge"
@@ -49,6 +50,7 @@ import { RelationshipDeleteDialog } from "./relationship-delete-dialog"
 import { RelationshipAttributesDialog } from "./relationship-attributes-dialog"
 import { SaveAsDiagramSheet } from "./save-as-diagram-sheet"
 import { LoadDiagramSheet } from "./load-diagram-sheet"
+import { RoleEdgeNameDialog } from "./role-edge-dialogs"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { RelationshipPanel } from "./relationship-panel"
 import { NodePanel } from "./node-panel"
@@ -68,12 +70,20 @@ import type {
   CanvasElementKind,
   CanvasElementRole,
   PendingConnection,
+  PendingRoleEdge,
   RelationshipsCanvasProps,
   EditingDiagram,
 } from "@/types/document-type-relationships"
 import type { ExecutionRelationship, ExecutionRelationshipSubitem } from "@/types/execution-relationships"
-import type { Diagram } from "@/types/diagrams"
-import { buildInitialCanvasElements } from "@/lib/diagram-utils"
+import type { Diagram, DiagramRelationshipEndpoint } from "@/types/diagrams"
+import {
+  buildInitialCanvasGraph,
+  detailEndpointOf,
+  DEFAULT_CANVAS_ELEMENT_COLOR,
+  EXEC_EDGE_ID_PREFIX,
+  DIRECT_EDGE_ID_PREFIX,
+  type CanvasNode,
+} from "@/lib/diagram-utils"
 import { useSaveDiagramGraph } from "@/hooks/useDiagrams"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { handleApiError } from "@/lib/error-utils"
@@ -84,12 +94,6 @@ const NODE_TYPES = {
   text: MemoizedTextNode,
   container: MemoizedContainerNode,
   role: MemoizedRoleNode,
-}
-
-const DEFAULT_ELEMENT_COLOR: Record<CanvasElementKind, string> = {
-  text: "#0f172a",
-  container: "#94a3b8",
-  role: "#6366f1",
 }
 
 const EDGE_TYPES = {
@@ -130,6 +134,22 @@ function extractRelConfig(rel: DocumentTypeRelationship) {
     min_count: rel.min_count,
     max_count: rel.max_count,
   }
+}
+
+// Display label for a canvas node in dialogs/toasts that reference a connection
+// endpoint — a role node's label is its assigned role's name (its raw content as a
+// fallback), everything else uses its asset/document-type name.
+function nodeLabel(node: Node): string {
+  if (node.type === "role") {
+    const d = node.data as CanvasElementNodeData
+    return d.role?.name ?? d.content
+  }
+  return (node.data as AssetTypeNodeData).name
+}
+
+function nodeColor(node?: Node): string | undefined {
+  if (!node) return undefined
+  return (node.data as AssetTypeNodeData | CanvasElementNodeData).color
 }
 
 // ─── Hierarchical layout helper ────────────────────────────────────────────────
@@ -199,6 +219,37 @@ function computeLayoutForNewNodes(
   return result
 }
 
+// ─── Role column layout ─────────────────────────────────────────────────────────
+// New role nodes are placed in a dedicated column to the right of everything else —
+// separates "what exists" (assets/containers) from "who can see it" (roles). Only
+// applies at creation time: roles already positioned in a loaded diagram keep
+// whatever position the user last dragged them to.
+const ROLE_COLUMN_MARGIN = 96
+const ROLE_ROW_SPACING = 24
+const ROLE_NODE_HEIGHT = 56
+
+function computeRoleColumnPosition(nodes: Node[]): { x: number; y: number } {
+  const others = nodes.filter((n) => n.type !== "role")
+  const roles = nodes.filter((n) => n.type === "role")
+
+  let maxRight = 400
+  let minTop = 80
+  others.forEach((n, i) => {
+    const w = n.measured?.width ?? (n.style?.width as number) ?? 160
+    if (i === 0) minTop = n.position.y
+    maxRight = Math.max(maxRight, n.position.x + w)
+    minTop = Math.min(minTop, n.position.y)
+  })
+
+  const x = maxRight + ROLE_COLUMN_MARGIN
+  if (roles.length === 0) return { x, y: minTop }
+
+  const maxBottom = Math.max(
+    ...roles.map((n) => n.position.y + (n.measured?.height ?? (n.style?.height as number) ?? ROLE_NODE_HEIGHT)),
+  )
+  return { x, y: maxBottom + ROLE_ROW_SPACING }
+}
+
 // Diagram (API shape) → EditingDiagram (canvas state) — shared by "load an existing
 // diagram" and "just saved/created a diagram" so both promote the canvas the same way.
 function toEditingDiagram(diagram: Diagram): EditingDiagram {
@@ -261,6 +312,14 @@ function RelationshipsCanvasFlow({
   const canUpdateExecRelationship = !readOnly && (isOrgAdmin || hasPermission('execution_relationship:u'))
   const canDeleteExecRelationship = !readOnly && (isOrgAdmin || hasPermission('execution_relationship:d'))
 
+  const canUpdateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:u'))
+  const canCreateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:c'))
+  // A role node/edge is content of the diagram itself: it's persisted with the
+  // POST/PUT of /diagrams and never creates an execution_relationship on its own ⇒
+  // it does NOT require execution_relationship:c/u, only a diagram write permission.
+  const canWriteDiagramGraph = canUpdateDiagram || canCreateDiagram
+  const canAddRoleNode = mode === 'execution' && canPickRole && canWriteDiagramGraph
+
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
 
@@ -280,10 +339,40 @@ function RelationshipsCanvasFlow({
     const containerZ = new Map(
       containerAreas.map((c, i) => [c.id, CONTAINER_Z_BASE + Math.min(i, CONTAINER_Z_MAX)]),
     )
+
+    // How many containers point at each role — feeds the "N contenedores" line on
+    // the role pill. Computed here (not inside RoleNode) since a node can't see its
+    // siblings on its own.
+    const roleContainerCounts = new Map<string, number>()
+    for (const n of nodes) {
+      if (n.type !== "container") continue
+      const roleId = (n.data as CanvasElementNodeData).role?.id
+      if (roleId) roleContainerCounts.set(roleId, (roleContainerCounts.get(roleId) ?? 0) + 1)
+    }
+
     return nodes.map((n) => {
       const z = n.type === "container" ? (containerZ.get(n.id) ?? CONTAINER_Z_BASE) : NODE_Z
+      if (n.type === "role") {
+        const roleId = (n.data as CanvasElementNodeData).role?.id
+        const count = roleId ? (roleContainerCounts.get(roleId) ?? 0) : 0
+        const roleMeta: RoleNodeMeta = count > 0 ? { kind: "containers", count } : { kind: "none" }
+        const prevMeta = (n.data as { roleMeta?: RoleNodeMeta }).roleMeta
+        const metaChanged = prevMeta?.kind !== roleMeta.kind || (roleMeta.kind === "containers" && (prevMeta as { count?: number })?.count !== roleMeta.count)
+        if (!metaChanged && n.zIndex === z) return n
+        return { ...n, zIndex: z, data: { ...n.data, roleMeta } }
+      }
       return n.zIndex === z ? n : { ...n, zIndex: z }
     })
+  }, [nodes])
+
+  // World position for the "ROLES" column eyebrow — above the topmost role pill,
+  // aligned to the column's x. Not a node, so it's kept out of `layeredNodes`.
+  const roleColumnLabelPos = useMemo(() => {
+    const roleNodes = nodes.filter((n) => n.type === "role")
+    if (roleNodes.length === 0) return null
+    const x = Math.min(...roleNodes.map((n) => n.position.x))
+    const y = Math.min(...roleNodes.map((n) => n.position.y)) - 32
+    return { x, y }
   }, [nodes])
 
   const layeredEdges = useMemo(
@@ -335,6 +424,15 @@ function RelationshipsCanvasFlow({
   // (re)assigning the role of an existing container/role node by its canvas id.
   const [pendingRolePick, setPendingRolePick] = useState<
     { position: { x: number; y: number } } | { nodeId: string } | null
+  >(null)
+  // Role↔role / role↔asset edge "Name / Type" dialog — 'create' for a brand-new
+  // connection (from onConnect), 'rename' for editing an existing direct edge (from
+  // the edge's pencil icon or the RelationshipPanel). Nothing reaches the backend
+  // here — the edge is only added to/patched in local canvas state.
+  const [roleEdgeDialogState, setRoleEdgeDialogState] = useState<
+    | { mode: 'create'; pending: PendingRoleEdge }
+    | { mode: 'rename'; edgeId: string; source: { label: string; color?: string }; target: { label: string; color?: string }; initialName: string; initialType: string }
+    | null
   >(null)
   // execution-mode delete state
   const [deletingExecRelId, setDeletingExecRelId] = useState<string | null>(null)
@@ -510,6 +608,7 @@ function RelationshipsCanvasFlow({
             data: {
               relationshipId: cfg.id,
               name: cfg.name,
+              edgeKind: 'document-type-relationship',
               minCount: cfg.min_count,
               maxCount: cfg.max_count,
               pathOffset: parallelOffset(index, total),
@@ -627,6 +726,7 @@ function RelationshipsCanvasFlow({
             data: {
               relationshipId: cfg.id,
               name: cfg.name,
+              edgeKind: 'document-type-relationship',
               minCount: cfg.min_count,
               maxCount: cfg.max_count,
               pathOffset: parallelOffset(index, total),
@@ -762,7 +862,7 @@ function RelationshipsCanvasFlow({
               ...n.data,
               role,
               // Roles have no color of their own — a role node keeps its own element
-              // color (DEFAULT_ELEMENT_COLOR.role), only its label mirrors the role.
+              // color (DEFAULT_CANVAS_ELEMENT_COLOR.role), only its label mirrors the role.
               ...(isRoleNode ? { content: role.name } : {}),
             },
           }
@@ -802,7 +902,7 @@ function RelationshipsCanvasFlow({
           id,
           kind,
           content: content ?? (kind === "container" ? t("elementPanel.defaultContainerTitle") : t("elementPanel.defaultTextContent")),
-          color: color ?? DEFAULT_ELEMENT_COLOR[kind],
+          color: color ?? DEFAULT_CANVAS_ELEMENT_COLOR[kind],
           ...(role ? { role } : {}),
           onContentChange: handleUpdateElementContent,
           onColorChange: handleUpdateElementColor,
@@ -831,7 +931,7 @@ function RelationshipsCanvasFlow({
       const jitter = (getNodes().length % 8) * 12
       const position = { x: center.x + jitter, y: center.y + jitter }
       if (kind === "role") {
-        setPendingRolePick({ position })
+        setPendingRolePick({ position: computeRoleColumnPosition(getNodes()) })
         return
       }
       createElementNode(kind, position)
@@ -854,8 +954,10 @@ function RelationshipsCanvasFlow({
         const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
         // A "role" element has no content until a role is picked — open the
         // dialog instead of creating the node directly (mirrors addElementAtCenter).
+        // Ignores the actual drop point: role nodes always land in the dedicated
+        // column, regardless of where they were dropped on the canvas.
         if (element.kind === "role") {
-          setPendingRolePick({ position })
+          setPendingRolePick({ position: computeRoleColumnPosition(getNodes()) })
           return
         }
         createElementNode(element.kind, position)
@@ -908,21 +1010,37 @@ function RelationshipsCanvasFlow({
   // ─── Connect → open create dialog ──────────────────────────────────────────
   const onConnect: OnConnect = useCallback((params) => {
     if (!params.source || !params.target) return
-    // Role nodes have no persisted relationship shape yet — the backend only
-    // accepts execution_relationship edges. Block instead of drawing an edge
-    // that would silently vanish on the next save/reload.
-    const allCanvasNodes = getNodes()
-    const involvesRoleNode = [params.source, params.target].some(
-      (id) => allCanvasNodes.find((n) => n.id === id)?.type === "role",
-    )
-    if (involvesRoleNode) {
-      toast.info(t("canvas.roleConnectionsUnsupported"))
+    const allNodes = getNodes()
+    const srcNode = allNodes.find((n) => n.id === params.source)
+    const tgtNode = allNodes.find((n) => n.id === params.target)
+    if (!srcNode || !tgtNode) return
+
+    const involvesRole = srcNode.type === "role" || tgtNode.type === "role"
+    if (involvesRole) {
+      if (mode !== 'execution') { toast.info(t('canvas.roleEdgeExecutionOnly')); return }
+      if (!canWriteDiagramGraph) { toast.warning(t('canvas.roleEdgeNoPermission')); return }
+      if (params.source === params.target) { toast.info(t('canvas.roleSelfLoopUnsupported')); return }
+      const src = detailEndpointOf(srcNode as CanvasNode)
+      const tgt = detailEndpointOf(tgtNode as CanvasNode)
+      // No version picked on the asset, or no role assigned on the role node: it
+      // wouldn't reach `details`, so the backend would 400 the edge on save.
+      if (!src || !tgt) { toast.warning(t('canvas.roleEdgeInvalidEndpoint')); return }
+      setRoleEdgeDialogState({
+        mode: 'create',
+        pending: {
+          sourceId: params.source,
+          targetId: params.target,
+          sourceLabel: nodeLabel(srcNode),
+          targetLabel: nodeLabel(tgtNode),
+          sourceColor: nodeColor(srcNode),
+          targetColor: nodeColor(tgtNode),
+        },
+      })
       return
     }
+    // ── from here on: everything is unchanged (execution↔execution and document-type) ──
+
     if (mode === 'execution') {
-      const allNodes = getNodes()
-      const srcNode = allNodes.find((n) => n.id === params.source)
-      const tgtNode = allNodes.find((n) => n.id === params.target)
       const srcData = srcNode?.data as AssetTypeNodeData | undefined
       const tgtData = tgtNode?.data as AssetTypeNodeData | undefined
       // Block connection if either node has no version selected
@@ -959,7 +1077,7 @@ function RelationshipsCanvasFlow({
       }
       setPendingConnection({ sourceId: params.source, targetId: params.target })
     }
-  }, [mode, getNodes, t, canCreateExecRelationship, canCreateRelationship])
+  }, [mode, getNodes, t, canCreateExecRelationship, canCreateRelationship, canWriteDiagramGraph])
 
   // ─── Connection dropped on empty canvas (execution mode) → create a new asset ──
   const onConnectEnd: OnConnectEnd = useCallback(
@@ -1074,6 +1192,7 @@ function RelationshipsCanvasFlow({
             data: {
               relationshipId: cfg.id,
               name: cfg.name,
+              edgeKind: 'document-type-relationship',
               minCount: cfg.min_count,
               maxCount: cfg.max_count,
               pathOffset: parallelOffset(pairCount, pairCount + 1),
@@ -1114,7 +1233,7 @@ function RelationshipsCanvasFlow({
         ).length
         return addEdge(
           {
-            id: `exec-rel-${relationship.id}`,
+            id: `${EXEC_EDGE_ID_PREFIX}${relationship.id}`,
             source: conn.sourceId,
             target: conn.targetId,
             type: "relationship",
@@ -1122,6 +1241,7 @@ function RelationshipsCanvasFlow({
               relationshipId: relationship.id,
               name: relName,
               relationshipType: relationship.relationship_type,
+              edgeKind: 'execution-relationship',
               minCount: 0,
               maxCount: 0,
               pathOffset: parallelOffset(pairCount, pairCount + 1),
@@ -1257,7 +1377,7 @@ function RelationshipsCanvasFlow({
         // Only connect nodes that are already on the canvas (existing + newly added children)
         if (!srcCanvasId || !tgtCanvasId) continue
 
-        const edgeId = `exec-rel-${rel.id}`
+        const edgeId = `${EXEC_EDGE_ID_PREFIX}${rel.id}`
         if (!currentEdgeIds.has(edgeId) && !newEdges.some((e) => e.id === edgeId)) {
           const pairCount = getEdges().filter(
             (e) => e.source === srcCanvasId && e.target === tgtCanvasId,
@@ -1276,6 +1396,7 @@ function RelationshipsCanvasFlow({
               relationshipId: rel.id,
               name: relName,
               relationshipType: rel.relationship_type,
+              edgeKind: 'execution-relationship',
               minCount: dtr?.min_count ?? 0,
               maxCount: dtr?.max_count ?? 0,
               pathOffset: parallelOffset(pairCount, pairCount + 1),
@@ -1397,7 +1518,7 @@ function RelationshipsCanvasFlow({
         if (!execToNodeId.has(srcExecId) || !execToNodeId.has(tgtExecId)) continue
         const srcCanvasId = execToNodeId.get(srcExecId)!
         const tgtCanvasId = execToNodeId.get(tgtExecId)!
-        const edgeId = `exec-rel-${rel.id}`
+        const edgeId = `${EXEC_EDGE_ID_PREFIX}${rel.id}`
         if (!existingEdgeIds.has(edgeId) && !newEdges.some((e) => e.id === edgeId)) {
           const pairKey = `${srcCanvasId}::${tgtCanvasId}`
           const existingCount = existingCountPerPair.get(pairKey) ?? 0
@@ -1415,6 +1536,7 @@ function RelationshipsCanvasFlow({
               relationshipId: rel.id,
               name: relName,
               relationshipType: rel.relationship_type,
+              edgeKind: 'execution-relationship',
               minCount: dtr?.min_count ?? 0,
               maxCount: dtr?.max_count ?? 0,
               pathOffset: parallelOffset(existingCount, total),
@@ -1463,86 +1585,175 @@ function RelationshipsCanvasFlow({
     setEdges((eds) => eds.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target)))
   }, [nodes, setEdges])
 
+  // ─── Direct (role) edge mutations — local-only until the diagram is saved ──────
+  const handleRemoveDirectEdge = useCallback((edgeId: string) => {
+    setEdges((eds) => eds.filter((e) => e.id !== edgeId))
+    setSelectedEdgeId((cur) => (cur === edgeId ? null : cur))
+  }, [setEdges])
+
+  // Opens the rename dialog for an existing direct edge, resolving its current
+  // labels/colors from the live graph (never from stale seed-time data).
+  const openRenameRoleEdgeDialog = useCallback((edgeId: string) => {
+    const edge = getEdges().find((e) => e.id === edgeId)
+    if (!edge) return
+    const srcNode = getNodes().find((n) => n.id === edge.source)
+    const tgtNode = getNodes().find((n) => n.id === edge.target)
+    const data = edge.data as RelationshipEdgeData | undefined
+    setRoleEdgeDialogState({
+      mode: 'rename',
+      edgeId,
+      source: { label: srcNode ? nodeLabel(srcNode) : edge.source, color: nodeColor(srcNode) },
+      target: { label: tgtNode ? nodeLabel(tgtNode) : edge.target, color: nodeColor(tgtNode) },
+      initialName: data?.name ?? '',
+      initialType: (data?.relationshipType as string | undefined) ?? '',
+    })
+  }, [getEdges, getNodes])
+
+  const handleRenameDirectEdge = useCallback((edgeId: string, name: string, type: string) => {
+    setEdges((eds) => eds.map((e) => (
+      e.id === edgeId
+        ? { ...e, data: { ...(e.data as RelationshipEdgeData), name, relationshipType: type || undefined } }
+        : e
+    )))
+  }, [setEdges])
+
+  // Adds a brand-new role↔role / role↔asset edge to the canvas only — nothing is
+  // sent to the backend until the diagram itself is saved.
+  const handleRoleEdgeCreated = useCallback((pending: PendingRoleEdge, name: string, type: string) => {
+    const edgeId = `${DIRECT_EDGE_ID_PREFIX}local-${Math.random().toString(36).slice(2, 9)}`
+    setEdges((eds) => {
+      const pairCount = eds.filter((e) => e.source === pending.sourceId && e.target === pending.targetId).length
+      return addEdge(
+        {
+          id: edgeId,
+          source: pending.sourceId,
+          target: pending.targetId,
+          type: "relationship",
+          data: {
+            relationshipId: edgeId,
+            name,
+            relationshipType: type || undefined,
+            edgeKind: 'direct',
+            pathOffset: parallelOffset(pairCount, pairCount + 1),
+            onEdit: canWriteDiagramGraph ? () => openRenameRoleEdgeDialog(edgeId) : undefined,
+            onDelete: canWriteDiagramGraph ? () => handleRemoveDirectEdge(edgeId) : undefined,
+            onManageAttributes: undefined,
+          } satisfies RelationshipEdgeData,
+        },
+        eds,
+      )
+    })
+  }, [setEdges, canWriteDiagramGraph, openRenameRoleEdgeDialog, handleRemoveDirectEdge])
+
   // ─── Draw relationship edges for a freshly-seeded batch of nodes ──────────
   // The saved Diagram's relationships arrive already resolved by the backend
-  // (source/target execution ids, document_type_relationship, etc.) — no fetch
-  // needed here, just build edges off the just-built `seeded` array so node
-  // lookup and parallel-offset counting can't race against react-flow's state.
+  // (source/target endpoints, document_type_relationship, etc.) — no fetch needed
+  // here, just build edges off the just-built `seeded` array so node lookup and
+  // parallel-offset counting can't race against react-flow's state.
   const seedRelationshipEdges = useCallback(
-    (seeded: { canvasNodeId: string; node: Node<AssetTypeNodeData> }[], relationships?: InitialCanvasRelationship[]) => {
-      // No gate on canListExecRelationships here: these edges come from the saved
-      // Diagram's own denormalized data (no fetch involved), not a live exec-rel
-      // list request — a viewer with only diagram:r must still see them.
+    (seeded: { canvasNodeId: string; seed: InitialCanvasNode; node: Node<AssetTypeNodeData | CanvasElementNodeData> }[], relationships?: InitialCanvasRelationship[]) => {
+      // No gate on canListExecRelationships/canWriteDiagramGraph here: these edges
+      // come from the saved Diagram's own denormalized data (no fetch involved), not
+      // a live exec-rel list request — a viewer with only diagram:r must still see them.
       if (!relationships?.length) return
 
       const execToNodeId = new Map<string, string>()
-      for (const { canvasNodeId, node } of seeded) {
-        if (node.data.executionId) execToNodeId.set(node.data.executionId, canvasNodeId)
+      const roleToNodeId = new Map<string, string>()
+      for (const { canvasNodeId, seed } of seeded) {
+        if (seed.nodeType === 'role') roleToNodeId.set(seed.role.id, canvasNodeId)
+        else execToNodeId.set(seed.executionId, canvasNodeId)
       }
+      const resolve = (ep: DiagramRelationshipEndpoint): string | undefined =>
+        ep.node_type === 'role' ? roleToNodeId.get(ep.role_id) : execToNodeId.get(ep.execution_id)
 
       const newEdges: Edge[] = []
       const edgeIds = new Set<string>()
       const countPerPair = new Map<string, number>()
 
       for (const rel of relationships) {
-        const srcExecId = rel.source_execution_id
-        const tgtExecId = rel.target_execution_id
-        // Only draw edges between executions already on canvas
-        if (!execToNodeId.has(srcExecId) || !execToNodeId.has(tgtExecId)) continue
-        const srcCanvasId = execToNodeId.get(srcExecId)!
-        const tgtCanvasId = execToNodeId.get(tgtExecId)!
-        const edgeId = `exec-rel-${rel.execution_relationship_id}`
-        if (edgeIds.has(edgeId)) continue
+        const src = resolve(rel.source)
+        const tgt = resolve(rel.target)
+        if (!src || !tgt) continue // endpoint outside the canvas
 
-        const pairKey = `${srcCanvasId}::${tgtCanvasId}`
+        const pairKey = `${src}::${tgt}`
         const existingCount = countPerPair.get(pairKey) ?? 0
         const total = existingCount + 1
-        const dtr = rel.document_type_relationship
-        const isManual = rel.relationship_type === 'manual' || !dtr
-        const relName = isManual ? (rel.execution_relationship_name ?? '') : dtr!.name
 
-        newEdges.push({
-          id: edgeId,
-          source: srcCanvasId,
-          target: tgtCanvasId,
-          type: 'relationship',
-          data: {
-            relationshipId: rel.execution_relationship_id,
-            name: relName,
-            relationshipType: rel.relationship_type,
-            minCount: dtr?.min_count ?? 0,
-            maxCount: dtr?.max_count ?? 0,
-            pathOffset: parallelOffset(existingCount, total),
-            onEdit: canUpdateExecRelationship ? () => {
-              setEditingExecRelationship({
-                id: rel.execution_relationship_id,
-                document_type_relationship_id: dtr?.id ?? null,
-                relationship_type: rel.relationship_type,
-                execution_relationship_name: rel.execution_relationship_name ?? null,
-                source_execution_id: rel.source_execution_id,
-                target_execution_id: rel.target_execution_id,
-                attributes: rel.attributes,
-                created_at: '',
-                updated_at: '',
-                created_by: null,
-                updated_by: null,
-              })
-              setEditingExecRelName(relName)
-            } : undefined,
-            onDelete: canDeleteExecRelationship ? () => {
-              setDeletingExecRelId(rel.execution_relationship_id)
-              setDeletingExecRelName(relName)
-            } : undefined,
-            onManageAttributes: undefined,
-          } satisfies RelationshipEdgeData,
-        })
-        edgeIds.add(edgeId)
-        countPerPair.set(pairKey, total)
+        if (rel.execution_relationship_id !== null) {
+          // ── execution↔execution — unchanged, just reads from `rel.source`/`rel.target` now ──
+          const edgeId = `${EXEC_EDGE_ID_PREFIX}${rel.execution_relationship_id}`
+          if (edgeIds.has(edgeId)) continue
+          const dtr = rel.document_type_relationship
+          const isManual = rel.relationship_type === 'manual' || !dtr
+          const relName = isManual ? (rel.execution_relationship_name ?? '') : dtr!.name
+
+          newEdges.push({
+            id: edgeId,
+            source: src,
+            target: tgt,
+            type: 'relationship',
+            data: {
+              relationshipId: rel.execution_relationship_id,
+              name: relName,
+              relationshipType: rel.relationship_type,
+              edgeKind: 'execution-relationship',
+              minCount: dtr?.min_count ?? 0,
+              maxCount: dtr?.max_count ?? 0,
+              pathOffset: parallelOffset(existingCount, total),
+              onEdit: canUpdateExecRelationship ? () => {
+                setEditingExecRelationship({
+                  id: rel.execution_relationship_id,
+                  document_type_relationship_id: dtr?.id ?? null,
+                  relationship_type: rel.relationship_type,
+                  execution_relationship_name: rel.execution_relationship_name ?? null,
+                  source_execution_id: rel.source.execution_id,
+                  target_execution_id: rel.target.execution_id,
+                  attributes: rel.attributes,
+                  created_at: '',
+                  updated_at: '',
+                  created_by: null,
+                  updated_by: null,
+                })
+                setEditingExecRelName(relName)
+              } : undefined,
+              onDelete: canDeleteExecRelationship ? () => {
+                setDeletingExecRelId(rel.execution_relationship_id)
+                setDeletingExecRelName(relName)
+              } : undefined,
+              onManageAttributes: undefined,
+            } satisfies RelationshipEdgeData,
+          })
+          edgeIds.add(edgeId)
+          countPerPair.set(pairKey, total)
+        } else {
+          // ── direct edge — role↔role or role↔asset, no execution_relationship behind it ──
+          const edgeId = `${DIRECT_EDGE_ID_PREFIX}${rel.id}`
+          if (edgeIds.has(edgeId)) continue
+
+          newEdges.push({
+            id: edgeId,
+            source: src,
+            target: tgt,
+            type: 'relationship',
+            data: {
+              relationshipId: edgeId,
+              name: rel.name ?? '',
+              relationshipType: rel.relationship_type ?? undefined,
+              edgeKind: 'direct',
+              pathOffset: parallelOffset(existingCount, total),
+              onEdit: canWriteDiagramGraph ? () => openRenameRoleEdgeDialog(edgeId) : undefined,
+              onDelete: canWriteDiagramGraph ? () => handleRemoveDirectEdge(edgeId) : undefined,
+              onManageAttributes: undefined,
+            } satisfies RelationshipEdgeData,
+          })
+          edgeIds.add(edgeId)
+          countPerPair.set(pairKey, total)
+        }
       }
 
       if (newEdges.length > 0) setEdges((eds) => [...eds, ...newEdges])
     },
-    [setEdges, canUpdateExecRelationship, canDeleteExecRelationship],
+    [setEdges, canUpdateExecRelationship, canDeleteExecRelationship, canWriteDiagramGraph, openRenameRoleEdgeDialog, handleRemoveDirectEdge],
   )
 
   // ─── Seed nodes at explicit saved positions (reopening/loading a Diagram) ──
@@ -1556,12 +1767,32 @@ function RelationshipsCanvasFlow({
   // useNodesInitialized effect below, once react-flow reports the new nodes
   // are actually initialized.
   const pendingEdgeSeedRef = useRef<{
-    seeded: { canvasNodeId: string; node: Node<AssetTypeNodeData> }[]
+    seeded: { canvasNodeId: string; seed: InitialCanvasNode; node: Node<AssetTypeNodeData | CanvasElementNodeData> }[]
     relationships?: InitialCanvasRelationship[]
   } | null>(null)
 
   const seedCanvasNodes = useCallback((nodesToSeed: InitialCanvasNode[], relationships?: InitialCanvasRelationship[]) => {
     const seeded = nodesToSeed.map((n) => {
+      if (n.nodeType === 'role') {
+        const canvasNodeId = `role-${Math.random().toString(36).slice(2, 9)}`
+        const node: Node<CanvasElementNodeData> = {
+          id: canvasNodeId,
+          type: "role",
+          position: n.position,
+          data: {
+            id: canvasNodeId,
+            kind: "role",
+            content: n.role.name,
+            color: n.color ?? DEFAULT_CANVAS_ELEMENT_COLOR.role,
+            role: n.role,
+            ...(readOnly ? { readOnly: true } : {
+              onRequestRolePick: handleRequestRolePick,
+              onRemove: handleRemoveNode,
+            }),
+          },
+        }
+        return { canvasNodeId, seed: n, node }
+      }
       const canvasNodeId = `${n.assetId}-${Math.random().toString(36).slice(2, 9)}`
       const node: Node<AssetTypeNodeData> = {
         id: canvasNodeId,
@@ -1582,12 +1813,12 @@ function RelationshipsCanvasFlow({
           }),
         },
       }
-      return { canvasNodeId, node }
+      return { canvasNodeId, seed: n, node }
     })
 
     setNodes((nds) => [...nds, ...seeded.map((s) => s.node)])
     pendingEdgeSeedRef.current = { seeded, relationships }
-  }, [setNodes, handleRemoveNode, readOnly])
+  }, [setNodes, handleRemoveNode, handleRequestRolePick, readOnly])
 
   // Flush any pending edge seed once react-flow reports the current nodes are
   // initialized (measured). Depends on `nodes` too (not just the boolean) so a
@@ -1600,7 +1831,8 @@ function RelationshipsCanvasFlow({
     seedRelationshipEdges(seeded, relationships)
   }, [nodesInitialized, nodes, seedRelationshipEdges])
 
-  // ─── Seed free-standing text/container/role elements at explicit saved positions ──
+  // ─── Seed free-standing text/container elements at explicit saved positions ──
+  // Roles no longer travel through here — they're seeded as nodes above.
   const seedElementNodes = useCallback((elementsToSeed: InitialCanvasElement[]) => {
     const seeded: Node<CanvasElementNodeData>[] = elementsToSeed.map((el) => {
       const id = `${el.kind}-${Math.random().toString(36).slice(2, 9)}`
@@ -1640,15 +1872,18 @@ function RelationshipsCanvasFlow({
   }, [initialNodes, initialElements])
 
   // Picking a Diagram from LoadDiagramSheet replaces the canvas contents and
-  // switches the canvas into "editing" mode for that diagram.
-  const handleDiagramLoaded = useCallback((diagram: Diagram, nodesToSeed: InitialCanvasNode[]) => {
+  // switches the canvas into "editing" mode for that diagram. A single
+  // `buildInitialCanvasGraph` call keeps the "a legacy role in `texts` is a node"
+  // rule in one place — see lib/diagram-utils.ts.
+  const handleDiagramLoaded = useCallback((diagram: Diagram) => {
     setNodes([])
     setEdges([])
     setSelectedEdgeId(null)
     setSelectedNodeId(null)
     setEditingDiagram(toEditingDiagram(diagram))
-    seedCanvasNodes(nodesToSeed, diagram.relationships)
-    if (diagram.texts?.length) seedElementNodes(buildInitialCanvasElements(diagram))
+    const { nodes: nodesToSeed, elements, relationships } = buildInitialCanvasGraph(diagram)
+    seedCanvasNodes(nodesToSeed, relationships)
+    if (elements.length) seedElementNodes(elements)
   }, [seedCanvasNodes, seedElementNodes, setNodes, setEdges])
 
   // Saving (create or update) resolves the same shape LoadDiagramSheet feeds in —
@@ -1663,6 +1898,13 @@ function RelationshipsCanvasFlow({
   // directo — regenera el snapshot y hace el PUT sin pedir nada más.
   const handleSaveChanges = useCallback(async () => {
     if (!editingDiagram) return
+    // Defensive re-check: the menu item is already gated on `hasPersistableDetails`,
+    // but a node could be removed between render and click. A diagram with only
+    // texts/containers would 422 with DIAGRAM_DETAILS_REQUIRED on the backend.
+    if (!nodes.some((n) => detailEndpointOf(n as CanvasNode) !== null)) {
+      toast.warning(t('canvas.saveDetailsRequired'))
+      return
+    }
     try {
       const saved = await saveDiagramGraph({
         diagramId: editingDiagram.id,
@@ -1697,15 +1939,13 @@ function RelationshipsCanvasFlow({
   const sourceDocType = pendingConnection ? docTypeMap.get(pendingConnection.sourceId) : undefined
   const targetDocType = pendingConnection ? docTypeMap.get(pendingConnection.targetId) : undefined
 
-  const canUpdateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:u'))
-  const canCreateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:c'))
   // Cargar un diagrama al canvas es una LECTURA: el guardado posterior ya está
   // gateado aparte por canUpdateDiagram / canCreateDiagram.
   const canLoadDiagram = !readOnly && (isOrgAdmin || hasAnyPermission(['diagram:l', 'diagram:r']))
-  const hasValidDiagramNodes = nodes.some((n) => {
-    const d = n.data as AssetTypeNodeData
-    return !!d.assetId && !!d.executionId
-  })
+  // A node "counts" toward a savable diagram once it reaches `details` — an execution
+  // node with a version picked, or a role node with a role assigned (containers/texts
+  // never do). Same rule `buildDiagramGraphPayload` uses to decide what to persist.
+  const hasPersistableDetails = nodes.some((n) => detailEndpointOf(n as CanvasNode) !== null)
   // El menú derecho agrupa todo lo relativo al Diagrama (guardar, cargar, limpiar):
   // sigue existiendo con el canvas vacío si se puede cargar uno, igual que antes lo
   // hacía el panel de "Cargar Diagrama" aparte.
@@ -1736,8 +1976,14 @@ function RelationshipsCanvasFlow({
           // borrado del modo activo. En `execution` la eliminación se persiste
           // luego con "Guardar cambios", así que sin `execution_relationship:d`
           // no debe poder seleccionarse y borrarse.
+          // En `execution` una arista de rol solo vive en el diagrama (no en
+          // execution_relationship), así que el borrado por tecla también se
+          // habilita con permiso de escritura del diagrama, no solo con
+          // execution_relationship:d.
           deleteKeyCode={
-            (mode === 'execution' ? canDeleteExecRelationship : canDeleteRelationship)
+            (mode === 'execution'
+              ? (canDeleteExecRelationship || canWriteDiagramGraph)
+              : canDeleteRelationship)
               ? "Delete"
               : null
           }
@@ -1749,6 +1995,13 @@ function RelationshipsCanvasFlow({
             nodeColor={(n) => (n.data as AssetTypeNodeData)?.color || "#94a3b8"}
             className="border rounded-lg shadow-sm"
           />
+          {roleColumnLabelPos && (
+            <RoleColumnLabel
+              x={roleColumnLabelPos.x}
+              y={roleColumnLabelPos.y}
+              label={t("node.rolesColumnLabel")}
+            />
+          )}
 
           {/* Always available — not gated on the drag palette, which isn't mounted on every screen */}
           {!readOnly && (
@@ -1776,7 +2029,7 @@ function RelationshipsCanvasFlow({
                     <Type className="mr-2 h-4 w-4" />
                     {t("canvas.addText")}
                   </DropdownMenuItem>
-                  {ROLE_NODE_ENABLED && canPickRole && (
+                  {canAddRoleNode && (
                     <DropdownMenuItem
                       onSelect={() => setTimeout(() => addElementAtCenter("role"), 0)}
                       className="hover:cursor-pointer"
@@ -1819,7 +2072,7 @@ function RelationshipsCanvasFlow({
                   </HuemulButton>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  {mode === 'execution' && hasValidDiagramNodes && editingDiagram && canUpdateDiagram && (
+                  {mode === 'execution' && hasPersistableDetails && editingDiagram && canUpdateDiagram && (
                     <DropdownMenuItem
                       onSelect={() => setTimeout(handleSaveChanges, 0)}
                       disabled={isSavingDiagram}
@@ -1829,7 +2082,7 @@ function RelationshipsCanvasFlow({
                       {t("canvas.saveChanges")}
                     </DropdownMenuItem>
                   )}
-                  {mode === 'execution' && hasValidDiagramNodes && canCreateDiagram && (
+                  {mode === 'execution' && hasPersistableDetails && canCreateDiagram && (
                     <DropdownMenuItem
                       onSelect={() => setTimeout(() => setSaveSheetMode('new'), 0)}
                       className="hover:cursor-pointer"
@@ -1893,7 +2146,7 @@ function RelationshipsCanvasFlow({
         {selectedEdgeId && (
           <RelationshipPanel
             selectedEdgeId={selectedEdgeId}
-            canvasNodes={nodes as Node<AssetTypeNodeData>[]}
+            canvasNodes={nodes as Node<AssetTypeNodeData | CanvasElementNodeData>[]}
             edges={edges as Edge<RelationshipEdgeData>[]}
             onClose={() => setSelectedEdgeId(null)}
           />
@@ -1901,7 +2154,7 @@ function RelationshipsCanvasFlow({
 
         {selectedNodeId && (() => {
           const selectedNode = nodes.find((n) => n.id === selectedNodeId)
-          if (selectedNode?.type === "text" || selectedNode?.type === "container") {
+          if (selectedNode?.type === "text" || selectedNode?.type === "container" || selectedNode?.type === "role") {
             return (
               <ElementPanel
                 elementData={selectedNode.data as CanvasElementNodeData}
@@ -2036,9 +2289,49 @@ function RelationshipsCanvasFlow({
             if ("nodeId" in pendingRolePick) {
               handleUpdateElementRole(pendingRolePick.nodeId, role)
             } else {
+              // A role can only appear once as a free-standing node — same pattern
+              // as nodePanel.versionAlreadyInCanvas for asset versions.
+              const alreadyInCanvas = getNodes().some(
+                (n) => n.type === "role" && (n.data as CanvasElementNodeData).role?.id === id,
+              )
+              if (alreadyInCanvas) {
+                toast.warning(t("canvas.roleAlreadyInCanvas"))
+                setPendingRolePick(null)
+                return
+              }
               createElementNode("role", pendingRolePick.position, role.name, undefined, undefined, undefined, role)
             }
             setPendingRolePick(null)
+          }}
+        />
+      )}
+
+      {/* Role↔role / role↔asset edge "Name / Type" dialog — create and rename share
+          this component; nothing reaches the backend until the diagram is saved. */}
+      {roleEdgeDialogState && (
+        <RoleEdgeNameDialog
+          open={!!roleEdgeDialogState}
+          onOpenChange={(o) => !o && setRoleEdgeDialogState(null)}
+          mode={roleEdgeDialogState.mode}
+          source={
+            roleEdgeDialogState.mode === 'create'
+              ? { label: roleEdgeDialogState.pending.sourceLabel, color: roleEdgeDialogState.pending.sourceColor }
+              : roleEdgeDialogState.source
+          }
+          target={
+            roleEdgeDialogState.mode === 'create'
+              ? { label: roleEdgeDialogState.pending.targetLabel, color: roleEdgeDialogState.pending.targetColor }
+              : roleEdgeDialogState.target
+          }
+          initialName={roleEdgeDialogState.mode === 'rename' ? roleEdgeDialogState.initialName : undefined}
+          initialType={roleEdgeDialogState.mode === 'rename' ? roleEdgeDialogState.initialType : undefined}
+          onSubmit={(name, type) => {
+            if (roleEdgeDialogState.mode === 'create') {
+              handleRoleEdgeCreated(roleEdgeDialogState.pending, name, type)
+            } else {
+              handleRenameDirectEdge(roleEdgeDialogState.edgeId, name, type)
+            }
+            setRoleEdgeDialogState(null)
           }}
         />
       )}
@@ -2089,7 +2382,7 @@ function RelationshipsCanvasFlow({
           await new Promise<void>((resolve, reject) => {
             deleteExecutionRelationship.mutate(deletingExecRelId, {
               onSuccess: () => {
-                setEdges((eds) => eds.filter((e) => e.id !== `exec-rel-${deletingExecRelId}`))
+                setEdges((eds) => eds.filter((e) => e.id !== `${EXEC_EDGE_ID_PREFIX}${deletingExecRelId}`))
                 setSelectedEdgeId(null)
                 setDeletingExecRelId(null)
                 resolve()

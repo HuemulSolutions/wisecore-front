@@ -22,6 +22,7 @@ export function CreateTemplateDialog({
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newInstructions, setNewInstructions] = useState("");
+  const [newContextRequired, setNewContextRequired] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   React.useEffect(() => {
@@ -30,12 +31,13 @@ export function CreateTemplateDialog({
       setNewName("");
       setNewDescription("");
       setNewInstructions("");
+      setNewContextRequired(false);
       setError(null);
     }
   }, [open]);
 
   const createTemplateMutation = useMutation({
-    mutationFn: (newData: { name: string; description: string; instructions: string; organization_id: string }) => {
+    mutationFn: (newData: { name: string; description: string; instructions: string; organization_id: string; context_required: boolean }) => {
       logger.log('🚀 [CREATE-TEMPLATE-DIALOG] Starting template creation:', newData.name);
       return addTemplate(newData);
     },
@@ -78,6 +80,7 @@ export function CreateTemplateDialog({
       description: newDescription,
       instructions: newInstructions,
       organization_id: organizationId,
+      context_required: newContextRequired,
     });
   };
 
@@ -132,6 +135,14 @@ export function CreateTemplateDialog({
           placeholder={t('form.instructionsPlaceholder')}
           rows={8}
           inputClassName="min-h-[16rem]"
+          disabled={createTemplateMutation.isPending}
+        />
+        <HuemulField
+          type="switch"
+          label={t('form.contextRequired')}
+          value={newContextRequired}
+          onChange={(v) => setNewContextRequired(Boolean(v))}
+          description={t('form.contextRequiredDescription')}
           disabled={createTemplateMutation.isPending}
         />
       </div>

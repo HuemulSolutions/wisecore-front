@@ -1,6 +1,5 @@
 import type { DocumentType } from '@/types/document-types'
-import type { ExecutionRelationshipType, ExecutionRelationshipAttributeValue } from '@/types/execution-relationships'
-import type { Diagram } from '@/types/diagrams'
+import type { Diagram, DiagramRelationshipDetail } from '@/types/diagrams'
 import type React from 'react'
 
 // ─── Canvas ───────────────────────────────────────────────────────────────────
@@ -33,9 +32,15 @@ export interface CanvasNodeAction {
   separator?: boolean
 }
 
-// A node to seed the canvas with on mount, at an explicit saved position
-// (used to reopen a previously-saved Diagram for editing).
-export interface InitialCanvasNode {
+// A node to seed the canvas with on mount, at an explicit saved position (used to
+// reopen a previously-saved Diagram for editing). Discriminated by `nodeType` rather
+// than a separate `initialRoleNodes` prop: the canvas' edge-seeding batch
+// (`pendingEdgeSeedRef`) is a single slot flushed once via `useNodesInitialized` — two
+// separate seed calls would have the second overwrite the first and drop edges.
+export type InitialCanvasNode = InitialCanvasAssetNode | InitialCanvasRoleNode
+
+export interface InitialCanvasAssetNode {
+  nodeType: 'execution'
   assetId: string
   documentTypeId?: string
   executionId: string
@@ -45,17 +50,20 @@ export interface InitialCanvasNode {
   position: { x: number; y: number }
 }
 
+export interface InitialCanvasRoleNode {
+  nodeType: 'role'
+  role: CanvasElementRole
+  position: { x: number; y: number }
+  // Only set when migrating a legacy role stashed in `texts` (carries its old
+  // font_color forward) — a first-class role detail has no color of its own.
+  color?: string
+}
+
 // A saved Diagram relationship, already resolved by the backend — the shape the
 // canvas needs to draw an edge without re-fetching execution relationships per node.
-export interface InitialCanvasRelationship {
-  execution_relationship_id: string
-  relationship_type: ExecutionRelationshipType
-  execution_relationship_name: string | null
-  source_execution_id: string
-  target_execution_id: string
-  document_type_relationship: { id: string; name: string; min_count: number; max_count: number } | null
-  attributes: ExecutionRelationshipAttributeValue[]
-}
+// Aliased straight from the API type: keeping a hand-rolled duplicate here is exactly
+// what drifted out of sync with the backend contract before this change.
+export type InitialCanvasRelationship = DiagramRelationshipDetail
 
 // When present, the canvas is editing an existing Diagram rather than starting a new one:
 // the "Save as Diagram" action becomes "Save changes" and updates this diagram instead of
@@ -74,27 +82,44 @@ export interface EditingDiagram {
 // "role" is a free-floating circle labeled with an RBAC role's name.
 export type CanvasElementKind = 'text' | 'container' | 'role'
 
-// An RBAC role assigned to a canvas element (container acting as a lane, or a
-// free-standing role node). Stashed inside `DiagramText.position` on save — see
-// `buildInitialCanvasElements` / `save-as-diagram-sheet.tsx` — since the backend has
-// no first-class role_id column on diagram_texts yet. No `color`: roles have no
-// assignable color anywhere in the app (no such field on the role form), so nothing
-// here should imply one — the container/node keep using their own element color.
+// An RBAC role assigned to a canvas element. On a container (acting as a lane) it's
+// stashed inside `DiagramText.position` on save — see `buildDiagramGraphPayload` /
+// `save-as-diagram-sheet.tsx` — since the backend has no first-class role_id column on
+// diagram_texts yet; that part is unchanged. On a free-standing role node it's now a
+// first-class `DiagramRoleDetail` instead. No `color`: roles have no assignable color
+// anywhere in the app (no such field on the role form), so nothing here should imply
+// one — the container/node keep using their own element color.
 export interface CanvasElementRole {
   id: string
   name: string
 }
 
-// A text/container/role element to seed the canvas with on mount, at an explicit saved
+// Roles no longer travel through `texts` as a free-standing element (they're a
+// first-class `InitialCanvasRoleNode` now) — only text/container remain here.
+export type InitialCanvasElementKind = Extract<CanvasElementKind, 'text' | 'container'>
+
+// A text/container element to seed the canvas with on mount, at an explicit saved
 // position/size (used to reopen a previously-saved Diagram for editing).
 export interface InitialCanvasElement {
-  kind: CanvasElementKind
+  kind: InitialCanvasElementKind
   content: string
   color: string
   position: { x: number; y: number }
   width: number
   height: number
+  // Container-only: turns it into a lane. A role node's role lives on the node itself.
   role?: CanvasElementRole
+}
+
+// A local-only role↔role or role↔asset edge, pending the "name / type" dialog before
+// it's added to the canvas — nothing is sent to the backend until the diagram is saved.
+export interface PendingRoleEdge {
+  sourceId: string
+  targetId: string
+  sourceLabel: string
+  targetLabel: string
+  sourceColor?: string
+  targetColor?: string
 }
 
 export interface RelationshipsCanvasProps {
