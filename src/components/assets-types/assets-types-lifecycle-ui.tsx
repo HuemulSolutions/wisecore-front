@@ -1,11 +1,15 @@
 "use client"
 
+import { useState } from "react"
 import type { ReactNode } from "react"
-import { X } from "lucide-react"
+import { Info, Plus, X } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 import { Switch } from "@/components/ui/switch"
+import { HuemulField } from "@/huemul/components/huemul-field"
 import { cn } from "@/lib/utils"
+import type { AccessRuleType, AccessRuleTypeOption } from "@/types/lifecycle"
+import type { EditStepCardAccessRule } from "@/types/assets"
 
 /**
  * Primitivos visuales compartidos por los tabs del sheet de configuración de
@@ -331,6 +335,180 @@ export function PanelSummaryRow({
         {label}
       </span>
       <div className="text-[12.5px] leading-snug text-[#334155]">{children}</div>
+    </div>
+  )
+}
+
+// ─── Ayuda contextual ─────────────────────────────────────────────────────────
+
+/**
+ * Bloque de ayuda siempre visible (no depende de hover): ícono + texto, con
+ * acción opcional a la derecha. `tone="warning"` se usa para avisos accionables
+ * (p. ej. roles con acceso a otro step pero no a este); `tone="info"` para
+ * explicaciones neutras de qué controla el campo.
+ */
+export function PanelInfoHint({
+  children,
+  tone = "info",
+  action,
+  className,
+}: {
+  children: ReactNode
+  tone?: "info" | "warning"
+  action?: ReactNode
+  className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-start gap-2 rounded-xl border px-3 py-2.5 text-[12px] leading-snug",
+        tone === "warning"
+          ? "border-[#fbe2b8] bg-[#fef8ee] text-[#92600c]"
+          : "border-[#dbe6fb] bg-[#f5f8ff] text-[#3854a5]",
+        className,
+      )}
+    >
+      <Info className="mt-0.5 size-3.5 shrink-0" />
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-1.5">
+        <span className="min-w-0">{children}</span>
+        {action}
+      </div>
+    </div>
+  )
+}
+
+// ─── Reglas adicionales de acceso ──────────────────────────────────────────────
+
+/**
+ * Editor de `access_rules` (creador / jefe del creador / jefe del propietario /
+ * jefe de quien completó un step anterior). Compartido por `EditStepCard`
+ * (Elaboración/Revisión/Aprobación) y `CreateStepContent` (Creador/Publicación/
+ * Archivado/Lector) — antes solo vivía inline en `EditStepCard`, dejando a los
+ * steps sin grupos sin forma de configurar estas reglas desde la UI aunque el
+ * backend las soporta.
+ */
+export function AccessRulesEditor({
+  accessRules,
+  accessRuleTypeOptions,
+  earlierStepOptions,
+  onChange,
+  disabled,
+  t,
+}: {
+  accessRules: EditStepCardAccessRule[]
+  accessRuleTypeOptions: AccessRuleTypeOption[]
+  earlierStepOptions: { value: string; label: string }[]
+  onChange: (rules: EditStepCardAccessRule[]) => void
+  disabled?: boolean
+  t: (key: string, options?: Record<string, unknown>) => string
+}) {
+  const [pendingRuleType, setPendingRuleType] = useState<AccessRuleType | "">("")
+  const [pendingSourceStepId, setPendingSourceStepId] = useState("")
+
+  // Non-repeatable rule types already present can't be added again (backend
+  // rejects exact rule_type+source_step_id duplicates); step_actor_manager can
+  // repeat with a different source step, so it stays selectable.
+  const addedSimpleRuleTypes = new Set(
+    accessRules.filter((r) => r.rule_type !== "step_actor_manager").map((r) => r.rule_type)
+  )
+  const availableRuleTypeOptions = accessRuleTypeOptions.filter(
+    (o) => !addedSimpleRuleTypes.has(o.value)
+  )
+  const ruleTypeLabel = (ruleType: AccessRuleType) =>
+    t(`lifecycle.accessRuleTypes.${ruleType}`, {
+      defaultValue: accessRuleTypeOptions.find((o) => o.value === ruleType)?.label ?? ruleType,
+    })
+  const sourceStepLabel = (sourceStepId: string | null) =>
+    sourceStepId ? earlierStepOptions.find((o) => o.value === sourceStepId)?.label ?? sourceStepId : null
+
+  const handleAdd = () => {
+    if (!pendingRuleType) return
+    if (pendingRuleType === "step_actor_manager" && !pendingSourceStepId) return
+    onChange([
+      ...accessRules,
+      {
+        rule_type: pendingRuleType,
+        source_step_id: pendingRuleType === "step_actor_manager" ? pendingSourceStepId : null,
+      },
+    ])
+    setPendingRuleType("")
+    setPendingSourceStepId("")
+  }
+
+  const handleRemove = (index: number) => {
+    onChange(accessRules.filter((_, i) => i !== index))
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <PanelFieldLabel disabled={disabled}>{t("lifecycle.accessRules.title")}</PanelFieldLabel>
+      {accessRules.length > 0 && (
+        <ChipList>
+          {accessRules.map((rule, index) => (
+            <RemovableChip
+              key={`${rule.rule_type}-${rule.source_step_id ?? "none"}-${index}`}
+              label={`${ruleTypeLabel(rule.rule_type)}${
+                sourceStepLabel(rule.source_step_id)
+                  ? ` (${sourceStepLabel(rule.source_step_id)})`
+                  : ""
+              }`}
+              disabled={disabled}
+              onRemove={disabled ? undefined : () => handleRemove(index)}
+            />
+          ))}
+        </ChipList>
+      )}
+      <div className="flex items-center gap-2">
+        <HuemulField
+          type="select"
+          label=""
+          name={`access-rule-type-${accessRules.length}`}
+          value={pendingRuleType}
+          options={availableRuleTypeOptions.map((o) => ({
+            value: o.value,
+            label: ruleTypeLabel(o.value),
+          }))}
+          placeholder={t("lifecycle.panel.addRulePlaceholder")}
+          onChange={(v) => {
+            setPendingRuleType((v as AccessRuleType) || "")
+            setPendingSourceStepId("")
+          }}
+          disabled={disabled}
+          className="flex-1"
+        />
+        {pendingRuleType === "step_actor_manager" && (
+          <HuemulField
+            type="select"
+            label=""
+            name="access-rule-source"
+            value={pendingSourceStepId}
+            options={earlierStepOptions}
+            placeholder={t("lifecycle.accessRules.sourceStepPlaceholder")}
+            onChange={(v) => setPendingSourceStepId(String(v ?? ""))}
+            disabled={disabled}
+            className="flex-1"
+          />
+        )}
+        <button
+          type="button"
+          onClick={handleAdd}
+          title={t("lifecycle.accessRules.add")}
+          aria-label={t("lifecycle.accessRules.add")}
+          disabled={
+            disabled ||
+            !pendingRuleType ||
+            (pendingRuleType === "step_actor_manager" && !pendingSourceStepId)
+          }
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-xl border border-[#dde4ec] text-[#64748b] transition-colors hover:cursor-pointer hover:bg-[#f8fafc] hover:text-[#334155] disabled:pointer-events-none disabled:opacity-50"
+        >
+          <Plus className="size-4" />
+        </button>
+      </div>
+      {pendingRuleType === "step_actor_manager" && (
+        <p className="text-[11px] text-[#94a3b8]">
+          {t("lifecycle.accessRules.stepActorManagerNote")}
+        </p>
+      )}
     </div>
   )
 }
