@@ -40,6 +40,7 @@ export interface TemplatesResponse {
     document_type_color?: string;
     require_name_on_express?: boolean;
     name_placeholder?: string | null;
+    relation_name?: string | null;
   }[];
   page: number;
   page_size: number;
@@ -62,6 +63,7 @@ export interface WorkflowTemplateItem {
   document_type_color?: string;
   require_name_on_express?: boolean;
   name_placeholder?: string | null;
+  relation_name?: string | null;
 }
 
 // Filtros opcionales para GET /templates/
