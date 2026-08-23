@@ -271,7 +271,8 @@ export function WorkflowDetailPanel({
   // Se levanta justo antes de abrir el diálogo de "Completar" desde el botón de
   // Finalizar del wizard, para distinguir esa apertura de la del botón "Completar"
   // de HuemulLifecycleActions (mismo `isCheckDialogOpen` compartido) — solo la
-  // primera debe cerrar el wizard/panel cuando la transición termine.
+  // primera debe volver al resumen del wizard (o disparar `onFinish`) cuando la
+  // transición termine.
   const finishAfterCompleteRef = React.useRef(false)
 
   // Ciclo de vida del documento (completar/devolver, publicar, archivar, restaurar,
@@ -294,15 +295,16 @@ export function WorkflowDetailPanel({
       if (!finishAfterCompleteRef.current) return
       finishAfterCompleteRef.current = false
       if (onFinish) onFinish()
-      else handleClose()
+      else setStep(null)
     },
   })
 
   // AssetFormSection ya validó (required/formato) y guardó antes de llamar esto.
   // Solo se invoca mientras se está respondiendo un paso (step !== null). En el
   // último paso, si el usuario puede avanzar el ciclo de vida, "Finalizar" no
-  // cierra directo: abre el diálogo de confirmación de "Completar" y el cierre
-  // queda encadenado a `onAfterComplete` (arriba) para no saltarse esa confirmación.
+  // resuelve directo: abre el diálogo de confirmación de "Completar" y el paso
+  // siguiente (volver al resumen u `onFinish`) queda encadenado a
+  // `onAfterComplete` (arriba) para no saltarse esa confirmación.
   const goNext = React.useCallback(() => {
     if (!isLastStep) {
       setStep((s) => (s ?? -1) + 1)
