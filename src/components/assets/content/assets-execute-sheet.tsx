@@ -34,7 +34,9 @@ export function ExecuteSheet({
   onExecutionComplete,
   onExecutionCreated,
   selectedExecutionId,
-  executionContext}: ExecuteSheetProps) {
+  executionContext,
+  disabled,
+  disabledReason}: ExecuteSheetProps) {
   // Estados para el Execute Sheet
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
 
@@ -156,6 +158,11 @@ export function ExecuteSheet({
 
   // Nueva función para ejecutar documento directamente
   const handleExecuteDocument = () => {
+    if (disabled) {
+      toast.error(disabledReason ?? t('assets:content.cannotGenerateGeneric'));
+      return;
+    }
+
     if (!selectedFile?.id) {
       toast.error(t('toast.noDocumentId'));
       return;
@@ -419,6 +426,7 @@ export function ExecuteSheet({
               t('button.execute')
             }
             disabled={
+              !!disabled ||
               isActuallyLoadingFullDocument ||
               isLoadingDefaultLLM ||
               executeDocumentMutation.isPending ||
@@ -427,11 +435,22 @@ export function ExecuteSheet({
               ((executionType === 'single' || executionType === 'from') &&
                 (!selectedSectionId || (!currentExecutionId && !selectedExecutionId)))
             }
+            tooltip={disabled ? disabledReason : undefined}
             className="bg-[#4464f7] hover:bg-[#3451e6]"
           />
         }
       >
         <div className="space-y-6">
+                  {/* Aviso de bloqueo (ej. can_generate=false) — el tooltip del botón
+                      del header puede no dispararse sobre un botón deshabilitado, así
+                      que el motivo también se muestra acá. */}
+                  {disabled && disabledReason && !executeDocumentMutation.isPending && !(hasAttemptedCreation && executeDocumentMutation.isError) && (
+                    <Card className="border-0 shadow-sm border-l-4 border-l-amber-500">
+                      <CardContent className="py-4">
+                        <p className="text-sm text-gray-700">{disabledReason}</p>
+                      </CardContent>
+                    </Card>
+                  )}
                   {/* Estado de carga mientras se ejecuta el documento */}
                   {executeDocumentMutation.isPending ? (
                     <Card className="border-0 shadow-sm border-l-4 border-l-[#4464f7]">

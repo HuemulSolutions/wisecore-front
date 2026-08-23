@@ -1,10 +1,11 @@
 ﻿import { useMemo, useEffect, useState, useRef, useCallback } from "react";
 import { handleApiError } from "@/lib/error-utils";
+import { resolveCannotGenerateReason, isMissingContextReason } from "@/lib/generation-gating";
 import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Settings2, Bell, Sparkles, MessageSquareText } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Settings2, Bell, Sparkles, MessageSquareText, BookOpen } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
   ResizableHandle,
@@ -924,7 +925,20 @@ export function AssetContent({
     refetchInterval: false,
     refetchOnWindowFocus: false,
     staleTime: 30000, // Cache for 30 seconds
+    // TODO: la key no incluye selectedOrganizationId (preexistente, ver
+    // "ia context/rbac-audit-guide.md"). No se toca en este cambio.
   });
+
+  // Gate de generación con IA (context_required / can_generate del backend).
+  // Fuente única: documentContent, porque es la única query siempre cargada
+  // cuando hay un activo abierto (fullDocument es lazy y llega tarde).
+  // can_generate ausente (backend viejo, /content aún cargando o en error) =>
+  // fail-open, nunca bloquea. Ver src/lib/generation-gating.ts.
+  const canGenerate = documentContent?.can_generate !== false;
+  const cannotGenerateReason = canGenerate
+    ? undefined
+    : resolveCannotGenerateReason(documentContent?.cannot_generate_reason, t);
+  const isCannotGenerateMissingContext = !canGenerate && isMissingContextReason(documentContent?.cannot_generate_reason);
 
   // Permiso de sección por ciclo de vida (view/can_edit) — /content no lo trae, así que
   // se resuelve aparte contra GET /documents/{id}/sections. Ver
@@ -2114,14 +2128,16 @@ export function AssetContent({
                 lifecyclePermissions={lifecyclePermissions}
                 size="sm"
                 onClick={handleCreateExecutionFromHeader}
-                disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
-                className={executeDocumentMutation.isPending || hasExecutionInProcess
-                  ? "h-8 w-8 p-0 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm rounded-full" 
+                disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate}
+                className={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate
+                  ? "h-8 w-8 p-0 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm rounded-full"
                   : "h-8 w-8 p-0 bg-[#4464f7] hover:bg-[#3451e6] text-white border-none hover:cursor-pointer shadow-sm rounded-full"
                 }
-                title={executeDocumentMutation.isPending || hasExecutionInProcess 
+                title={executeDocumentMutation.isPending || hasExecutionInProcess
                   ? t('content.cannotExecuteInProgress')
-                  : t('content.executeNewVersion')
+                  : !canGenerate
+                    ? cannotGenerateReason
+                    : t('content.executeNewVersion')
                 }
               >
                 {executeDocumentMutation.isPending ? (
@@ -2489,6 +2505,8 @@ export function AssetContent({
                             lifecyclePermissions={lifecyclePermissions}
                             isCreatingPending={executeDocumentMutation.isPending}
                             hasExecutionInProcess={hasExecutionInProcess}
+                            canGenerate={canGenerate}
+                            cannotGenerateReason={cannotGenerateReason}
                             onCreateExecution={handleCreateExecutionFromHeader}
                             onSelectExecution={(id) => guardedAction(() => {
                               onPreserveScroll?.();
@@ -2968,10 +2986,11 @@ export function AssetContent({
                                           resource="version"
                                           lifecyclePermissions={lifecyclePermissions}
                                           onClick={handleCreateExecutionFromHeader}
-                                          disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
+                                          disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate}
                                           size="lg"
-                                          className={executeDocumentMutation.isPending || hasExecutionInProcess
-                                            ? "hover:cursor-not-allowed bg-gray-300 text-gray-500" 
+                                          title={!canGenerate ? cannotGenerateReason : undefined}
+                                          className={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate
+                                            ? "hover:cursor-not-allowed bg-gray-300 text-gray-500"
                                             : "hover:cursor-pointer bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg transition-all"
                                           }
                                         >
@@ -3020,9 +3039,11 @@ export function AssetContent({
                                   </EmptyIcon>
                                   <EmptyTitle>{t('content.setupDocument', { name: documentContent?.document_name || selectedFile.name })}</EmptyTitle>
                                   <EmptyDescription>
-                                    {fullDocument?.sections?.length > 0 
-                                      ? t('content.readyWithAi')
-                                      : t('content.readyWithSections')
+                                    {!canGenerate
+                                      ? cannotGenerateReason
+                                      : fullDocument?.sections?.length > 0
+                                        ? t('content.readyWithAi')
+                                        : t('content.readyWithSections')
                                     }
                                   </EmptyDescription>
                                   {!hasFailedExecution && !hasImportFailed && (
@@ -3049,9 +3070,10 @@ export function AssetContent({
                                             resource="version"
                                             lifecyclePermissions={lifecyclePermissions}
                                             onClick={handleCreateExecutionFromHeader}
-                                            disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
-                                            className={executeDocumentMutation.isPending || hasExecutionInProcess
-                                              ? "hover:cursor-not-allowed bg-gray-300 text-gray-500" 
+                                            disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate}
+                                            title={!canGenerate ? cannotGenerateReason : undefined}
+                                            className={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate
+                                              ? "hover:cursor-not-allowed bg-gray-300 text-gray-500"
                                               : "bg-[#4464f7] hover:bg-[#3451e6]"
                                             }
                                           >
@@ -3067,6 +3089,18 @@ export function AssetContent({
                                               </>
                                             )}
                                           </HuemulButton>
+                                          {isCannotGenerateMissingContext && frontendPermissions.canAccessSectionSheet && (
+                                            <HuemulButton
+                                              variant="outline"
+                                              onClick={() => {
+                                                preserveScrollPosition();
+                                                setIsContextSheetOpen(true);
+                                              }}
+                                            >
+                                              <BookOpen className="h-4 w-4 mr-2" />
+                                              {t('content.configureContext')}
+                                            </HuemulButton>
+                                          )}
                                           <HuemulButton
                                             requiredAccess={["edit", "create"]}
                                             requireAll={false}
@@ -3217,6 +3251,8 @@ export function AssetContent({
                                   // por RBAC/lifecycle/etapa) de "esta sección puntual es de solo
                                   // lectura en esta etapa" — para el badge/tooltip en la barra de la sección.
                                   readOnlyBySectionRule={frontendPermissions.canEditSections && resolveSectionCanEdit(section, sectionAccess) === false}
+                                  canGenerate={canGenerate}
+                                  cannotGenerateReason={cannotGenerateReason}
                                   onCreateSectionFromSelection={handleCreateSectionFromSelection(index)}
                                   onCopyLink={realSectionId ? () => handleCopySectionLink(realSectionId) : undefined}
                                 />
@@ -3275,9 +3311,10 @@ export function AssetContent({
                               checkGlobalPermissions={true}
                               resource="version"
                               lifecyclePermissions={lifecyclePermissions}
-                              variant="outline" 
+                              variant="outline"
                               onClick={handleCreateExecutionFromHeader}
-                              disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
+                              disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate}
+                              title={!canGenerate ? cannotGenerateReason : undefined}
                               className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {executeDocumentMutation.isPending ? (
@@ -3550,15 +3587,17 @@ export function AssetContent({
         isMobile={isMobile}
         selectedExecutionId={selectedExecutionId}
         executionContext={executionContext}
-        disabled={hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
+        disabled={hasExecutionInProcess || !canGenerate || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
         disabledReason={
-          hasExecutionInProcess 
-            ? t('content.executionRunning') 
-            : !fullDocument?.sections || fullDocument.sections.length === 0 
-              ? t('content.needsSections') 
-              : !defaultLLM?.id 
-                ? t('content.noDefaultLlm') 
-                : undefined
+          hasExecutionInProcess
+            ? t('content.executionRunning')
+            : !canGenerate
+              ? cannotGenerateReason
+              : !fullDocument?.sections || fullDocument.sections.length === 0
+                ? t('content.needsSections')
+                : !defaultLLM?.id
+                  ? t('content.noDefaultLlm')
+                  : undefined
         }
       />
 

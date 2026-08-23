@@ -61,7 +61,9 @@ export interface ExecuteSheetProps {
   onExecutionComplete?: () => void
   onExecutionCreated?: (executionId: string, mode: 'full' | 'full-single' | 'single' | 'from', sectionIndex?: number) => void
   isMobile?: boolean
+  /** Deshabilita el botón "Ejecutar" del sheet (ej. can_generate=false). */
   disabled?: boolean
+  /** Motivo mostrado como tooltip/aviso cuando `disabled` es true. */
   disabledReason?: string
   selectedExecutionId?: string | null
   executionContext?: { type: 'header' | 'section', sectionIndex?: number, sectionId?: string } | null

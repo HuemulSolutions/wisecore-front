@@ -55,8 +55,11 @@ function SectionExecutionInner({
     onCreateSectionFromSelection,
     sectionCanAnswer = true,
     readOnlyBySectionRule = false,
+    canGenerate = true,
+    cannotGenerateReason,
     // onCopyLink,
 }: SectionExecutionProps) {
+    const generationBlocked = canGenerate === false;
     const { selectedOrganizationId } = useOrganization();
     const { setIsSectionEditing } = useOptionalEditingGuard();
     const queryClient = useQueryClient();
@@ -318,6 +321,11 @@ function SectionExecutionInner({
             return;
         }
 
+        if (generationBlocked) {
+            toast.error(cannotGenerateReason ?? t('section.executionFailed'));
+            return;
+        }
+
         try {
             setIsExecuting(true);
             setExecutionConfigOpen(false);
@@ -547,9 +555,15 @@ function SectionExecutionInner({
                                         icon={Play}
                                         iconClassName="h-3.5 w-3.5 text-blue-600"
                                         className="h-7 w-7 hover:bg-blue-50"
-                                        tooltip={isExecutionInProgress ? t('section.executionInProgress') : t('section.openExecuteSheet')}
+                                        tooltip={
+                                            isExecutionInProgress
+                                                ? t('section.executionInProgress')
+                                                : generationBlocked
+                                                    ? cannotGenerateReason
+                                                    : t('section.openExecuteSheet')
+                                        }
                                         onClick={onOpenExecuteSheet}
-                                        disabled={isExecutionInProgress}
+                                        disabled={isExecutionInProgress || generationBlocked}
                                     />
                                 )}
 
@@ -684,7 +698,7 @@ function SectionExecutionInner({
                                                 onSelect={() => {
                                                     setTimeout(() => handleOpenExecutionConfig('single'), 0);
                                                 }}
-                                                disabled={isExecuting}
+                                                disabled={isExecuting || generationBlocked}
                                             >
                                                 <Play className="h-4 w-4 mr-2" />
                                                 {t('section.executeSection')}
@@ -694,7 +708,7 @@ function SectionExecutionInner({
                                                 onSelect={() => {
                                                     setTimeout(() => handleOpenExecutionConfig('from'), 0);
                                                 }}
-                                                disabled={isExecuting}
+                                                disabled={isExecuting || generationBlocked}
                                             >
                                                 <FastForward className="h-4 w-4 mr-2" />
                                                 {t('section.executeFromSection')}

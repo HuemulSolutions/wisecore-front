@@ -56,6 +56,9 @@ export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = f
             addDocumentDependency(id, body, selectedOrganizationId!),
         onSuccess: async () => {
             await queryClient.refetchQueries({ queryKey: ['documentDependencies', id] });
+            // can_generate (GET /documents/{id}/content) depende de si el
+            // activo tiene al menos una dependencia configurada.
+            queryClient.invalidateQueries({ queryKey: ['document-content', id] });
             toast.success(t('toast.added'));
         },
         onError: (error) => {
@@ -80,6 +83,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = f
         onSuccess: async () => {
             // Wait for the dependencies to be reloaded
             await queryClient.refetchQueries({ queryKey: ['documentDependencies', id] });
+            queryClient.invalidateQueries({ queryKey: ['document-content', id] });
             toast.success(t('toast.removed'));
         },
         onError: (error) => {

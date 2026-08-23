@@ -201,6 +201,8 @@ const translations = {
     owner: { en: "Owner", es: "Propietario" },
     ownerPlaceholder: { en: "Search a user to reassign the owner", es: "Buscar un usuario para reasignar el propietario" },
     ownerDescription: { en: "Shows who currently owns this asset. Change it to reassign ownership — the original creator is kept separately and never changes.", es: "Muestra quién es el propietario actual de este activo. Cámbialo para reasignar la propiedad — el creador original se mantiene aparte y nunca cambia." },
+    contextRequired: { en: "Require context to generate", es: "Requiere contexto para generar" },
+    contextRequiredDescription: { en: "Blocks AI generation until the asset has at least one context item or dependency.", es: "Bloquea la generación con IA hasta que el activo tenga al menos un elemento de contexto o una dependencia." },
   },
   edit: {
     title: { en: "Edit Asset", es: "Editar Activo" },
@@ -752,6 +754,9 @@ const translations = {
     executionRunning: { en: "There's already an execution running", es: "Ya hay una ejecución en proceso" },
     needsSections: { en: "This asset needs sections before it can be executed", es: "Este activo necesita secciones antes de poder ejecutarse" },
     noDefaultLlm: { en: "No default LLM available", es: "No hay LLM predeterminado disponible" },
+    cannotGenerateNeedsContext: { en: "This asset requires context before generating. Add at least one context item or a dependency.", es: "Este activo requiere contexto antes de generar. Agrega al menos un elemento de contexto o una dependencia." },
+    cannotGenerateGeneric: { en: "AI generation isn't available for this asset right now.", es: "La generación con IA no está disponible para este activo en este momento." },
+    configureContext: { en: "Configure context", es: "Configurar contexto" },
     refreshContent: { en: "Refresh content", es: "Refrescar contenido" },
     notifications: { en: "Notifications", es: "Notificaciones" },
     notificationsTooltip: { en: "View notifications", es: "Ver notificaciones" },

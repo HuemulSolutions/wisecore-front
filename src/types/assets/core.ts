@@ -230,6 +230,18 @@ export interface LatestDiscussion {
 }
 
 /**
+ * Campos de gating de generación IA. Solo vienen en GET /documents/{id} y
+ * GET /documents/{id}/content — NO en el listado GET /documents/ (costo de
+ * evaluar contexto por fila). `can_generate` ausente = backend viejo =>
+ * tratar como `true` (fail-open). Ver "ia context/" del cambio de backend.
+ */
+export interface AssetGenerationGate {
+  context_required?: boolean;
+  can_generate?: boolean;
+  cannot_generate_reason?: string | null;
+}
+
+/**
  * Response from asset content API
  */
 export interface AssetContentResponse {
@@ -242,6 +254,7 @@ export interface AssetContentResponse {
     content_hash: string | null;
     template_id: string | null;
     template_name: string | null;
+    template_instructions?: string | null;
     document_type: DocumentType;
     executions: ExecutionInfo[];
     internal_code: string | null;
@@ -257,7 +270,7 @@ export interface AssetContentResponse {
     creator_id: string | null;
     /** Whether created_by (the owner) was ever reassigned away from the original creator. */
     owner_changed?: boolean;
-  };
+  } & AssetGenerationGate;
   transaction_id: string;
   timestamp: string;
 }
@@ -359,6 +372,12 @@ export interface CreateAssetRequest {
   template_id?: string;
   folder_id?: string;
   create_initial_version?: boolean;
+  /**
+   * Si se omite y hay `template_id`, hereda el valor del template. No
+   * exponer este campo en el sheet de crear activo — mandarlo explícito
+   * ahí rompería esa herencia. Se edita después desde "Editar Activo".
+   */
+  context_required?: boolean;
 }
 
 export interface CreateFolderRequest {

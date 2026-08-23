@@ -34,6 +34,11 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
   const [createdBy, setCreatedBy] = useState('');
   const [createdByLabel, setCreatedByLabel] = useState('');
   const [initialCreatedBy, setInitialCreatedBy] = useState('');
+  const [contextRequired, setContextRequired] = useState(false);
+  // Solo se manda context_required en el payload si el prefill realmente
+  // cargó — si getDocumentById falla, no queremos apagar el flag sin que
+  // el usuario lo haya pedido.
+  const [contextRequiredLoaded, setContextRequiredLoaded] = useState(false);
 
   // Prefill cuando se abre o cambia el doc
   useEffect(() => {
@@ -45,6 +50,8 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
       setCreatedBy('');
       setCreatedByLabel('');
       setInitialCreatedBy('');
+      setContextRequired(false);
+      setContextRequiredLoaded(false);
 
       // Siempre cargar datos del documento para obtener todos los campos
       try {
@@ -55,6 +62,8 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
           setDocumentTypeId(doc?.document_type?.id || '');
           setDocumentTypeName(doc?.document_type?.name || '');
           setDocumentTypeColor(doc?.document_type?.color ?? undefined);
+          setContextRequired(doc?.context_required === true);
+          setContextRequiredLoaded(true);
 
           const creator = doc?.created_by_user;
           if (creator) {
@@ -75,7 +84,7 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
   }, [open, currentName, currentDescription, currentDocumentTypeId, documentId, selectedOrganizationId]);
 
   const mutation = useMutation({
-    mutationFn: async (payload: { name: string; description?: string; internal_code?: string; document_type_id?: string; created_by?: string }) => {
+    mutationFn: async (payload: { name: string; description?: string; internal_code?: string; document_type_id?: string; created_by?: string; context_required?: boolean }) => {
       if (!selectedOrganizationId) throw new Error('Organization not selected');
       return updateDocument(documentId, payload, selectedOrganizationId);
     },
@@ -121,7 +130,7 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
       return;
     }
     
-    const payload: { name: string; description?: string; internal_code?: string; document_type_id: string; created_by?: string } = {
+    const payload: { name: string; description?: string; internal_code?: string; document_type_id: string; created_by?: string; context_required?: boolean } = {
       name: name.trim(),
       document_type_id: documentTypeId.trim(),
     };
@@ -138,9 +147,13 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
       payload.created_by = createdBy.trim();
     }
 
+    if (contextRequiredLoaded) {
+      payload.context_required = contextRequired;
+    }
+
     logger.log('Updating document with payload:', payload);
     mutation.mutate(payload);
-  }, [name, description, internalCode, documentTypeId, createdBy, initialCreatedBy, mutation]);
+  }, [name, description, internalCode, documentTypeId, createdBy, initialCreatedBy, contextRequired, contextRequiredLoaded, mutation]);
 
   return (
     <HuemulSheet
@@ -219,6 +232,16 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
           selectedLabel={createdByLabel}
           onSelectedLabelChange={(label) => setCreatedByLabel(label ?? '')}
           pageSize={20}
+        />
+
+        <HuemulField
+          type="switch"
+          label={t('assets:form.contextRequired')}
+          name="contextRequired"
+          value={contextRequired}
+          onChange={(v) => setContextRequired(Boolean(v))}
+          description={t('assets:form.contextRequiredDescription')}
+          disabled={mutation.isPending}
         />
       </HuemulFieldGroup>
     </HuemulSheet>

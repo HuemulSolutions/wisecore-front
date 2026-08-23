@@ -7,6 +7,8 @@ export interface TemplateItem {
   canvas_id?: string | null;
   /** Habilita view/edit propio por sección y etapa del ciclo de vida (default false). */
   section_lifecycle_access_enabled?: boolean;
+  /** Los activos creados desde este template heredan el valor si no lo especifican. */
+  context_required?: boolean;
 }
 
 export interface CloneTemplateRequest {

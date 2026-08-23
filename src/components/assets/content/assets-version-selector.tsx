@@ -27,6 +27,10 @@ interface VersionSelectorDropdownProps {
   lifecyclePermissions: { create?: boolean; edit?: boolean } | undefined;
   isCreatingPending: boolean;
   hasExecutionInProcess: boolean;
+  /** false cuando el backend reporta can_generate=false en /content. Ausente/true = sin restricción. */
+  canGenerate?: boolean;
+  /** Motivo ya traducido, para el tooltip. Solo relevante si canGenerate === false. */
+  cannotGenerateReason?: string;
   onCreateExecution: () => void;
   onSelectExecution: (executionId: string) => void;
   onOpenVersionManagement: () => void;
@@ -42,6 +46,8 @@ export function VersionSelectorDropdown({
   lifecyclePermissions,
   isCreatingPending,
   hasExecutionInProcess,
+  canGenerate = true,
+  cannotGenerateReason,
   onCreateExecution,
   onSelectExecution,
   onOpenVersionManagement,
@@ -76,16 +82,18 @@ export function VersionSelectorDropdown({
           size="sm"
           variant="ghost"
           onClick={onCreateExecution}
-          disabled={isCreatingPending || hasExecutionInProcess}
+          disabled={isCreatingPending || hasExecutionInProcess || !canGenerate}
           className={`h-8 w-8 p-0 rounded-r-none transition-colors ${
-            isCreatingPending || hasExecutionInProcess
+            isCreatingPending || hasExecutionInProcess || !canGenerate
               ? "text-gray-400 cursor-not-allowed"
               : "text-[#4464f7] hover:bg-gray-200 hover:text-[#3451e6] hover:cursor-pointer"
           }`}
           tooltip={
             isCreatingPending || hasExecutionInProcess
               ? t("content.cannotExecuteInProgress")
-              : t("content.executeNewVersion")
+              : !canGenerate
+                ? cannotGenerateReason
+                : t("content.executeNewVersion")
           }
         >
           {isCreatingPending ? (
@@ -123,7 +131,7 @@ export function VersionSelectorDropdown({
               <DropdownMenuItem
                 className="hover:cursor-pointer p-2 gap-2 text-[#4464f7] hover:bg-blue-50 hover:text-[#3451e6]"
                 onSelect={() => setTimeout(() => onCreateExecution(), 0)}
-                disabled={isCreatingPending || hasExecutionInProcess}
+                disabled={isCreatingPending || hasExecutionInProcess || !canGenerate}
               >
                 <div className="flex h-6 w-6 items-center justify-center rounded-md border border-dashed border-[#4464f7]">
                   <Plus className="h-3.5 w-3.5" />

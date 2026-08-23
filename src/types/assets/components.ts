@@ -183,4 +183,12 @@ export interface SectionExecutionProps {
    * src/hooks/useDocumentSectionAccess.ts.
    */
   readOnlyBySectionRule?: boolean
+  /**
+   * false cuando el backend reporta can_generate=false en /content (p.ej. el
+   * activo exige contexto y no tiene ninguno). Gatea Play / "Ejecutar sección" /
+   * "Ejecutar desde la sección". Ausente = sin restricción.
+   */
+  canGenerate?: boolean
+  /** Motivo ya traducido, para el tooltip. Solo relevante si canGenerate === false. */
+  cannotGenerateReason?: string
 }
