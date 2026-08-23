@@ -5,13 +5,26 @@ import { X, ArrowRight, Edit2, Trash2, Settings2, GitMerge } from "lucide-react"
 import { type Edge, type Node } from "@xyflow/react"
 import { Badge } from "@/components/ui/badge"
 import type { AssetTypeNodeData } from "./asset-type-node"
+import type { CanvasElementNodeData } from "./text-node"
 import type { RelationshipEdgeData } from "./relationship-edge"
 
 interface RelationshipPanelProps {
   selectedEdgeId: string
-  canvasNodes: Node<AssetTypeNodeData>[]
+  canvasNodes: Node<AssetTypeNodeData | CanvasElementNodeData>[]
   edges: Edge<RelationshipEdgeData>[]
   onClose: () => void
+}
+
+// Same criterion as `nodeLabel` in relationships-canvas.tsx: a role node's label is
+// its assigned role's name (falling back to raw canvas content), everything else
+// shows its asset/document-type name.
+function endpointLabel(node?: Node<AssetTypeNodeData | CanvasElementNodeData>): string | undefined {
+  if (!node) return undefined
+  if (node.type === "role") {
+    const d = node.data as CanvasElementNodeData
+    return d.role?.name ?? d.content
+  }
+  return (node.data as AssetTypeNodeData).name
 }
 
 export function RelationshipPanel({
@@ -26,6 +39,7 @@ export function RelationshipPanel({
   if (!edge) return null
 
   const edgeData = edge.data!
+  const isDirectEdge = edgeData.edgeKind === "direct"
   const sourceNode = canvasNodes.find((n) => n.id === edge.source)
   const targetNode = canvasNodes.find((n) => n.id === edge.target)
 
@@ -57,12 +71,17 @@ export function RelationshipPanel({
               {sourceNode && (
                 <div
                   className="h-3 w-3 rounded-full shrink-0"
-                  style={{ backgroundColor: sourceNode.data.color || "#94a3b8" }}
+                  style={{ backgroundColor: (sourceNode.data as AssetTypeNodeData | CanvasElementNodeData).color || "#94a3b8" }}
                 />
               )}
               <span className="text-xs font-medium truncate flex-1">
-                {sourceNode?.data.name ?? edge.source}
+                {endpointLabel(sourceNode) ?? edge.source}
               </span>
+              {sourceNode?.type === "role" && (
+                <Badge variant="outline" className="text-[10px] h-4 px-1 shrink-0">
+                  {t("panel.role")}
+                </Badge>
+              )}
             </div>
             <div className="flex items-center gap-2 pl-1">
               <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -71,18 +90,33 @@ export function RelationshipPanel({
               {targetNode && (
                 <div
                   className="h-3 w-3 rounded-full shrink-0"
-                  style={{ backgroundColor: targetNode.data.color || "#94a3b8" }}
+                  style={{ backgroundColor: (targetNode.data as AssetTypeNodeData | CanvasElementNodeData).color || "#94a3b8" }}
                 />
               )}
               <span className="text-xs font-medium truncate flex-1">
-                {targetNode?.data.name ?? edge.target}
+                {endpointLabel(targetNode) ?? edge.target}
               </span>
+              {targetNode?.type === "role" && (
+                <Badge variant="outline" className="text-[10px] h-4 px-1 shrink-0">
+                  {t("panel.role")}
+                </Badge>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Cardinality (configured relationships) / Manual badge */}
-        {edgeData.relationshipType === "manual" ? (
+        {/* Diagram-only edge / Cardinality / Manual badge */}
+        {isDirectEdge ? (
+          <div className="space-y-2">
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+              {t("panel.type")}
+            </p>
+            <Badge variant="outline" className="text-xs h-6 px-2">
+              {t("panel.diagramEdge")}
+            </Badge>
+            <p className="text-[11px] text-muted-foreground">{t("panel.diagramEdgeHint")}</p>
+          </div>
+        ) : edgeData.relationshipType === "manual" ? (
           <div className="space-y-2">
             <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
               {t("panel.type")}
@@ -114,7 +148,9 @@ export function RelationshipPanel({
                 className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground hover:bg-accent hover:text-foreground hover:cursor-pointer transition-colors"
               >
                 <Edit2 className="h-3.5 w-3.5 shrink-0" />
-                <span>{t("panel.edit")}</span>
+                {/* The wording matters: renaming a direct edge doesn't call the
+                    backend at all until the diagram is saved. */}
+                <span>{isDirectEdge ? t("panel.rename") : t("panel.edit")}</span>
               </button>
             )}
             {edgeData.onManageAttributes && (
@@ -132,7 +168,9 @@ export function RelationshipPanel({
                 className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:cursor-pointer transition-colors"
               >
                 <Trash2 className="h-3.5 w-3.5 shrink-0" />
-                <span>{t("panel.delete")}</span>
+                {/* Same wording concern: nothing is deleted from the backend, the
+                    edge is just removed from this diagram's drawing. */}
+                <span>{isDirectEdge ? t("panel.removeFromDiagram") : t("panel.delete")}</span>
               </button>
             )}
           </div>

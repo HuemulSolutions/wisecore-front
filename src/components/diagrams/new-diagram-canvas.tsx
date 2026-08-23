@@ -43,6 +43,7 @@ export function NewDiagramCanvas({ organizationId, seedAssetId, seedExecutionId,
       if (!execution) return null
 
       const node: InitialCanvasNode = {
+        nodeType: 'execution',
         assetId: seedAssetId!,
         documentTypeId: document?.document_type?.id,
         executionId: execution.id,

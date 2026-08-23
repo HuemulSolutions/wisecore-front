@@ -12,14 +12,24 @@ import {
   type InternalNode,
 } from "@xyflow/react"
 import { Edit2, Trash2, Settings2 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
-import type { ExecutionRelationshipType } from "@/types/execution-relationships"
+
+// 'document-type-relationship' (id `rel-…`) and 'execution-relationship' (id
+// `exec-rel-…`) both have a real backend entity behind them; 'direct' (id
+// `diagram-edge-…`) only exists inside a Diagram's own `relationships` — it never
+// creates an execution_relationship. Explicit instead of inferred from the id prefix:
+// the prefix-based classification worked by accident (a third `rel-` prefix would
+// silently misclassify), this makes it a compile-time-checked field instead.
+export type RelationshipEdgeKind = 'document-type-relationship' | 'execution-relationship' | 'direct'
 
 export interface RelationshipEdgeData {
   relationshipId: string
   name: string
-  /** Only present for execution relationships; absent for document-type relationships. */
-  relationshipType?: ExecutionRelationshipType
+  edgeKind: RelationshipEdgeKind
+  /** 'default' | 'manual' for an execution relationship; a free-text label (or unset)
+   *  for a direct edge — never compare this to 'manual' without checking `edgeKind` first. */
+  relationshipType?: string
   minCount?: number
   maxCount?: number
   /** Signed offset index used to vary curvature for parallel edges */
@@ -151,6 +161,7 @@ export function RelationshipEdge({
   data,
   markerEnd,
 }: EdgeProps<RelationshipEdgeType>) {
+  const { t } = useTranslation("document-type-relationships")
   const sourceNode = useInternalNode(source)
   const targetNode = useInternalNode(target)
   const edgeData = data!
@@ -195,6 +206,9 @@ export function RelationshipEdge({
         style={{
           strokeWidth: selected ? 1.75 : 1.25,
           stroke: strokeColor,
+          // Minimal, honest signal that this line has no backend relationship behind
+          // it — just an entry in the Diagram's own `relationships`.
+          strokeDasharray: edgeData.edgeKind === 'direct' ? '6 4' : undefined,
         }}
       />
 
@@ -208,14 +222,18 @@ export function RelationshipEdge({
           }}
           className="nodrag nopan flex flex-col items-center gap-1"
         >
-          <span
-            className={cn(
-              "text-[11px] font-semibold px-1.5 py-0.5 rounded bg-background whitespace-nowrap max-w-40 truncate",
-              selected ? "text-primary" : "text-foreground",
-            )}
-          >
-            {edgeData.name}
-          </span>
+          {/* A direct edge's label is optional (backend accepts `name: null`) — an
+              empty chip with a background used to render regardless of content. */}
+          {edgeData.name && (
+            <span
+              className={cn(
+                "text-[11px] font-semibold px-1.5 py-0.5 rounded bg-background whitespace-nowrap max-w-40 truncate",
+                selected ? "text-primary" : "text-foreground",
+              )}
+            >
+              {edgeData.name}
+            </span>
+          )}
 
           {selected && (edgeData.onEdit || edgeData.onManageAttributes || edgeData.onDelete) && (
             <div className="flex items-center gap-0.5 bg-background border rounded-md px-1 py-0.5 shadow-sm">
@@ -223,7 +241,7 @@ export function RelationshipEdge({
                 <button
                   onClick={() => edgeData.onEdit!(edgeData.relationshipId)}
                   className="p-1 rounded hover:bg-accent hover:cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
-                  title="Edit relationship"
+                  title={t("panel.edit")}
                 >
                   <Edit2 className="h-3 w-3" />
                 </button>
@@ -232,7 +250,7 @@ export function RelationshipEdge({
                 <button
                   onClick={() => edgeData.onManageAttributes!(edgeData.relationshipId)}
                   className="p-1 rounded hover:bg-accent hover:cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
-                  title="Manage attributes"
+                  title={t("panel.attributes")}
                 >
                   <Settings2 className="h-3 w-3" />
                 </button>
@@ -241,7 +259,7 @@ export function RelationshipEdge({
                 <button
                   onClick={() => edgeData.onDelete!(edgeData.relationshipId)}
                   className="p-1 rounded hover:bg-destructive/10 hover:cursor-pointer text-muted-foreground hover:text-destructive transition-colors"
-                  title="Delete relationship"
+                  title={t("panel.delete")}
                 >
                   <Trash2 className="h-3 w-3" />
                 </button>

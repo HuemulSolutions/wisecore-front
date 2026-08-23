@@ -15,17 +15,8 @@ import type { CanvasElementNodeData } from "./text-node"
 
 type RoleNodeType = Node<CanvasElementNodeData, "role">
 
-// A standalone role node can't connect/persist relationships yet (needs backend,
-// see the plan) — so its creation entry points (toolbar button, drag palette item)
-// stay hidden until then. The node type stays registered so a diagram saved with
-// one earlier keeps rendering and re-saving correctly; this only gates *creating* new ones.
-export const ROLE_NODE_ENABLED = false
-
 const handleClass = "!w-3 !h-3 !border-2 !bg-background transition-colors hover:!bg-primary/20"
-// Fase 1: no hay dónde persistir una arista rol↔asset (el backend solo acepta
-// relationships de execution_relationship), así que los handles quedan montados
-// (React Flow necesita su handleBounds para no romper otras conexiones) pero inertes.
-const handleInertClass = "!opacity-0 !pointer-events-none"
+const handleReadOnlyClass = "!opacity-0 !pointer-events-none"
 
 // Free-floating circle labeled with an RBAC role's name — the canvas equivalent of a
 // BPMN lane actor, but not attached to any container. No inline text editing: the
@@ -36,17 +27,21 @@ export function RoleNode({ data, selected }: NodeProps<RoleNodeType>) {
 
   const nodeContent = (
     <div className="flex flex-col items-center gap-1 w-30">
-      <Handle type="source" position={Position.Top}    id="top"    isConnectable={false}
-        className={cn(handleClass, handleInertClass)} style={{ borderColor: color }}
+      {/* Floating handles — mirrors asset-type-node.tsx: source on all 4 sides, always
+          mounted (React Flow needs their handleBounds to position edges at all), made
+          inert only in readOnly. With ConnectionMode.Loose these also accept incoming
+          connections, so a role↔role or activo↔role edge can start from either side. */}
+      <Handle type="source" position={Position.Top}    id="top"    isConnectable={!data.readOnly}
+        className={cn(handleClass, data.readOnly && handleReadOnlyClass)} style={{ borderColor: color }}
       />
-      <Handle type="source" position={Position.Right}  id="right"  isConnectable={false}
-        className={cn(handleClass, handleInertClass)} style={{ borderColor: color }}
+      <Handle type="source" position={Position.Right}  id="right"  isConnectable={!data.readOnly}
+        className={cn(handleClass, data.readOnly && handleReadOnlyClass)} style={{ borderColor: color }}
       />
-      <Handle type="source" position={Position.Bottom} id="bottom" isConnectable={false}
-        className={cn(handleClass, handleInertClass)} style={{ borderColor: color }}
+      <Handle type="source" position={Position.Bottom} id="bottom" isConnectable={!data.readOnly}
+        className={cn(handleClass, data.readOnly && handleReadOnlyClass)} style={{ borderColor: color }}
       />
-      <Handle type="source" position={Position.Left}   id="left"   isConnectable={false}
-        className={cn(handleClass, handleInertClass)} style={{ borderColor: color }}
+      <Handle type="source" position={Position.Left}   id="left"   isConnectable={!data.readOnly}
+        className={cn(handleClass, data.readOnly && handleReadOnlyClass)} style={{ borderColor: color }}
       />
       <div
         className={cn(
