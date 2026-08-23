@@ -193,37 +193,35 @@ export function AssetsRelatedDocuments({
       onOpenChange={setIsOpen}
       className="shrink-0 border-t border-border bg-card shadow-[0_-2px_8px_-4px_rgba(0,0,0,0.12)]"
     >
-      <CollapsibleTrigger asChild>
-        <button className="flex w-full items-center gap-1.5 px-3 py-2 text-left transition-colors hover:cursor-pointer hover:bg-muted/50">
-          <ChevronRight className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-90")} />
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-            <Link2 className="h-3 w-3" />
-          </span>
-          <span className="text-xs font-semibold text-foreground">{t("content.relatedDocuments.title")}</span>
-          <span
-            className={cn(
-              "inline-flex h-4 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold",
-              relationships.length > 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
-            )}
-          >
-            {relationships.length}
-          </span>
-          <span className="flex-1" />
-          <HuemulButton
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-muted-foreground/70"
-            icon={RefreshCw}
-            iconClassName="h-3 w-3"
-            tooltip={t("common:refresh")}
-            loading={isFetching}
-            onClick={(e) => {
-              e.stopPropagation();
-              refetch();
-            }}
-          />
-        </button>
-      </CollapsibleTrigger>
+      <div className="flex w-full items-center gap-1.5 px-3 py-2 transition-colors hover:bg-muted/50">
+        <CollapsibleTrigger asChild>
+          <button type="button" className="flex flex-1 items-center gap-1.5 text-left hover:cursor-pointer">
+            <ChevronRight className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-90")} />
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <Link2 className="h-3 w-3" />
+            </span>
+            <span className="text-xs font-semibold text-foreground">{t("content.relatedDocuments.title")}</span>
+            <span
+              className={cn(
+                "inline-flex h-4 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold",
+                relationships.length > 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+              )}
+            >
+              {relationships.length}
+            </span>
+          </button>
+        </CollapsibleTrigger>
+        <HuemulButton
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 text-muted-foreground/70"
+          icon={RefreshCw}
+          iconClassName="h-3 w-3"
+          tooltip={t("common:refresh")}
+          loading={isFetching}
+          onClick={() => refetch()}
+        />
+      </div>
       <CollapsibleContent className="max-h-[45vh] space-y-2 overflow-y-auto overflow-x-hidden px-2 pb-2">
         {isLoading ? (
           <div className="space-y-1 px-1 py-1">

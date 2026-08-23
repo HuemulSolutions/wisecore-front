@@ -1,13 +1,15 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { HuemulField } from "@/huemul/components/huemul-field";
-import { updateTemplate } from "@/services/templates";
+import { updateTemplate, getTemplateById } from "@/services/templates";
 import { Edit3 } from "lucide-react";
 import { withRefresh } from "@/lib/query-utils";
 import type { EditTemplateDialogProps } from '@/types/templates';
 export type { EditTemplateDialogProps } from '@/types/templates';
+
+type UpdateTemplatePayload = Parameters<typeof updateTemplate>[1];
 
 export function EditTemplateDialog({
   open,
@@ -24,18 +26,41 @@ export function EditTemplateDialog({
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editInstructions, setEditInstructions] = useState("");
+  const [editContextRequired, setEditContextRequired] = useState(false);
 
+  // Prefill inicial desde las props (rápido, pero el sidebar solo pasa datos
+  // del listado y puede no traer context_required/instructions completos).
   useEffect(() => {
     if (open) {
       setEditName(templateName);
       setEditDescription(templateDescription || "");
       setEditInstructions(templateInstructions || "");
+      setEditContextRequired(false);
     }
   }, [open, templateName, templateDescription, templateInstructions]);
 
+  // Detalle real del template — reusa la key que ya invalidan withRefresh y
+  // templates-content.tsx, y es la única fuente confiable de context_required
+  // (y de instructions) sin importar desde qué call-site se abrió el dialog
+  // (ver "ia context/": editar desde el sidebar del listado no debe apagar
+  // en silencio flags que el listado no trae).
+  const { data: templateDetail } = useQuery({
+    queryKey: ['template', templateId],
+    queryFn: () => getTemplateById(templateId, organizationId),
+    enabled: open && !!templateId && !!organizationId,
+  });
+
+  useEffect(() => {
+    if (!open || !templateDetail) return;
+    setEditName(templateDetail.name ?? templateName);
+    setEditDescription(templateDetail.description || "");
+    setEditInstructions(templateDetail.instructions || "");
+    setEditContextRequired(templateDetail.context_required === true);
+  }, [open, templateDetail, templateName]);
+
   const updateTemplateMutation = useMutation({
     mutationFn: withRefresh(
-      (data: any) => updateTemplate(templateId, data, organizationId),
+      (data: UpdateTemplatePayload) => updateTemplate(templateId, data, organizationId),
       queryClient,
       () => [['template', templateId]],
     ),
@@ -50,7 +75,8 @@ export function EditTemplateDialog({
     updateTemplateMutation.mutate({
       name: editName.trim(),
       description: editDescription.trim() || null,
-      instructions: editInstructions.trim() || null
+      instructions: editInstructions.trim() || null,
+      context_required: editContextRequired,
     });
   };
 
@@ -98,6 +124,14 @@ export function EditTemplateDialog({
           placeholder={t('form.instructionsPlaceholder')}
           rows={8}
           inputClassName="min-h-[16rem]"
+          disabled={updateTemplateMutation.isPending}
+        />
+        <HuemulField
+          type="switch"
+          label={t('form.contextRequired')}
+          value={editContextRequired}
+          onChange={(v) => setEditContextRequired(Boolean(v))}
+          description={t('form.contextRequiredDescription')}
           disabled={updateTemplateMutation.isPending}
         />
       </div>

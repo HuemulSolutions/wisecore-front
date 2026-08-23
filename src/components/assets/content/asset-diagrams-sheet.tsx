@@ -11,7 +11,8 @@ import { DiagramViewSheet } from "@/components/diagrams";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useOrgPath } from "@/hooks/useOrgRouter";
 import { formatApiDateTime } from "@/lib/utils";
-import type { Diagram } from "@/types/diagrams";
+import { isRoleDetail } from "@/lib/diagram-utils";
+import type { Diagram, DiagramExecutionDetail } from "@/types/diagrams";
 
 export interface AssetDiagramsSheetProps {
   open: boolean;
@@ -23,7 +24,9 @@ export interface AssetDiagramsSheetProps {
 
 function DiagramRow({ diagram, documentId, onClick }: { diagram: Diagram; documentId: string; onClick: () => void }) {
   const executionLabel =
-    diagram.details.find((d) => d.document_id === documentId)?.execution_name ?? diagram.execution_id.slice(0, 8);
+    diagram.details.find(
+      (d): d is DiagramExecutionDetail => !isRoleDetail(d) && d.document_id === documentId,
+    )?.execution_name ?? diagram.execution_id.slice(0, 8);
 
   return (
     <button

@@ -6,7 +6,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { HuemulPanelHeader } from "@/huemul/components/huemul-panel-header"
 import { cn } from "@/lib/utils"
-import { ROLE_NODE_ENABLED } from "./role-node"
 import type { CanvasElementKind } from "@/types/document-type-relationships"
 import type {
   AssetTypeSidebarProps,
@@ -47,7 +46,10 @@ export function AssetTypeSidebar({
       <div className="p-2 space-y-1 border-b">
         <CanvasElementDraggableItem kind="container" icon={Square} label={t("sidebar.container")} />
         <CanvasElementDraggableItem kind="text" icon={Type} label={t("sidebar.text")} />
-        {ROLE_NODE_ENABLED && canPickRole && (
+        {/* Gated solely on canPickRole (GET /rbac/roles permission) — the two
+            document-type mode pages (/asset-types relations) never pass it, so this
+            stays hidden there without needing a mode check of its own. */}
+        {canPickRole && (
           <CanvasElementDraggableItem kind="role" icon={Shield} label={t("sidebar.role")} />
         )}
       </div>

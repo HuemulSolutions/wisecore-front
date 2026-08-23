@@ -29,6 +29,8 @@ const translations = {
     descriptionPlaceholder: { en: "Enter template description (optional)...", es: "Ingresa la descripción de la plantilla (opcional)..." },
     instructions: { en: "Instructions", es: "Instrucciones" },
     instructionsPlaceholder: { en: "Describe what this template is used for and how it should be used...", es: "Describe para qué se usa este template y cómo debe utilizarse..." },
+    contextRequired: { en: "Require context to generate", es: "Requiere contexto para generar" },
+    contextRequiredDescription: { en: "Assets created from this template inherit this setting: AI generation is blocked until they have context or a dependency.", es: "Los activos creados desde esta plantilla heredan esta configuración: la generación con IA se bloquea hasta que tengan contexto o una dependencia." },
   },
   header: {
     instructionsTitle: { en: "Instructions", es: "Instrucciones" },
@@ -119,6 +121,7 @@ const translations = {
     sectionsCount: { en: "Sections", es: "Secciones" },
     docxTemplatesCount: { en: "DOCX Templates", es: "Plantillas DOCX" },
     assetKind: { en: "Asset Kind", es: "Tipo de Activo" },
+    contextRequired: { en: "Context required", es: "Contexto requerido" },
     canvasId: { en: "Canvas ID", es: "ID de Canvas" },
     notAvailable: { en: "N/A", es: "N/D" },
     none: { en: "None", es: "Ninguno" },

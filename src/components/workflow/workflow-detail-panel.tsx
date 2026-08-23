@@ -27,6 +27,12 @@ import type { FormValuesSectionPayload } from "@/types/sections/core"
 import type { ReviewStatus } from "@/types/section-execution"
 import { applyFormValuesPatch } from "@/components/assets/content/utils/patch-document-content"
 import { isSectionAnswerable, isSectionApplicable } from "@/components/workflow/workflow-section-stats"
+import {
+  useDocumentSectionAccess,
+  useInvalidateDocumentSectionAccess,
+  canViewSection,
+  resolveSectionCanEdit,
+} from "@/hooks/useDocumentSectionAccess"
 
 interface WorkflowDetailPanelProps {
   /** Fila existente seleccionada en la tabla (o solo los IDs, en la vista compartida). */
@@ -104,6 +110,11 @@ export function WorkflowDetailPanel({
   // documento — una vez cargada, `lifecycleExecutionId` abajo la toma de `data`.
   const executionId = row?.execution_id
 
+  // Permiso de sección por ciclo de vida (view/can_edit) — /content no lo trae, se
+  // resuelve aparte. Ver "ia context/permisos-seccion-lifecycle-guide.md".
+  const sectionAccess = useDocumentSectionAccess(documentId ?? undefined, canReadAsset && !!documentId)
+  const invalidateSectionAccess = useInvalidateDocumentSectionAccess()
+
   const nameRequired = !!template?.require_name_on_express
   // Bloquea el resto del asistente hasta que se envíe el nombre (solo templates nuevos que lo exigen).
   const needsNameStep = !row && !!template && nameRequired && !createdDoc
@@ -135,14 +146,20 @@ export function WorkflowDetailPanel({
 
   const handleRefresh = React.useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["document-content", documentId] })
-  }, [queryClient, documentId])
+    invalidateSectionAccess(documentId ?? undefined)
+  }, [queryClient, documentId, invalidateSectionAccess])
 
-  // Solo secciones form "aplicables" (ver ia context/dependencias-condicionales-formularios-guide.md):
-  // el backend ya no devuelve en /content las que quedan sin ninguna pregunta visible, y este
-  // filtro es el espejo cliente que cubre el intervalo hasta el próximo refetch.
+  // Solo secciones form "aplicables" (ver ia context/dependencias-condicionales-formularios-guide.md)
+  // y con `view` sobre el permiso de sección del ciclo de vida (sectionAccess, resuelto aparte
+  // porque /content no lo trae — ver "ia context/permisos-seccion-lifecycle-guide.md"): el
+  // backend ya no devuelve en /content las que quedan sin ninguna pregunta visible, y estos
+  // filtros son el espejo cliente que cubre el intervalo hasta el próximo refetch.
   const formSections = React.useMemo(
-    () => (data?.content ?? []).filter((s) => s.section_type === "form" && isSectionApplicable(s)),
-    [data],
+    () =>
+      (data?.content ?? []).filter(
+        (s) => s.section_type === "form" && isSectionApplicable(s) && canViewSection(s, sectionAccess),
+      ),
+    [data, sectionAccess],
   )
   // step === null → pantalla de resumen (ver WorkflowSectionsSummary), sin sección "actual".
   const currentSection = step !== null ? formSections[step] : undefined
@@ -224,16 +241,18 @@ export function WorkflowDetailPanel({
     lifecycleAllows(data?.lifecycle_permissions, "edit") &&
     lifecycleStageAllowsEditing(data?.lifecycle_status)
 
-  // `can_edit` viene del backend ya resuelto para el usuario actual (org admin,
-  // rol/step, o fallback al permiso del documento — ver
-  // src/types/templates/section-lifecycle-access.ts). `null`/`undefined` = el flag
+  // Resuelto contra sectionAccess (GET /documents/{id}/sections), no contra
+  // currentSection.can_edit (siempre undefined, /content no lo manda — ver
+  // resolveSectionCanEdit en src/hooks/useDocumentSectionAccess.ts). `null` = el flag
   // no aplica a esta sección/documento — no degrada a solo lectura por eso solo,
   // `can_answer` en cada form_field sigue siendo la autoridad. isSectionAnswerable
   // cubre el depends_on propio de la sección: con show_when_inactive:true la
   // sección sigue en el wizard (isSectionApplicable la deja pasar) pero inactiva,
   // así que acá también degrada a solo lectura.
   const canAnswerSection =
-    canAnswerForm && currentSection?.can_edit !== false && (!currentSection || isSectionAnswerable(currentSection))
+    canAnswerForm &&
+    (!currentSection || resolveSectionCanEdit(currentSection, sectionAccess) !== false) &&
+    (!currentSection || isSectionAnswerable(currentSection))
 
   // Motivo del aviso de solo lectura: distingue "no tenés permiso/rol", "esta etapa ya
   // no admite respuestas", "esta sección está inactiva según las respuestas dadas" y
@@ -252,7 +271,8 @@ export function WorkflowDetailPanel({
   // Se levanta justo antes de abrir el diálogo de "Completar" desde el botón de
   // Finalizar del wizard, para distinguir esa apertura de la del botón "Completar"
   // de HuemulLifecycleActions (mismo `isCheckDialogOpen` compartido) — solo la
-  // primera debe cerrar el wizard/panel cuando la transición termine.
+  // primera debe volver al resumen del wizard (o disparar `onFinish`) cuando la
+  // transición termine.
   const finishAfterCompleteRef = React.useRef(false)
 
   // Ciclo de vida del documento (completar/devolver, publicar, archivar, restaurar,
@@ -275,15 +295,16 @@ export function WorkflowDetailPanel({
       if (!finishAfterCompleteRef.current) return
       finishAfterCompleteRef.current = false
       if (onFinish) onFinish()
-      else handleClose()
+      else setStep(null)
     },
   })
 
   // AssetFormSection ya validó (required/formato) y guardó antes de llamar esto.
   // Solo se invoca mientras se está respondiendo un paso (step !== null). En el
   // último paso, si el usuario puede avanzar el ciclo de vida, "Finalizar" no
-  // cierra directo: abre el diálogo de confirmación de "Completar" y el cierre
-  // queda encadenado a `onAfterComplete` (arriba) para no saltarse esa confirmación.
+  // resuelve directo: abre el diálogo de confirmación de "Completar" y el paso
+  // siguiente (volver al resumen u `onFinish`) queda encadenado a
+  // `onAfterComplete` (arriba) para no saltarse esa confirmación.
   const goNext = React.useCallback(() => {
     if (!isLastStep) {
       setStep((s) => (s ?? -1) + 1)
@@ -422,7 +443,7 @@ export function WorkflowDetailPanel({
               className="self-end"
             />
           </div>
-        ) : !documentId || isLoading || isCreating ? (
+        ) : !documentId || isLoading || sectionAccess.isLoading || isCreating ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>

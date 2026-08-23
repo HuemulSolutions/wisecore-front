@@ -5,7 +5,7 @@ import { useDiagram } from "@/hooks/useDiagrams"
 import { useDocumentTypes } from "@/hooks/useDocumentTypes"
 import { isErrorCode } from "@/lib/error-utils"
 import { RelationshipsCanvas } from "@/components/document-type-relationships"
-import { buildInitialCanvasNodes, buildInitialCanvasElements } from "@/lib/diagram-utils"
+import { buildInitialCanvasGraph } from "@/lib/diagram-utils"
 import { cn } from "@/lib/utils"
 
 export interface DiagramCanvasProps {
@@ -26,11 +26,10 @@ export function DiagramCanvas({ organizationId, diagramId, readOnly = false, cla
   const { data: docTypesResponse, isLoading: isLoadingDocTypes } = useDocumentTypes()
   const documentTypes = docTypesResponse?.data ?? []
 
-  const initialNodes = diagram ? buildInitialCanvasNodes(diagram) : undefined
-  const initialElements = diagram ? buildInitialCanvasElements(diagram) : undefined
+  const graph = diagram ? buildInitialCanvasGraph(diagram) : undefined
 
   const hasError = !!diagramError || (!isLoadingDiagram && !diagram)
-  const isReady = !!diagram && !!initialNodes && !isLoadingDocTypes
+  const isReady = !!diagram && !!graph && !isLoadingDocTypes
 
   if (hasError) {
     return (
@@ -40,7 +39,7 @@ export function DiagramCanvas({ organizationId, diagramId, readOnly = false, cla
     )
   }
 
-  if (!isReady || !diagram) {
+  if (!isReady || !diagram || !graph) {
     return null
   }
 
@@ -52,9 +51,9 @@ export function DiagramCanvas({ organizationId, diagramId, readOnly = false, cla
         documentTypes={documentTypes}
         mode="execution"
         readOnly={readOnly}
-        initialNodes={initialNodes}
-        initialRelationships={diagram.relationships}
-        initialElements={initialElements}
+        initialNodes={graph.nodes}
+        initialRelationships={graph.relationships}
+        initialElements={graph.elements}
         editingDiagram={{
           id: diagram.id,
           name: diagram.name,
