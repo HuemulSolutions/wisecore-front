@@ -380,7 +380,12 @@ export function WorkflowDetailPanel({
       {showLifecycle && data?.lifecycle_status && !needsNameStep && (
         <div className="flex items-center justify-between gap-2 border-b px-4 py-2 shrink-0 flex-wrap">
           <HuemulLifecycleStageBadge status={data.lifecycle_status} />
-          <HuemulLifecycleActions controller={lifecycle} variant="row" showRerunExternalPublish />
+          <HuemulLifecycleActions
+            controller={lifecycle}
+            variant="row"
+            showRerunExternalPublish
+            hideComplete={willAdvanceOnFinish}
+          />
         </div>
       )}
 

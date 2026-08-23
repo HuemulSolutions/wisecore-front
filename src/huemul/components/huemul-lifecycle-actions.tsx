@@ -17,6 +17,7 @@ export function HuemulLifecycleActions({
   controller,
   variant = "row",
   showRerunExternalPublish = false,
+  hideComplete = false,
   className,
 }: HuemulLifecycleActionsProps) {
   const { t } = useTranslation(["assets", "common"])
@@ -74,7 +75,7 @@ export function HuemulLifecycleActions({
           onClick={() => controller.setIsRejectDialogOpen(true)}
         />
       )}
-      {status.can_advance && (
+      {status.can_advance && !hideComplete && (
         <HuemulButton
           variant={isCompact ? "default" : "ghost"}
           size="sm"
