@@ -51,6 +51,9 @@ export function AddContextDialog({
       toast.success(t('addDialog.toastTextAdded'));
       resetForm();
       queryClient.invalidateQueries({ queryKey: ["contexts", documentId] });
+      // can_generate (GET /documents/{id}/content) depende de si el activo
+      // tiene contexto configurado — se recalcula solo al invalidar acá.
+      queryClient.invalidateQueries({ queryKey: ["document-content", documentId] });
       closeDialog();
     },
   });

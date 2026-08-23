@@ -175,4 +175,20 @@ export interface SectionExecutionProps {
    * "ia context/dependencias-condicionales-formularios-guide.md" §3.2.
    */
   sectionCanAnswer?: boolean
+  /**
+   * true cuando el usuario SÍ puede editar el resto del documento pero esta
+   * sección puntual quedó de solo lectura por el permiso de sección del ciclo de
+   * vida (`resolveSectionCanEdit` === false). Pinta un indicador en la barra de
+   * la sección — distinto de no poder editar el documento en absoluto. Ver
+   * src/hooks/useDocumentSectionAccess.ts.
+   */
+  readOnlyBySectionRule?: boolean
+  /**
+   * false cuando el backend reporta can_generate=false en /content (p.ej. el
+   * activo exige contexto y no tiene ninguno). Gatea Play / "Ejecutar sección" /
+   * "Ejecutar desde la sección". Ausente = sin restricción.
+   */
+  canGenerate?: boolean
+  /** Motivo ya traducido, para el tooltip. Solo relevante si canGenerate === false. */
+  cannotGenerateReason?: string
 }

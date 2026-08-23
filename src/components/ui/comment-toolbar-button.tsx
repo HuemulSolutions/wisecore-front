@@ -20,9 +20,12 @@ export function CommentToolbarButton() {
         editor.getTransforms(commentPlugin).comment.setDraft();
       }}
       data-plate-prevent-overlay
-      tooltip={t('toolbar.comment')}
+      data-primary
+      aria-label={t('toolbar.comment')}
+      className="h-7 gap-1.5 rounded-lg bg-blue-600 px-2.5 font-medium text-[13px] text-white hover:bg-blue-500 hover:text-white [&_svg]:size-3.5"
     >
       <MessageSquareTextIcon />
+      {t('toolbar.comment')}
     </ToolbarButton>
   );
 }

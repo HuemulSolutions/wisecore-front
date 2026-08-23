@@ -122,6 +122,7 @@ import { MarkdownPlugin } from '@platejs/markdown';
 import { FontSizePlugin, FontColorPlugin, FontBackgroundColorPlugin } from '@platejs/basic-styles/react';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/logger';
+import { DiscussionFocusSync } from '@/components/plate-editor/components/discussion-focus-sync';
 import { DiscussionSync } from '@/components/plate-editor/components/discussion-sync';
 import { EditorErrorBoundary } from '@/components/plate-editor/components/editor-error-boundary';
 import { useTranslation } from 'react-i18next';
@@ -574,6 +575,9 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
                 sectionExecutionId={sectionExecutionId}
                 onAfterDiscussionMutation={onAfterDiscussionMutation}
               />
+            )}
+            {documentId && sectionExecutionId && (
+              <DiscussionFocusSync sectionExecutionId={sectionExecutionId} />
             )}
 
             {/* Toolbar – use compact version for section variant */}

@@ -7,6 +7,8 @@ export interface TemplateItem {
   canvas_id?: string | null;
   /** Habilita view/edit propio por sección y etapa del ciclo de vida (default false). */
   section_lifecycle_access_enabled?: boolean;
+  /** Los activos creados desde este template heredan el valor si no lo especifican. */
+  context_required?: boolean;
 }
 
 export interface CloneTemplateRequest {
@@ -40,6 +42,7 @@ export interface TemplatesResponse {
     document_type_color?: string;
     require_name_on_express?: boolean;
     name_placeholder?: string | null;
+    relation_name?: string | null;
   }[];
   page: number;
   page_size: number;
@@ -62,6 +65,7 @@ export interface WorkflowTemplateItem {
   document_type_color?: string;
   require_name_on_express?: boolean;
   name_placeholder?: string | null;
+  relation_name?: string | null;
 }
 
 // Filtros opcionales para GET /templates/

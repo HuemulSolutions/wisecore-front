@@ -8,15 +8,13 @@ import { HuemulField, type FetchOptionsParams, type FetchOptionsResult } from "@
 import { useDiagram } from "@/hooks/useDiagrams"
 import { getDiagrams } from "@/services/diagrams"
 import { isErrorCode } from "@/lib/error-utils"
-import { buildInitialCanvasNodes } from "@/lib/diagram-utils"
 import type { Diagram } from "@/types/diagrams"
-import type { InitialCanvasNode } from "@/types/document-type-relationships"
 
 export interface LoadDiagramSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   organizationId: string
-  onLoad: (diagram: Diagram, initialNodes: InitialCanvasNode[]) => void
+  onLoad: (diagram: Diagram) => void
 }
 
 export function LoadDiagramSheet({ open, onOpenChange, organizationId, onLoad }: LoadDiagramSheetProps) {
@@ -29,8 +27,6 @@ export function LoadDiagramSheet({ open, onOpenChange, organizationId, onLoad }:
     organizationId,
     selectedDiagramId ?? '',
   )
-
-  const initialNodes: InitialCanvasNode[] | undefined = diagram ? buildInitialCanvasNodes(diagram) : undefined
 
   const isResolving = !!selectedDiagramId && isLoadingDiagram
   const hasError = !!selectedDiagramId && !!diagramError
@@ -50,11 +46,11 @@ export function LoadDiagramSheet({ open, onOpenChange, organizationId, onLoad }:
 
   const handleLoad = () =>
     new Promise<void>((resolve, reject) => {
-      if (!diagram || !initialNodes) {
+      if (!diagram) {
         reject(new Error('Diagram not ready'))
         return
       }
-      onLoad(diagram, initialNodes)
+      onLoad(diagram)
       reset()
       resolve()
     })

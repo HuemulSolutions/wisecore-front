@@ -347,6 +347,8 @@ const translations = {
     typeBadgeManual: { en: "MANUAL", es: "MANUAL" },
     typeBadgeReference: { en: "REFERENCE", es: "REFERENCIA" },
     typeBadgeForm: { en: "FORM", es: "FORMULARIO" },
+    ownLifecycleRuleBadge: { en: "Own rules", es: "Reglas propias" },
+    ownLifecycleRuleTooltip: { en: "This section has its own access rules for the current lifecycle stage — you can't edit or delete it here, even though you can manage the rest.", es: "Esta sección tiene reglas propias de acceso para la etapa actual del ciclo de vida — no podés editarla ni eliminarla acá, aunque sí puedas administrar el resto." },
     noContentAvailable: { en: "No content available", es: "Sin contenido disponible" },
     manualInputTitle: { en: "Manual Input:", es: "Entrada Manual:" },
     noManualContent: { en: "No content yet. This is a manual section where content can be entered directly.", es: "Sin contenido aún. Esta es una sección manual donde el contenido puede ingresarse directamente." },

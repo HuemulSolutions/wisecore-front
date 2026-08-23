@@ -48,6 +48,7 @@ export default function SortableSectionSheet({
   useExecutionDeleteDialog = false,
   documentId,
   templateId,
+  hasOwnLifecycleRule = false,
 }: SortableSectionSheetProps) {
   const { t } = useTranslation(["sections", "common"]);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled: isOverlay || isDisabledSection || !canUpdate });
@@ -146,6 +147,15 @@ export default function SortableSectionSheet({
                   {sectionType === 'form' && (
                     <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300 text-xs">
                       {t("sections:sortableSection.typeBadgeForm")}
+                    </Badge>
+                  )}
+                  {hasOwnLifecycleRule && (
+                    <Badge
+                      variant="outline"
+                      className="bg-amber-50 text-amber-700 border-amber-200 text-xs"
+                      title={t("sections:sortableSection.ownLifecycleRuleTooltip")}
+                    >
+                      {t("sections:sortableSection.ownLifecycleRuleBadge")}
                     </Badge>
                   )}
                 </div>

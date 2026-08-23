@@ -111,6 +111,8 @@ export interface HuemulLifecycleActionsProps {
   variant?: 'compact' | 'row'
   /** Render the "re-lanzar publish externo" button inline. Assets' desktop row hides it behind the more-options dropdown instead. */
   showRerunExternalPublish?: boolean
+  /** Oculta el botón "Completar" (status.can_advance) aunque el permiso lo habilite — para superficies que ya lo ofrecen en otro lugar (ej. footer del wizard de /workflow). Default false. */
+  hideComplete?: boolean
   className?: string
 }
 

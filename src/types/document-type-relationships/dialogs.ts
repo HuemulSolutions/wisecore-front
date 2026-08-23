@@ -83,3 +83,18 @@ export interface ExecutionRelationshipEditDialogProps {
   relationshipName?: string
   onUpdated?: (relationship: ExecutionRelationship) => void
 }
+
+// ─── Direct (role) edge dialog ─────────────────────────────────────────────────
+
+export interface RoleEdgeNameDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  /** 'create' for a brand-new connection, 'rename' to edit an existing direct edge. */
+  mode: 'create' | 'rename'
+  source: { label: string; color?: string }
+  target: { label: string; color?: string }
+  initialName?: string
+  initialType?: string
+  /** Both free text — name may be submitted blank (backend accepts `name: null`). */
+  onSubmit: (name: string, type: string) => void
+}

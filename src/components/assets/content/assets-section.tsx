@@ -27,6 +27,7 @@ import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
 import { isSectionPermissionDeniedError } from '@/lib/section-permission-errors';
+import { useInvalidateDocumentSectionAccess } from '@/hooks/useDocumentSectionAccess';
 import { logger } from '@/lib/logger';
 import { useTranslation } from 'react-i18next';
 import { AssetFormSection, type AssetFormSectionHandle } from '@/components/assets/content/asset-form-section';
@@ -53,11 +54,16 @@ function SectionExecutionInner({
     canEditSections = false,
     onCreateSectionFromSelection,
     sectionCanAnswer = true,
+    readOnlyBySectionRule = false,
+    canGenerate = true,
+    cannotGenerateReason,
     // onCopyLink,
 }: SectionExecutionProps) {
+    const generationBlocked = canGenerate === false;
     const { selectedOrganizationId } = useOrganization();
     const { setIsSectionEditing } = useOptionalEditingGuard();
     const queryClient = useQueryClient();
+    const invalidateSectionAccess = useInvalidateDocumentSectionAccess();
     // ¿El formulario tiene al menos un campo editable? Los custom_field son solo lectura,
     // y las preguntas condicionales inactivas (can_answer === false) tampoco se pueden responder.
     const formHasEditableFields = (sectionExecution.form_fields ?? []).some(isFieldAnswerable);
@@ -315,6 +321,11 @@ function SectionExecutionInner({
             return;
         }
 
+        if (generationBlocked) {
+            toast.error(cannotGenerateReason ?? t('section.executionFailed'));
+            return;
+        }
+
         try {
             setIsExecuting(true);
             setExecutionConfigOpen(false);
@@ -390,6 +401,9 @@ function SectionExecutionInner({
         try {
             await deleteSectionExec(sectionExecution.id);
             toast.success(t('section.sectionDeleted'));
+            // Borrar una sección cambia qué filas de acceso aplican — refresca la lista
+            // de secciones con `view` (ver useDocumentSectionAccess).
+            invalidateSectionAccess(documentId);
             onUpdate?.();
         } catch (error) {
             handleApiError(error, { fallbackMessage: t('section.deleteFailed') });
@@ -453,6 +467,19 @@ function SectionExecutionInner({
                                 </span>
                             </div>
                         )}
+                        {/* Permiso de sección por ciclo de vida: solo lectura en esta etapa aunque
+                            el resto del documento sea editable (ver readOnlyBySectionRule arriba). */}
+                        {readOnlyBySectionRule && (
+                            <div
+                                className="flex items-center rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1"
+                                title={t('section.readOnlyByLifecycleRuleTooltip')}
+                            >
+                                <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-600">
+                                    {t('section.readOnlyByLifecycleRule')}
+                                </span>
+                            </div>
+                        )}
+
                         {/* Sección con depends_on propio no cumplido, mostrada por show_when_inactive:true */}
                         {!sectionCanAnswer && (
                             <div
@@ -528,9 +555,15 @@ function SectionExecutionInner({
                                         icon={Play}
                                         iconClassName="h-3.5 w-3.5 text-blue-600"
                                         className="h-7 w-7 hover:bg-blue-50"
-                                        tooltip={isExecutionInProgress ? t('section.executionInProgress') : t('section.openExecuteSheet')}
+                                        tooltip={
+                                            isExecutionInProgress
+                                                ? t('section.executionInProgress')
+                                                : generationBlocked
+                                                    ? cannotGenerateReason
+                                                    : t('section.openExecuteSheet')
+                                        }
                                         onClick={onOpenExecuteSheet}
-                                        disabled={isExecutionInProgress}
+                                        disabled={isExecutionInProgress || generationBlocked}
                                     />
                                 )}
 
@@ -665,7 +698,7 @@ function SectionExecutionInner({
                                                 onSelect={() => {
                                                     setTimeout(() => handleOpenExecutionConfig('single'), 0);
                                                 }}
-                                                disabled={isExecuting}
+                                                disabled={isExecuting || generationBlocked}
                                             >
                                                 <Play className="h-4 w-4 mr-2" />
                                                 {t('section.executeSection')}
@@ -675,7 +708,7 @@ function SectionExecutionInner({
                                                 onSelect={() => {
                                                     setTimeout(() => handleOpenExecutionConfig('from'), 0);
                                                 }}
-                                                disabled={isExecuting}
+                                                disabled={isExecuting || generationBlocked}
                                             >
                                                 <FastForward className="h-4 w-4 mr-2" />
                                                 {t('section.executeFromSection')}

@@ -24,6 +24,14 @@ export interface SortableSectionSheetProps {
   useExecutionDeleteDialog?: boolean;
   documentId?: string;
   templateId?: string;
+  /**
+   * true si esta sección tiene su propio permiso de edición resuelto por el
+   * ciclo de vida y ese permiso es `false` para el usuario actual (ver
+   * ContentSection.can_edit en src/types/assets/core.ts). Pinta un badge que
+   * explica por qué está deshabilitada aunque `canUpdate`/`canDelete` del resto
+   * de la lista sea `true`.
+   */
+  hasOwnLifecycleRule?: boolean;
 }
 
 export type DeleteMode = "structure" | "structure_and_current_version";

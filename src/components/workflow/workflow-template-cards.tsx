@@ -128,8 +128,8 @@ export function WorkflowTemplateCards({
               />
               <div className="flex flex-col gap-1 px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground" title={item.name}>
-                    {item.name}
+                  <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground" title={item.relation_name || item.name}>
+                    {item.relation_name || item.name}
                   </p>
                   <button
                     type="button"

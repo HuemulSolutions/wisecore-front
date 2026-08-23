@@ -51,6 +51,8 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = false }: 
     onSuccess: () => {
       toast.success(t('toast.contextDeleted'));
       queryClient.invalidateQueries({ queryKey: ['contexts', id] });
+      // can_generate depende de si queda al menos un contexto configurado.
+      queryClient.invalidateQueries({ queryKey: ['document-content', id] });
       setContextToDelete(null);
     }
   });
@@ -62,6 +64,7 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = false }: 
     onSuccess: () => {
       toast.success(t('toast.contextUpdated'));
       queryClient.invalidateQueries({ queryKey: ['contexts', id] });
+      queryClient.invalidateQueries({ queryKey: ['document-content', id] });
       setEditDialogOpen(false);
       setContextToEdit(null);
     }
@@ -74,6 +77,9 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = false }: 
     onSuccess: () => {
       toast.success(t('toast.fileContextAdded'));
       queryClient.invalidateQueries({ queryKey: ['contexts', id] });
+      // can_generate (GET /documents/{id}/content) depende de si el activo
+      // tiene contexto configurado — se recalcula solo al invalidar acá.
+      queryClient.invalidateQueries({ queryKey: ['document-content', id] });
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -171,7 +177,7 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = false }: 
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".txt,.md,.pdf,.doc,.docx"
+                  accept=".txt,.md,.pdf,.doc,.docx,.xlsx,.xlsm"
                   className="hidden"
                   onChange={handleFileInputChange}
                 />

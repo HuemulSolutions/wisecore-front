@@ -90,6 +90,10 @@ export function TemplateInfoSheet({
               value={assetKind}
               emptyText={t("templates:infoSheet.none")}
             />
+            <HuemulInfoItem
+              label={t("templates:infoSheet.contextRequired")}
+              value={templateData?.context_required ? t("common:yes") : t("common:no")}
+            />
             {canvasId && (
               <HuemulInfoItem
                 label={t("templates:infoSheet.canvasId")}

@@ -1,10 +1,11 @@
 ﻿import { useMemo, useEffect, useState, useRef, useCallback } from "react";
 import { handleApiError } from "@/lib/error-utils";
+import { resolveCannotGenerateReason, isMissingContextReason } from "@/lib/generation-gating";
 import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Settings2, Bell, Sparkles } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Settings2, Bell, Sparkles, MessageSquareText, BookOpen } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
   ResizableHandle,
@@ -25,6 +26,9 @@ import { DocumentAccessControl } from "@/components/assets/content/assets-access
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulExpandableText } from "@/huemul/components/huemul-expandable-text";
 import { AssetsNotificationsSheet } from "@/components/assets/content/assets-notifications-sheet";
+import { AssetsDiscussionsSheet } from "@/components/assets/content/assets-discussions-sheet";
+import { DiscussionFocusProvider, useDiscussionFocus } from "@/contexts/discussion-focus-context";
+import { useDiscussions } from "@/hooks/useDiscussions";
 import { LifecycleHistorySheet } from "@/components/assets/content/lifecycle-history-sheet";
 import { AssetDiagramsSheet } from "@/components/assets/content/asset-diagrams-sheet";
 import { AssetsRelatedDocuments } from "@/components/assets/content/assets-related-documents";
@@ -83,6 +87,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { useAssetContentPermissions } from '@/hooks/useDocumentAccess';
+import {
+  useDocumentSectionAccess,
+  useInvalidateDocumentSectionAccess,
+  canViewSection,
+  resolveSectionCanEdit,
+} from '@/hooks/useDocumentSectionAccess';
 import { usePageAccess } from '@/hooks/usePageAccess';
 import type { ContentSection, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
 import type { FormValuesSectionPayload } from '@/types/sections/core';
@@ -168,11 +178,12 @@ export function AssetContent({
   const navigate = useOrgNavigate();
   const isMobile = useIsMobile();
   const { selectedOrganizationId } = useOrganization();
-  const { canCreate, canAccessTemplates, canAccessAssets, canAccessDiagrams } = useUserPermissions();
+  const { canCreate, canList, canAccessTemplates, canAccessAssets, canAccessDiagrams } = useUserPermissions();
   const { can } = usePageAccess('asset');
   const { handleCreateAsset: openCreateAssetDialog } = useNavKnowledgeActions();
   const { guardedAction } = useOptionalEditingGuard();
   const { isOpen: isGlobalPanelOpen } = useGlobalPanel();
+  const { requestFocus } = useDiscussionFocus();
   
   // Scroll restoration hook - maintains scroll position across re-renders
   const scrollRestoration = useScrollRestoration(
@@ -252,7 +263,10 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['library'] });
-      
+      // Nueva sección → puede tener sus propias filas de acceso configuradas más tarde;
+      // refresca la lista de secciones con `view` (ver useDocumentSectionAccess).
+      invalidateSectionAccess(selectedFile?.id);
+
       setIsDirectSectionDialogOpen(false);
       setSectionInsertPosition(undefined);
     },
@@ -273,7 +287,8 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
-      
+      invalidateSectionAccess(selectedFile?.id);
+
       setIsSectionExecutionDialogOpen(false);
       setAfterFromSectionId(null);
     },
@@ -513,6 +528,7 @@ export function AssetContent({
   const [isRenameVersionDialogOpen, setIsRenameVersionDialogOpen] = useState(false);
   const [executionToRename, setExecutionToRename] = useState<{ id: string; name: string } | null>(null);
   const [isNotificationsSheetOpen, setIsNotificationsSheetOpen] = useState(false);
+  const [isDiscussionsSheetOpen, setIsDiscussionsSheetOpen] = useState(false);
   const [isLifecycleHistorySheetOpen, setIsLifecycleHistorySheetOpen] = useState(false);
   const [isDiagramsSheetOpen, setIsDiagramsSheetOpen] = useState(false);
 
@@ -523,6 +539,7 @@ export function AssetContent({
   const canListCustomFields = can('listCustomFields');
   const canCreateCustomField = can('createCustomField');
   const canListNotifications = can('listNotifications');
+  const canListDiscussions = canList('discussion');
   const canListExecutionRelationships = can('listExecutionRelationships');
   // El tab activo no puede quedar apuntando a un tab que el usuario no puede ver.
   useEffect(() => {
@@ -728,6 +745,7 @@ export function AssetContent({
         queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] }),
         queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] }),
         queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] }),
+        queryClient.invalidateQueries({ queryKey: ['document-section-access', selectedFile?.id] }),
       ]);
     } finally {
       setIsRefreshingContent(false);
@@ -768,6 +786,9 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document-content', fileId] });
       queryClient.invalidateQueries({ queryKey: ['document', fileId] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', fileId] });
+      // El sheet pudo crear/editar/borrar/reordenar secciones — refresca la lista de
+      // secciones con `view` (ver useDocumentSectionAccess).
+      invalidateSectionAccess(fileId);
     }
     setIsSectionSheetOpen(open);
   }, [queryClient]);
@@ -904,7 +925,29 @@ export function AssetContent({
     refetchInterval: false,
     refetchOnWindowFocus: false,
     staleTime: 30000, // Cache for 30 seconds
+    // TODO: la key no incluye selectedOrganizationId (preexistente, ver
+    // "ia context/rbac-audit-guide.md"). No se toca en este cambio.
   });
+
+  // Gate de generación con IA (context_required / can_generate del backend).
+  // Fuente única: documentContent, porque es la única query siempre cargada
+  // cuando hay un activo abierto (fullDocument es lazy y llega tarde).
+  // can_generate ausente (backend viejo, /content aún cargando o en error) =>
+  // fail-open, nunca bloquea. Ver src/lib/generation-gating.ts.
+  const canGenerate = documentContent?.can_generate !== false;
+  const cannotGenerateReason = canGenerate
+    ? undefined
+    : resolveCannotGenerateReason(documentContent?.cannot_generate_reason, t);
+  const isCannotGenerateMissingContext = !canGenerate && isMissingContextReason(documentContent?.cannot_generate_reason);
+
+  // Permiso de sección por ciclo de vida (view/can_edit) — /content no lo trae, así que
+  // se resuelve aparte contra GET /documents/{id}/sections. Ver
+  // "ia context/permisos-seccion-lifecycle-guide.md" y src/hooks/useDocumentSectionAccess.ts.
+  const sectionAccess = useDocumentSectionAccess(
+    selectedFile?.type === 'document' ? selectedFile?.id : undefined,
+    selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
+  );
+  const invalidateSectionAccess = useInvalidateDocumentSectionAccess();
 
   // Ids de todos los assets referenciados por menciones (@) en el contenido, para
   // resolverlos en un solo lote (asset_ids + include_executions) en vez de confiar
@@ -1499,6 +1542,65 @@ export function AssetContent({
     hasScrolledToSectionRef.current = null;
   }, [selectedFile?.id]);
 
+  // Discussions badge count — same query key as each section's DiscussionSync,
+  // so this dedupes against the editor's own fetch instead of adding one.
+  const { discussions: allDiscussions } = useDiscussions(
+    canListDiscussions ? selectedFile?.id : undefined
+  );
+  const openDiscussionsCount = useMemo(
+    () => allDiscussions.filter((d) => !d.isResolved).length,
+    [allDiscussions]
+  );
+
+  // Navigate from the discussions panel to the thread's section and activate it.
+  const handleFocusDiscussion = useCallback(
+    (discussionId: string, sectionExecutionId: string | null | undefined) => {
+      setIsDiscussionsSheetOpen(false);
+
+      if (!sectionExecutionId) {
+        toast.info(t('content.discussions.threadNoSection'));
+        return;
+      }
+
+      const sectionList = documentContent?.content;
+      const index = Array.isArray(sectionList)
+        ? (sectionList as ContentSection[]).findIndex((s) => s.id === sectionExecutionId)
+        : -1;
+
+      if (index === -1) {
+        toast.info(t('content.discussions.sectionNotInVersion'));
+        return;
+      }
+
+      const element = document.getElementById(`section-${index}`);
+      if (!element) {
+        toast.info(t('content.discussions.sectionHidden'));
+        return;
+      }
+
+      requestFocus(discussionId, sectionExecutionId);
+
+      const SCROLL_OFFSET = 40;
+      const viewport = element.closest('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+      if (viewport) {
+        const elementTop = element.getBoundingClientRect().top - viewport.getBoundingClientRect().top + viewport.scrollTop;
+        viewport.scrollTo({ top: elementTop - SCROLL_OFFSET, behavior: 'smooth' });
+      } else {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    },
+    [documentContent?.content, requestFocus, t]
+  );
+
+  const handleDiscussionFocusResolved = useCallback(
+    (outcome: 'activated' | 'mark-missing') => {
+      if (outcome === 'mark-missing') {
+        toast.info(t('content.discussions.threadNotHighlighted'));
+      }
+    },
+    [t]
+  );
+
   const sectionOptionsForExecutionDialog = useMemo(() => {
     const optionsById = new Map<string, string>();
 
@@ -1880,7 +1982,7 @@ export function AssetContent({
   }
 
   return (
-    <>
+    <DiscussionFocusProvider onResolve={handleDiscussionFocusResolved}>
     <ResizablePanelGroup direction="horizontal" className=" bg-gray-50">
       {/* Document Content */}
       <ResizablePanel defaultSize={80}>
@@ -2026,14 +2128,16 @@ export function AssetContent({
                 lifecyclePermissions={lifecyclePermissions}
                 size="sm"
                 onClick={handleCreateExecutionFromHeader}
-                disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
-                className={executeDocumentMutation.isPending || hasExecutionInProcess
-                  ? "h-8 w-8 p-0 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm rounded-full" 
+                disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate}
+                className={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate
+                  ? "h-8 w-8 p-0 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm rounded-full"
                   : "h-8 w-8 p-0 bg-[#4464f7] hover:bg-[#3451e6] text-white border-none hover:cursor-pointer shadow-sm rounded-full"
                 }
-                title={executeDocumentMutation.isPending || hasExecutionInProcess 
+                title={executeDocumentMutation.isPending || hasExecutionInProcess
                   ? t('content.cannotExecuteInProgress')
-                  : t('content.executeNewVersion')
+                  : !canGenerate
+                    ? cannotGenerateReason
+                    : t('content.executeNewVersion')
                 }
               >
                 {executeDocumentMutation.isPending ? (
@@ -2201,6 +2305,26 @@ export function AssetContent({
                 </DocumentAccessControl>
               )}
               
+              {/* Discussions Button - Mobile */}
+              {canListDiscussions && (
+                <div className="relative">
+                  <HuemulButton
+                    size="sm"
+                    variant="ghost"
+                    icon={MessageSquareText}
+                    iconClassName="h-4 w-4"
+                    className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors rounded-full"
+                    tooltip={t('content.discussions.commentsTooltip')}
+                    onClick={() => setIsDiscussionsSheetOpen(true)}
+                  />
+                  {openDiscussionsCount > 0 && (
+                    <span className="-top-0.5 -right-0.5 absolute inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 font-medium text-[10px] text-white">
+                      {openDiscussionsCount}
+                    </span>
+                  )}
+                </div>
+              )}
+
               {/* Refresh Button - Mobile */}
               <HuemulButton
                 size="sm"
@@ -2381,6 +2505,8 @@ export function AssetContent({
                             lifecyclePermissions={lifecyclePermissions}
                             isCreatingPending={executeDocumentMutation.isPending}
                             hasExecutionInProcess={hasExecutionInProcess}
+                            canGenerate={canGenerate}
+                            cannotGenerateReason={cannotGenerateReason}
                             onCreateExecution={handleCreateExecutionFromHeader}
                             onSelectExecution={(id) => guardedAction(() => {
                               onPreserveScroll?.();
@@ -2395,6 +2521,24 @@ export function AssetContent({
                             } : undefined}
                             dropdownAlign="end"
                           />
+                        )}
+                        {canListDiscussions && (
+                          <div className="relative">
+                            <HuemulButton
+                              size="sm"
+                              variant="ghost"
+                              icon={MessageSquareText}
+                              iconClassName="h-4 w-4"
+                              className="h-7 w-7 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                              tooltip={t('content.discussions.commentsTooltip')}
+                              onClick={() => setIsDiscussionsSheetOpen(true)}
+                            />
+                            {openDiscussionsCount > 0 && (
+                              <span className="-top-0.5 -right-0.5 absolute inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 font-medium text-[10px] text-white">
+                                {openDiscussionsCount}
+                              </span>
+                            )}
+                          </div>
                         )}
                         {canListNotifications && (
                           <HuemulButton
@@ -2661,8 +2805,10 @@ export function AssetContent({
                   </div>
                 )}
                 
-                {isLoadingContent ? (
-                  // Show skeleton loader with consistent height to prevent layout shift
+                {isLoadingContent || sectionAccess.isLoading ? (
+                  // Show skeleton loader with consistent height to prevent layout shift.
+                  // También cubre sectionAccess: sin la lista de secciones con `view`, no hay
+                  // forma de saber si alguna del array de /content debe ocultarse.
                   <div className="space-y-6 animate-pulse min-h-150">
                     {/* Title skeleton */}
                     <div className="h-8 bg-gray-200 rounded w-3/4"></div>
@@ -2840,10 +2986,11 @@ export function AssetContent({
                                           resource="version"
                                           lifecyclePermissions={lifecyclePermissions}
                                           onClick={handleCreateExecutionFromHeader}
-                                          disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
+                                          disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate}
                                           size="lg"
-                                          className={executeDocumentMutation.isPending || hasExecutionInProcess
-                                            ? "hover:cursor-not-allowed bg-gray-300 text-gray-500" 
+                                          title={!canGenerate ? cannotGenerateReason : undefined}
+                                          className={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate
+                                            ? "hover:cursor-not-allowed bg-gray-300 text-gray-500"
                                             : "hover:cursor-pointer bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg transition-all"
                                           }
                                         >
@@ -2892,9 +3039,11 @@ export function AssetContent({
                                   </EmptyIcon>
                                   <EmptyTitle>{t('content.setupDocument', { name: documentContent?.document_name || selectedFile.name })}</EmptyTitle>
                                   <EmptyDescription>
-                                    {fullDocument?.sections?.length > 0 
-                                      ? t('content.readyWithAi')
-                                      : t('content.readyWithSections')
+                                    {!canGenerate
+                                      ? cannotGenerateReason
+                                      : fullDocument?.sections?.length > 0
+                                        ? t('content.readyWithAi')
+                                        : t('content.readyWithSections')
                                     }
                                   </EmptyDescription>
                                   {!hasFailedExecution && !hasImportFailed && (
@@ -2921,9 +3070,10 @@ export function AssetContent({
                                             resource="version"
                                             lifecyclePermissions={lifecyclePermissions}
                                             onClick={handleCreateExecutionFromHeader}
-                                            disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
-                                            className={executeDocumentMutation.isPending || hasExecutionInProcess
-                                              ? "hover:cursor-not-allowed bg-gray-300 text-gray-500" 
+                                            disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate}
+                                            title={!canGenerate ? cannotGenerateReason : undefined}
+                                            className={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate
+                                              ? "hover:cursor-not-allowed bg-gray-300 text-gray-500"
                                               : "bg-[#4464f7] hover:bg-[#3451e6]"
                                             }
                                           >
@@ -2939,6 +3089,18 @@ export function AssetContent({
                                               </>
                                             )}
                                           </HuemulButton>
+                                          {isCannotGenerateMissingContext && frontendPermissions.canAccessSectionSheet && (
+                                            <HuemulButton
+                                              variant="outline"
+                                              onClick={() => {
+                                                preserveScrollPosition();
+                                                setIsContextSheetOpen(true);
+                                              }}
+                                            >
+                                              <BookOpen className="h-4 w-4 mr-2" />
+                                              {t('content.configureContext')}
+                                            </HuemulButton>
+                                          )}
                                           <HuemulButton
                                             requiredAccess={["edit", "create"]}
                                             requireAll={false}
@@ -3020,6 +3182,13 @@ export function AssetContent({
                             return null;
                           }
 
+                          // Sin `view` sobre esta sección según el permiso por ciclo de vida
+                          // (resuelto aparte, /content no lo trae — ver sectionAccess arriba).
+                          // Fail-open si la lista de acceso no está disponible.
+                          if (!canViewSection(section, sectionAccess)) {
+                            return null;
+                          }
+
                           // In reader mode, hide sections with empty content — except sections
                           // in scope of an in-progress 'single'/'from' execution: there the empty
                           // content is transient and must show skeleton + feedback, not disappear.
@@ -3074,10 +3243,16 @@ export function AssetContent({
                                   sectionType={section.section_type}
                                   sectionName={section.section_name}
                                   sectionCanAnswer={isSectionAnswerable(section)}
-                                  // `can_edit` viene del backend ya resuelto (org admin, rol/step, o
-                                  // fallback al permiso del documento — ver ContentSection.can_edit).
-                                  // `null`/`undefined` no restringe: el flag no aplica a esta sección.
-                                  canEditSections={frontendPermissions.canEditSections && section.can_edit !== false}
+                                  // Resuelto contra sectionAccess (GET /documents/{id}/sections), no
+                                  // contra section.can_edit (siempre undefined, /content no lo manda).
+                                  // `null` no restringe: el flag no aplica a esta sección/documento.
+                                  canEditSections={frontendPermissions.canEditSections && resolveSectionCanEdit(section, sectionAccess) !== false}
+                                  // Distingue "no podés editar el documento" (canEditSections en false
+                                  // por RBAC/lifecycle/etapa) de "esta sección puntual es de solo
+                                  // lectura en esta etapa" — para el badge/tooltip en la barra de la sección.
+                                  readOnlyBySectionRule={frontendPermissions.canEditSections && resolveSectionCanEdit(section, sectionAccess) === false}
+                                  canGenerate={canGenerate}
+                                  cannotGenerateReason={cannotGenerateReason}
                                   onCreateSectionFromSelection={handleCreateSectionFromSelection(index)}
                                   onCopyLink={realSectionId ? () => handleCopySectionLink(realSectionId) : undefined}
                                 />
@@ -3136,9 +3311,10 @@ export function AssetContent({
                               checkGlobalPermissions={true}
                               resource="version"
                               lifecyclePermissions={lifecyclePermissions}
-                              variant="outline" 
+                              variant="outline"
                               onClick={handleCreateExecutionFromHeader}
-                              disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
+                              disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate}
+                              title={!canGenerate ? cannotGenerateReason : undefined}
                               className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {executeDocumentMutation.isPending ? (
@@ -3411,15 +3587,17 @@ export function AssetContent({
         isMobile={isMobile}
         selectedExecutionId={selectedExecutionId}
         executionContext={executionContext}
-        disabled={hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
+        disabled={hasExecutionInProcess || !canGenerate || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
         disabledReason={
-          hasExecutionInProcess 
-            ? t('content.executionRunning') 
-            : !fullDocument?.sections || fullDocument.sections.length === 0 
-              ? t('content.needsSections') 
-              : !defaultLLM?.id 
-                ? t('content.noDefaultLlm') 
-                : undefined
+          hasExecutionInProcess
+            ? t('content.executionRunning')
+            : !canGenerate
+              ? cannotGenerateReason
+              : !fullDocument?.sections || fullDocument.sections.length === 0
+                ? t('content.needsSections')
+                : !defaultLLM?.id
+                  ? t('content.noDefaultLlm')
+                  : undefined
         }
       />
 
@@ -3576,6 +3754,17 @@ export function AssetContent({
         organizationId={selectedOrganizationId ?? ''}
         executionId={selectedExecutionId || documentContent?.execution_id || ''}
       />
-    </>
+
+      {/* Discussions Sheet */}
+      {canListDiscussions && selectedFile && (
+        <AssetsDiscussionsSheet
+          open={isDiscussionsSheetOpen}
+          onOpenChange={setIsDiscussionsSheetOpen}
+          documentId={selectedFile.id}
+          sections={Array.isArray(documentContent?.content) ? (documentContent.content as ContentSection[]) : []}
+          onFocusDiscussion={handleFocusDiscussion}
+        />
+      )}
+    </DiscussionFocusProvider>
   );
 }
