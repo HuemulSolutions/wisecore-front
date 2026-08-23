@@ -13,53 +13,78 @@ import {
 import { cn } from "@/lib/utils"
 import type { CanvasElementNodeData } from "./text-node"
 
-type RoleNodeType = Node<CanvasElementNodeData, "role">
+// Distinct from a container's role count: 'none' also covers a role node whose role
+// was never assigned yet (data.role undefined) — both render as "Sin asignar".
+export type RoleNodeMeta = { kind: "containers"; count: number } | { kind: "none" }
 
-const handleClass = "!w-3 !h-3 !border-2 !bg-background transition-colors hover:!bg-primary/20"
+type RoleNodeType = Node<CanvasElementNodeData & { roleMeta?: RoleNodeMeta }, "role">
+
+const handleClass =
+  "!w-1.75 !h-1.75 !border-[1.5px] !border-[var(--diagram-role-edge)] !bg-white transition-colors hover:!bg-[var(--diagram-role-fill)]"
 const handleReadOnlyClass = "!opacity-0 !pointer-events-none"
 
-// Free-floating circle labeled with an RBAC role's name — the canvas equivalent of a
-// BPMN lane actor, but not attached to any container. No inline text editing: the
-// label always comes from the assigned role.
+// Horizontal pill labeled with an RBAC role's name — reads as a distinct entity type
+// (vs. the white asset card and the dashed container) without outweighing them
+// visually. No inline text editing: the label always comes from the assigned role.
 export function RoleNode({ data, selected }: NodeProps<RoleNodeType>) {
   const { t } = useTranslation("document-type-relationships")
-  const color = data.color || "#6366f1"
+
+  const metaLabel =
+    data.roleMeta?.kind === "containers" && data.roleMeta.count > 0
+      ? t("node.roleAssignedCount", { count: data.roleMeta.count })
+      : t("node.roleUnassigned")
 
   const nodeContent = (
-    <div className="flex flex-col items-center gap-1 w-30">
+    <div
+      className={cn(
+        "relative flex items-center gap-2.5 w-60 h-14 rounded-full pl-2.5 pr-4",
+        "bg-[var(--diagram-role-fill)] border transition-shadow select-none",
+        selected
+          ? "border-[1.5px] border-[var(--diagram-role-icon-bg)]"
+          : "border-[var(--diagram-role-border)] hover:border-[var(--diagram-role-icon-bg)]/60 hover:shadow-[0_2px_8px_rgba(79,70,229,0.14)]",
+      )}
+    >
       {/* Floating handles — mirrors asset-type-node.tsx: source on all 4 sides, always
           mounted (React Flow needs their handleBounds to position edges at all), made
           inert only in readOnly. With ConnectionMode.Loose these also accept incoming
           connections, so a role↔role or activo↔role edge can start from either side. */}
       <Handle type="source" position={Position.Top}    id="top"    isConnectable={!data.readOnly}
-        className={cn(handleClass, data.readOnly && handleReadOnlyClass)} style={{ borderColor: color }}
+        className={cn(handleClass, data.readOnly && handleReadOnlyClass)}
       />
       <Handle type="source" position={Position.Right}  id="right"  isConnectable={!data.readOnly}
-        className={cn(handleClass, data.readOnly && handleReadOnlyClass)} style={{ borderColor: color }}
+        className={cn(handleClass, data.readOnly && handleReadOnlyClass)}
       />
       <Handle type="source" position={Position.Bottom} id="bottom" isConnectable={!data.readOnly}
-        className={cn(handleClass, data.readOnly && handleReadOnlyClass)} style={{ borderColor: color }}
+        className={cn(handleClass, data.readOnly && handleReadOnlyClass)}
       />
       <Handle type="source" position={Position.Left}   id="left"   isConnectable={!data.readOnly}
-        className={cn(handleClass, data.readOnly && handleReadOnlyClass)} style={{ borderColor: color }}
+        className={cn(handleClass, data.readOnly && handleReadOnlyClass)}
       />
+
       <div
-        className={cn(
-          "flex items-center justify-center h-16 w-16 rounded-full border-2 shrink-0",
-          "transition-shadow select-none",
-          selected ? "shadow-md" : "",
-        )}
-        style={{ backgroundColor: `${color}26`, borderColor: color }}
+        className="flex items-center justify-center h-7.5 w-7.5 rounded-full shrink-0"
+        style={{ backgroundColor: "var(--diagram-role-icon-bg)" }}
       >
         {data.role ? (
-          <Shield className="h-6 w-6" style={{ color }} />
+          <Shield className="h-3.75 w-3.75 text-white" strokeWidth={2} />
         ) : (
-          <UserCog className="h-6 w-6 text-muted-foreground" />
+          <UserCog className="h-3.75 w-3.75 text-white/80" strokeWidth={2} />
         )}
       </div>
-      <p className="text-xs font-medium text-center max-w-30 wrap-break-word select-none">
-        {data.role?.name ?? data.content}
-      </p>
+      <div className="min-w-0 flex-1">
+        <p
+          className="text-[13.5px] font-semibold truncate"
+          style={{ color: "var(--diagram-role-title)" }}
+        >
+          {data.role?.name ?? data.content}
+        </p>
+        <p
+          className="text-[11.5px] truncate"
+          style={{ color: "var(--diagram-role-meta)" }}
+        >
+          {metaLabel}
+        </p>
+      </div>
     </div>
   )
 

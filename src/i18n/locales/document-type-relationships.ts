@@ -28,6 +28,13 @@ const translations = {
     assignRole: { en: "Assign role", es: "Asignar rol" },
     changeRole: { en: "Change role", es: "Cambiar rol" },
     clearRole: { en: "Clear role", es: "Quitar rol" },
+    noRole: { en: "No role", es: "Sin rol" },
+    roleUnassigned: { en: "Unassigned", es: "Sin asignar" },
+    roleAssignedCount: {
+      en: "{{count}} container(s)",
+      es: "{{count}} contenedor(es)",
+    },
+    rolesColumnLabel: { en: "ROLES", es: "ROLES" },
     noRelationshipsFound: {
       en: "No relationships found for this asset type",
       es: "No se encontraron relaciones para este tipo de activo",

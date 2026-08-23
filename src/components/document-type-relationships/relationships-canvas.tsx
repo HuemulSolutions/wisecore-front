@@ -39,7 +39,8 @@ import { HuemulButton } from "@/huemul/components/huemul-button"
 import { MemoizedAssetTypeNode, type AssetTypeNodeData } from "./asset-type-node"
 import { MemoizedTextNode, type CanvasElementNodeData } from "./text-node"
 import { MemoizedContainerNode } from "./container-node"
-import { MemoizedRoleNode } from "./role-node"
+import { MemoizedRoleNode, type RoleNodeMeta } from "./role-node"
+import { RoleColumnLabel } from "./role-column-label"
 import { ElementPanel } from "./element-panel"
 import { HuemulRolePickerDialog } from "@/huemul/components/huemul-role-picker"
 import { MemoizedRelationshipEdge, type RelationshipEdgeData } from "./relationship-edge"
@@ -218,6 +219,37 @@ function computeLayoutForNewNodes(
   return result
 }
 
+// ─── Role column layout ─────────────────────────────────────────────────────────
+// New role nodes are placed in a dedicated column to the right of everything else —
+// separates "what exists" (assets/containers) from "who can see it" (roles). Only
+// applies at creation time: roles already positioned in a loaded diagram keep
+// whatever position the user last dragged them to.
+const ROLE_COLUMN_MARGIN = 96
+const ROLE_ROW_SPACING = 24
+const ROLE_NODE_HEIGHT = 56
+
+function computeRoleColumnPosition(nodes: Node[]): { x: number; y: number } {
+  const others = nodes.filter((n) => n.type !== "role")
+  const roles = nodes.filter((n) => n.type === "role")
+
+  let maxRight = 400
+  let minTop = 80
+  others.forEach((n, i) => {
+    const w = n.measured?.width ?? (n.style?.width as number) ?? 160
+    if (i === 0) minTop = n.position.y
+    maxRight = Math.max(maxRight, n.position.x + w)
+    minTop = Math.min(minTop, n.position.y)
+  })
+
+  const x = maxRight + ROLE_COLUMN_MARGIN
+  if (roles.length === 0) return { x, y: minTop }
+
+  const maxBottom = Math.max(
+    ...roles.map((n) => n.position.y + (n.measured?.height ?? (n.style?.height as number) ?? ROLE_NODE_HEIGHT)),
+  )
+  return { x, y: maxBottom + ROLE_ROW_SPACING }
+}
+
 // Diagram (API shape) → EditingDiagram (canvas state) — shared by "load an existing
 // diagram" and "just saved/created a diagram" so both promote the canvas the same way.
 function toEditingDiagram(diagram: Diagram): EditingDiagram {
@@ -307,10 +339,40 @@ function RelationshipsCanvasFlow({
     const containerZ = new Map(
       containerAreas.map((c, i) => [c.id, CONTAINER_Z_BASE + Math.min(i, CONTAINER_Z_MAX)]),
     )
+
+    // How many containers point at each role — feeds the "N contenedores" line on
+    // the role pill. Computed here (not inside RoleNode) since a node can't see its
+    // siblings on its own.
+    const roleContainerCounts = new Map<string, number>()
+    for (const n of nodes) {
+      if (n.type !== "container") continue
+      const roleId = (n.data as CanvasElementNodeData).role?.id
+      if (roleId) roleContainerCounts.set(roleId, (roleContainerCounts.get(roleId) ?? 0) + 1)
+    }
+
     return nodes.map((n) => {
       const z = n.type === "container" ? (containerZ.get(n.id) ?? CONTAINER_Z_BASE) : NODE_Z
+      if (n.type === "role") {
+        const roleId = (n.data as CanvasElementNodeData).role?.id
+        const count = roleId ? (roleContainerCounts.get(roleId) ?? 0) : 0
+        const roleMeta: RoleNodeMeta = count > 0 ? { kind: "containers", count } : { kind: "none" }
+        const prevMeta = (n.data as { roleMeta?: RoleNodeMeta }).roleMeta
+        const metaChanged = prevMeta?.kind !== roleMeta.kind || (roleMeta.kind === "containers" && (prevMeta as { count?: number })?.count !== roleMeta.count)
+        if (!metaChanged && n.zIndex === z) return n
+        return { ...n, zIndex: z, data: { ...n.data, roleMeta } }
+      }
       return n.zIndex === z ? n : { ...n, zIndex: z }
     })
+  }, [nodes])
+
+  // World position for the "ROLES" column eyebrow — above the topmost role pill,
+  // aligned to the column's x. Not a node, so it's kept out of `layeredNodes`.
+  const roleColumnLabelPos = useMemo(() => {
+    const roleNodes = nodes.filter((n) => n.type === "role")
+    if (roleNodes.length === 0) return null
+    const x = Math.min(...roleNodes.map((n) => n.position.x))
+    const y = Math.min(...roleNodes.map((n) => n.position.y)) - 32
+    return { x, y }
   }, [nodes])
 
   const layeredEdges = useMemo(
@@ -869,7 +931,7 @@ function RelationshipsCanvasFlow({
       const jitter = (getNodes().length % 8) * 12
       const position = { x: center.x + jitter, y: center.y + jitter }
       if (kind === "role") {
-        setPendingRolePick({ position })
+        setPendingRolePick({ position: computeRoleColumnPosition(getNodes()) })
         return
       }
       createElementNode(kind, position)
@@ -892,8 +954,10 @@ function RelationshipsCanvasFlow({
         const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
         // A "role" element has no content until a role is picked — open the
         // dialog instead of creating the node directly (mirrors addElementAtCenter).
+        // Ignores the actual drop point: role nodes always land in the dedicated
+        // column, regardless of where they were dropped on the canvas.
         if (element.kind === "role") {
-          setPendingRolePick({ position })
+          setPendingRolePick({ position: computeRoleColumnPosition(getNodes()) })
           return
         }
         createElementNode(element.kind, position)
@@ -1931,6 +1995,13 @@ function RelationshipsCanvasFlow({
             nodeColor={(n) => (n.data as AssetTypeNodeData)?.color || "#94a3b8"}
             className="border rounded-lg shadow-sm"
           />
+          {roleColumnLabelPos && (
+            <RoleColumnLabel
+              x={roleColumnLabelPos.x}
+              y={roleColumnLabelPos.y}
+              label={t("node.rolesColumnLabel")}
+            />
+          )}
 
           {/* Always available — not gated on the drag palette, which isn't mounted on every screen */}
           {!readOnly && (

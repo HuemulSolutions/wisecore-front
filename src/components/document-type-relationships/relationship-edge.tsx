@@ -170,7 +170,8 @@ export function RelationshipEdge({
 
   const isSelfLoop = source === target
   const offset = edgeData.pathOffset ?? 0
-  const strokeColor = selected ? "var(--primary)" : "var(--diagram-edge)"
+  const isDirect = edgeData.edgeKind === "direct"
+  const strokeColor = selected ? "var(--primary)" : isDirect ? "var(--diagram-role-edge)" : "var(--diagram-edge)"
 
   let edgePath: string
   let labelX: number
@@ -208,7 +209,7 @@ export function RelationshipEdge({
           stroke: strokeColor,
           // Minimal, honest signal that this line has no backend relationship behind
           // it — just an entry in the Diagram's own `relationships`.
-          strokeDasharray: edgeData.edgeKind === 'direct' ? '6 4' : undefined,
+          strokeDasharray: isDirect ? '5 5' : undefined,
         }}
       />
 
@@ -228,8 +229,9 @@ export function RelationshipEdge({
             <span
               className={cn(
                 "text-[11px] font-semibold px-1.5 py-0.5 rounded bg-background whitespace-nowrap max-w-40 truncate",
-                selected ? "text-primary" : "text-foreground",
+                selected ? "text-primary" : isDirect ? "" : "text-foreground",
               )}
+              style={!selected && isDirect ? { color: "var(--diagram-role-edge)" } : undefined}
             >
               {edgeData.name}
             </span>
