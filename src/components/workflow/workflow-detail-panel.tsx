@@ -249,10 +249,13 @@ export function WorkflowDetailPanel({
   // cubre el depends_on propio de la sección: con show_when_inactive:true la
   // sección sigue en el wizard (isSectionApplicable la deja pasar) pero inactiva,
   // así que acá también degrada a solo lectura.
-  const canAnswerSection =
-    canAnswerForm &&
-    (!currentSection || resolveSectionCanEdit(currentSection, sectionAccess) !== false) &&
-    (!currentSection || isSectionAnswerable(currentSection))
+  const canAnswerSpecificSection = React.useCallback(
+    (section: ContentSection) =>
+      canAnswerForm && resolveSectionCanEdit(section, sectionAccess) !== false && isSectionAnswerable(section),
+    [canAnswerForm, sectionAccess],
+  )
+
+  const canAnswerSection = currentSection ? canAnswerSpecificSection(currentSection) : canAnswerForm
 
   // Motivo del aviso de solo lectura: distingue "no tenés permiso/rol", "esta etapa ya
   // no admite respuestas", "esta sección está inactiva según las respuestas dadas" y
@@ -460,7 +463,7 @@ export function WorkflowDetailPanel({
         ) : formSections.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("wizard.noFormSections")}</p>
         ) : step === null || !currentSection ? (
-          <WorkflowSectionsSummary sections={formSections} onGoToSection={setStep} canGoToSection={canAnswerForm} />
+          <WorkflowSectionsSummary sections={formSections} onGoToSection={setStep} canGoToSection={canAnswerSpecificSection} />
         ) : (
           <AssetFormSection
             key={currentSection.id}

@@ -14,10 +14,12 @@ export interface WorkflowSectionsSummaryProps {
   sections: ContentSection[];
   /** Entrar al wizard en ese índice de paso. */
   onGoToSection: (stepIndex: number) => void;
-  /** Permiso de edición del formulario completo (canAnswerForm en workflow-detail-panel.tsx).
-   *  Si es false, el usuario solo puede leer, así que se oculta "Ir a la sección" en todas las
-   *  tarjetas — el único modo de ver las respuestas queda ser expandirlas acá mismo. */
-  canGoToSection: boolean;
+  /** Permiso de edición para ESA sección puntual (canAnswerSpecificSection en
+   *  workflow-detail-panel.tsx): cruza el permiso del documento completo, el permiso de esa
+   *  sección por ciclo de vida (section_lifecycle_access) y si la sección está activa. Si da
+   *  false para una sección, se oculta "Ir a la sección" solo en su tarjeta — el único modo de
+   *  ver sus respuestas queda ser expandirla acá mismo. */
+  canGoToSection: (section: ContentSection) => boolean;
 }
 
 /**
@@ -70,7 +72,7 @@ export function WorkflowSectionsSummary({ sections, onGoToSection, canGoToSectio
             }
             subtitle={t("sections:form.fill.answeredCount", { answered: answeredCount, total: questions.length })}
             actions={
-              canGoToSection ? (
+              canGoToSection(section) ? (
                 <HuemulButton
                   size="xs"
                   icon={ArrowRight}
