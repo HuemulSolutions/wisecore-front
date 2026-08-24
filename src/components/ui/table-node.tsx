@@ -447,6 +447,8 @@ export function TableRowElement({
     element,
     type: element.type,
     canDropNode: ({ dragEntry, dropEntry }) =>
+      !!dragEntry &&
+      !!dropEntry &&
       PathApi.equals(
         PathApi.parent(dragEntry[1]),
         PathApi.parent(dropEntry[1])
