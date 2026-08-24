@@ -14,6 +14,10 @@ export interface WorkflowSectionsSummaryProps {
   sections: ContentSection[];
   /** Entrar al wizard en ese índice de paso. */
   onGoToSection: (stepIndex: number) => void;
+  /** Permiso de edición del formulario completo (canAnswerForm en workflow-detail-panel.tsx).
+   *  Si es false, el usuario solo puede leer, así que se oculta "Ir a la sección" en todas las
+   *  tarjetas — el único modo de ver las respuestas queda ser expandirlas acá mismo. */
+  canGoToSection: boolean;
 }
 
 /**
@@ -21,9 +25,9 @@ export interface WorkflowSectionsSummaryProps {
  * workflow-detail-panel.tsx): una tarjeta colapsable por sección form del documento, con su
  * estado y progreso. Al desplegarla se ven las respuestas inline (misma lista que el modo
  * lector del asset, ver asset-form-section-reader.tsx). "Ir a la sección" entra al wizard en
- * ese paso sin afectar el estado de expansión.
+ * ese paso sin afectar el estado de expansión; solo se muestra si `canGoToSection` es true.
  */
-export function WorkflowSectionsSummary({ sections, onGoToSection }: WorkflowSectionsSummaryProps) {
+export function WorkflowSectionsSummary({ sections, onGoToSection, canGoToSection }: WorkflowSectionsSummaryProps) {
   const { t } = useTranslation(["workflow", "sections"]);
   const [openIds, setOpenIds] = React.useState<Set<string>>(() => new Set());
 
@@ -66,13 +70,15 @@ export function WorkflowSectionsSummary({ sections, onGoToSection }: WorkflowSec
             }
             subtitle={t("sections:form.fill.answeredCount", { answered: answeredCount, total: questions.length })}
             actions={
-              <HuemulButton
-                size="xs"
-                icon={ArrowRight}
-                iconPosition="right"
-                label={t("wizard.summary.goToSection")}
-                onClick={() => onGoToSection(index)}
-              />
+              canGoToSection ? (
+                <HuemulButton
+                  size="xs"
+                  icon={ArrowRight}
+                  iconPosition="right"
+                  label={t("wizard.summary.goToSection")}
+                  onClick={() => onGoToSection(index)}
+                />
+              ) : undefined
             }
           >
             <FormAnswersList fields={fields} emptyLabel={t("wizard.summary.noAnswers")} />

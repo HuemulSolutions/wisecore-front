@@ -460,7 +460,7 @@ export function WorkflowDetailPanel({
         ) : formSections.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("wizard.noFormSections")}</p>
         ) : step === null || !currentSection ? (
-          <WorkflowSectionsSummary sections={formSections} onGoToSection={setStep} />
+          <WorkflowSectionsSummary sections={formSections} onGoToSection={setStep} canGoToSection={canAnswerForm} />
         ) : (
           <AssetFormSection
             key={currentSection.id}
