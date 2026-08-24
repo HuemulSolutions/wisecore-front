@@ -90,7 +90,11 @@ export function useLifecycleActions({
     setIsAssignVersionDialogOpenState(open)
   }
 
-  const refreshKeys = () => [["document-content", documentId], ...(extraRefreshKeys?.() ?? [])]
+  const refreshKeys = () => [
+    ["document-content", documentId],
+    ["document-section-access", documentId],
+    ...(extraRefreshKeys?.() ?? []),
+  ]
 
   // El backend valida los custom fields obligatorios al salir de `draft`
   // (y al pasar in_approval -> approved). `will_advance_phase` distingue
