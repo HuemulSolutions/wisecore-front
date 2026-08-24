@@ -387,7 +387,7 @@ export function WorkflowDetailPanel({
             controller={lifecycle}
             variant="row"
             showRerunExternalPublish
-            hideComplete={willAdvanceOnFinish}
+            hideComplete={willAdvanceOnFinish || (step !== null && !canAnswerSection)}
           />
         </div>
       )}
