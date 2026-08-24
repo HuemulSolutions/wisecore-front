@@ -1,7 +1,7 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, Edit3, ListChecks, RefreshCw, Eye } from "lucide-react"
+import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, CheckCircle2, Edit3, ListChecks, RefreshCw, Eye } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Input } from "@/components/ui/input"
@@ -327,6 +327,17 @@ export function WorkflowDetailPanel({
   // confirmación de "Completar" en vez de cerrar directo (misma condición de `goNext`).
   const willAdvanceOnFinish = isLastStep && lifecycle.canTransition && !!lifecycle.status?.can_advance
 
+  // Sin secciones form para este paso/usuario (etapas de revisión/aprobación típicamente):
+  // mismo criterio que willAdvanceOnFinish pero sin depender de isLastStep, ya que acá no
+  // hay wizard de pasos que recorrer.
+  const canAdvanceEmptyStep = lifecycle.canTransition && !!lifecycle.status?.can_advance
+  const emptyStepAdvanceDisabled = !!data?.lifecycle_status?.version_required && !data?.lifecycle_status?.version
+  const emptyStepAdvanceTooltip = emptyStepAdvanceDisabled
+    ? t("content.assignVersionBeforeComplete", { ns: "assets" })
+    : data?.lifecycle_status?.will_advance_phase
+      ? t("lifecycle.tooltipCompletePhase", { ns: "assets" })
+      : t("lifecycle.tooltipComplete", { ns: "assets" })
+
   return (
     <div className="flex h-full flex-col">
       <div
@@ -394,7 +405,7 @@ export function WorkflowDetailPanel({
 
       <div className={cn("flex-1 overflow-auto p-4", isFullscreen && "sm:px-8")}>
         <div className={cn(isFullscreen && "mx-auto w-full max-w-3xl")}>
-        {!needsNameStep && documentId && !isLoading && !error && readOnlyReason && (
+        {!needsNameStep && documentId && !isLoading && !error && formSections.length > 0 && readOnlyReason && (
           <div className="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
             <Eye className="h-4 w-4 shrink-0" />
             {readOnlyReason === "stage"
@@ -461,7 +472,29 @@ export function WorkflowDetailPanel({
             {t("panel.loadError")}
           </div>
         ) : formSections.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("wizard.noFormSections")}</p>
+          <div className="flex flex-col items-center gap-2 py-8 text-center">
+            <CheckCircle2 className="h-8 w-8 text-muted-foreground" />
+            <p className="text-sm font-medium text-foreground">{t("wizard.emptyStep.title")}</p>
+            <p className="max-w-sm text-xs text-muted-foreground">
+              {canAdvanceEmptyStep ? t("wizard.emptyStep.advanceDescription") : t("wizard.emptyStep.waitingDescription")}
+            </p>
+            {canAdvanceEmptyStep && (
+              <HuemulButton
+                size="sm"
+                icon={Check}
+                iconPosition="left"
+                label={t("lifecycle.complete", { ns: "assets" })}
+                disabled={emptyStepAdvanceDisabled}
+                tooltip={emptyStepAdvanceTooltip}
+                loading={lifecycle.checkMutation.isPending}
+                onClick={() => {
+                  finishAfterCompleteRef.current = true
+                  lifecycle.setIsCheckDialogOpen(true)
+                }}
+                className="mt-2"
+              />
+            )}
+          </div>
         ) : step === null || !currentSection ? (
           <WorkflowSectionsSummary sections={formSections} onGoToSection={setStep} canGoToSection={canAnswerSpecificSection} />
         ) : (

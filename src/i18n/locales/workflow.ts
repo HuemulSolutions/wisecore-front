@@ -79,7 +79,17 @@ const translations = {
     back: { en: "Back", es: "Atrás" },
     finish: { en: "Finish", es: "Finalizar" },
     finishAndAdvance: { en: "Finish and advance", es: "Finalizar y avanzar" },
-    noFormSections: { en: "This template has no form sections", es: "Este template no tiene secciones de formulario" },
+    emptyStep: {
+      title: { en: "Nothing to complete here", es: "Nada que completar acá" },
+      advanceDescription: {
+        en: "There are no pending forms for you at this step. You can move the workflow forward.",
+        es: "No hay formularios pendientes para vos en este paso. Podés avanzar el flujo.",
+      },
+      waitingDescription: {
+        en: "There are no pending forms for you at this step. Waiting on another role to continue.",
+        es: "No hay formularios pendientes para vos en este paso. Falta que otro rol continúe el flujo.",
+      },
+    },
     summary: {
       tooltip: { en: "Back to summary", es: "Volver al resumen" },
       // answeredCount vive en sections:form.fill.answeredCount (compartido con el modo lector del asset).
