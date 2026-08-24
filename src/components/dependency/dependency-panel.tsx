@@ -15,7 +15,9 @@ import { RemoveDependencyDialog } from "@/components/dependency/dependency-delet
 import { DependencyVersionDialog } from "@/components/dependency/dependency-version-dialog";
 import { DependencyListItem } from "@/components/dependency/dependency-list-item";
 import { getDocumentDependencies, addDocumentDependency, updateDocumentDependency, removeDocumentDependency } from "@/services/dependencies";
+import { getLibraryAssetsByIds } from "@/services/folders";
 import { useOrganization } from "@/contexts/organization-context";
+import { useNavKnowledge } from "@/contexts/nav-knowledge-context";
 import { useEffectiveOrgId } from "@/hooks/useOrgRouter";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/error-utils";
@@ -25,7 +27,7 @@ export type { AddDependencySheetProps } from "@/types/dependency/sheets";
 
 // `canEdit` es secure-by-default (punto 9 del checklist): su único call-site
 // (assets-dependencies-sheet.tsx) ya lo pasa explícito desde el cruce lifecycle × RBAC.
-export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = false }: AddDependencySheetProps) {
+export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = false, onRequestClose }: AddDependencySheetProps) {
     const { t } = useTranslation('dependencies')
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [dependencyToDelete, setDependencyToDelete] = useState<string | null>(null);
@@ -38,12 +40,34 @@ export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = f
     const queryClient = useQueryClient();
     const { selectedOrganizationId } = useOrganization();
     const orgId = useEffectiveOrgId();
+    const { revealAssetInTree } = useNavKnowledge();
 
     const { data: dependencies = [], isLoading, isFetching, error, refetch } = useQuery<Dependency[]>({
         queryKey: ['documentDependencies', id],
         queryFn: () => getDocumentDependencies(id!, selectedOrganizationId!),
         enabled: !!id && !!selectedOrganizationId && isSheetOpen,
     });
+
+    const dependencyDocumentIds = useMemo(
+        () => dependencies.map((dep) => dep.document_id),
+        [dependencies],
+    );
+
+    // Ruta/carpeta de cada dependencia: el endpoint de dependencias no la trae,
+    // así que se resuelve en un solo request por lote (asset_ids) sobre /folder/get_content.
+    const { data: dependencyAssets = [] } = useQuery({
+        queryKey: ['documentDependencies', id, 'folderPaths', dependencyDocumentIds],
+        queryFn: () => getLibraryAssetsByIds(selectedOrganizationId!, dependencyDocumentIds),
+        enabled: !!selectedOrganizationId && isSheetOpen && dependencyDocumentIds.length > 0,
+    });
+
+    const folderPathById = useMemo(() => {
+        const map = new Map<string, string | undefined>();
+        for (const asset of dependencyAssets) {
+            map.set(asset.id, asset.folder_path ?? asset.folder_name ?? undefined);
+        }
+        return map;
+    }, [dependencyAssets]);
 
     // Ids no seleccionables en el picker: el propio activo y los que ya son dependencia.
     const disabledPickerIds = useMemo(
@@ -212,8 +236,18 @@ export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = f
                                         dependency={dependency}
                                         orgId={orgId}
                                         canEdit={canEdit}
+                                        folderPath={folderPathById.get(dependency.document_id)}
                                         onChangeVersion={handleChangeVersion}
                                         onRemove={handleRemoveDependency}
+                                        onLocateInTree={(dep) => {
+                                            revealAssetInTree(dep.document_id);
+                                            const folder = folderPathById.get(dep.document_id);
+                                            toast.info(t('toast.locatedInTree', {
+                                                name: dep.document_name,
+                                                location: folder || t('toast.locatedInTreeRootLabel'),
+                                            }));
+                                            onRequestClose?.();
+                                        }}
                                     />
                                 ))}
                             </ul>

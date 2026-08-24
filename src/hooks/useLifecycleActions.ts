@@ -6,6 +6,7 @@ import { withRefresh } from "@/lib/query-utils"
 import { logger } from "@/lib/logger"
 import { parseMissingRequiredCustomFieldsDetail } from "@/lib/custom-field-required-utils"
 import { useExternalReviewActions } from "@/hooks/useLifecycle"
+import { useLifecycleProgress } from "@/hooks/useLifecycleProgress"
 import { useMissingRequiredCustomFields } from "@/hooks/useCustomFieldDocuments"
 import { executionLifecycleQueryKeys } from "@/hooks/useExecutionLifecycle"
 import { getDocumentTypeById } from "@/services/document-types"
@@ -36,7 +37,7 @@ const NO_TRANSITION_PERMISSION = "Missing permission to transition the lifecycle
  * `assets-content.tsx` and `WorkflowDetailPanel` so both consume the same
  * mutations/dialog state instead of duplicating them.
  *
- * Rendering is left to `HuemulLifecycleActions` / `HuemulLifecycleDialogs`; this
+ * Rendering is left to `HuemulLifecycleActions` / `HuemulLifecycleSheets`; this
  * hook only owns state, mutations and the derived data those components need.
  *
  * Cruce lifecycle × RBAC: `rbac.canTransition` (asset:u) se ANDea con los
@@ -89,7 +90,11 @@ export function useLifecycleActions({
     setIsAssignVersionDialogOpenState(open)
   }
 
-  const refreshKeys = () => [["document-content", documentId], ...(extraRefreshKeys?.() ?? [])]
+  const refreshKeys = () => [
+    ["document-content", documentId],
+    ["document-section-access", documentId],
+    ...(extraRefreshKeys?.() ?? []),
+  ]
 
   // El backend valida los custom fields obligatorios al salir de `draft`
   // (y al pasar in_approval -> approved). `will_advance_phase` distingue
@@ -310,6 +315,44 @@ export function useLifecycleActions({
     onViewChanges?.(previousExecutionId, executionId)
   }
 
+  // Misma condición que `canAssignVersion` en `huemul-lifecycle-actions.tsx` —
+  // única fuente ahora que el sheet de aprobación también la necesita para
+  // decidir si embebe el selector de versión inline.
+  const canAssignVersionInline =
+    !!lifecyclePermissions?.approve &&
+    (!!lifecycleStatus?.version_required || lifecycleStatus?.state === "in_approval") &&
+    !lifecycleStatus?.version
+
+  /**
+   * Confirma la aprobación asignando la versión en el mismo paso (selector
+   * inline del sheet de aprobación). Reusa el encadenamiento que ya existe
+   * para el flujo reactivo (`VERSION_REQUIRED_FOR_APPROVAL`,
+   * `assignVersionMutation.onSuccess` arriba): deja pendiente un "complete" y
+   * dispara `assignVersionMutation` — al resolver, esa misma `onSuccess`
+   * dispara `checkMutation` con las opciones (comentario) originales.
+   */
+  const confirmApprovalWithVersion = (
+    version: { major: number; minor: number; patch: number },
+    options?: { comment?: string; run_external_review?: boolean },
+  ) => {
+    setPendingVersionAction({ kind: "complete", options })
+    assignVersionMutation.mutate(version)
+  }
+
+  // Progreso visual (stepper de fases + panel "N de M" + próximo paso) para
+  // las 4 sheets que lo muestran. Best-effort: si el GET de steps falla por
+  // permisos, `progress.isAvailable` es `false` y las sheets degradan sin
+  // avisar (ver `useLifecycleProgress`).
+  const progress = useLifecycleProgress({
+    documentTypeId,
+    executionId,
+    organizationId,
+    lifecycleStatus,
+    finalLifecycleStage,
+    enabled:
+      isCheckDialogOpen || isRejectDialogOpen || isPublishDialogOpen || isArchiveDialogOpen || isRestoreDialogOpen,
+  })
+
   return {
     status: lifecycleStatus,
     permissions: lifecyclePermissions,
@@ -350,5 +393,9 @@ export function useLifecycleActions({
     missingRequiredCustomFields: isLeavingDraft ? missingFieldNames : [],
     requiredCustomFieldsError,
     onOpenCustomFields,
+    progress,
+
+    canAssignVersionInline,
+    confirmApprovalWithVersion,
   }
 }
