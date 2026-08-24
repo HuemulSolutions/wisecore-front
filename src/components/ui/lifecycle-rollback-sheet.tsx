@@ -1,25 +1,35 @@
 import { useState, useEffect, useMemo } from "react"
 import { useTranslation } from "react-i18next"
 import { useQuery } from "@tanstack/react-query"
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
-import { HuemulField } from "@/huemul/components/huemul-field"
 import { Undo2 } from "lucide-react"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
+import { HuemulField } from "@/huemul/components/huemul-field"
+import { HuemulLifecyclePhaseStepper } from "@/huemul/components/huemul-lifecycle-phase-stepper"
+import { HuemulLifecycleNextStep } from "@/huemul/components/huemul-lifecycle-next-step"
 import type { RollbackTargetsResponse } from "@/services/executions"
+import type { LifecycleProgress } from "@/types/lifecycle"
 import type { LifecycleRollbackDialogProps } from '@/types/lifecycle'
 export type { LifecycleRollbackDialogProps } from '@/types/lifecycle'
 
-export function LifecycleRollbackDialog({
+interface LifecycleRollbackSheetProps extends LifecycleRollbackDialogProps {
+  /** Stepper de fases — mismo `controller.progress` que las otras sheets. */
+  progress: LifecycleProgress
+}
+
+export function LifecycleRollbackSheet({
   open,
   onOpenChange,
   executionId,
   organizationId,
   onConfirm,
   isProcessing = false,
-}: LifecycleRollbackDialogProps) {
+  progress,
+}: LifecycleRollbackSheetProps) {
   const { t } = useTranslation("assets")
   const [selectedTarget, setSelectedTarget] = useState<string>("")
   const [comment, setComment] = useState("")
 
+  // Misma query key que `useLifecycleProgress` — comparten el fetch.
   const { data: rollbackTargets, isLoading: isLoadingTargets } = useQuery<RollbackTargetsResponse>({
     queryKey: ["rollback-targets", executionId, organizationId],
     queryFn: async () => {
@@ -30,7 +40,7 @@ export function LifecycleRollbackDialog({
     staleTime: 0,
   })
 
-  // Reset state when dialog closes
+  // Reset state when the sheet closes
   useEffect(() => {
     if (!open) {
       setSelectedTarget("")
@@ -102,6 +112,19 @@ export function LifecycleRollbackDialog({
     return groups
   }, [rollbackTargets])
 
+  // Etiqueta del destino elegido para el bloque destacado "Devolver a".
+  const selectedLabel = useMemo(() => {
+    for (const group of groupedOptions) {
+      const match = group.options.find((o) => o.value === selectedTarget)
+      if (match) return `${group.groupLabel} · ${match.label}`
+    }
+    if (selectedTarget.startsWith("state:")) {
+      const stateValue = selectedTarget.slice(6)
+      return t(`lifecycle.stateLabels.${stateValue}`, { defaultValue: stateValue })
+    }
+    return null
+  }, [groupedOptions, selectedTarget, t])
+
   function handleConfirm() {
     const options: { comment: string; target_state?: string; target_step_id?: string } = {
       comment,
@@ -117,12 +140,13 @@ export function LifecycleRollbackDialog({
   const hasOptions = groupedOptions.length > 0
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(o) => !isProcessing && onOpenChange(o)}
       title={t("lifecycle.returnTitle")}
       description={t("lifecycle.returnDialogDescription")}
       icon={Undo2}
+      iconVariant="tile"
       bodyLoading={isLoadingTargets}
       saveAction={{
         label: t("lifecycle.returnConfirm"),
@@ -133,6 +157,7 @@ export function LifecycleRollbackDialog({
       }}
     >
       <div className="space-y-4">
+        {progress.isAvailable && <HuemulLifecyclePhaseStepper phases={progress.phases} />}
         {!isLoadingTargets && !hasOptions ? (
           <p className="text-sm text-muted-foreground">{t("lifecycle.noRollbackTargets")}</p>
         ) : (
@@ -146,6 +171,9 @@ export function LifecycleRollbackDialog({
               disabled={isProcessing || isLoadingTargets}
               placeholder="—"
             />
+            {selectedLabel && (
+              <HuemulLifecycleNextStep label={t("lifecycle.rollbackTargetLabel")} value={selectedLabel} tone="warning" icon={Undo2} />
+            )}
 
             <HuemulField
               type="textarea"
@@ -159,6 +187,6 @@ export function LifecycleRollbackDialog({
           </>
         )}
       </div>
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }

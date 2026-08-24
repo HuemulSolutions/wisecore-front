@@ -13,7 +13,7 @@ import { WorkflowSectionsSummary } from "@/components/workflow/workflow-sections
 import { HuemulReviewStatusBadge } from "@/huemul/components/huemul-review-status-badge"
 import { HuemulLifecycleStageBadge } from "@/huemul/components/huemul-lifecycle-stage-badge"
 import { HuemulLifecycleActions } from "@/huemul/components/huemul-lifecycle-actions"
-import { HuemulLifecycleDialogs } from "@/huemul/components/huemul-lifecycle-dialogs"
+import { HuemulLifecycleSheets } from "@/huemul/components/huemul-lifecycle-sheets"
 import { getDocumentContent } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
@@ -542,7 +542,7 @@ export function WorkflowDetailPanel({
         />
       )}
 
-      <HuemulLifecycleDialogs
+      <HuemulLifecycleSheets
         controller={lifecycle}
         executionId={lifecycleExecutionId}
         organizationId={selectedOrganizationId}

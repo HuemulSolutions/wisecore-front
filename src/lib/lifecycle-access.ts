@@ -76,6 +76,43 @@ export function pipelineSortIndex(type: string): number {
   return idx === -1 ? LIFECYCLE_PIPELINE_ORDER.length : idx
 }
 
+// ─── Stepper de fases (progreso visual) ──────────────────────────────────────
+
+/**
+ * Hitos del stepper de fases del diálogo de completar/aprobar/publicar.
+ * Mezcla `type` de step (create/edit/review/approve) con `state` terminal
+ * (approved/published) a propósito: "Aprobado"/"Publicado" no son steps
+ * configurables, son el estado que resulta de completar el último step de
+ * approve/publish — así lo muestra el diseño.
+ */
+export const LIFECYCLE_MILESTONES: readonly string[] = [
+  "create",
+  "edit",
+  "review",
+  "approve",
+  "approved",
+  "published",
+]
+
+/**
+ * Recorta los hitos según hasta dónde llega el tipo de activo
+ * (`final_lifecycle_stage`) y qué stages tienen al menos un step configurado
+ * (`presentStageTypes`, de `useAllLifecycleSteps`). Los hitos terminales
+ * (`approved`/`published`) siempre se muestran cuando entran en el recorte:
+ * no son steps, así que no tienen entrada propia en `presentStageTypes`.
+ */
+export function getLifecycleMilestones(
+  finalStage: FinalLifecycleStage,
+  presentStageTypes: ReadonlySet<string>,
+): readonly string[] {
+  const upperBound = finalStage === "publish" ? "published" : finalStage === "approve" ? "approved" : finalStage
+  const cutoffIndex = LIFECYCLE_MILESTONES.indexOf(upperBound)
+  const bounded = cutoffIndex === -1 ? LIFECYCLE_MILESTONES : LIFECYCLE_MILESTONES.slice(0, cutoffIndex + 1)
+  return bounded.filter(
+    (milestone) => milestone === "approved" || milestone === "published" || presentStageTypes.has(milestone),
+  )
+}
+
 // ─── Estados terminales ──────────────────────────────────────────────────────
 
 /**

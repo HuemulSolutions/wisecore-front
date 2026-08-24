@@ -53,7 +53,7 @@ import { getDefaultLLM } from "@/services/llms";
 import { useLifecycleActions } from "@/hooks/useLifecycleActions";
 import { HuemulLifecycleStageBadge } from "@/huemul/components/huemul-lifecycle-stage-badge";
 import { HuemulLifecycleActions } from "@/huemul/components/huemul-lifecycle-actions";
-import { HuemulLifecycleDialogs } from "@/huemul/components/huemul-lifecycle-dialogs";
+import { HuemulLifecycleSheets } from "@/huemul/components/huemul-lifecycle-sheets";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { getTemplateById } from "@/services/templates";
 import { getCustomFieldDocumentsByDocument, createCustomFieldDocument, updateCustomFieldDocument, deleteCustomFieldDocument } from "@/services/custom-fieldds-documents";
@@ -3542,7 +3542,7 @@ export function AssetContent({
         onAction={() => disapproveMutation.mutateAsync()}
       />
 
-      <HuemulLifecycleDialogs
+      <HuemulLifecycleSheets
         controller={lifecycle}
         executionId={selectedExecutionId || documentContent?.execution_id}
         organizationId={selectedOrganizationId}
