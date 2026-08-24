@@ -24,6 +24,8 @@ export interface AddDependencySheetProps {
   id: string
   isSheetOpen?: boolean
   canEdit?: boolean
+  /** Cierra el sheet contenedor (ver "Ubicar en árbol": el overlay modal tapa el resaltado del árbol). */
+  onRequestClose?: () => void
 }
 
 export interface CreateDependencyRequest {

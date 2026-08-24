@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
+import type { LifecycleProgress } from './progress'
 
 export interface LifecycleCommentDialogProps {
   open: boolean
@@ -13,6 +14,12 @@ export interface LifecycleCommentDialogProps {
   isProcessing?: boolean
   variant?: "default" | "destructive"
   icon?: LucideIcon
+  /** Alerta roja adicional (ej. "se archivará sin publicar"). Omitir para no mostrarla. */
+  warning?: string
+  /** Stepper de fases — omitir o `isAvailable: false` para no mostrarlo. */
+  progress?: LifecycleProgress
+  /** Bloque destacado ("Próximo paso"). `null`/omitir para no mostrarlo. */
+  next?: { label: string; value: string; tone?: "info" | "warning" } | null
 }
 
 export interface LifecycleRollbackDialogProps {

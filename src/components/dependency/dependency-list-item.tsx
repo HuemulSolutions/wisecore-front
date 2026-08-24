@@ -5,6 +5,7 @@ import {
   ExternalLink,
   GitBranch,
   MoreVertical,
+  FolderTree,
 } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import {
@@ -33,11 +34,15 @@ export interface DependencyListItemProps {
   dependency: Dependency;
   orgId: string | undefined;
   canEdit: boolean;
+  /** Carpeta/ruta del documento dependido, si se resolvió (ver dependency-panel.tsx). */
+  folderPath?: string;
   onChangeVersion: (dependency: Dependency) => void;
   onRemove: (dependency: Dependency) => void;
+  /** Presente solo donde hay un árbol de Assets visible para resaltar (ver dependency-panel.tsx). */
+  onLocateInTree?: (dependency: Dependency) => void;
 }
 
-export function DependencyListItem({ dependency, orgId, canEdit, onChangeVersion, onRemove }: DependencyListItemProps) {
+export function DependencyListItem({ dependency, orgId, canEdit, folderPath, onChangeVersion, onRemove, onLocateInTree }: DependencyListItemProps) {
   const { t } = useTranslation('dependencies');
 
   return (
@@ -53,6 +58,7 @@ export function DependencyListItem({ dependency, orgId, canEdit, onChangeVersion
         <p className="text-xs text-muted-foreground truncate">
           {[
             dependency.document_type?.name,
+            folderPath,
             getVersionModeBadgeLabel(dependency, t),
             dependency.section_name
               ? t('list.sectionLabel', { name: dependency.section_name })
@@ -78,6 +84,15 @@ export function DependencyListItem({ dependency, orgId, canEdit, onChangeVersion
             <ExternalLink className="mr-2 h-4 w-4" />
             {t('viewDocument')}
           </DropdownMenuItem>
+          {onLocateInTree && (
+            <DropdownMenuItem
+              className="hover:cursor-pointer"
+              onSelect={() => setTimeout(() => onLocateInTree(dependency), 0)}
+            >
+              <FolderTree className="mr-2 h-4 w-4" />
+              {t('locateInTree')}
+            </DropdownMenuItem>
+          )}
           {canEdit && (
             <DropdownMenuItem
               className="hover:cursor-pointer"

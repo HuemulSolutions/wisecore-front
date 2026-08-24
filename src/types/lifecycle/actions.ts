@@ -1,6 +1,7 @@
 import type { QueryKey, UseMutationResult } from '@tanstack/react-query'
 import type { LifecycleStatus, LifecyclePermissions } from '@/types/assets'
 import type { FinalLifecycleStage } from '@/types/document-types'
+import type { LifecycleProgress } from './progress'
 
 // ----------------------------------------
 // useLifecycleActions
@@ -99,6 +100,16 @@ export interface LifecycleActionsController {
   requiredCustomFieldsError: string[]
   /** Passthrough de la opción homónima; undefined = la superficie no tiene tab de custom fields. */
   onOpenCustomFields?: () => void
+  /** Stepper de fases + panel "N de M" + próximo paso, para las 4 sheets que lo muestran. `isAvailable: false` = degradar (sin datos/sin permiso). */
+  progress: LifecycleProgress
+
+  /** `true` si corresponde embeber el selector de versión inline en el sheet de aprobación (misma condición que gatea el botón "Asignar versión" standalone). */
+  canAssignVersionInline: boolean
+  /** Asigna la versión y, al resolver, completa el step de aprobación con el mismo comentario — un solo click en el sheet. */
+  confirmApprovalWithVersion: (
+    version: { major: number; minor: number; patch: number },
+    options?: { comment?: string; run_external_review?: boolean },
+  ) => void
 }
 
 // ----------------------------------------
@@ -122,10 +133,10 @@ export interface HuemulLifecycleStageBadgeProps {
 }
 
 // ----------------------------------------
-// HuemulLifecycleDialogs
+// HuemulLifecycleSheets
 // ----------------------------------------
 
-export interface HuemulLifecycleDialogsProps {
+export interface HuemulLifecycleSheetsProps {
   controller: LifecycleActionsController
   executionId: string | null | undefined
   organizationId: string | null | undefined

@@ -1,30 +1,30 @@
 import { useTranslation } from "react-i18next"
-import { LifecycleReviewDialog } from "@/components/ui/lifecycle-review-dialog"
-import { LifecycleRollbackDialog } from "@/components/ui/lifecycle-rollback-dialog"
-import { LifecyclePublishDialog } from "@/components/ui/lifecycle-publish-dialog"
-import { LifecycleCommentDialog } from "@/components/ui/lifecycle-comment-dialog"
+import { LifecycleReviewSheet } from "@/components/ui/lifecycle-review-sheet"
+import { LifecycleRollbackSheet } from "@/components/ui/lifecycle-rollback-sheet"
+import { LifecyclePublishSheet } from "@/components/ui/lifecycle-publish-sheet"
+import { LifecycleCommentSheet } from "@/components/ui/lifecycle-comment-sheet"
 import { LifecycleRequiredCustomFieldsDialog } from "@/components/ui/lifecycle-required-custom-fields-dialog"
 import { AssignVersionDialog } from "@/components/assets/dialogs/assets-assign-version-dialog"
-import type { HuemulLifecycleDialogsProps } from "@/types/lifecycle"
+import type { HuemulLifecycleSheetsProps } from "@/types/lifecycle"
 
 /**
- * Mounts the six confirmation dialogs (complete/return, publish, archive,
- * restore, assign version, required custom fields) for a `useLifecycleActions`
- * controller. Kept separate from `HuemulLifecycleActions` because
- * assets-content renders the action buttons twice (mobile header + desktop
- * metadata row) but only needs one copy of these dialogs.
+ * Mounts the seven confirmation sheets/dialogs (complete/return, publish,
+ * archive, restore, assign version, required custom fields) for a
+ * `useLifecycleActions` controller. Kept separate from `HuemulLifecycleActions`
+ * because assets-content renders the action buttons twice (mobile header +
+ * desktop metadata row) but only needs one copy of these sheets.
  */
-export function HuemulLifecycleDialogs({
+export function HuemulLifecycleSheets({
   controller,
   executionId,
   organizationId,
   existingVersions,
-}: HuemulLifecycleDialogsProps) {
+}: HuemulLifecycleSheetsProps) {
   const { t } = useTranslation(["assets", "common"])
-  const { status } = controller
+  const { status, progress, finalLifecycleStage } = controller
 
-  // Ir al tab de campos personalizados cierra el diálogo que lo lanzó: el tab
-  // vive en el sidebar, tapado por el overlay del diálogo.
+  // Ir al tab de campos personalizados cierra el sheet que lo lanzó: el tab
+  // vive en el sidebar, tapado por el overlay del sheet.
   const goToCustomFields = controller.onOpenCustomFields
     ? () => {
         controller.setIsCheckDialogOpen(false)
@@ -33,40 +33,43 @@ export function HuemulLifecycleDialogs({
       }
     : undefined
 
+  const nextStepBlock = progress.nextStep
+    ? {
+        label: t("lifecycle.nextStepLabel"),
+        value: progress.nextStep.name ?? t(`lifecycle.stageLabels.${progress.nextStep.stage}`, { defaultValue: progress.nextStep.stage }),
+      }
+    : null
+
+  // Archivar sin publicar (aprobado, y el tipo de activo sí llega a "publish")
+  // salta directo el paso de publicación — mismo criterio que el warning rojo.
+  const isArchivingUnpublished = status?.state === "approved" && finalLifecycleStage === "publish"
+  const archiveDescription = isArchivingUnpublished
+    ? t("lifecycle.archiveFromApprovedDescription")
+    : status?.version
+      ? t("lifecycle.archivePublishedVersionDescription", { version: status.version })
+      : t("lifecycle.archiveDescription")
+
   return (
     <>
-      <LifecycleReviewDialog
-        open={controller.isCheckDialogOpen}
-        onOpenChange={(open) => !controller.checkMutation.isPending && controller.setIsCheckDialogOpen(open)}
-        title={status?.will_advance_phase ? t("lifecycle.advanceStateTitle") : t("lifecycle.advanceStepTitle")}
-        description={
-          status?.will_advance_phase ? t("lifecycle.advanceStateDescription") : t("lifecycle.advanceStepDescription")
-        }
-        onConfirm={(data) => controller.checkMutation.mutate(data)}
-        confirmLabel={status?.will_advance_phase ? t("lifecycle.advanceStateConfirm") : t("lifecycle.advanceStepConfirm")}
-        hasExternalReview={controller.hasExternalReview}
-        isProcessing={controller.checkMutation.isPending}
-        isApprovalStep={controller.isApprovalStep}
-        changeSummary={controller.changeSummary}
-        changeSummaryStatus={controller.changeSummaryStatus}
-        changeSummaryError={controller.changeSummaryError}
-        canViewChanges={controller.canViewChanges}
-        isSummaryLoading={controller.isSummaryLoading}
-        onViewChanges={controller.handleViewChanges}
-        missingRequiredCustomFields={controller.missingRequiredCustomFields}
+      <LifecycleReviewSheet
+        controller={controller}
+        executionId={executionId}
+        organizationId={organizationId}
+        existingVersions={existingVersions}
         onGoToCustomFields={goToCustomFields}
       />
 
-      <LifecycleRollbackDialog
+      <LifecycleRollbackSheet
         open={controller.isRejectDialogOpen}
         onOpenChange={(open) => !controller.rejectMutation.isPending && controller.setIsRejectDialogOpen(open)}
         executionId={executionId ?? null}
         organizationId={organizationId!}
         onConfirm={(options) => controller.rejectMutation.mutate(options)}
         isProcessing={controller.rejectMutation.isPending}
+        progress={progress}
       />
 
-      <LifecyclePublishDialog
+      <LifecyclePublishSheet
         open={controller.isPublishDialogOpen}
         onOpenChange={(open) => !controller.advanceMutation.isPending && controller.setIsPublishDialogOpen(open)}
         onConfirm={({ comment, run_external_publish }) =>
@@ -77,17 +80,15 @@ export function HuemulLifecycleDialogs({
           })
         }
         isProcessing={controller.advanceMutation.isPending}
+        version={status?.version ?? null}
+        progress={progress}
       />
 
-      <LifecycleCommentDialog
+      <LifecycleCommentSheet
         open={controller.isArchiveDialogOpen}
         onOpenChange={(open) => !controller.advanceMutation.isPending && controller.setIsArchiveDialogOpen(open)}
         title={t("lifecycle.archiveTitle")}
-        description={
-          status?.state === "approved" && controller.finalLifecycleStage === "publish"
-            ? t("lifecycle.archiveFromApprovedDescription")
-            : t("lifecycle.archiveDescription")
-        }
+        description={archiveDescription}
         onConfirm={(comment) =>
           controller.advanceMutation.mutate({
             comment,
@@ -99,9 +100,12 @@ export function HuemulLifecycleDialogs({
         commentPlaceholder={t("lifecycle.commentPlaceholder")}
         isProcessing={controller.advanceMutation.isPending}
         variant="destructive"
+        warning={isArchivingUnpublished ? t("lifecycle.archiveUnpublishedWarning") : undefined}
+        progress={progress}
+        next={nextStepBlock}
       />
 
-      <LifecycleCommentDialog
+      <LifecycleCommentSheet
         open={controller.isRestoreDialogOpen}
         onOpenChange={(open) => !controller.restoreMutation.isPending && controller.setIsRestoreDialogOpen(open)}
         title={t("lifecycle.restoreTitle")}
@@ -112,6 +116,8 @@ export function HuemulLifecycleDialogs({
         commentPlaceholder={t("lifecycle.commentPlaceholder")}
         isProcessing={controller.restoreMutation.isPending}
         variant="destructive"
+        progress={progress}
+        next={nextStepBlock}
       />
 
       <AssignVersionDialog

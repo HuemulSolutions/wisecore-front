@@ -4,6 +4,10 @@ import type { FileTreeRef } from "@/components/assets/content/assets-file-tree"
 export interface NavKnowledgeContextValue {
   fileTreeRef: RefObject<FileTreeRef | null>
   pendingFocusAssetIdRef: RefObject<string | null>
+  /** Id del nodo resaltado temporalmente en el árbol (ver revealAssetInTree). */
+  revealedNodeId: string | null
+  /** Expande el árbol hasta `assetId` y lo resalta unos segundos, sin navegar ni cerrar nada. */
+  revealAssetInTree: (assetId: string) => void
   handleCreateAsset: (folderId?: string) => void
   handleImportAsset: (folderId?: string) => void
   handleImportAssetFromExternal: (folderId?: string) => void

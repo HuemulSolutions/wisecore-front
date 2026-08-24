@@ -34,8 +34,9 @@ export function HuemulLifecycleActions({
   const buttonVariant = isCompact ? "outline" : "ghost"
   const sizeClass = isCompact ? "h-6 text-xs px-2" : "h-7 px-2.5 text-xs font-medium transition-colors"
 
-  const canAssignVersion =
-    permissions?.approve && (status.version_required || status.state === "in_approval") && !status.version
+  // Única fuente: `useLifecycleActions` calcula la misma condición para
+  // decidir si el sheet de aprobación embebe el selector de versión inline.
+  const canAssignVersion = controller.canAssignVersionInline
   // Con etapa final distinta de "publish" (campo `final_lifecycle_stage` del
   // tipo de activo) el documento nunca llega a publicarse: al aprobar, la
   // ejecución se archiva directo.
