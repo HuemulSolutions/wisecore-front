@@ -135,7 +135,7 @@ export function LifecycleReviewSheet({
       description={description}
       icon={CheckCircle2}
       iconVariant="tile"
-      size="xl"
+      maxWidth="sm:max-w-xl"
       cancelLabel={t("common:cancel", "Cancel")}
       saveAction={{
         label: confirmLabel,

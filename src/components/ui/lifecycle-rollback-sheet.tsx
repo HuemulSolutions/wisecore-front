@@ -147,6 +147,7 @@ export function LifecycleRollbackSheet({
       description={t("lifecycle.returnDialogDescription")}
       icon={Undo2}
       iconVariant="tile"
+      maxWidth="sm:max-w-xl"
       bodyLoading={isLoadingTargets}
       saveAction={{
         label: t("lifecycle.returnConfirm"),

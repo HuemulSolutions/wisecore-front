@@ -42,6 +42,7 @@ export function LifecycleCommentSheet({
       description={description}
       icon={icon}
       iconVariant="tile"
+      maxWidth="sm:max-w-xl"
       cancelLabel={cancelLabel}
       saveAction={{
         label: confirmLabel,

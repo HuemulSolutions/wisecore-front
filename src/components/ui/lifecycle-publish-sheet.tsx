@@ -45,6 +45,7 @@ export function LifecyclePublishSheet({
       description={version ? t("lifecycle.publishVersionDescription", { version }) : t("lifecycle.publishDescription")}
       icon={Globe}
       iconVariant="tile"
+      maxWidth="sm:max-w-xl"
       cancelLabel={t("common:cancel", "Cancel")}
       saveAction={{
         label: version ? t("lifecycle.publishVersionConfirm", { version }) : t("lifecycle.publishConfirm"),
