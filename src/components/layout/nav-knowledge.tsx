@@ -203,7 +203,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
   const navigate = useOrgNavigate()
   const location = useLocation()
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, pendingFocusAssetIdRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleCreateFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage } = useNavKnowledge()
+  const { fileTreeRef, pendingFocusAssetIdRef, revealedNodeId, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleCreateFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
   const [documentTypeIds, setDocumentTypeIds] = useState<Map<string, string>>(new Map())
@@ -866,6 +866,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
             return <File className="h-3.5 w-3.5 shrink-0" style={{ color: color ?? undefined }} />
           }}
           renderFolderIcon={(node, isExpanded) => renderKnowledgeFolderIcon(node as FileNode, isExpanded)}
+          renderNodeClassName={(node) => (revealedNodeId === node.id ? "ring-2 ring-[#4464f7] ring-inset" : undefined)}
           onNodeDragStart={diagramMode ? (e, node) => {
             const docType = node.document_type
             if (!docType) return

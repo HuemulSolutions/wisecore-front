@@ -67,19 +67,29 @@ const translations = {
     nextPage: { en: "Next workflows", es: "Workflows siguientes" },
   },
   expressSheet: {
-    welcomeTitle: { en: "Let's start: {{template}}", es: "Empecemos: {{template}}" },
-    welcomeDescription: { en: "Give this new asset a name (and optionally a description) so it's easy to identify later.", es: "Dale un nombre a este nuevo activo (y opcionalmente una descripción) para que sea fácil de identificar más adelante." },
+    welcomeTitle: { en: "General information", es: "Datos generales" },
+    welcomeDescription: { en: "Assign a name to this record to easily identify it later.", es: "Asigna un nombre a este registro para identificarlo fácilmente más adelante." },
     name: { en: "Name", es: "Nombre" },
     namePlaceholder: { en: "e.g. Ergonomic chairs purchase", es: "Ej: Compra de sillas ergonómicas" },
     description: { en: "Description", es: "Descripción" },
-    descriptionPlaceholder: { en: "Briefly describe this request...", es: "Describe brevemente esta solicitud..." },
+    descriptionPlaceholder: { en: "Add a description about this record (optional)", es: "Agrega una descripción sobre este registro (opcional)" },
     success: { en: "Document created successfully", es: "Documento creado correctamente" },
   },
   wizard: {
     back: { en: "Back", es: "Atrás" },
     finish: { en: "Finish", es: "Finalizar" },
     finishAndAdvance: { en: "Finish and advance", es: "Finalizar y avanzar" },
-    noFormSections: { en: "This template has no form sections", es: "Este template no tiene secciones de formulario" },
+    emptyStep: {
+      title: { en: "Nothing to complete here", es: "Nada que completar acá" },
+      advanceDescription: {
+        en: "There are no pending forms for you at this step. You can move the workflow forward.",
+        es: "No hay formularios pendientes para vos en este paso. Podés avanzar el flujo.",
+      },
+      waitingDescription: {
+        en: "There are no pending forms for you at this step. Waiting on another role to continue.",
+        es: "No hay formularios pendientes para vos en este paso. Falta que otro rol continúe el flujo.",
+      },
+    },
     summary: {
       tooltip: { en: "Back to summary", es: "Volver al resumen" },
       // answeredCount vive en sections:form.fill.answeredCount (compartido con el modo lector del asset).

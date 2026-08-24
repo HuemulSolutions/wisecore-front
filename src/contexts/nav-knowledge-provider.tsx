@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useOrganization } from "@/contexts/organization-context"
@@ -306,8 +306,27 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     fileTreeRef.current?.refresh()
   }, [])
 
+  // Resalta temporalmente un asset arbitrario (ej. una dependencia) sin navegar:
+  // fuerza el próximo root-load a pedir focus_asset_id (expande carpetas ancestro)
+  // y prende un resaltado que se apaga solo — no hay forma de "avisar" a este
+  // contexto cuando el usuario deja de mirar el sheet que disparó la acción.
+  const [revealedNodeId, setRevealedNodeId] = useState<string | null>(null)
+  const revealTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const revealAssetInTree = useCallback((assetId: string) => {
+    pendingFocusAssetIdRef.current = assetId
+    setRevealedNodeId(assetId)
+    fileTreeRef.current?.refresh()
+    if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current)
+    revealTimeoutRef.current = setTimeout(() => setRevealedNodeId(null), 4000)
+  }, [])
+
+  useEffect(() => () => {
+    if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current)
+  }, [])
+
   return (
-    <NavKnowledgeContext.Provider value={{ fileTreeRef, pendingFocusAssetIdRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage }}>
+    <NavKnowledgeContext.Provider value={{ fileTreeRef, pendingFocusAssetIdRef, revealedNodeId, revealAssetInTree, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage }}>
       {children}
       {renderCreateAssetDialog && (
         <CreateAssetSheet
