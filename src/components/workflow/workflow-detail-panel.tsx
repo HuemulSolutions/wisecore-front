@@ -346,7 +346,7 @@ export function WorkflowDetailPanel({
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {documentId && !needsNameStep && formSections.length > 0 && (
+          {documentId && !needsNameStep && (
             <HuemulButton
               variant="ghost"
               size="sm"
