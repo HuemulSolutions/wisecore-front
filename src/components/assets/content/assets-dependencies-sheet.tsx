@@ -67,7 +67,12 @@ export function DependenciesSheet({
         showFooter={false}
       >
         {selectedFile && (
-          <AddDependencySheet id={selectedFile.id} isSheetOpen={isOpen} canEdit={canEdit} />
+          <AddDependencySheet
+            id={selectedFile.id}
+            isSheetOpen={isOpen}
+            canEdit={canEdit}
+            onRequestClose={() => onOpenChange(false)}
+          />
         )}
       </HuemulSheet>
     </>

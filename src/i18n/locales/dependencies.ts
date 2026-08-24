@@ -38,6 +38,7 @@ const translations = {
     selfAsset: { en: "This is the current asset", es: "Es el activo actual" },
   },
   viewDocument: { en: "View Asset", es: "Ver Activo" },
+  locateInTree: { en: "Locate in tree", es: "Ubicar en árbol" },
   removeDependency: { en: "Remove Dependency", es: "Eliminar Dependencia" },
   changeVersion: { en: "Change Version", es: "Cambiar Versión" },
   toast: {
@@ -48,6 +49,8 @@ const translations = {
     addFailed: { en: "Failed to add dependency", es: "Error al agregar la dependencia" },
     updateFailed: { en: "Failed to update dependency version", es: "Error al actualizar la versión de la dependencia" },
     removeFailed: { en: "Failed to remove dependency", es: "Error al eliminar la dependencia" },
+    locatedInTree: { en: "Showing '{{name}}' in the tree — {{location}}", es: "Mostrando '{{name}}' en el árbol — {{location}}" },
+    locatedInTreeRootLabel: { en: "root folder", es: "carpeta raíz" },
   },
   // dependency-delete-dialog.tsx
   deleteDialog: {
