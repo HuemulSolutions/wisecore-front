@@ -67,12 +67,12 @@ const translations = {
     nextPage: { en: "Next workflows", es: "Workflows siguientes" },
   },
   expressSheet: {
-    welcomeTitle: { en: "Let's start: {{template}}", es: "Empecemos: {{template}}" },
-    welcomeDescription: { en: "Give this new asset a name (and optionally a description) so it's easy to identify later.", es: "Dale un nombre a este nuevo activo (y opcionalmente una descripción) para que sea fácil de identificar más adelante." },
+    welcomeTitle: { en: "General information", es: "Datos generales" },
+    welcomeDescription: { en: "Assign a name to this record to easily identify it later.", es: "Asigna un nombre a este registro para identificarlo fácilmente más adelante." },
     name: { en: "Name", es: "Nombre" },
     namePlaceholder: { en: "e.g. Ergonomic chairs purchase", es: "Ej: Compra de sillas ergonómicas" },
     description: { en: "Description", es: "Descripción" },
-    descriptionPlaceholder: { en: "Briefly describe this request...", es: "Describe brevemente esta solicitud..." },
+    descriptionPlaceholder: { en: "Add a description about this record (optional)", es: "Agrega una descripción sobre este registro (opcional)" },
     success: { en: "Document created successfully", es: "Documento creado correctamente" },
   },
   wizard: {

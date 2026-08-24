@@ -415,7 +415,7 @@ export function WorkflowDetailPanel({
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
               <p className="text-sm font-semibold text-foreground">
-                {t("expressSheet.welcomeTitle", { template: template?.name })}
+                {t("expressSheet.welcomeTitle")}
               </p>
               <p className="text-xs text-muted-foreground">{t("expressSheet.welcomeDescription")}</p>
             </div>
