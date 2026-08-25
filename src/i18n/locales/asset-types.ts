@@ -22,6 +22,7 @@ const translations = {
   columns: {
     color: { en: "Color", es: "Color" },
     name: { en: "Asset Type Name", es: "Nombre del Tipo de Activo" },
+    tags: { en: "Tags", es: "Etiquetas" },
     assetCount: { en: "Asset Count", es: "Cantidad de Activos" },
     assets: { en: "{{count}} assets", es: "{{count}} activos" },
     rolePermissions: { en: "Role Permissions", es: "Permisos de Rol" },

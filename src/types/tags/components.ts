@@ -44,5 +44,12 @@ export interface TagsObjectPickerProps {
   canView?: boolean
   /** Puede asignar/quitar (tag:u). Sin esto, el picker es de solo lectura. */
   canAssign?: boolean
+  /**
+   * Etiquetas que el caller ya conoce (ej. un listado pedido con
+   * `include_tags=true`), indexadas por `objectId`. Siembran la query
+   * `objectTags` como `initialData`: sin esto, montar un picker por fila de
+   * una tabla dispara un GET por fila.
+   */
+  initialTags?: Record<string, Tag[]>
   className?: string
 }

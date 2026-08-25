@@ -11,13 +11,14 @@ import { useAssetTypeMutations } from "@/hooks/useAssetTypes"
 import { useDocumentTypes, documentTypeQueryKeys } from "@/hooks/useDocumentTypes"
 import { useDocumentTypeFolders, useDocumentTypeFolderMutations, documentTypeFolderQueryKeys } from "@/hooks/useDocumentTypeFolders"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
-import { useTag } from "@/hooks/useTags"
+import { useTag, tagsQueryKeys } from "@/hooks/useTags"
 import { useQueryClient } from "@tanstack/react-query"
 import { useOrganization } from "@/contexts/organization-context"
 import { HuemulTagChip } from "@/huemul/components/huemul-tag-chip"
 import type { CanvasNodeAction } from "@/types/document-type-relationships"
 import type { DocumentType } from "@/types/document-types"
 import type { DocumentTypeFolder } from "@/types/document-type-folders"
+import type { Tag } from "@/types/tags"
 import type { HuemulTableFolder } from "@/huemul/components/huemul-table"
 
 // Components
@@ -113,6 +114,8 @@ export default function AssetTypesPage() {
   const canCreateFolder = can('createFolder')
   const canManageFolders = can('updateFolder')
   const canDeleteFolder = can('deleteFolder')
+  const canViewTags = can('viewTags')
+  const canManageTags = can('manageTags')
   // El sheet de configuración agrupa general + plantillas + ciclo de vida:
   // basta con poder abrir uno de esos tabs.
   const canConfigureDocumentType = canUpdateDocumentType || canManageTemplates || canManageLifecycle
@@ -127,6 +130,8 @@ export default function AssetTypesPage() {
     page_size: TREE_FETCH_PAGE_SIZE,
     search: state.searchTerm || undefined,
     tag_id: tagId,
+    // Alimenta la columna de etiquetas de la tabla sin un GET por fila.
+    include_tags: canViewTags,
     enabled: canListDocumentTypes,
   })
   const folderMutations = useDocumentTypeFolderMutations()
@@ -283,6 +288,11 @@ export default function AssetTypesPage() {
   const folderItemCounts: Record<string, number> = {}
   for (const folder of pageFolders) folderItemCounts[folder.id] = typesByFolder.get(folder.id)?.length ?? 0
 
+  // Etiquetas ya traídas por el listado (`include_tags`): siembran el picker de
+  // cada fila para que no dispare su propio GET.
+  const initialTags: Record<string, Tag[]> = {}
+  for (const dt of allTypes) if (dt.tags) initialTags[dt.id] = dt.tags
+
   const data: AssetTypeWithRoles[] = [
     ...pageRootTypes.map(toAssetTypeWithRoles),
     ...pageFolders.flatMap((folder) =>
@@ -311,6 +321,10 @@ export default function AssetTypesPage() {
   const handleRefresh = async () => {
     setIsRefreshing(true)
     setPinnedNewAssetType(null)
+    // Las etiquetas por objeto se borran en vez de invalidarse: el listado de
+    // tipos ya vuelve con `include_tags`, así que el siguiente render las
+    // siembra de nuevo (invalidarlas dispararía un GET por fila).
+    queryClient.removeQueries({ queryKey: tagsQueryKeys.byObject() })
     try {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: documentTypeQueryKeys.all }),
@@ -490,6 +504,9 @@ export default function AssetTypesPage() {
                 canManageFolders={canManageFolders}
                 canCreateFolder={canCreateFolder}
                 canDeleteFolder={canDeleteFolder}
+                canViewTags={canViewTags}
+                canManageTags={canManageTags}
+                initialTags={initialTags}
                 isLoading={isTableLoading}
                 isFetching={isTableFetching}
                 selectedIds={selectedExportIds}
