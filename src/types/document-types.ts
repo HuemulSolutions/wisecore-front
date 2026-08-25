@@ -1,3 +1,5 @@
+import type { Tag } from '@/types/tags';
+
 export type FinalLifecycleStage = 'edit' | 'review' | 'approve' | 'publish';
 
 export interface DocumentType {
@@ -11,6 +13,8 @@ export interface DocumentType {
   document_count: number;
   /** Carpeta a la que pertenece este tipo de documento, o null si no está en ninguna. */
   document_type_folder_id: string | null;
+  /** Solo presente si se pidió el listado con `include_tags=true`. */
+  tags?: Tag[];
 }
 
 export interface DocumentTypeDetail {
