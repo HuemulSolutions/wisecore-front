@@ -4,6 +4,7 @@ const translations = {
   saving: { en: "Saving...", es: "Guardando..." },
   cancel: { en: "Cancel", es: "Cancelar" },
   confirm: { en: "Confirm", es: "Confirmar" },
+  discard: { en: "Discard", es: "Descartar" },
   delete: { en: "Delete", es: "Eliminar" },
   deleting: { en: "Deleting...", es: "Eliminando..." },
   create: { en: "Create", es: "Crear" },

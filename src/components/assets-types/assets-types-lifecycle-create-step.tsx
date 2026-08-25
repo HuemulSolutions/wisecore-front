@@ -18,6 +18,7 @@ import { LifecyclePublishActionsSection } from "./assets-types-lifecycle-publish
 import {
   AccessRulesEditor,
   ChipList,
+  PanelCard,
   PanelFieldLabel,
   PanelInfoHint,
   PanelPillButton,
@@ -264,19 +265,23 @@ export function CreateStepContent({
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-3 py-2">
-        <Skeleton className="h-5 w-40" />
-        {hasSla && <Skeleton className="h-14 w-full rounded-md" />}
-        <Skeleton className="h-14 w-full rounded-md" />
-      </div>
+      <PanelCard>
+        <div className="flex flex-col gap-3 px-3 py-3">
+          <Skeleton className="h-5 w-40" />
+          {hasSla && <Skeleton className="h-14 w-full rounded-md" />}
+          <Skeleton className="h-14 w-full rounded-md" />
+        </div>
+      </PanelCard>
     )
   }
 
   if (!step) {
     return (
-      <p className="py-4 text-[12.5px] text-[#64748b]">
-        {t("lifecycle.noConfig")}
-      </p>
+      <PanelCard>
+        <p className="px-3 py-4 text-[12.5px] text-[#64748b]">
+          {t("lifecycle.noConfig")}
+        </p>
+      </PanelCard>
     )
   }
 
@@ -317,10 +322,12 @@ export function CreateStepContent({
   const missingViewRoles = allRoles.filter((r) => missingViewRoleIds.includes(r.id))
 
   return (
-    <div className="flex flex-col gap-3">
+    <PanelCard>
       {/* Cabecera — título de la tarjeta + acción de edición. El título de la
-          etapa ya lo dice el header del panel; acá solo el nombre del paso. */}
-      <div className="flex items-center gap-1.5 border-b border-[#eef1f5] pb-2.5">
+          etapa ya lo dice el header del panel; acá solo el nombre del paso.
+          Mismo patrón que el header de `EditStepCard`: fila propia, el borde
+          entre header y cuerpo lo aporta el `border-t` de abajo. */}
+      <div className="flex items-center gap-1.5 px-3 py-2.5">
         <span
           className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#0f172a]"
           title={title}
@@ -344,310 +351,312 @@ export function CreateStepContent({
         )}
       </div>
 
-      {stepType === "view" && (
-        <PanelInfoHint>{t("lifecycle.viewStepHint")}</PanelInfoHint>
-      )}
+      <div className="flex flex-col gap-3 border-t border-[#eef1f5] px-3 py-3">
+        {stepType === "view" && (
+          <PanelInfoHint>{t("lifecycle.viewStepHint")}</PanelInfoHint>
+        )}
 
-      {missingViewRoles.length > 0 && (
-        <PanelInfoHint
-          tone="warning"
-          action={
-            <PanelPillButton
-              label={t("lifecycle.viewStepMissingRolesAction")}
-              tone="primary"
-              onClick={() => {
-                setRoleIds([...roleIds, ...missingViewRoleIds])
-                if (useAllOrCustomOwner) {
-                  setAccessType(
-                    deriveAccessType({
-                      anyone: false,
-                      owner: ownerCanExecute,
-                      roleCount: roleIds.length + missingViewRoleIds.length,
-                    }),
-                  )
-                }
-                setIsDirty(true)
-              }}
-            />
-          }
-        >
-          {t("lifecycle.viewStepMissingRolesWarning", {
-            roles: missingViewRoles.map((r) => r.name).join(", "),
-          })}
-        </PanelInfoHint>
-      )}
-
-      <div className="flex flex-col gap-3">
-        {isEditing ? (
-          <>
-            <SettingToggleList>
-              {hasSla && (
-                <SettingToggleRow
-                  label={t("lifecycle.slaLabel")}
-                  description={t(`lifecycle.slaDescriptions.${stepType}`, {
-                    defaultValue: t("lifecycle.slaDescription"),
-                  })}
-                  checked={slaEnabled}
-                  disabled={ro}
-                  onChange={(v) => {
-                    setSlaEnabled(v)
-                    if (!v) {
-                      setSlaValue("")
-                      setSlaUnit("")
-                    }
-                    setIsDirty(true)
-                  }}
-                >
-                  {slaEnabled && (
-                    <div className="flex items-center gap-2">
-                      <HuemulField
-                        type="number"
-                        label=""
-                        name={`sla-value-${stepType}`}
-                        value={slaValue}
-                        min={1}
-                        onChange={(v) => {
-                          setSlaValue(String(v))
-                          setIsDirty(true)
-                        }}
-                        placeholder={t("lifecycle.slaValuePlaceholder")}
-                        disabled={ro}
-                        className="w-20"
-                        inputClassName="h-8 text-[12.5px]"
-                      />
-                      <HuemulField
-                        type="select"
-                        label=""
-                        name={`sla-unit-${stepType}`}
-                        value={slaUnit}
-                        options={slaUnitOptions}
-                        onChange={(v) => {
-                          setSlaUnit(String(v))
-                          setIsDirty(true)
-                        }}
-                        disabled={ro}
-                        className="flex-1"
-                      />
-                    </div>
-                  )}
-                </SettingToggleRow>
-              )}
-
-              <SettingToggleRow
-                label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
-                description={t("lifecycle.allowAnyoneDescShort")}
-                checked={accessType === "all"}
-                disabled={ro}
-                onChange={(v) => {
-                  if (v) {
-                    setAccessType("all")
-                    setOwnerCanExecute(true)
-                    setRoleIds([])
-                  } else if (noOwner) {
-                    setAccessType("custom")
-                    setOwnerCanExecute(false)
-                  } else {
-                    setAccessType("owner")
-                    setOwnerCanExecute(true)
+        {missingViewRoles.length > 0 && (
+          <PanelInfoHint
+            tone="warning"
+            action={
+              <PanelPillButton
+                label={t("lifecycle.viewStepMissingRolesAction")}
+                tone="primary"
+                onClick={() => {
+                  setRoleIds([...roleIds, ...missingViewRoleIds])
+                  if (useAllOrCustomOwner) {
+                    setAccessType(
+                      deriveAccessType({
+                        anyone: false,
+                        owner: ownerCanExecute,
+                        roleCount: roleIds.length + missingViewRoleIds.length,
+                      }),
+                    )
                   }
                   setIsDirty(true)
                 }}
               />
+            }
+          >
+            {t("lifecycle.viewStepMissingRolesWarning", {
+              roles: missingViewRoles.map((r) => r.name).join(", "),
+            })}
+          </PanelInfoHint>
+        )}
 
-              {!noOwner && (
+        <div className="flex flex-col gap-3">
+          {isEditing ? (
+            <>
+              <SettingToggleList>
+                {hasSla && (
+                  <SettingToggleRow
+                    label={t("lifecycle.slaLabel")}
+                    description={t(`lifecycle.slaDescriptions.${stepType}`, {
+                      defaultValue: t("lifecycle.slaDescription"),
+                    })}
+                    checked={slaEnabled}
+                    disabled={ro}
+                    onChange={(v) => {
+                      setSlaEnabled(v)
+                      if (!v) {
+                        setSlaValue("")
+                        setSlaUnit("")
+                      }
+                      setIsDirty(true)
+                    }}
+                  >
+                    {slaEnabled && (
+                      <div className="flex items-center gap-2">
+                        <HuemulField
+                          type="number"
+                          label=""
+                          name={`sla-value-${stepType}`}
+                          value={slaValue}
+                          min={1}
+                          onChange={(v) => {
+                            setSlaValue(String(v))
+                            setIsDirty(true)
+                          }}
+                          placeholder={t("lifecycle.slaValuePlaceholder")}
+                          disabled={ro}
+                          className="w-20"
+                          inputClassName="h-8 text-[12.5px]"
+                        />
+                        <HuemulField
+                          type="select"
+                          label=""
+                          name={`sla-unit-${stepType}`}
+                          value={slaUnit}
+                          options={slaUnitOptions}
+                          onChange={(v) => {
+                            setSlaUnit(String(v))
+                            setIsDirty(true)
+                          }}
+                          disabled={ro}
+                          className="flex-1"
+                        />
+                      </div>
+                    )}
+                  </SettingToggleRow>
+                )}
+
                 <SettingToggleRow
-                  label={t("lifecycle.ownerCanExecuteLabel", { action: stepAction })}
-                  description={t("lifecycle.ownerCanExecuteDesc")}
-                  checked={ownerCanExecute}
-                  disabled={ro || accessType === "all"}
+                  label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
+                  description={t("lifecycle.allowAnyoneDescShort")}
+                  checked={accessType === "all"}
+                  disabled={ro}
                   onChange={(v) => {
-                    setOwnerCanExecute(v)
-                    if (useAllOrCustomOwner) {
-                      setAccessType(deriveAccessType({ anyone: false, owner: v, roleCount: roleIds.length }))
-                    } else if (v) {
-                      setAccessType("owner")
+                    if (v) {
+                      setAccessType("all")
+                      setOwnerCanExecute(true)
                       setRoleIds([])
-                    } else {
+                    } else if (noOwner) {
                       setAccessType("custom")
+                      setOwnerCanExecute(false)
+                    } else {
+                      setAccessType("owner")
+                      setOwnerCanExecute(true)
                     }
                     setIsDirty(true)
                   }}
                 />
-              )}
-            </SettingToggleList>
 
-            {/* Roles asignados: chips removibles + selector */}
-            {showRolePicker && (
-              <div className="flex flex-col gap-1.5">
-                <PanelFieldLabel disabled={ro}>
-                  {t("lifecycle.rolesAllowedLabel", { action: stepAction })}
-                </PanelFieldLabel>
-                {assignedRoles.length > 0 && (
-                  <ChipList>
-                    {assignedRoles.map((r) => (
-                      <RemovableChip
-                        key={r.id}
-                        label={r.name}
-                        disabled={ro}
-                        removeLabel={t("lifecycle.matrix.removeRole")}
-                        onRemove={
-                          ro
-                            ? undefined
-                            : () => {
-                                const newIds = roleIds.filter((id) => id !== r.id)
-                                setRoleIds(newIds)
-                                if (useAllOrCustomOwner) {
-                                  setAccessType(
-                                    deriveAccessType({ anyone: false, owner: ownerCanExecute, roleCount: newIds.length }),
-                                  )
-                                }
-                                setIsDirty(true)
-                              }
-                        }
-                      />
-                    ))}
-                  </ChipList>
+                {!noOwner && (
+                  <SettingToggleRow
+                    label={t("lifecycle.ownerCanExecuteLabel", { action: stepAction })}
+                    description={t("lifecycle.ownerCanExecuteDesc")}
+                    checked={ownerCanExecute}
+                    disabled={ro || accessType === "all"}
+                    onChange={(v) => {
+                      setOwnerCanExecute(v)
+                      if (useAllOrCustomOwner) {
+                        setAccessType(deriveAccessType({ anyone: false, owner: v, roleCount: roleIds.length }))
+                      } else if (v) {
+                        setAccessType("owner")
+                        setRoleIds([])
+                      } else {
+                        setAccessType("custom")
+                      }
+                      setIsDirty(true)
+                    }}
+                  />
                 )}
-                <HuemulField
-                  type="combobox"
-                  label=""
-                  name="add-role-create"
-                  placeholder={t("lifecycle.panel.addRoleToStep")}
-                  value=""
-                  options={availableRoles.map((r) => ({ value: r.id, label: r.name }))}
-                  onChange={(roleId) => {
-                    if (!roleId) return
-                    const newIds = [...roleIds, roleId as string]
-                    setRoleIds(newIds)
-                    if (useAllOrCustomOwner) {
-                      setAccessType(
-                        deriveAccessType({ anyone: false, owner: ownerCanExecute, roleCount: newIds.length }),
-                      )
-                    }
+              </SettingToggleList>
+
+              {/* Roles asignados: chips removibles + selector */}
+              {showRolePicker && (
+                <div className="flex flex-col gap-1.5">
+                  <PanelFieldLabel disabled={ro}>
+                    {t("lifecycle.rolesAllowedLabel", { action: stepAction })}
+                  </PanelFieldLabel>
+                  {assignedRoles.length > 0 && (
+                    <ChipList>
+                      {assignedRoles.map((r) => (
+                        <RemovableChip
+                          key={r.id}
+                          label={r.name}
+                          disabled={ro}
+                          removeLabel={t("lifecycle.matrix.removeRole")}
+                          onRemove={
+                            ro
+                              ? undefined
+                              : () => {
+                                  const newIds = roleIds.filter((id) => id !== r.id)
+                                  setRoleIds(newIds)
+                                  if (useAllOrCustomOwner) {
+                                    setAccessType(
+                                      deriveAccessType({ anyone: false, owner: ownerCanExecute, roleCount: newIds.length }),
+                                    )
+                                  }
+                                  setIsDirty(true)
+                                }
+                          }
+                        />
+                      ))}
+                    </ChipList>
+                  )}
+                  <HuemulField
+                    type="combobox"
+                    label=""
+                    name="add-role-create"
+                    placeholder={t("lifecycle.panel.addRoleToStep")}
+                    value=""
+                    options={availableRoles.map((r) => ({ value: r.id, label: r.name }))}
+                    onChange={(roleId) => {
+                      if (!roleId) return
+                      const newIds = [...roleIds, roleId as string]
+                      setRoleIds(newIds)
+                      if (useAllOrCustomOwner) {
+                        setAccessType(
+                          deriveAccessType({ anyone: false, owner: ownerCanExecute, roleCount: newIds.length }),
+                        )
+                      }
+                      setIsDirty(true)
+                    }}
+                    disabled={ro}
+                  />
+                </div>
+              )}
+
+              {/* Reglas adicionales — acceso por creador/jefatura (OR con los roles) */}
+              {showRolePicker && (
+                <AccessRulesEditor
+                  accessRules={accessRules}
+                  accessRuleTypeOptions={accessRuleTypeOptions}
+                  earlierStepOptions={earlierStepOptions}
+                  onChange={(rules) => {
+                    setAccessRules(rules)
                     setIsDirty(true)
                   }}
                   disabled={ro}
+                  t={t}
                 />
-              </div>
-            )}
+              )}
 
-            {/* Reglas adicionales — acceso por creador/jefatura (OR con los roles) */}
-            {showRolePicker && (
-              <AccessRulesEditor
-                accessRules={accessRules}
-                accessRuleTypeOptions={accessRuleTypeOptions}
-                earlierStepOptions={earlierStepOptions}
-                onChange={(rules) => {
-                  setAccessRules(rules)
-                  setIsDirty(true)
-                }}
-                disabled={ro}
-                t={t}
-              />
-            )}
-
-            {/* Vigencia */}
-            {hasValidity && (
-              <div className="flex flex-col gap-1.5">
-                <PanelFieldLabel disabled={ro}>{t("lifecycle.validity")}</PanelFieldLabel>
-                <div className="flex items-center gap-2">
-                  <HuemulField
-                    type="date"
-                    label=""
-                    name="valid-from"
-                    value={validFrom ?? ""}
-                    placeholder={t("lifecycle.validFrom")}
-                    onChange={(v) => {
-                      setValidFrom(v ? String(v) : null)
-                      setIsDirty(true)
-                    }}
-                    disabled={ro}
-                    className="flex-1"
-                  />
-                  <span className="text-[#94a3b8]">–</span>
-                  <HuemulField
-                    type="date"
-                    label=""
-                    name="valid-to"
-                    value={validTo ?? ""}
-                    placeholder={t("lifecycle.validTo")}
-                    onChange={(v) => {
-                      setValidTo(v ? String(v) : null)
-                      setIsDirty(true)
-                    }}
-                    disabled={ro}
-                    className="flex-1"
-                  />
+              {/* Vigencia */}
+              {hasValidity && (
+                <div className="flex flex-col gap-1.5">
+                  <PanelFieldLabel disabled={ro}>{t("lifecycle.validity")}</PanelFieldLabel>
+                  <div className="flex items-center gap-2">
+                    <HuemulField
+                      type="date"
+                      label=""
+                      name="valid-from"
+                      value={validFrom ?? ""}
+                      placeholder={t("lifecycle.validFrom")}
+                      onChange={(v) => {
+                        setValidFrom(v ? String(v) : null)
+                        setIsDirty(true)
+                      }}
+                      disabled={ro}
+                      className="flex-1"
+                    />
+                    <span className="text-[#94a3b8]">–</span>
+                    <HuemulField
+                      type="date"
+                      label=""
+                      name="valid-to"
+                      value={validTo ?? ""}
+                      placeholder={t("lifecycle.validTo")}
+                      onChange={(v) => {
+                        setValidTo(v ? String(v) : null)
+                        setIsDirty(true)
+                      }}
+                      disabled={ro}
+                      className="flex-1"
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            {hasSla && (
-              <PanelSummaryRow label={t("lifecycle.summary.sla")}>
-                {slaEnabled
-                  ? `${slaValue} ${
-                      slaUnitOptions.find((u) => u.value === slaUnit)?.label ?? slaUnit
-                    }`
-                  : t("lifecycle.summary.none")}
+              )}
+            </>
+          ) : (
+            <>
+              {hasSla && (
+                <PanelSummaryRow label={t("lifecycle.summary.sla")}>
+                  {slaEnabled
+                    ? `${slaValue} ${
+                        slaUnitOptions.find((u) => u.value === slaUnit)?.label ?? slaUnit
+                      }`
+                    : t("lifecycle.summary.none")}
+                </PanelSummaryRow>
+              )}
+
+              <PanelSummaryRow label={t("lifecycle.summary.whoCanExecute", { action: stepAction })}>
+                {accessTypeLabel(accessType)}
               </PanelSummaryRow>
-            )}
 
-            <PanelSummaryRow label={t("lifecycle.summary.whoCanExecute", { action: stepAction })}>
-              {accessTypeLabel(accessType)}
-            </PanelSummaryRow>
+              {assignedRoles.length > 0 && (
+                <PanelSummaryRow label={t("lifecycle.summary.roles")}>
+                  <ChipList>
+                    {assignedRoles.map((r) => (
+                      <RemovableChip key={r.id} label={r.name} />
+                    ))}
+                  </ChipList>
+                </PanelSummaryRow>
+              )}
 
-            {assignedRoles.length > 0 && (
-              <PanelSummaryRow label={t("lifecycle.summary.roles")}>
-                <ChipList>
-                  {assignedRoles.map((r) => (
-                    <RemovableChip key={r.id} label={r.name} />
-                  ))}
-                </ChipList>
-              </PanelSummaryRow>
-            )}
+              {accessRules.length > 0 && (
+                <PanelSummaryRow label={t("lifecycle.summary.rules")}>
+                  <ChipList>
+                    {accessRules.map((rule, index) => {
+                      const ruleLabel = t(`lifecycle.accessRuleTypes.${rule.rule_type}`, {
+                        defaultValue: accessRuleTypeOptions.find((o) => o.value === rule.rule_type)?.label ?? rule.rule_type,
+                      })
+                      const sourceLabel = rule.source_step_id
+                        ? earlierStepOptions.find((o) => o.value === rule.source_step_id)?.label ?? rule.source_step_id
+                        : null
+                      return (
+                        <RemovableChip
+                          key={`${rule.rule_type}-${rule.source_step_id ?? "none"}-${index}`}
+                          label={sourceLabel ? `${ruleLabel} (${sourceLabel})` : ruleLabel}
+                        />
+                      )
+                    })}
+                  </ChipList>
+                </PanelSummaryRow>
+              )}
 
-            {accessRules.length > 0 && (
-              <PanelSummaryRow label={t("lifecycle.summary.rules")}>
-                <ChipList>
-                  {accessRules.map((rule, index) => {
-                    const ruleLabel = t(`lifecycle.accessRuleTypes.${rule.rule_type}`, {
-                      defaultValue: accessRuleTypeOptions.find((o) => o.value === rule.rule_type)?.label ?? rule.rule_type,
-                    })
-                    const sourceLabel = rule.source_step_id
-                      ? earlierStepOptions.find((o) => o.value === rule.source_step_id)?.label ?? rule.source_step_id
-                      : null
-                    return (
-                      <RemovableChip
-                        key={`${rule.rule_type}-${rule.source_step_id ?? "none"}-${index}`}
-                        label={sourceLabel ? `${ruleLabel} (${sourceLabel})` : ruleLabel}
-                      />
-                    )
-                  })}
-                </ChipList>
-              </PanelSummaryRow>
-            )}
+              {hasValidity && (
+                <PanelSummaryRow label={t("lifecycle.validity")}>
+                  {validFrom || validTo
+                    ? `${validFrom ?? "—"} – ${validTo ?? "—"}`
+                    : t("lifecycle.summary.none")}
+                </PanelSummaryRow>
+              )}
+            </>
+          )}
 
-            {hasValidity && (
-              <PanelSummaryRow label={t("lifecycle.validity")}>
-                {validFrom || validTo
-                  ? `${validFrom ?? "—"} – ${validTo ?? "—"}`
-                  : t("lifecycle.summary.none")}
-              </PanelSummaryRow>
-            )}
-          </>
-        )}
-
-        {/* Publicación externa — solo pasos de tipo publish */}
-        {stepType === "publish" && organizationId && step?.id && (
-          <LifecyclePublishActionsSection
-            organizationId={organizationId}
-            stepId={step.id}
-            readOnly={!isEditing}
-          />
-        )}
+          {/* Publicación externa — solo pasos de tipo publish */}
+          {stepType === "publish" && organizationId && step?.id && (
+            <LifecyclePublishActionsSection
+              organizationId={organizationId}
+              stepId={step.id}
+              readOnly={!isEditing}
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </PanelCard>
   )
 }

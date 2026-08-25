@@ -5,8 +5,8 @@ import { useTranslation } from "react-i18next"
 import { Settings2, Loader2 } from "lucide-react"
 
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
+import type { HuemulSheetAction } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
-import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   useAssetTypeGeneralForm,
@@ -14,6 +14,7 @@ import {
 } from "@/components/assets-types/assets-types-general-form"
 import { AssetTypeTemplatesPanel } from "@/components/assets-types/assets-types-templates-panel"
 import { AssetTypeLifecyclePanel } from "@/components/assets-types/assets-types-lifecycle-dialog"
+import { PanelCard } from "@/components/assets-types/assets-types-lifecycle-ui"
 import { TagsObjectPicker } from "@/components/tags"
 import type {
   AssetTypeConfigSheetProps,
@@ -140,6 +141,51 @@ export function AssetTypeConfigSheet({
     [sheetGuardedAction, onOpenChange],
   )
 
+  // El footer del sheet solo existe para General y Plantillas — cada uno arma
+  // su propio `saveAction`/`footerLeft` según el tab activo. «Permisos por rol»
+  // sigue sin footer: guarda desde el botón propio del panel de etapa
+  // (`showSaveButton` en `AssetTypeLifecyclePanel`).
+  let sheetFooterProps: {
+    showFooter: boolean
+    cancelLabel?: string
+    footerLeft?: React.ReactNode
+    saveAction?: HuemulSheetAction
+  } = { showFooter: false }
+
+  if (activeTab === "general") {
+    sheetFooterProps = {
+      showFooter: true,
+      cancelLabel: t("common:close"),
+      footerLeft: form.isDirty ? (
+        <span className="text-[12px] text-[#64748b]">{t("asset-types:form.unsavedChanges")}</span>
+      ) : undefined,
+      saveAction: canUpdate
+        ? {
+            label: t("common:save"),
+            onClick: () => form.submit(),
+            disabled: !form.canSubmit || form.isLoadingData,
+            closeOnSuccess: false,
+          }
+        : undefined,
+    }
+  } else if (activeTab === "templates") {
+    sheetFooterProps = {
+      showFooter: true,
+      cancelLabel: t("common:close"),
+      footerLeft: templatesState.isDirty ? (
+        <span className="text-[12px] text-[#64748b]">{t("asset-types:templates.unsavedChanges")}</span>
+      ) : undefined,
+      saveAction: canManageTemplates
+        ? {
+            label: t("asset-types:lifecycle.saveChanges"),
+            onClick: () => templatesSaveApiRef.current?.save(),
+            disabled: !templatesState.isDirty,
+            closeOnSuccess: false,
+          }
+        : undefined,
+    }
+  }
+
   return (
     <>
       <HuemulAlertDialog
@@ -157,12 +203,22 @@ export function AssetTypeConfigSheet({
         open={open}
         onOpenChange={handleGuardedOpenChange}
         title={t("asset-types:config.title")}
-        description={assetType?.document_type_name}
+        description={
+          assetType && (
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className="size-2 shrink-0 rounded-full"
+                style={{ backgroundColor: assetType.document_type_color }}
+              />
+              <span className="truncate">{assetType.document_type_name}</span>
+            </span>
+          )
+        }
         icon={Settings2}
         iconVariant="tile"
         size="wide"
         bodyClassName="flex flex-col overflow-hidden py-0 [scrollbar-gutter:auto]"
-        showFooter={false}
+        {...sheetFooterProps}
         onOpenAutoFocus={(e) => {
           // Radix enfoca el primer tab al montar y su focus-visible ring queda
           // dibujado como si el tab estuviera "en caja". Se mantiene el foco
@@ -204,45 +260,40 @@ export function AssetTypeConfigSheet({
             {availableTabs.includes("general") && (
               <TabsContent
                 value="general"
-                className="flex-1 overflow-y-auto px-6 pt-4 pb-4 mt-0"
+                className="flex-1 overflow-y-auto bg-[#fbfcfe] px-6 pt-4 pb-4 mt-0"
               >
                 <div className="max-w-xl space-y-4">
-                  {canUpdate && (
-                    form.isLoadingData ? (
+                  {(() => {
+                    const tagsBlock = canViewTags && documentTypeId && (
+                      <div>
+                        <p className="text-sm font-medium leading-snug mb-1.5">
+                          {t("tags:assign.assignedLabel")}
+                        </p>
+                        <TagsObjectPicker
+                          objectType="document_type"
+                          objectIds={[documentTypeId]}
+                          variant="field"
+                          canView={open && activeTab === "general" && canViewTags}
+                          canAssign={canManageTags}
+                        />
+                      </div>
+                    )
+                    if (!canUpdate) {
+                      return tagsBlock ? <PanelCard className="p-4">{tagsBlock}</PanelCard> : null
+                    }
+                    return form.isLoadingData ? (
                       <div className="flex items-center justify-center py-8">
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                       </div>
                     ) : (
-                      <AssetTypeGeneralFormFields form={form} type="asset" />
+                      <AssetTypeGeneralFormFields
+                        form={form}
+                        type="asset"
+                        variant="cards"
+                        identityExtra={tagsBlock || undefined}
+                      />
                     )
-                  )}
-                  {canViewTags && documentTypeId && (
-                    <div>
-                      <p className="text-sm font-medium leading-snug mb-1.5">
-                        {t("tags:assign.assignedLabel")}
-                      </p>
-                      <TagsObjectPicker
-                        objectType="document_type"
-                        objectIds={[documentTypeId]}
-                        variant="field"
-                        canView={open && activeTab === "general" && canViewTags}
-                        canAssign={canManageTags}
-                      />
-                    </div>
-                  )}
-                  {/* El sheet no tiene footer: el guardado del formulario vive
-                      aquí, junto a los campos que persiste. */}
-                  {canUpdate && !form.isLoadingData && (
-                    <div className="flex justify-end pt-1">
-                      <HuemulButton
-                        size="sm"
-                        label={t("common:save")}
-                        loading={form.isSaving}
-                        disabled={!form.canSubmit}
-                        onClick={() => form.submit()}
-                      />
-                    </div>
-                  )}
+                  })()}
                 </div>
               </TabsContent>
             )}
@@ -251,7 +302,7 @@ export function AssetTypeConfigSheet({
             {availableTabs.includes("lifecycle") && (
               <TabsContent
                 value="lifecycle"
-                className="flex-1 min-h-0 overflow-hidden pl-6 pr-0 pt-2 pb-0 mt-0 data-[state=active]:flex data-[state=active]:flex-col"
+                className="flex-1 min-h-0 overflow-hidden bg-[#fbfcfe] pl-6 pr-0 pt-2 pb-0 mt-0 data-[state=active]:flex data-[state=active]:flex-col"
               >
                 <AssetTypeLifecyclePanel
                   key={documentTypeId}
@@ -270,7 +321,7 @@ export function AssetTypeConfigSheet({
             {availableTabs.includes("templates") && (
               <TabsContent
                 value="templates"
-                className="flex-1 overflow-y-auto px-6 pt-4 pb-4 mt-0"
+                className="flex-1 overflow-y-auto bg-[#fbfcfe] px-6 pt-4 pb-4 mt-0"
               >
                 <AssetTypeTemplatesPanel
                   key={documentTypeId}

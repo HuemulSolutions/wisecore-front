@@ -193,28 +193,35 @@ export function StepContent({
 
   // Other step types don't have their own scroll container — wrap them so they scroll
   // within the fixed-height panel instead of relying on the sheet itself to scroll.
+  // Mismo patrón que `EditStepContent` (assets-types-lifecycle-edit-step.tsx:844-847):
+  // el wrapper `flex h-full min-h-0 flex-col` es lo que le da a `ScrollArea` una
+  // altura definida de la que `min-h-0 flex-1` pueda partir — un `ScrollArea` con
+  // `h-full` sin ese wrapper directo quedaba resolviendo su altura contra el
+  // contenedor del panel en vez de un flex padre propio.
   return (
-    <ScrollArea className="h-full" viewportClassName="pr-1">
-      {stepType === "create" || stepType === "view" || stepType === "publish" || stepType === "archive" || stepType === "read" ? (
-        <CreateStepContent
-          documentTypeId={documentTypeId}
-          stepType={stepType}
-          stepLabel={stepLabel}
-          hasSla={stepType === "publish" || stepType === "archive"}
-          hasValidity={stepType === "create"}
-          noOwner={stepType === "create"}
-          useAllOrCustomOwner={stepType === "publish" || stepType === "archive" || stepType === "read" || stepType === "view"}
-          onRegisterEditor={onRegisterEditor}
-          organizationId={organizationId}
-        />
-      ) : (
-        <DefaultStepContent
-          documentTypeId={documentTypeId}
-          stepType={stepType}
-          stepLabel={stepLabel}
-        />
-      )}
-    </ScrollArea>
+    <div className="flex h-full min-h-0 flex-col">
+      <ScrollArea className="min-h-0 flex-1" viewportClassName="pr-1">
+        {stepType === "create" || stepType === "view" || stepType === "publish" || stepType === "archive" || stepType === "read" ? (
+          <CreateStepContent
+            documentTypeId={documentTypeId}
+            stepType={stepType}
+            stepLabel={stepLabel}
+            hasSla={stepType === "publish" || stepType === "archive"}
+            hasValidity={stepType === "create"}
+            noOwner={stepType === "create"}
+            useAllOrCustomOwner={stepType === "publish" || stepType === "archive" || stepType === "read" || stepType === "view"}
+            onRegisterEditor={onRegisterEditor}
+            organizationId={organizationId}
+          />
+        ) : (
+          <DefaultStepContent
+            documentTypeId={documentTypeId}
+            stepType={stepType}
+            stepLabel={stepLabel}
+          />
+        )}
+      </ScrollArea>
+    </div>
   )
 }
 
@@ -344,6 +351,7 @@ export function AssetTypeLifecyclePanel({
               onRegisterEditor={handleRegisterEditor}
               organizationId={organizationId}
               onSave={showSaveButton ? save : undefined}
+              onDiscard={showSaveButton ? discard : undefined}
               isDirty={isDirty}
               isSaving={isSaving}
             />

@@ -208,10 +208,13 @@ export interface LifecycleStepPanelProps {
   organizationId?: string
   /**
    * Guarda los cambios acumulados de la etapa. Presente solo cuando el
-   * contenedor no tiene footer y el botón debe vivir en el header del panel.
+   * contenedor no tiene footer y el botón debe vivir en el footer propio del
+   * panel de etapa.
    */
   onSave?: () => void | Promise<void>
-  /** Habilita el botón de guardar del header. */
+  /** Descarta los cambios acumulados de la etapa (footer propio del panel). */
+  onDiscard?: () => void
+  /** Habilita el botón de guardar del footer. */
   isDirty?: boolean
   isSaving?: boolean
 }

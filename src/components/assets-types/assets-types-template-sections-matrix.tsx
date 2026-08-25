@@ -4,14 +4,14 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Ban, Eye, Loader2, Minus, Pencil, Plus, RefreshCw, Shield, Trash2 } from "lucide-react"
+import { Eye, Loader2, Minus, Pencil, Plus, RefreshCw, Shield, Trash2 } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulMatrix } from "@/huemul/components/huemul-matrix"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
-import { SettingToggleRow } from "@/components/assets-types/assets-types-lifecycle-ui"
+import { PanelHeaderSwitch, PanelInfoHint, PanelLegend } from "@/components/assets-types/assets-types-lifecycle-ui"
 import { getTemplateById, updateTemplate } from "@/services/templates"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
@@ -41,34 +41,33 @@ type CellEmptyState = "inherit" | "no-access"
  * ninguna celda configurada la sección usa el permiso del documento completo
  * (`inherit`); con al menos una configurada deja de usarlo en TODAS sus etapas y
  * las vacías quedan sin acceso (`no-access`). Ver la guía de permisos de sección.
+ *
+ * Mismo lenguaje visual que los glifos de «Permisos por rol»
+ * (`assets-types-lifecycle-matrix.tsx`: `CellCheck`/`CellImplied`/`CellDash`):
+ * círculo relleno con ícono para los estados con forma, y un guion desnudo para
+ * "sin acceso" — ahí no hay `icon`, `AccessGlyph` rama aparte.
  */
-const ACCESS_STYLE: Record<
-  CellEmptyState | TemplateSectionAccess,
-  { icon: typeof Eye; box: string; glyph: string }
+const ACCESS_STYLE: Partial<
+  Record<CellEmptyState | TemplateSectionAccess, { icon: typeof Eye; circle: string; glyph: string }>
 > = {
   inherit: {
     icon: Minus,
-    box: "border border-dashed border-[#cbd5e1] bg-white",
-    glyph: "text-[#cbd5e1]",
-  },
-  "no-access": {
-    icon: Ban,
-    box: "border border-[#e2e8f0] bg-[#f1f5f9]",
-    glyph: "text-[#64748b]",
+    circle: "bg-[#eef2f7]",
+    glyph: "text-[#94a3b8]",
   },
   view: {
     icon: Eye,
-    box: "border border-[#dbe7fe] bg-[#eef4ff]",
+    circle: "bg-[#eef4ff]",
     glyph: "text-[#1d4ed8]",
   },
   edit: {
     icon: Pencil,
-    box: "border border-[#ddd6fe] bg-[#f3f0ff]",
+    circle: "bg-[#f3f0ff]",
     glyph: "text-[#6d5ae0]",
   },
 }
 
-/** Cuadro de estado — mismo glifo en la leyenda y en las celdas. */
+/** Glifo de estado — mismo componente en la leyenda y en las celdas. */
 function AccessGlyph({
   access,
   className,
@@ -76,17 +75,22 @@ function AccessGlyph({
   access: CellEmptyState | TemplateSectionAccess
   className?: string
 }) {
-  const style = ACCESS_STYLE[access]
+  // "no-access" no tiene forma — es un guion, igual que la celda "sin permiso" de
+  // la matriz de roles (`CellDash`).
+  if (access === "no-access") {
+    return <span className={cn("text-[13px] text-[#cbd5e1]", className)}>—</span>
+  }
+  const style = ACCESS_STYLE[access]!
   const Icon = style.icon
   return (
     <span
       className={cn(
-        "inline-flex size-[22px] items-center justify-center rounded-[6px]",
-        style.box,
+        "inline-flex size-4.5 items-center justify-center rounded-full",
+        style.circle,
         className,
       )}
     >
-      <Icon className={cn("size-3.5", style.glyph)} />
+      <Icon className={cn("size-3", style.glyph)} />
     </span>
   )
 }
@@ -154,6 +158,98 @@ function RoleAccessSelector({
 }
 
 /**
+ * Estado de «Permisos independientes por sección» (`section_lifecycle_access_enabled`)
+ * de una plantilla. Vive acá — no en `useTemplateSectionLifecycleAccess.ts` —
+ * porque solo lo consumen los dos componentes de este archivo: el switch del
+ * header (`TemplateSectionAccessToggle`) y el cuerpo de la matriz
+ * (`TemplateSectionAccessMatrix`), que comparten la misma query (react-query
+ * dedupea por key) sin necesitar prop drilling entre `TemplateDetailView` y la
+ * matriz.
+ */
+function useSectionAccessEnabled(organizationId: string, templateId: string, enabled: boolean) {
+  const { t } = useTranslation("asset-types")
+  const queryClient = useQueryClient()
+
+  const {
+    data: templateData,
+    isLoading: isLoadingTemplate,
+    isFetching: isFetchingTemplate,
+  } = useQuery({
+    queryKey: ["template", templateId],
+    queryFn: () => getTemplateById(templateId, organizationId),
+    enabled: enabled && !!organizationId && !!templateId,
+    retry: false,
+  })
+
+  const accessEnabled = templateData?.section_lifecycle_access_enabled === true
+
+  const setAccessEnabledMutation = useMutation({
+    mutationFn: (value: boolean) =>
+      updateTemplate(templateId, { section_lifecycle_access_enabled: value }, organizationId),
+    onMutate: async (value: boolean) => {
+      const queryKey = ["template", templateId]
+      await queryClient.cancelQueries({ queryKey })
+      const snapshot = queryClient.getQueryData(queryKey)
+      queryClient.setQueryData(queryKey, (previous: typeof templateData) =>
+        previous ? { ...previous, section_lifecycle_access_enabled: value } : previous,
+      )
+      return { snapshot }
+    },
+    onError: (_error, _value, context) => {
+      queryClient.setQueryData(["template", templateId], context?.snapshot)
+      toast.error(t("templates.sectionAccess.enableError"))
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["template", templateId] })
+    },
+  })
+
+  return { accessEnabled, isLoadingTemplate, isFetchingTemplate, setAccessEnabledMutation }
+}
+
+/**
+ * Switch «Permisos independientes por sección», siempre visible en el header de
+ * la tarjeta colapsable (`PanelCollapsibleCard`) que envuelve a
+ * `TemplateSectionAccessMatrix` — funciona con la tarjeta colapsada o expandida.
+ * Comparte estado con la matriz vía `useSectionAccessEnabled` (misma query key).
+ */
+export function TemplateSectionAccessToggle({
+  templateId,
+  enabled = true,
+}: {
+  templateId: string
+  enabled?: boolean
+}) {
+  const { t } = useTranslation("asset-types")
+  const { selectedOrganizationId } = useOrganization()
+  const organizationId = selectedOrganizationId ?? ""
+  const { canUpdate, hasAnyPermission } = useUserPermissions()
+
+  const canReadSections = hasAnyPermission(["template_section:r", "template_section:l"])
+  const canToggleAccess = canUpdate("template")
+
+  const { accessEnabled, isLoadingTemplate, setAccessEnabledMutation } = useSectionAccessEnabled(
+    organizationId,
+    templateId,
+    enabled && canReadSections,
+  )
+
+  // Sin lectura de secciones el cuerpo de la tarjeta muestra "sin permiso": un
+  // switch funcional acá arriba sería inconsistente con eso.
+  if (!canReadSections) return null
+
+  return (
+    <PanelHeaderSwitch
+      checked={accessEnabled}
+      disabled={!canToggleAccess || setAccessEnabledMutation.isPending || isLoadingTemplate}
+      onChange={(value) => setAccessEnabledMutation.mutate(value)}
+      ariaLabel={t("templates.sectionAccess.enableLabel")}
+      title={t("templates.sectionAccess.enableHint")}
+    />
+  )
+}
+
+/**
  * Matriz sección × etapa del ciclo de vida de una plantilla vinculada a un tipo
  * de activo. Cada celda define qué ve esa sección durante esa etapa: hereda el
  * permiso del documento completo (sin fila en el backend), solo lectura (`view`)
@@ -177,46 +273,18 @@ export function TemplateSectionAccessMatrix({
   const canReadSections = hasAnyPermission(["template_section:r", "template_section:l"])
   const canManage = canUpdate("template_section")
   const canCreateStep = canUpdate("asset_type")
-  const canToggleAccess = canUpdate("template")
 
   const queryEnabled = enabled && !!organizationId && !!templateId && canReadSections
 
-  // Misma query key que usa el panel de templates (`templates-content.tsx`): las
-  // secciones vienen embebidas en el template, no hay endpoint propio.
-  const {
-    data: templateData,
-    isLoading: isLoadingTemplate,
-    isFetching: isFetchingTemplate,
-  } = useQuery({
-    queryKey: ["template", templateId],
-    queryFn: () => getTemplateById(templateId, organizationId),
-    enabled: queryEnabled,
-    retry: false,
-  })
-
-  const accessEnabled = templateData?.section_lifecycle_access_enabled === true
+  // Mismo hook que usa `TemplateSectionAccessToggle` en el header de la tarjeta
+  // (misma query key, react-query dedupea el fetch): comparten `accessEnabled`
+  // sin prop drilling entre `TemplateDetailView` y la matriz.
+  const { accessEnabled, isLoadingTemplate, isFetchingTemplate } = useSectionAccessEnabled(
+    organizationId,
+    templateId,
+    queryEnabled,
+  )
   const canEditCells = canManage && accessEnabled
-
-  const setAccessEnabledMutation = useMutation({
-    mutationFn: (value: boolean) =>
-      updateTemplate(templateId, { section_lifecycle_access_enabled: value }, organizationId),
-    onMutate: async (value: boolean) => {
-      const queryKey = ["template", templateId]
-      await queryClient.cancelQueries({ queryKey })
-      const snapshot = queryClient.getQueryData(queryKey)
-      queryClient.setQueryData(queryKey, (previous: typeof templateData) =>
-        previous ? { ...previous, section_lifecycle_access_enabled: value } : previous,
-      )
-      return { snapshot }
-    },
-    onError: (_error, _value, context) => {
-      queryClient.setQueryData(["template", templateId], context?.snapshot)
-      toast.error(t("templates.sectionAccess.enableError"))
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["template", templateId] })
-    },
-  })
 
   const {
     sections,
@@ -589,38 +657,16 @@ export function TemplateSectionAccessMatrix({
 
   return (
     <div className="flex flex-col gap-3">
-      <SettingToggleRow
-        className="rounded-[10px] border border-[#e5eaf0] bg-white px-3 py-2.5"
-        label={t("templates.sectionAccess.enableLabel")}
-        description={t("templates.sectionAccess.enableHint")}
-        checked={accessEnabled}
-        disabled={!canToggleAccess || setAccessEnabledMutation.isPending || isLoadingTemplate}
-        onChange={(value) => setAccessEnabledMutation.mutate(value)}
-      />
-
+      {/* El switch «Permisos independientes por sección» vive en el header de la
+          tarjeta colapsable (`TemplateSectionAccessToggle`), no acá — solo queda
+          el aviso de qué implica tenerlo apagado. */}
       {!accessEnabled && (
         <p className="text-[12px] text-[#94a3b8]">{t("templates.sectionAccess.disabledNotice")}</p>
       )}
 
-      {/* Leyenda + refresh — nunca scrollea con la tabla */}
+      {/* Info + refresh — nunca scrollea con la tabla */}
       <div className="flex shrink-0 items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-2">
-          <p className="text-[12px] text-[#64748b]">{t("templates.sectionAccess.hint")}</p>
-          <div className="flex flex-wrap items-center gap-3">
-            {LEGEND.map((entry) => (
-              <span
-                key={entry.key}
-                className="inline-flex items-center gap-1.5"
-                title={entry.hint ? t(`templates.sectionAccess.${entry.hint}`) : undefined}
-              >
-                <AccessGlyph access={entry.key} />
-                <span className="text-[12px] text-[#475569]">
-                  {t(`templates.sectionAccess.${entry.label}`)}
-                </span>
-              </span>
-            ))}
-          </div>
-        </div>
+        <PanelInfoHint className="flex-1">{t("templates.sectionAccess.hint")}</PanelInfoHint>
 
         <div className="flex shrink-0 items-center gap-1.5">
           <HuemulButton
@@ -634,6 +680,26 @@ export function TemplateSectionAccessMatrix({
           />
         </div>
       </div>
+
+      {/* Leyenda — mismos glifos que las celdas, para que no diverjan */}
+      <PanelLegend
+        className="shrink-0"
+        items={[
+          ...LEGEND.map((entry) => ({
+            icon: <AccessGlyph access={entry.key} />,
+            label: t(`templates.sectionAccess.${entry.label}`),
+            hint: entry.hint ? t(`templates.sectionAccess.${entry.hint}`) : undefined,
+          })),
+          {
+            icon: (
+              <span className="inline-flex size-[15px] items-center justify-center rounded-full bg-[#6d5ae0] text-[9px] font-semibold leading-none text-white">
+                1
+              </span>
+            ),
+            label: t("templates.sectionAccess.legendOverrides"),
+          },
+        ]}
+      />
 
       <HuemulMatrix<MatrixSection, MatrixStep>
         className={cn("max-h-[420px]", !accessEnabled && "opacity-60")}
@@ -680,7 +746,7 @@ export function TemplateSectionAccessMatrix({
                     <PopoverTrigger asChild>
                       <button
                         type="button"
-                        className="inline-flex h-7.5 items-center gap-1.5 rounded-xl border border-dashed border-[#bfd3fb] px-3 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
+                        className="inline-flex h-7.5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-dashed border-[#bfd3fb] px-3 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
                       >
                         <Plus className="size-3.5" />
                         {t("templates.sectionAccess.addGroup")}

@@ -4,13 +4,14 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
-import { Settings, RefreshCw, Plus, X, Check, Globe, User, Loader2, ChevronRight } from "lucide-react"
+import { Settings, RefreshCw, Plus, X, Check, Globe, Shield, User, Loader2, ChevronRight } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulMatrix } from "@/huemul/components/huemul-matrix"
 import type { HuemulMatrixRow } from "@/huemul/components/huemul-matrix"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
+import { PanelBadge, PanelLegend, PanelToolbarStrip } from "@/components/assets-types/assets-types-lifecycle-ui"
 import { cn } from "@/lib/utils"
 import {
   useAllLifecycleSteps,
@@ -461,15 +462,18 @@ export function AssetTypeLifecycleMatrix({
       case "role":
         return (
           <div className="flex min-w-0 items-center justify-between gap-2">
-            <div className="flex min-w-0 flex-col">
-              <span className="truncate text-[13px] font-medium text-[#0f172a]" title={row.role.name}>
-                {row.role.name}
-              </span>
-              {row.role.description && (
-                <span className="truncate text-[11px] text-[#94a3b8]" title={row.role.description}>
-                  {row.role.description}
+            <div className="flex min-w-0 items-center gap-2">
+              <Shield className="size-4 shrink-0 text-[#6d5ae0]" />
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate text-[13px] font-medium text-[#0f172a]" title={row.role.name}>
+                  {row.role.name}
                 </span>
-              )}
+                {row.role.description && (
+                  <span className="truncate text-[11px] text-[#94a3b8]" title={row.role.description}>
+                    {row.role.description}
+                  </span>
+                )}
+              </div>
             </div>
             {canManage && (
               <HuemulButton
@@ -653,28 +657,36 @@ export function AssetTypeLifecycleMatrix({
           key: rowKey(row),
           className: "bg-white",
           contentClassName: "px-3 py-3",
-          content: isAddingRole ? (
-            <HuemulField
-              type="combobox"
-              label=""
-              name="matrix-add-role"
-              value=""
-              placeholder={t("lifecycle.matrix.addRolePlaceholder")}
-              options={availableRolesToAdd.map((r) => ({ value: r.id, label: r.name }))}
-              onChange={(roleId) => {
-                if (roleId) setLocalExtraRoleIds((prev) => [...prev, String(roleId)])
-                setIsAddingRole(false)
-              }}
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsAddingRole(true)}
-              className="inline-flex h-7.5 items-center gap-1.5 rounded-xl border border-dashed border-[#bfd3fb] px-3 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
-            >
-              <Plus className="size-3.5" />
-              {t("lifecycle.matrix.addRole")}
-            </button>
+          content: (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {isAddingRole ? (
+                <HuemulField
+                  type="combobox"
+                  label=""
+                  name="matrix-add-role"
+                  value=""
+                  placeholder={t("lifecycle.matrix.addRolePlaceholder")}
+                  options={availableRolesToAdd.map((r) => ({ value: r.id, label: r.name }))}
+                  onChange={(roleId) => {
+                    if (roleId) setLocalExtraRoleIds((prev) => [...prev, String(roleId)])
+                    setIsAddingRole(false)
+                  }}
+                  className="flex-1"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsAddingRole(true)}
+                  className="inline-flex h-7.5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-dashed border-[#bfd3fb] px-3 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
+                >
+                  <Plus className="size-3.5" />
+                  {t("lifecycle.matrix.addRole")}
+                </button>
+              )}
+              <span className="shrink-0 text-[11px] text-[#94a3b8]">
+                {t("lifecycle.matrix.instantSaveHint")}
+              </span>
+            </div>
           ),
         },
       ]
@@ -688,9 +700,14 @@ export function AssetTypeLifecycleMatrix({
           className: "border-t border-b border-[#eef1f5] bg-[#f7f9fb]",
           contentClassName: "px-3 py-1.5",
           content: (
-            <span className="text-[10.5px] font-semibold uppercase tracking-wide text-[#94a3b8]">
-              {t("lifecycle.matrix.sectionRoles")}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10.5px] font-semibold uppercase tracking-wide text-[#94a3b8]">
+                {t("lifecycle.matrix.sectionRoles")}
+              </span>
+              {listedRoles.length > 0 && (
+                <PanelBadge label={t("lifecycle.matrix.assignedCount", { count: listedRoles.length })} />
+              )}
+            </div>
           ),
         },
       ]
@@ -744,58 +761,55 @@ export function AssetTypeLifecycleMatrix({
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 py-2">
       {/* Selector de etapa del flujo + acciones — shrink-0, nunca scrollea */}
-      <div className="flex shrink-0 items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-[#94a3b8]">
-            {t("lifecycle.matrix.stageLabel")}
-          </span>
-          <div className="flex flex-wrap gap-1.5">
-            {stepTypesPresent.map((type) => {
-              const isActive = activeStageType === type
-              const groupCount = groupCountByType.get(type) ?? 0
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  aria-pressed={isActive}
-                  onClick={() => onSelectStage(type)}
+      <PanelToolbarStrip
+        label={t("lifecycle.matrix.stageLabel")}
+        labelTooltip={t("lifecycle.matrix.hint")}
+        actions={
+          <>
+            <span className="text-[11px] text-[#94a3b8]">{t("lifecycle.matrix.autosaveBadge")}</span>
+            <HuemulButton
+              variant="ghost"
+              size="icon"
+              className="size-7.5"
+              icon={RefreshCw}
+              tooltip={t("common:refresh")}
+              loading={isRefreshing || isFetching || isFetchingRoles}
+              onClick={handleRefresh}
+            />
+          </>
+        }
+      >
+        {stepTypesPresent.map((type) => {
+          const isActive = activeStageType === type
+          const groupCount = groupCountByType.get(type) ?? 0
+          return (
+            <button
+              key={type}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() => onSelectStage(type)}
+              className={cn(
+                "inline-flex h-7.5 items-center gap-1.5 rounded-full border px-3 text-[13px] transition-colors hover:cursor-pointer",
+                isActive
+                  ? "border-[#0f172a] bg-[#0f172a] font-semibold text-white"
+                  : "border-[#dbe1e9] text-[#334155] hover:border-[#bfd3fb] hover:bg-[#f8fafc]",
+              )}
+            >
+              {stepTypeLabel(type)}
+              {isGroupableStepType(type) && (
+                <span
                   className={cn(
-                    "inline-flex h-7.5 items-center gap-1.5 rounded-full border px-3 text-[13px] transition-colors hover:cursor-pointer",
-                    isActive
-                      ? "border-[#bfd3fb] bg-[#eef4ff] font-semibold text-[#1d4ed8]"
-                      : "border-[#dbe1e9] text-[#334155] hover:border-[#bfd3fb] hover:bg-[#f8fafc]",
+                    "inline-flex size-4.5 items-center justify-center rounded-full text-[11px] font-semibold",
+                    isActive ? "bg-white/20 text-white" : "bg-[#eef2f7] text-[#64748b]",
                   )}
                 >
-                  {stepTypeLabel(type)}
-                  {isGroupableStepType(type) && (
-                    <span
-                      className={cn(
-                        "inline-flex size-4.5 items-center justify-center rounded-full text-[11px] font-semibold",
-                        isActive ? "bg-[#dbe7fe] text-[#1d4ed8]" : "bg-[#eef2f7] text-[#64748b]",
-                      )}
-                    >
-                      {groupCount}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-          <p className="text-[12px] text-[#64748b]">{t("lifecycle.matrix.hint")}</p>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-1.5">
-          <HuemulButton
-            variant="ghost"
-            size="icon"
-            className="size-7.5"
-            icon={RefreshCw}
-            tooltip={t("common:refresh")}
-            loading={isRefreshing || isFetching || isFetchingRoles}
-            onClick={handleRefresh}
-          />
-        </div>
-      </div>
+                  {groupCount}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </PanelToolbarStrip>
 
       {/* Tabla — única área que scrollea */}
       <HuemulMatrix<MatrixRow, LifecycleStep>
@@ -860,6 +874,16 @@ export function AssetTypeLifecycleMatrix({
             !tint && activeStageType === step.type && "bg-[#fafcff]",
           )
         }}
+      />
+
+      <PanelLegend
+        className="shrink-0"
+        items={[
+          { icon: <CellCheck />, label: t("lifecycle.matrix.legendGranted") },
+          { icon: <CellImplied />, label: t("lifecycle.matrix.legendImplied") },
+          { icon: <CellDash />, label: t("lifecycle.matrix.legendDenied") },
+          { icon: <CellNotApplicable />, label: t("lifecycle.matrix.legendNotApplicable") },
+        ]}
       />
 
       <HuemulAlertDialog
