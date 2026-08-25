@@ -7,9 +7,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Eye, Loader2, Minus, Pencil, Plus, RefreshCw, Shield, Trash2 } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
+import { HuemulMatrix } from "@/huemul/components/huemul-matrix"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
-import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { SettingToggleRow } from "@/components/assets-types/assets-types-lifecycle-ui"
 import { getTemplateById, updateTemplate } from "@/services/templates"
@@ -24,22 +24,13 @@ import {
   useTemplateLifecycleAccessMatrix,
   useTemplateSectionAccessMutations,
 } from "@/hooks/useTemplateSectionLifecycleAccess"
-import type { MatrixStep } from "@/hooks/useTemplateSectionLifecycleAccess"
+import type { MatrixSection, MatrixStep } from "@/hooks/useTemplateSectionLifecycleAccess"
 import { LIFECYCLE_GROUPABLE_TYPES, buildAccessPayload, isGroupableStepType, stepRoleIds } from "@/lib/lifecycle-access"
 import type { TemplateSectionAccessMatrixProps } from "@/types/assets"
 import type { LifecycleStep } from "@/types/lifecycle"
 import type { TemplateSectionAccess } from "@/types/templates/section-lifecycle-access"
 
 export type { TemplateSectionAccessMatrixProps } from "@/types/assets"
-
-const SECTION_COLUMN_WIDTH = "232px"
-const ADD_GROUP_COLUMN_WIDTH = "150px"
-
-/**
- * Alto de la fila de etapas del encabezado. La fila de grupos se pega justo
- * debajo con este mismo offset, así ambas quedan sticky sin superponerse.
- */
-const HEADER_TYPE_ROW_HEIGHT = 30
 
 /** Cómo se pinta cada uno de los tres estados de una celda. */
 const ACCESS_STYLE: Record<
@@ -348,20 +339,192 @@ export function TemplateSectionAccessMatrix({
     }
   }
 
-  const gridTemplateColumns = `${SECTION_COLUMN_WIDTH} repeat(${Math.max(steps.length, 1)}, minmax(112px, 1fr))${canCreateStep ? ` minmax(${ADD_GROUP_COLUMN_WIDTH}, auto)` : ""}`
+  /** Primera columna: nombre de la sección + badge «reglas propias». */
+  const renderSectionRowHeader = (section: MatrixSection) => {
+    const accessByStep = accessBySection.get(section.id)
+    const roleAccessByStep = roleAccessBySection.get(section.id)
+    // Una sección con al menos una fila configurada (global o por rol, en
+    // cualquier step) deja de heredar del documento en TODAS sus celdas —
+    // incluidas las que se ven vacías. Ver "ia context/permisos-seccion-lifecycle-guide.md".
+    const hasOwnRules =
+      accessEnabled &&
+      (((accessByStep?.size ?? 0) > 0) ||
+        [...(roleAccessByStep?.values() ?? [])].some((byRole) => byRole.size > 0))
+    return (
+      <>
+        <span className="truncate text-[13px] font-medium text-[#0f172a]" title={section.name}>
+          {section.name}
+        </span>
+        {hasOwnRules && (
+          <span
+            className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700"
+            title={t("templates.sectionAccess.ownRulesTooltip")}
+          >
+            {t("templates.sectionAccess.ownRulesBadge")}
+          </span>
+        )}
+      </>
+    )
+  }
 
-  // Grupos de columnas del encabezado: `steps` ya viene ordenado por tipo desde
-  // el hook, así que basta agrupar los consecutivos. `startIndex` es el offset
-  // dentro de `steps` — se usa para posicionar las celdas en el grid.
-  const headerGroups = React.useMemo(() => {
-    const groups: { type: string; steps: MatrixStep[]; startIndex: number }[] = []
-    steps.forEach((step, index) => {
-      const last = groups[groups.length - 1]
-      if (last && last.type === step.type) last.steps.push(step)
-      else groups.push({ type: step.type, steps: [step], startIndex: index })
+  /** Celda de intersección sección × step: popover con nivel global + overrides por rol. */
+  const renderSectionCell = (section: MatrixSection, step: MatrixStep) => {
+    const accessByStep = accessBySection.get(section.id)
+    const current = accessByStep?.get(step.id) ?? null
+    const cellKey = sectionAccessCellKey(section.id, step.id)
+    const pending = pendingCells.has(cellKey)
+    const ariaLabel = t("templates.sectionAccess.cellAria", {
+      section: section.name,
+      step: step.name?.trim() || stepTypeLabel(step.type),
     })
-    return groups
-  }, [steps])
+
+    const roleOverrides = roleAccessBySection.get(section.id)?.get(step.id)
+    const validRoleIds = rolesOfStep(step.id)
+    const orphanRoleIds = roleOverrides
+      ? [...roleOverrides.keys()].filter((roleId) => !validRoleIds.includes(roleId))
+      : []
+    const overrideCount = roleOverrides?.size ?? 0
+    const hasRoleRows = validRoleIds.length > 0 || orphanRoleIds.length > 0
+
+    return (
+      <Popover open={openCell === cellKey} onOpenChange={(open) => setOpenCell(open ? cellKey : null)}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label={
+              overrideCount > 0
+                ? `${ariaLabel} — ${t("templates.sectionAccess.overrideBadgeAria", { count: overrideCount })}`
+                : ariaLabel
+            }
+            title={ariaLabel}
+            disabled={!canEditCells || pending}
+            className={cn(
+              "relative inline-flex size-7 items-center justify-center rounded-full transition-colors",
+              !canEditCells || pending ? "cursor-default" : "hover:cursor-pointer hover:bg-[#f1f5f9]",
+            )}
+          >
+            {pending ? (
+              <Loader2 className="size-3.5 animate-spin text-[#94a3b8]" />
+            ) : (
+              <AccessGlyph access={current ?? "inherit"} />
+            )}
+            {overrideCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 inline-flex size-[15px] items-center justify-center rounded-full border border-white bg-[#6d5ae0] text-[9px] font-semibold leading-none text-white">
+                {overrideCount}
+              </span>
+            )}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-2" align="center">
+          <div className="flex flex-col gap-2.5">
+            {/* Nivel global — aplica a cualquiera con acceso al step. */}
+            <div className="flex flex-col gap-1">
+              <span className="px-1 text-[11px] font-semibold uppercase tracking-wide text-[#94a3b8]">
+                {t("templates.sectionAccess.globalRowLabel")}
+              </span>
+              <div className="flex flex-col">
+                {(
+                  [
+                    { value: null, key: "inherit", label: "legendInherit" },
+                    { value: "view", key: "view", label: "legendView" },
+                    { value: "edit", key: "edit", label: "legendEdit" },
+                  ] as const
+                ).map((option) => {
+                  const isActive = (current ?? null) === option.value
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => {
+                        setOpenCell(null)
+                        handleSetAccess(section.id, step.id, option.value)
+                      }}
+                      className={cn(
+                        "flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-left text-[13px] transition-colors hover:cursor-pointer hover:bg-[#f1f5f9]",
+                        isActive ? "font-semibold text-[#0f172a]" : "text-[#475569]",
+                      )}
+                    >
+                      <AccessGlyph access={option.key} />
+                      {t(`templates.sectionAccess.${option.label}`)}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Nivel propio por rol del step — pisa el global para ese rol puntual. */}
+            <div className="flex flex-col gap-1 border-t border-[#eef1f5] pt-2">
+              <span className="px-1 text-[11px] font-semibold uppercase tracking-wide text-[#94a3b8]">
+                {t("templates.sectionAccess.byRoleLabel")}
+              </span>
+              {!hasRoleRows ? (
+                <p className="px-1 text-[12px] text-[#94a3b8]">
+                  {t("templates.sectionAccess.noRolesInStep")}
+                </p>
+              ) : (
+                <div className="flex max-h-40 flex-col gap-0.5 overflow-y-auto">
+                  {validRoleIds.map((roleId) => {
+                    const roleCellKey = sectionAccessCellKey(section.id, step.id, roleId)
+                    return (
+                      <div key={roleId} className="flex items-center justify-between gap-2 rounded-[6px] px-1 py-1">
+                        <span className="truncate text-[12.5px] text-[#334155]" title={roleLabel(step.id, roleId)}>
+                          {roleLabel(step.id, roleId)}
+                        </span>
+                        <RoleAccessSelector
+                          current={roleOverrides?.get(roleId) ?? null}
+                          disabled={!canEditCells}
+                          pending={pendingCells.has(roleCellKey)}
+                          onSelect={(value) => handleSetAccess(section.id, step.id, value, roleId)}
+                          t={t}
+                        />
+                      </div>
+                    )
+                  })}
+                  {orphanRoleIds.map((roleId) => {
+                    const roleCellKey = sectionAccessCellKey(section.id, step.id, roleId)
+                    const pendingOrphan = pendingCells.has(roleCellKey)
+                    return (
+                      <div
+                        key={roleId}
+                        className="flex items-center justify-between gap-2 rounded-[6px] bg-[#fff8ed] px-1 py-1"
+                        title={t("templates.sectionAccess.orphanRoleHint")}
+                      >
+                        <span className="flex min-w-0 flex-col">
+                          <span className="truncate text-[12.5px] text-[#334155]">
+                            {roleLabel(step.id, roleId)}
+                          </span>
+                          <span className="text-[10.5px] text-[#b45309]">
+                            {t("templates.sectionAccess.orphanRoleTag")}
+                          </span>
+                        </span>
+                        <button
+                          type="button"
+                          disabled={!canEditCells || pendingOrphan}
+                          aria-label={t("templates.sectionAccess.orphanRoleRemove")}
+                          title={t("templates.sectionAccess.orphanRoleRemove")}
+                          onClick={() => handleSetAccess(section.id, step.id, null, roleId)}
+                          className={cn(
+                            "shrink-0 rounded-[6px] p-1 transition-colors",
+                            !canEditCells || pendingOrphan ? "cursor-default opacity-50" : "hover:cursor-pointer hover:bg-[#fef0dc]",
+                          )}
+                        >
+                          {pendingOrphan ? (
+                            <Loader2 className="size-3.5 animate-spin text-[#b45309]" />
+                          ) : (
+                            <Trash2 className="size-3.5 text-[#b45309]" />
+                          )}
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    )
+  }
 
   if (!canReadSections) {
     return (
@@ -424,378 +587,87 @@ export function TemplateSectionAccessMatrix({
         </div>
       </div>
 
-      <div
-        className={cn(
-          "max-h-[420px] overflow-auto rounded-[10px] border border-[#e5eaf0] bg-white",
-          !accessEnabled && "opacity-60",
+      <HuemulMatrix<MatrixSection, MatrixStep>
+        className={cn("max-h-[420px]", !accessEnabled && "opacity-60")}
+        isLoading={isLoading}
+        emptyState={
+          sections.length === 0 ? (
+            <p className="px-4 py-8 text-center text-[13px] text-[#94a3b8]">
+              {t("templates.sectionAccess.noSections")}
+            </p>
+          ) : steps.length === 0 ? (
+            <p className="px-4 py-8 text-center text-[13px] text-[#94a3b8]">
+              {t("templates.sectionAccess.noSteps")}
+            </p>
+          ) : undefined
+        }
+        cornerLabel={t("templates.sectionAccess.sectionColumn")}
+        columns={steps.map((step) => ({ key: step.id, data: step, groupKey: step.type }))}
+        hasColumnHeader={(group) => isGroupableStepType(group.groupKey)}
+        renderGroupHeader={(group) => (
+          <span className="truncate text-[12px] font-semibold text-[#334155]" title={stepTypeLabel(group.groupKey)}>
+            {stepTypeLabel(group.groupKey)}
+          </span>
         )}
-      >
-        {isLoading ? (
-          <div className="flex flex-col gap-2 p-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-          </div>
-        ) : sections.length === 0 ? (
-          <p className="px-4 py-8 text-center text-[13px] text-[#94a3b8]">
-            {t("templates.sectionAccess.noSections")}
-          </p>
-        ) : steps.length === 0 ? (
-          <p className="px-4 py-8 text-center text-[13px] text-[#94a3b8]">
-            {t("templates.sectionAccess.noSteps")}
-          </p>
-        ) : (
-          <div className="grid" style={{ gridTemplateColumns }}>
-            {/*
-              Header de dos niveles. Las celdas se posicionan explícitamente
-              (`gridColumn` + `gridRow`) porque las etapas sin grupos abarcan
-              ambas filas y el auto-placement dejaría de ser predecible.
-              La columna de sección es la 1, así que el step en índice `i` cae
-              en la columna `i + 2`. Las dos primeras filas quedan cubiertas por
-              completo, de modo que las filas de datos siguen desde la 3.
-            */}
-            <div
-              className="sticky top-0 left-0 z-30 flex items-center border-b border-[#e5eaf0] bg-[#f7f9fb] px-3 py-2.5"
-              style={{ gridColumn: 1, gridRow: "1 / span 2" }}
-            >
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-[#94a3b8]">
-                {t("templates.sectionAccess.sectionColumn")}
-              </span>
-            </div>
-            {headerGroups.map((group) => {
-              const isGroupable = isGroupableStepType(group.type)
-              const typeLabel = stepTypeLabel(group.type)
-              return (
-                <React.Fragment key={`header-${group.type}-${group.startIndex}`}>
-                  {/* Nivel 1: la etapa, una sola vez por más grupos que tenga */}
-                  <div
-                    className={cn(
-                      "sticky top-0 z-20 flex items-center border-l bg-[#f7f9fb] px-3",
-                      isGroupable
-                        ? "border-b border-b-[#eef2f7] border-l-[#e5eaf0]"
-                        : "border-b border-[#e5eaf0]",
-                    )}
-                    style={{
-                      gridColumn: `${group.startIndex + 2} / span ${group.steps.length}`,
-                      gridRow: isGroupable ? "1" : "1 / span 2",
-                      ...(isGroupable ? { height: HEADER_TYPE_ROW_HEIGHT } : {}),
-                    }}
-                  >
-                    <span
-                      className="truncate text-[12px] font-semibold text-[#334155]"
-                      title={typeLabel}
-                    >
-                      {typeLabel}
-                    </span>
-                  </div>
-
-                  {/* Nivel 2: un grupo por columna — solo en etapas agrupables */}
-                  {isGroupable &&
-                    group.steps.map((step, index) => {
-                      const groupName =
-                        step.name?.trim() || t("templates.sectionAccess.unassigned")
-                      return (
-                        <div
-                          key={`header-group-${step.id}`}
-                          className="sticky z-20 flex items-center border-b border-l border-[#e5eaf0] bg-[#f7f9fb] px-3 py-1.5"
-                          style={{
-                            gridColumn: group.startIndex + 2 + index,
-                            gridRow: "2",
-                            top: HEADER_TYPE_ROW_HEIGHT,
-                          }}
-                        >
-                          <span
-                            className="truncate text-[11px] font-normal text-[#94a3b8]"
-                            title={groupName}
-                          >
-                            {groupName}
-                          </span>
-                        </div>
-                      )
-                    })}
-                </React.Fragment>
-              )
-            })}
-            {canCreateStep && (
-              <div
-                className="sticky top-0 z-20 flex items-center border-b border-l border-[#e5eaf0] bg-[#f7f9fb] px-3 py-2.5"
-                style={{ gridColumn: steps.length + 2, gridRow: "1 / span 2" }}
-              >
-                <Popover open={isAddingGroup} onOpenChange={setIsAddingGroup}>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      className="inline-flex h-[30px] items-center gap-1.5 rounded-[8px] border border-dashed border-[#bfd3fb] px-3 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
-                    >
-                      <Plus className="size-3.5" />
-                      {t("templates.sectionAccess.addGroup")}
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-72 p-3" align="end">
-                    <div className="flex flex-col gap-3">
-                      <span className="text-[12px] font-semibold text-[#334155]">
-                        {t("templates.sectionAccess.addGroupTitle")}
-                      </span>
-                      <HuemulField
-                        type="select"
-                        label={t("templates.sectionAccess.addGroupType")}
-                        name="section-access-new-group-type"
-                        value={newGroupType}
-                        options={groupTypeOptions}
-                        onChange={(value) => setNewGroupType(String(value ?? "review"))}
-                      />
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-[12px] font-medium text-[#475569]">
-                          {t("templates.sectionAccess.addGroupName")}
+        renderColumnHeader={(column) => {
+          const groupName = column.data.name?.trim() || t("templates.sectionAccess.unassigned")
+          return (
+            <span className="truncate text-[11px] font-normal text-[#94a3b8]" title={groupName}>
+              {groupName}
+            </span>
+          )
+        }}
+        rows={sections.map((section) => ({ kind: "cells" as const, key: section.id, data: section }))}
+        renderRowHeader={renderSectionRowHeader}
+        getRowHeaderClassName={() => "gap-1.5 bg-white group-hover:bg-[#fafbfd]"}
+        getCellClassName={() => "group-hover:bg-[#fafbfd]"}
+        renderCell={renderSectionCell}
+        trailingColumn={
+          canCreateStep
+            ? {
+                width: "minmax(150px, auto)",
+                cellClassName: "bg-white",
+                renderHeader: () => (
+                  <Popover open={isAddingGroup} onOpenChange={setIsAddingGroup}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex h-7.5 items-center gap-1.5 rounded-xl border border-dashed border-[#bfd3fb] px-3 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
+                      >
+                        <Plus className="size-3.5" />
+                        {t("templates.sectionAccess.addGroup")}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 p-3" align="end">
+                      <div className="flex flex-col gap-3">
+                        <span className="text-[12px] font-semibold text-[#334155]">
+                          {t("templates.sectionAccess.addGroupTitle")}
                         </span>
-                        <Input
-                          value={newGroupName}
-                          onChange={(e) => setNewGroupName(e.target.value)}
+                        <HuemulField
+                          type="select"
+                          label={t("templates.sectionAccess.addGroupType")}
+                          name="section-access-new-group-type"
+                          value={newGroupType}
+                          options={groupTypeOptions}
+                          onChange={(value) => setNewGroupType(String(value ?? "review"))}
                         />
+                        <div className="flex flex-col gap-1.5">
+                          <span className="text-[12px] font-medium text-[#475569]">
+                            {t("templates.sectionAccess.addGroupName")}
+                          </span>
+                          <Input value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} />
+                        </div>
+                        <HuemulButton size="sm" loading={createStep.isPending} onClick={handleAddGroup}>
+                          {t("templates.sectionAccess.addGroupSubmit")}
+                        </HuemulButton>
                       </div>
-                      <HuemulButton
-                        size="sm"
-                        loading={createStep.isPending}
-                        onClick={handleAddGroup}
-                      >
-                        {t("templates.sectionAccess.addGroupSubmit")}
-                      </HuemulButton>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
-            )}
-
-            {/* Filas */}
-            {sections.map((section, rowIndex) => {
-              const isLast = rowIndex === sections.length - 1
-              const accessByStep = accessBySection.get(section.id)
-              const roleAccessByStep = roleAccessBySection.get(section.id)
-              // Una sección con al menos una fila configurada (global o por rol, en
-              // cualquier step) deja de heredar del documento en TODAS sus celdas —
-              // incluidas las que se ven vacías. Ver "ia context/permisos-seccion-lifecycle-guide.md".
-              const hasOwnRules =
-                accessEnabled &&
-                (((accessByStep?.size ?? 0) > 0) ||
-                  [...(roleAccessByStep?.values() ?? [])].some((byRole) => byRole.size > 0))
-              return (
-                <div key={section.id} className="group contents">
-                  <div
-                    className={cn(
-                      "sticky left-0 z-10 flex min-w-0 items-center gap-1.5 bg-white px-3 py-2.5 transition-colors group-hover:bg-[#fafbfd]",
-                      !isLast && "border-b border-[#eef1f5]",
-                    )}
-                  >
-                    <span
-                      className="truncate text-[13px] font-medium text-[#0f172a]"
-                      title={section.name}
-                    >
-                      {section.name}
-                    </span>
-                    {hasOwnRules && (
-                      <span
-                        className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700"
-                        title={t("templates.sectionAccess.ownRulesTooltip")}
-                      >
-                        {t("templates.sectionAccess.ownRulesBadge")}
-                      </span>
-                    )}
-                  </div>
-
-                  {steps.map((step) => {
-                    const cellKey = sectionAccessCellKey(section.id, step.id)
-                    const current = accessByStep?.get(step.id) ?? null
-                    const pending = pendingCells.has(cellKey)
-                    const ariaLabel = t("templates.sectionAccess.cellAria", {
-                      section: section.name,
-                      step: step.name?.trim() || stepTypeLabel(step.type),
-                    })
-
-                    const roleOverrides = roleAccessBySection.get(section.id)?.get(step.id)
-                    const validRoleIds = rolesOfStep(step.id)
-                    const orphanRoleIds = roleOverrides
-                      ? [...roleOverrides.keys()].filter((roleId) => !validRoleIds.includes(roleId))
-                      : []
-                    const overrideCount = roleOverrides?.size ?? 0
-                    const hasRoleRows = validRoleIds.length > 0 || orphanRoleIds.length > 0
-
-                    return (
-                      <div
-                        key={cellKey}
-                        className={cn(
-                          "flex items-center justify-center border-l border-[#eef1f5] px-3 py-2.5 transition-colors group-hover:bg-[#fafbfd]",
-                          !isLast && "border-b border-b-[#eef1f5]",
-                        )}
-                      >
-                        <Popover
-                          open={openCell === cellKey}
-                          onOpenChange={(open) => setOpenCell(open ? cellKey : null)}
-                        >
-                          <PopoverTrigger asChild>
-                            <button
-                              type="button"
-                              aria-label={
-                                overrideCount > 0
-                                  ? `${ariaLabel} — ${t("templates.sectionAccess.overrideBadgeAria", { count: overrideCount })}`
-                                  : ariaLabel
-                              }
-                              title={ariaLabel}
-                              disabled={!canEditCells || pending}
-                              className={cn(
-                                "relative inline-flex size-7 items-center justify-center rounded-full transition-colors",
-                                !canEditCells || pending
-                                  ? "cursor-default"
-                                  : "hover:cursor-pointer hover:bg-[#f1f5f9]",
-                              )}
-                            >
-                              {pending ? (
-                                <Loader2 className="size-3.5 animate-spin text-[#94a3b8]" />
-                              ) : (
-                                <AccessGlyph access={current ?? "inherit"} />
-                              )}
-                              {overrideCount > 0 && (
-                                <span className="absolute -right-0.5 -top-0.5 inline-flex size-[15px] items-center justify-center rounded-full border border-white bg-[#6d5ae0] text-[9px] font-semibold leading-none text-white">
-                                  {overrideCount}
-                                </span>
-                              )}
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-64 p-2" align="center">
-                            <div className="flex flex-col gap-2.5">
-                              {/* Nivel global — aplica a cualquiera con acceso al step. */}
-                              <div className="flex flex-col gap-1">
-                                <span className="px-1 text-[11px] font-semibold uppercase tracking-wide text-[#94a3b8]">
-                                  {t("templates.sectionAccess.globalRowLabel")}
-                                </span>
-                                <div className="flex flex-col">
-                                  {(
-                                    [
-                                      { value: null, key: "inherit", label: "legendInherit" },
-                                      { value: "view", key: "view", label: "legendView" },
-                                      { value: "edit", key: "edit", label: "legendEdit" },
-                                    ] as const
-                                  ).map((option) => {
-                                    const isActive = (current ?? null) === option.value
-                                    return (
-                                      <button
-                                        key={option.key}
-                                        type="button"
-                                        onClick={() => {
-                                          setOpenCell(null)
-                                          handleSetAccess(section.id, step.id, option.value)
-                                        }}
-                                        className={cn(
-                                          "flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-left text-[13px] transition-colors hover:cursor-pointer hover:bg-[#f1f5f9]",
-                                          isActive
-                                            ? "font-semibold text-[#0f172a]"
-                                            : "text-[#475569]",
-                                        )}
-                                      >
-                                        <AccessGlyph access={option.key} />
-                                        {t(`templates.sectionAccess.${option.label}`)}
-                                      </button>
-                                    )
-                                  })}
-                                </div>
-                              </div>
-
-                              {/* Nivel propio por rol del step — pisa el global para ese rol puntual. */}
-                              <div className="flex flex-col gap-1 border-t border-[#eef1f5] pt-2">
-                                <span className="px-1 text-[11px] font-semibold uppercase tracking-wide text-[#94a3b8]">
-                                  {t("templates.sectionAccess.byRoleLabel")}
-                                </span>
-                                {!hasRoleRows ? (
-                                  <p className="px-1 text-[12px] text-[#94a3b8]">
-                                    {t("templates.sectionAccess.noRolesInStep")}
-                                  </p>
-                                ) : (
-                                  <div className="flex max-h-40 flex-col gap-0.5 overflow-y-auto">
-                                    {validRoleIds.map((roleId) => {
-                                      const roleCellKey = sectionAccessCellKey(section.id, step.id, roleId)
-                                      return (
-                                        <div
-                                          key={roleId}
-                                          className="flex items-center justify-between gap-2 rounded-[6px] px-1 py-1"
-                                        >
-                                          <span
-                                            className="truncate text-[12.5px] text-[#334155]"
-                                            title={roleLabel(step.id, roleId)}
-                                          >
-                                            {roleLabel(step.id, roleId)}
-                                          </span>
-                                          <RoleAccessSelector
-                                            current={roleOverrides?.get(roleId) ?? null}
-                                            disabled={!canEditCells}
-                                            pending={pendingCells.has(roleCellKey)}
-                                            onSelect={(value) => handleSetAccess(section.id, step.id, value, roleId)}
-                                            t={t}
-                                          />
-                                        </div>
-                                      )
-                                    })}
-                                    {orphanRoleIds.map((roleId) => {
-                                      const roleCellKey = sectionAccessCellKey(section.id, step.id, roleId)
-                                      const pendingOrphan = pendingCells.has(roleCellKey)
-                                      return (
-                                        <div
-                                          key={roleId}
-                                          className="flex items-center justify-between gap-2 rounded-[6px] bg-[#fff8ed] px-1 py-1"
-                                          title={t("templates.sectionAccess.orphanRoleHint")}
-                                        >
-                                          <span className="flex min-w-0 flex-col">
-                                            <span className="truncate text-[12.5px] text-[#334155]">
-                                              {roleLabel(step.id, roleId)}
-                                            </span>
-                                            <span className="text-[10.5px] text-[#b45309]">
-                                              {t("templates.sectionAccess.orphanRoleTag")}
-                                            </span>
-                                          </span>
-                                          <button
-                                            type="button"
-                                            disabled={!canEditCells || pendingOrphan}
-                                            aria-label={t("templates.sectionAccess.orphanRoleRemove")}
-                                            title={t("templates.sectionAccess.orphanRoleRemove")}
-                                            onClick={() => handleSetAccess(section.id, step.id, null, roleId)}
-                                            className={cn(
-                                              "shrink-0 rounded-[6px] p-1 transition-colors",
-                                              !canEditCells || pendingOrphan
-                                                ? "cursor-default opacity-50"
-                                                : "hover:cursor-pointer hover:bg-[#fef0dc]",
-                                            )}
-                                          >
-                                            {pendingOrphan ? (
-                                              <Loader2 className="size-3.5 animate-spin text-[#b45309]" />
-                                            ) : (
-                                              <Trash2 className="size-3.5 text-[#b45309]" />
-                                            )}
-                                          </button>
-                                        </div>
-                                      )
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    )
-                  })}
-
-                  {canCreateStep && (
-                    <div
-                      className={cn(
-                        "border-l border-[#eef1f5] bg-white",
-                        !isLast && "border-b border-b-[#eef1f5]",
-                      )}
-                    />
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+                    </PopoverContent>
+                  </Popover>
+                ),
+              }
+            : undefined
+        }
+      />
     </div>
   )
 }

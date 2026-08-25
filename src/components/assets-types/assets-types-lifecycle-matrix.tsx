@@ -8,8 +8,9 @@ import { Settings, RefreshCw, Plus, X, Check, Globe, User, Loader2, ChevronRight
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
+import { HuemulMatrix } from "@/huemul/components/huemul-matrix"
+import type { HuemulMatrixRow } from "@/huemul/components/huemul-matrix"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
-import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import {
   useAllLifecycleSteps,
@@ -56,14 +57,6 @@ type MatrixRow =
   | { kind: "add" }
   | { kind: "sectionRules" }
   | { kind: "rule"; ruleType: AccessRuleType }
-
-const ROLE_COLUMN_WIDTH = "232px"
-
-/**
- * Alto de la fila de etapas del encabezado. La fila de grupos se pega justo
- * debajo con este mismo offset, así ambas quedan sticky sin superponerse.
- */
-const HEADER_TYPE_ROW_HEIGHT = 30
 
 /** Celda concedida: check blanco sobre círculo verde. */
 function CellCheck() {
@@ -223,19 +216,6 @@ export function AssetTypeLifecycleMatrix({
     })
     return activeStageType ? sorted.filter((s) => s.type === activeStageType) : sorted
   }, [allSteps, activeStageType])
-
-  // Grupos de columnas del encabezado: `visibleSteps` ya viene ordenado por
-  // tipo, así que basta agrupar los consecutivos. `startIndex` es el offset
-  // dentro de `visibleSteps` — se usa para posicionar las celdas en el grid.
-  const headerGroups = React.useMemo(() => {
-    const groups: { type: string; steps: LifecycleStep[]; startIndex: number }[] = []
-    visibleSteps.forEach((step, index) => {
-      const last = groups[groups.length - 1]
-      if (last && last.type === step.type) last.steps.push(step)
-      else groups.push({ type: step.type, steps: [step], startIndex: index })
-    })
-    return groups
-  }, [visibleSteps])
 
   // Candidatos a `source_step_id` de "jefe de paso anterior" por columna: mismo
   // criterio que el backend valida — pasos de un tipo anterior en el pipeline, o
@@ -435,8 +415,6 @@ export function AssetTypeLifecycleMatrix({
     ],
     [listedRoles, rulesExpanded]
   )
-
-  const gridTemplateColumns = `${ROLE_COLUMN_WIDTH} repeat(${Math.max(visibleSteps.length, 1)}, minmax(112px, 1fr))`
 
   const rowKey = (row: MatrixRow) => {
     switch (row.kind) {
@@ -663,6 +641,106 @@ export function AssetTypeLifecycleMatrix({
     }
   }
 
+  // Filas «cells» editables tal cual; las tres filas especiales (añadir rol,
+  // separador de sección y cabecera colapsable de reglas) pasan a bandas a
+  // ancho completo — `add` desaparece del todo si el usuario no puede gestionar.
+  const matrixRows: HuemulMatrixRow<MatrixRow>[] = rows.flatMap((row): HuemulMatrixRow<MatrixRow>[] => {
+    if (row.kind === "add") {
+      if (!canManage) return []
+      return [
+        {
+          kind: "band",
+          key: rowKey(row),
+          className: "bg-white",
+          contentClassName: "px-3 py-3",
+          content: isAddingRole ? (
+            <HuemulField
+              type="combobox"
+              label=""
+              name="matrix-add-role"
+              value=""
+              placeholder={t("lifecycle.matrix.addRolePlaceholder")}
+              options={availableRolesToAdd.map((r) => ({ value: r.id, label: r.name }))}
+              onChange={(roleId) => {
+                if (roleId) setLocalExtraRoleIds((prev) => [...prev, String(roleId)])
+                setIsAddingRole(false)
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsAddingRole(true)}
+              className="inline-flex h-7.5 items-center gap-1.5 rounded-xl border border-dashed border-[#bfd3fb] px-3 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
+            >
+              <Plus className="size-3.5" />
+              {t("lifecycle.matrix.addRole")}
+            </button>
+          ),
+        },
+      ]
+    }
+
+    if (row.kind === "sectionRoles") {
+      return [
+        {
+          kind: "band",
+          key: rowKey(row),
+          className: "border-t border-b border-[#eef1f5] bg-[#f7f9fb]",
+          contentClassName: "px-3 py-1.5",
+          content: (
+            <span className="text-[10.5px] font-semibold uppercase tracking-wide text-[#94a3b8]">
+              {t("lifecycle.matrix.sectionRoles")}
+            </span>
+          ),
+        },
+      ]
+    }
+
+    if (row.kind === "sectionRules") {
+      const label = t("lifecycle.matrix.sectionRules")
+      const toggle = () => setRulesExpanded((prev) => !prev)
+      return [
+        {
+          kind: "band",
+          key: rowKey(row),
+          hoverable: true,
+          onClick: toggle,
+          className: "border-t border-b border-[#eef1f5] bg-[#f7f9fb] hover:cursor-pointer group-hover/band:bg-[#eef2f7]",
+          content: (
+            <button
+              type="button"
+              onClick={toggle}
+              aria-expanded={rulesExpanded}
+              aria-label={t(
+                rulesExpanded ? "lifecycle.matrix.collapseSection" : "lifecycle.matrix.expandSection",
+                { section: label },
+              )}
+              title={t("lifecycle.matrix.sectionRulesHint")}
+              className="flex w-max items-center gap-1.5 px-3 py-1.5 text-left hover:cursor-pointer"
+            >
+              <ChevronRight
+                className={cn(
+                  "size-3.5 shrink-0 text-[#94a3b8] transition-transform",
+                  rulesExpanded && "rotate-90",
+                )}
+              />
+              <span className="whitespace-nowrap text-[10.5px] font-semibold uppercase tracking-wide text-[#94a3b8]">
+                {label}
+              </span>
+              {!rulesExpanded && activeRulesCount > 0 && (
+                <span className="inline-flex shrink-0 items-center rounded-full bg-[#eef2f7] px-1.5 text-[11px] font-semibold text-[#64748b]">
+                  {t("lifecycle.matrix.activeRulesCount", { count: activeRulesCount })}
+                </span>
+              )}
+            </button>
+          ),
+        },
+      ]
+    }
+
+    return [{ kind: "cells", key: rowKey(row), data: row }]
+  })
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 py-2">
       {/* Selector de etapa del flujo + acciones — shrink-0, nunca scrollea */}
@@ -720,238 +798,69 @@ export function AssetTypeLifecycleMatrix({
       </div>
 
       {/* Tabla — única área que scrollea */}
-      <div className="min-h-0 flex-1 overflow-auto rounded-[10px] border border-[#e5eaf0] bg-white">
-        {isLoading ? (
-          <div className="flex flex-col gap-2 p-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-          </div>
-        ) : (
-          <div className="grid" style={{ gridTemplateColumns }}>
-            {/*
-              Header de dos niveles. Las celdas se posicionan explícitamente
-              (`gridColumn` + `gridRow`) porque las etapas sin grupos abarcan
-              ambas filas y el auto-placement dejaría de ser predecible.
-              La columna de rol es la 1, así que el step en índice `i` cae en
-              la columna `i + 2`. Las dos primeras filas quedan cubiertas por
-              completo, de modo que las filas de datos siguen desde la 3.
-            */}
-            <div
-              className="sticky top-0 left-0 z-30 flex items-center border-b border-[#e5eaf0] bg-[#f7f9fb] px-3 py-2.5"
-              style={{ gridColumn: 1, gridRow: "1 / span 2" }}
-            >
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-[#94a3b8]">
-                {t("lifecycle.matrix.roleColumn")}
+      <HuemulMatrix<MatrixRow, LifecycleStep>
+        className="min-h-0 flex-1"
+        isLoading={isLoading}
+        cornerLabel={t("lifecycle.matrix.roleColumn")}
+        columns={visibleSteps.map((step) => ({ key: step.id, data: step, groupKey: step.type }))}
+        hasColumnHeader={(group) => isGroupableStepType(group.groupKey)}
+        getGroupHeaderClassName={(group) =>
+          activeStageType === group.groupKey ? "bg-[#f2f6fe]" : "bg-[#f7f9fb]"
+        }
+        renderGroupHeader={(group) => {
+          const isActiveStage = activeStageType === group.groupKey
+          const typeLabel = stepTypeLabel(group.groupKey)
+          return (
+            <>
+              <span
+                className={cn(
+                  "truncate text-[12px] font-semibold",
+                  isActiveStage ? "text-[#1d4ed8]" : "text-[#334155]",
+                )}
+                title={typeLabel}
+              >
+                {typeLabel}
               </span>
-            </div>
-            {headerGroups.map((group) => {
-              const isActiveStage = activeStageType === group.type
-              const isGroupable = isGroupableStepType(group.type)
-              const typeLabel = stepTypeLabel(group.type)
-              return (
-                <React.Fragment key={`header-${group.type}-${group.startIndex}`}>
-                  {/* Nivel 1: la etapa, una sola vez por más grupos que tenga */}
-                  <div
-                    className={cn(
-                      "sticky top-0 z-20 flex items-center gap-1 border-l px-3",
-                      isGroupable
-                        ? "border-b border-b-[#eef2f7] border-l-[#e5eaf0]"
-                        : "border-b border-[#e5eaf0]",
-                      isActiveStage ? "bg-[#f2f6fe]" : "bg-[#f7f9fb]",
-                    )}
-                    style={{
-                      gridColumn: `${group.startIndex + 2} / span ${group.steps.length}`,
-                      gridRow: isGroupable ? "1" : "1 / span 2",
-                      ...(isGroupable ? { height: HEADER_TYPE_ROW_HEIGHT } : {}),
-                    }}
-                  >
-                    <span
-                      className={cn(
-                        "truncate text-[12px] font-semibold",
-                        isActiveStage ? "text-[#1d4ed8]" : "text-[#334155]",
-                      )}
-                      title={typeLabel}
-                    >
-                      {typeLabel}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onSelectStage(group.type)}
-                      title={t("lifecycle.matrix.configureStep", { step: typeLabel })}
-                      aria-label={t("lifecycle.matrix.configureStep", { step: typeLabel })}
-                      className={cn(
-                        "inline-flex size-4 shrink-0 items-center justify-center rounded-lg transition-colors hover:cursor-pointer",
-                        isActiveStage
-                          ? "text-[#1d4ed8]"
-                          : "text-[#b6c0cd] hover:bg-[#eef2f7] hover:text-[#64748b]",
-                      )}
-                    >
-                      <Settings className="size-3" />
-                    </button>
-                  </div>
-
-                  {/* Nivel 2: un grupo por columna — solo en etapas agrupables */}
-                  {isGroupable &&
-                    group.steps.map((step, index) => {
-                      const groupName = step.name?.trim() || t("lifecycle.matrix.unassigned")
-                      return (
-                        <div
-                          key={`header-group-${step.id}`}
-                          className={cn(
-                            "sticky z-20 flex items-center border-b border-l border-[#e5eaf0] px-3 py-1.5",
-                            isActiveStage ? "bg-[#f2f6fe]" : "bg-[#f7f9fb]",
-                          )}
-                          style={{
-                            gridColumn: group.startIndex + 2 + index,
-                            gridRow: "2",
-                            top: HEADER_TYPE_ROW_HEIGHT,
-                          }}
-                        >
-                          <span
-                            className="truncate text-[11px] font-normal text-[#94a3b8]"
-                            title={groupName}
-                          >
-                            {groupName}
-                          </span>
-                        </div>
-                      )
-                    })}
-                </React.Fragment>
-              )
-            })}
-
-            {/* Filas */}
-            {rows.map((row, rowIndex) => {
-              const isLast = rowIndex === rows.length - 1
-
-              if (row.kind === "add") {
-                if (!canManage) return null
-                return (
-                  <div key={rowKey(row)} className="contents">
-                    <div className="sticky left-0 z-10 flex min-w-0 items-center bg-white px-3 py-3">
-                      {isAddingRole ? (
-                        <HuemulField
-                          type="combobox"
-                          label=""
-                          name="matrix-add-role"
-                          value=""
-                          placeholder={t("lifecycle.matrix.addRolePlaceholder")}
-                          options={availableRolesToAdd.map((r) => ({ value: r.id, label: r.name }))}
-                          onChange={(roleId) => {
-                            if (roleId) setLocalExtraRoleIds((prev) => [...prev, String(roleId)])
-                            setIsAddingRole(false)
-                          }}
-                        />
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setIsAddingRole(true)}
-                          className="inline-flex h-7.5 items-center gap-1.5 rounded-xl border border-dashed border-[#bfd3fb] px-3 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
-                        >
-                          <Plus className="size-3.5" />
-                          {t("lifecycle.matrix.addRole")}
-                        </button>
-                      )}
-                    </div>
-                    <div className="bg-white" style={{ gridColumn: "2 / -1" }} />
-                  </div>
-                )
-              }
-
-              if (row.kind === "sectionRoles") {
-                return (
-                  <div key={rowKey(row)} className="contents">
-                    <div className="sticky left-0 z-10 flex min-w-0 items-center border-t border-b border-[#eef1f5] bg-[#f7f9fb] px-3 py-1.5">
-                      <span className="text-[10.5px] font-semibold uppercase tracking-wide text-[#94a3b8]">
-                        {t("lifecycle.matrix.sectionRoles")}
-                      </span>
-                    </div>
-                    <div
-                      className="border-t border-b border-[#eef1f5] bg-[#f7f9fb]"
-                      style={{ gridColumn: "2 / -1" }}
-                    />
-                  </div>
-                )
-              }
-
-              // Cabecera colapsable: el clic vive en toda la banda (columna sticky
-              // + resto de la grilla), pero solo la primera columna es focusable.
-              if (row.kind === "sectionRules") {
-                const label = t("lifecycle.matrix.sectionRules")
-                const toggle = () => setRulesExpanded((prev) => !prev)
-                return (
-                  <div key={rowKey(row)} className="group/section contents">
-                    <div className="sticky left-0 z-10 flex min-w-0 items-center border-t border-b border-[#eef1f5] bg-[#f7f9fb] group-hover/section:bg-[#eef2f7]">
-                      <button
-                        type="button"
-                        onClick={toggle}
-                        aria-expanded={rulesExpanded}
-                        aria-label={t(
-                          rulesExpanded
-                            ? "lifecycle.matrix.collapseSection"
-                            : "lifecycle.matrix.expandSection",
-                          { section: label },
-                        )}
-                        title={t("lifecycle.matrix.sectionRulesHint")}
-                        className="flex w-max items-center gap-1.5 px-3 py-1.5 text-left hover:cursor-pointer"
-                      >
-                        <ChevronRight
-                          className={cn(
-                            "size-3.5 shrink-0 text-[#94a3b8] transition-transform",
-                            rulesExpanded && "rotate-90",
-                          )}
-                        />
-                        <span className="whitespace-nowrap text-[10.5px] font-semibold uppercase tracking-wide text-[#94a3b8]">
-                          {label}
-                        </span>
-                        {!rulesExpanded && activeRulesCount > 0 && (
-                          <span className="inline-flex shrink-0 items-center rounded-full bg-[#eef2f7] px-1.5 text-[11px] font-semibold text-[#64748b]">
-                            {t("lifecycle.matrix.activeRulesCount", { count: activeRulesCount })}
-                          </span>
-                        )}
-                      </button>
-                    </div>
-                    <div
-                      onClick={toggle}
-                      className="border-t border-b border-[#eef1f5] bg-[#f7f9fb] hover:cursor-pointer group-hover/section:bg-[#eef2f7]"
-                      style={{ gridColumn: "2 / -1" }}
-                    />
-                  </div>
-                )
-              }
-
-              const tint = ROW_TINT[row.kind]
-              return (
-                <div key={rowKey(row)} className="group contents">
-                  <div
-                    className={cn(
-                      "sticky left-0 z-10 flex min-w-0 items-center px-3 py-2.5 transition-colors",
-                      tint ? cn(tint.cell, tint.hover) : "bg-white group-hover:bg-[#fafbfd]",
-                      !isLast && "border-b border-[#eef1f5]",
-                    )}
-                  >
-                    {renderRoleCell(row)}
-                  </div>
-                  {visibleSteps.map((step) => (
-                    <div
-                      key={`${rowKey(row)}-${step.id}`}
-                      className={cn(
-                        "flex items-center justify-center border-l border-[#eef1f5] px-3 py-2.5 transition-colors",
-                        tint ? cn(tint.cell, tint.hover) : "group-hover:bg-[#fafbfd]",
-                        !tint && activeStageType === step.type && "bg-[#fafcff]",
-                        !isLast && "border-b border-b-[#eef1f5]",
-                      )}
-                    >
-                      {renderStepCell(row, step)}
-                    </div>
-                  ))}
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+              <button
+                type="button"
+                onClick={() => onSelectStage(group.groupKey)}
+                title={t("lifecycle.matrix.configureStep", { step: typeLabel })}
+                aria-label={t("lifecycle.matrix.configureStep", { step: typeLabel })}
+                className={cn(
+                  "inline-flex size-4 shrink-0 items-center justify-center rounded-lg transition-colors hover:cursor-pointer",
+                  isActiveStage
+                    ? "text-[#1d4ed8]"
+                    : "text-[#b6c0cd] hover:bg-[#eef2f7] hover:text-[#64748b]",
+                )}
+              >
+                <Settings className="size-3" />
+              </button>
+            </>
+          )
+        }}
+        renderColumnHeader={(column) => {
+          const groupName = column.data.name?.trim() || t("lifecycle.matrix.unassigned")
+          return (
+            <span className="truncate text-[11px] font-normal text-[#94a3b8]" title={groupName}>
+              {groupName}
+            </span>
+          )
+        }}
+        rows={matrixRows}
+        renderRowHeader={renderRoleCell}
+        renderCell={renderStepCell}
+        getRowHeaderClassName={(row) => {
+          const tint = ROW_TINT[row.kind]
+          return tint ? cn(tint.cell, tint.hover) : "bg-white group-hover:bg-[#fafbfd]"
+        }}
+        getCellClassName={(row, step) => {
+          const tint = ROW_TINT[row.kind]
+          return cn(
+            tint ? cn(tint.cell, tint.hover) : "group-hover:bg-[#fafbfd]",
+            !tint && activeStageType === step.type && "bg-[#fafcff]",
+          )
+        }}
+      />
 
       <HuemulAlertDialog
         open={roleToRemove !== null}
