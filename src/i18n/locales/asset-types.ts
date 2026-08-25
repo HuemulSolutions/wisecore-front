@@ -151,7 +151,6 @@ const translations = {
       orphanRoleHint: { en: "This role was removed from the group but its permission setting was kept. Remove it if it's no longer needed.", es: "Este rol fue quitado del grupo pero su configuración de permiso se conservó. Bórrala si ya no hace falta." },
       orphanRoleRemove: { en: "Remove setting", es: "Quitar configuración" },
       overrideBadgeAria: { en: "{{count}} roles with their own level", es: "{{count}} roles con nivel propio" },
-      groupPrefix: { en: "Group: {{name}}", es: "Grupo: {{name}}" },
       unassigned: { en: "Unassigned", es: "Sin asignar" },
       addGroup: { en: "Add group", es: "Agregar grupo" },
       addGroupTitle: { en: "New lifecycle group", es: "Nuevo grupo del ciclo de vida" },

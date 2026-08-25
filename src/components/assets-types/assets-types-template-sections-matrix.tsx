@@ -24,6 +24,7 @@ import {
   useTemplateLifecycleAccessMatrix,
   useTemplateSectionAccessMutations,
 } from "@/hooks/useTemplateSectionLifecycleAccess"
+import type { MatrixStep } from "@/hooks/useTemplateSectionLifecycleAccess"
 import { LIFECYCLE_GROUPABLE_TYPES, buildAccessPayload, isGroupableStepType, stepRoleIds } from "@/lib/lifecycle-access"
 import type { TemplateSectionAccessMatrixProps } from "@/types/assets"
 import type { LifecycleStep } from "@/types/lifecycle"
@@ -33,6 +34,12 @@ export type { TemplateSectionAccessMatrixProps } from "@/types/assets"
 
 const SECTION_COLUMN_WIDTH = "232px"
 const ADD_GROUP_COLUMN_WIDTH = "150px"
+
+/**
+ * Alto de la fila de etapas del encabezado. La fila de grupos se pega justo
+ * debajo con este mismo offset, así ambas quedan sticky sin superponerse.
+ */
+const HEADER_TYPE_ROW_HEIGHT = 30
 
 /** Cómo se pinta cada uno de los tres estados de una celda. */
 const ACCESS_STYLE: Record<
@@ -343,6 +350,19 @@ export function TemplateSectionAccessMatrix({
 
   const gridTemplateColumns = `${SECTION_COLUMN_WIDTH} repeat(${Math.max(steps.length, 1)}, minmax(112px, 1fr))${canCreateStep ? ` minmax(${ADD_GROUP_COLUMN_WIDTH}, auto)` : ""}`
 
+  // Grupos de columnas del encabezado: `steps` ya viene ordenado por tipo desde
+  // el hook, así que basta agrupar los consecutivos. `startIndex` es el offset
+  // dentro de `steps` — se usa para posicionar las celdas en el grid.
+  const headerGroups = React.useMemo(() => {
+    const groups: { type: string; steps: MatrixStep[]; startIndex: number }[] = []
+    steps.forEach((step, index) => {
+      const last = groups[groups.length - 1]
+      if (last && last.type === step.type) last.steps.push(step)
+      else groups.push({ type: step.type, steps: [step], startIndex: index })
+    })
+    return groups
+  }, [steps])
+
   if (!canReadSections) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 rounded-[10px] border border-[#e5eaf0] bg-white py-10 text-center">
@@ -426,34 +446,81 @@ export function TemplateSectionAccessMatrix({
           </p>
         ) : (
           <div className="grid" style={{ gridTemplateColumns }}>
-            {/* Header */}
-            <div className="sticky top-0 left-0 z-20 border-b border-[#e5eaf0] bg-[#f7f9fb] px-3 py-2.5">
+            {/*
+              Header de dos niveles. Las celdas se posicionan explícitamente
+              (`gridColumn` + `gridRow`) porque las etapas sin grupos abarcan
+              ambas filas y el auto-placement dejaría de ser predecible.
+              La columna de sección es la 1, así que el step en índice `i` cae
+              en la columna `i + 2`. Las dos primeras filas quedan cubiertas por
+              completo, de modo que las filas de datos siguen desde la 3.
+            */}
+            <div
+              className="sticky top-0 left-0 z-30 flex items-center border-b border-[#e5eaf0] bg-[#f7f9fb] px-3 py-2.5"
+              style={{ gridColumn: 1, gridRow: "1 / span 2" }}
+            >
               <span className="text-[11px] font-semibold uppercase tracking-wide text-[#94a3b8]">
                 {t("templates.sectionAccess.sectionColumn")}
               </span>
             </div>
-            {steps.map((step) => {
-              const groupLabel = isGroupableStepType(step.type)
-                ? t("templates.sectionAccess.groupPrefix", {
-                    name: step.name?.trim() || t("templates.sectionAccess.unassigned"),
-                  })
-                : t("templates.sectionAccess.unassigned")
+            {headerGroups.map((group) => {
+              const isGroupable = isGroupableStepType(group.type)
+              const typeLabel = stepTypeLabel(group.type)
               return (
-                <div
-                  key={`header-${step.id}`}
-                  className="sticky top-0 z-10 flex flex-col gap-0.5 border-b border-l border-[#e5eaf0] bg-[#f7f9fb] px-3 py-2.5"
-                >
-                  <span className="truncate text-[12px] font-semibold text-[#334155]">
-                    {stepTypeLabel(step.type)}
-                  </span>
-                  <span className="truncate text-[11px] font-normal text-[#94a3b8]" title={groupLabel}>
-                    {groupLabel}
-                  </span>
-                </div>
+                <React.Fragment key={`header-${group.type}-${group.startIndex}`}>
+                  {/* Nivel 1: la etapa, una sola vez por más grupos que tenga */}
+                  <div
+                    className={cn(
+                      "sticky top-0 z-20 flex items-center border-l bg-[#f7f9fb] px-3",
+                      isGroupable
+                        ? "border-b border-b-[#eef2f7] border-l-[#e5eaf0]"
+                        : "border-b border-[#e5eaf0]",
+                    )}
+                    style={{
+                      gridColumn: `${group.startIndex + 2} / span ${group.steps.length}`,
+                      gridRow: isGroupable ? "1" : "1 / span 2",
+                      ...(isGroupable ? { height: HEADER_TYPE_ROW_HEIGHT } : {}),
+                    }}
+                  >
+                    <span
+                      className="truncate text-[12px] font-semibold text-[#334155]"
+                      title={typeLabel}
+                    >
+                      {typeLabel}
+                    </span>
+                  </div>
+
+                  {/* Nivel 2: un grupo por columna — solo en etapas agrupables */}
+                  {isGroupable &&
+                    group.steps.map((step, index) => {
+                      const groupName =
+                        step.name?.trim() || t("templates.sectionAccess.unassigned")
+                      return (
+                        <div
+                          key={`header-group-${step.id}`}
+                          className="sticky z-20 flex items-center border-b border-l border-[#e5eaf0] bg-[#f7f9fb] px-3 py-1.5"
+                          style={{
+                            gridColumn: group.startIndex + 2 + index,
+                            gridRow: "2",
+                            top: HEADER_TYPE_ROW_HEIGHT,
+                          }}
+                        >
+                          <span
+                            className="truncate text-[11px] font-normal text-[#94a3b8]"
+                            title={groupName}
+                          >
+                            {groupName}
+                          </span>
+                        </div>
+                      )
+                    })}
+                </React.Fragment>
               )
             })}
             {canCreateStep && (
-              <div className="sticky top-0 z-10 flex items-center border-b border-l border-[#e5eaf0] bg-[#f7f9fb] px-3 py-2.5">
+              <div
+                className="sticky top-0 z-20 flex items-center border-b border-l border-[#e5eaf0] bg-[#f7f9fb] px-3 py-2.5"
+                style={{ gridColumn: steps.length + 2, gridRow: "1 / span 2" }}
+              >
                 <Popover open={isAddingGroup} onOpenChange={setIsAddingGroup}>
                   <PopoverTrigger asChild>
                     <button
