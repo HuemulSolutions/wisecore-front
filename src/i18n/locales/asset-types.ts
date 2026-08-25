@@ -418,7 +418,6 @@ const translations = {
       wholeOrganization: { en: "Whole organization", es: "Toda la organización" },
       globalScope: { en: "Global scope", es: "Alcance global" },
       unassigned: { en: "Unassigned", es: "Sin asignar" },
-      groupPrefix: { en: "Group · {{name}}", es: "Grupo · {{name}}" },
       configureStep: { en: "Configure {{step}}", es: "Configurar {{step}}" },
       toggleRole: { en: "{{role}} in {{step}}", es: "{{role}} en {{step}}" },
       addRole: { en: "Add role", es: "Agregar rol" },

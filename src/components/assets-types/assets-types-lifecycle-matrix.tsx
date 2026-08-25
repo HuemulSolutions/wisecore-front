@@ -59,6 +59,12 @@ type MatrixRow =
 
 const ROLE_COLUMN_WIDTH = "232px"
 
+/**
+ * Alto de la fila de etapas del encabezado. La fila de grupos se pega justo
+ * debajo con este mismo offset, así ambas quedan sticky sin superponerse.
+ */
+const HEADER_TYPE_ROW_HEIGHT = 30
+
 /** Celda concedida: check blanco sobre círculo verde. */
 function CellCheck() {
   return (
@@ -217,6 +223,19 @@ export function AssetTypeLifecycleMatrix({
     })
     return activeStageType ? sorted.filter((s) => s.type === activeStageType) : sorted
   }, [allSteps, activeStageType])
+
+  // Grupos de columnas del encabezado: `visibleSteps` ya viene ordenado por
+  // tipo, así que basta agrupar los consecutivos. `startIndex` es el offset
+  // dentro de `visibleSteps` — se usa para posicionar las celdas en el grid.
+  const headerGroups = React.useMemo(() => {
+    const groups: { type: string; steps: LifecycleStep[]; startIndex: number }[] = []
+    visibleSteps.forEach((step, index) => {
+      const last = groups[groups.length - 1]
+      if (last && last.type === step.type) last.steps.push(step)
+      else groups.push({ type: step.type, steps: [step], startIndex: index })
+    })
+    return groups
+  }, [visibleSteps])
 
   // Candidatos a `source_step_id` de "jefe de paso anterior" por columna: mismo
   // criterio que el backend valida — pasos de un tipo anterior en el pipeline, o
@@ -710,41 +729,57 @@ export function AssetTypeLifecycleMatrix({
           </div>
         ) : (
           <div className="grid" style={{ gridTemplateColumns }}>
-            {/* Header */}
-            <div className="sticky top-0 left-0 z-20 border-b border-[#e5eaf0] bg-[#f7f9fb] px-3 py-2.5">
+            {/*
+              Header de dos niveles. Las celdas se posicionan explícitamente
+              (`gridColumn` + `gridRow`) porque las etapas sin grupos abarcan
+              ambas filas y el auto-placement dejaría de ser predecible.
+              La columna de rol es la 1, así que el step en índice `i` cae en
+              la columna `i + 2`. Las dos primeras filas quedan cubiertas por
+              completo, de modo que las filas de datos siguen desde la 3.
+            */}
+            <div
+              className="sticky top-0 left-0 z-30 flex items-center border-b border-[#e5eaf0] bg-[#f7f9fb] px-3 py-2.5"
+              style={{ gridColumn: 1, gridRow: "1 / span 2" }}
+            >
               <span className="text-[11px] font-semibold uppercase tracking-wide text-[#94a3b8]">
                 {t("lifecycle.matrix.roleColumn")}
               </span>
             </div>
-            {visibleSteps.map((step) => {
-              const isActiveStage = activeStageType === step.type
-              const groupLabel = isGroupableStepType(step.type)
-                ? t("lifecycle.matrix.groupPrefix", {
-                    name: step.name?.trim() || t("lifecycle.matrix.unassigned"),
-                  })
-                : t("lifecycle.matrix.unassigned")
+            {headerGroups.map((group) => {
+              const isActiveStage = activeStageType === group.type
+              const isGroupable = isGroupableStepType(group.type)
+              const typeLabel = stepTypeLabel(group.type)
               return (
-                <div
-                  key={`header-${step.id}`}
-                  className={cn(
-                    "sticky top-0 z-10 flex flex-col gap-0.5 border-b border-l border-[#e5eaf0] px-3 py-2.5",
-                    isActiveStage ? "bg-[#f2f6fe]" : "bg-[#f7f9fb]",
-                  )}
-                >
-                  <div className="flex items-center gap-1">
+                <React.Fragment key={`header-${group.type}-${group.startIndex}`}>
+                  {/* Nivel 1: la etapa, una sola vez por más grupos que tenga */}
+                  <div
+                    className={cn(
+                      "sticky top-0 z-20 flex items-center gap-1 border-l px-3",
+                      isGroupable
+                        ? "border-b border-b-[#eef2f7] border-l-[#e5eaf0]"
+                        : "border-b border-[#e5eaf0]",
+                      isActiveStage ? "bg-[#f2f6fe]" : "bg-[#f7f9fb]",
+                    )}
+                    style={{
+                      gridColumn: `${group.startIndex + 2} / span ${group.steps.length}`,
+                      gridRow: isGroupable ? "1" : "1 / span 2",
+                      ...(isGroupable ? { height: HEADER_TYPE_ROW_HEIGHT } : {}),
+                    }}
+                  >
                     <span
                       className={cn(
                         "truncate text-[12px] font-semibold",
                         isActiveStage ? "text-[#1d4ed8]" : "text-[#334155]",
                       )}
+                      title={typeLabel}
                     >
-                      {stepTypeLabel(step.type)}
+                      {typeLabel}
                     </span>
                     <button
                       type="button"
-                      onClick={() => onSelectStage(step.type)}
-                      title={t("lifecycle.matrix.configureStep", { step: stepTypeLabel(step.type) })}
-                      aria-label={t("lifecycle.matrix.configureStep", { step: stepTypeLabel(step.type) })}
+                      onClick={() => onSelectStage(group.type)}
+                      title={t("lifecycle.matrix.configureStep", { step: typeLabel })}
+                      aria-label={t("lifecycle.matrix.configureStep", { step: typeLabel })}
                       className={cn(
                         "inline-flex size-4 shrink-0 items-center justify-center rounded-lg transition-colors hover:cursor-pointer",
                         isActiveStage
@@ -755,13 +790,34 @@ export function AssetTypeLifecycleMatrix({
                       <Settings className="size-3" />
                     </button>
                   </div>
-                  <span
-                    className="truncate text-[11px] font-normal text-[#94a3b8]"
-                    title={groupLabel}
-                  >
-                    {groupLabel}
-                  </span>
-                </div>
+
+                  {/* Nivel 2: un grupo por columna — solo en etapas agrupables */}
+                  {isGroupable &&
+                    group.steps.map((step, index) => {
+                      const groupName = step.name?.trim() || t("lifecycle.matrix.unassigned")
+                      return (
+                        <div
+                          key={`header-group-${step.id}`}
+                          className={cn(
+                            "sticky z-20 flex items-center border-b border-l border-[#e5eaf0] px-3 py-1.5",
+                            isActiveStage ? "bg-[#f2f6fe]" : "bg-[#f7f9fb]",
+                          )}
+                          style={{
+                            gridColumn: group.startIndex + 2 + index,
+                            gridRow: "2",
+                            top: HEADER_TYPE_ROW_HEIGHT,
+                          }}
+                        >
+                          <span
+                            className="truncate text-[11px] font-normal text-[#94a3b8]"
+                            title={groupName}
+                          >
+                            {groupName}
+                          </span>
+                        </div>
+                      )
+                    })}
+                </React.Fragment>
               )
             })}
 
