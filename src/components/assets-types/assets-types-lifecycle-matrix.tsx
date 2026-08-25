@@ -4,7 +4,7 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
-import { Settings, RefreshCw, Plus, X, Check, Globe, User, Loader2 } from "lucide-react"
+import { Settings, RefreshCw, Plus, X, Check, Globe, User, Loader2, ChevronRight } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
@@ -183,6 +183,9 @@ export function AssetTypeLifecycleMatrix({
   const [isRefreshing, setIsRefreshing] = React.useState(false)
   // Popover abierto de "jefe de paso anterior": qué step está eligiendo su source step.
   const [rulePickerStepId, setRulePickerStepId] = React.useState<string | null>(null)
+  // Sección «Acceso automático por jerarquía»: arranca colapsada — son filas fijas
+  // que la mayoría de los tipos de activo no usa.
+  const [rulesExpanded, setRulesExpanded] = React.useState(false)
 
   const stepTypeLabel = (type: string) =>
     t(`lifecycle.stepTypes.${type}`, { defaultValue: type })
@@ -391,6 +394,14 @@ export function AssetTypeLifecycleMatrix({
     }
   }, [queryClient, documentTypeId, refetchRoles])
 
+  // Cuántos tipos de regla están activos en al menos un paso — alimenta el badge
+  // de la cabecera cuando la sección está colapsada, para que una regla vigente
+  // nunca quede escondida sin señal.
+  const activeRulesCount = React.useMemo(
+    () => new Set(allSteps.flatMap((s) => s.access_rules.map((r) => r.rule_type))).size,
+    [allSteps]
+  )
+
   const rows: MatrixRow[] = React.useMemo(
     () => [
       { kind: "all" },
@@ -399,9 +410,11 @@ export function AssetTypeLifecycleMatrix({
       ...listedRoles.map((role) => ({ kind: "role" as const, role })),
       { kind: "add" },
       { kind: "sectionRules" },
-      ...ACCESS_RULE_ROWS.map((ruleType) => ({ kind: "rule" as const, ruleType })),
+      ...(rulesExpanded
+        ? ACCESS_RULE_ROWS.map((ruleType) => ({ kind: "rule" as const, ruleType }))
+        : []),
     ],
-    [listedRoles]
+    [listedRoles, rulesExpanded]
   )
 
   const gridTemplateColumns = `${ROLE_COLUMN_WIDTH} repeat(${Math.max(visibleSteps.length, 1)}, minmax(112px, 1fr))`
@@ -790,20 +803,62 @@ export function AssetTypeLifecycleMatrix({
                 )
               }
 
-              if (row.kind === "sectionRoles" || row.kind === "sectionRules") {
-                const label =
-                  row.kind === "sectionRoles"
-                    ? t("lifecycle.matrix.sectionRoles")
-                    : t("lifecycle.matrix.sectionRules")
+              if (row.kind === "sectionRoles") {
                 return (
                   <div key={rowKey(row)} className="contents">
                     <div className="sticky left-0 z-10 flex min-w-0 items-center border-t border-b border-[#eef1f5] bg-[#f7f9fb] px-3 py-1.5">
                       <span className="text-[10.5px] font-semibold uppercase tracking-wide text-[#94a3b8]">
-                        {label}
+                        {t("lifecycle.matrix.sectionRoles")}
                       </span>
                     </div>
                     <div
                       className="border-t border-b border-[#eef1f5] bg-[#f7f9fb]"
+                      style={{ gridColumn: "2 / -1" }}
+                    />
+                  </div>
+                )
+              }
+
+              // Cabecera colapsable: el clic vive en toda la banda (columna sticky
+              // + resto de la grilla), pero solo la primera columna es focusable.
+              if (row.kind === "sectionRules") {
+                const label = t("lifecycle.matrix.sectionRules")
+                const toggle = () => setRulesExpanded((prev) => !prev)
+                return (
+                  <div key={rowKey(row)} className="group/section contents">
+                    <div className="sticky left-0 z-10 flex min-w-0 items-center border-t border-b border-[#eef1f5] bg-[#f7f9fb] group-hover/section:bg-[#eef2f7]">
+                      <button
+                        type="button"
+                        onClick={toggle}
+                        aria-expanded={rulesExpanded}
+                        aria-label={t(
+                          rulesExpanded
+                            ? "lifecycle.matrix.collapseSection"
+                            : "lifecycle.matrix.expandSection",
+                          { section: label },
+                        )}
+                        title={t("lifecycle.matrix.sectionRulesHint")}
+                        className="flex w-max items-center gap-1.5 px-3 py-1.5 text-left hover:cursor-pointer"
+                      >
+                        <ChevronRight
+                          className={cn(
+                            "size-3.5 shrink-0 text-[#94a3b8] transition-transform",
+                            rulesExpanded && "rotate-90",
+                          )}
+                        />
+                        <span className="whitespace-nowrap text-[10.5px] font-semibold uppercase tracking-wide text-[#94a3b8]">
+                          {label}
+                        </span>
+                        {!rulesExpanded && activeRulesCount > 0 && (
+                          <span className="inline-flex shrink-0 items-center rounded-full bg-[#eef2f7] px-1.5 text-[11px] font-semibold text-[#64748b]">
+                            {t("lifecycle.matrix.activeRulesCount", { count: activeRulesCount })}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                    <div
+                      onClick={toggle}
+                      className="border-t border-b border-[#eef1f5] bg-[#f7f9fb] hover:cursor-pointer group-hover/section:bg-[#eef2f7]"
                       style={{ gridColumn: "2 / -1" }}
                     />
                   </div>

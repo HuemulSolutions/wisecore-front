@@ -76,6 +76,18 @@ function SortableTemplateRow({
     disabled: !canManage,
   })
 
+  // Resumen de config. de workflow, ya disponible en el payload de la lista:
+  // evita tener que entrar a "Configurar" para ver estos tres campos.
+  const summaryParts = [
+    template.relation_name
+      ? t("templates.summary.displayName", { name: template.relation_name })
+      : null,
+    template.mostrar_en_workflow
+      ? t("templates.summary.visibleInWorkflows")
+      : t("templates.summary.notVisibleInWorkflows"),
+    template.require_name_on_express ? t("templates.summary.asksName") : null,
+  ].filter(Boolean)
+
   return (
     <div
       ref={setNodeRef}
@@ -94,9 +106,14 @@ function SortableTemplateRow({
         </button>
       )}
       <FileText className="size-4 shrink-0 text-[#6d5ae0]" />
-      <p className="flex-1 min-w-0 truncate text-[12.5px] font-medium text-[#334155]">
-        {template.template_name}
-      </p>
+      <div className="flex flex-1 min-w-0 flex-col gap-0.5">
+        <p className="truncate text-[12.5px] font-medium text-[#334155]">
+          {template.template_name}
+        </p>
+        {summaryParts.length > 0 && (
+          <p className="truncate text-[11px] text-[#94a3b8]">{summaryParts.join(" · ")}</p>
+        )}
+      </div>
       {isDirty && <PanelDirtyBadge label={t("lifecycle.editedBadge")} />}
       {canManage && (
         <>
