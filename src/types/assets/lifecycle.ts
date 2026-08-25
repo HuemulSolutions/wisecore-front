@@ -206,4 +206,12 @@ export interface LifecycleStepPanelProps {
   onClose: () => void
   onRegisterEditor?: (api: LifecycleEditorApi | null) => void
   organizationId?: string
+  /**
+   * Guarda los cambios acumulados de la etapa. Presente solo cuando el
+   * contenedor no tiene footer y el botón debe vivir en el header del panel.
+   */
+  onSave?: () => void | Promise<void>
+  /** Habilita el botón de guardar del header. */
+  isDirty?: boolean
+  isSaving?: boolean
 }

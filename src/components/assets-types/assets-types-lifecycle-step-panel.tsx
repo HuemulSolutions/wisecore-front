@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Plus, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { isGroupableStepType } from "@/lib/lifecycle-access"
 import { StepContent } from "./assets-types-lifecycle-dialog"
 import { PanelIconButton, PanelSectionLabel } from "./assets-types-lifecycle-ui"
@@ -28,6 +29,9 @@ export function LifecycleStepPanel({
   onClose,
   onRegisterEditor,
   organizationId,
+  onSave,
+  isDirty = false,
+  isSaving = false,
 }: LifecycleStepPanelProps) {
   const { t } = useTranslation(["asset-types", "common"])
   const { canUpdate } = useUserPermissions()
@@ -53,7 +57,21 @@ export function LifecycleStepPanel({
               : t("lifecycle.panel.stageDescriptionSimple", { action: stageAction })}
           </p>
         </div>
-        <PanelIconButton icon={X} label={t("common:close")} onClick={onClose} />
+        <div className="flex shrink-0 items-center gap-1.5">
+          {/* Cuando el contenedor no tiene footer, el guardado del batch de la
+              etapa vive acá: el header existe solo mientras la etapa está
+              abierta, que es cuando puede haber cambios pendientes. */}
+          {onSave && canManage && (
+            <HuemulButton
+              size="sm"
+              label={t("asset-types:lifecycle.saveChanges")}
+              loading={isSaving}
+              disabled={!isDirty}
+              onClick={() => onSave()}
+            />
+          )}
+          <PanelIconButton icon={X} label={t("common:close")} onClick={onClose} />
+        </div>
       </div>
 
       {/* Sección de grupos — solo etapas agrupables */}

@@ -6,6 +6,7 @@ import { Settings2, Loader2 } from "lucide-react"
 
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   useAssetTypeGeneralForm,
@@ -55,8 +56,8 @@ export function AssetTypeConfigSheet({
   }, [canUpdate, canViewTags, canManageTemplates, canManageLifecycle])
 
   const [activeTab, setActiveTab] = React.useState<AssetTypeConfigTab>(availableTabs[0] ?? "general")
-  // Estado de la etapa abierta en «Permisos por rol»: alimenta el footer
-  // (texto de cambios pendientes + botón «Guardar cambios») y el guard de descarte.
+  // Estado de la etapa abierta en «Permisos por rol»: alimenta el guard de
+  // descarte (cambio de tab / cierre del sheet).
   const [lifecycleState, setLifecycleState] = React.useState<{
     isDirty: boolean
     stageLabel: string
@@ -139,54 +140,6 @@ export function AssetTypeConfigSheet({
     [sheetGuardedAction, onOpenChange],
   )
 
-  const isGeneralTab = activeTab === "general"
-  const isLifecycleTab = activeTab === "lifecycle"
-  const isTemplatesTab = activeTab === "templates"
-
-  // Cada tab decide qué guarda el footer: General envía el formulario, «Permisos
-  // por rol» y «Plantillas» delegan en la API que publica su panel.
-  const saveAction = React.useMemo(() => {
-    if (isGeneralTab && canUpdate) {
-      return {
-        label: t("common:save"),
-        onClick: form.submit,
-        loading: form.isSaving,
-        disabled: !form.canSubmit,
-        closeOnSuccess: false,
-      }
-    }
-    if (isLifecycleTab && canManageLifecycle) {
-      return {
-        label: t("asset-types:lifecycle.saveChanges"),
-        onClick: () => lifecycleSaveApiRef.current?.save(),
-        disabled: !lifecycleState.isDirty,
-        closeOnSuccess: false,
-      }
-    }
-    if (isTemplatesTab && canManageTemplates) {
-      return {
-        label: t("asset-types:lifecycle.saveChanges"),
-        onClick: () => templatesSaveApiRef.current?.save(),
-        disabled: !templatesState.isDirty,
-        closeOnSuccess: false,
-      }
-    }
-    return undefined
-  }, [
-    isGeneralTab,
-    isLifecycleTab,
-    isTemplatesTab,
-    canUpdate,
-    canManageLifecycle,
-    canManageTemplates,
-    form.submit,
-    form.isSaving,
-    form.canSubmit,
-    lifecycleState.isDirty,
-    templatesState.isDirty,
-    t,
-  ])
-
   return (
     <>
       <HuemulAlertDialog
@@ -209,7 +162,7 @@ export function AssetTypeConfigSheet({
         iconVariant="tile"
         size="wide"
         bodyClassName="flex flex-col overflow-hidden py-0 [scrollbar-gutter:auto]"
-        cancelLabel={t("common:close")}
+        showFooter={false}
         onOpenAutoFocus={(e) => {
           // Radix enfoca el primer tab al montar y su focus-visible ring queda
           // dibujado como si el tab estuviera "en caja". Se mantiene el foco
@@ -217,20 +170,6 @@ export function AssetTypeConfigSheet({
           e.preventDefault()
           ;(e.currentTarget as HTMLElement | null)?.focus()
         }}
-        footerLeft={
-          isLifecycleTab && lifecycleState.isDirty ? (
-            <span className="text-[12px] text-[#64748b]">
-              {t("asset-types:lifecycle.unsavedInStage", {
-                stage: lifecycleState.stageLabel,
-              })}
-            </span>
-          ) : isTemplatesTab && templatesState.isDirty ? (
-            <span className="text-[12px] text-[#64748b]">
-              {t("asset-types:templates.unsavedChanges")}
-            </span>
-          ) : undefined
-        }
-        saveAction={saveAction}
       >
         {assetType && availableTabs.length > 0 && (
           <Tabs
@@ -291,6 +230,19 @@ export function AssetTypeConfigSheet({
                       />
                     </div>
                   )}
+                  {/* El sheet no tiene footer: el guardado del formulario vive
+                      aquí, junto a los campos que persiste. */}
+                  {canUpdate && !form.isLoadingData && (
+                    <div className="flex justify-end pt-1">
+                      <HuemulButton
+                        size="sm"
+                        label={t("common:save")}
+                        loading={form.isSaving}
+                        disabled={!form.canSubmit}
+                        onClick={() => form.submit()}
+                      />
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             )}
@@ -309,6 +261,7 @@ export function AssetTypeConfigSheet({
                   onDirtyChange={setLifecycleState}
                   saveApiRef={lifecycleSaveApiRef}
                   guardedAction={lifecycleGuardedAction}
+                  showSaveButton
                 />
               </TabsContent>
             )}

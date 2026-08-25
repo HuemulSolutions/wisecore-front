@@ -266,8 +266,9 @@ function TemplateDetailView({
 /**
  * Contenido de gestión de plantillas vinculadas a un tipo de activo. Se monta
  * como tab dentro del sheet de configuración (`AssetTypeConfigSheet`); los
- * cambios se acumulan en estado local y se persisten en batch con el footer
- * del sheet (ver `saveApiRef`), igual que el tab «Permisos por rol».
+ * cambios se acumulan en estado local y se persisten en batch con el botón
+ * «Guardar cambios» del propio panel. `saveApiRef` sigue publicándose para que
+ * el contenedor pueda llamar `discard()` desde el guard de cambios sin guardar.
  */
 export function AssetTypeTemplatesPanel({
   documentTypeId,
@@ -463,6 +464,21 @@ export function AssetTypeTemplatesPanel({
 
   return (
     <>
+      {/* El sheet contenedor no tiene footer: el guardado del batch vive acá,
+          fuera del switch lista/detalle, para estar visible tanto al reordenar
+          la lista como al editar la config. de workflow de una plantilla. */}
+      {canManage && (
+        <div className="flex justify-end pb-3">
+          <HuemulButton
+            size="sm"
+            label={t("asset-types:lifecycle.saveChanges")}
+            loading={isSaving}
+            disabled={!isDirty}
+            onClick={save}
+          />
+        </div>
+      )}
+
       {configuringTemplate ? (
         <TemplateDetailView
           template={configuringTemplate}

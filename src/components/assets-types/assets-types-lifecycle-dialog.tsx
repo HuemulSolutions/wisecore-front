@@ -229,6 +229,12 @@ interface AssetTypeLifecyclePanelProps {
   saveApiRef?: LifecycleSaveApiRef
   /** Envuelve las acciones que descartarían cambios sin guardar. */
   guardedAction: (action: () => void) => void
+  /**
+   * Monta el botón «Guardar cambios» en el header del panel de etapa. Solo para
+   * contenedores sin footer (`AssetTypeConfigSheet`); el sheet standalone de más
+   * abajo lo deja en `false` porque su footer ya trae el botón.
+   */
+  showSaveButton?: boolean
 }
 
 /**
@@ -243,8 +249,9 @@ interface AssetTypeLifecyclePanelProps {
  * reglas de acceso).
  *
  * Los controles del panel están siempre editables: los cambios se acumulan en
- * el contenido de la etapa y se persisten con «Guardar cambios» del footer del
- * sheet, vía la API publicada en `saveApiRef`.
+ * el contenido de la etapa y se persisten con «Guardar cambios», que vive en el
+ * header del panel de etapa (`showSaveButton`) o en el footer del sheet
+ * contenedor vía la API publicada en `saveApiRef`.
  */
 export function AssetTypeLifecyclePanel({
   documentTypeId,
@@ -253,6 +260,7 @@ export function AssetTypeLifecyclePanel({
   onDirtyChange,
   saveApiRef,
   guardedAction,
+  showSaveButton = false,
 }: AssetTypeLifecyclePanelProps) {
   const { t } = useTranslation("asset-types")
   const { data } = useAllLifecycleSteps(documentTypeId, enabled)
@@ -335,6 +343,9 @@ export function AssetTypeLifecyclePanel({
               onClose={handleClosePanel}
               onRegisterEditor={handleRegisterEditor}
               organizationId={organizationId}
+              onSave={showSaveButton ? save : undefined}
+              isDirty={isDirty}
+              isSaving={isSaving}
             />
           </ResizablePanel>
         </>
