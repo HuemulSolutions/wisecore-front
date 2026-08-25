@@ -4,7 +4,7 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Eye, Loader2, Minus, Pencil, Plus, RefreshCw, Shield, Trash2 } from "lucide-react"
+import { Ban, Eye, Loader2, Minus, Pencil, Plus, RefreshCw, Shield, Trash2 } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulMatrix } from "@/huemul/components/huemul-matrix"
@@ -32,15 +32,29 @@ import type { TemplateSectionAccess } from "@/types/templates/section-lifecycle-
 
 export type { TemplateSectionAccessMatrixProps } from "@/types/assets"
 
-/** Cómo se pinta cada uno de los tres estados de una celda. */
+/** Los dos sabores del "sin fila en el backend" — cuál aplica depende de la sección. */
+type CellEmptyState = "inherit" | "no-access"
+
+/**
+ * Cómo se pinta cada estado de una celda. Los dos primeros son el mismo "vacío"
+ * en el backend (sin fila), pero significan lo contrario según la sección: sin
+ * ninguna celda configurada la sección usa el permiso del documento completo
+ * (`inherit`); con al menos una configurada deja de usarlo en TODAS sus etapas y
+ * las vacías quedan sin acceso (`no-access`). Ver la guía de permisos de sección.
+ */
 const ACCESS_STYLE: Record<
-  "inherit" | TemplateSectionAccess,
+  CellEmptyState | TemplateSectionAccess,
   { icon: typeof Eye; box: string; glyph: string }
 > = {
   inherit: {
     icon: Minus,
     box: "border border-dashed border-[#cbd5e1] bg-white",
     glyph: "text-[#cbd5e1]",
+  },
+  "no-access": {
+    icon: Ban,
+    box: "border border-[#e2e8f0] bg-[#f1f5f9]",
+    glyph: "text-[#64748b]",
   },
   view: {
     icon: Eye,
@@ -59,7 +73,7 @@ function AccessGlyph({
   access,
   className,
 }: {
-  access: "inherit" | TemplateSectionAccess
+  access: CellEmptyState | TemplateSectionAccess
   className?: string
 }) {
   const style = ACCESS_STYLE[access]
@@ -76,6 +90,18 @@ function AccessGlyph({
     </span>
   )
 }
+
+/**
+ * Leyenda de la matriz: cuatro entradas, no tres. Los dos estados vacíos se
+ * muestran siempre aunque una fila puntual solo pueda estar en uno de los dos —
+ * es lo que explica por qué dos celdas vacías no significan lo mismo.
+ */
+const LEGEND: { key: CellEmptyState | TemplateSectionAccess; label: string; hint?: string }[] = [
+  { key: "inherit", label: "legendNoRule", hint: "legendNoRuleHint" },
+  { key: "no-access", label: "legendNoAccess", hint: "legendNoAccessHint" },
+  { key: "view", label: "legendView" },
+  { key: "edit", label: "legendEdit" },
+]
 
 const ROLE_ACCESS_OPTIONS = [
   { value: null, key: "inherit" as const, label: "roleSameAsGlobal" },
@@ -339,17 +365,28 @@ export function TemplateSectionAccessMatrix({
     }
   }
 
+  /**
+   * Una sección con al menos una fila configurada (global o por rol, en
+   * cualquier step) deja de usar el permiso del documento en TODAS sus celdas —
+   * incluidas las que se ven vacías. Ver "ia context/permisos-seccion-lifecycle-guide.md".
+   * Lo consumen el badge de la fila y el estado vacío de cada celda.
+   */
+  const sectionHasOwnRules = React.useCallback(
+    (sectionId: string) => {
+      if (!accessEnabled) return false
+      const accessByStep = accessBySection.get(sectionId)
+      const roleAccessByStep = roleAccessBySection.get(sectionId)
+      return (
+        (accessByStep?.size ?? 0) > 0 ||
+        [...(roleAccessByStep?.values() ?? [])].some((byRole) => byRole.size > 0)
+      )
+    },
+    [accessEnabled, accessBySection, roleAccessBySection],
+  )
+
   /** Primera columna: nombre de la sección + badge «reglas propias». */
   const renderSectionRowHeader = (section: MatrixSection) => {
-    const accessByStep = accessBySection.get(section.id)
-    const roleAccessByStep = roleAccessBySection.get(section.id)
-    // Una sección con al menos una fila configurada (global o por rol, en
-    // cualquier step) deja de heredar del documento en TODAS sus celdas —
-    // incluidas las que se ven vacías. Ver "ia context/permisos-seccion-lifecycle-guide.md".
-    const hasOwnRules =
-      accessEnabled &&
-      (((accessByStep?.size ?? 0) > 0) ||
-        [...(roleAccessByStep?.values() ?? [])].some((byRole) => byRole.size > 0))
+    const hasOwnRules = sectionHasOwnRules(section.id)
     return (
       <>
         <span className="truncate text-[13px] font-medium text-[#0f172a]" title={section.name}>
@@ -377,6 +414,13 @@ export function TemplateSectionAccessMatrix({
       section: section.name,
       step: step.name?.trim() || stepTypeLabel(step.type),
     })
+
+    // Sin fila el backend no distingue nada, pero para el usuario son dos cosas
+    // opuestas: "usa el permiso del documento" vs "acá no entra nadie".
+    const hasOwnRules = sectionHasOwnRules(section.id)
+    const emptyKey: CellEmptyState = hasOwnRules ? "no-access" : "inherit"
+    const emptyLabel = hasOwnRules ? "legendNoAccess" : "legendNoRule"
+    const emptyHint = hasOwnRules ? "legendNoAccessHint" : "legendNoRuleHint"
 
     const roleOverrides = roleAccessBySection.get(section.id)?.get(step.id)
     const validRoleIds = rolesOfStep(step.id)
@@ -406,7 +450,7 @@ export function TemplateSectionAccessMatrix({
             {pending ? (
               <Loader2 className="size-3.5 animate-spin text-[#94a3b8]" />
             ) : (
-              <AccessGlyph access={current ?? "inherit"} />
+              <AccessGlyph access={current ?? emptyKey} />
             )}
             {overrideCount > 0 && (
               <span className="absolute -right-0.5 -top-0.5 inline-flex size-[15px] items-center justify-center rounded-full border border-white bg-[#6d5ae0] text-[9px] font-semibold leading-none text-white">
@@ -425,16 +469,22 @@ export function TemplateSectionAccessMatrix({
               <div className="flex flex-col">
                 {(
                   [
-                    { value: null, key: "inherit", label: "legendInherit" },
+                    { value: null, key: emptyKey, label: emptyLabel, hint: emptyHint },
                     { value: "view", key: "view", label: "legendView" },
                     { value: "edit", key: "edit", label: "legendEdit" },
-                  ] as const
+                  ] as {
+                    value: TemplateSectionAccess | null
+                    key: CellEmptyState | TemplateSectionAccess
+                    label: string
+                    hint?: string
+                  }[]
                 ).map((option) => {
                   const isActive = (current ?? null) === option.value
                   return (
                     <button
                       key={option.key}
                       type="button"
+                      title={option.hint ? t(`templates.sectionAccess.${option.hint}`) : undefined}
                       onClick={() => {
                         setOpenCell(null)
                         handleSetAccess(section.id, step.id, option.value)
@@ -557,17 +607,15 @@ export function TemplateSectionAccessMatrix({
         <div className="flex min-w-0 flex-col gap-2">
           <p className="text-[12px] text-[#64748b]">{t("templates.sectionAccess.hint")}</p>
           <div className="flex flex-wrap items-center gap-3">
-            {(["inherit", "view", "edit"] as const).map((access) => (
-              <span key={access} className="inline-flex items-center gap-1.5">
-                <AccessGlyph access={access} />
+            {LEGEND.map((entry) => (
+              <span
+                key={entry.key}
+                className="inline-flex items-center gap-1.5"
+                title={entry.hint ? t(`templates.sectionAccess.${entry.hint}`) : undefined}
+              >
+                <AccessGlyph access={entry.key} />
                 <span className="text-[12px] text-[#475569]">
-                  {t(
-                    access === "inherit"
-                      ? "templates.sectionAccess.legendInherit"
-                      : access === "view"
-                        ? "templates.sectionAccess.legendView"
-                        : "templates.sectionAccess.legendEdit",
-                  )}
+                  {t(`templates.sectionAccess.${entry.label}`)}
                 </span>
               </span>
             ))}
