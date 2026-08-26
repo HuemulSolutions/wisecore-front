@@ -261,14 +261,20 @@ export function RemovableChip({
   onRemove,
   disabled,
   removeLabel,
+  title,
 }: {
   label: string
   onRemove?: () => void
   disabled?: boolean
   removeLabel?: string
+  /** Tooltip del chip completo — p. ej. para explicar un chip heredado sin `onRemove`. */
+  title?: string
 }) {
   return (
-    <span className="inline-flex max-w-full items-center gap-1 rounded-[6px] border border-[#e3e9f0] bg-[#f6f8fb] py-1 pl-2 pr-1 text-[12px] text-[#334155]">
+    <span
+      title={title}
+      className="inline-flex max-w-full items-center gap-1 rounded-[6px] border border-[#e3e9f0] bg-[#f6f8fb] py-1 pl-2 pr-1 text-[12px] text-[#334155]"
+    >
       <span className="truncate">{label}</span>
       {onRemove && (
         <button
@@ -384,10 +390,9 @@ export function PanelInfoHint({
 /**
  * Editor de `access_rules` (creador / jefe del creador / jefe del propietario /
  * jefe de quien completó un step anterior). Compartido por `EditStepCard`
- * (Elaboración/Revisión/Aprobación) y `CreateStepContent` (Creador/Publicación/
- * Archivado/Lector) — antes solo vivía inline en `EditStepCard`, dejando a los
- * steps sin grupos sin forma de configurar estas reglas desde la UI aunque el
- * backend las soporta.
+ * (Elaboración/Revisión/Aprobación) y `CreateStepContent` (Lectura) — antes
+ * solo vivía inline en `EditStepCard`, dejando a los steps sin grupos sin forma
+ * de configurar estas reglas desde la UI aunque el backend las soporta.
  */
 export function AccessRulesEditor({
   accessRules,

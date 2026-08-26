@@ -33,10 +33,7 @@ import {
   PanelSectionLabel,
   SettingToggleRow,
 } from "@/components/assets-types/assets-types-lifecycle-ui"
-import {
-  TemplateSectionAccessMatrix,
-  TemplateSectionAccessToggle,
-} from "@/components/assets-types/assets-types-template-sections-matrix"
+import { TemplateSectionAccessMatrix } from "@/components/assets-types/assets-types-template-sections-matrix"
 import { TemplateSectionConditions } from "@/components/assets-types/assets-types-template-section-conditions"
 import { assetTypeQueryKeys, useDocumentTypeTemplates, useAssetTypeMutations } from "@/hooks/useAssetTypes"
 import { updateDocumentTypeTemplate } from "@/services/asset-types"
@@ -229,7 +226,6 @@ function TemplateDetailView({
           documento-tipo ↔ plantilla que guarda el footer, así que persiste al instante. */}
       <PanelCollapsibleCard
         title={t("templates.sectionAccess.title")}
-        headerRight={<TemplateSectionAccessToggle templateId={template.template_id} />}
         open={sectionAccessOpen}
         onOpenChange={setSectionAccessOpen}
       >

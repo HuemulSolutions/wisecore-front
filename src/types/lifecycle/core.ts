@@ -64,6 +64,18 @@ export interface LifecycleAccessRuleResponse {
  */
 export type LifecycleAccessType = 'all' | 'owner' | 'custom' | 'custom_owner';
 
+/**
+ * Rol con `view` real por herencia de otro step (`edit`/`review`/`approve`),
+ * sin fila propia en el step `view`. Solo llega dentro de `LifecycleStep.inherited_roles`
+ * del step de tipo `view`. Ver "ia context/permisos-seccion-lifecycle-guide.md".
+ */
+export interface LifecycleInheritedRole {
+  role_id: string;
+  source_step_id: string;
+  source_step_type: string;
+  source_step_name: string | null;
+}
+
 export interface LifecycleStep {
   id: string;
   document_type_id: string;
@@ -78,6 +90,18 @@ export interface LifecycleStep {
   sla_unit: string | null;
   step_roles: LifecycleStepRole[];
   access_rules: LifecycleAccessRule[];
+  /**
+   * Roles con `view` real por tener acceso a `edit`/`review`/`approve`, sin fila
+   * propia en `step_roles` de este step. Vacío/ausente en steps que no son `view`.
+   */
+  inherited_roles?: LifecycleInheritedRole[];
+  /**
+   * `true` si algún step `edit`/`review`/`approve` tiene `access_type: "all"` —
+   * en ese caso `view` queda heredado para TODOS los roles de la organización
+   * (el backend no tiene el catálogo completo para enumerarlos uno por uno).
+   * Ausente/`false` en steps que no son `view`.
+   */
+  view_inherited_for_all_roles?: boolean;
 }
 
 export interface LifecycleStepsResponse {

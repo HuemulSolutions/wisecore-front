@@ -1,6 +1,24 @@
 export type ExecutionStatus = 'completed' | 'failed' | 'running' | 'pending' | 'queued'
 export type ExecutionLifecycleState = 'draft' | 'in_review' | 'in_approval' | 'approved' | 'published' | 'archived' | 'finalized'
 
+/**
+ * Sección tal como llega en `sections[]` de `GET /execution/{id}` — ya filtrada
+ * por `view` para el usuario actual (las secciones sin acceso simplemente no
+ * aparecen, sin huecos en la numeración). Ver
+ * "ia context/permisos-seccion-lifecycle-guide.md".
+ */
+export interface ExecutionSection {
+  id: string
+  template_section_id: string
+  section_execution_id: string
+  name: string
+  prompt: string
+  output: string
+  is_orphaned: boolean
+  /** Ausente/`null` si el permiso por sección no aplica — depende solo del permiso de documento completo. */
+  can_edit?: boolean | null
+}
+
 export interface Execution {
   id: string
   name: string
@@ -38,6 +56,8 @@ export interface Execution {
   summary_status: 'pending' | 'completed' | 'failed' | null
   summary: string | null
   summary_error: string | null
+  /** Solo presente en la respuesta de `GET /execution/{id}` (detalle completo). */
+  sections?: ExecutionSection[]
 }
 
 export interface ExecutionsResponse {

@@ -1,4 +1,4 @@
-import type { LifecycleAccessType, LifecycleStep } from "@/types/lifecycle"
+import type { LifecycleAccessType, LifecycleInheritedRole, LifecycleStep } from "@/types/lifecycle"
 import type { FinalLifecycleStage } from "@/types/document-types"
 
 /**
@@ -74,6 +74,62 @@ export function getRequiredStepTypes(finalStage: FinalLifecycleStage): ReadonlyS
 export function pipelineSortIndex(type: string): number {
   const idx = pipelineIndex(type)
   return idx === -1 ? LIFECYCLE_PIPELINE_ORDER.length : idx
+}
+
+/**
+ * Tipos configurables en las dos pantallas de permisos («Permisos por rol» y la
+ * matriz de plantilla). `create`/`publish`/`archive` siguen existiendo en el
+ * ciclo de vida del `document_type` —y en `LIFECYCLE_PIPELINE_ORDER`— pero el
+ * backend ya no los devuelve en `GET /lifecycle/document-types/{id}/steps` ni en
+ * `GET /templates/{id}/lifecycle_access_matrix`: son transiciones automáticas o
+ * ligadas al creador del documento, no tiene sentido asignarles roles ahí.
+ */
+export const LIFECYCLE_PERMISSION_STEP_TYPES: ReadonlySet<string> = new Set([
+  "view",
+  "edit",
+  "review",
+  "approve",
+])
+
+export function isPermissionStepType(type: string): boolean {
+  return LIFECYCLE_PERMISSION_STEP_TYPES.has(type)
+}
+
+// ─── Herencia de `view` ──────────────────────────────────────────────────────
+
+/**
+ * Steps desde los que puede heredarse `view` real. `create`/`publish`/`archive`
+ * NO cuentan como fuente — el backend solo propaga desde estos tres.
+ */
+export const VIEW_INHERITANCE_SOURCE_TYPES: ReadonlySet<string> = new Set([
+  "edit",
+  "review",
+  "approve",
+])
+
+/**
+ * Entrada de herencia de un rol puntual en el step `view`, o `null` si ese rol
+ * no hereda (puede seguir viendo el documento por `view_inherited_for_all_roles`,
+ * que no tiene entrada por rol — usar `isViewInheritedForRole` para el booleano).
+ */
+export function inheritedViewSource(
+  step: Pick<LifecycleStep, "inherited_roles">,
+  roleId: string,
+): LifecycleInheritedRole | null {
+  return step.inherited_roles?.find((r) => r.role_id === roleId) ?? null
+}
+
+/**
+ * `true` si este rol ya tiene `view` real sin necesidad de una fila propia en el
+ * step `view` — por `view_inherited_for_all_roles` (algún step `edit`/`review`/
+ * `approve` con `access_type: "all"`) o por estar en `inherited_roles`. La celda
+ * correspondiente debe pintarse marcada y bloqueada: desmarcarla no revoca nada.
+ */
+export function isViewInheritedForRole(
+  step: Pick<LifecycleStep, "inherited_roles" | "view_inherited_for_all_roles">,
+  roleId: string,
+): boolean {
+  return step.view_inherited_for_all_roles === true || inheritedViewSource(step, roleId) !== null
 }
 
 // ─── Stepper de fases (progreso visual) ──────────────────────────────────────

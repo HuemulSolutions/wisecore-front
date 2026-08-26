@@ -1231,7 +1231,11 @@ export function AssetContent({
     );
     if (!pendingExecution) return false;
     // Check if any section has generated content (output)
-    return !pendingExecution.sections?.some((section: any) => 
+    // `pendingExecution.sections` viene embebido acá (no de `GET /execution/{id}`,
+    // que sí filtra por `view` — ver "ia context/permisos-seccion-lifecycle-guide.md" §5).
+    // Si esta lista empezara a filtrarse también, un usuario sin acceso a todas
+    // las secciones podría dar un falso negativo — no confirmado hoy.
+    return !pendingExecution.sections?.some((section: any) =>
       section.output && section.output.trim().length > 0
     );
   }, [documentContent?.executions, documentExecutions]);

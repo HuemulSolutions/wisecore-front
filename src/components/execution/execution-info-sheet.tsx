@@ -16,7 +16,7 @@ import SectionExecution from "@/components/sections/sections_execution";
 import { TableOfContents } from "@/components/assets/content/assets-table-of-contents";
 import { ChatbotContextSync } from "@/components/chatbot/chatbot-context-sync";
 import { useOrganization } from "@/contexts/organization-context";
-import type { ExecutionInfoSheetProps } from "@/types/execution";
+import type { ExecutionInfoSheetProps, ExecutionSection } from "@/types/execution";
 
 export type { ExecutionInfoSheetProps } from "@/types/execution";
 
@@ -28,7 +28,7 @@ export function ExecutionInfoSheet({
 }: ExecutionInfoSheetProps) {
   const { selectedOrganizationId } = useOrganization();
   const [isGenerating] = useState(false);
-  const [editableSections, setEditableSections] = useState<any[]>([]);
+  const [editableSections, setEditableSections] = useState<ExecutionSection[]>([]);
 
   const { data: execution, isLoading, error, refetch } = useQuery({
     queryKey: ["execution", executionId],
@@ -172,13 +172,16 @@ export function ExecutionInfoSheet({
                   {editableSections && editableSections.length > 0 && (
                     <div className="space-y-3">
                       <h3 className="text-lg font-semibold text-gray-900 px-1">Sections</h3>
-                      {editableSections.map((section: any) => (
+                      {editableSections.map((section: ExecutionSection) => (
                         <Card key={section.id || section.section_execution_id} className="border-l-4 border-l-gray-300">
                           <div id={section.id || section.section_execution_id}>
                             <SectionExecution
                               sectionExecution={section}
                               onUpdate={refetch}
-                              readyToEdit={execution.status === "completed" && !isGenerating}
+                              // El backend ya omite las secciones sin `view` — acá solo
+                              // falta respetar `can_edit: false` de las que sí llegan
+                              // (ver "ia context/permisos-seccion-lifecycle-guide.md").
+                              readyToEdit={execution.status === "completed" && !isGenerating && section.can_edit !== false}
                             />
                           </div>
                         </Card>

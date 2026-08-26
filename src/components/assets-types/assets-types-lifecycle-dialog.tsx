@@ -191,6 +191,12 @@ export function StepContent({
     )
   }
 
+  // `view` (y `read`, alias legado) son las únicas etapas sin grupo que quedan
+  // configurables acá — create/publish/archive salieron de esta pantalla: son
+  // transiciones automáticas o ligadas al creador del documento, ya no se
+  // asignan roles desde "permisos por rol" ni desde la matriz de plantillas (el
+  // backend ni siquiera las devuelve más en este endpoint).
+  //
   // Other step types don't have their own scroll container — wrap them so they scroll
   // within the fixed-height panel instead of relying on the sheet itself to scroll.
   // Mismo patrón que `EditStepContent` (assets-types-lifecycle-edit-step.tsx:844-847):
@@ -201,17 +207,12 @@ export function StepContent({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <ScrollArea className="min-h-0 flex-1" viewportClassName="pr-1">
-        {stepType === "create" || stepType === "view" || stepType === "publish" || stepType === "archive" || stepType === "read" ? (
+        {stepType === "view" || stepType === "read" ? (
           <CreateStepContent
             documentTypeId={documentTypeId}
             stepType={stepType}
             stepLabel={stepLabel}
-            hasSla={stepType === "publish" || stepType === "archive"}
-            hasValidity={stepType === "create"}
-            noOwner={stepType === "create"}
-            useAllOrCustomOwner={stepType === "publish" || stepType === "archive" || stepType === "read" || stepType === "view"}
             onRegisterEditor={onRegisterEditor}
-            organizationId={organizationId}
           />
         ) : (
           <DefaultStepContent
