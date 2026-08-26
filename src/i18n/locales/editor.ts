@@ -269,6 +269,24 @@ const translations = {
     snapshotFailed_one: { en: "Couldn't generate the snapshot for {{count}} diagram. It will be missing from Word/Markdown exports.", es: "No se pudo generar la instantánea de {{count}} diagrama. Faltará en las exportaciones a Word/Markdown." },
     snapshotFailed_other: { en: "Couldn't generate the snapshot for {{count}} diagrams. They will be missing from Word/Markdown exports.", es: "No se pudo generar la instantánea de {{count}} diagramas. Faltarán en las exportaciones a Word/Markdown." },
     snapshotFailed: { en: "Couldn't generate the snapshot for {{count}} diagrams. They will be missing from Word/Markdown exports.", es: "No se pudo generar la instantánea de {{count}} diagramas. Faltarán en las exportaciones a Word/Markdown." },
+    viewMode: {
+      code: { en: "Code", es: "Código" },
+      view: { en: "View", es: "Vista" },
+    },
+  },
+  nodeAlign: {
+    left: { en: "Align left", es: "Alinear a la izquierda" },
+    center: { en: "Align center", es: "Centrar" },
+    right: { en: "Align right", es: "Alinear a la derecha" },
+  },
+  nodeSize: {
+    label: { en: "Size", es: "Tamaño" },
+    original: { en: "Original size", es: "Tamaño original" },
+  },
+  fullscreen: {
+    open: { en: "View fullscreen", es: "Ver en pantalla completa" },
+    title: { en: "Diagram preview", es: "Vista previa del diagrama" },
+    description: { en: "Enlarged view of the diagram", es: "Vista ampliada del diagrama" },
   },
 }
 

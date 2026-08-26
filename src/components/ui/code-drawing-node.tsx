@@ -17,6 +17,7 @@ import {
   downloadImage,
   DOWNLOAD_FILENAME,
 } from '@platejs/code-drawing';
+import { ResizableProvider } from '@platejs/resizable';
 import type { PlateElementProps } from 'platejs/react';
 import {
   PlateElement,
@@ -26,9 +27,11 @@ import {
   useFocusedLast,
   useReadOnly,
   useSelected,
+  withHOC,
 } from 'platejs/react';
 import debounce from 'lodash/debounce.js';
-import { Trash2, DownloadIcon, GripHorizontal } from 'lucide-react';
+import { Trash2, DownloadIcon, Expand, GripHorizontal } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -37,6 +40,7 @@ import {
   PopoverAnchor,
   PopoverContent,
 } from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -44,8 +48,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { resolveResizableAlign } from '@/lib/plate-node-align-utils';
 
-function useCodeDrawingElement({ element }: { element: TCodeDrawingElement }) {
+import { DiagramFullscreenDialog } from './diagram-fullscreen-dialog';
+import { NodeAlignButtons } from './node-align-buttons';
+import { NodeSizeMenu } from './node-size-menu';
+import {
+  mediaResizeHandleVariants,
+  Resizable,
+  ResizeHandle,
+} from './resize-handle';
+
+/**
+ * `TCodeDrawingElement` (from @platejs/code-drawing) only declares `data`. Width,
+ * alignment and the resize handle's height all live on the node too – width/align
+ * with the same convention the `img`/mermaid nodes use, height as extra `data`.
+ */
+interface WisecoreCodeDrawingElement extends TCodeDrawingElement {
+  width?: string | number;
+  align?: 'left' | 'center' | 'right';
+  data?: TCodeDrawingElement['data'] & { height?: number };
+}
+
+function useCodeDrawingElement({ element }: { element: WisecoreCodeDrawingElement }) {
   const editor = useEditorRef();
   const readOnly = useReadOnly();
   const [loading, setLoading] = React.useState(false);
@@ -124,165 +149,198 @@ function useCodeDrawingElement({ element }: { element: TCodeDrawingElement }) {
   };
 }
 
-export function CodeDrawingElement(
-  props: PlateElementProps<TCodeDrawingElement>
-) {
-  const isMobile = useIsMobile();
-  const editor = useEditorRef();
-  const readOnly = useReadOnly();
-  const selected = useSelected();
-  const isFocusedLast = useFocusedLast();
-  const element = useElement<TCodeDrawingElement>();
-  const { removeNode, image, loading } = useCodeDrawingElement({ element });
+export const CodeDrawingElement = withHOC(
+  ResizableProvider,
+  function CodeDrawingElement(props: PlateElementProps<TCodeDrawingElement>) {
+    const isMobile = useIsMobile();
+    const editor = useEditorRef();
+    const readOnly = useReadOnly();
+    const selected = useSelected();
+    const isFocusedLast = useFocusedLast();
+    const element = useElement<WisecoreCodeDrawingElement>();
+    const { t } = useTranslation('editor');
+    const { removeNode, image, loading } = useCodeDrawingElement({ element });
+    const align = resolveResizableAlign(element.align);
+    const [fullscreenOpen, setFullscreenOpen] = React.useState(false);
 
-  const handleDownload = React.useCallback(() => {
-    if (!image) return;
-    downloadImage(image, DOWNLOAD_FILENAME);
-  }, [image]);
+    const handleDownload = React.useCallback(() => {
+      if (!image) return;
+      downloadImage(image, DOWNLOAD_FILENAME);
+    }, [image]);
 
-  const handleCodeChange = React.useCallback(
-    (code: string) => {
-      const path = editor.api.findPath(element);
-      if (path) {
-        editor.tf.setNodes(
-          {
-            data: {
-              ...element.data,
-              code,
+    const handleCodeChange = React.useCallback(
+      (code: string) => {
+        const path = editor.api.findPath(element);
+        if (path) {
+          editor.tf.setNodes(
+            {
+              data: {
+                ...element.data,
+                code,
+              },
             },
-          },
-          { at: path }
-        );
-      }
-    },
-    [editor, element]
-  );
+            { at: path }
+          );
+        }
+      },
+      [editor, element]
+    );
 
-  const handleDrawingTypeChange = React.useCallback(
-    (drawingType: CodeDrawingType) => {
-      const path = editor.api.findPath(element);
-      if (path) {
-        editor.tf.setNodes(
-          {
-            data: {
-              ...element.data,
-              drawingType,
+    const handleDrawingTypeChange = React.useCallback(
+      (drawingType: CodeDrawingType) => {
+        const path = editor.api.findPath(element);
+        if (path) {
+          editor.tf.setNodes(
+            {
+              data: {
+                ...element.data,
+                drawingType,
+              },
             },
-          },
-          { at: path }
-        );
-      }
-    },
-    [editor, element]
-  );
+            { at: path }
+          );
+        }
+      },
+      [editor, element]
+    );
 
-  const handleDrawingModeChange = React.useCallback(
-    (drawingMode: ViewMode) => {
-      const path = editor.api.findPath(element);
-      if (path) {
-        editor.tf.setNodes(
-          {
-            data: {
-              ...element.data,
-              drawingMode,
+    const handleDrawingModeChange = React.useCallback(
+      (drawingMode: ViewMode) => {
+        const path = editor.api.findPath(element);
+        if (path) {
+          editor.tf.setNodes(
+            {
+              data: {
+                ...element.data,
+                drawingMode,
+              },
             },
-          },
-          { at: path }
-        );
-      }
-    },
-    [editor, element]
-  );
+            { at: path }
+          );
+        }
+      },
+      [editor, element]
+    );
 
-  const handleHeightChange = React.useCallback(
-    (height: number) => {
-      const path = editor.api.findPath(element);
-      if (path) {
-        editor.tf.setNodes(
-          {
-            data: {
-              ...element.data,
-              height,
+    const handleHeightChange = React.useCallback(
+      (height: number) => {
+        const path = editor.api.findPath(element);
+        if (path) {
+          editor.tf.setNodes(
+            {
+              data: {
+                ...element.data,
+                height,
+              },
             },
-          },
-          { at: path }
-        );
-      }
-    },
-    [editor, element]
-  );
+            { at: path }
+          );
+        }
+      },
+      [editor, element]
+    );
 
-  const code = element.data?.code ?? '';
-  const drawingType = element.data?.drawingType ?? 'Mermaid';
-  const drawingMode = element.data?.drawingMode ?? 'Both';
-  const height = (element.data as any)?.height as number | undefined;
+    const code = element.data?.code ?? '';
+    const drawingType = element.data?.drawingType ?? 'Mermaid';
+    const drawingMode = element.data?.drawingMode ?? 'Both';
+    const height = element.data?.height;
 
-  const selectionCollapsed = useEditorSelector(
-    (editor) => !editor.api.isExpanded(),
-    []
-  );
+    const selectionCollapsed = useEditorSelector(
+      (editor) => !editor.api.isExpanded(),
+      []
+    );
 
-  const open = isFocusedLast && !readOnly && selected && selectionCollapsed;
+    const open = isFocusedLast && !readOnly && selected && selectionCollapsed;
 
-  const content = (
-    <PlateElement {...props}>
-      <div contentEditable={false}>
-        <CodeDrawingPreview
-          code={code}
-          drawingType={drawingType}
-          drawingMode={drawingMode}
-          image={image}
-          loading={loading}
-          height={height}
-          onCodeChange={handleCodeChange}
-          onDrawingTypeChange={handleDrawingTypeChange}
-          onDrawingModeChange={handleDrawingModeChange}
-          onHeightChange={handleHeightChange}
-          readOnly={readOnly}
-          isMobile={isMobile}
-        />
-      </div>
-    </PlateElement>
-  );
+    const content = (
+      <PlateElement {...props}>
+        <div contentEditable={false}>
+          <Resizable align={align} options={{ align, readOnly, minWidth: 240 }}>
+            <ResizeHandle
+              className={mediaResizeHandleVariants({ direction: 'left' })}
+              options={{ direction: 'left' }}
+            />
+            <CodeDrawingPreview
+              code={code}
+              drawingType={drawingType}
+              drawingMode={drawingMode}
+              image={image}
+              loading={loading}
+              height={height}
+              onCodeChange={handleCodeChange}
+              onDrawingTypeChange={handleDrawingTypeChange}
+              onDrawingModeChange={handleDrawingModeChange}
+              onHeightChange={handleHeightChange}
+              readOnly={readOnly}
+              isMobile={isMobile}
+            />
+            <ResizeHandle
+              className={mediaResizeHandleVariants({ direction: 'right' })}
+              options={{ direction: 'right' }}
+            />
+          </Resizable>
 
-  if (readOnly) {
-    return content;
-  }
+          <DiagramFullscreenDialog
+            open={fullscreenOpen}
+            onOpenChange={setFullscreenOpen}
+            imageSrc={image || undefined}
+          />
+        </div>
+      </PlateElement>
+    );
 
-  return (
-    <Popover open={open} modal={false}>
-      <PopoverAnchor asChild>{content}</PopoverAnchor>
-      <PopoverContent
-        className="w-auto p-1"
-        contentEditable={false}
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
-        <div className="flex items-center gap-1">
-          {image && (
+    if (readOnly) {
+      return content;
+    }
+
+    return (
+      <Popover open={open} modal={false}>
+        <PopoverAnchor asChild>{content}</PopoverAnchor>
+        <PopoverContent
+          className="w-auto p-1"
+          contentEditable={false}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <div className="flex items-center gap-1">
+            <NodeAlignButtons element={element} />
+            <NodeSizeMenu element={element} />
             <Button
               size="icon"
               variant="ghost"
               className="size-8 hover:cursor-pointer"
-              onClick={handleDownload}
-              title="Export"
+              onClick={() => setFullscreenOpen(true)}
+              title={t('fullscreen.open')}
+              disabled={!image}
             >
-              <DownloadIcon className="size-4" />
+              <Expand className="size-4" />
             </Button>
-          )}
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-8 hover:cursor-pointer"
-            onClick={removeNode}
-            title="Delete"
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
+            <Separator orientation="vertical" className="mx-1 h-6" />
+            {image && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-8 hover:cursor-pointer"
+                onClick={handleDownload}
+                title="Export"
+              >
+                <DownloadIcon className="size-4" />
+              </Button>
+            )}
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-8 hover:cursor-pointer"
+              onClick={removeNode}
+              title="Delete"
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  }
+);
 
 function CodeDrawingPreview({
   code,
