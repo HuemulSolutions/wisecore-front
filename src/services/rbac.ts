@@ -30,7 +30,10 @@ export const getRoles = async (page: number = 1, pageSize: number = 10, search?:
 export const createRole = async (data: CreateRoleData): Promise<Role> => {
   const response = await httpClient.post(`${backendUrl}/rbac/roles`, data);
 
-  return response.json();
+  const result = await response.json();
+  // El backend envuelve el rol en `data` (igual que el PATCH de updateRole);
+  // el fallback cubre la variante sin envoltorio.
+  return result?.data ?? result;
 };
 
 // Get all permissions

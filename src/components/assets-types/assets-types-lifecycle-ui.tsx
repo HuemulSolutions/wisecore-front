@@ -2,10 +2,12 @@
 
 import { useState } from "react"
 import type { ReactNode } from "react"
-import { Info, Plus, X } from "lucide-react"
+import { ChevronDown, ChevronRight, Info, Plus, X } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 import { Switch } from "@/components/ui/switch"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { cn } from "@/lib/utils"
 import type { AccessRuleType, AccessRuleTypeOption } from "@/types/lifecycle"
@@ -509,6 +511,295 @@ export function AccessRulesEditor({
           {t("lifecycle.accessRules.stepActorManagerNote")}
         </p>
       )}
+    </div>
+  )
+}
+
+// ─── Chip de estado ─────────────────────────────────────────────────────────
+
+/** Chip de estado genérico (visible/oculto, N con reglas, etc). */
+export function PanelBadge({
+  label,
+  tone = "neutral",
+  className,
+}: {
+  label: string
+  tone?: "success" | "neutral" | "warning"
+  className?: string
+}) {
+  const toneClass =
+    tone === "success"
+      ? "bg-[#eafaf1] text-[#0f9d58]"
+      : tone === "warning"
+        ? "bg-[#fef6e7] text-[#b45309]"
+        : "bg-[#eef2f7] text-[#64748b]"
+  return (
+    <span
+      className={cn(
+        "inline-flex h-5 shrink-0 items-center rounded-full px-2 text-[11px] font-medium",
+        toneClass,
+        className,
+      )}
+    >
+      {label}
+    </span>
+  )
+}
+
+// ─── Barra de guardado ────────────────────────────────────────────────────────
+
+/**
+ * Barra de guardado compartida por los tres tabs del sheet: reemplaza los
+ * botones sueltos («Guardar» al pie del form, «Guardar cambios» arriba del
+ * tab, botón en el header del panel de etapa) por un único patrón con
+ * «Descartar» siempre accesible — antes solo aparecía dentro del
+ * `HuemulAlertDialog` al intentar salir con cambios sin guardar.
+ * El sheet contenedor sigue con `showFooter={false}` (ver
+ * ia context/sheet-footer-batch-save-guide.md, variante sin footer):
+ * `PanelSaveBar` vive dentro del contenido de cada tab/panel, en el mismo
+ * sitio donde vive su estado `isDirty`.
+ */
+export function PanelSaveBar({
+  isDirty,
+  canSave = isDirty,
+  isSaving,
+  dirtyLabel,
+  hintLabel,
+  saveLabel,
+  discardLabel,
+  onSave,
+  onDiscard,
+  className,
+}: {
+  isDirty: boolean
+  /** Gate adicional de validación (ej. nombre requerido). Por defecto, igual a `isDirty`. */
+  canSave?: boolean
+  isSaving?: boolean
+  /** Resumen de lo pendiente, p. ej. «1 plantilla con cambios». Solo se muestra si `isDirty`. */
+  dirtyLabel?: string
+  /**
+   * Texto muted opcional junto al resumen — siempre visible, sin depender de
+   * `isDirty` (p. ej. «Los permisos por sección ya están guardados», «Los
+   * grupos se guardan juntos»).
+   */
+  hintLabel?: string
+  saveLabel: string
+  discardLabel: string
+  onSave: () => void
+  onDiscard: () => void
+  className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between gap-3 border-t border-[#e9edf2] bg-white pt-3",
+        className,
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        {isDirty && dirtyLabel && <PanelDirtyBadge label={dirtyLabel} />}
+        {hintLabel && (
+          <span className="truncate text-[11px] text-[#94a3b8]">{hintLabel}</span>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <HuemulButton
+          variant="ghost"
+          size="sm"
+          label={discardLabel}
+          disabled={!isDirty || isSaving}
+          onClick={onDiscard}
+        />
+        <HuemulButton
+          size="sm"
+          label={saveLabel}
+          loading={isSaving}
+          disabled={!canSave}
+          onClick={onSave}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ─── Tarjeta colapsable con subtítulo ─────────────────────────────────────────
+
+/**
+ * Tarjeta colapsable con título + subtítulo inline + slot de estado a la
+ * derecha del header (badge «Sin guardar», chip «Se guarda al instante»).
+ * Reemplaza los tres `<Collapsible>` copiados a mano en el detalle de
+ * plantilla («Configuración de workflow», «Permisos por sección»,
+ * «Condiciones de visibilidad»).
+ */
+export function PanelCollapsibleCard({
+  title,
+  subtitle,
+  headerRight,
+  open,
+  onOpenChange,
+  children,
+  className,
+}: {
+  title: string
+  subtitle?: string
+  headerRight?: ReactNode
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <PanelCard className={cn("overflow-hidden", className)}>
+      <Collapsible open={open} onOpenChange={onOpenChange}>
+        <CollapsibleTrigger className="flex w-full items-center gap-2 px-4 py-3 text-left hover:cursor-pointer">
+          <ChevronDown
+            className={cn("size-3.5 shrink-0 text-[#94a3b8] transition-transform", !open && "-rotate-90")}
+          />
+          <div className="flex min-w-0 flex-1 items-baseline gap-2">
+            <span className="shrink-0 text-[13px] font-semibold text-[#0f172a]">{title}</span>
+            {subtitle && (
+              <span className="truncate text-[11.5px] text-[#94a3b8]">{subtitle}</span>
+            )}
+          </div>
+          {headerRight && (
+            <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+              {headerRight}
+            </div>
+          )}
+        </CollapsibleTrigger>
+        <CollapsibleContent className="border-t border-[#eef1f5] px-4 py-4">
+          {children}
+        </CollapsibleContent>
+      </Collapsible>
+    </PanelCard>
+  )
+}
+
+// ─── Breadcrumb ───────────────────────────────────────────────────────────────
+
+/** Breadcrumb del panel («‹ Plantillas › {actual} › [badge]»), raíz clickeable. */
+export function PanelBreadcrumb({
+  rootLabel,
+  onBack,
+  current,
+  badge,
+}: {
+  rootLabel: string
+  onBack: () => void
+  current: string
+  badge?: ReactNode
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-1.5 text-[12.5px]">
+      <button
+        type="button"
+        onClick={onBack}
+        className="shrink-0 font-medium text-[#1d4ed8] hover:cursor-pointer hover:underline"
+      >
+        {rootLabel}
+      </button>
+      <ChevronRight className="size-3.5 shrink-0 text-[#c3cbd6]" />
+      <span className="truncate font-semibold text-[#0f172a]">{current}</span>
+      {badge}
+    </div>
+  )
+}
+
+// ─── Leyenda ──────────────────────────────────────────────────────────────────
+
+/** Fila de leyenda de una matriz: ícono + label por ítem, separados en fila. */
+export function PanelLegend({
+  items,
+  className,
+}: {
+  items: { icon: ReactNode; label: string; hint?: string }[]
+  className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11.5px] text-[#64748b]",
+        className,
+      )}
+    >
+      {items.map((item, i) => (
+        <span key={i} className="inline-flex items-center gap-1.5" title={item.hint}>
+          {item.icon}
+          {item.label}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+// ─── Switch bare de header ────────────────────────────────────────────────────
+
+/**
+ * Switch sin label/descripción visible, para vivir en `headerRight` de
+ * `PanelCollapsibleCard` (ej. «Permisos independientes por sección», siempre
+ * visible aunque la tarjeta esté colapsada). Mismas medidas que el `Switch`
+ * interno de `SettingToggleRow` — el texto explicativo que ahí iba como
+ * `description` acá se conserva como `title` (tooltip nativo).
+ */
+export function PanelHeaderSwitch({
+  checked,
+  onChange,
+  disabled,
+  ariaLabel,
+  title,
+}: {
+  checked: boolean
+  onChange: (value: boolean) => void
+  disabled?: boolean
+  ariaLabel: string
+  title?: string
+}) {
+  return (
+    <Switch
+      checked={checked}
+      disabled={disabled}
+      onCheckedChange={(value) => onChange(Boolean(value))}
+      aria-label={ariaLabel}
+      title={title}
+      className={cn(
+        "h-4.75 w-8.5 shrink-0 data-[state=checked]:bg-[#2563eb] data-[state=unchecked]:bg-[#dfe5ec]",
+        "*:data-[slot=switch-thumb]:size-3.75 *:data-[slot=switch-thumb]:bg-white",
+        "[&>[data-slot=switch-thumb][data-state=unchecked]]:translate-x-0.5",
+        "[&>[data-slot=switch-thumb][data-state=checked]]:translate-x-3.75",
+        !disabled && "hover:cursor-pointer",
+      )}
+    />
+  )
+}
+
+// ─── Toolbar de panel ─────────────────────────────────────────────────────────
+
+/** Label uppercase a la izquierda + contenido central + acciones a la derecha. */
+export function PanelToolbarStrip({
+  label,
+  labelTooltip,
+  children,
+  actions,
+  className,
+}: {
+  label: string
+  labelTooltip?: string
+  children?: ReactNode
+  actions?: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn("flex flex-wrap items-center justify-between gap-3", className)}>
+      <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+        <span
+          title={labelTooltip}
+          className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-[#94a3b8]"
+        >
+          {label}
+        </span>
+        {children}
+      </div>
+      {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
     </div>
   )
 }

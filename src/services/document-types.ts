@@ -16,6 +16,8 @@ export const getDocumentTypes = async (params?: {
   search?: string
   tag_id?: string
   document_type_folder_id?: string
+  /** Si es true, cada document type llega con sus etiquetas asignadas en `tags`. */
+  include_tags?: boolean
 }): Promise<DocumentTypesResponse> => {
   const query = new URLSearchParams()
   if (params?.page) query.set('page', params.page.toString())
@@ -23,6 +25,9 @@ export const getDocumentTypes = async (params?: {
   if (params?.search?.trim()) query.set('search', params.search.trim())
   if (params?.tag_id) query.set('tag_id', params.tag_id)
   if (params?.document_type_folder_id) query.set('document_type_folder_id', params.document_type_folder_id)
+  // Se omite cuando es false: ese ya es el default del backend y mandarlo
+  // ensuciaría la query string sin cambiar la respuesta.
+  if (params?.include_tags) query.set('include_tags', 'true')
   const qs = query.toString()
 
   const response = await httpClient.fetch(`${backendUrl}/document_types/${qs ? `?${qs}` : ''}`, {

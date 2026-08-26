@@ -4,12 +4,15 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
-import { Settings, RefreshCw, Plus, X, Check, Globe, User, Loader2 } from "lucide-react"
+import { Settings, RefreshCw, Plus, X, Check, Globe, Shield, User, Loader2, ChevronRight } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
+import { HuemulMatrix } from "@/huemul/components/huemul-matrix"
+import type { HuemulMatrixRow } from "@/huemul/components/huemul-matrix"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
-import { Skeleton } from "@/components/ui/skeleton"
+import { PanelBadge, PanelLegend, PanelToolbarStrip } from "@/components/assets-types/assets-types-lifecycle-ui"
+import CreateRoleSheet from "@/components/roles/roles-create-sheet"
 import { cn } from "@/lib/utils"
 import {
   useAllLifecycleSteps,
@@ -56,8 +59,6 @@ type MatrixRow =
   | { kind: "add" }
   | { kind: "sectionRules" }
   | { kind: "rule"; ruleType: AccessRuleType }
-
-const ROLE_COLUMN_WIDTH = "232px"
 
 /** Celda concedida: check blanco sobre círculo verde. */
 function CellCheck() {
@@ -161,8 +162,10 @@ export function AssetTypeLifecycleMatrix({
   onSelectStage,
 }: AssetTypeLifecycleMatrixProps) {
   const { t } = useTranslation(["asset-types", "common"])
-  const { canUpdate } = useUserPermissions()
+  const { canUpdate, canCreate } = useUserPermissions()
   const canManage = canUpdate("asset_type")
+  // rbac:c — mismo permiso que gatea el botón de creación en /roles.
+  const canCreateRole = canCreate("rbac")
   const queryClient = useQueryClient()
 
   const { data, isLoading, isFetching } = useAllLifecycleSteps(documentTypeId, enabled)
@@ -179,10 +182,14 @@ export function AssetTypeLifecycleMatrix({
 
   const [localExtraRoleIds, setLocalExtraRoleIds] = React.useState<string[]>([])
   const [isAddingRole, setIsAddingRole] = React.useState(false)
+  const [isCreatingRole, setIsCreatingRole] = React.useState(false)
   const [roleToRemove, setRoleToRemove] = React.useState<Role | null>(null)
   const [isRefreshing, setIsRefreshing] = React.useState(false)
   // Popover abierto de "jefe de paso anterior": qué step está eligiendo su source step.
   const [rulePickerStepId, setRulePickerStepId] = React.useState<string | null>(null)
+  // Sección «Acceso automático por jerarquía»: arranca colapsada — son filas fijas
+  // que la mayoría de los tipos de activo no usa.
+  const [rulesExpanded, setRulesExpanded] = React.useState(false)
 
   const stepTypeLabel = (type: string) =>
     t(`lifecycle.stepTypes.${type}`, { defaultValue: type })
@@ -354,6 +361,15 @@ export function AssetTypeLifecycleMatrix({
     [allSteps]
   )
 
+  // Rol creado sin salir de la matriz: entra por la misma puerta que el
+  // combobox de «Agregar rol» (`localExtraRoleIds`), así aparece como fila aun
+  // antes de tener asignaciones. La invalidación de `rbacQueryKeys.roles` que
+  // hace `createRole` refetchea `useRoles`, así que `listedRoles` lo resuelve.
+  const handleRoleCreated = React.useCallback((role: Role) => {
+    setLocalExtraRoleIds((prev) => (prev.includes(role.id) ? prev : [...prev, role.id]))
+    setIsCreatingRole(false)
+  }, [])
+
   const handleRemoveRole = (role: Role) => {
     if (stepsWithRole(role.id).length === 0) {
       setLocalExtraRoleIds((prev) => prev.filter((id) => id !== role.id))
@@ -391,6 +407,14 @@ export function AssetTypeLifecycleMatrix({
     }
   }, [queryClient, documentTypeId, refetchRoles])
 
+  // Cuántos tipos de regla están activos en al menos un paso — alimenta el badge
+  // de la cabecera cuando la sección está colapsada, para que una regla vigente
+  // nunca quede escondida sin señal.
+  const activeRulesCount = React.useMemo(
+    () => new Set(allSteps.flatMap((s) => s.access_rules.map((r) => r.rule_type))).size,
+    [allSteps]
+  )
+
   const rows: MatrixRow[] = React.useMemo(
     () => [
       { kind: "all" },
@@ -399,12 +423,12 @@ export function AssetTypeLifecycleMatrix({
       ...listedRoles.map((role) => ({ kind: "role" as const, role })),
       { kind: "add" },
       { kind: "sectionRules" },
-      ...ACCESS_RULE_ROWS.map((ruleType) => ({ kind: "rule" as const, ruleType })),
+      ...(rulesExpanded
+        ? ACCESS_RULE_ROWS.map((ruleType) => ({ kind: "rule" as const, ruleType }))
+        : []),
     ],
-    [listedRoles]
+    [listedRoles, rulesExpanded]
   )
-
-  const gridTemplateColumns = `${ROLE_COLUMN_WIDTH} repeat(${Math.max(visibleSteps.length, 1)}, minmax(112px, 1fr))`
 
   const rowKey = (row: MatrixRow) => {
     switch (row.kind) {
@@ -451,15 +475,18 @@ export function AssetTypeLifecycleMatrix({
       case "role":
         return (
           <div className="flex min-w-0 items-center justify-between gap-2">
-            <div className="flex min-w-0 flex-col">
-              <span className="truncate text-[13px] font-medium text-[#0f172a]" title={row.role.name}>
-                {row.role.name}
-              </span>
-              {row.role.description && (
-                <span className="truncate text-[11px] text-[#94a3b8]" title={row.role.description}>
-                  {row.role.description}
+            <div className="flex min-w-0 items-center gap-2">
+              <Shield className="size-4 shrink-0 text-[#6d5ae0]" />
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate text-[13px] font-medium text-[#0f172a]" title={row.role.name}>
+                  {row.role.name}
                 </span>
-              )}
+                {row.role.description && (
+                  <span className="truncate text-[11px] text-[#94a3b8]" title={row.role.description}>
+                    {row.role.description}
+                  </span>
+                )}
+              </div>
             </div>
             {canManage && (
               <HuemulButton
@@ -631,216 +658,258 @@ export function AssetTypeLifecycleMatrix({
     }
   }
 
+  // Filas «cells» editables tal cual; las tres filas especiales (añadir rol,
+  // separador de sección y cabecera colapsable de reglas) pasan a bandas a
+  // ancho completo — `add` desaparece del todo si el usuario no puede gestionar.
+  const matrixRows: HuemulMatrixRow<MatrixRow>[] = rows.flatMap((row): HuemulMatrixRow<MatrixRow>[] => {
+    if (row.kind === "add") {
+      if (!canManage) return []
+      return [
+        {
+          kind: "band",
+          key: rowKey(row),
+          className: "bg-white",
+          contentClassName: "px-3 py-3",
+          content: (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {isAddingRole ? (
+                <HuemulField
+                  type="combobox"
+                  label=""
+                  name="matrix-add-role"
+                  value=""
+                  placeholder={t("lifecycle.matrix.addRolePlaceholder")}
+                  options={availableRolesToAdd.map((r) => ({ value: r.id, label: r.name }))}
+                  onChange={(roleId) => {
+                    if (roleId) setLocalExtraRoleIds((prev) => [...prev, String(roleId)])
+                    setIsAddingRole(false)
+                  }}
+                  className="flex-1"
+                />
+              ) : (
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingRole(true)}
+                    className="inline-flex h-7.5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-dashed border-[#bfd3fb] px-3 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
+                  >
+                    <Plus className="size-3.5" />
+                    {t("lifecycle.matrix.addRole")}
+                  </button>
+                  {canCreateRole && (
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingRole(true)}
+                      className="inline-flex h-7.5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-dashed border-[#e2e8f0] px-3 text-[12.5px] font-medium text-[#64748b] transition-colors hover:cursor-pointer hover:bg-[#f7f9fb]"
+                    >
+                      <Plus className="size-3.5" />
+                      {t("lifecycle.matrix.createRole")}
+                    </button>
+                  )}
+                </div>
+              )}
+              <span className="shrink-0 text-[11px] text-[#94a3b8]">
+                {t("lifecycle.matrix.instantSaveHint")}
+              </span>
+            </div>
+          ),
+        },
+      ]
+    }
+
+    if (row.kind === "sectionRoles") {
+      return [
+        {
+          kind: "band",
+          key: rowKey(row),
+          className: "border-t border-b border-[#eef1f5] bg-[#f7f9fb]",
+          contentClassName: "px-3 py-1.5",
+          content: (
+            <div className="flex items-center gap-2">
+              <span className="text-[10.5px] font-semibold uppercase tracking-wide text-[#94a3b8]">
+                {t("lifecycle.matrix.sectionRoles")}
+              </span>
+              {listedRoles.length > 0 && (
+                <PanelBadge label={t("lifecycle.matrix.assignedCount", { count: listedRoles.length })} />
+              )}
+            </div>
+          ),
+        },
+      ]
+    }
+
+    if (row.kind === "sectionRules") {
+      const label = t("lifecycle.matrix.sectionRules")
+      const toggle = () => setRulesExpanded((prev) => !prev)
+      return [
+        {
+          kind: "band",
+          key: rowKey(row),
+          hoverable: true,
+          onClick: toggle,
+          className: "border-t border-b border-[#eef1f5] bg-[#f7f9fb] hover:cursor-pointer group-hover/band:bg-[#eef2f7]",
+          content: (
+            <button
+              type="button"
+              onClick={toggle}
+              aria-expanded={rulesExpanded}
+              aria-label={t(
+                rulesExpanded ? "lifecycle.matrix.collapseSection" : "lifecycle.matrix.expandSection",
+                { section: label },
+              )}
+              title={t("lifecycle.matrix.sectionRulesHint")}
+              className="flex w-max items-center gap-1.5 px-3 py-1.5 text-left hover:cursor-pointer"
+            >
+              <ChevronRight
+                className={cn(
+                  "size-3.5 shrink-0 text-[#94a3b8] transition-transform",
+                  rulesExpanded && "rotate-90",
+                )}
+              />
+              <span className="whitespace-nowrap text-[10.5px] font-semibold uppercase tracking-wide text-[#94a3b8]">
+                {label}
+              </span>
+              {!rulesExpanded && activeRulesCount > 0 && (
+                <span className="inline-flex shrink-0 items-center rounded-full bg-[#eef2f7] px-1.5 text-[11px] font-semibold text-[#64748b]">
+                  {t("lifecycle.matrix.activeRulesCount", { count: activeRulesCount })}
+                </span>
+              )}
+            </button>
+          ),
+        },
+      ]
+    }
+
+    return [{ kind: "cells", key: rowKey(row), data: row }]
+  })
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 py-2">
       {/* Selector de etapa del flujo + acciones — shrink-0, nunca scrollea */}
-      <div className="flex shrink-0 items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-[#94a3b8]">
-            {t("lifecycle.matrix.stageLabel")}
-          </span>
-          <div className="flex flex-wrap gap-1.5">
-            {stepTypesPresent.map((type) => {
-              const isActive = activeStageType === type
-              const groupCount = groupCountByType.get(type) ?? 0
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  aria-pressed={isActive}
-                  onClick={() => onSelectStage(type)}
+      <PanelToolbarStrip
+        label={t("lifecycle.matrix.stageLabel")}
+        labelTooltip={t("lifecycle.matrix.hint")}
+        actions={
+          <>
+            <span className="text-[11px] text-[#94a3b8]">{t("lifecycle.matrix.autosaveBadge")}</span>
+            <HuemulButton
+              variant="ghost"
+              size="icon"
+              className="size-7.5"
+              icon={RefreshCw}
+              tooltip={t("common:refresh")}
+              loading={isRefreshing || isFetching || isFetchingRoles}
+              onClick={handleRefresh}
+            />
+          </>
+        }
+      >
+        {stepTypesPresent.map((type) => {
+          const isActive = activeStageType === type
+          const groupCount = groupCountByType.get(type) ?? 0
+          return (
+            <button
+              key={type}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() => onSelectStage(type)}
+              className={cn(
+                "inline-flex h-7.5 items-center gap-1.5 rounded-full border px-3 text-[13px] transition-colors hover:cursor-pointer",
+                isActive
+                  ? "border-[#0f172a] bg-[#0f172a] font-semibold text-white"
+                  : "border-[#dbe1e9] text-[#334155] hover:border-[#bfd3fb] hover:bg-[#f8fafc]",
+              )}
+            >
+              {stepTypeLabel(type)}
+              {isGroupableStepType(type) && (
+                <span
                   className={cn(
-                    "inline-flex h-7.5 items-center gap-1.5 rounded-full border px-3 text-[13px] transition-colors hover:cursor-pointer",
-                    isActive
-                      ? "border-[#bfd3fb] bg-[#eef4ff] font-semibold text-[#1d4ed8]"
-                      : "border-[#dbe1e9] text-[#334155] hover:border-[#bfd3fb] hover:bg-[#f8fafc]",
+                    "inline-flex size-4.5 items-center justify-center rounded-full text-[11px] font-semibold",
+                    isActive ? "bg-white/20 text-white" : "bg-[#eef2f7] text-[#64748b]",
                   )}
                 >
-                  {stepTypeLabel(type)}
-                  {isGroupableStepType(type) && (
-                    <span
-                      className={cn(
-                        "inline-flex size-4.5 items-center justify-center rounded-full text-[11px] font-semibold",
-                        isActive ? "bg-[#dbe7fe] text-[#1d4ed8]" : "bg-[#eef2f7] text-[#64748b]",
-                      )}
-                    >
-                      {groupCount}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-          <p className="text-[12px] text-[#64748b]">{t("lifecycle.matrix.hint")}</p>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-1.5">
-          <HuemulButton
-            variant="ghost"
-            size="icon"
-            className="size-7.5"
-            icon={RefreshCw}
-            tooltip={t("common:refresh")}
-            loading={isRefreshing || isFetching || isFetchingRoles}
-            onClick={handleRefresh}
-          />
-        </div>
-      </div>
+                  {groupCount}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </PanelToolbarStrip>
 
       {/* Tabla — única área que scrollea */}
-      <div className="min-h-0 flex-1 overflow-auto rounded-[10px] border border-[#e5eaf0] bg-white">
-        {isLoading ? (
-          <div className="flex flex-col gap-2 p-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-          </div>
-        ) : (
-          <div className="grid" style={{ gridTemplateColumns }}>
-            {/* Header */}
-            <div className="sticky top-0 left-0 z-20 border-b border-[#e5eaf0] bg-[#f7f9fb] px-3 py-2.5">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-[#94a3b8]">
-                {t("lifecycle.matrix.roleColumn")}
+      <HuemulMatrix<MatrixRow, LifecycleStep>
+        className="min-h-0 flex-1"
+        isLoading={isLoading}
+        cornerLabel={t("lifecycle.matrix.roleColumn")}
+        columns={visibleSteps.map((step) => ({ key: step.id, data: step, groupKey: step.type }))}
+        hasColumnHeader={(group) => isGroupableStepType(group.groupKey)}
+        getGroupHeaderClassName={(group) =>
+          activeStageType === group.groupKey ? "bg-[#f2f6fe]" : "bg-[#f7f9fb]"
+        }
+        renderGroupHeader={(group) => {
+          const isActiveStage = activeStageType === group.groupKey
+          const typeLabel = stepTypeLabel(group.groupKey)
+          return (
+            <>
+              <span
+                className={cn(
+                  "truncate text-[12px] font-semibold",
+                  isActiveStage ? "text-[#1d4ed8]" : "text-[#334155]",
+                )}
+                title={typeLabel}
+              >
+                {typeLabel}
               </span>
-            </div>
-            {visibleSteps.map((step) => {
-              const isActiveStage = activeStageType === step.type
-              const groupLabel = isGroupableStepType(step.type)
-                ? t("lifecycle.matrix.groupPrefix", {
-                    name: step.name?.trim() || t("lifecycle.matrix.unassigned"),
-                  })
-                : t("lifecycle.matrix.unassigned")
-              return (
-                <div
-                  key={`header-${step.id}`}
-                  className={cn(
-                    "sticky top-0 z-10 flex flex-col gap-0.5 border-b border-l border-[#e5eaf0] px-3 py-2.5",
-                    isActiveStage ? "bg-[#f2f6fe]" : "bg-[#f7f9fb]",
-                  )}
-                >
-                  <div className="flex items-center gap-1">
-                    <span
-                      className={cn(
-                        "truncate text-[12px] font-semibold",
-                        isActiveStage ? "text-[#1d4ed8]" : "text-[#334155]",
-                      )}
-                    >
-                      {stepTypeLabel(step.type)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onSelectStage(step.type)}
-                      title={t("lifecycle.matrix.configureStep", { step: stepTypeLabel(step.type) })}
-                      aria-label={t("lifecycle.matrix.configureStep", { step: stepTypeLabel(step.type) })}
-                      className={cn(
-                        "inline-flex size-4 shrink-0 items-center justify-center rounded-lg transition-colors hover:cursor-pointer",
-                        isActiveStage
-                          ? "text-[#1d4ed8]"
-                          : "text-[#b6c0cd] hover:bg-[#eef2f7] hover:text-[#64748b]",
-                      )}
-                    >
-                      <Settings className="size-3" />
-                    </button>
-                  </div>
-                  <span
-                    className="truncate text-[11px] font-normal text-[#94a3b8]"
-                    title={groupLabel}
-                  >
-                    {groupLabel}
-                  </span>
-                </div>
-              )
-            })}
+              <button
+                type="button"
+                onClick={() => onSelectStage(group.groupKey)}
+                title={t("lifecycle.matrix.configureStep", { step: typeLabel })}
+                aria-label={t("lifecycle.matrix.configureStep", { step: typeLabel })}
+                className={cn(
+                  "inline-flex size-4 shrink-0 items-center justify-center rounded-lg transition-colors hover:cursor-pointer",
+                  isActiveStage
+                    ? "text-[#1d4ed8]"
+                    : "text-[#b6c0cd] hover:bg-[#eef2f7] hover:text-[#64748b]",
+                )}
+              >
+                <Settings className="size-3" />
+              </button>
+            </>
+          )
+        }}
+        renderColumnHeader={(column) => {
+          const groupName = column.data.name?.trim() || t("lifecycle.matrix.unassigned")
+          return (
+            <span className="truncate text-[11px] font-normal text-[#94a3b8]" title={groupName}>
+              {groupName}
+            </span>
+          )
+        }}
+        rows={matrixRows}
+        renderRowHeader={renderRoleCell}
+        renderCell={renderStepCell}
+        getRowHeaderClassName={(row) => {
+          const tint = ROW_TINT[row.kind]
+          return tint ? cn(tint.cell, tint.hover) : "bg-white group-hover:bg-[#fafbfd]"
+        }}
+        getCellClassName={(row, step) => {
+          const tint = ROW_TINT[row.kind]
+          return cn(
+            tint ? cn(tint.cell, tint.hover) : "group-hover:bg-[#fafbfd]",
+            !tint && activeStageType === step.type && "bg-[#fafcff]",
+          )
+        }}
+      />
 
-            {/* Filas */}
-            {rows.map((row, rowIndex) => {
-              const isLast = rowIndex === rows.length - 1
-
-              if (row.kind === "add") {
-                if (!canManage) return null
-                return (
-                  <div key={rowKey(row)} className="contents">
-                    <div className="sticky left-0 z-10 flex min-w-0 items-center bg-white px-3 py-3">
-                      {isAddingRole ? (
-                        <HuemulField
-                          type="combobox"
-                          label=""
-                          name="matrix-add-role"
-                          value=""
-                          placeholder={t("lifecycle.matrix.addRolePlaceholder")}
-                          options={availableRolesToAdd.map((r) => ({ value: r.id, label: r.name }))}
-                          onChange={(roleId) => {
-                            if (roleId) setLocalExtraRoleIds((prev) => [...prev, String(roleId)])
-                            setIsAddingRole(false)
-                          }}
-                        />
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setIsAddingRole(true)}
-                          className="inline-flex h-7.5 items-center gap-1.5 rounded-xl border border-dashed border-[#bfd3fb] px-3 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
-                        >
-                          <Plus className="size-3.5" />
-                          {t("lifecycle.matrix.addRole")}
-                        </button>
-                      )}
-                    </div>
-                    <div className="bg-white" style={{ gridColumn: "2 / -1" }} />
-                  </div>
-                )
-              }
-
-              if (row.kind === "sectionRoles" || row.kind === "sectionRules") {
-                const label =
-                  row.kind === "sectionRoles"
-                    ? t("lifecycle.matrix.sectionRoles")
-                    : t("lifecycle.matrix.sectionRules")
-                return (
-                  <div key={rowKey(row)} className="contents">
-                    <div className="sticky left-0 z-10 flex min-w-0 items-center border-t border-b border-[#eef1f5] bg-[#f7f9fb] px-3 py-1.5">
-                      <span className="text-[10.5px] font-semibold uppercase tracking-wide text-[#94a3b8]">
-                        {label}
-                      </span>
-                    </div>
-                    <div
-                      className="border-t border-b border-[#eef1f5] bg-[#f7f9fb]"
-                      style={{ gridColumn: "2 / -1" }}
-                    />
-                  </div>
-                )
-              }
-
-              const tint = ROW_TINT[row.kind]
-              return (
-                <div key={rowKey(row)} className="group contents">
-                  <div
-                    className={cn(
-                      "sticky left-0 z-10 flex min-w-0 items-center px-3 py-2.5 transition-colors",
-                      tint ? cn(tint.cell, tint.hover) : "bg-white group-hover:bg-[#fafbfd]",
-                      !isLast && "border-b border-[#eef1f5]",
-                    )}
-                  >
-                    {renderRoleCell(row)}
-                  </div>
-                  {visibleSteps.map((step) => (
-                    <div
-                      key={`${rowKey(row)}-${step.id}`}
-                      className={cn(
-                        "flex items-center justify-center border-l border-[#eef1f5] px-3 py-2.5 transition-colors",
-                        tint ? cn(tint.cell, tint.hover) : "group-hover:bg-[#fafbfd]",
-                        !tint && activeStageType === step.type && "bg-[#fafcff]",
-                        !isLast && "border-b border-b-[#eef1f5]",
-                      )}
-                    >
-                      {renderStepCell(row, step)}
-                    </div>
-                  ))}
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+      <PanelLegend
+        className="shrink-0"
+        items={[
+          { icon: <CellCheck />, label: t("lifecycle.matrix.legendGranted") },
+          { icon: <CellImplied />, label: t("lifecycle.matrix.legendImplied") },
+          { icon: <CellDash />, label: t("lifecycle.matrix.legendDenied") },
+          { icon: <CellNotApplicable />, label: t("lifecycle.matrix.legendNotApplicable") },
+        ]}
+      />
 
       <HuemulAlertDialog
         open={roleToRemove !== null}
@@ -853,6 +922,18 @@ export function AssetTypeLifecycleMatrix({
         actionVariant="destructive"
         onAction={confirmRemoveRole}
       />
+
+      {/* Crear rol sin salir de la matriz. Se monta acá y no dentro de la banda
+          «add» para que no se desmonte con cada re-render de las filas.
+          `CreateRoleSheet` gatea sus fetch con `open && canCreate`. */}
+      {canCreateRole && (
+        <CreateRoleSheet
+          open={isCreatingRole}
+          onOpenChange={setIsCreatingRole}
+          canCreate={canCreateRole}
+          onCreated={handleRoleCreated}
+        />
+      )}
     </div>
   )
 }

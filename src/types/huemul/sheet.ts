@@ -26,7 +26,8 @@ export interface HuemulSheetProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   eyebrow?: string;
-  description?: string;
+  /** Texto simple o contenido enriquecido (ej. punto de color + nombre + contador). */
+  description?: ReactNode;
   icon?: LucideIcon;
   iconClassName?: string;
   iconVariant?: HuemulSheetIconVariant;
