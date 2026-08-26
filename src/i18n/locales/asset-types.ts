@@ -455,6 +455,7 @@ const translations = {
       toggleRole: { en: "{{role}} in {{step}}", es: "{{role}} en {{step}}" },
       addRole: { en: "Add role", es: "Agregar rol" },
       addRolePlaceholder: { en: "Select a role to add…", es: "Selecciona un rol para agregar…" },
+      createRole: { en: "New role", es: "Crear rol" },
       removeRole: { en: "Remove role", es: "Quitar rol" },
       removeRoleConfirm: { en: "This role has assigned permissions across one or more steps. Remove it from all of them?", es: "Este rol tiene permisos asignados en uno o más pasos. ¿Quitarlo de todos ellos?" },
       automaticHint: { en: "Automatic step — roles don't apply.", es: "Paso automático — los roles no aplican." },

@@ -12,6 +12,7 @@ import { HuemulMatrix } from "@/huemul/components/huemul-matrix"
 import type { HuemulMatrixRow } from "@/huemul/components/huemul-matrix"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { PanelBadge, PanelLegend, PanelToolbarStrip } from "@/components/assets-types/assets-types-lifecycle-ui"
+import CreateRoleSheet from "@/components/roles/roles-create-sheet"
 import { cn } from "@/lib/utils"
 import {
   useAllLifecycleSteps,
@@ -161,8 +162,10 @@ export function AssetTypeLifecycleMatrix({
   onSelectStage,
 }: AssetTypeLifecycleMatrixProps) {
   const { t } = useTranslation(["asset-types", "common"])
-  const { canUpdate } = useUserPermissions()
+  const { canUpdate, canCreate } = useUserPermissions()
   const canManage = canUpdate("asset_type")
+  // rbac:c — mismo permiso que gatea el botón de creación en /roles.
+  const canCreateRole = canCreate("rbac")
   const queryClient = useQueryClient()
 
   const { data, isLoading, isFetching } = useAllLifecycleSteps(documentTypeId, enabled)
@@ -179,6 +182,7 @@ export function AssetTypeLifecycleMatrix({
 
   const [localExtraRoleIds, setLocalExtraRoleIds] = React.useState<string[]>([])
   const [isAddingRole, setIsAddingRole] = React.useState(false)
+  const [isCreatingRole, setIsCreatingRole] = React.useState(false)
   const [roleToRemove, setRoleToRemove] = React.useState<Role | null>(null)
   const [isRefreshing, setIsRefreshing] = React.useState(false)
   // Popover abierto de "jefe de paso anterior": qué step está eligiendo su source step.
@@ -356,6 +360,15 @@ export function AssetTypeLifecycleMatrix({
     (roleId: string) => allSteps.filter((s) => isRoleAssigned(s, roleId)),
     [allSteps]
   )
+
+  // Rol creado sin salir de la matriz: entra por la misma puerta que el
+  // combobox de «Agregar rol» (`localExtraRoleIds`), así aparece como fila aun
+  // antes de tener asignaciones. La invalidación de `rbacQueryKeys.roles` que
+  // hace `createRole` refetchea `useRoles`, así que `listedRoles` lo resuelve.
+  const handleRoleCreated = React.useCallback((role: Role) => {
+    setLocalExtraRoleIds((prev) => (prev.includes(role.id) ? prev : [...prev, role.id]))
+    setIsCreatingRole(false)
+  }, [])
 
   const handleRemoveRole = (role: Role) => {
     if (stepsWithRole(role.id).length === 0) {
@@ -674,14 +687,26 @@ export function AssetTypeLifecycleMatrix({
                   className="flex-1"
                 />
               ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsAddingRole(true)}
-                  className="inline-flex h-7.5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-dashed border-[#bfd3fb] px-3 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
-                >
-                  <Plus className="size-3.5" />
-                  {t("lifecycle.matrix.addRole")}
-                </button>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingRole(true)}
+                    className="inline-flex h-7.5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-dashed border-[#bfd3fb] px-3 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
+                  >
+                    <Plus className="size-3.5" />
+                    {t("lifecycle.matrix.addRole")}
+                  </button>
+                  {canCreateRole && (
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingRole(true)}
+                      className="inline-flex h-7.5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-dashed border-[#e2e8f0] px-3 text-[12.5px] font-medium text-[#64748b] transition-colors hover:cursor-pointer hover:bg-[#f7f9fb]"
+                    >
+                      <Plus className="size-3.5" />
+                      {t("lifecycle.matrix.createRole")}
+                    </button>
+                  )}
+                </div>
               )}
               <span className="shrink-0 text-[11px] text-[#94a3b8]">
                 {t("lifecycle.matrix.instantSaveHint")}
@@ -897,6 +922,18 @@ export function AssetTypeLifecycleMatrix({
         actionVariant="destructive"
         onAction={confirmRemoveRole}
       />
+
+      {/* Crear rol sin salir de la matriz. Se monta acá y no dentro de la banda
+          «add» para que no se desmonte con cada re-render de las filas.
+          `CreateRoleSheet` gatea sus fetch con `open && canCreate`. */}
+      {canCreateRole && (
+        <CreateRoleSheet
+          open={isCreatingRole}
+          onOpenChange={setIsCreatingRole}
+          canCreate={canCreateRole}
+          onCreated={handleRoleCreated}
+        />
+      )}
     </div>
   )
 }

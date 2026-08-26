@@ -40,6 +40,11 @@ export interface CreateRoleSheetProps {
   onOpenChange: (open: boolean) => void
   /** rbac:c — sin default: secure-by-default. */
   canCreate: boolean
+  /**
+   * Rol recién creado. Lo usan las superficies que lo consumen en el acto
+   * (p. ej. la matriz de permisos por rol, que lo agrega como fila).
+   */
+  onCreated?: (role: Role) => void
 }
 
 export interface DeleteRoleDialogProps {
