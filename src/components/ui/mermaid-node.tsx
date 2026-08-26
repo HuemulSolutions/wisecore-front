@@ -2,7 +2,12 @@
 
 import * as React from 'react';
 
-import { ResizableProvider, useResizableValue } from '@platejs/resizable';
+import type { ResizeEvent } from '@platejs/resizable';
+import {
+  ResizableProvider,
+  useResizableSet,
+  useResizableValue,
+} from '@platejs/resizable';
 import type { PlateElementProps } from 'platejs/react';
 import {
   PlateElement,
@@ -15,7 +20,7 @@ import {
   withHOC,
 } from 'platejs/react';
 import debounce from 'lodash/debounce.js';
-import { Code2, Expand, Eye, Trash2 } from 'lucide-react';
+import { Code2, Eye, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -31,10 +36,11 @@ import { resolveResizableAlign } from '@/lib/plate-node-align-utils';
 import type { TMermaidElement } from '@/types/mermaid-node';
 
 import { Caption, CaptionButton, CaptionTextarea } from './caption';
-import { DiagramFullscreenDialog } from './diagram-fullscreen-dialog';
 import { NodeAlignButtons } from './node-align-buttons';
 import { NodeSizeMenu } from './node-size-menu';
 import {
+  mediaResizeHandleBottomVariants,
+  mediaResizeHandleCornerVariants,
   mediaResizeHandleVariants,
   Resizable,
   ResizeHandle,
@@ -42,6 +48,13 @@ import {
 
 const RENDER_DEBOUNCE_DELAY = 500;
 const MIN_EDIT_HEIGHT = 220;
+const MIN_NODE_WIDTH = 160;
+/**
+ * Alto máximo al que se auto-ajusta un diagrama recién insertado. Sin esto un
+ * flowchart alto y angosto renderizado al 100% del ancho del bloque queda con un
+ * alto enorme (el alto lo deriva el navegador del viewBox), ocupando pantallas.
+ */
+const MAX_VIEW_HEIGHT = 480;
 
 type ViewMode = 'code' | 'view';
 
@@ -53,7 +66,10 @@ type ViewMode = 'code' | 'view';
  */
 function useMermaidPreview(code: string) {
   const [svg, setSvg] = React.useState('');
-  const [intrinsicWidth, setIntrinsicWidth] = React.useState<number>();
+  const [intrinsicSize, setIntrinsicSize] = React.useState<{
+    width: number;
+    height: number;
+  }>();
   const [error, setError] = React.useState<string | null>(null);
   const lastRequestRef = React.useRef(0);
 
@@ -65,7 +81,7 @@ function useMermaidPreview(code: string) {
 
         if (!source.trim()) {
           setSvg('');
-          setIntrinsicWidth(undefined);
+          setIntrinsicSize(undefined);
           setError(null);
           return;
         }
@@ -75,13 +91,16 @@ function useMermaidPreview(code: string) {
           if (lastRequestRef.current === requestId) {
             const normalized = normalizeMermaidSvgForDisplay(rendered);
             setSvg(normalized.svg);
-            setIntrinsicWidth(normalized.intrinsicWidth);
+            setIntrinsicSize({
+              width: normalized.intrinsicWidth,
+              height: normalized.intrinsicHeight,
+            });
             setError(null);
           }
         } catch (err) {
           if (lastRequestRef.current === requestId) {
             setSvg('');
-            setIntrinsicWidth(undefined);
+            setIntrinsicSize(undefined);
             setError(err instanceof Error ? err.message : 'Rendering failed');
           }
         }
@@ -94,7 +113,12 @@ function useMermaidPreview(code: string) {
     return () => debouncedRender.cancel();
   }, [code, debouncedRender]);
 
-  return { svg, intrinsicWidth, error };
+  return {
+    svg,
+    intrinsicWidth: intrinsicSize?.width,
+    intrinsicHeight: intrinsicSize?.height,
+    error,
+  };
 }
 
 export const MermaidElement = withHOC(
@@ -107,18 +131,81 @@ export const MermaidElement = withHOC(
     const element = useElement<TMermaidElement>();
     const { t } = useTranslation('editor');
     const width = useResizableValue('width');
+    const setStoreWidth = useResizableSet('width');
+    const figureRef = React.useRef<HTMLElement>(null);
 
     const code = element.code ?? '';
-    const { svg, intrinsicWidth, error } = useMermaidPreview(code);
+    const { svg, intrinsicWidth, intrinsicHeight, error } =
+      useMermaidPreview(code);
     const align = resolveResizableAlign(element.align);
 
-    // Local, per-instance – a reader always sees "Vista"; this is only a working
-    // preference for whoever is editing, never persisted on the node.
-    const [viewMode, setViewMode] = React.useState<ViewMode>(
-      code.trim() ? 'view' : 'code'
-    );
-    const [fullscreenOpen, setFullscreenOpen] = React.useState(false);
+    // Local, per-instance – a reader always sees "Vista" (showCode exige !readOnly);
+    // esto es solo una preferencia de trabajo de quien edita, nunca se persiste en el
+    // nodo. Arranca siempre en "Código": al entrar a editar lo primero que se quiere
+    // ver y tocar es el código del diagrama.
+    const [viewMode, setViewMode] = React.useState<ViewMode>('code');
     const showCode = !readOnly && viewMode === 'code';
+
+    const aspectRatio =
+      intrinsicWidth && intrinsicHeight
+        ? intrinsicWidth / intrinsicHeight
+        : undefined;
+
+    // Ancho "que se ve bien": el natural del diagrama, acotado para que no supere
+    // MAX_VIEW_HEIGHT de alto. Es el valor que se aplica solo al insertar y el que
+    // repone la opción "Ajustar" del menú de tamaño.
+    const fitWidth = React.useMemo(() => {
+      if (!intrinsicWidth || !aspectRatio) return undefined;
+      const byHeight = MAX_VIEW_HEIGHT * aspectRatio;
+      return Math.max(
+        MIN_NODE_WIDTH,
+        Math.round(Math.min(intrinsicWidth, byHeight))
+      );
+    }, [intrinsicWidth, aspectRatio]);
+
+    // Manijas inferior y de esquina: el gesto se mide en alto (direction 'bottom' →
+    // initialSize es el offsetHeight congelado en el mousedown) y se traduce al ancho
+    // que conserva la proporción real del SVG. Así el nodo sigue guardando un único
+    // valor, element.width, y el diagrama nunca se deforma ni queda con franjas.
+    const handleScaleFromHeight = React.useCallback(
+      ({ delta, finished, initialSize }: ResizeEvent) => {
+        if (!aspectRatio) return;
+
+        const available = figureRef.current?.offsetWidth;
+        const nextWidth = Math.round(
+          Math.min(
+            Math.max((initialSize + delta) * aspectRatio, MIN_NODE_WIDTH),
+            available || Number.POSITIVE_INFINITY
+          )
+        );
+
+        if (!finished) {
+          setStoreWidth(nextWidth);
+          return;
+        }
+
+        const path = editor.api.findPath(element);
+        if (path) {
+          editor.tf.setNodes({ width: nextWidth }, { at: path });
+        }
+      },
+      [aspectRatio, editor, element, setStoreWidth]
+    );
+
+    // Una sola pasada por nodo: un diagrama que nunca fue redimensionado entra con el
+    // ancho ajustado en lugar del 100% del bloque. Resizable acota con maxWidth: '100%',
+    // así que un fitWidth mayor al contenedor no desborda.
+    const autoFitAppliedRef = React.useRef(false);
+    React.useEffect(() => {
+      if (readOnly || autoFitAppliedRef.current) return;
+      if (element.width != null || !fitWidth) return;
+
+      const path = editor.api.findPath(element);
+      if (!path) return;
+
+      autoFitAppliedRef.current = true;
+      editor.tf.setNodes({ width: fitWidth }, { at: path });
+    }, [editor, element, fitWidth, readOnly]);
 
     const handleCodeChange = React.useCallback(
       (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -158,31 +245,28 @@ export const MermaidElement = withHOC(
     // reader sees. This is the only place the resize handles live, so what gets
     // dragged here is what gets rendered everywhere else (WYSIWYG).
     const viewBlock = (
-      <Resizable align={align} options={{ align, readOnly, minWidth: 160 }}>
+      <Resizable
+        align={align}
+        options={{ align, readOnly, minWidth: MIN_NODE_WIDTH }}
+      >
         <ResizeHandle
           className={mediaResizeHandleVariants({ direction: 'left' })}
           options={{ direction: 'left' }}
         />
-        <div className="group/diagram relative flex min-w-0 items-center justify-center overflow-auto [&_svg]:h-auto [&_svg]:w-full [&_svg]:max-w-none!">
+        <div className="relative flex min-w-0 items-center justify-center overflow-auto [&_svg]:h-auto [&_svg]:w-full [&_svg]:max-w-none!">
           {diagramBody}
-          {!!svg && !error && (
-            <Button
-              size="icon"
-              variant="secondary"
-              className="absolute top-1 right-1 size-7 opacity-0 shadow-sm transition-opacity group-hover/diagram:opacity-100 hover:cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                setFullscreenOpen(true);
-              }}
-              title={t('fullscreen.open')}
-            >
-              <Expand className="size-3.5" />
-            </Button>
-          )}
         </div>
         <ResizeHandle
           className={mediaResizeHandleVariants({ direction: 'right' })}
           options={{ direction: 'right' }}
+        />
+        <ResizeHandle
+          className={mediaResizeHandleBottomVariants()}
+          options={{ direction: 'bottom', onResize: handleScaleFromHeight }}
+        />
+        <ResizeHandle
+          className={mediaResizeHandleCornerVariants()}
+          options={{ direction: 'bottom', onResize: handleScaleFromHeight }}
         />
       </Resizable>
     );
@@ -211,7 +295,17 @@ export const MermaidElement = withHOC(
 
     const content = (
       <PlateElement {...props} className="py-2.5">
-        <div contentEditable={false}>
+        {/*
+          La clase `group` (sin nombre) es imprescindible: mediaResizeHandleVariants
+          revela las barras de arrastre con `group-hover:after:opacity-100`, así que sin
+          este ancestro las manijas existen pero son invisibles. Mismo patrón que
+          media-image-node.tsx.
+        */}
+        <figure
+          ref={figureRef}
+          className="group relative m-0"
+          contentEditable={false}
+        >
           {showCode ? codeBlock : viewBlock}
 
           <Caption style={{ width: showCode ? undefined : width }} align={align}>
@@ -220,13 +314,7 @@ export const MermaidElement = withHOC(
               placeholder={t('mermaid.captionPlaceholder')}
             />
           </Caption>
-
-          <DiagramFullscreenDialog
-            open={fullscreenOpen}
-            onOpenChange={setFullscreenOpen}
-            svg={svg || undefined}
-          />
-        </div>
+        </figure>
 
         {props.children}
       </PlateElement>
@@ -268,17 +356,11 @@ export const MermaidElement = withHOC(
 
             <Separator orientation="vertical" className="mx-1 h-6" />
             <NodeAlignButtons element={element} />
-            <NodeSizeMenu element={element} intrinsicWidth={intrinsicWidth} />
-            <Button
-              size="icon"
-              variant="ghost"
-              className="size-8 hover:cursor-pointer"
-              onClick={() => setFullscreenOpen(true)}
-              title={t('fullscreen.open')}
-              disabled={!svg}
-            >
-              <Expand className="size-4" />
-            </Button>
+            <NodeSizeMenu
+              element={element}
+              intrinsicWidth={intrinsicWidth}
+              fitWidth={fitWidth}
+            />
 
             <Separator orientation="vertical" className="mx-1 h-6" />
             <CaptionButton size="sm" variant="ghost">

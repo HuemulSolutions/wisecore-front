@@ -29,6 +29,26 @@ export const mediaResizeHandleVariants = cva(
   }
 );
 
+/**
+ * Barra horizontal centrada en el borde inferior. Complemento vertical de
+ * mediaResizeHandleVariants: mismo offset de 12px y misma mecánica de aparición
+ * (necesita un ancestro con la clase `group`).
+ */
+export const mediaResizeHandleBottomVariants = cva(
+  cn(
+    '-bottom-3 left-0 -mb-3 flex h-6 w-full select-none items-center justify-center pb-3',
+    "after:h-[3px] after:w-16 after:rounded-[6px] after:bg-ring after:opacity-0 after:content-['_'] group-hover:after:opacity-100"
+  )
+);
+
+/** Escuadra de redimensionado en la esquina inferior derecha. */
+export const mediaResizeHandleCornerVariants = cva(
+  cn(
+    'right-0 bottom-0 flex h-6 w-6 cursor-nwse-resize select-none items-end justify-end p-1',
+    "after:size-2.5 after:rounded-[2px] after:border-r-2 after:border-b-2 after:border-ring after:opacity-0 after:content-['_'] group-hover:after:opacity-100"
+  )
+);
+
 const resizeHandleVariants = cva('absolute z-40', {
   variants: {
     direction: {

@@ -30,8 +30,7 @@ import {
   withHOC,
 } from 'platejs/react';
 import debounce from 'lodash/debounce.js';
-import { Trash2, DownloadIcon, Expand, GripHorizontal } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { Trash2, DownloadIcon, GripHorizontal } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -50,7 +49,6 @@ import {
 } from '@/components/ui/select';
 import { resolveResizableAlign } from '@/lib/plate-node-align-utils';
 
-import { DiagramFullscreenDialog } from './diagram-fullscreen-dialog';
 import { NodeAlignButtons } from './node-align-buttons';
 import { NodeSizeMenu } from './node-size-menu';
 import {
@@ -158,10 +156,8 @@ export const CodeDrawingElement = withHOC(
     const selected = useSelected();
     const isFocusedLast = useFocusedLast();
     const element = useElement<WisecoreCodeDrawingElement>();
-    const { t } = useTranslation('editor');
     const { removeNode, image, loading } = useCodeDrawingElement({ element });
     const align = resolveResizableAlign(element.align);
-    const [fullscreenOpen, setFullscreenOpen] = React.useState(false);
 
     const handleDownload = React.useCallback(() => {
       if (!image) return;
@@ -279,12 +275,6 @@ export const CodeDrawingElement = withHOC(
               options={{ direction: 'right' }}
             />
           </Resizable>
-
-          <DiagramFullscreenDialog
-            open={fullscreenOpen}
-            onOpenChange={setFullscreenOpen}
-            imageSrc={image || undefined}
-          />
         </div>
       </PlateElement>
     );
@@ -304,16 +294,6 @@ export const CodeDrawingElement = withHOC(
           <div className="flex items-center gap-1">
             <NodeAlignButtons element={element} />
             <NodeSizeMenu element={element} />
-            <Button
-              size="icon"
-              variant="ghost"
-              className="size-8 hover:cursor-pointer"
-              onClick={() => setFullscreenOpen(true)}
-              title={t('fullscreen.open')}
-              disabled={!image}
-            >
-              <Expand className="size-4" />
-            </Button>
             <Separator orientation="vertical" className="mx-1 h-6" />
             {image && (
               <Button

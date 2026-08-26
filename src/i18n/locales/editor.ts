@@ -282,11 +282,7 @@ const translations = {
   nodeSize: {
     label: { en: "Size", es: "Tamaño" },
     original: { en: "Original size", es: "Tamaño original" },
-  },
-  fullscreen: {
-    open: { en: "View fullscreen", es: "Ver en pantalla completa" },
-    title: { en: "Diagram preview", es: "Vista previa del diagrama" },
-    description: { en: "Enlarged view of the diagram", es: "Vista ampliada del diagrama" },
+    fit: { en: "Fit", es: "Ajustar" },
   },
 }
 
