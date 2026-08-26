@@ -24,11 +24,8 @@ import { Code2, Eye, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from '@/components/ui/popover';
+import { NodeFloatingToolbarContent } from '@/components/ui/node-floating-toolbar';
+import { Popover, PopoverAnchor } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { renderMermaidSvg } from '@/lib/mermaid-snapshot';
 import { normalizeMermaidSvgForDisplay } from '@/lib/mermaid-svg-utils';
@@ -327,8 +324,7 @@ export const MermaidElement = withHOC(
     return (
       <Popover open={open} modal={false}>
         <PopoverAnchor asChild>{content}</PopoverAnchor>
-        <PopoverContent
-          className="w-auto p-1"
+        <NodeFloatingToolbarContent
           contentEditable={false}
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
@@ -376,7 +372,7 @@ export const MermaidElement = withHOC(
               <Trash2 className="size-4" />
             </Button>
           </div>
-        </PopoverContent>
+        </NodeFloatingToolbarContent>
       </Popover>
     );
   }

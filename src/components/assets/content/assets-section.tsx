@@ -453,7 +453,7 @@ function SectionExecutionInner({
         <div ref={containerRef} className={`${readyToEdit ? 'p-2' : 'py-0 px-2'} relative`}>
             {/* Action Buttons - Always sticky */}
             {readyToEdit && (
-                <div className="sticky top-0 z-50 justify-end py-1 px-2 bg-white backdrop-blur-sm -mx-2 -mt-2 mb-2 max-w-full w-full flex items-center">
+                <div className="sticky top-0 z-(--z-page-sticky) justify-end py-1 px-2 bg-white backdrop-blur-sm -mx-2 -mt-2 mb-2 max-w-full w-full flex items-center">
                     {/* Left side: section info + review status */}
                     <div className="mr-auto flex items-center gap-1.5">
                         {(sectionName || sectionType) && (
@@ -785,7 +785,7 @@ function SectionExecutionInner({
             )}
             
             {isAiSuggestionActive && (
-                <div className="mb-3 sticky top-9 z-40 shadow-lg">
+                <div className="mb-3 sticky top-9 z-(--z-page-sticky-secondary) shadow-lg">
                     <AiSuggestionFeedback
                         sectionExecutionId={sectionExecution.id}
                         onCompleted={handleAiSuggestionCompleted}
@@ -796,7 +796,7 @@ function SectionExecutionInner({
                 </div>
             )}
             {aiPreview !== null && !isAiSuggestionActive && !isDiffOpen && (
-                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between sticky top-9 z-40 shadow-lg">
+                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between sticky top-9 z-(--z-page-sticky-secondary) shadow-lg">
                     <span className="text-sm text-amber-800">{t('section.aiPreviewReady')}</span>
                     <div className="flex gap-2">
                         <Button

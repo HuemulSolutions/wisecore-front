@@ -96,6 +96,20 @@
   --sidebar-ring: oklch(0.704 0.04 256.788);
   --brand: oklch(0.623 0.214 259.815);
   --highlight: oklch(0.852 0.199 91.936);
+
+  /* ── Escala de z-index ──────────────────────────────────────────────────────
+     Fuente única de la jerarquía de capas. Consumir con `z-(--z-…)`
+     (Tailwind v4 no expone namespace de tema para z-index).
+     Ver `ia context/z-index-layering-guide.md`. */
+  --z-app-header: 50;              /* header global de la app */
+  --z-page-header: 40;             /* header de detalle (activo / plantilla) */
+  --z-page-sticky: 30;             /* barra sticky de sección, banners de ejecución */
+  --z-page-sticky-secondary: 28;   /* banners que viven bajo la barra de sección */
+  --z-editor-toolbar: 30;          /* FixedToolbar del editor (dentro de su isolate) */
+  --z-editor-node-toolbar: 25;     /* toolbars flotantes de nodo (mermaid/media/tabla/link) */
+  --z-editor-floating-toolbar: 20; /* toolbar de selección de texto */
+  --z-editor-selection: 10;        /* rectángulo de selección de bloques por arrastre */
+  --z-editor-menu: 50;             /* menús invocados por el usuario: slash, emoji, selects */
 }
 
 .dark {

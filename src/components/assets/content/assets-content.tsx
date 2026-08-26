@@ -1993,7 +1993,7 @@ export function AssetContent({
         <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* Mobile Header with Toggle */}
         {isMobile && !isContentError && (
-          <div className="bg-white border-b border-gray-200 shadow-sm py-2 px-4 z-20 shrink-0 min-h-20" data-mobile-header>
+          <div className="bg-white border-b border-gray-200 shadow-sm py-2 px-4 z-(--z-page-header) shrink-0 min-h-20" data-mobile-header>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <HuemulButton
@@ -2441,7 +2441,7 @@ export function AssetContent({
         
         {/* Header Section */}
         {!isMobile && !isContentError && (
-        <div className="bg-white border-b border-gray-200 shadow-sm py-3 px-5 md:px-6 z-10 shrink-0" data-desktop-header>
+        <div className="bg-white border-b border-gray-200 shadow-sm py-3 px-5 md:px-6 z-(--z-page-header) shrink-0" data-desktop-header>
           <div className="space-y-2.5">
             {/* Title and Type Section */}
             {!isMobile && (
@@ -2753,7 +2753,7 @@ export function AssetContent({
               <>
                 {/* Other Version Execution Banners - includes full/full-single modes */}
                 {otherVersionActiveExecutions.length > 0 && (
-                  <div className="sticky top-0 z-50 mb-4 space-y-2">
+                  <div className="sticky top-0 z-(--z-page-sticky) mb-4 space-y-2">
                     {otherVersionActiveExecutions.map((execution: any) => (
                       <OtherVersionExecutionBanner
                         key={execution.id}
@@ -2780,7 +2780,7 @@ export function AssetContent({
                 {isSelectedVersionExecuting && 
                  !dismissedExecutionBanners.has(isSelectedVersionExecuting.id) && 
                  !(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) && (
-                  <div className="sticky top-0 z-50 mb-4">
+                  <div className="sticky top-0 z-(--z-page-sticky) mb-4">
                     <ExecutionStatusBanner
                       executionId={isSelectedVersionExecuting.id}
                       onExecutionComplete={() => {

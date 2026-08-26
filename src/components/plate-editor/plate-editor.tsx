@@ -125,13 +125,14 @@ import { logger } from '@/lib/logger';
 import { DiscussionFocusSync } from '@/components/plate-editor/components/discussion-focus-sync';
 import { DiscussionSync } from '@/components/plate-editor/components/discussion-sync';
 import { EditorErrorBoundary } from '@/components/plate-editor/components/editor-error-boundary';
+import { EditorChromeInsetProvider } from '@/components/plate-editor/components/editor-chrome-inset';
 import { useTranslation } from 'react-i18next';
 import { MediaReferenceContext, useMediaReference } from '@/contexts/media-reference-context';
 import { MediaReferencePicker } from '@/components/ui/media-reference-picker';
 import { Images } from 'lucide-react';
 
 
-function EditorToolbar() {
+function EditorToolbar({ toolbarRef }: { toolbarRef?: React.Ref<HTMLDivElement> }) {
   const editor = useEditorRef();
   const [readOnly] = usePlateState('readOnly');
   const isSuggesting = usePluginOption(SuggestionPlugin, 'isSuggesting');
@@ -171,7 +172,7 @@ function EditorToolbar() {
   }, [markdownOutput]);
 
   return (
-    <FixedToolbar className="flex items-center gap-0.5 px-1 py-1">
+    <FixedToolbar ref={toolbarRef} className="flex items-center gap-0.5 px-1 py-1">
       {/* Undo / Redo */}
       {isEditing && (
         <>
@@ -352,7 +353,15 @@ function EditorToolbar() {
  * Compact toolbar for section-level editing inside resizable panels.
  * Shows only the most essential formatting buttons and wraps on narrow widths.
  */
-function SectionEditorToolbar({ actions, topOffset }: { actions?: React.ReactNode; topOffset?: string }) {
+function SectionEditorToolbar({
+  actions,
+  topOffset,
+  toolbarRef,
+}: {
+  actions?: React.ReactNode;
+  topOffset?: string;
+  toolbarRef?: React.Ref<HTMLDivElement>;
+}) {
   const editor = useEditorRef();
   const { t } = useTranslation('editor');
 
@@ -361,6 +370,7 @@ function SectionEditorToolbar({ actions, topOffset }: { actions?: React.ReactNod
 
   return (
     <FixedToolbar
+      ref={toolbarRef}
       className="flex-col items-stretch gap-0 p-0"
       style={topOffset ? { top: topOffset } : { top: 0 }}
     >
@@ -464,6 +474,9 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
     mediaUploadTarget,
   }, ref) {
   const containerRef = React.useRef<HTMLDivElement>(null);
+  // Borde inferior del toolbar fijo: define la franja que los toolbars
+  // flotantes no pueden invadir (ver EditorChromeInsetProvider).
+  const toolbarRef = React.useRef<HTMLDivElement>(null);
   const { t } = useTranslation('editor');
 
   // ── Media reference picker state ────────────────────────────────────────────
@@ -561,6 +574,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
         >
 
           <EditorErrorBoundary>
+            <EditorChromeInsetProvider toolbarRef={toolbarRef}>
             <Plate
               editor={editor}
               readOnly={readOnly}
@@ -582,7 +596,15 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
 
             {/* Toolbar – use compact version for section variant */}
             {showToolbar && (
-              variant === 'section' ? <SectionEditorToolbar actions={toolbarActions} topOffset={toolbarTopOffset} /> : <EditorToolbar />
+              variant === 'section' ? (
+                <SectionEditorToolbar
+                  actions={toolbarActions}
+                  topOffset={toolbarTopOffset}
+                  toolbarRef={toolbarRef}
+                />
+              ) : (
+                <EditorToolbar toolbarRef={toolbarRef} />
+              )
             )}
 
             {/* Editor Area */}
@@ -601,6 +623,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
               enableCreateSection={enableCreateSection}
             />
           </Plate>
+            </EditorChromeInsetProvider>
         </EditorErrorBoundary>
       </div>
 
