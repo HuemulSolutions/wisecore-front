@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { AssetTypeWithRoles, TemplatesSaveApiRef } from './asset-types'
 import type { AssetTypePageState } from './asset-types'
 import type { DocumentTypeFolder } from '../document-type-folders'
+import type { Tag } from '../tags'
 import type { useAssetTypeMutations } from '@/hooks/useAssetTypes'
 import type { HuemulTablePagination, HuemulTableFolder } from '@/huemul/components/huemul-table'
 
@@ -184,6 +185,16 @@ export interface AssetTypeTableProps {
   canCreateFolder?: boolean
   /** `asset_type:d` — habilita "Eliminar" en el menú de la carpeta. */
   canDeleteFolder?: boolean
+  /** `tag:r` — muestra la columna de etiquetas. */
+  canViewTags?: boolean
+  /** `tag:u` — habilita asignar/quitar etiquetas desde la celda. */
+  canManageTags?: boolean
+  /**
+   * Etiquetas por `document_type_id`, tal como vinieron del listado
+   * (`include_tags=true`). Siembra el picker de cada fila para no disparar un
+   * GET de etiquetas por fila.
+   */
+  initialTags?: Record<string, Tag[]>
   isLoading?: boolean
   isFetching?: boolean
   selectedIds: Set<string>

@@ -8,7 +8,7 @@ import RoleFormFields from "./roles-form-fields"
 import type { CreateRoleSheetProps } from '@/types/roles'
 export type { CreateRoleSheetProps } from '@/types/roles'
 
-export default function CreateRoleSheet({ open, onOpenChange, canCreate }: CreateRoleSheetProps) {
+export default function CreateRoleSheet({ open, onOpenChange, canCreate, onCreated }: CreateRoleSheetProps) {
   const { t } = useTranslation(['roles', 'common'])
   const [formData, setFormData] = useState({
     name: '',
@@ -51,7 +51,12 @@ export default function CreateRoleSheet({ open, onOpenChange, canCreate }: Creat
         is_position: isPosition,
         parent_role_id: isPosition ? parentRoleId : null,
       }, {
-        onSuccess: () => resolve(),
+        onSuccess: (role) => {
+          // El id sólo llega si el backend devolvió el rol creado; sin él no
+          // hay nada que consumir aguas arriba, pero el guardado sí fue exitoso.
+          if (role?.id) onCreated?.(role)
+          resolve()
+        },
         onError: (error) => reject(error),
       })
     })

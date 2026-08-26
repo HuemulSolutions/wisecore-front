@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
+import { TagsObjectPicker } from "@/components/tags"
 import { Trash2, FileStack, Copy, GitMerge, Settings2 } from "lucide-react"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTableFolders } from "@/huemul/components/huemul-table"
 import type { AssetTypeTableProps } from '@/types/assets'
@@ -38,6 +39,9 @@ export default function AssetTypeTable({
   canManageFolders = false,
   canCreateFolder = false,
   canDeleteFolder = false,
+  canViewTags = false,
+  canManageTags = false,
+  initialTags,
   isLoading = false,
   isFetching = false,
   selectedIds,
@@ -65,6 +69,30 @@ export default function AssetTypeTable({
       primary: true,
       render: (at) => <span className="text-xs font-medium text-foreground">{at.document_type_name}</span>
     },
+    ...(canViewTags ? [{
+      key: "tags",
+      label: t('columns.tags'),
+      render: (at: AssetTypeWithRoles) => (
+        // La fila entera es `draggable` cuando hay carpetas (ver `folders`), y
+        // las celdas de datos de HuemulTable no cortan la propagación: sin
+        // esto, arrastrar desde el "+" o la "x" de un chip movería el tipo de
+        // documento de carpeta. Mismo recurso que usan las celdas de checkbox
+        // y de acciones dentro de HuemulTable.
+        <div
+          onDragStart={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <TagsObjectPicker
+            objectType="document_type"
+            objectIds={[at.document_type_id]}
+            variant="cell"
+            canView={canViewTags}
+            canAssign={canManageTags}
+            initialTags={initialTags}
+          />
+        </div>
+      )
+    }] : []),
     {
       key: "count",
       label: t('columns.assetCount'),

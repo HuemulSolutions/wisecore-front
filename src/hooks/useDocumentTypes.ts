@@ -5,7 +5,7 @@ import { getDocumentTypes, createDocumentType, deleteDocumentType } from "@/serv
 export const documentTypeQueryKeys = {
   all: ['document-types'] as const,
   lists: () => [...documentTypeQueryKeys.all, 'list'] as const,
-  list: (params?: { page?: number; page_size?: number; search?: string; tag_id?: string; document_type_folder_id?: string }) =>
+  list: (params?: { page?: number; page_size?: number; search?: string; tag_id?: string; document_type_folder_id?: string; include_tags?: boolean }) =>
     [...documentTypeQueryKeys.lists(), params] as const,
 }
 
@@ -16,12 +16,14 @@ export function useDocumentTypes(options?: {
   search?: string
   tag_id?: string
   document_type_folder_id?: string
+  /** Si es true, cada document type llega con sus etiquetas asignadas en `tags`. */
+  include_tags?: boolean
   enabled?: boolean
 }) {
-  const { page, page_size, search, tag_id, document_type_folder_id, enabled = true } = options ?? {}
+  const { page, page_size, search, tag_id, document_type_folder_id, include_tags, enabled = true } = options ?? {}
   return useQuery({
-    queryKey: documentTypeQueryKeys.list({ page, page_size, search, tag_id, document_type_folder_id }),
-    queryFn: () => getDocumentTypes({ page, page_size, search, tag_id, document_type_folder_id }),
+    queryKey: documentTypeQueryKeys.list({ page, page_size, search, tag_id, document_type_folder_id, include_tags }),
+    queryFn: () => getDocumentTypes({ page, page_size, search, tag_id, document_type_folder_id, include_tags }),
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 0,
     placeholderData: (prev) => prev,

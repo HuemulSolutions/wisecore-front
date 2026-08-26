@@ -220,7 +220,7 @@ function SectionConditionCard({
         <div className="flex justify-end pt-2">
           <PanelPillButton
             icon={Check}
-            label={isSaving ? t("common:saving") : t("common:save")}
+            label={isSaving ? t("common:saving") : t("templates.conditions.saveCondition")}
             onClick={() => void handleSave()}
             disabled={!canSave}
             tone="primary"
@@ -360,8 +360,6 @@ export function TemplateSectionConditions({ templateId, enabled = true }: Templa
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[12px] text-[#64748b]">{t("templates.conditions.hint")}</p>
-
       {isLoading ? (
         <div className="flex flex-col gap-2">
           <Skeleton className="h-16 w-full rounded-[10px]" />
