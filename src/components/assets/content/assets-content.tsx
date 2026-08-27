@@ -684,6 +684,7 @@ export function AssetContent({
       setExecutionContext(null);
       doneSnapshotRef.current.clear();
       refreshedOrdersRef.current.clear();
+      terminalInvalidatedRunTokenRef.current = null;
       if (pendingContentInvalidateRef.current !== null) {
         clearTimeout(pendingContentInvalidateRef.current);
         pendingContentInvalidateRef.current = null;
@@ -709,6 +710,7 @@ export function AssetContent({
     setExecutionRunToken(`${executionId}:${Date.now()}`);
     doneSnapshotRef.current.clear();
     refreshedOrdersRef.current.clear();
+    terminalInvalidatedRunTokenRef.current = null;
   }, []);
 
   // Disparado desde el menú de una sección ("Ejecutar sección" / "Ejecutar
@@ -1086,6 +1088,18 @@ export function AssetContent({
     startedAt: executionStartedAt,
   });
 
+  // Botón "refrescar" del ExecutionRunProgressBanner: además de repetir el
+  // polling de la corrida vigente (executionRun.refetch), invalida
+  // document-content y executions — es la acción con la que hoy el usuario
+  // destraba a mano un banner/skeleton que quedó colgado por estado stale de
+  // la corrida anterior (ver terminalInvalidatedRunTokenRef más abajo, que
+  // cubre el mismo caso automáticamente al terminar la corrida).
+  const handleRefreshExecutionRun = useCallback(() => {
+    executionRun.refetch();
+    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+    queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+  }, [executionRun.refetch, queryClient, selectedFile?.id]);
+
   // Snapshot of contentUpdatedAt taken the instant a section is first seen as 'done'.
   // Until document-content refetches with data NEWER than that snapshot, the cached
   // body for that section is still the old/empty one — keep its skeleton up to avoid
@@ -1104,13 +1118,16 @@ export function AssetContent({
   const CONTENT_INVALIDATE_DEBOUNCE_MS = 500;
 
   useEffect(() => {
-    // Mientras arming, un 'done' puede ser el de la corrida anterior
-    // (sections_status todavía no refleja el nuevo disparo) — no lo tratamos
-    // como "recién terminada" hasta que se confirme actividad real.
-    if (executionRun.phase === 'arming') return;
+    // Mientras sections_status no sea confiable para ESTA corrida, un 'done'
+    // puede ser el de la corrida anterior (el backend reutiliza el mismo
+    // executionId y todavía no mutó estado) — no lo tratamos como "recién
+    // terminada" hasta que useExecutionRun confirme actividad real.
+    if (!executionRun.sectionsTrusted) return;
     if (!executionRun.sections?.length) return;
     const newlyDone = executionRun.sections.filter(
-      (s) => s.status === 'done' && !refreshedOrdersRef.current.has(s.order),
+      (s) => s.status === 'done'
+        && executionRun.isSectionInScope(s.order - 1)
+        && !refreshedOrdersRef.current.has(s.order),
     );
     if (!newlyDone.length) return;
 
@@ -1132,7 +1149,7 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document-content', fileId] });
     }, CONTENT_INVALIDATE_DEBOUNCE_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [executionRun.sections, executionRun.phase, selectedFile?.id, queryClient]);
+  }, [executionRun.sections, executionRun.sectionsTrusted, executionRun.isSectionInScope, selectedFile?.id, queryClient]);
 
   // Ejecuta el invalidate pendiente (si lo hubiera) al desmontar, en vez de
   // perderlo — evita quedar con contenido stale si el componente se desmonta
@@ -1192,10 +1209,7 @@ export function AssetContent({
   // Effect to mark the current single/from execution's banner as dismissed
   // once it reaches a terminal state (ExecutionStatusBanner no debe mostrarse
   // para esta ejecución — ExecutionRunProgressBanner ya cubre ese feedback).
-  // NO clear tracking states here so feedback can still display, y NO
-  // invalida document-content: eso ya lo hizo `newlyDone` cuando cada sección
-  // apareció 'done' de verdad (B7); tampoco invalida ['document', id], que
-  // no cambia al regenerar contenido (B5).
+  // NO clear tracking states here so feedback can still display.
   useEffect(() => {
     if (currentExecutionMode !== 'single' && currentExecutionMode !== 'from') return;
     if (executionRun.phase !== 'succeeded' && executionRun.phase !== 'failed' && executionRun.phase !== 'cancelled') return;
@@ -1203,6 +1217,31 @@ export function AssetContent({
     logger.log(`🎯 Section execution finished with phase: ${executionRun.phase}, keeping feedback visible`);
     setDismissedExecutionBanners(prev => new Set([...prev, currentExecutionId]));
   }, [executionRun.phase, currentExecutionMode, currentExecutionId]);
+
+  // Red de seguridad al cerrar la corrida: `newlyDone` (arriba) ya invalida
+  // document-content sección por sección a medida que cada una llega a
+  // 'done' de verdad (B7), pero eso depende de que sections_status haya sido
+  // confiable en algún momento antes del cierre. Este efecto garantiza, una
+  // sola vez por runToken, que al terminar la corrida (éxito, falla o
+  // cancelación) el contenido y la lista de executions queden al día — sin
+  // esto, `documentContent.executions[].status` podía quedar congelado en
+  // 'running' y los botones de generar del header seguían bloqueados aunque
+  // la corrida ya hubiera terminado (hasExecutionInProcess más abajo).
+  const terminalInvalidatedRunTokenRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (currentExecutionMode !== 'single' && currentExecutionMode !== 'from') return;
+    if (executionRun.phase !== 'succeeded' && executionRun.phase !== 'failed' && executionRun.phase !== 'cancelled') return;
+    if (!executionRunToken) return;
+    if (terminalInvalidatedRunTokenRef.current === executionRunToken) return;
+    terminalInvalidatedRunTokenRef.current = executionRunToken;
+
+    if (pendingContentInvalidateRef.current !== null) {
+      clearTimeout(pendingContentInvalidateRef.current);
+      pendingContentInvalidateRef.current = null;
+    }
+    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+    queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+  }, [executionRun.phase, currentExecutionMode, executionRunToken, selectedFile?.id, queryClient]);
 
   // Effect to detect when approval process completes
   useEffect(() => {
@@ -2927,7 +2966,7 @@ export function AssetContent({
                       currentSectionName={executionRun.currentSectionName}
                       failureMessage={executionRun.failureMessage}
                       isAwaitingFreshContent={isRunAwaitingFreshContent}
-                      onRefresh={executionRun.refetch}
+                      onRefresh={handleRefreshExecutionRun}
                     />
                   </div>
                 )}

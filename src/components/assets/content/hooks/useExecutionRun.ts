@@ -20,6 +20,20 @@
  * con la key fija por executionId, el caché de la corrida anterior (incluido
  * un 'done' ya reconciliado) sobrevivía a la re-ejecución y el banner
  * arrancaba en verde de inmediato.
+ *
+ * Eso resuelve el caché del FRONTEND, pero no el del backend: entre el POST
+ * /execution/generate y el momento en que el worker efectivamente empieza a
+ * mutar estado, ambos endpoints — pedidos con la queryKey nueva, o sea con
+ * una request de red genuina — todavía pueden responder con el resultado de
+ * la corrida ANTERIOR (mismo executionId). Esa ventana es "arming", y las dos
+ * señales (status global vs. sections_status) no siempre se destapan juntas:
+ * el status global suele pasar a 'running' primero, mientras sections_status
+ * sigue devolviendo el 'done' viejo un par de ticks más. Por eso la
+ * frescura se trackea POR SEPARADO para cada endpoint (isGlobalFresh /
+ * isSectionsFresh) en vez de un único hasLiveSignal fusionado — fusionarlos
+ * hacía que, apenas UNO de los dos despertara, se aceptara como válido el
+ * resultado stale del otro (banner "completado" de inmediato, sección
+ * destapando contenido viejo, botones re-habilitándose antes de tiempo).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -43,10 +57,9 @@ import type {
 // estado de la corrida anterior (mismo executionId). Durante esta ventana
 // ("arming") se ignora ese estado viejo y se fuerza 'pending'/'running', para
 // no mostrar "completado" antes de que la generación haya arrancado de
-// verdad. Se sale apenas se ve actividad real, o a los ARM_WINDOW_MS como
-// salida de emergencia (si el job nunca arranca, no queremos un banner
-// colgado para siempre). Más corta que antes (30s) porque ahora protege un
-// solo caso — la key por runToken ya elimina el resto del problema.
+// verdad. Se sale apenas se ve actividad real en AMBOS endpoints, o a los
+// ARM_WINDOW_MS como salida de emergencia (si el job nunca arranca, no
+// queremos un banner colgado para siempre).
 const ARM_WINDOW_MS = 15000;
 
 // Ventana de gracia para reconciliar sections_status contra el status GLOBAL
@@ -82,6 +95,8 @@ export interface UseExecutionRunResult {
   failureMessage: string | null | undefined;
   /** Sin filtrar por scope — lo consume el efecto `newlyDone` de AssetContent. */
   sections: ExecutionSectionStatusItem[] | undefined;
+  /** true una vez que sections_status refleja de verdad ESTA corrida (no la anterior). */
+  sectionsTrusted: boolean;
   getSectionStatus: (sectionIndex: number) => ExecutionSectionStatusValue | undefined;
   isSectionInScope: (sectionIndex: number) => boolean;
   refetch: () => void;
@@ -108,19 +123,28 @@ export function useExecutionRun({
   const baseEnabled = enabled && !!executionId && !!selectedOrganizationId && !!runToken
     && (executionMode === 'single' || executionMode === 'from');
 
-  // Actividad real confirmada para EL runToken actual. Estado (no ref): debe
+  // Frescura del status GLOBAL para ESTE runToken. Estado (no ref): debe
   // re-renderizar cuando se confirma, si no la fase 'arming' puede sobrevivir
-  // un tick de más (ver isArming más abajo). Reset síncrono en render cuando
-  // cambia el runToken — patrón "adjusting state when props change".
-  const [activityRunToken, setActivityRunToken] = useState<string | null>(null);
-  const [activitySeen, setActivitySeen] = useState(false);
-  if (activityRunToken !== (runToken ?? null)) {
-    setActivityRunToken(runToken ?? null);
-    setActivitySeen(false);
+  // un tick de más. Reset síncrono en render cuando cambia el runToken —
+  // patrón "adjusting state when props change".
+  const [globalFreshRunToken, setGlobalFreshRunToken] = useState<string | null>(null);
+  const [globalFreshSeen, setGlobalFreshSeen] = useState(false);
+  if (globalFreshRunToken !== (runToken ?? null)) {
+    setGlobalFreshRunToken(runToken ?? null);
+    setGlobalFreshSeen(false);
+  }
+
+  // Frescura de sections_status para ESTE runToken — trackeada aparte de la
+  // del status global (ver comentario del archivo). Mismo patrón.
+  const [sectionsFreshRunToken, setSectionsFreshRunToken] = useState<string | null>(null);
+  const [sectionsFreshSeen, setSectionsFreshSeen] = useState(false);
+  if (sectionsFreshRunToken !== (runToken ?? null)) {
+    setSectionsFreshRunToken(runToken ?? null);
+    setSectionsFreshSeen(false);
   }
 
   // epoch ms en que overallStatus llegó a un terminal de éxito, para ESTE
-  // runToken. Estado por el mismo motivo que activitySeen: isSettling debe
+  // runToken. Estado por el mismo motivo que los de arriba: isSettling debe
   // recalcularse en cuanto se registra.
   const [settleRunToken, setSettleRunToken] = useState<string | null>(null);
   const [settledAt, setSettledAt] = useState<number | null>(null);
@@ -128,13 +152,22 @@ export function useExecutionRun({
     setSettleRunToken(runToken ?? null);
     setSettledAt(null);
   }
-  // Espejo en ref para leer el valor más reciente dentro de refetchInterval
+  // Espejos en ref para leer el valor más reciente dentro de refetchInterval
   // (closures de React Query no capturan el state de este render). Se
-  // asignan más abajo, apenas se calculan los valores reales — el objeto ref
-  // en sí ya existe acá, así que no hay problema de orden de declaración.
+  // asignan más abajo, apenas se calculan los valores reales — los objetos
+  // ref en sí ya existen acá, así que no hay problema de orden de declaración.
   const settledAtRef = useRef<number | null>(null);
   settledAtRef.current = settledAt;
   const isArmingRef = useRef(false);
+  const globalFreshRef = useRef(false);
+  const sectionsTrustedRef = useRef(false);
+  const armWindowExpiredRef = useRef(false);
+  // Espejos de identidad, para que `refetch` no dependa de un closure atado
+  // al primer render (ver comentario junto a su declaración, más abajo).
+  const executionIdRef = useRef<string | null | undefined>(executionId);
+  executionIdRef.current = executionId;
+  const runTokenRef = useRef<string | null | undefined>(runToken);
+  runTokenRef.current = runToken;
 
   const runStatusQuery = useQuery({
     queryKey: ['execution-run-status', executionId, runToken],
@@ -142,9 +175,10 @@ export function useExecutionRun({
     enabled: baseEnabled,
     refetchInterval: (query) => {
       if (!baseEnabled) return false;
-      // Ver comentario de ARM_WINDOW_MS: un terminal leído acá puede ser el
-      // de la corrida anterior — no cortar el polling todavía.
-      if (isArmingRef.current) return 2000;
+      // Mientras el status global no sea confiable para ESTA corrida, un
+      // terminal leído acá puede ser el de la corrida anterior — no cortar
+      // el polling todavía.
+      if (!globalFreshRef.current && !armWindowExpiredRef.current) return 2000;
       if (isExecutionTerminal(query.state.data?.status)) return false;
       return 2000;
     },
@@ -162,7 +196,10 @@ export function useExecutionRun({
     enabled: sectionsEnabled,
     refetchInterval: (query) => {
       if (!sectionsEnabled) return false;
-      if (isArmingRef.current) return 2000;
+      // Mientras sections_status no sea confiable para ESTA corrida, puede
+      // seguir siendo el 'done' de la corrida anterior — no cortar el
+      // polling en base a eso.
+      if (!sectionsTrustedRef.current) return 2000;
 
       const sections = query.state.data?.sections;
       const relevant = sections?.filter((s) => isSectionInScope(s.order - 1)) ?? [];
@@ -191,23 +228,31 @@ export function useExecutionRun({
     [sectionsQuery.data, isSectionInScope],
   );
 
-  // Señal de actividad real, calculada EN EL RENDER (no en un efecto): el
-  // status global ya no es el terminal de la corrida anterior (pasó a
-  // 'running' u otro estado no terminal), o alguna sección en scope ya no
-  // está 'done'. Antes esto solo se detectaba dentro de un useEffect que
+  // Señal de actividad real de CADA endpoint, calculada EN EL RENDER (no en
+  // un efecto): el status global ya no es el terminal de la corrida anterior
+  // (pasó a 'running' u otro estado no terminal), o alguna sección en scope
+  // ya no está 'done'. Antes esto se detectaba dentro de un useEffect que
   // mutaba un ref — el render donde llegaba el primer dato "vivo" todavía
   // calculaba isArming en base al valor viejo del ref y se perdía un tick
   // completo de polling mostrando "Iniciando…" de más.
-  const hasLiveSignal = (!!overallStatus && !isExecutionTerminal(overallStatus))
-    || relevantSections.some((s) => s.status !== 'done');
+  const globalLive = !!overallStatus && !isExecutionTerminal(overallStatus);
+  const sectionsLive = relevantSections.some((s) => s.status !== 'done');
+
+  const isGlobalFresh = globalFreshSeen || globalLive;
+  const isSectionsFresh = sectionsFreshSeen || sectionsLive;
 
   // Una vez visto, se persiste para este runToken (estado, no ref: al
-  // setearse desde el efecto de abajo debe re-renderizar). Cubre el caso en
-  // que un poll posterior devuelva momentáneamente datos ambiguos.
+  // setearse debe re-renderizar). Cubre el caso en que un poll posterior
+  // devuelva momentáneamente datos ambiguos.
   useEffect(() => {
-    if (!runToken || !hasLiveSignal) return;
-    setActivitySeen(true);
-  }, [runToken, hasLiveSignal]);
+    if (!runToken || !globalLive) return;
+    setGlobalFreshSeen(true);
+  }, [runToken, globalLive]);
+
+  useEffect(() => {
+    if (!runToken || !sectionsLive) return;
+    setSectionsFreshSeen(true);
+  }, [runToken, sectionsLive]);
 
   // Salida de emergencia si el job nunca arranca: sin este timer, nada
   // fuerza un re-render cuando se cumple ARM_WINDOW_MS (Date.now() solo se
@@ -231,21 +276,35 @@ export function useExecutionRun({
   }, [runToken, startedAt]);
 
   const isArming = !!runToken && !!startedAt
-    && !activitySeen && !hasLiveSignal && !armWindowExpired;
-  isArmingRef.current = isArming;
+    && !isGlobalFresh && !isSectionsFresh && !armWindowExpired;
 
-  // Registrar el instante en que el status GLOBAL llegó a un terminal de
-  // éxito, y forzar un refetch inmediato de sections_status (en vez de
-  // esperar el próximo tick de 2s) para que el caso feliz (ya coincide) se
-  // resuelva casi al instante.
+  // Estado global utilizable: mientras no sea fresco para esta corrida, se
+  // trata como "desconocido" en vez de arrastrar el terminal de la corrida
+  // anterior a toda la lógica de fase/settle de abajo.
+  const trustedOverall = (isGlobalFresh || armWindowExpired) ? overallStatus : undefined;
+  // sections_status ya refleja esta corrida, o el status global (confiable)
+  // ya cerró — en ese caso no tiene sentido seguir tratando sections_status
+  // como "todavía la corrida anterior".
+  const sectionsTrusted = isSectionsFresh || armWindowExpired
+    || (isGlobalFresh && isExecutionTerminal(overallStatus));
+
+  isArmingRef.current = isArming;
+  globalFreshRef.current = isGlobalFresh;
+  armWindowExpiredRef.current = armWindowExpired;
+  sectionsTrustedRef.current = sectionsTrusted;
+
+  // Registrar el instante en que el status GLOBAL (confiable) llegó a un
+  // terminal de éxito, y forzar un refetch inmediato de sections_status (en
+  // vez de esperar el próximo tick de 2s) para que el caso feliz (ya
+  // coincide) se resuelva casi al instante.
   useEffect(() => {
     if (!runToken || !executionId) return;
-    if (!overallStatus || !isExecutionSuccessTerminal(overallStatus)) return;
+    if (!trustedOverall || !isExecutionSuccessTerminal(trustedOverall)) return;
     if (settleRunToken !== runToken || settledAt !== null) return;
     setSettledAt(Date.now());
     sectionsQuery.refetch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runToken, executionId, overallStatus]);
+  }, [runToken, executionId, trustedOverall]);
 
   // Reconciliación: si al agotarse SETTLE_WINDOW_MS sections_status sigue sin
   // coincidir con el status global (ya en éxito), se fuerza 'done' en las
@@ -279,62 +338,79 @@ export function useExecutionRun({
     }
     const timer = setTimeout(reconcile, remaining);
     return () => clearTimeout(timer);
-  }, [runToken, executionId, overallStatus, queryClient, isSectionInScope, settledAt]);
+  }, [runToken, executionId, trustedOverall, queryClient, isSectionInScope, settledAt]);
 
   // Igual que isArming, el default (settledAt aún no registrado) es el lado
   // seguro: no destapar el resultado final de golpe.
-  const isSettling = !!executionId && !!overallStatus && isExecutionSuccessTerminal(overallStatus)
+  const isSettling = !!executionId && !!trustedOverall && isExecutionSuccessTerminal(trustedOverall)
     && (settledAt === null || (Date.now() - settledAt) < SETTLE_WINDOW_MS);
 
   const getSectionStatus = useCallback((sectionIndex: number): ExecutionSectionStatusValue | undefined => {
-    if (isArming && isSectionInScope(sectionIndex)) return 'pending';
+    // Mientras sections_status no sea confiable para esta corrida, una
+    // sección en scope se muestra "en cola" — nunca el 'done' heredado de la
+    // corrida anterior.
+    if (isSectionInScope(sectionIndex) && !sectionsTrusted) return 'pending';
     const sections = sectionsQuery.data?.sections;
     const match = sections?.find((s) => s.order === sectionIndex + 1);
     const ownStatus = match?.status;
     if (isSectionInScope(sectionIndex)) {
       if (isSectionTerminal(ownStatus)) return ownStatus;
-      if (isExecutionFailureTerminal(overallStatus)) return 'failed';
-      if (!isSettling && isExecutionSuccessTerminal(overallStatus)) return 'done';
+      if (isExecutionFailureTerminal(trustedOverall)) return 'failed';
+      if (!isSettling && isExecutionSuccessTerminal(trustedOverall)) return 'done';
     }
     return ownStatus;
-  }, [isArming, isSectionInScope, sectionsQuery.data, overallStatus, isSettling]);
+  }, [isSectionInScope, sectionsTrusted, sectionsQuery.data, trustedOverall, isSettling]);
 
   const phase: ExecutionRunPhase = useMemo(() => {
     if (!executionId || !runToken || (executionMode !== 'single' && executionMode !== 'from')) return 'idle';
     if (isArming) return 'arming';
 
-    const anySectionFailed = relevantSections.some((s) => s.status === 'failed');
-    if (isExecutionFailureTerminal(overallStatus) || anySectionFailed) {
-      return overallStatus === 'cancelled' ? 'cancelled' : 'failed';
+    // anySectionFailed solo cuenta con sections_status confiable: sin eso,
+    // un 'failed' en pantalla puede ser el de la corrida anterior (ver
+    // "re-ejecución tras un fallo" en el plan del fix).
+    const anySectionFailed = sectionsTrusted && relevantSections.some((s) => s.status === 'failed');
+    if (isExecutionFailureTerminal(trustedOverall) || anySectionFailed) {
+      return trustedOverall === 'cancelled' ? 'cancelled' : 'failed';
     }
 
-    const allSectionsDone = relevantSections.length > 0 && relevantSections.every((s) => s.status === 'done');
-    if (isExecutionSuccessTerminal(overallStatus) && (allSectionsDone || !isSettling)) return 'succeeded';
+    const allSectionsDone = sectionsTrusted && relevantSections.length > 0
+      && relevantSections.every((s) => s.status === 'done');
+    if (isExecutionSuccessTerminal(trustedOverall) && (allSectionsDone || !isSettling)) return 'succeeded';
 
     return 'running';
-  }, [executionId, runToken, executionMode, isArming, relevantSections, overallStatus, isSettling]);
+  }, [executionId, runToken, executionMode, isArming, relevantSections, trustedOverall, isSettling, sectionsTrusted]);
 
   const progress: ExecutionRunProgress = useMemo(() => {
     const total = relevantSections.length || (executionMode === 'single' ? 1 : 0);
-    const done = phase === 'succeeded' ? total : relevantSections.filter((s) => s.status === 'done').length;
+    const done = phase === 'succeeded'
+      ? total
+      : (sectionsTrusted ? relevantSections.filter((s) => s.status === 'done').length : 0);
     return { done, total };
-  }, [relevantSections, executionMode, phase]);
+  }, [relevantSections, executionMode, phase, sectionsTrusted]);
 
   // Prioriza la sección que está efectivamente generándose; si ninguna lo
   // está todavía (todo el resto sigue 'pending'), cae a la primera en cola —
   // pero nunca al revés, para no anunciar "Trabajando en X" sobre una
-  // sección que en realidad todavía no arrancó.
+  // sección que en realidad todavía no arrancó. Sin sections_status
+  // confiable no hay ninguna 'generating'/'running' que priorizar y el resto
+  // sigue apareciendo 'done' (heredado) — cae a undefined de forma natural.
   const currentSectionName = useMemo(() => {
+    if (!sectionsTrusted) return undefined;
     const active = relevantSections.find((s) => s.status === 'generating' || s.status === 'running');
     if (active) return active.name;
     return relevantSections.find((s) => s.status !== 'done' && s.status !== 'failed')?.name;
-  }, [relevantSections]);
+  }, [relevantSections, sectionsTrusted]);
 
+  // Sin depender de closures sobre `runStatusQuery`/`sectionsQuery` del
+  // primer render: lee identidad actual desde los refs espejo de arriba, así
+  // el botón "refrescar" del banner siempre repite contra la corrida vigente.
   const refetch = useCallback(() => {
-    runStatusQuery.refetch();
-    sectionsQuery.refetch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const id = executionIdRef.current;
+    const token = runTokenRef.current;
+    if (!id || !token) return;
+    queryClient.refetchQueries({ queryKey: ['execution-run-status', id, token] });
+    queryClient.refetchQueries({ queryKey: ['execution-sections-status', id, token] });
+  }, [queryClient]);
 
   return {
     phase,
@@ -342,6 +418,7 @@ export function useExecutionRun({
     currentSectionName,
     failureMessage: runStatusQuery.data?.status_message,
     sections: sectionsQuery.data?.sections,
+    sectionsTrusted,
     getSectionStatus,
     isSectionInScope,
     refetch,
