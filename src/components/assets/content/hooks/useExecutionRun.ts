@@ -40,6 +40,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getExecutionStatus, getExecutionSectionsStatus } from '@/services/executions';
 import { useOrganization } from '@/contexts/organization-context';
+import { getExecutionPollInterval } from '@/lib/polling-intervals';
 import {
   isExecutionFailureTerminal,
   isExecutionSuccessTerminal,
@@ -168,6 +169,22 @@ export function useExecutionRun({
   executionIdRef.current = executionId;
   const runTokenRef = useRef<string | null | undefined>(runToken);
   runTokenRef.current = runToken;
+  // Base para el backoff por tiempo transcurrido (getExecutionPollInterval).
+  // startedAtRef espeja el prop; firstTickAtRef es el fallback si startedAt
+  // no llegara (no debería — armExecutionTracking siempre lo setea junto con
+  // runToken), para no arrancar el backoff directo en el escalón más lento
+  // por culpa de un elapsed gigante o NaN. Reset al cambiar runToken, mismo
+  // patrón "adjusting state when props change" que el resto del hook, pero
+  // en ref porque no necesita disparar un re-render.
+  const startedAtRef = useRef<number | null>(null);
+  startedAtRef.current = startedAt ?? null;
+  const firstTickRunTokenRef = useRef<string | null>(null);
+  const firstTickAtRef = useRef<number>(Date.now());
+  if (firstTickRunTokenRef.current !== (runToken ?? null)) {
+    firstTickRunTokenRef.current = runToken ?? null;
+    firstTickAtRef.current = Date.now();
+  }
+  const getElapsedMs = () => Date.now() - (startedAtRef.current ?? firstTickAtRef.current);
 
   const runStatusQuery = useQuery({
     queryKey: ['execution-run-status', executionId, runToken],
@@ -178,11 +195,11 @@ export function useExecutionRun({
       // Mientras el status global no sea confiable para ESTA corrida, un
       // terminal leído acá puede ser el de la corrida anterior — no cortar
       // el polling todavía.
-      if (!globalFreshRef.current && !armWindowExpiredRef.current) return 2000;
+      if (!globalFreshRef.current && !armWindowExpiredRef.current) return getExecutionPollInterval(getElapsedMs());
       if (isExecutionTerminal(query.state.data?.status)) return false;
-      return 2000;
+      return getExecutionPollInterval(getElapsedMs());
     },
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     gcTime: 30000,
   });
 
@@ -196,30 +213,32 @@ export function useExecutionRun({
     enabled: sectionsEnabled,
     refetchInterval: (query) => {
       if (!sectionsEnabled) return false;
+      const elapsed = getElapsedMs();
       // Mientras sections_status no sea confiable para ESTA corrida, puede
       // seguir siendo el 'done' de la corrida anterior — no cortar el
       // polling en base a eso.
-      if (!sectionsTrustedRef.current) return 2000;
+      if (!sectionsTrustedRef.current) return getExecutionPollInterval(elapsed);
 
       const sections = query.state.data?.sections;
       const relevant = sections?.filter((s) => isSectionInScope(s.order - 1)) ?? [];
       if (relevant.length > 0 && relevant.every((s) => isSectionTerminal(s.status))) return false;
 
       // El status global ya cerró en éxito pero sections_status todavía va un
-      // paso atrás. Backoff hasta SETTLE_WINDOW_MS; el efecto de
-      // reconciliación de abajo fuerza 'done' pasada esa ventana y este
-      // mismo chequeo corta el polling en el siguiente tick.
+      // paso atrás. Backoff hasta SETTLE_WINDOW_MS (nunca más denso que la
+      // escalera general); el efecto de reconciliación de abajo fuerza 'done'
+      // pasada esa ventana y este mismo chequeo corta el polling en el
+      // siguiente tick.
       if (overallStatus && isExecutionSuccessTerminal(overallStatus)) {
         const settled = settledAtRef.current;
         if (settled !== null) {
-          const elapsed = Date.now() - settled;
-          if (elapsed >= SETTLE_WINDOW_MS) return false;
-          return elapsed < 10000 ? 2000 : 5000;
+          const settledElapsed = Date.now() - settled;
+          if (settledElapsed >= SETTLE_WINDOW_MS) return false;
+          return Math.max(getExecutionPollInterval(elapsed), 5000);
         }
       }
-      return 2000;
+      return getExecutionPollInterval(elapsed);
     },
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     gcTime: 30000,
   });
 
