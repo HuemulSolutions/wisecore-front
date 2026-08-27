@@ -74,6 +74,7 @@ import { AlignKit } from '@/components/plate-editor/components/align-kit';
 import { ListKit } from '@/components/plate-editor/components/list-kit';
 import { LinkKit } from '@/components/plate-editor/components/link-kit';
 import { TableKit } from '@/components/plate-editor/components/table-kit';
+import { DataTableKit } from '@/components/plate-editor/components/data-table-kit';
 import { ToggleKit } from '@/components/plate-editor/components/toggle-kit';
 import { MediaKit } from '@/components/plate-editor/components/media-kit';
 import { CommentKit } from '@/components/plate-editor/components/comment-kit';
@@ -97,6 +98,7 @@ import { MarkToolbarButton } from '@/components/ui/mark-toolbar-button';
 import { AlignToolbarButton } from '@/components/ui/align-toolbar-button';
 import { LinkToolbarButton } from '@/components/ui/link-toolbar-button';
 import { TableToolbarButton } from '@/components/ui/table-toolbar-button';
+import { DataTableToolbarButton } from '@/components/ui/data-table-toolbar-button';
 import { IndentToolbarButton, OutdentToolbarButton } from '@/components/ui/indent-toolbar-button';
 import { ToggleToolbarButton } from '@/components/ui/toggle-toolbar-button';
 import { BulletedListToolbarButton, NumberedListToolbarButton, TodoListToolbarButton } from '@/components/ui/list-toolbar-button';
@@ -272,6 +274,7 @@ function EditorToolbar({ toolbarRef }: { toolbarRef?: React.Ref<HTMLDivElement> 
           <ToggleToolbarButton />
           <MediaToolbarButton nodeType="img" />
           <MermaidToolbarButton />
+          <DataTableToolbarButton />
           <EmojiToolbarButton />
           <MediaReferenceToolbarButton />
 
@@ -422,6 +425,7 @@ function SectionEditorToolbar({
         <TableToolbarButton />
         <MediaToolbarButton nodeType="img" />
         <MermaidToolbarButton />
+        <DataTableToolbarButton />
         <MediaReferenceToolbarButton />
 
       </div>
@@ -504,6 +508,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
       ...ListKit,
       ...LinkKit,
       ...TableKit,
+      ...DataTableKit,
       ...ToggleKit,
       ...MediaKit,
       ...CodeDrawingKit,

@@ -18,6 +18,7 @@ import {
   Quote,
   Square,
   Table,
+  Table2,
   TableOfContentsIcon,
   Workflow,
 } from 'lucide-react';
@@ -32,6 +33,7 @@ import {
 
 import { useMediaReference } from '@/contexts/media-reference-context';
 import { MERMAID_KEY } from '@/lib/plate-mermaid-utils';
+import { DATA_TABLE_KEY } from '@/lib/plate-data-table-utils';
 
 import {
   InlineCombobox,
@@ -138,6 +140,12 @@ export function SlashInputElement(
           keywords: ['mermaid', 'diagram', 'diagrama', 'flowchart', 'flujo'],
           label: t('slash.items.mermaid'),
           value: MERMAID_KEY,
+        },
+        {
+          icon: <Table2 />,
+          keywords: ['data table', 'tabla de datos', 'versiones', 'metadata', 'versions'],
+          label: t('slash.items.dataTable'),
+          value: DATA_TABLE_KEY,
         },
       ].map((item) => ({
         ...item,

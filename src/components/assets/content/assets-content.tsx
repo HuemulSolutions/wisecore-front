@@ -46,6 +46,7 @@ import { useDocumentMediaUrls } from "@/hooks/useDocumentMediaUrls";
 import { MediaUrlProvider } from "@/contexts/media-url-context";
 import { MentionRefsProvider } from "@/contexts/mention-refs-context";
 import { RoleRefsProvider } from "@/contexts/role-refs-context";
+import { DocumentDataProvider } from "@/contexts/document-data-context";
 import { collectMentionAssetIds, hasAnyRoleReference } from "@/lib/plate-mention-utils";
 import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, updateExecutionName } from "@/services/executions";
 import { useExecutionRun } from './hooks/useExecutionRun';
@@ -3300,6 +3301,7 @@ export function AssetContent({
                         <MediaUrlProvider freshUrls={mediaUrlsData?.media_urls ?? null}>
                         <MentionRefsProvider assetIds={mentionAssetIds} organizationId={selectedOrganizationId ?? undefined}>
                         <RoleRefsProvider enabled={hasRoleReferences}>
+                        <DocumentDataProvider documentContent={documentContent} executions={allExecutions} isLoaded>
                         <div className={`prose prose-gray prose-sm md:prose-base max-w-full${isViewMode ? ' [&>*+*]:mt-0' : ''}`}>
                           {/* Template instructions callout - shown once at the top */}
                           {documentContent.template_instructions?.trim() && (
@@ -3363,6 +3365,7 @@ export function AssetContent({
                             <Markdown>{documentContent.content}</Markdown>
                           )}
                         </div>
+                        </DocumentDataProvider>
                         </RoleRefsProvider>
                         </MentionRefsProvider>
                         </MediaUrlProvider>

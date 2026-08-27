@@ -19,6 +19,8 @@ import {
 } from 'platejs';
 
 import { MERMAID_KEY } from '@/lib/plate-mermaid-utils';
+import { DATA_TABLE_KEY } from '@/lib/plate-data-table-utils';
+import { getDataTableSource } from '@/lib/data-table-sources';
 
 const insertList = (editor: PlateEditor, type: string) => {
   editor.tf.insertNodes(
@@ -48,6 +50,20 @@ const insertBlockMap: Record<
   [MERMAID_KEY]: (editor) =>
     editor.tf.insertNodes(
       { type: MERMAID_KEY, code: '', children: [{ text: '' }] },
+      { select: true }
+    ),
+  // Se inserta con la fuente por defecto ("Versiones del documento") — se reconfigura
+  // desde el diálogo que abre el propio nodo (ver data-table-node.tsx), mismo flujo que
+  // insertar una tabla o un diagrama vacío y completarlo después.
+  [DATA_TABLE_KEY]: (editor) =>
+    editor.tf.insertNodes(
+      {
+        type: DATA_TABLE_KEY,
+        source: 'document_versions',
+        scope: { kind: 'current' },
+        columns: getDataTableSource('document_versions')?.defaultColumns ?? [],
+        children: [{ text: '' }],
+      },
       { select: true }
     ),
 };
