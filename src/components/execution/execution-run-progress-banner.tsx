@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Clock, XCircle, CheckCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -14,6 +14,13 @@ export type { ExecutionRunProgressBannerProps } from '@/types/execution';
 // isAwaitingFreshContent). Reemplaza el banner verde persistente de antes,
 // que el usuario tenía que descartar a mano.
 const AUTO_CLOSE_DELAY_MS = 4000;
+
+// Tiempo mínimo que la fase "running" debe quedar visible antes de poder
+// saltar a "succeeded". Sin esto, una corrida que el backend resuelve en un
+// par de segundos (p. ej. re-ejecutar una sola sección ya generada antes)
+// hace que "Generando secciones…" aparezca y desaparezca en el mismo tick de
+// polling, y el usuario solo ve "Iniciando…" seguido de "Completado".
+const MIN_RUNNING_VISIBLE_MS = 1500;
 
 /**
  * Un único banner de progreso para toda la corrida single/from — reemplaza
@@ -42,7 +49,25 @@ export function ExecutionRunProgressBanner({
   const { t } = useTranslation('execute');
   const [isDismissed, setIsDismissed] = useState(false);
 
-  const succeededAndFresh = phase === 'succeeded' && !isAwaitingFreshContent;
+  // El padre remonta este componente por runToken (ver comentario de arriba),
+  // así que `mountedAtRef` arranca limpio en cada corrida nueva.
+  const mountedAtRef = useRef(Date.now());
+  const [minVisibleElapsed, setMinVisibleElapsed] = useState(false);
+
+  useEffect(() => {
+    const remaining = MIN_RUNNING_VISIBLE_MS - (Date.now() - mountedAtRef.current);
+    if (remaining <= 0) {
+      setMinVisibleElapsed(true);
+      return;
+    }
+    const timer = setTimeout(() => setMinVisibleElapsed(true), remaining);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Gateado por minVisibleElapsed: si el backend resuelve la corrida antes de
+  // MIN_RUNNING_VISIBLE_MS, la fase "running" sigue mostrándose hasta cumplir
+  // el mínimo — evita el salto directo de "Iniciando…" a "Completado".
+  const succeededAndFresh = phase === 'succeeded' && !isAwaitingFreshContent && minVisibleElapsed;
 
   // Toast + auto-cierre al confirmarse éxito CON contenido fresco. No hace
   // falta dedupear contra corridas anteriores: el `key={runToken}` del padre

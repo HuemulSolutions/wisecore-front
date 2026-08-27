@@ -103,7 +103,8 @@
      Ver `ia context/z-index-layering-guide.md`. */
   --z-app-header: 50;              /* header global de la app */
   --z-page-header: 40;             /* header de detalle (activo / plantilla) */
-  --z-page-sticky: 30;             /* barra sticky de sección, banners de ejecución */
+  --z-page-sticky-elevated: 32;    /* banner de ejecución que convive con secciones reales visibles — debe ganarle a su barra */
+  --z-page-sticky: 30;             /* barra sticky de sección, banners de ejecución que reemplazan la lista por un skeleton */
   --z-page-sticky-secondary: 28;   /* banners que viven bajo la barra de sección */
   --z-editor-toolbar: 30;          /* FixedToolbar del editor (dentro de su isolate) */
   --z-editor-node-toolbar: 25;     /* toolbars flotantes de nodo (mermaid/media/tabla/link) */
