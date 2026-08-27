@@ -1,12 +1,20 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, RefreshCw, Link2, Plus, FileText, ArrowLeft, ArrowRight, SquareArrowOutUpRight } from "lucide-react";
+import { toast } from "sonner";
+import { ChevronRight, RefreshCw, Link2, Plus, FileText, ArrowLeft, ArrowRight, SquareArrowOutUpRight, MoreVertical, Trash2 } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { HuemulButton } from "@/huemul/components/huemul-button";
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
 import { useOrgPath } from "@/hooks/useOrgRouter";
-import { useExecutionRelationships } from "@/hooks/useExecutionRelationships";
+import { useExecutionRelationships, useExecutionRelationshipMutations } from "@/hooks/useExecutionRelationships";
 import { useDocumentTypes } from "@/hooks/useDocumentTypes";
 import { cn } from "@/lib/utils";
 import { getRelationshipLabel } from "@/lib/execution-relationship-utils";
@@ -22,6 +30,8 @@ export interface AssetsRelatedDocumentsProps {
   canOpenDiagrams?: boolean;
   /** Permite resolver el nombre del tipo de cada documento (gate: asset_type:l|r). */
   canListAssetTypes?: boolean;
+  /** Permite eliminar la relación desde el kebab de la fila (gate: execution_relationship:d). */
+  canDeleteRelationship?: boolean;
 }
 
 /** Fondo tenue derivado del color del tipo de documento (hex de 6 dígitos). */
@@ -38,7 +48,10 @@ function RelatedDocumentRow({
   isCurrentAsset,
   currentAssetLabel,
   openHint,
+  actionsLabel,
+  removeLabel,
   onOpen,
+  onDelete,
 }: {
   other: ExecutionRelationshipInlineExecution;
   relLabel: string;
@@ -47,41 +60,74 @@ function RelatedDocumentRow({
   isCurrentAsset: boolean;
   currentAssetLabel: string;
   openHint: string;
+  actionsLabel: string;
+  removeLabel: string;
   onOpen: () => void;
+  /** Ausente cuando el usuario no puede borrar: el kebab queda solo con "abrir". */
+  onDelete?: () => void;
 }) {
   const color = other.document_type_color;
   const meta = [typeName, other.name, relLabel].filter(Boolean).join(" · ");
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          onClick={onOpen}
-          className="group flex w-full items-center gap-2 rounded-lg border border-border/60 bg-card px-2 py-1.5 text-left transition-colors hover:cursor-pointer hover:border-primary/40 hover:bg-accent/40 hover:shadow-sm"
-        >
-          <span
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted"
-            style={{ backgroundColor: tintFromColor(color), color: color || undefined }}
-          >
-            <FileText className="h-3.5 w-3.5" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-xs font-medium text-foreground">{other.document_name}</span>
-            <span className="block truncate text-[11px] text-muted-foreground">
-              {meta}
-              {isCurrentAsset && ` · ${currentAssetLabel}`}
+    // Fila no interactiva: todas las acciones (abrir, eliminar) viven en el
+    // kebab, así que el cuerpo es solo presentación con tooltip informativo.
+    <div className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-card px-2 py-1.5 text-left transition-colors hover:bg-accent/30">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <span
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted"
+              style={{ backgroundColor: tintFromColor(color), color: color || undefined }}
+            >
+              <FileText className="h-3.5 w-3.5" />
             </span>
-          </span>
-          <SquareArrowOutUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="left" className="max-w-60">
-        <p className="font-medium">{other.document_name}</p>
-        <p className="text-[11px] opacity-90">{directionHint}</p>
-        {meta && <p className="text-[11px] opacity-90">{meta}</p>}
-        <p className="text-[11px] opacity-70">{openHint}</p>
-      </TooltipContent>
-    </Tooltip>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-xs font-medium text-foreground">{other.document_name}</span>
+              <span className="block truncate text-[11px] text-muted-foreground">
+                {meta}
+                {isCurrentAsset && ` · ${currentAssetLabel}`}
+              </span>
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="left" className="max-w-60">
+          <p className="font-medium">{other.document_name}</p>
+          <p className="text-[11px] opacity-90">{directionHint}</p>
+          {meta && <p className="text-[11px] opacity-90">{meta}</p>}
+        </TooltipContent>
+      </Tooltip>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          {/* Sin prop `tooltip`: con tooltip, HuemulButton devuelve un
+              TooltipProvider como raíz y el `asChild` del trigger le pasaría
+              los handlers a un provider en vez de al <button>. */}
+          <HuemulButton
+            variant="ghost"
+            size="sm"
+            icon={MoreVertical}
+            iconClassName="h-3.5 w-3.5"
+            aria-label={actionsLabel}
+            className="h-6 w-6 shrink-0 p-0 text-muted-foreground/70 hover:cursor-pointer hover:text-foreground"
+          />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-44">
+          <DropdownMenuItem className="gap-2 text-xs hover:cursor-pointer" onSelect={() => setTimeout(onOpen, 0)}>
+            <SquareArrowOutUpRight className="h-3.5 w-3.5" />
+            {openHint}
+          </DropdownMenuItem>
+          {onDelete && (
+            <DropdownMenuItem
+              className="gap-2 text-xs text-destructive focus:text-destructive hover:cursor-pointer"
+              onSelect={() => setTimeout(onDelete, 0)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {removeLabel}
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 
@@ -92,10 +138,16 @@ export function AssetsRelatedDocuments({
   versionLabel,
   canOpenDiagrams = false,
   canListAssetTypes = false,
+  canDeleteRelationship = false,
 }: AssetsRelatedDocumentsProps) {
   const { t } = useTranslation(["assets", "common"]);
   const buildPath = useOrgPath();
   const [isOpen, setIsOpen] = useState(true);
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    documentName: string;
+    relLabel: string;
+  } | null>(null);
 
   const { data, isLoading, isFetching, isError, refetch } = useExecutionRelationships(
     organizationId,
@@ -122,6 +174,23 @@ export function AssetsRelatedDocuments({
       "_blank",
       "noopener,noreferrer",
     );
+  };
+
+  // El onSuccess del hook invalida `listBase()`, así que refresca este bloque y
+  // la query gemela que alimenta el nodo `data_table` (misma query key).
+  const { deleteExecutionRelationship } = useExecutionRelationshipMutations(organizationId);
+
+  const handleDelete = async () => {
+    if (!pendingDelete) return;
+    try {
+      await deleteExecutionRelationship.mutateAsync(pendingDelete.id);
+      toast.success(t("content.relatedDocuments.removeRelationSuccess"));
+      setPendingDelete(null);
+    } catch (error) {
+      toast.error(t("content.relatedDocuments.removeRelationError"));
+      // Re-lanzar deja el diálogo abierto (HuemulAlertDialog vuelve a "idle").
+      throw error;
+    }
   };
 
   const handleLinkDocument = () => {
@@ -162,17 +231,25 @@ export function AssetsRelatedDocuments({
         </div>
         {items.map((rel) => {
           const other = getOther(rel);
+          const relLabel = getRelationshipLabel(rel, untitledFallback);
           return (
             <RelatedDocumentRow
               key={rel.id}
               other={other}
-              relLabel={getRelationshipLabel(rel, untitledFallback)}
+              relLabel={relLabel}
               typeName={typeNameById.get(other.document_type_id)}
               directionHint={directionHint}
               isCurrentAsset={other.document_id === currentDocumentId}
               currentAssetLabel={t("content.relatedDocuments.currentAsset")}
               openHint={t("content.relatedDocuments.openInNewTab")}
+              actionsLabel={t("content.relatedDocuments.rowActions")}
+              removeLabel={t("content.relatedDocuments.removeRelation")}
               onOpen={() => openRelated(other)}
+              onDelete={
+                canDeleteRelationship
+                  ? () => setPendingDelete({ id: rel.id, documentName: other.document_name, relLabel })
+                  : undefined
+              }
             />
           );
         })}
@@ -256,6 +333,23 @@ export function AssetsRelatedDocuments({
           </>
         )}
       </CollapsibleContent>
+      {/* Hermano del contenido colapsable para que la confirmación siga montada
+          aunque el bloque se colapse. */}
+      <HuemulAlertDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+        title={t("content.relatedDocuments.removeRelationTitle")}
+        description={t("content.relatedDocuments.removeRelationDescription", {
+          document: pendingDelete?.documentName ?? "",
+          relation: pendingDelete?.relLabel ?? "",
+        })}
+        actionLabel={t("common:delete")}
+        actionIcon={Trash2}
+        cancelLabel={t("common:cancel")}
+        onAction={handleDelete}
+      />
     </Collapsible>
   );
 }

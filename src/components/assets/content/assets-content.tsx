@@ -3512,6 +3512,7 @@ export function AssetContent({
                         versionLabel={getExecutionDisplayLabel(selectedExecutionInfo)}
                         canOpenDiagrams={can('openDiagramsCanvas')}
                         canListAssetTypes={can('listAssetTypes')}
+                        canDeleteRelationship={can('deleteExecutionRelationship')}
                       />
                     )}
                   </>
