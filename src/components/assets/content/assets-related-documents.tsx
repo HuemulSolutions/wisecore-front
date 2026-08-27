@@ -9,6 +9,7 @@ import { useOrgPath } from "@/hooks/useOrgRouter";
 import { useExecutionRelationships } from "@/hooks/useExecutionRelationships";
 import { useDocumentTypes } from "@/hooks/useDocumentTypes";
 import { cn } from "@/lib/utils";
+import { getRelationshipLabel } from "@/lib/execution-relationship-utils";
 import type { ExecutionRelationshipWithDetails, ExecutionRelationshipInlineExecution } from "@/types/execution-relationships";
 
 export interface AssetsRelatedDocumentsProps {
@@ -21,14 +22,6 @@ export interface AssetsRelatedDocumentsProps {
   canOpenDiagrams?: boolean;
   /** Permite resolver el nombre del tipo de cada documento (gate: asset_type:l|r). */
   canListAssetTypes?: boolean;
-}
-
-/** Etiqueta visible de la relación: nombre del catálogo (default) o nombre libre (manual). */
-function getRelationshipLabel(rel: ExecutionRelationshipWithDetails, untitledFallback: string): string {
-  const isManual = rel.relationship_type === "manual" || !rel.document_type_relationship;
-  return isManual
-    ? rel.execution_relationship_name ?? untitledFallback
-    : rel.document_type_relationship!.name;
 }
 
 /** Fondo tenue derivado del color del tipo de documento (hex de 6 dígitos). */

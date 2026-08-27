@@ -290,6 +290,7 @@ const translations = {
     sources: {
       documentVersions: { en: "Document versions", es: "Versiones del documento" },
       documentMetadata: { en: "Document metadata", es: "Metadata del documento" },
+      relatedDocuments: { en: "Related documents", es: "Documentos relacionados" },
     },
     fields: {
       version: { en: "Version", es: "Versión" },
@@ -314,8 +315,17 @@ const translations = {
       currentVersion: { en: "Current version", es: "Versión vigente" },
       nameCol: { en: "Field", es: "Campo" },
       valueCol: { en: "Value", es: "Valor" },
+      relatedDocument: { en: "Related document", es: "Documento relacionado" },
+      relationshipDirection: { en: "Direction", es: "Dirección" },
+      relationshipName: { en: "Relationship name", es: "Nombre de la relación" },
+      relatedDocumentType: { en: "Related document type", es: "Tipo del documento relacionado" },
+      relatedDocumentVersion: { en: "Related document version", es: "Versión del documento relacionado" },
     },
-    dialog: {
+    values: {
+      directionIncoming: { en: "Incoming", es: "Entrante" },
+      directionOutgoing: { en: "Outgoing", es: "Saliente" },
+    },
+    sheet: {
       title: { en: "Configure data table", es: "Configurar tabla de datos" },
       description: {
         en: "Choose a data source and the columns to display. It stays up to date automatically.",
@@ -326,10 +336,20 @@ const translations = {
       sourceLabel: { en: "Data source", es: "Fuente de datos" },
       columnsLabel: { en: "Columns", es: "Columnas" },
       columnsRequired: { en: "Choose at least one column", es: "Elige al menos una columna" },
+      columnsChosen: { en: "Chosen columns", es: "Columnas elegidas" },
+      columnsAvailable: { en: "Available columns", es: "Columnas disponibles" },
+      moveColumnUp: { en: "Move up", es: "Mover arriba" },
+      moveColumnDown: { en: "Move down", es: "Mover abajo" },
+      removeColumn: { en: "Remove column", es: "Quitar columna" },
       lifecycleFilterLabel: { en: "Filter by state (optional)", es: "Filtrar por estado (opcional)" },
       lifecycleFilterHint: {
         en: "Leave empty to show every version",
         es: "Déjalo vacío para mostrar todas las versiones",
+      },
+      directionFilterLabel: { en: "Filter by direction (optional)", es: "Filtrar por dirección (opcional)" },
+      directionFilterHint: {
+        en: "Leave empty to show incoming and outgoing relationships",
+        es: "Déjalo vacío para mostrar relaciones entrantes y salientes",
       },
       limitLabel: { en: "Row limit (optional)", es: "Límite de filas (opcional)" },
       limitPlaceholder: { en: "All", es: "Todas" },
@@ -346,6 +366,14 @@ const translations = {
       configure: { en: "Configure", es: "Configurar" },
       refresh: { en: "Refresh", es: "Refrescar" },
       remove: { en: "Remove", es: "Eliminar" },
+    },
+    preview: {
+      title: { en: "Preview", es: "Previsualización" },
+      refresh: { en: "Refresh preview", es: "Refrescar previsualización" },
+      noContext: {
+        en: "This table will resolve its data once it's placed inside a document.",
+        es: "Esta tabla se resolverá con datos reales al ubicarse dentro de un documento.",
+      },
     },
   },
 }

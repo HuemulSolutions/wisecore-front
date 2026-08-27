@@ -6,8 +6,9 @@ import { Table2 } from 'lucide-react';
 import { useEditorRef } from 'platejs/react';
 import { useTranslation } from 'react-i18next';
 
-import { DataTableConfigDialog, type DataTableConfig } from '@/components/ui/data-table-config-dialog';
+import { DataTableConfigSheet } from '@/components/ui/data-table-config-sheet';
 import { DATA_TABLE_KEY } from '@/lib/plate-data-table-utils';
+import type { DataTableConfig } from '@/types/data-table-node';
 
 import { ToolbarButton } from './toolbar';
 
@@ -38,7 +39,7 @@ export function DataTableToolbarButton(props: React.ComponentProps<typeof Toolba
         <Table2 />
       </ToolbarButton>
 
-      <DataTableConfigDialog open={open} onOpenChange={setOpen} onConfirm={handleConfirm} />
+      <DataTableConfigSheet open={open} onOpenChange={setOpen} onConfirm={handleConfirm} />
     </>
   );
 }

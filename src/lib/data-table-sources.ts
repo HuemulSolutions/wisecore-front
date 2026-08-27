@@ -6,8 +6,10 @@
  */
 import { formatDate, formatApiDateTime, parseApiDate } from '@/lib/utils';
 import { getExecutionCompactLabel } from '@/components/assets/content/utils/version-utils';
+import { getRelationshipLabel, getOtherExecution } from '@/lib/execution-relationship-utils';
 import type { AssetContentResponse } from '@/types/assets';
-import type { DataTableExecutionRow, DataTableSourceId } from '@/types/data-table-node';
+import type { DataTableExecutionRow, DataTableFilters, DataTableSourceId } from '@/types/data-table-node';
+import type { ExecutionRelationshipWithDetails } from '@/types/execution-relationships';
 
 export type DataTableDocumentContent = AssetContentResponse['data'];
 
@@ -20,6 +22,9 @@ export interface DataTableContext {
   t: DataTableTranslate;
   documentContent: DataTableDocumentContent | null | undefined;
   executions: DataTableExecutionRow[] | null | undefined;
+  relationships: ExecutionRelationshipWithDetails[] | null | undefined;
+  /** id de tipo de documento -> nombre; vacío si el usuario no puede listar tipos. */
+  documentTypeNames: Map<string, string> | null | undefined;
 }
 
 export interface DataTableFieldDef {
@@ -39,6 +44,10 @@ export interface DataTableSourceDef {
   fields: DataTableFieldDef[];
   defaultColumns: string[];
   getRows: (ctx: DataTableContext) => unknown[];
+  /** Bloques de filtro que el sheet de configuración debe renderizar para esta fuente. */
+  filterKinds?: ('lifecycleStates' | 'relationshipDirections')[];
+  /** Aplica los filtros del nodo a las filas ya obtenidas por `getRows`. Sin esto, la fuente no filtra. */
+  applyFilters?: (rows: unknown[], filters: DataTableFilters | null | undefined) => unknown[];
 }
 
 const dateField = (value: string | null | undefined): string =>
@@ -58,6 +67,12 @@ const versionsSource: DataTableSourceDef = {
   labelKey: 'dataTable.sources.documentVersions',
   layout: 'rows',
   getRows: (ctx) => ctx.executions ?? [],
+  filterKinds: ['lifecycleStates'],
+  applyFilters: (rows, filters) => {
+    if (!filters?.lifecycleStates?.length) return rows;
+    const allowed = new Set<string>(filters.lifecycleStates);
+    return rows.filter((r) => allowed.has((r as DataTableExecutionRow).lifecycle_state ?? ''));
+  },
   defaultColumns: ['version', 'created_at', 'created_by_user_name', 'lifecycle_state', 'change_summary'],
   fields: [
     {
@@ -193,7 +208,62 @@ const metadataSource: DataTableSourceDef = {
   ],
 };
 
-export const DATA_TABLE_SOURCES: DataTableSourceDef[] = [versionsSource, metadataSource];
+/** Cada fila es una relación de ejecución (ver `execution-relationships.ts` y el panel lateral
+ * `assets-related-documents.tsx`, que consume la misma query). El backend no trae fecha, autor
+ * ni estado de ciclo de vida del documento relacionado en este endpoint — de ahí que esta fuente
+ * no ofrezca esas columnas (requeriría un detalle por relación aparte). */
+const relatedDocumentsSource: DataTableSourceDef = {
+  id: 'related_documents',
+  labelKey: 'dataTable.sources.relatedDocuments',
+  layout: 'rows',
+  getRows: (ctx) => ctx.relationships ?? [],
+  filterKinds: ['relationshipDirections'],
+  applyFilters: (rows, filters) => {
+    if (!filters?.relationshipDirections?.length) return rows;
+    const allowed = new Set(filters.relationshipDirections);
+    return rows.filter((r) => allowed.has((r as ExecutionRelationshipWithDetails).direction));
+  },
+  defaultColumns: ['related_document_name', 'relationship_direction', 'relationship_name', 'related_document_type'],
+  fields: [
+    {
+      id: 'related_document_name',
+      labelKey: 'dataTable.fields.relatedDocument',
+      accessor: (row) => getOtherExecution(row as ExecutionRelationshipWithDetails).document_name ?? '',
+    },
+    {
+      id: 'relationship_direction',
+      labelKey: 'dataTable.fields.relationshipDirection',
+      accessor: (row, ctx) => {
+        const rel = row as ExecutionRelationshipWithDetails;
+        return rel.direction === 'source'
+          ? ctx.t('dataTable.values.directionOutgoing')
+          : ctx.t('dataTable.values.directionIncoming');
+      },
+    },
+    {
+      id: 'relationship_name',
+      labelKey: 'dataTable.fields.relationshipName',
+      accessor: (row, ctx) =>
+        getRelationshipLabel(
+          row as ExecutionRelationshipWithDetails,
+          ctx.t('assets:content.relatedDocuments.untitledRelation'),
+        ),
+    },
+    {
+      id: 'related_document_type',
+      labelKey: 'dataTable.fields.relatedDocumentType',
+      accessor: (row, ctx) =>
+        ctx.documentTypeNames?.get(getOtherExecution(row as ExecutionRelationshipWithDetails).document_type_id) ?? '',
+    },
+    {
+      id: 'related_document_version',
+      labelKey: 'dataTable.fields.relatedDocumentVersion',
+      accessor: (row) => getOtherExecution(row as ExecutionRelationshipWithDetails).name ?? '',
+    },
+  ],
+};
+
+export const DATA_TABLE_SOURCES: DataTableSourceDef[] = [versionsSource, metadataSource, relatedDocumentsSource];
 
 export function getDataTableSource(id: DataTableSourceId): DataTableSourceDef | undefined {
   return DATA_TABLE_SOURCES.find((s) => s.id === id);

@@ -3,7 +3,7 @@ import type { ExecutionInfo } from '@/types/assets';
 import type { ExecutionLifecycleState } from '@/types/execution';
 
 /** Fuentes de datos soportadas por el nodo `data_table` — ver `src/lib/data-table-sources.ts`. */
-export type DataTableSourceId = 'document_versions' | 'document_metadata';
+export type DataTableSourceId = 'document_versions' | 'document_metadata' | 'related_documents';
 
 /**
  * `documentContent.executions` / `useExecutionsByDocumentId` traen en runtime más campos de
@@ -32,6 +32,8 @@ export interface DataTableSnapshot {
 
 export interface DataTableFilters {
   lifecycleStates?: ExecutionLifecycleState[];
+  /** Solo `related_documents`: 'source' = relaciones salientes, 'target' = entrantes. */
+  relationshipDirections?: ('source' | 'target')[];
 }
 
 /** Nodo void que renderiza una tabla resuelta en vivo contra el caché del documento actual. */
@@ -46,3 +48,6 @@ export interface DataTableElement extends TElement {
   title?: string | null;
   snapshot?: DataTableSnapshot | null;
 }
+
+/** Config editable del nodo — lo que arma/consume `DataTableConfigSheet` al insertar o reconfigurar. */
+export type DataTableConfig = Pick<DataTableElement, 'source' | 'columns' | 'filters' | 'limit' | 'title'>;

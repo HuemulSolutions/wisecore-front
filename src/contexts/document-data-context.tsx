@@ -4,10 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { getDataTableSource } from '@/lib/data-table-sources';
 import type { DataTableContext as DataTableSourceContext, DataTableDocumentContent } from '@/lib/data-table-sources';
 import type { DataTableElement, DataTableExecutionRow } from '@/types/data-table-node';
+import type { ExecutionRelationshipWithDetails } from '@/types/execution-relationships';
 
 interface DocumentDataContextValue {
   documentContent: DataTableDocumentContent | null | undefined;
   executions: DataTableExecutionRow[] | null | undefined;
+  relationships: ExecutionRelationshipWithDetails[] | null | undefined;
+  documentTypeNames: Map<string, string> | null | undefined;
   /** false hasta que el documento actual terminó de cargar — antes de eso el nodo debe caer
    * al snapshot congelado (mismo criterio que `MentionRefsProvider.isLoaded`). */
   isLoaded: boolean;
@@ -16,6 +19,8 @@ interface DocumentDataContextValue {
 const DocumentDataContext = createContext<DocumentDataContextValue>({
   documentContent: null,
   executions: null,
+  relationships: null,
+  documentTypeNames: null,
   isLoaded: false,
 });
 
@@ -27,17 +32,21 @@ const DocumentDataContext = createContext<DocumentDataContextValue>({
 export function DocumentDataProvider({
   documentContent,
   executions,
+  relationships,
+  documentTypeNames,
   isLoaded,
   children,
 }: {
   documentContent: DataTableDocumentContent | null | undefined;
   executions: DataTableExecutionRow[] | null | undefined;
+  relationships?: ExecutionRelationshipWithDetails[] | null | undefined;
+  documentTypeNames?: Map<string, string> | null | undefined;
   isLoaded: boolean;
   children: React.ReactNode;
 }) {
   const value = useMemo(
-    () => ({ documentContent, executions, isLoaded }),
-    [documentContent, executions, isLoaded],
+    () => ({ documentContent, executions, relationships: relationships ?? null, documentTypeNames: documentTypeNames ?? null, isLoaded }),
+    [documentContent, executions, relationships, documentTypeNames, isLoaded],
   );
   return <DocumentDataContext.Provider value={value}>{children}</DocumentDataContext.Provider>;
 }
@@ -69,10 +78,7 @@ function resolveTable(element: DataTableElement, ctx: DataTableSourceContext): R
   }
 
   let rows = source.getRows(ctx);
-  if (element.filters?.lifecycleStates?.length) {
-    const allowed = new Set<string>(element.filters.lifecycleStates);
-    rows = rows.filter((r) => allowed.has((r as DataTableExecutionRow).lifecycle_state ?? ''));
-  }
+  rows = source.applyFilters?.(rows, element.filters) ?? rows;
   if (element.limit) rows = rows.slice(0, element.limit);
 
   return {
@@ -92,7 +98,7 @@ export interface ResolvedDataTable extends ResolvedTable {
 /** Resuelve un nodo `data_table` contra los datos frescos del documento, con fallback al
  * snapshot congelado del propio nodo mientras el documento no terminó de cargar. */
 export function useResolvedDataTable(element: DataTableElement): ResolvedDataTable {
-  const { documentContent, executions, isLoaded } = useContext(DocumentDataContext);
+  const { documentContent, executions, relationships, documentTypeNames, isLoaded } = useContext(DocumentDataContext);
   const { t } = useTranslation(['editor', 'assets']);
 
   return useMemo(() => {
@@ -106,24 +112,24 @@ export function useResolvedDataTable(element: DataTableElement): ResolvedDataTab
         : { headers: [], rows: [], isLoading: true, isEmpty: false, isUnavailable: false };
     }
 
-    const resolved = resolveTable(element, { t, documentContent, executions });
+    const resolved = resolveTable(element, { t, documentContent, executions, relationships, documentTypeNames });
     if (!resolved) return { headers: [], rows: [], isLoading: false, isEmpty: true, isUnavailable: false };
     return { ...resolved, isLoading: false, isEmpty: resolved.rows.length === 0, isUnavailable: false };
-  }, [element, documentContent, executions, isLoaded, t]);
+  }, [element, documentContent, executions, relationships, documentTypeNames, isLoaded, t]);
 }
 
 /** Devuelve el resolver puro que usa el pre-save (`ensureDataTableSnapshots`) para congelar
  * el snapshot de cada nodo justo antes de serializar a Markdown. `null` mientras el
  * documento no cargó — en ese caso el nodo conserva su snapshot anterior sin tocarlo. */
 export function useDataTableSnapshotResolver() {
-  const { documentContent, executions, isLoaded } = useContext(DocumentDataContext);
+  const { documentContent, executions, relationships, documentTypeNames, isLoaded } = useContext(DocumentDataContext);
   const { t } = useTranslation(['editor', 'assets']);
 
   return useCallback(
     (element: DataTableElement) => {
       if (!isLoaded) return null;
-      return resolveTable(element, { t, documentContent, executions });
+      return resolveTable(element, { t, documentContent, executions, relationships, documentTypeNames });
     },
-    [documentContent, executions, isLoaded, t],
+    [documentContent, executions, relationships, documentTypeNames, isLoaded, t],
   );
 }

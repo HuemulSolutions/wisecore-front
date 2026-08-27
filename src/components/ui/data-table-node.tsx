@@ -20,9 +20,10 @@ import { Button } from '@/components/ui/button';
 import { NodeFloatingToolbarContent } from '@/components/ui/node-floating-toolbar';
 import { Popover, PopoverAnchor } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
-import { DataTableConfigDialog, type DataTableConfig } from '@/components/ui/data-table-config-dialog';
+import { DataTableConfigSheet } from '@/components/ui/data-table-config-sheet';
+import { DataTableNodeBody } from '@/components/ui/data-table-node-grid';
 import { useResolvedDataTable } from '@/contexts/document-data-context';
-import type { DataTableElement } from '@/types/data-table-node';
+import type { DataTableConfig, DataTableElement } from '@/types/data-table-node';
 
 export function DataTableElementNode(props: PlateElementProps<DataTableElement>) {
   const editor = useEditorRef();
@@ -45,10 +46,12 @@ export function DataTableElementNode(props: PlateElementProps<DataTableElement>)
   }, [editor, element]);
 
   const handleRefresh = React.useCallback(() => {
-    // Estas dos queries alimentan el `DocumentDataProvider` que monta assets-content.tsx —
+    // Estas cuatro queries alimentan el `DocumentDataProvider` que monta assets-content.tsx —
     // invalidarlas por prefijo re-resuelve la tabla con los datos más recientes del backend.
     void queryClient.invalidateQueries({ queryKey: ['document-content'] });
     void queryClient.invalidateQueries({ queryKey: ['executions'] });
+    void queryClient.invalidateQueries({ queryKey: ['execution-relationships'] });
+    void queryClient.invalidateQueries({ queryKey: ['document-types'] });
   }, [queryClient]);
 
   const handleConfirmConfig = React.useCallback(
@@ -59,44 +62,10 @@ export function DataTableElementNode(props: PlateElementProps<DataTableElement>)
     [editor, element],
   );
 
-  const body = resolved.isUnavailable ? (
-    <p className="text-sm italic text-muted-foreground">{t('dataTable.states.unavailable')}</p>
-  ) : resolved.isLoading ? (
-    <p className="text-sm text-muted-foreground">{t('dataTable.states.loading')}</p>
-  ) : resolved.isEmpty ? (
-    <p className="text-sm italic text-muted-foreground">{t('dataTable.states.empty')}</p>
-  ) : (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-sm">
-        <thead>
-          <tr>
-            {resolved.headers.map((header, i) => (
-              <th key={i} className="border border-border bg-muted/50 px-2 py-1 text-left font-medium">
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {resolved.rows.map((row, ri) => (
-            <tr key={ri}>
-              {row.map((cell, ci) => (
-                <td key={ci} className="border border-border px-2 py-1 align-top">
-                  {cell || '—'}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-
   const content = (
     <PlateElement {...props} className="py-2.5">
-      <div contentEditable={false} className="rounded-md border border-border bg-background p-3">
-        {element.title && <p className="mb-2 text-sm font-semibold">{element.title}</p>}
-        {body}
+      <div contentEditable={false}>
+        <DataTableNodeBody resolved={resolved} title={element.title} />
       </div>
       {props.children}
     </PlateElement>
@@ -145,7 +114,7 @@ export function DataTableElementNode(props: PlateElementProps<DataTableElement>)
         </Popover>
       )}
 
-      <DataTableConfigDialog
+      <DataTableConfigSheet
         open={configOpen}
         onOpenChange={setConfigOpen}
         initial={element}

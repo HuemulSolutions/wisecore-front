@@ -59,8 +59,8 @@ const insertBlockMap: Record<
     editor.tf.insertNodes(
       {
         type: DATA_TABLE_KEY,
-        source: 'document_versions',
         scope: { kind: 'current' },
+        source: 'document_versions',
         columns: getDataTableSource('document_versions')?.defaultColumns ?? [],
         children: [{ text: '' }],
       },
