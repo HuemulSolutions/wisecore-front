@@ -16,3 +16,14 @@ export function formatUsd(value?: string | number | null): string {
   if (Number.isNaN(num)) return "—"
   return `$${num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
+
+/**
+ * Format a unit price in USD (e.g. por 1M de tokens). Hasta 4 decimales para no
+ * redondear tarifas finas como 0.075 — ver `LLM.input_price_per_1m_tokens`.
+ */
+export function formatUsdPrecise(value?: string | number | null): string {
+  if (value == null) return "—"
+  const num = typeof value === "string" ? Number(value) : value
+  if (Number.isNaN(num)) return "—"
+  return `$${num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`
+}

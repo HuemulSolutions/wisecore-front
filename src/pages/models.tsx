@@ -39,6 +39,7 @@ import {
   testEmbeddingProviderConnection,
 } from '@/services/embedding-provider'
 import { handleApiError } from '@/lib/error-utils'
+import { formatUsdPrecise } from '@/lib/format-tokens'
 import { 
   ModelsHeader,
   ModelsLoadingState, 
@@ -59,7 +60,7 @@ import {
   EmbeddingProviderEditDialog,
 } from '@/components/embedding-provider'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import type { LLM, CreateLLMRequest } from '@/types/models'
+import type { LLM, CreateLLMRequest, ModelDialogSubmitData } from '@/types/models'
 import type { CreateLLMProviderRequest, LLMProvider } from '@/types/llm-provider'
 
 function getProviderColor(name: string) {
@@ -331,20 +332,32 @@ export default function Models() {
     updateProviderMutation.mutate({ id: editingProvider.id, data })
   }
 
-  const handleCreateModel = (data: { name: string; internal_name: string; capabilities: string[]; provider_id?: string }) => {
+  const handleCreateModel = (data: ModelDialogSubmitData) => {
     if (!canCreateModel) return
     const payload: CreateLLMRequest = {
       name: data.name,
       internal_name: data.internal_name,
       capabilities: data.capabilities,
       provider_id: data.provider_id ?? '',
+      input_price_per_1m_tokens: data.input_price_per_1m_tokens ?? null,
+      output_price_per_1m_tokens: data.output_price_per_1m_tokens ?? null,
     }
     createLLMMutation.mutate(payload)
   }
 
-  const handleUpdateModel = (data: { name: string; internal_name: string; capabilities: string[]; provider_id?: string }) => {
+  const handleUpdateModel = (data: ModelDialogSubmitData) => {
     if (!editingModel || !canUpdateModel) return
-    updateLLMMutation.mutate({ id: editingModel.id, data: { name: data.name, internal_name: data.internal_name, capabilities: data.capabilities, provider_id: editingModel.provider_id } })
+    updateLLMMutation.mutate({
+      id: editingModel.id,
+      data: {
+        name: data.name,
+        internal_name: data.internal_name,
+        capabilities: data.capabilities,
+        provider_id: editingModel.provider_id,
+        input_price_per_1m_tokens: data.input_price_per_1m_tokens ?? null,
+        output_price_per_1m_tokens: data.output_price_per_1m_tokens ?? null,
+      },
+    })
   }
 
   const handleEditModel = (model: LLM) => {
@@ -390,6 +403,9 @@ export default function Models() {
         internal_name: model.internal_name,
         provider_id: model.provider_id,
         capabilities,
+        // El PUT reemplaza el recurso completo: reenviar los precios para no borrarlos.
+        input_price_per_1m_tokens: model.input_price_per_1m_tokens ?? null,
+        output_price_per_1m_tokens: model.output_price_per_1m_tokens ?? null,
       },
     }, {
       onSuccess: () => {
@@ -643,6 +659,20 @@ export default function Models() {
                         ))}
                       </div>
                     ),
+                  },
+                  {
+                    key: 'price',
+                    label: t('table.pricePer1m'),
+                    render: (model) => {
+                      const hasPrice = model.input_price_per_1m_tokens != null || model.output_price_per_1m_tokens != null
+                      if (!hasPrice) return <span className="text-muted-foreground">—</span>
+                      return (
+                        <div className="flex flex-col gap-0.5 text-xs">
+                          <span>{t('table.priceIn')} {formatUsdPrecise(model.input_price_per_1m_tokens)}</span>
+                          <span className="text-muted-foreground">{t('table.priceOut')} {formatUsdPrecise(model.output_price_per_1m_tokens)}</span>
+                        </div>
+                      )
+                    },
                   },
                 ]}
                 actionsMode="inline"
