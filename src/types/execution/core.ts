@@ -1,4 +1,20 @@
-export type ExecutionStatus = 'completed' | 'failed' | 'running' | 'pending' | 'queued'
+// El backend emite más valores que los que este tipo declaraba originalmente
+// (solo 5); el polling de ejecución y de aprobación maneja al menos estos.
+// Ver src/lib/execution-status.ts para los sets de terminales de éxito/fallo.
+export type ExecutionStatus =
+  | 'queued'
+  | 'pending'
+  | 'running'
+  | 'generating'
+  | 'paused'
+  | 'importing'
+  | 'approving'
+  | 'completed'
+  | 'done'
+  | 'approved'
+  | 'failed'
+  | 'cancelled'
+  | 'import_failed'
 export type ExecutionLifecycleState = 'draft' | 'in_review' | 'in_approval' | 'approved' | 'published' | 'archived' | 'finalized'
 
 /**

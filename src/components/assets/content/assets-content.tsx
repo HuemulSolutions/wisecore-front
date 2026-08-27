@@ -1,4 +1,4 @@
-﻿import { useMemo, useEffect, useState, useRef, useCallback } from "react";
+﻿import { useMemo, useEffect, useState, useRef, useCallback, useDeferredValue } from "react";
 import { handleApiError } from "@/lib/error-utils";
 import { resolveCannotGenerateReason, isMissingContextReason } from "@/lib/generation-gating";
 import { logger } from "@/lib/logger";
@@ -48,7 +48,8 @@ import { MentionRefsProvider } from "@/contexts/mention-refs-context";
 import { RoleRefsProvider } from "@/contexts/role-refs-context";
 import { collectMentionAssetIds, hasAnyRoleReference } from "@/lib/plate-mention-utils";
 import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, updateExecutionName } from "@/services/executions";
-import { useSectionsExecutionStatus } from './hooks/useSectionsExecutionStatus';
+import { useExecutionRun } from './hooks/useExecutionRun';
+import { ExecutionRunProgressBanner } from '@/components/execution/execution-run-progress-banner';
 import { getDefaultLLM } from "@/services/llms";
 import { useLifecycleActions } from "@/hooks/useLifecycleActions";
 import { HuemulLifecycleStageBadge } from "@/huemul/components/huemul-lifecycle-stage-badge";
@@ -78,7 +79,7 @@ import { TableOfContents } from "@/components/assets/content/assets-table-of-con
 import { toast } from "sonner";
 import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
-import SectionExecution from "./assets-section";
+import { AssetsSectionsList } from "./assets-sections-list";
 import { formatApiDateTime, parseApiDate, cn } from "@/lib/utils";
 import { CustomWordExportDialog } from "@/components/assets/dialogs/assets-export-custom.word-dialog";
 import { useNavKnowledgeActions } from "@/contexts/nav-knowledge-context";
@@ -90,21 +91,17 @@ import { useAssetContentPermissions } from '@/hooks/useDocumentAccess';
 import {
   useDocumentSectionAccess,
   useInvalidateDocumentSectionAccess,
-  canViewSection,
-  resolveSectionCanEdit,
 } from '@/hooks/useDocumentSectionAccess';
 import { usePageAccess } from '@/hooks/usePageAccess';
 import type { ContentSection, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
 import type { FormValuesSectionPayload } from '@/types/sections/core';
 import { applyFormValuesPatch } from '@/components/assets/content/utils/patch-document-content';
-import { isSectionAnswerable, isSectionApplicable, isSectionVisible } from '@/components/workflow/workflow-section-stats';
+import { isSectionApplicable } from '@/components/workflow/workflow-section-stats';
 import { CustomFieldsList } from './assets-custom-fields-list';
-import { SectionIndexContext } from '@/contexts/section-index-context';
 import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 import { useGlobalPanel } from '@/contexts/global-panel-context';
 
 // Utilities and hooks
-import { SectionSeparator } from './components/SectionSeparator';
 import { withRefresh } from '@/lib/query-utils';
 import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
 import { ContentErrorState } from './content-error-state';
@@ -487,9 +484,9 @@ export function AssetContent({
   });
 
   // Helper function to preserve scroll position
-  const preserveScrollPosition = () => {
+  const preserveScrollPosition = useCallback(() => {
     scrollRestoration.saveScrollPosition();
-  };
+  }, [scrollRestoration.saveScrollPosition]);
 
   // Mutation for renaming an execution version
   const renameVersionMutation = useMutation({
@@ -585,8 +582,22 @@ export function AssetContent({
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
   const [currentExecutionMode, setCurrentExecutionMode] = useState<'full' | 'single' | 'from' | 'full-single'>('full');
   const [currentSectionIndex, setCurrentSectionIndex] = useState<number | undefined>(undefined);
+  // epoch ms del click que disparó currentExecutionId — arma la ventana de
+  // "arming" en useExecutionRun (ver ese archivo para el porqué).
+  const [executionStartedAt, setExecutionStartedAt] = useState<number | null>(null);
+  // Identifica ESTA corrida — el backend reutiliza el mismo currentExecutionId
+  // al re-ejecutar una sección ya terminada, así que currentExecutionId por sí
+  // solo no alcanza para distinguir "la corrida anterior" de "la nueva". Las
+  // queryKeys del flujo single/from (ver useExecutionRun) incluyen este token,
+  // para que el caché arranque en blanco en cada disparo y no pueda arrastrar
+  // el resultado ya reconciliado de la corrida previa (causa del banner
+  // "completado" apareciendo de inmediato al re-ejecutar la misma sección).
+  const [executionRunToken, setExecutionRunToken] = useState<string | null>(null);
+  // Ejecución de versión nueva (full/full-single) recién creada: se banner-ea
+  // de inmediato como "otra versión generando" sin esperar a que /content
+  // devuelva la lista de ejecuciones actualizada (ver A4 en el plan).
+  const [newVersionExecutionId, setNewVersionExecutionId] = useState<string | null>(null);
   const [dismissedExecutionBanners, setDismissedExecutionBanners] = useState<Set<string>>(new Set());
-  const [, setSectionExecutionId] = useState<string | null>(null);
   const [approvingExecutionId, setApprovingExecutionId] = useState<string | null>(null);
   
   // ============================================================================
@@ -666,43 +677,68 @@ export function AssetContent({
       setCurrentExecutionId(null);
       setCurrentExecutionMode('full');
       setCurrentSectionIndex(undefined);
-      setSectionExecutionId(null);
+      setExecutionStartedAt(null);
+      setExecutionRunToken(null);
+      setNewVersionExecutionId(null);
       setDismissedExecutionBanners(new Set());
       setExecutionContext(null);
       doneSnapshotRef.current.clear();
       refreshedOrdersRef.current.clear();
+      if (pendingContentInvalidateRef.current !== null) {
+        clearTimeout(pendingContentInvalidateRef.current);
+        pendingContentInvalidateRef.current = null;
+      }
     }
   }, [selectedFile?.id, selectedExecutionId]);
 
+  // Compartido entre handleExecutionCreated (Execute Sheet) y el disparo desde
+  // el menú de una sección: registra la corrida en curso. `startedAt` arma la
+  // ventana de "arming" en useExecutionRun; `runToken` (nuevo en cada llamada,
+  // incluso reutilizando el mismo executionId) es lo que le da a esa corrida
+  // una identidad propia frente al caché — ya no hace falta resetQueries.
+  const armExecutionTracking = useCallback((
+    executionId: string,
+    mode: 'full' | 'single' | 'from' | 'full-single',
+    sectionIndex?: number,
+  ) => {
+    isCreatingExecutionRef.current = false;
+    setCurrentExecutionId(executionId);
+    setCurrentExecutionMode(mode);
+    setCurrentSectionIndex(sectionIndex);
+    setExecutionStartedAt(Date.now());
+    setExecutionRunToken(`${executionId}:${Date.now()}`);
+    doneSnapshotRef.current.clear();
+    refreshedOrdersRef.current.clear();
+  }, []);
 
+  // Disparado desde el menú de una sección ("Ejecutar sección" / "Ejecutar
+  // desde esta sección"), no desde el ExecuteSheet — sin esto, isSectionInScope()
+  // daba false y ese camino nunca mostraba banner ni skeleton. Currificada por
+  // índice y memoizada (deps estables: armExecutionTracking y
+  // preserveScrollPosition ya son useCallback) para no romper el memo de
+  // AssetsSectionsList en cada render.
+  const handleSectionExecutionStart = useCallback((index: number) => (
+    executionIdForSection: string,
+    mode: 'single' | 'from',
+  ) => {
+    preserveScrollPosition();
+    armExecutionTracking(executionIdForSection, mode, index);
+  }, [armExecutionTracking, preserveScrollPosition]);
 
   // Handle execution created from Execute Sheet
   const handleExecutionCreated = (executionId: string, mode: 'full' | 'single' | 'from' | 'full-single', sectionIndex?: number) => {
     // Preserve scroll position before any changes
     preserveScrollPosition();
-    
+
     logger.log('📥 Asset Content - Execution created received:', {
       executionId,
       mode,
       sectionIndex,
       willShowSectionFeedback: mode === 'single' || mode === 'from'
     });
-    
-    // CRITICAL: Set tracking variables FIRST, before any query operations
-    // Mark that we're done creating the execution
-    isCreatingExecutionRef.current = false;
-    
-    setCurrentExecutionId(executionId);
-    setCurrentExecutionMode(mode);
-    setCurrentSectionIndex(sectionIndex);
-    doneSnapshotRef.current.clear();
-    refreshedOrdersRef.current.clear();
 
-    // Force reset of execution status queries to ensure fresh data for new execution
-    // resetQueries will refetch immediately for any mounted components with these queries
-    queryClient.resetQueries({ queryKey: ['execution-status', executionId] });
-    queryClient.resetQueries({ queryKey: ['execution-sections-status', executionId] });
-    
+    armExecutionTracking(executionId, mode, sectionIndex);
+
     // Determine behavior based on execution mode:
     // - full/full-single: Creates NEW version, user stays on current version
     // - single/from: Modifies EXISTING version, user stays to see the changes
@@ -710,26 +746,17 @@ export function AssetContent({
       // NEW VERSION: Don't automatically switch to the new execution
       // The user decides if they want to switch to the new version
       logger.log('New version created:', executionId, 'User stays on current version:', selectedExecutionId);
-      
-      // Just invalidate queries to refresh execution list and show banners
+
+      // Banner-ear de inmediato (no depende del snapshot de /content, que
+      // puede llegar antes de que el backend registre la ejecución como
+      // activa — ver A4 en el plan).
+      setNewVersionExecutionId(executionId);
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
     } else if (mode === 'single' || mode === 'from') {
-      // EDIT EXISTING: Stay on the same version but refresh its content
+      // EDIT EXISTING: el contenido todavía no cambió — se refresca solo
+      // cuando el efecto `newlyDone` ve cada sección terminar de verdad (B3).
       logger.log('Existing version modified:', executionId, 'Refreshing current version:', selectedExecutionId);
-      
-      // Invalidate all related queries to refresh content
-      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
     }
-  };
-
-  // Handle execution complete from Execute Sheet
-  const handleExecutionComplete = () => {
-    // Refresh document content and executions (automatic refetch will occur)
-    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-    queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
-    queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
   };
 
   // State for refresh animation
@@ -801,37 +828,8 @@ export function AssetContent({
     }
   };
 
-  // Handle add section at specific position
-  const handleAddSectionAtPosition = (afterIndex?: number) => {
-    if (selectedFile && selectedFile.type === 'document') {
-      // Si hay contenido de documento (execution exists), crear section_execution
-      if (documentContent?.content && Array.isArray(documentContent.content) && selectedExecutionId) {
-        logger.log(`Adding section execution after index: ${afterIndex}`);
-        setNeedsFullDocument(true);
-        
-        // Determinar el after_from ID basado en el índice
-        let afterFromId: string | null = null;
-        if (afterIndex === -1) {
-          // Insert at beginning - no pasar after_from para que se agregue al principio
-          afterFromId = null;
-        } else if (afterIndex !== undefined && afterIndex >= 0 && afterIndex < documentContent.content.length) {
-          // Insert after specific section
-          afterFromId = documentContent.content[afterIndex].id;
-        } else {
-          // Default to last section
-          afterFromId = documentContent.content[documentContent.content.length - 1]?.id || null;
-        }
-        
-        setAfterFromSectionId(afterFromId);
-        setIsSectionExecutionDialogOpen(true);
-      } else {
-        // Si no hay execution, crear sección normal
-        logger.log(`Adding section after index: ${afterIndex}`);
-        setSectionInsertPosition(afterIndex);
-        setIsDirectSectionDialogOpen(true);
-      }
-    }
-  };
+  // handleAddSectionAtPosition: definida más abajo, después de la query de
+  // documentContent (necesita leerla en sus deps de useCallback — ver ese punto).
 
   // Handle direct section creation submission
   const handleDirectSectionSubmit = (values: any) => {
@@ -929,6 +927,42 @@ export function AssetContent({
     // "ia context/rbac-audit-guide.md"). No se toca en este cambio.
   });
 
+  // Handle add section at specific position.
+  // useCallback: se pasa como prop a AssetsSectionsList (memoizado) — sin esto
+  // tendría una referencia nueva en cada render de AssetContent, anulando ese memo.
+  // Definida acá (no junto al resto de handlers de sección más arriba) porque
+  // depende de `documentContent`, declarado recién arriba.
+  const handleAddSectionAtPosition = useCallback((afterIndex?: number) => {
+    if (selectedFile && selectedFile.type === 'document') {
+      // Si hay contenido de documento (execution exists), crear section_execution
+      if (documentContent?.content && Array.isArray(documentContent.content) && selectedExecutionId) {
+        logger.log(`Adding section execution after index: ${afterIndex}`);
+        setNeedsFullDocument(true);
+
+        // Determinar el after_from ID basado en el índice
+        let afterFromId: string | null = null;
+        if (afterIndex === -1) {
+          // Insert at beginning - no pasar after_from para que se agregue al principio
+          afterFromId = null;
+        } else if (afterIndex !== undefined && afterIndex >= 0 && afterIndex < documentContent.content.length) {
+          // Insert after specific section
+          afterFromId = documentContent.content[afterIndex].id;
+        } else {
+          // Default to last section
+          afterFromId = documentContent.content[documentContent.content.length - 1]?.id || null;
+        }
+
+        setAfterFromSectionId(afterFromId);
+        setIsSectionExecutionDialogOpen(true);
+      } else {
+        // Si no hay execution, crear sección normal
+        logger.log(`Adding section after index: ${afterIndex}`);
+        setSectionInsertPosition(afterIndex);
+        setIsDirectSectionDialogOpen(true);
+      }
+    }
+  }, [selectedFile, documentContent?.content, selectedExecutionId]);
+
   // Gate de generación con IA (context_required / can_generate del backend).
   // Fuente única: documentContent, porque es la única query siempre cargada
   // cuando hay un activo abierto (fullDocument es lazy y llega tarde).
@@ -939,6 +973,30 @@ export function AssetContent({
     ? undefined
     : resolveCannotGenerateReason(documentContent?.cannot_generate_reason, t);
   const isCannotGenerateMissingContext = !canGenerate && isMissingContextReason(documentContent?.cannot_generate_reason);
+
+  // Contenido diferido para la lista de secciones: banners, toolbar y el resto
+  // del encabezado siguen leyendo `documentContent` directo (necesitan
+  // reaccionar al instante — es el feedback de progreso de la corrida), pero
+  // reconstruir los N editores Plate de la lista es lo caro. `useDeferredValue`
+  // deja que React renderice ESE árbol en baja prioridad e interrumpible: el
+  // scroll y los clicks siguen respondiendo mientras se arma, en vez de
+  // bloquear el hilo principal hasta que termine (ver AssetsSectionsList).
+  const deferredContent = useDeferredValue(documentContent?.content);
+
+  // Emptiness por sección (índice a índice con deferredContent — el mismo
+  // array que se le pasa a AssetsSectionsList, para no desalinear índices
+  // durante la transición diferida), usada en modo lector para ocultar
+  // secciones sin contenido. Antes esto se recalculaba —con un JSON.parse +
+  // walk recursivo de TODO el plate_content de la sección— dentro del .map de
+  // render, en CADA render de AssetContent (abrir un dropdown, un tick de
+  // polling, cualquier cosa). Memoizado acá, solo se vuelve a calcular cuando
+  // el contenido realmente cambia.
+  const sectionEmptiness = useMemo(() => {
+    if (!Array.isArray(deferredContent)) return [] as boolean[];
+    return deferredContent.map((section: ContentSection) =>
+      section.section_type === 'form' ? !isSectionApplicable(section) : isSectionContentEmpty(section)
+    );
+  }, [deferredContent]);
 
   // Permiso de sección por ciclo de vida (view/can_edit) — /content no lo trae, así que
   // se resuelve aparte contra GET /documents/{id}/sections. Ver
@@ -1017,40 +1075,15 @@ export function AssetContent({
     placeholderData: (prev) => prev,
   });
 
-  // Poll current execution status for 'single' and 'from' modes to detect completion
-  const { data: currentExecutionStatus } = useQuery({
-    queryKey: ['execution-status', currentExecutionId],
-    queryFn: async () => {
-      const { getExecutionStatus } = await import('@/services/executions');
-      return getExecutionStatus(currentExecutionId!, selectedOrganizationId!);
-    },
-    enabled: !!currentExecutionId && !!selectedOrganizationId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'),
-    refetchInterval: (query) => {
-      // Stop polling if execution is in a terminal state
-      const status = query.state.data?.status;
-      if (status === 'completed' || status === 'done' || status === 'failed' || status === 'cancelled') {
-        return false;
-      }
-      return 2000; // Poll every 2 seconds
-    },
-    refetchOnWindowFocus: false,
-  });
-
-  // Poll per-section status so each section's skeleton/content reflects its own progress
-  // instead of the overall execution status (which only turns terminal once every
-  // section in the batch is done). Same query key used by SectionExecutionFeedback
-  // (mounted as a passive subscriber below), so React Query shares the fetch instead
-  // of duplicating it.
-  const {
-    sections: executionSections,
-    getSectionStatus: getSectionExecutionStatus,
-    isSectionInScope,
-  } = useSectionsExecutionStatus({
+  // Dueño único del polling de estado para la corrida single/from en curso —
+  // combina /status y /sections_status detrás de una máquina de estados
+  // (phase). Ver useExecutionRun.ts para el porqué del runToken.
+  const executionRun = useExecutionRun({
     executionId: currentExecutionId,
     executionMode: currentExecutionMode,
     startSectionIndex: currentSectionIndex,
-    poll: true,
-    overallStatus: currentExecutionStatus?.status,
+    runToken: executionRunToken,
+    startedAt: executionStartedAt,
   });
 
   // Snapshot of contentUpdatedAt taken the instant a section is first seen as 'done'.
@@ -1061,10 +1094,22 @@ export function AssetContent({
   // Orders already invalidated for the current execution, so a tick where several
   // sections finish together triggers a single document-content refetch, not one per section.
   const refreshedOrdersRef = useRef<Set<number>>(new Set());
+  // Debounce del invalidate de abajo: en modo `from`, varias secciones pueden
+  // llegar a 'done' en ticks de polling distintos (2s cada uno) — sin esto,
+  // cada una dispara su propio invalidateQueries + refetch + commit pesado
+  // (ver assets-section.tsx: cada refetch reconstruye N editores Plate en
+  // paralelo). Agrupar en una sola ventana corta reduce eso a un solo refetch
+  // por tanda de secciones que terminan casi juntas.
+  const pendingContentInvalidateRef = useRef<number | null>(null);
+  const CONTENT_INVALIDATE_DEBOUNCE_MS = 500;
 
   useEffect(() => {
-    if (!executionSections?.length) return;
-    const newlyDone = executionSections.filter(
+    // Mientras arming, un 'done' puede ser el de la corrida anterior
+    // (sections_status todavía no refleja el nuevo disparo) — no lo tratamos
+    // como "recién terminada" hasta que se confirme actividad real.
+    if (executionRun.phase === 'arming') return;
+    if (!executionRun.sections?.length) return;
+    const newlyDone = executionRun.sections.filter(
       (s) => s.status === 'done' && !refreshedOrdersRef.current.has(s.order),
     );
     if (!newlyDone.length) return;
@@ -1077,9 +1122,29 @@ export function AssetContent({
     });
 
     preserveScrollPosition();
-    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+
+    if (pendingContentInvalidateRef.current !== null) {
+      clearTimeout(pendingContentInvalidateRef.current);
+    }
+    const fileId = selectedFile?.id;
+    pendingContentInvalidateRef.current = window.setTimeout(() => {
+      pendingContentInvalidateRef.current = null;
+      queryClient.invalidateQueries({ queryKey: ['document-content', fileId] });
+    }, CONTENT_INVALIDATE_DEBOUNCE_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [executionSections, selectedFile?.id, queryClient]);
+  }, [executionRun.sections, executionRun.phase, selectedFile?.id, queryClient]);
+
+  // Ejecuta el invalidate pendiente (si lo hubiera) al desmontar, en vez de
+  // perderlo — evita quedar con contenido stale si el componente se desmonta
+  // justo dentro de la ventana de debounce (p. ej. navegación rápida).
+  useEffect(() => {
+    return () => {
+      if (pendingContentInvalidateRef.current !== null) {
+        clearTimeout(pendingContentInvalidateRef.current);
+        pendingContentInvalidateRef.current = null;
+      }
+    };
+  }, []);
 
   const isAwaitingFreshContent = useCallback((index: number) => {
     const snapshot = doneSnapshotRef.current.get(index + 1);
@@ -1087,21 +1152,23 @@ export function AssetContent({
     return isFetchingContent || contentUpdatedAt <= snapshot;
   }, [isFetchingContent, contentUpdatedAt]);
 
-  // El polling de execution-sections-status se corta apenas el status GLOBAL
-  // (currentExecutionStatus) entra en un estado terminal, lo que puede dejar
-  // cacheado un status de sección no terminal (p.ej. 'generating') si la
-  // sección falló pero su status individual no llegó a reflejarlo a tiempo.
-  // Si el status global ya es failed/cancelled y la sección no tiene un
-  // status terminal propio, usamos el global para que el skeleton no quede
-  // colgado mientras el banner de fallo ya se muestra.
-  const getEffectiveSectionExecutionStatus = useCallback((index: number) => {
+  // El contenido regenerado puede tardar un tick más que el 'done' de la
+  // sección en llegar al caché de document-content — mientras eso pasa,
+  // seguir mostrando el skeleton en vez de destaparlo con contenido viejo.
+  const getDisplaySectionStatus = useCallback((index: number) => {
     if (isAwaitingFreshContent(index)) return 'running';
-    const sectionStatus = getSectionExecutionStatus(index);
-    const overallStatus = currentExecutionStatus?.status;
-    if (sectionStatus === 'done' || sectionStatus === 'failed') return sectionStatus;
-    if (overallStatus === 'failed' || overallStatus === 'cancelled') return overallStatus;
-    return sectionStatus || overallStatus || 'running';
-  }, [isAwaitingFreshContent, getSectionExecutionStatus, currentExecutionStatus?.status]);
+    return executionRun.getSectionStatus(index);
+  }, [isAwaitingFreshContent, executionRun.getSectionStatus]);
+
+  // El banner de progreso solo espera contenido fresco en las secciones que
+  // ya llegaron a 'done' — las demás (en cola o generando) todavía no tienen
+  // nada que refrescar.
+  const isRunAwaitingFreshContent = useMemo(() => {
+    if (!executionRun.sections?.length) return false;
+    return executionRun.sections.some(
+      (s) => executionRun.isSectionInScope(s.order - 1) && isAwaitingFreshContent(s.order - 1),
+    );
+  }, [executionRun.sections, executionRun.isSectionInScope, isAwaitingFreshContent]);
 
   // Poll approving execution status to detect when approval completes
   const { data: approvingExecutionStatus } = useQuery({
@@ -1122,29 +1189,20 @@ export function AssetContent({
     refetchOnWindowFocus: false,
   });
 
-  // Effect to refresh content when 'single' or 'from' execution completes
-  // BUT keep tracking states so feedback can still display
+  // Effect to mark the current single/from execution's banner as dismissed
+  // once it reaches a terminal state (ExecutionStatusBanner no debe mostrarse
+  // para esta ejecución — ExecutionRunProgressBanner ya cubre ese feedback).
+  // NO clear tracking states here so feedback can still display, y NO
+  // invalida document-content: eso ya lo hizo `newlyDone` cuando cada sección
+  // apareció 'done' de verdad (B7); tampoco invalida ['document', id], que
+  // no cambia al regenerar contenido (B5).
   useEffect(() => {
-    if (currentExecutionStatus && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) {
-      const status = currentExecutionStatus.status;
-      if (status === 'completed' || status === 'done' || status === 'failed' || status === 'cancelled') {
-        logger.log(`🎯 Section execution finished with status: ${status}, refreshing content but keeping feedback visible`);
-        
-        // Preserve scroll position before refreshing content
-        preserveScrollPosition();
-        
-        // Add to dismissed banners to prevent ExecutionStatusBanner from showing for this execution
-        if (currentExecutionId) {
-          setDismissedExecutionBanners(prev => new Set([...prev, currentExecutionId]));
-        }
-        
-        // Refresh content - but DON'T clear tracking states
-        // The SectionExecutionFeedback needs these states to continue showing the feedback
-        queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-        queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-      }
-    }
-  }, [currentExecutionStatus?.status, currentExecutionMode, selectedFile?.id, queryClient, currentExecutionId]);
+    if (currentExecutionMode !== 'single' && currentExecutionMode !== 'from') return;
+    if (executionRun.phase !== 'succeeded' && executionRun.phase !== 'failed' && executionRun.phase !== 'cancelled') return;
+    if (!currentExecutionId) return;
+    logger.log(`🎯 Section execution finished with phase: ${executionRun.phase}, keeping feedback visible`);
+    setDismissedExecutionBanners(prev => new Set([...prev, currentExecutionId]));
+  }, [executionRun.phase, currentExecutionMode, currentExecutionId]);
 
   // Effect to detect when approval process completes
   useEffect(() => {
@@ -1330,44 +1388,85 @@ export function AssetContent({
   // Non-edit stages always stay in reader mode, so editor actions are never shown.
   const showEditorActions = canSwitchToEditorMode && !isViewMode;
 
+  // Versión efectivamente en pantalla: la elegida a mano, o si el usuario
+  // nunca eligió, la que el backend devolvió como actual. Sin este fallback,
+  // ninguno de los dos banners de abajo se muestra hasta la primera selección manual.
+  const effectiveSelectedExecutionId = selectedExecutionId ?? documentContent?.execution_id ?? null;
+
   // Get active executions on other versions (not currently viewed)
   const otherVersionActiveExecutions = useMemo(() => {
     const executions = documentContent?.executions || documentExecutions;
-    
-    if (!executions || !selectedExecutionId) {
+
+    if (!executions || !effectiveSelectedExecutionId) {
       return [];
     }
 
     return executions.filter((execution: any) => {
       // Exclude the currently selected version
-      if (execution.id === selectedExecutionId) return false;
-      
+      if (execution.id === effectiveSelectedExecutionId) return false;
+
       // For single/from modes, also exclude the currentExecutionId (same as selected)
       if (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) {
         if (execution.id === currentExecutionId) return false;
       }
-      
-      // Only show running/pending executions that haven't been dismissed
-      return ['running', 'pending'].includes(execution.status) &&
+
+      // Only show active executions that haven't been dismissed — mismo set de
+      // estados que hasExecutionInProcess (arriba), para no perder banners que
+      // ese chequeo sí considera "en proceso".
+      return ['running', 'pending', 'queued', 'processing'].includes(execution.status) &&
              !dismissedExecutionBanners.has(execution.id);
     });
-  }, [documentContent?.executions, documentExecutions, selectedExecutionId, dismissedExecutionBanners, currentExecutionId, currentExecutionMode]);
+  }, [documentContent?.executions, documentExecutions, effectiveSelectedExecutionId, dismissedExecutionBanners, currentExecutionId, currentExecutionMode]);
+
+  // Une la ejecución de versión nueva recién creada (setNewVersionExecutionId en
+  // handleExecutionCreated) con las que /content ya reporta como activas,
+  // deduplicando por id — así el banner "otra versión generando" aparece en el
+  // instante del click, sin esperar a que /content refresque la lista de
+  // ejecuciones (que puede tardar más que el propio backend en registrar la
+  // ejecución como activa).
+  const bannerExecutions = useMemo(() => {
+    if (
+      !newVersionExecutionId ||
+      dismissedExecutionBanners.has(newVersionExecutionId) ||
+      newVersionExecutionId === effectiveSelectedExecutionId ||
+      otherVersionActiveExecutions.some((e: any) => e.id === newVersionExecutionId)
+    ) {
+      return otherVersionActiveExecutions;
+    }
+    const known = allExecutions?.find((e: any) => e.id === newVersionExecutionId);
+    // Si ya apareció en /content pero con un status que no es "activo" (p.ej.
+    // completó entre el click y este refetch), no la forzamos: mismo criterio
+    // de estados que usa otherVersionActiveExecutions arriba, para no dejar un
+    // banner de "completado" pegado para siempre.
+    if (known && !['running', 'pending', 'queued', 'processing'].includes(known.status)) {
+      return otherVersionActiveExecutions;
+    }
+    // Todavía no está en /content ni en la lista de ejecuciones — nombre
+    // provisorio traducido en vez del "Version {id}" que usa el fallback de
+    // más abajo para ejecuciones sin nombre ya conocidas.
+    const placeholder = known ?? {
+      id: newVersionExecutionId,
+      name: t('execute:otherVersionBanner.newVersionFallback'),
+      status: 'running',
+    };
+    return [placeholder, ...otherVersionActiveExecutions];
+  }, [otherVersionActiveExecutions, newVersionExecutionId, dismissedExecutionBanners, effectiveSelectedExecutionId, allExecutions, t]);
 
   // Check if the currently selected version is actively executing
   const isSelectedVersionExecuting = useMemo(() => {
     const executions = documentContent?.executions || documentExecutions;
-    
-    if (!executions || !selectedExecutionId) {
+
+    if (!executions || !effectiveSelectedExecutionId) {
       return null;
     }
 
-    const selectedExecution = executions.find((execution: any) => 
-      execution.id === selectedExecutionId && 
+    const selectedExecution = executions.find((execution: any) =>
+      execution.id === effectiveSelectedExecutionId &&
       ['running', 'pending', 'importing', 'import_failed'].includes(execution.status)
     );
 
     return selectedExecution || null;
-  }, [documentContent?.executions, documentExecutions, selectedExecutionId]);
+  }, [documentContent?.executions, documentExecutions, effectiveSelectedExecutionId]);
 
   // Get selected execution details for displaying version info (optimized)
   const selectedExecutionInfo = useMemo(() => {
@@ -1635,13 +1734,13 @@ export function AssetContent({
   }, [documentContent?.content, fullDocument?.sections]);
 
   // Handle copy section link to clipboard
-  const handleCopySectionLink = (sectionId: string) => {
+  const handleCopySectionLink = useCallback((sectionId: string) => {
     const url = new URL(window.location.href);
     url.searchParams.set('section', sectionId);
     navigator.clipboard.writeText(url.toString()).then(() => {
       toast.success(t('section.linkCopied'));
     });
-  };
+  }, [t]);
 
   // Handle export to markdown
   const handleExportMarkdown = async () => {
@@ -2752,15 +2851,16 @@ export function AssetContent({
             {selectedFile.type === 'document' ? (
               <>
                 {/* Other Version Execution Banners - includes full/full-single modes */}
-                {otherVersionActiveExecutions.length > 0 && (
-                  <div className="sticky top-0 z-(--z-page-sticky) mb-4 space-y-2">
-                    {otherVersionActiveExecutions.map((execution: any) => (
+                {bannerExecutions.length > 0 && (
+                  <div className="sticky top-0 z-(--z-page-sticky-elevated) mb-4 space-y-2">
+                    {bannerExecutions.map((execution: any) => (
                       <OtherVersionExecutionBanner
                         key={execution.id}
                         executionId={execution.id}
                         executionName={execution.name || `Version ${execution.id.substring(0, 8)}`}
                         onDismiss={() => {
                           setDismissedExecutionBanners(prev => new Set(prev).add(execution.id));
+                          if (execution.id === newVersionExecutionId) setNewVersionExecutionId(null);
                         }}
                         onViewVersion={() => {
                           // Preserve scroll position before changing execution
@@ -2780,7 +2880,7 @@ export function AssetContent({
                 {isSelectedVersionExecuting && 
                  !dismissedExecutionBanners.has(isSelectedVersionExecuting.id) && 
                  !(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) && (
-                  <div className="sticky top-0 z-(--z-page-sticky) mb-4">
+                  <div className="sticky top-0 z-(--z-page-sticky-elevated) mb-4">
                     <ExecutionStatusBanner
                       executionId={isSelectedVersionExecuting.id}
                       onExecutionComplete={() => {
@@ -2808,7 +2908,30 @@ export function AssetContent({
                     />
                   </div>
                 )}
-                
+
+                {/* Single/from progress banner — un único banner por corrida (no uno por
+                    sección, ver ia context del rediseño de feedback de ejecución).
+                    `key={executionRunToken}` fuerza un remount limpio en cada disparo,
+                    incluso re-ejecutando la misma sección: sin esto, el estado local del
+                    banner (toast ya mostrado, dismiss) sobrevivía a la corrida nueva y el
+                    banner de "completado" aparecía de inmediato. */}
+                {currentExecutionId && executionRunToken && (currentExecutionMode === 'single' || currentExecutionMode === 'from') &&
+                 executionRun.phase !== 'idle' && (
+                  <div className="sticky top-0 z-(--z-page-sticky-elevated) mb-4">
+                    <ExecutionRunProgressBanner
+                      key={executionRunToken}
+                      runToken={executionRunToken}
+                      phase={executionRun.phase}
+                      progress={executionRun.progress}
+                      executionMode={currentExecutionMode}
+                      currentSectionName={executionRun.currentSectionName}
+                      failureMessage={executionRun.failureMessage}
+                      isAwaitingFreshContent={isRunAwaitingFreshContent}
+                      onRefresh={executionRun.refetch}
+                    />
+                  </div>
+                )}
+
                 {isLoadingContent || sectionAccess.isLoading ? (
                   // Show skeleton loader with consistent height to prevent layout shift.
                   // También cubre sectionAccess: sin la lista de secciones con `view`, no hay
@@ -3163,118 +3286,39 @@ export function AssetContent({
                             </div>
                           )}
                           {Array.isArray(documentContent.content) ? (
-                            // New format: array of sections with separators
-                            <>
-                              {/* Add section button at the beginning */}
-                              {showEditorActions && frontendPermissions.canEditSections && (
-                                <SectionSeparator 
-                                  onAddSection={() => handleAddSectionAtPosition(-1)} 
-                                  index={-1}
-                                  isMobile={isMobile}
-                                />
-                              )}
-                              
-                              {documentContent.content.map((section: ContentSection, index: number) => {
-                          const realSectionId = section.section_id;
-
-                          // Sección con depends_on propio no cumplido y sin show_when_inactive: el
-                          // backend ya no la devuelve en /content, pero puede seguir en caché tras un
-                          // parche local (PATCH /form_values de otra sección) — se descarta siempre,
-                          // en editor y en lector (a diferencia del chequeo de abajo, que solo aplica
-                          // en modo lector). Ver ia context/dependencias-condicionales-formularios-guide.md §3.2.
-                          if (!isSectionVisible(section)) {
-                            return null;
-                          }
-
-                          // Sin `view` sobre esta sección según el permiso por ciclo de vida
-                          // (resuelto aparte, /content no lo trae — ver sectionAccess arriba).
-                          // Fail-open si la lista de acceso no está disponible.
-                          if (!canViewSection(section, sectionAccess)) {
-                            return null;
-                          }
-
-                          // In reader mode, hide sections with empty content — except sections
-                          // in scope of an in-progress 'single'/'from' execution: there the empty
-                          // content is transient and must show skeleton + feedback, not disappear.
-                          // Form sections use a different emptiness check: "no aplica" (mirrors the
-                          // backend rule, ver ia context/dependencias-condicionales-formularios-guide.md)
-                          // instead of markdown/plate content.
-                          const sectionIsHidden = section.section_type === 'form'
-                            ? !isSectionApplicable(section)
-                            : isSectionContentEmpty(section);
-                          if (isViewMode && !isSectionInScope(index) && sectionIsHidden) {
-                            return null;
-                          }
-
-                          return (
-                            <SectionIndexContext.Provider key={`${section.id}-${index}`} value={index}>
-                              <div id={`section-${index}`} className="relative">
-                                <SectionExecution 
-                                  sectionExecution={{
-                                    id: section.id,
-                                    output: section.content,
-                                    section_id: realSectionId,
-                                    plate_content: section.plate_content,
-                                    ai_suggestion_status: section.ai_suggestion_status,
-                                    ai_suggestion_content: section.ai_suggestion_content,
-                                    ai_suggestion_instruction: section.ai_suggestion_instruction,
-                                    review_status: section.review_status,
-                                    form_fields: section.form_fields,
-                                  }}
-                                  status={section.status}
-                                  onUpdate={handleSectionUpdate}
-                                  readyToEdit={showEditorActions}
-                                  sectionIndex={index}
-                                  documentId={selectedFile?.id}
-                                  executionId={
-                                    (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))
-                                      ? currentExecutionId
-                                      : (selectedExecutionId || undefined)
-                                  }
-                                  executionStatus={
-                                    isSectionInScope(index)
-                                      ? getEffectiveSectionExecutionStatus(index)
-                                      : selectedExecutionInfo?.status
-                                  }
-                                  executionMode={currentExecutionMode}
-                                  showExecutionFeedback={isSectionInScope(index)}
-                                  onExecutionStart={(executionIdForSection) => {
-                                    if (executionIdForSection) {
-                                      setSectionExecutionId(executionIdForSection);
-                                    }
-                                  }}
-                                  onOpenExecuteSheet={handleCreateExecutionFromSection(index, realSectionId)}
-                                  sectionType={section.section_type}
-                                  sectionName={section.section_name}
-                                  sectionCanAnswer={isSectionAnswerable(section)}
-                                  // Resuelto contra sectionAccess (GET /documents/{id}/sections), no
-                                  // contra section.can_edit (siempre undefined, /content no lo manda).
-                                  // `null` no restringe: el flag no aplica a esta sección/documento.
-                                  canEditSections={frontendPermissions.canEditSections && resolveSectionCanEdit(section, sectionAccess) !== false}
-                                  // Distingue "no podés editar el documento" (canEditSections en false
-                                  // por RBAC/lifecycle/etapa) de "esta sección puntual es de solo
-                                  // lectura en esta etapa" — para el badge/tooltip en la barra de la sección.
-                                  readOnlyBySectionRule={frontendPermissions.canEditSections && resolveSectionCanEdit(section, sectionAccess) === false}
-                                  canGenerate={canGenerate}
-                                  cannotGenerateReason={cannotGenerateReason}
-                                  onCreateSectionFromSelection={handleCreateSectionFromSelection(index)}
-                                  onCopyLink={realSectionId ? () => handleCopySectionLink(realSectionId) : undefined}
-                                />
-                              </div>
-                              
-                              {/* Add separator after each section - editor mode only */}
-                              {showEditorActions && frontendPermissions.canEditSections && (
-                                <SectionSeparator
-                                  onAddSection={handleAddSectionAtPosition}
-                                  index={index}
-                                  isLastSection={index === documentContent.content.length - 1}
-                                  isMobile={isMobile}
-                                />
-                              )}
-                            </SectionIndexContext.Provider>
-                          );
-                              })}
-                            </>
+                            // New format: array of sections with separators.
+                            // Lista extraída y memoizada — ver assets-sections-list.tsx
+                            // para el porqué (evitar que cada re-render de AssetContent
+                            // recorra y reconstruya las N secciones). El check de
+                            // formato sigue sobre `documentContent.content` (no sobre
+                            // `deferredContent`) para que TS siga angostando ese mismo
+                            // campo al formato legado (string) en la rama `else` de
+                            // abajo — angostar una expresión distinta (deferredContent)
+                            // no angosta esta.
+                            <AssetsSectionsList
+                              content={deferredContent ?? documentContent.content}
+                              sectionEmptiness={sectionEmptiness}
+                              isViewMode={isViewMode}
+                              showEditorActions={showEditorActions}
+                              canEditSections={frontendPermissions.canEditSections}
+                              isMobile={isMobile}
+                              sectionAccess={sectionAccess}
+                              documentId={selectedFile?.id}
+                              currentExecutionId={currentExecutionId}
+                              currentExecutionMode={currentExecutionMode}
+                              selectedExecutionId={selectedExecutionId}
+                              selectedExecutionStatus={selectedExecutionInfo?.status}
+                              isSectionInScope={executionRun.isSectionInScope}
+                              getDisplaySectionStatus={getDisplaySectionStatus}
+                              canGenerate={canGenerate}
+                              cannotGenerateReason={cannotGenerateReason}
+                              onSectionUpdate={handleSectionUpdate}
+                              onAddSectionAtPosition={handleAddSectionAtPosition}
+                              onExecutionStartForSection={handleSectionExecutionStart}
+                              onOpenExecuteSheetForSection={handleCreateExecutionFromSection}
+                              onCreateSectionFromSelectionForSection={handleCreateSectionFromSelection}
+                              onCopyLink={handleCopySectionLink}
+                            />
                           ) : (
                             // Legacy format: single string content
                             <Markdown>{documentContent.content}</Markdown>
@@ -3587,7 +3631,6 @@ export function AssetContent({
           setIsSectionSheetOpen(true);
         }}
         onExecutionCreated={handleExecutionCreated}
-        onExecutionComplete={handleExecutionComplete}
         isMobile={isMobile}
         selectedExecutionId={selectedExecutionId}
         executionContext={executionContext}

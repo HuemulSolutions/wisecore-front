@@ -31,7 +31,6 @@ export function ExecuteSheet({
   isOpen,
   onOpenChange,
   onSectionSheetOpen,
-  onExecutionComplete,
   onExecutionCreated,
   selectedExecutionId,
   executionContext,
@@ -117,8 +116,11 @@ export function ExecuteSheet({
       
       logger.log('📦 Execute Sheet - Raw response:', executionData);
       logger.log('🆔 Extracted execution ID:', executionId);
-      
-      setCurrentExecutionId(executionId);
+
+      // No se hace setCurrentExecutionId(executionId) acá: el sheet se cierra
+      // en la línea de abajo, así que esa query (getExecutionById, para
+      // precargar instrucciones/LLM al EDITAR una ejecución) nunca llega a
+      // usarse — sólo dispara un GET /execution/{id} de más (B1).
       setHasAttemptedCreation(false);
       
       // Determinar el índice de la sección si aplica
@@ -141,7 +143,6 @@ export function ExecuteSheet({
         : undefined;
       
       onExecutionCreated?.(executionId, executionType, indexToPass);
-      onExecutionComplete?.();
       onOpenChange(false); // Cerrar el sheet inmediatamente
     },
     onError: (error) => {
