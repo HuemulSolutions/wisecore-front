@@ -334,3 +334,54 @@ export function buildDiagramGraphPayload(
 
   return { details, texts, relationships }
 }
+
+// ─── Dirty tracking ─────────────────────────────────────────────────────────────
+
+/**
+ * Firma estable del grafo — "¿cambió algo que se persistiría?". Espeja la
+ * selección de campos de `buildDiagramGraphPayload` de arriba: si se agrega un
+ * campo persistido allá, agregarlo acá o el canvas dirá "sin cambios" sobre una
+ * edición real.
+ *
+ * Deliberadamente FUERA de la firma:
+ *  - `measured`: lo escribe react-flow sola al montar/medir ⇒ marcaría dirty
+ *    apenas se siembra el diagrama. `width`/`height` sí entran: los escribe el
+ *    `NodeResizer` con `setAttributes:true`, o sea el usuario.
+ *  - `selected` / `dragging` / `resizing` / `zIndex`.
+ *  - `data.name` / `data.color` de un nodo `assetType`: no se persisten y el
+ *    effect que sincroniza `docTypeMap` los reescribe solo.
+ *  - `pathOffset` de las aristas (derivado del grafo) y el viewport (el
+ *    snapshot se regenera con `fitView` en cada guardado).
+ */
+export function buildCanvasSignature(
+  nodes: CanvasNode[],
+  edges: Edge<RelationshipEdgeData>[],
+): string {
+  const r = (v: number | null | undefined) => (v == null ? "" : String(Math.round(v)))
+
+  const nodeParts = nodes
+    .map((n) => {
+      const w = n.width ?? (n.style?.width as number | undefined) ?? null
+      const h = n.height ?? (n.style?.height as number | undefined) ?? null
+      const geom = `${r(n.position.x)},${r(n.position.y)},${r(w)},${r(h)}`
+
+      if (n.type === "assetType") {
+        const d = n.data as AssetTypeNodeData
+        return `exec:${d.assetId ?? ""}:${d.executionId ?? ""}|${geom}`
+      }
+      const d = n.data as CanvasElementNodeData
+      if (n.type === "role") return `role:${d.role?.id ?? ""}|${geom}`
+      return `${n.type}:${String(d.content ?? "").trim()}:${d.color}:${d.role?.id ?? ""}|${geom}`
+    })
+    .sort()
+
+  const edgeParts = edges
+    .map((e) => {
+      const d = e.data
+      const kind = d?.edgeKind ?? (e.id.startsWith(EXEC_EDGE_ID_PREFIX) ? "execution-relationship" : "")
+      return `${kind}:${e.source}>${e.target}:${d?.relationshipId ?? ""}:${d?.name ?? ""}:${d?.relationshipType ?? ""}`
+    })
+    .sort()
+
+  return `${nodeParts.join(";")}\n${edgeParts.join(";")}`
+}

@@ -144,6 +144,37 @@ export interface RelationshipsCanvasProps {
   readOnly?: boolean
 }
 
+// ─── Floating canvas toolbars ───────────────────────────────────────────────────
+
+export interface CanvasElementPaletteProps {
+  /** Mismo valor que `canAddRoleNode` del canvas — oculta el ítem "Rol" fuera de execution/sin permiso. */
+  canAddRole: boolean
+  /** Click: agrega el elemento al centro del viewport (`addElementAtCenter`). */
+  onAdd: (kind: CanvasElementKind) => void
+  /** Canvas angosto: oculta el eyebrow y los labels, deja solo iconos con tooltip. */
+  compact?: boolean
+}
+
+export interface CanvasActionsBarProps {
+  /** Nombre del diagrama en edición; ausente ⇒ se muestra un título genérico. */
+  diagramName?: string
+  isDirty: boolean
+  isSaving: boolean
+  /** El canvas no tiene nodos: promueve "Cargar diagrama" a botón visible. */
+  isEmpty?: boolean
+  /** Canvas angosto: labels → iconos + tooltip. */
+  compact?: boolean
+  /** Canvas muy angosto: toda la barra colapsa a un único menú "⋯". */
+  collapsed?: boolean
+  // Cada handler `undefined` = acción no permitida/no aplicable en el modo actual
+  // ⇒ el botón correspondiente NO se renderiza (nunca se muestra deshabilitado).
+  onSaveChanges?: () => void
+  onSaveAsNew?: () => void
+  onEditMetadata?: () => void
+  onLoadDiagram?: () => void
+  onClearCanvas?: () => void
+}
+
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 export interface AssetTypeSidebarProps {
