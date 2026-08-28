@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Settings2, Bell, Sparkles, MessageSquareText, BookOpen } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell, Sparkles, MessageSquareText, BookOpen } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
   ResizableHandle,
@@ -83,7 +83,7 @@ import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import { useExecutionRelationships } from "@/hooks/useExecutionRelationships";
 import { useDocumentTypes } from "@/hooks/useDocumentTypes";
 import { AssetsSectionsList } from "./assets-sections-list";
-import { formatApiDateTime, parseApiDate, cn } from "@/lib/utils";
+import { formatApiDateTime, cn } from "@/lib/utils";
 import { CustomWordExportDialog } from "@/components/assets/dialogs/assets-export-custom.word-dialog";
 import { useNavKnowledgeActions } from "@/contexts/nav-knowledge-context";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -113,7 +113,7 @@ import { ContentErrorState } from './content-error-state';
 // import { useCustomFieldMutations } from './hooks/useCustomFieldMutations';
 // import { useExecutionState } from './hooks/useExecutionState';
 
-import { getExecutionDisplayLabel } from './utils/version-utils';
+import { getExecutionDisplayLabel, getExecutionCompactLabel } from './utils/version-utils';
 import { VersionSelectorDropdown } from './assets-version-selector';
 import { ViewModeToggle } from './assets-view-mode-toggle';
 import { MoreOptionsDropdown } from './assets-more-options-dropdown';
@@ -2358,110 +2358,31 @@ export function AssetContent({
                 <DocumentAccessControl
                   requiredAccess="read"
                 >
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <HuemulButton
-                        requiredAccess="read"
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
-                        title={t('content.switchVersion')}
-                      >
-                        <span className="font-medium">
-                          {(() => {
-                            if (!allExecutions) return 'v1';
-                            // Use selectedExecutionId if available, otherwise use documentContent.execution_id (the default loaded execution)
-                            const targetId = selectedExecutionId || documentContent?.execution_id;
-                            const selectedExecution = allExecutions.find((exec: any) => exec.id === targetId);
-                            const label = getExecutionDisplayLabel(selectedExecution);
-                            if (label) {
-                              return label.length > 15 ? `${label.substring(0, 15)}...` : label;
-                            }
-                            // Fallback to version number if no name
-                            const sortedExecutions = [...allExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
-                              parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
-                            );
-                            const index = sortedExecutions.findIndex((exec: any) => exec.id === targetId);
-                            return index !== -1 ? `v${sortedExecutions.length - index}` : 'v1';
-                          })()
-                          }
-                        </span>
-                      </HuemulButton>
-                    </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-80">
-                    <div className="px-3 py-2 border-b border-gray-100">
-                      <p className="text-xs font-medium text-gray-900">{t('content.documentVersions')}</p>
-                      <p className="text-xs text-gray-500">{t('content.selectVersion')}</p>
-                    </div>
-                    <div className="overflow-y-auto max-h-64">
-                    {allExecutions
-                      .sort((a: { created_at: string }, b: { created_at: string }) => 
-                        parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
-                      )
-                      .map((execution: { id: string; created_at: string; name: string; status: string; version?: string | null }, index: number) => {
-                        // Determine if this execution is the currently selected/displayed one
-                        const currentExecutionId = selectedExecutionId || documentContent?.execution_id;
-                        const isSelected = execution.id === currentExecutionId;
-                        const isApproved = execution.status === 'approved';
-                        const isLatest = index === 0;
-                        
-                        return (
-                          <DropdownMenuItem 
-                            key={execution.id} 
-                            className={`hover:cursor-pointer p-2 transition-colors ${
-                              isSelected ? 'bg-blue-50 border-l-2 border-[#4464f7]' : 'hover:bg-gray-50'
-                            }`}
-                            onClick={() => guardedAction(() => {
-                              // Preserve scroll position before changing execution
-                              preserveScrollPosition();
-                              setSelectedExecutionId(execution.id);
-                              // Invalidate all document-content queries and refetch with new execution ID
-                              queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
-                              queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
-                            })}
-                          >
-                            <div className="flex items-center justify-between w-full">
-                              <div className="flex items-center gap-2">
-                                <span className={`text-sm font-medium ${
-                                  isSelected ? 'text-[#4464f7]' : 'text-gray-900'
-                                }`}>
-                                  {getExecutionDisplayLabel(execution)}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                {isLatest && (
-                                  <div className="flex items-center gap-1 bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
-                                    <Clock className="w-3 h-3" />
-                                    {t('content.latest')}
-                                  </div>
-                                )}
-                                {isApproved && (
-                                  <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
-                                    <CheckCircle className="w-3 h-3" />
-                                    {t('content.approved')}
-                                  </div>
-                                )}
-                                {isSelected && (
-                                  <div className="flex items-center gap-1 text-[#4464f7] text-xs font-medium">
-                                    <Eye className="w-3 h-3" />
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </DropdownMenuItem>
-                        );
-                      })}
-                    </div>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="hover:cursor-pointer p-2 gap-2 text-gray-700 hover:bg-gray-50"
-                      onSelect={() => setTimeout(() => setIsVersionManagementSheetOpen(true), 0)}
-                    >
-                      <Settings2 className="h-4 w-4" />
-                      <span className="text-xs font-medium">{t('content.manageVersions')}</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  <VersionSelectorDropdown
+                    allExecutions={allExecutions}
+                    selectedExecutionId={selectedExecutionId}
+                    documentExecutionId={documentContent?.execution_id}
+                    lifecyclePermissions={lifecyclePermissions}
+                    isCreatingPending={executeDocumentMutation.isPending}
+                    hasExecutionInProcess={hasExecutionInProcess}
+                    canGenerate={canGenerate}
+                    cannotGenerateReason={cannotGenerateReason}
+                    onCreateExecution={handleCreateExecutionFromHeader}
+                    onSelectExecution={(id) => guardedAction(() => {
+                      preserveScrollPosition();
+                      setSelectedExecutionId(id);
+                      queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
+                      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, id] });
+                    })}
+                    onOpenVersionManagement={() => setIsVersionManagementSheetOpen(true)}
+                    onRenameVersion={frontendPermissions.canEditSections ? (exec) => {
+                      setExecutionToRename({ id: exec.id, name: exec.name });
+                      setTimeout(() => setIsRenameVersionDialogOpen(true), 0);
+                    } : undefined}
+                    dropdownAlign="start"
+                    isLatest={!!selectedExecutionInfo?.isLatest}
+                    showTriggerCreateButton={false}
+                  />
                 </DocumentAccessControl>
               )}
               
@@ -2607,15 +2528,20 @@ export function AssetContent({
                     <div className="flex items-center justify-between gap-2.5">
                       <Skeleton className="h-6 w-52" />
                       <div className="flex items-center gap-2">
-                        <Skeleton className="h-5 w-20 rounded-full" />
-                        <Skeleton className="h-5 w-24 rounded-full" />
+                        <Skeleton className="h-7 w-7 rounded-full" />
+                        <Skeleton className="h-7 w-7 rounded-full" />
+                        <Skeleton className="h-7 w-24 rounded-lg" />
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-3.5 w-20" />
-                      <Skeleton className="h-3.5 w-1" />
-                      <Skeleton className="h-3.5 w-28" />
-                      <Skeleton className="h-4 w-14 rounded" />
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-3.5 w-28" />
+                        <Skeleton className="h-7 w-24 rounded-lg" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-3.5 w-20" />
+                        <Skeleton className="h-4 w-14 rounded" />
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -2648,40 +2574,8 @@ export function AssetContent({
                         />
 
                       </div>
-                      {/* Mode Toggle + Version dropdown + More Options — always in the same position for muscle memory */}
+                      {/* Notifications/menu + mode toggle — always in the same position for muscle memory. Version selector lives in the metadata row below. */}
                       <div className="flex items-center gap-1.5 shrink-0">
-                        {canSwitchToEditorMode && (
-                          <ViewModeToggle
-                            isViewMode={isViewMode}
-                            onSwitchToReader={() => { preserveScrollPosition(); setIsViewMode(true); }}
-                            onSwitchToEditor={() => { preserveScrollPosition(); setIsViewMode(false); }}
-                          />
-                        )}
-                        {selectedFile.type === 'document' && allExecutions?.length > 0 && (
-                          <VersionSelectorDropdown
-                            allExecutions={allExecutions}
-                            selectedExecutionId={selectedExecutionId}
-                            documentExecutionId={documentContent?.execution_id}
-                            lifecyclePermissions={lifecyclePermissions}
-                            isCreatingPending={executeDocumentMutation.isPending}
-                            hasExecutionInProcess={hasExecutionInProcess}
-                            canGenerate={canGenerate}
-                            cannotGenerateReason={cannotGenerateReason}
-                            onCreateExecution={handleCreateExecutionFromHeader}
-                            onSelectExecution={(id) => guardedAction(() => {
-                              onPreserveScroll?.();
-                              setSelectedExecutionId(id);
-                              queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
-                              queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, id] });
-                            })}
-                            onOpenVersionManagement={() => setIsVersionManagementSheetOpen(true)}
-                            onRenameVersion={frontendPermissions.canEditSections ? (exec) => {
-                              setExecutionToRename({ id: exec.id, name: exec.name });
-                              setTimeout(() => setIsRenameVersionDialogOpen(true), 0);
-                            } : undefined}
-                            dropdownAlign="end"
-                          />
-                        )}
                         {canListDiscussions && (
                           <div className="relative">
                             <HuemulButton
@@ -2720,6 +2614,7 @@ export function AssetContent({
                             lifecycleStatus={documentContent?.lifecycle_status}
                             finalLifecycleStage={lifecycle.finalLifecycleStage}
                             selectedExecutionId={selectedExecutionId}
+                            selectedVersionLabel={getExecutionCompactLabel(selectedExecutionInfo)}
                             hasTemplateName={!!documentContent?.template_name}
                             canCreateTemplate={canCreate('template')}
                             canManageGrants={can('manageAssetLifecycleGrants')}
@@ -2764,32 +2659,64 @@ export function AssetContent({
                             onRerunExternalPublish={() => lifecycle.runExternalPublishMutation.mutate()}
                           />
                         )}
+                        {canSwitchToEditorMode && (canListDiscussions || canListNotifications || !isViewOnly) && (
+                          <div className="h-5 w-px bg-gray-200 mx-0.5" aria-hidden="true" />
+                        )}
+                        {canSwitchToEditorMode && (
+                          <ViewModeToggle
+                            isViewMode={isViewMode}
+                            onSwitchToReader={() => { preserveScrollPosition(); setIsViewMode(true); }}
+                            onSwitchToEditor={() => { preserveScrollPosition(); setIsViewMode(false); }}
+                          />
+                        )}
                       </div>
                     </div>
 
-                    {/* Metadata Row - date/badges left, lifecycle buttons right (both modes) */}
+                    {/* Metadata Row - date + version selector left, stage + lifecycle buttons right (both modes) */}
                     <div className="flex items-center justify-between gap-2">
-                      {/* Left: date + stage badges */}
-                      <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600">
+                      {/* Left: date + version selector */}
+                      <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600 min-w-0">
                         {selectedExecutionInfo && (
-                          <>
-                            <span>{selectedExecutionInfo.formattedDate}</span>
-                            {selectedExecutionInfo.isLatest && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
-                                {t('content.latest')}
-                              </span>
-                            )}
-                          </>
+                          <span className="inline-flex items-center gap-1.5 shrink-0">
+                            <Clock className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                            {selectedExecutionInfo.formattedDate}
+                          </span>
                         )}
-                        {documentContent?.lifecycle_status && (
-                          <>
-                            <span className="text-gray-400">•</span>
-                            <HuemulLifecycleStageBadge status={documentContent.lifecycle_status} />
-                          </>
+                        {selectedFile.type === 'document' && allExecutions?.length > 0 && (
+                          <VersionSelectorDropdown
+                            allExecutions={allExecutions}
+                            selectedExecutionId={selectedExecutionId}
+                            documentExecutionId={documentContent?.execution_id}
+                            lifecyclePermissions={lifecyclePermissions}
+                            isCreatingPending={executeDocumentMutation.isPending}
+                            hasExecutionInProcess={hasExecutionInProcess}
+                            canGenerate={canGenerate}
+                            cannotGenerateReason={cannotGenerateReason}
+                            onCreateExecution={handleCreateExecutionFromHeader}
+                            onSelectExecution={(id) => guardedAction(() => {
+                              onPreserveScroll?.();
+                              setSelectedExecutionId(id);
+                              queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
+                              queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, id] });
+                            })}
+                            onOpenVersionManagement={() => setIsVersionManagementSheetOpen(true)}
+                            onRenameVersion={frontendPermissions.canEditSections ? (exec) => {
+                              setExecutionToRename({ id: exec.id, name: exec.name });
+                              setTimeout(() => setIsRenameVersionDialogOpen(true), 0);
+                            } : undefined}
+                            dropdownAlign="start"
+                            isLatest={!!selectedExecutionInfo?.isLatest}
+                          />
                         )}
                       </div>
-                      {/* Right: lifecycle action buttons - always at end of line in both modes */}
-                      <HuemulLifecycleActions controller={lifecycle} variant="row" />
+                      {/* Right: stage label + lifecycle action buttons in a shaded box — mismo patrón
+                          que el header móvil (bg-gray-50) y que ViewModeToggle / el selector de versiones. */}
+                      {documentContent?.lifecycle_status && (
+                        <div className="flex items-center gap-2 shrink-0 bg-gray-50 px-2 py-1 rounded-lg">
+                          <HuemulLifecycleStageBadge status={documentContent.lifecycle_status} variant="plain" />
+                          <HuemulLifecycleActions controller={lifecycle} variant="row" />
+                        </div>
+                      )}
                     </div>
 
                   </div>

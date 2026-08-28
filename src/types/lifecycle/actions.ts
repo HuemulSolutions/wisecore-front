@@ -130,6 +130,8 @@ export interface HuemulLifecycleActionsProps {
 export interface HuemulLifecycleStageBadgeProps {
   status: LifecycleStatus | null | undefined
   className?: string
+  /** `pill` = fondo por etapa (default, uso histórico); `plain` = solo texto, para filas donde la etapa es una etiqueta junto a las acciones de ciclo de vida. */
+  variant?: 'pill' | 'plain'
 }
 
 // ----------------------------------------
