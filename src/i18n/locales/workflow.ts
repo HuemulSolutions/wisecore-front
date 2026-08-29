@@ -100,14 +100,14 @@ const translations = {
     },
   },
   share: {
-    dialogTitle: { en: "Share workflow", es: "Compartir workflow" },
+    dialogTitle: { en: "Share this workflow with your team", es: "Comparte este workflow con tu equipo" },
     templateDescription: {
-      en: "Anyone who opens this link creates their own copy of \"{{name}}\" and answers it independently.",
-      es: "Quien abra este link crea su propia copia de \"{{name}}\" y la responde de forma independiente.",
+      en: "People with access to the organization will be able to independently complete a copy of \"{{name}}\".",
+      es: "Las personas con acceso a la organización podrán completar de forma independiente una copia de \"{{name}}\".",
     },
     executionDescription: {
-      en: "Anyone who opens this link answers the same document: \"{{name}}\".",
-      es: "Quien abra este link responde el mismo documento: \"{{name}}\".",
+      en: "People with access to the organization will be able to answer this same document: \"{{name}}\".",
+      es: "Las personas con acceso a la organización podrán responder este mismo documento: \"{{name}}\".",
     },
     copy: { en: "Copy link", es: "Copiar link" },
     copied: { en: "Copied", es: "Copiado" },
