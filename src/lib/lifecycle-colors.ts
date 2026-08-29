@@ -120,7 +120,7 @@ const BANNER_CLASSES: Partial<Record<ColorHue, BannerToneClasses>> = {
 
 /** Hue por `state` de ejecución de lifecycle (`ExecutionLifecycleState`). */
 const LIFECYCLE_STATE_HUE: Record<string, ColorHue> = {
-  draft: "slate",
+  draft: "blue",
   in_review: "amber",
   in_approval: "sky",
   approved: "emerald",

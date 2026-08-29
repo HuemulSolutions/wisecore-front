@@ -40,7 +40,7 @@ const translations = {
     execution_estimated_publication_date: { en: "Est. Publication Date", es: "Fecha Est. de Publicación" },
     execution_review_date: { en: "Review Date", es: "Fecha de Revisión" },
     document_new_comments: { en: "New Comments", es: "Nuevos Comentarios" },
-    document_stage_draft: { en: "Stage: Draft", es: "Estado: Borrador" },
+    document_stage_draft: { en: "Stage: Elaboration", es: "Estado: Elaboración" },
     document_stage_in_review: { en: "Stage: In Review", es: "Estado: En Revisión" },
     document_stage_in_approval: { en: "Stage: In Approval", es: "Estado: En Aprobación" },
     document_stage_approved: { en: "Stage: Approved", es: "Estado: Aprobado" },
