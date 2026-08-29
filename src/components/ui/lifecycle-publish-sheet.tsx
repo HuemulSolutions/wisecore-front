@@ -42,7 +42,6 @@ export function LifecyclePublishSheet({
       open={open}
       onOpenChange={(o) => !isProcessing && onOpenChange(o)}
       title={t("lifecycle.publishTitle")}
-      description={version ? t("lifecycle.publishVersionDescription", { version }) : t("lifecycle.publishDescription")}
       icon={Globe}
       iconVariant="tile"
       maxWidth="sm:max-w-xl"

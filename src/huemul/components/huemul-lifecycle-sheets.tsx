@@ -44,11 +44,6 @@ export function HuemulLifecycleSheets({
   // Archivar sin publicar (aprobado, y el tipo de activo sí llega a "publish")
   // salta directo el paso de publicación — mismo criterio que el warning rojo.
   const isArchivingUnpublished = status?.state === "approved" && finalLifecycleStage === "publish"
-  const archiveDescription = isArchivingUnpublished
-    ? t("lifecycle.archiveFromApprovedDescription")
-    : status?.version
-      ? t("lifecycle.archivePublishedVersionDescription", { version: status.version })
-      : t("lifecycle.archiveDescription")
 
   return (
     <>
@@ -89,7 +84,6 @@ export function HuemulLifecycleSheets({
         open={controller.isArchiveDialogOpen}
         onOpenChange={(open) => !controller.advanceMutation.isPending && controller.setIsArchiveDialogOpen(open)}
         title={t("lifecycle.archiveTitle")}
-        description={archiveDescription}
         onConfirm={(comment) =>
           controller.advanceMutation.mutate({
             comment,
@@ -110,7 +104,6 @@ export function HuemulLifecycleSheets({
         open={controller.isRestoreDialogOpen}
         onOpenChange={(open) => !controller.restoreMutation.isPending && controller.setIsRestoreDialogOpen(open)}
         title={t("lifecycle.restoreTitle")}
-        description={t("lifecycle.restoreDescription")}
         onConfirm={(comment) => controller.restoreMutation.mutate({ comment })}
         confirmLabel={t("lifecycle.restoreConfirm")}
         commentLabel={t("lifecycle.commentLabel")}

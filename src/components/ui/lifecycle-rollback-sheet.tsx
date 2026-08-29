@@ -144,7 +144,6 @@ export function LifecycleRollbackSheet({
       open={open}
       onOpenChange={(o) => !isProcessing && onOpenChange(o)}
       title={t("lifecycle.returnTitle")}
-      description={t("lifecycle.returnDialogDescription")}
       icon={Undo2}
       iconVariant="tile"
       maxWidth="sm:max-w-xl"

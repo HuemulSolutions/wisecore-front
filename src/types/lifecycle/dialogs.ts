@@ -5,7 +5,6 @@ export interface LifecycleCommentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string
-  description: string
   onConfirm: (comment: string) => void
   confirmLabel?: string
   cancelLabel?: string

@@ -13,7 +13,6 @@ export function LifecycleCommentSheet({
   open,
   onOpenChange,
   title,
-  description,
   onConfirm,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
@@ -39,7 +38,6 @@ export function LifecycleCommentSheet({
       open={open}
       onOpenChange={(o) => !isProcessing && onOpenChange(o)}
       title={title}
-      description={description}
       icon={icon}
       iconVariant="tile"
       maxWidth="sm:max-w-xl"
