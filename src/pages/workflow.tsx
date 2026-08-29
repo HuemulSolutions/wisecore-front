@@ -91,6 +91,10 @@ export default function WorkflowPage() {
     onPageReset: () => setPage(1),
   })
 
+  // `activeCount` cuenta solo los chips del panel lateral; la búsqueda es un filtro
+  // de toolbar y queda fuera, así que se agrega aparte.
+  const hasActiveFilters = activeCount > 0 || !!(values.search as string)
+
   const {
     data: workflowsResponse,
     isLoading,
@@ -246,6 +250,7 @@ export default function WorkflowPage() {
                     canDelete={canDelete}
                     onDelete={setDeletingRow}
                     onShare={handleShareExecution}
+                    hasActiveFilters={hasActiveFilters}
                     pagination={{
                       page: workflowsResponse?.page || page,
                       pageSize: workflowsResponse?.page_size || pageSize,

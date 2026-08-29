@@ -37,8 +37,13 @@ const translations = {
     lastModified: { en: "Last modified", es: "Última modificación" },
   },
   emptyState: {
-    title: { en: "No workflow items found", es: "No se encontraron elementos de workflow" },
-    description: { en: "No documents in progress matching your search", es: "No hay documentos en curso que coincidan con tu búsqueda" },
+    empty: { en: "You don't have any assets in progress yet", es: "Aún no tienes activos en curso" },
+    emptyDescription: { en: "Start a workflow to see it here", es: "Inicia un workflow para verlo aquí" },
+    noResults: { en: "No assets found", es: "No se encontraron activos" },
+    noResultsDescription: {
+      en: "No assets in progress match your search",
+      es: "No hay activos en curso que coincidan con tu búsqueda",
+    },
   },
   actions: {
     share: { en: "Share", es: "Compartir" },

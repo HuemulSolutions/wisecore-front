@@ -23,6 +23,8 @@ interface WorkflowTableProps {
   onDelete: (item: WorkflowItem) => void
   /** Abre el diálogo con el link para responder esta ejecución. Quien ve la fila puede compartirla. */
   onShare: (item: WorkflowItem) => void
+  /** Hay búsqueda o filtros activos: cambia el empty state de "sin datos" a "sin resultados". */
+  hasActiveFilters?: boolean
 }
 
 export function WorkflowTable({
@@ -37,6 +39,7 @@ export function WorkflowTable({
   canDelete,
   onDelete,
   onShare,
+  hasActiveFilters,
 }: WorkflowTableProps) {
   const { t } = useTranslation(["workflow", "common"])
 
@@ -131,8 +134,10 @@ export function WorkflowTable({
       onRetry={onRetry}
       emptyState={{
         icon: WorkflowIcon,
-        title: t("emptyState.title"),
-        description: t("emptyState.description"),
+        title: hasActiveFilters ? t("emptyState.noResults") : t("emptyState.empty"),
+        description: hasActiveFilters
+          ? t("emptyState.noResultsDescription")
+          : t("emptyState.emptyDescription"),
       }}
       pagination={pagination}
     />
