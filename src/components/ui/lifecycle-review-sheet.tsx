@@ -54,6 +54,7 @@ export function LifecycleReviewSheet({
     canAssignVersionInline,
     confirmApprovalWithVersion,
     assignVersionMutation,
+    completeConfirmLabel,
   } = controller
 
   const [comment, setComment] = useState("")
@@ -114,9 +115,7 @@ export function LifecycleReviewSheet({
     ? t("lifecycle.approveAndAssign", { version: versionValue?.versionString ?? "1.0.0" })
     : isApprovalStep
       ? t("lifecycle.approveConfirm")
-      : status?.will_advance_phase
-        ? t("lifecycle.advanceStateConfirm")
-        : t("lifecycle.advanceStepConfirm")
+      : completeConfirmLabel
 
   function handleConfirm() {
     const options = { comment, run_external_review: hasExternalReview }
@@ -150,7 +149,11 @@ export function LifecycleReviewSheet({
           showStepProgress
           next={
             progress.nextStep
-              ? { label: t("lifecycle.nextStepLabel"), value: progress.nextStep.name ?? stageLabel(progress.nextStep.stage) }
+              ? {
+                  label: t("lifecycle.nextStepLabel"),
+                  value: progress.nextStep.name ?? stageLabel(progress.nextStep.stage),
+                  stage: progress.nextStep.stage,
+                }
               : null
           }
         />

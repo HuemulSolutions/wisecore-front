@@ -103,6 +103,13 @@ export interface LifecycleActionsController {
   /** Stepper de fases + panel "N de M" + próximo paso, para las 4 sheets que lo muestran. `isAvailable: false` = degradar (sin datos/sin permiso). */
   progress: LifecycleProgress
 
+  /** Label del botón/CTA de completar, ya resuelto según la etapa actual y (si se conoce) el destino real del avance. Ver `lib/lifecycle-labels.ts`. */
+  completeLabel: string
+  /** Tooltip a juego con `completeLabel` — no pisa el aviso de "asigna versión antes de completar", que sigue resolviéndose en el punto de render. */
+  completeTooltip: string
+  /** CTA del sheet de confirmación que abre el botón de completar — mismo texto, para que no cambie de label entre el botón y el sheet. */
+  completeConfirmLabel: string
+
   /** `true` si corresponde embeber el selector de versión inline en el sheet de aprobación (misma condición que gatea el botón "Asignar versión" standalone). */
   canAssignVersionInline: boolean
   /** Asigna la versión y, al resolver, completa el step de aprobación con el mismo comentario — un solo click en el sheet. */
@@ -130,8 +137,6 @@ export interface HuemulLifecycleActionsProps {
 export interface HuemulLifecycleStageBadgeProps {
   status: LifecycleStatus | null | undefined
   className?: string
-  /** `pill` = fondo por etapa (default, uso histórico); `plain` = solo texto, para filas donde la etapa es una etiqueta junto a las acciones de ciclo de vida. */
-  variant?: 'pill' | 'plain'
 }
 
 // ----------------------------------------

@@ -2628,7 +2628,6 @@ export function AssetContent({
                             hasDocumentContent={!!documentContent?.content}
                             isTocSidebarOpen={isTocSidebarOpen}
                             canCompareVersions={selectedFile.type === 'document' && allExecutions?.length > 1}
-                            onAssignVersion={() => lifecycle.setIsAssignVersionDialogOpen(true)}
                             onCompareVersions={() => setIsVersionCompareSheetOpen(true)}
                             onRejectLifecycle={() => lifecycle.setIsRejectDialogOpen(true)}
                             onCheckLifecycle={() => lifecycle.setIsCheckDialogOpen(true)}
@@ -2713,7 +2712,7 @@ export function AssetContent({
                           que el header móvil (bg-gray-50) y que ViewModeToggle / el selector de versiones. */}
                       {documentContent?.lifecycle_status && (
                         <div className="flex items-center gap-2 shrink-0 bg-gray-50 px-2 py-1 rounded-lg">
-                          <HuemulLifecycleStageBadge status={documentContent.lifecycle_status} variant="plain" />
+                          <HuemulLifecycleStageBadge status={documentContent.lifecycle_status} />
                           <HuemulLifecycleActions controller={lifecycle} variant="row" />
                         </div>
                       )}

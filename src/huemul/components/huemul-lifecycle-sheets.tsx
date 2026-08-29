@@ -37,6 +37,7 @@ export function HuemulLifecycleSheets({
     ? {
         label: t("lifecycle.nextStepLabel"),
         value: progress.nextStep.name ?? t(`lifecycle.stageLabels.${progress.nextStep.stage}`, { defaultValue: progress.nextStep.stage }),
+        stage: progress.nextStep.stage,
       }
     : null
 

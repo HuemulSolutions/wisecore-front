@@ -5,11 +5,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap, Check } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getExecutionById } from "@/services/executions";
+import { HuemulExecutionStatusBadge } from "@/huemul/components/huemul-execution-status-badge";
 
 import { useState, useEffect } from "react";
 import SectionExecution from "@/components/sections/sections_execution";
@@ -53,23 +53,6 @@ export function ExecutionInfoSheet({
       level: 2,
     })) || [])
   ];
-
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'completed':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'running':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'failed':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'approved':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -124,9 +107,7 @@ export function ExecutionInfoSheet({
                           <Zap className="h-4 w-4" />
                           Execution Status
                         </CardTitle>
-                        <Badge className={getStatusColor(execution.status)}>
-                          {execution.status?.charAt(0).toUpperCase() + execution.status?.slice(1) || 'Unknown'}
-                        </Badge>
+                        <HuemulExecutionStatusBadge status={execution.status ?? "pending"} />
                       </div>
                     </CardHeader>
                     <CardContent className="pt-0">

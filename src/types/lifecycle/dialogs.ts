@@ -19,7 +19,7 @@ export interface LifecycleCommentDialogProps {
   /** Stepper de fases — omitir o `isAvailable: false` para no mostrarlo. */
   progress?: LifecycleProgress
   /** Bloque destacado ("Próximo paso"). `null`/omitir para no mostrarlo. */
-  next?: { label: string; value: string; tone?: "info" | "warning" } | null
+  next?: { label: string; value: string; tone?: "info" | "warning"; stage?: string | null } | null
 }
 
 export interface LifecycleRollbackDialogProps {

@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next"
 import { Check } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { lifecycleStageTone, type StageToneClasses } from "@/lib/lifecycle-colors"
 import type { LifecycleCurrentPhaseProgress, LifecycleStepProgressState } from "@/types/lifecycle"
 
 interface HuemulLifecycleStepProgressProps {
@@ -15,22 +16,24 @@ function captionKeyFor(stage: string): "groupsIn" | "sectionsIn" | "approvers" {
   return "groupsIn"
 }
 
-function StepDot({ state }: { state: LifecycleStepProgressState }) {
+function StepDot({ state, tone }: { state: LifecycleStepProgressState; tone: StageToneClasses }) {
   if (state === "done") {
     return (
-      <span className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-[#4f46e5]">
+      <span className={cn("inline-flex size-4 shrink-0 items-center justify-center rounded-full", tone.solid)}>
         <Check className="size-2.5 text-white" strokeWidth={3} />
       </span>
     )
   }
   if (state === "current") {
     return (
-      <span className="inline-flex size-4 shrink-0 items-center justify-center rounded-full border-2 border-[#4f46e5]">
-        <span className="size-1.5 rounded-full bg-[#4f46e5]" />
+      <span
+        className={cn("inline-flex size-4 shrink-0 items-center justify-center rounded-full border-2", tone.border)}
+      >
+        <span className={cn("size-1.5 rounded-full", tone.solid)} />
       </span>
     )
   }
-  return <span className="inline-block size-4 shrink-0 rounded-full border-2 border-[#e2e8f0]" />
+  return <span className="inline-block size-4 shrink-0 rounded-full border-2 border-border" />
 }
 
 /**
@@ -45,10 +48,11 @@ export function HuemulLifecycleStepProgress({ currentPhase, className }: HuemulL
     captionKey === "approvers"
       ? t("lifecycle.progress.approvers")
       : t(`lifecycle.progress.${captionKey}`, { stage: currentPhase.label })
+  const tone = lifecycleStageTone(currentPhase.stage)
 
   return (
-    <div className={cn("rounded-lg border border-[#e5eaf0] bg-[#f7f9fb] p-3", className)}>
-      <div className="mb-2 flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-wide text-[#64748b]">
+    <div className={cn("rounded-lg border bg-muted/40 p-3", className)}>
+      <div className="mb-2 flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         <span>{caption}</span>
         <span className="shrink-0">
           {t("lifecycle.progress.counter", { completed: currentPhase.completed, total: currentPhase.total })}
@@ -57,12 +61,12 @@ export function HuemulLifecycleStepProgress({ currentPhase, className }: HuemulL
       <ul className="space-y-1.5">
         {currentPhase.steps.map((step) => (
           <li key={step.id} className="flex items-center gap-2 text-[13px]">
-            <StepDot state={step.state} />
+            <StepDot state={step.state} tone={tone} />
             <span
               className={cn(
-                step.state === "current" && "font-semibold text-[#0f172a]",
-                step.state === "done" && "text-[#334155]",
-                step.state === "upcoming" && "text-[#94a3b8]",
+                step.state === "current" && "font-semibold text-foreground",
+                step.state === "done" && "text-foreground/75",
+                step.state === "upcoming" && "text-muted-foreground",
               )}
             >
               {step.name}

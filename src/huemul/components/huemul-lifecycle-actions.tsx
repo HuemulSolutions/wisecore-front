@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next"
-import { Tag, Undo2, Check, Globe, Archive, RotateCcw, RefreshCw } from "lucide-react"
+import { Undo2, Check, Globe, Archive, RotateCcw, RefreshCw } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { isRestorableLifecycleState } from "@/lib/lifecycle-access"
 import type { HuemulLifecycleActionsProps } from "@/types/lifecycle"
@@ -34,9 +34,6 @@ export function HuemulLifecycleActions({
   const buttonVariant = isCompact ? "outline" : "ghost"
   const sizeClass = isCompact ? "h-6 text-xs px-2" : "h-7 px-2.5 text-xs font-medium transition-colors"
 
-  // Única fuente: `useLifecycleActions` calcula la misma condición para
-  // decidir si el sheet de aprobación embebe el selector de versión inline.
-  const canAssignVersion = controller.canAssignVersionInline
   // Con etapa final distinta de "publish" (campo `final_lifecycle_stage` del
   // tipo de activo) el documento nunca llega a publicarse: al aprobar, la
   // ejecución se archiva directo.
@@ -48,29 +45,12 @@ export function HuemulLifecycleActions({
 
   return (
     <div className={`flex items-center gap-1.5 flex-wrap ${isCompact ? "" : "shrink-0"} ${className ?? ""}`}>
-      {canAssignVersion && (
-        <HuemulButton
-          variant={buttonVariant}
-          size="sm"
-          label={t("content.assignVersion")}
-          icon={Tag}
-          iconPosition="left"
-          iconClassName={iconClassName}
-          className={`${sizeClass} ${isCompact ? "text-[#4464f7] border-[#4464f7] hover:bg-blue-50" : "text-[#4464f7] hover:bg-blue-50 hover:text-[#3451e6]"} hover:cursor-pointer`}
-          loading={controller.assignVersionMutation.isPending}
-          tooltip={t("content.assignVersionTooltip")}
-          onClick={() => controller.setIsAssignVersionDialogOpen(true)}
-        />
-      )}
       {status.can_rollback && (
         <HuemulButton
           variant={buttonVariant}
-          size="sm"
-          label={t("lifecycle.return")}
           icon={Undo2}
-          iconPosition="left"
           iconClassName={iconClassName}
-          className={`${sizeClass} text-gray-600 ${isCompact ? "" : "hover:bg-gray-100 hover:text-gray-800"} hover:cursor-pointer`}
+          className={`${isCompact ? "h-6 w-6" : "h-7 w-7"} p-0 text-gray-600 ${isCompact ? "" : "hover:bg-gray-100 hover:text-gray-800"} hover:cursor-pointer`}
           loading={controller.rejectMutation.isPending}
           tooltip={t("lifecycle.tooltipReturn")}
           onClick={() => controller.setIsRejectDialogOpen(true)}
@@ -80,7 +60,7 @@ export function HuemulLifecycleActions({
         <HuemulButton
           variant={isCompact ? "default" : "ghost"}
           size="sm"
-          label={t("lifecycle.complete")}
+          label={controller.completeLabel}
           icon={Check}
           iconPosition="left"
           iconClassName={iconClassName}
@@ -90,9 +70,7 @@ export function HuemulLifecycleActions({
           tooltip={
             status.version_required && !status.version
               ? t("content.assignVersionBeforeComplete")
-              : status.will_advance_phase
-                ? t("lifecycle.tooltipCompletePhase")
-                : t("lifecycle.tooltipComplete")
+              : controller.completeTooltip
           }
           onClick={() => controller.setIsCheckDialogOpen(true)}
         />

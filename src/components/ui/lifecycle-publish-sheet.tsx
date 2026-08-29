@@ -58,7 +58,11 @@ export function LifecyclePublishSheet({
           progress={progress}
           next={
             progress.nextStep
-              ? { label: t("lifecycle.nextStepLabel"), value: progress.nextStep.name ?? progress.nextStep.stage }
+              ? {
+                  label: t("lifecycle.nextStepLabel"),
+                  value: progress.nextStep.name ?? progress.nextStep.stage,
+                  stage: progress.nextStep.stage,
+                }
               : null
           }
         />

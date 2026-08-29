@@ -78,7 +78,6 @@ const translations = {
   wizard: {
     back: { en: "Back", es: "Atrás" },
     finish: { en: "Finish", es: "Finalizar" },
-    finishAndAdvance: { en: "Finish and advance", es: "Finalizar y avanzar" },
     emptyStep: {
       title: { en: "Nothing to complete here", es: "Nada que completar acá" },
       advanceDescription: {

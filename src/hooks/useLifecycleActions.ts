@@ -5,6 +5,7 @@ import { ApiError, handleApiError } from "@/lib/error-utils"
 import { withRefresh } from "@/lib/query-utils"
 import { logger } from "@/lib/logger"
 import { parseMissingRequiredCustomFieldsDetail } from "@/lib/custom-field-required-utils"
+import { completeActionLabelKey, completeActionTooltipKey } from "@/lib/lifecycle-labels"
 import { useExternalReviewActions } from "@/hooks/useLifecycle"
 import { useLifecycleProgress } from "@/hooks/useLifecycleProgress"
 import { useMissingRequiredCustomFields } from "@/hooks/useCustomFieldDocuments"
@@ -339,19 +340,44 @@ export function useLifecycleActions({
     assignVersionMutation.mutate(version)
   }
 
+  const anySheetOpen =
+    isCheckDialogOpen || isRejectDialogOpen || isPublishDialogOpen || isArchiveDialogOpen || isRestoreDialogOpen
+
   // Progreso visual (stepper de fases + panel "N de M" + próximo paso) para
-  // las 4 sheets que lo muestran. Best-effort: si el GET de steps falla por
-  // permisos, `progress.isAvailable` es `false` y las sheets degradan sin
-  // avisar (ver `useLifecycleProgress`).
+  // las 4 sheets que lo muestran, y ahora también el label del botón
+  // "Completar" (necesita `progress.nextStep.stage` para saber a qué fase
+  // avanza). Por eso `enabled` (que trae `phases`/`nextStep`) se separa de
+  // `includeCompletion` (que trae el panel "N de M"): el label debe estar
+  // disponible con solo `can_advance`, sin esperar a que se abra un sheet.
+  // Best-effort: si el GET de steps falla por permisos, `progress.isAvailable`
+  // es `false` y tanto las sheets como el label degradan sin avisar (ver
+  // `useLifecycleProgress`).
   const progress = useLifecycleProgress({
     documentTypeId,
     executionId,
     organizationId,
     lifecycleStatus,
     finalLifecycleStage,
-    enabled:
-      isCheckDialogOpen || isRejectDialogOpen || isPublishDialogOpen || isArchiveDialogOpen || isRestoreDialogOpen,
+    enabled: anySheetOpen || !!lifecycleStatus?.can_advance,
+    includeCompletion: anySheetOpen,
   })
+
+  const nextStage = progress.nextStep?.stage ?? null
+  const stageLabel = (stage: string) => t(`lifecycle.stageLabels.${stage}`, { defaultValue: stage })
+
+  const completeLabel = t(completeActionLabelKey(lifecycleStatus, nextStage))
+  const completeConfirmLabel = completeLabel
+  const tooltipInfo = completeActionTooltipKey(lifecycleStatus, nextStage)
+  const completeTooltip = t(
+    tooltipInfo.key,
+    tooltipInfo.params
+      ? {
+          ...tooltipInfo.params,
+          ...(tooltipInfo.params.stage ? { stage: stageLabel(tooltipInfo.params.stage) } : {}),
+          ...(tooltipInfo.params.next ? { next: stageLabel(tooltipInfo.params.next) } : {}),
+        }
+      : undefined,
+  )
 
   return {
     status: lifecycleStatus,
@@ -394,6 +420,10 @@ export function useLifecycleActions({
     requiredCustomFieldsError,
     onOpenCustomFields,
     progress,
+
+    completeLabel,
+    completeTooltip,
+    completeConfirmLabel,
 
     canAssignVersionInline,
     confirmApprovalWithVersion,

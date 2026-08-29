@@ -334,9 +334,7 @@ export function WorkflowDetailPanel({
   const emptyStepAdvanceDisabled = !!data?.lifecycle_status?.version_required && !data?.lifecycle_status?.version
   const emptyStepAdvanceTooltip = emptyStepAdvanceDisabled
     ? t("content.assignVersionBeforeComplete", { ns: "assets" })
-    : data?.lifecycle_status?.will_advance_phase
-      ? t("lifecycle.tooltipCompletePhase", { ns: "assets" })
-      : t("lifecycle.tooltipComplete", { ns: "assets" })
+    : lifecycle.completeTooltip
 
   return (
     <div className="flex h-full flex-col">
@@ -483,7 +481,7 @@ export function WorkflowDetailPanel({
                 size="sm"
                 icon={Check}
                 iconPosition="left"
-                label={t("lifecycle.complete", { ns: "assets" })}
+                label={lifecycle.completeLabel}
                 disabled={emptyStepAdvanceDisabled}
                 tooltip={emptyStepAdvanceTooltip}
                 loading={lifecycle.checkMutation.isPending}
@@ -551,7 +549,7 @@ export function WorkflowDetailPanel({
             label={
               isLastStep
                 ? willAdvanceOnFinish
-                  ? t("wizard.finishAndAdvance")
+                  ? lifecycle.completeLabel
                   : t("wizard.finish")
                 : tCommon("next")
             }

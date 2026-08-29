@@ -1,6 +1,5 @@
 import {
   MoreVertical,
-  Tag,
   Undo2,
   Check,
   Globe,
@@ -100,7 +99,6 @@ interface MoreOptionsDropdownProps {
   /** True when there are ≥2 versions to compare */
   canCompareVersions: boolean;
   // Callbacks
-  onAssignVersion: () => void;
   onCompareVersions: () => void;
   onRejectLifecycle: () => void;
   onCheckLifecycle: () => void;
@@ -153,7 +151,6 @@ export function MoreOptionsDropdown({
   hasDocumentContent,
   isTocSidebarOpen,
   canCompareVersions,
-  onAssignVersion,
   onCompareVersions,
   onRejectLifecycle,
   onCheckLifecycle,
@@ -189,12 +186,6 @@ export function MoreOptionsDropdown({
     "px-2 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
 
   // ── Ciclo de vida ──
-  const showAssignVersion =
-    isViewMode &&
-    !!lifecycleStatus &&
-    !!lifecyclePermissions?.approve &&
-    (lifecycleStatus.version_required || lifecycleStatus.state === "in_approval") &&
-    !lifecycleStatus.version;
   const showReturn = isViewMode && !!lifecycleStatus && !!lifecycleStatus.can_rollback;
   const showComplete = isViewMode && !!lifecycleStatus && !!lifecycleStatus.can_advance;
   const showPublish =
@@ -216,7 +207,6 @@ export function MoreOptionsDropdown({
   const showRerunPublish =
     !!lifecyclePermissions?.publish && lifecycleStatus?.state === "published";
   const showLifecycleGroup =
-    showAssignVersion ||
     showReturn ||
     showComplete ||
     showPublish ||
@@ -273,15 +263,6 @@ export function MoreOptionsDropdown({
               <DropdownMenuLabel className={groupLabelClass}>
                 {t("content.menuGroupLifecycle")}
               </DropdownMenuLabel>
-              {showAssignVersion && (
-                <DropdownMenuItem
-                  onSelect={() => setTimeout(onAssignVersion, 0)}
-                  className="hover:cursor-pointer"
-                >
-                  <Tag className="h-4 w-4" />
-                  {t("content.assignVersion")}
-                </DropdownMenuItem>
-              )}
               {showReturn && (
                 <DropdownMenuItem
                   onSelect={() => setTimeout(onRejectLifecycle, 0)}
