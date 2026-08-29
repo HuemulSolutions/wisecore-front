@@ -316,9 +316,8 @@ export function useLifecycleActions({
     onViewChanges?.(previousExecutionId, executionId)
   }
 
-  // Misma condición que `canAssignVersion` en `huemul-lifecycle-actions.tsx` —
-  // única fuente ahora que el sheet de aprobación también la necesita para
-  // decidir si embebe el selector de versión inline.
+  // Única fuente para decidir si el sheet de aprobación embebe el selector de
+  // versión inline (en vez de bloquear el botón que lo abre, como antes).
   const canAssignVersionInline =
     !!lifecyclePermissions?.approve &&
     (!!lifecycleStatus?.version_required || lifecycleStatus?.state === "in_approval") &&

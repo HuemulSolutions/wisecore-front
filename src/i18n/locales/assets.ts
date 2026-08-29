@@ -655,7 +655,6 @@ const translations = {
     approved: { en: "Approved", es: "Aprobado" },
     showFileTree: { en: "Show file tree", es: "Mostrar árbol de archivos" },
     editDocument: { en: "Edit Asset", es: "Editar Activo" },
-    assignVersionBeforeComplete: { en: "Assign a version before completing this step", es: "Asigna una versión antes de completar este paso" },
     hideSidebar: { en: "Hide sidebar", es: "Ocultar barra lateral" },
     showSidebar: { en: "Show sidebar", es: "Mostrar barra lateral" },
     readerMode: { en: "Reader mode", es: "Modo lectura" },

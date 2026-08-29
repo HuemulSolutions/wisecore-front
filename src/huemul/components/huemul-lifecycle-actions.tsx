@@ -66,12 +66,7 @@ export function HuemulLifecycleActions({
           iconClassName={iconClassName}
           className={`${sizeClass} ${isCompact ? "" : "bg-[#4464f7] text-white hover:bg-[#3451e6] hover:text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed"} hover:cursor-pointer`}
           loading={controller.checkMutation.isPending}
-          disabled={status.version_required && !status.version}
-          tooltip={
-            status.version_required && !status.version
-              ? t("content.assignVersionBeforeComplete")
-              : controller.completeTooltip
-          }
+          tooltip={controller.completeTooltip}
           onClick={() => controller.setIsCheckDialogOpen(true)}
         />
       )}

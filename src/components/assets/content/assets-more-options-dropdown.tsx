@@ -45,8 +45,6 @@ interface LifecycleStatus {
   state: string;
   can_advance?: boolean;
   can_rollback?: boolean;
-  version_required?: boolean;
-  version?: string | null;
   current_group?: string | null;
 }
 
@@ -276,7 +274,6 @@ export function MoreOptionsDropdown({
                 <DropdownMenuItem
                   onSelect={() => setTimeout(onCheckLifecycle, 0)}
                   className="hover:cursor-pointer"
-                  disabled={lifecycleStatus?.version_required && !lifecycleStatus?.version}
                 >
                   <Check className="h-4 w-4" />
                   {t("lifecycle.complete")}

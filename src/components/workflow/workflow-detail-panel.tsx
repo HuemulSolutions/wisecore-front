@@ -331,10 +331,6 @@ export function WorkflowDetailPanel({
   // mismo criterio que willAdvanceOnFinish pero sin depender de isLastStep, ya que acá no
   // hay wizard de pasos que recorrer.
   const canAdvanceEmptyStep = lifecycle.canTransition && !!lifecycle.status?.can_advance
-  const emptyStepAdvanceDisabled = !!data?.lifecycle_status?.version_required && !data?.lifecycle_status?.version
-  const emptyStepAdvanceTooltip = emptyStepAdvanceDisabled
-    ? t("content.assignVersionBeforeComplete", { ns: "assets" })
-    : lifecycle.completeTooltip
 
   return (
     <div className="flex h-full flex-col">
@@ -482,8 +478,7 @@ export function WorkflowDetailPanel({
                 icon={Check}
                 iconPosition="left"
                 label={lifecycle.completeLabel}
-                disabled={emptyStepAdvanceDisabled}
-                tooltip={emptyStepAdvanceTooltip}
+                tooltip={lifecycle.completeTooltip}
                 loading={lifecycle.checkMutation.isPending}
                 onClick={() => {
                   finishAfterCompleteRef.current = true
