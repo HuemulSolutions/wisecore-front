@@ -166,6 +166,15 @@ export function lifecycleStateColor(state: string | null | undefined): string {
   return BADGE_CLASSES[(state && LIFECYCLE_STATE_HUE[state]) || FALLBACK_HUE]
 }
 
+/**
+ * Hue crudo por `state` de lifecycle, para superficies que resuelven sus
+ * propias clases a partir del hue (p. ej. los KPI cards de home) en vez de
+ * usar las clases de badge de `lifecycleStateColor`.
+ */
+export function lifecycleStateHue(state: string | null | undefined): ColorHue {
+  return (state && LIFECYCLE_STATE_HUE[state]) || FALLBACK_HUE
+}
+
 export function lifecycleStageColor(stage: string | null | undefined): string {
   return BADGE_CLASSES[(stage && LIFECYCLE_STAGE_HUE[stage]) || FALLBACK_HUE]
 }
