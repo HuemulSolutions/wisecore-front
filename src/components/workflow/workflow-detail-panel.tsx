@@ -332,6 +332,11 @@ export function WorkflowDetailPanel({
   // hay wizard de pasos que recorrer.
   const canAdvanceEmptyStep = lifecycle.canTransition && !!lifecycle.status?.can_advance
 
+  // La fila de ciclo de vida solo existe en el panel de /workflow. Cuando está,
+  // el badge de etapa sube bajo el título y la sección actual baja a esa fila;
+  // en el link compartido (showLifecycle=false) la sección se queda arriba.
+  const showLifecycleRow = showLifecycle && !!data?.lifecycle_status && !needsNameStep
+
   return (
     <div className="flex h-full flex-col">
       <div
@@ -343,11 +348,17 @@ export function WorkflowDetailPanel({
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">{documentName}</p>
           {internalCode && <p className="truncate text-xs font-mono text-muted-foreground">{internalCode}</p>}
-          {currentSection?.section_name && (
-            <div className="flex items-center gap-1.5">
-              <p className="truncate text-xs text-muted-foreground">{currentSection.section_name}</p>
-              <HuemulReviewStatusBadge status={currentSection.review_status as ReviewStatus | null} sectionType="form" />
+          {showLifecycleRow && data?.lifecycle_status ? (
+            <div className="mt-1 flex">
+              <HuemulLifecycleStageBadge status={data.lifecycle_status} />
             </div>
+          ) : (
+            currentSection?.section_name && (
+              <div className="flex items-center gap-1.5">
+                <p className="truncate text-xs text-muted-foreground">{currentSection.section_name}</p>
+                <HuemulReviewStatusBadge status={currentSection.review_status as ReviewStatus | null} sectionType="form" />
+              </div>
+            )
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -385,9 +396,16 @@ export function WorkflowDetailPanel({
         </div>
       </div>
 
-      {showLifecycle && data?.lifecycle_status && !needsNameStep && (
+      {showLifecycleRow && (
         <div className="flex items-center justify-between gap-2 border-b px-4 py-2 shrink-0 flex-wrap">
-          <HuemulLifecycleStageBadge status={data.lifecycle_status} />
+          {currentSection?.section_name ? (
+            <div className="flex min-w-0 items-center gap-1.5">
+              <p className="truncate text-xs text-muted-foreground">{currentSection.section_name}</p>
+              <HuemulReviewStatusBadge status={currentSection.review_status as ReviewStatus | null} sectionType="form" />
+            </div>
+          ) : (
+            <div />
+          )}
           <HuemulLifecycleActions
             controller={lifecycle}
             variant="row"
