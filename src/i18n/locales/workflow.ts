@@ -84,14 +84,18 @@ const translations = {
     back: { en: "Back", es: "Atrás" },
     finish: { en: "Finish", es: "Finalizar" },
     emptyStep: {
-      title: { en: "Nothing to complete here", es: "Nada que completar acá" },
+      advanceTitle: { en: "Nothing to complete here", es: "Nada que completar aquí" },
       advanceDescription: {
         en: "There are no pending forms for you at this step. You can move the workflow forward.",
-        es: "No hay formularios pendientes para vos en este paso. Podés avanzar el flujo.",
+        es: "No hay formularios pendientes para ti en este paso. Puedes avanzar el flujo.",
+      },
+      waitingTitle: {
+        en: "This section is pending on another role",
+        es: "Esta sección está pendiente de otro rol",
       },
       waitingDescription: {
-        en: "There are no pending forms for you at this step. Waiting on another role to continue.",
-        es: "No hay formularios pendientes para vos en este paso. Falta que otro rol continúe el flujo.",
+        en: "This section hasn't been completed by the person with edit permission. You can't move forward until it's completed.",
+        es: "La sección no ha sido completada por quien tiene permiso de edición. No puedes avanzar hasta que se complete.",
       },
     },
     summary: {

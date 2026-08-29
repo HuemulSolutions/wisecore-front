@@ -493,7 +493,9 @@ export function WorkflowDetailPanel({
         ) : formSections.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-8 text-center">
             <CheckCircle2 className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm font-medium text-foreground">{t("wizard.emptyStep.title")}</p>
+            <p className="text-sm font-medium text-foreground">
+              {canAdvanceEmptyStep ? t("wizard.emptyStep.advanceTitle") : t("wizard.emptyStep.waitingTitle")}
+            </p>
             <p className="max-w-sm text-xs text-muted-foreground">
               {canAdvanceEmptyStep ? t("wizard.emptyStep.advanceDescription") : t("wizard.emptyStep.waitingDescription")}
             </p>
