@@ -188,6 +188,20 @@ export function isTerminalLifecycleState(state: string | undefined): boolean {
   return !!state && TERMINAL_LIFECYCLE_STATES.has(state)
 }
 
+/**
+ * Estados cuyo label de `lifecycle.stateLabels` encaja gramaticalmente embebido en
+ * "Este activo está {label}" / "This asset is {label}". `draft` queda fuera a
+ * propósito ("está elaboración" no es frase) — para esos se usa el aviso genérico.
+ */
+export const READ_ONLY_NOTICE_STATES: ReadonlySet<string> = new Set([
+  "in_review",
+  "in_approval",
+  "approved",
+  "published",
+  "archived",
+  "finalized",
+])
+
 /** Estados desde los que `POST /execution-lifecycle/{id}/restore` está habilitado. */
 export const RESTORABLE_LIFECYCLE_STATES: ReadonlySet<string> = new Set([
   "archived",

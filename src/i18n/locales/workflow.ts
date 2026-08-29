@@ -131,9 +131,13 @@ const translations = {
       en: "You don't have permission to answer this form — you can only view it.",
       es: "No tienes permiso para responder este formulario — solo puedes verlo.",
     },
-    readOnlyStageNotice: {
-      en: "This asset is in {{stage}}, fields can't be edited.",
-      es: "Este activo está en {{stage}}, los campos no se pueden editar.",
+    readOnlyStateNotice: {
+      en: "This asset is {{state}}, fields can't be edited.",
+      es: "Este activo está {{state}}, los campos no se pueden editar.",
+    },
+    readOnlyLifecycleNotice: {
+      en: "Fields can't be edited at this lifecycle stage.",
+      es: "Los campos no se pueden editar en esta etapa del ciclo de vida.",
     },
     readOnlySectionNotice: {
       en: "This section is read-only at this stage — you can view it but not answer it.",

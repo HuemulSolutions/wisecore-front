@@ -18,6 +18,7 @@ import { getDocumentContent } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { lifecycleAllows, lifecycleStageAllowsEditing } from "@/hooks/useDocumentAccess"
+import { READ_ONLY_NOTICE_STATES } from "@/lib/lifecycle-access"
 import { workflowQueryKeys } from "@/hooks/useWorkflows"
 import { useLifecycleActions } from "@/hooks/useLifecycleActions"
 import type { AssetContentResponse, ContentSection } from "@/types/assets"
@@ -271,6 +272,18 @@ export function WorkflowDetailPanel({
           ? "sectionInactive"
           : "section"
 
+  // El bloqueo por ciclo de vida viene de lifecycleStageAllowsEditing: stage distinto de
+  // `edit` o estado terminal. En el caso terminal el `stage` miente (publish vs published),
+  // así que el aviso nombra el `state`; los que no encajan en la frase caen al genérico.
+  const stageNotice = React.useMemo(() => {
+    const state = data?.lifecycle_status?.state
+    if (!state || !READ_ONLY_NOTICE_STATES.has(state)) return t("fill.readOnlyLifecycleNotice")
+    return t("fill.readOnlyStateNotice", {
+      // En minúscula: el label va embebido en la frase, no como título.
+      state: t(`lifecycle.stateLabels.${state}`, { ns: "assets", defaultValue: state }).toLocaleLowerCase(),
+    })
+  }, [data?.lifecycle_status?.state, t])
+
   // Se levanta justo antes de abrir el diálogo de "Completar" desde el botón de
   // Finalizar del wizard, para distinguir esa apertura de la del botón "Completar"
   // de HuemulLifecycleActions (mismo `isCheckDialogOpen` compartido) — solo la
@@ -420,13 +433,7 @@ export function WorkflowDetailPanel({
         {!needsNameStep && documentId && !isLoading && !error && formSections.length > 0 && readOnlyReason && (
           <div className="mb-4 flex items-center rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
             {readOnlyReason === "stage"
-              ? t("fill.readOnlyStageNotice", {
-                  // En minúscula: el label de etapa va embebido en la frase, no como título.
-                  stage: t(`lifecycle.stageLabels.${data?.lifecycle_status?.stage}`, {
-                    ns: "assets",
-                    defaultValue: data?.lifecycle_status?.stage,
-                  }).toLocaleLowerCase(),
-                })
+              ? stageNotice
               : readOnlyReason === "sectionInactive"
                 ? t("fill.readOnlyInactiveSectionNotice")
                 : readOnlyReason === "section"
