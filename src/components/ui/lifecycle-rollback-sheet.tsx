@@ -5,7 +5,6 @@ import { Undo2 } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulLifecyclePhaseStepper } from "@/huemul/components/huemul-lifecycle-phase-stepper"
-import { HuemulLifecycleNextStep } from "@/huemul/components/huemul-lifecycle-next-step"
 import type { RollbackTargetsResponse } from "@/services/executions"
 import type { LifecycleProgress } from "@/types/lifecycle"
 import type { LifecycleRollbackDialogProps } from '@/types/lifecycle'
@@ -112,19 +111,6 @@ export function LifecycleRollbackSheet({
     return groups
   }, [rollbackTargets])
 
-  // Etiqueta del destino elegido para el bloque destacado "Devolver a".
-  const selectedLabel = useMemo(() => {
-    for (const group of groupedOptions) {
-      const match = group.options.find((o) => o.value === selectedTarget)
-      if (match) return `${group.groupLabel} · ${match.label}`
-    }
-    if (selectedTarget.startsWith("state:")) {
-      const stateValue = selectedTarget.slice(6)
-      return t(`lifecycle.stateLabels.${stateValue}`, { defaultValue: stateValue })
-    }
-    return null
-  }, [groupedOptions, selectedTarget, t])
-
   function handleConfirm() {
     const options: { comment: string; target_state?: string; target_step_id?: string } = {
       comment,
@@ -171,10 +157,6 @@ export function LifecycleRollbackSheet({
               disabled={isProcessing || isLoadingTargets}
               placeholder="—"
             />
-            {selectedLabel && (
-              <HuemulLifecycleNextStep label={t("lifecycle.rollbackTargetLabel")} value={selectedLabel} tone="warning" icon={Undo2} />
-            )}
-
             <HuemulField
               type="textarea"
               label={t("lifecycle.commentLabel")}

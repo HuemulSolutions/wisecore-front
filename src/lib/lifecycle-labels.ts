@@ -10,9 +10,10 @@ import type { LifecycleStatus } from "@/types/assets"
  * Antes el label era fijo ("Completar") sin importar la etapa: en aprobación
  * decía lo mismo que en un borrador. Reglas (ver ia context/ si se agrega
  * un nuevo tipo de step):
- * 1. Si el paso cierra la fase (`will_advance_phase`) y se conoce el destino
+ * 1. En `approve` siempre "Aprobar", aunque el paso cierre la fase: es el verbo
+ *    que el aprobador espera; a dónde avanza después lo dice el tooltip.
+ * 2. Si el paso cierra la fase (`will_advance_phase`) y se conoce el destino
  *    → nombra el destino ("Enviar a aprobación").
- * 2. Si cierra fase desde `approve` sin destino conocido → "Aprobar y finalizar".
  * 3. Si no cierra fase → verbo de la etapa actual ("Completar revisión").
  * 4. Fallback: `lifecycle.complete` ("Completar") — nunca peor que antes.
  */
@@ -24,11 +25,12 @@ export function completeActionLabelKey(
 
   const stage = isKnownStage(status.stage) ? status.stage : null
 
+  if (stage === "approve") return "lifecycle.completeLabels.stage.approve"
+
   if (status.will_advance_phase) {
     if (nextStage && isKnownStage(nextStage)) {
       return `lifecycle.completeLabels.advanceTo.${nextStage}`
     }
-    if (stage === "approve") return "lifecycle.completeLabels.approveFinal"
   }
 
   if (stage) return `lifecycle.completeLabels.stage.${stage}`

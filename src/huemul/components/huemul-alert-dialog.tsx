@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Loader2, AlertTriangle, Check } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,11 +30,13 @@ export function HuemulAlertDialog({
   onAction,
   actionVariant = "destructive",
   actionIcon,
-  cancelLabel = "Cancel",
+  cancelLabel,
   successDelay = 600,
   className,
   alert,
 }: HuemulAlertDialogProps) {
+  // Default traducido del botón de cancelar (ver HuemulSheet).
+  const { t } = useTranslation("common");
   const [actionState, setActionState] = React.useState<ActionState>("idle");
 
   // ── Shared helpers — all open/close goes through Radix's onOpenChange ──
@@ -103,7 +106,7 @@ export function HuemulAlertDialog({
             disabled={isProcessing}
             className="hover:cursor-pointer"
           >
-            {cancelLabel}
+            {cancelLabel ?? t("cancel")}
           </AlertDialogCancel>
 
           <Button

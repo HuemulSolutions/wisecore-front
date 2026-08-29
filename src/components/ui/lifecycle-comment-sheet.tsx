@@ -15,7 +15,8 @@ export function LifecycleCommentSheet({
   title,
   onConfirm,
   confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  // Sin default: `undefined` deja que HuemulSheet use su "Cancelar" traducido.
+  cancelLabel,
   commentLabel = "Comment",
   commentPlaceholder = "Add a comment...",
   isProcessing = false,

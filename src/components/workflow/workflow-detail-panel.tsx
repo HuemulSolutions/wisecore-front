@@ -1,7 +1,7 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, CheckCircle2, Edit3, ListChecks, RefreshCw, Eye } from "lucide-react"
+import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, CheckCircle2, Edit3, ListChecks, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Input } from "@/components/ui/input"
@@ -400,14 +400,14 @@ export function WorkflowDetailPanel({
       <div className={cn("flex-1 overflow-auto p-4", isFullscreen && "sm:px-8")}>
         <div className={cn(isFullscreen && "mx-auto w-full max-w-3xl")}>
         {!needsNameStep && documentId && !isLoading && !error && formSections.length > 0 && readOnlyReason && (
-          <div className="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            <Eye className="h-4 w-4 shrink-0" />
+          <div className="mb-4 flex items-center rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
             {readOnlyReason === "stage"
               ? t("fill.readOnlyStageNotice", {
+                  // En minúscula: el label de etapa va embebido en la frase, no como título.
                   stage: t(`lifecycle.stageLabels.${data?.lifecycle_status?.stage}`, {
                     ns: "assets",
                     defaultValue: data?.lifecycle_status?.stage,
-                  }),
+                  }).toLocaleLowerCase(),
                 })
               : readOnlyReason === "sectionInactive"
                 ? t("fill.readOnlyInactiveSectionNotice")

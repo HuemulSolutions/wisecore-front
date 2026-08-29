@@ -87,7 +87,6 @@ export default function ExecutionConfigDialog({
             icon={Icon}
             maxWidth="sm:max-w-md"
             maxHeight="max-h-[90vh]"
-            cancelLabel="Cancel"
             saveAction={{
                 label: "Execute",
                 onClick: handleExecute,

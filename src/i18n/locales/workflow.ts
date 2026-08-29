@@ -132,8 +132,8 @@ const translations = {
       es: "No tienes permiso para responder este formulario — solo puedes verlo.",
     },
     readOnlyStageNotice: {
-      en: "This document is in {{stage}}: fields can no longer be answered.",
-      es: "Este documento está en {{stage}}: los campos ya no se pueden responder.",
+      en: "This asset is in {{stage}}, fields can't be edited.",
+      es: "Este activo está en {{stage}}, los campos no se pueden editar.",
     },
     readOnlySectionNotice: {
       en: "This section is read-only at this stage — you can view it but not answer it.",
