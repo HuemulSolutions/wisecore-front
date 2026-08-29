@@ -73,11 +73,11 @@ const translations = {
   },
   expressSheet: {
     welcomeTitle: { en: "General information", es: "Datos generales" },
-    welcomeDescription: { en: "Assign a name to this record to easily identify it later.", es: "Asigna un nombre a este registro para identificarlo fácilmente más adelante." },
+    welcomeDescription: { en: "Assign a name to this asset to easily identify it later.", es: "Asigna un nombre a este activo para identificarlo fácilmente más adelante." },
     name: { en: "Name", es: "Nombre" },
     namePlaceholder: { en: "e.g. Ergonomic chairs purchase", es: "Ej: Compra de sillas ergonómicas" },
     description: { en: "Description", es: "Descripción" },
-    descriptionPlaceholder: { en: "Add a description about this record (optional)", es: "Agrega una descripción sobre este registro (opcional)" },
+    descriptionPlaceholder: { en: "Add a description about this asset", es: "Agrega una descripción sobre este activo" },
     success: { en: "Document created successfully", es: "Documento creado correctamente" },
   },
   wizard: {
