@@ -1,14 +1,8 @@
 import { cn } from "@/lib/utils";
+import type { ColorHue } from "@/lib/lifecycle-colors";
 
-export type HuemulStatCardColor =
-  | "blue"
-  | "slate"
-  | "amber"
-  | "sky"
-  | "emerald"
-  | "teal"
-  | "red"
-  | "violet";
+/** Paleta del ciclo de vida (`ColorHue`) + hues propios de KPIs ajenos al lifecycle. */
+export type HuemulStatCardColor = ColorHue | "violet";
 
 const COLOR_CLASSES: Record<
   HuemulStatCardColor,
@@ -20,6 +14,8 @@ const COLOR_CLASSES: Record<
   sky: { dot: "bg-sky-500", text: "text-sky-600 dark:text-sky-400", activeBg: "bg-sky-50 dark:bg-sky-950/30", activeBorder: "border-sky-500/50" },
   emerald: { dot: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400", activeBg: "bg-emerald-50 dark:bg-emerald-950/30", activeBorder: "border-emerald-500/50" },
   teal: { dot: "bg-teal-500", text: "text-teal-600 dark:text-teal-400", activeBg: "bg-teal-50 dark:bg-teal-950/30", activeBorder: "border-teal-500/50" },
+  gray: { dot: "bg-gray-500", text: "text-gray-600 dark:text-gray-400", activeBg: "bg-gray-50 dark:bg-gray-800/40", activeBorder: "border-gray-500/50" },
+  indigo: { dot: "bg-indigo-500", text: "text-indigo-600 dark:text-indigo-400", activeBg: "bg-indigo-50 dark:bg-indigo-950/30", activeBorder: "border-indigo-500/50" },
   red: { dot: "bg-red-500", text: "text-red-600 dark:text-red-400", activeBg: "bg-red-50 dark:bg-red-950/30", activeBorder: "border-red-500/50" },
   violet: { dot: "bg-violet-500", text: "text-violet-600 dark:text-violet-400", activeBg: "bg-violet-50 dark:bg-violet-950/30", activeBorder: "border-violet-500/50" },
 };

@@ -88,7 +88,7 @@ export function EmojiPopover({
       <Popover.Trigger asChild>{control}</Popover.Trigger>
 
       <Popover.Portal>
-        <Popover.Content className="z-100">{children}</Popover.Content>
+        <Popover.Content className="z-(--z-editor-menu)">{children}</Popover.Content>
       </Popover.Portal>
     </Popover.Root>
   );

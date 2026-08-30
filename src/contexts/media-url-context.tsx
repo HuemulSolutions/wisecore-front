@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useMemo } from 'react'
 import { isMediaToken } from '@/lib/plate-media-utils'
 
 interface MediaUrlContextValue {
@@ -19,8 +19,15 @@ export function MediaUrlProvider({
   freshUrls: Record<string, string> | null
   children: React.ReactNode
 }) {
+  // Memoized so a re-render of AssetContent that doesn't actually change
+  // freshUrls (e.g. a polling tick) doesn't hand every media node in every
+  // section a new context value — that would re-render them all even though
+  // React.memo on the section itself said "no change" (context reads bypass
+  // memo comparisons entirely).
+  const value = useMemo(() => ({ freshUrls }), [freshUrls])
+
   return (
-    <MediaUrlContext.Provider value={{ freshUrls }}>
+    <MediaUrlContext.Provider value={value}>
       {children}
     </MediaUrlContext.Provider>
   )

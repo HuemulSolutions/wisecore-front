@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loader2, Clock, RefreshCw, XCircle, CheckCircle, AlertCircle, GitCompare } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { getAiSuggestion } from '@/services/section_execution';
 import { useOrganization } from '@/contexts/organization-context';
 import { cn } from '@/lib/utils';
+import { getExecutionPollInterval } from '@/lib/polling-intervals';
 import { Button } from '@/components/ui/button';
 import type { AiSuggestionFeedbackProps } from '@/types/ai-suggestion-feedback';
 
@@ -20,30 +21,35 @@ export function AiSuggestionFeedback({
 }: AiSuggestionFeedbackProps) {
   const { selectedOrganizationId } = useOrganization();
   const { t } = useTranslation('execute');
-  const [pollingInterval, setPollingInterval] = useState<number | false>(2000);
+  const [isPolling, setIsPolling] = useState(true);
   const [isDismissed, setIsDismissed] = useState(false);
   const [hasHandledTerminalState, setHasHandledTerminalState] = useState(false);
   const [completedContent, setCompletedContent] = useState<string | null>(null);
+  // Este feedback se monta al activarse la sugerencia (isAiSuggestionActive
+  // en assets-section.tsx) y se desmonta al terminar/descartarse — un solo
+  // Date.now() al montar alcanza como base del backoff, y se reinicia al
+  // reanudar el polling a mano, más abajo.
+  const startedAtRef = useRef(Date.now());
 
   const { data, refetch } = useQuery({
     queryKey: ['ai-suggestion', sectionExecutionId],
     queryFn: () => getAiSuggestion(sectionExecutionId, selectedOrganizationId ?? undefined),
-    enabled: !!sectionExecutionId && !!selectedOrganizationId && pollingInterval !== false && !isDismissed,
-    refetchInterval: pollingInterval,
-    refetchOnWindowFocus: false,
+    enabled: !!sectionExecutionId && !!selectedOrganizationId && isPolling && !isDismissed,
+    refetchInterval: () => (isPolling ? getExecutionPollInterval(Date.now() - startedAtRef.current) : false),
+    refetchOnWindowFocus: true,
   });
 
   useEffect(() => {
     if (!data || hasHandledTerminalState) return;
 
     if (data.status === 'completed' && data.content != null) {
-      setPollingInterval(false);
+      setIsPolling(false);
       setHasHandledTerminalState(true);
       setCompletedContent(data.content);
       // Notify parent to invalidate queries; banner stays visible for user action.
       onCompleted(data.content);
     } else if (data.status === 'failed') {
-      setPollingInterval(false);
+      setIsPolling(false);
       setHasHandledTerminalState(true);
       // Banner stays visible so user can see the error before dismissing.
     }
@@ -51,14 +57,15 @@ export function AiSuggestionFeedback({
 
   const handleRefresh = () => {
     refetch();
-    if (pollingInterval === false && !isDismissed) {
-      setPollingInterval(2000);
+    if (!isPolling && !isDismissed) {
+      startedAtRef.current = Date.now();
+      setIsPolling(true);
     }
   };
 
   const handleDismiss = () => {
     setIsDismissed(true);
-    setPollingInterval(false);
+    setIsPolling(false);
     if (data?.status === 'failed') {
       onFailed?.();
     }
@@ -67,7 +74,7 @@ export function AiSuggestionFeedback({
 
   const handleViewSuggestion = () => {
     setIsDismissed(true);
-    setPollingInterval(false);
+    setIsPolling(false);
     onViewSuggestion?.(completedContent ?? '');
   };
 

@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -76,7 +77,7 @@ export function HuemulSheet({
   bodyLoading = false,
   showFooter = true,
   showCancelButton = true,
-  cancelLabel = "Cancel",
+  cancelLabel,
   onCancel,
   saveAction,
   extraActions,
@@ -91,6 +92,10 @@ export function HuemulSheet({
   onOpenAutoFocus,
   children,
 }: HuemulSheetProps) {
+  // Default traducido del botón de cancelar: sin esto los sheets que no pasan
+  // `cancelLabel` mostraban "Cancel" hardcodeado aun con la UI en español.
+  const { t } = useTranslation("common");
+
   // Shared helper — all close paths go through Radix's onOpenChange
   const closeDialog = React.useCallback(() => {
     onOpenChange(false);
@@ -284,7 +289,7 @@ export function HuemulSheet({
                     className="hover:cursor-pointer"
                     onClick={() => onCancel?.()}
                   >
-                    {cancelLabel}
+                    {cancelLabel ?? t("cancel")}
                   </Button>
                 </SheetClose>
               )}

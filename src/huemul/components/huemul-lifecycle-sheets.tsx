@@ -4,6 +4,7 @@ import { LifecycleRollbackSheet } from "@/components/ui/lifecycle-rollback-sheet
 import { LifecyclePublishSheet } from "@/components/ui/lifecycle-publish-sheet"
 import { LifecycleCommentSheet } from "@/components/ui/lifecycle-comment-sheet"
 import { LifecycleRequiredCustomFieldsDialog } from "@/components/ui/lifecycle-required-custom-fields-dialog"
+import { LifecycleAdvanceBlockersDialog } from "@/components/ui/lifecycle-advance-blockers-dialog"
 import { AssignVersionDialog } from "@/components/assets/dialogs/assets-assign-version-dialog"
 import type { HuemulLifecycleSheetsProps } from "@/types/lifecycle"
 
@@ -33,21 +34,31 @@ export function HuemulLifecycleSheets({
       }
     : undefined
 
+  // Ir a la sección con obligatorios pendientes cierra el sheet/diálogo que lo
+  // lanzó — mismo criterio que `goToCustomFields`. Usa la primera sección de
+  // la lista: es la que el backend reportó primero, y el diálogo ya muestra
+  // todas por si hay más de una.
+  const firstBlockerSectionId = controller.advanceBlockersError[0]?.section_execution_id
+  const goToBlockedSection =
+    controller.onGoToSection && firstBlockerSectionId
+      ? () => {
+          controller.setIsCheckDialogOpen(false)
+          controller.setIsAdvanceBlockersDialogOpen(false)
+          controller.onGoToSection!(firstBlockerSectionId)
+        }
+      : undefined
+
   const nextStepBlock = progress.nextStep
     ? {
         label: t("lifecycle.nextStepLabel"),
         value: progress.nextStep.name ?? t(`lifecycle.stageLabels.${progress.nextStep.stage}`, { defaultValue: progress.nextStep.stage }),
+        stage: progress.nextStep.stage,
       }
     : null
 
   // Archivar sin publicar (aprobado, y el tipo de activo sí llega a "publish")
   // salta directo el paso de publicación — mismo criterio que el warning rojo.
   const isArchivingUnpublished = status?.state === "approved" && finalLifecycleStage === "publish"
-  const archiveDescription = isArchivingUnpublished
-    ? t("lifecycle.archiveFromApprovedDescription")
-    : status?.version
-      ? t("lifecycle.archivePublishedVersionDescription", { version: status.version })
-      : t("lifecycle.archiveDescription")
 
   return (
     <>
@@ -88,7 +99,6 @@ export function HuemulLifecycleSheets({
         open={controller.isArchiveDialogOpen}
         onOpenChange={(open) => !controller.advanceMutation.isPending && controller.setIsArchiveDialogOpen(open)}
         title={t("lifecycle.archiveTitle")}
-        description={archiveDescription}
         onConfirm={(comment) =>
           controller.advanceMutation.mutate({
             comment,
@@ -109,7 +119,6 @@ export function HuemulLifecycleSheets({
         open={controller.isRestoreDialogOpen}
         onOpenChange={(open) => !controller.restoreMutation.isPending && controller.setIsRestoreDialogOpen(open)}
         title={t("lifecycle.restoreTitle")}
-        description={t("lifecycle.restoreDescription")}
         onConfirm={(comment) => controller.restoreMutation.mutate({ comment })}
         confirmLabel={t("lifecycle.restoreConfirm")}
         commentLabel={t("lifecycle.commentLabel")}
@@ -138,6 +147,13 @@ export function HuemulLifecycleSheets({
         onOpenChange={controller.setIsRequiredCustomFieldsDialogOpen}
         fieldNames={controller.requiredCustomFieldsError}
         onGoToCustomFields={goToCustomFields}
+      />
+
+      <LifecycleAdvanceBlockersDialog
+        open={controller.isAdvanceBlockersDialogOpen}
+        onOpenChange={controller.setIsAdvanceBlockersDialogOpen}
+        blockers={controller.advanceBlockersError}
+        onGoToSection={goToBlockedSection}
       />
     </>
   )

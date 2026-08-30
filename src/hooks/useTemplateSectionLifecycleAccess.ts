@@ -6,8 +6,9 @@ import {
   getTemplateLifecycleAccessMatrix,
   setTemplateSectionLifecycleAccess,
 } from '@/services/template-section-lifecycle-access'
-import { pipelineSortIndex } from '@/lib/lifecycle-access'
+import { isPermissionStepType, pipelineSortIndex } from '@/lib/lifecycle-access'
 import type {
+  InheritedViewAccess,
   TemplateLifecycleAccessMatrix,
   TemplateSectionAccess,
 } from '@/types/templates/section-lifecycle-access'
@@ -75,6 +76,30 @@ function toRoleAccessBySection(
   return map
 }
 
+/** Sentinel de `roleId` para la fila global dentro de `SectionInheritedViewByRole`. */
+export const INHERITED_VIEW_GLOBAL_KEY = '__global__'
+
+/** Mapa `(roleId | INHERITED_VIEW_GLOBAL_KEY) -> InheritedViewAccess` de una sección. */
+export type SectionInheritedViewByRole = ReadonlyMap<string, InheritedViewAccess>
+
+/**
+ * `inherited_view_access` es CALCULADO por el backend (ver el comentario del
+ * tipo): no tiene `lifecycle_step_id` propio porque solo aplica al step `view`
+ * de la plantilla — por eso el mapa es solo `sectionId -> (roleId -> entrada)`,
+ * sin la dimensión de step que sí tiene `accessBySection`/`roleAccessBySection`.
+ */
+function toInheritedViewBySection(
+  inheritedViewAccess: InheritedViewAccess[],
+): Map<string, SectionInheritedViewByRole> {
+  const map = new Map<string, Map<string, InheritedViewAccess>>()
+  for (const row of inheritedViewAccess) {
+    const byRole = map.get(row.template_section_id) ?? new Map<string, InheritedViewAccess>()
+    byRole.set(row.role_id ?? INHERITED_VIEW_GLOBAL_KEY, row)
+    map.set(row.template_section_id, byRole)
+  }
+  return map
+}
+
 /**
  * Matriz sección × step de una plantilla, en el contexto de un tipo de activo
  * puntual: una sola query (`lifecycle_access_matrix`) en vez de un GET por
@@ -105,7 +130,11 @@ export function useTemplateLifecycleAccessMatrix(
   )
 
   const steps = useMemo<MatrixStep[]>(() => {
-    const ownSteps = (data?.lifecycle_steps ?? []).filter((step) => step.document_type_id === documentTypeId)
+    // `isPermissionStepType` descarta create/publish/archive: el backend ya no
+    // los manda, pero se filtran también acá por si quedan en caché vieja.
+    const ownSteps = (data?.lifecycle_steps ?? []).filter(
+      (step) => step.document_type_id === documentTypeId && isPermissionStepType(step.type),
+    )
     return [...ownSteps].sort((a, b) => {
       const typeDiff = pipelineSortIndex(a.type) - pipelineSortIndex(b.type)
       if (typeDiff !== 0) return typeDiff
@@ -115,13 +144,31 @@ export function useTemplateLifecycleAccessMatrix(
 
   const accessBySection = useMemo(() => toAccessBySection(data?.access ?? []), [data])
   const roleAccessBySection = useMemo(() => toRoleAccessBySection(data?.access ?? []), [data])
+  const inheritedViewBySection = useMemo(
+    () => toInheritedViewBySection(data?.inherited_view_access ?? []),
+    [data],
+  )
+
+  /** Step `view` de este tipo de activo — única columna a la que aplica la herencia. */
+  const viewStepId = useMemo(() => steps.find((step) => step.type === 'view')?.id ?? null, [steps])
 
   const refetchAll = useCallback(
     () => queryClient.invalidateQueries({ queryKey }),
     [queryClient, queryKey],
   )
 
-  return { sections, steps, accessBySection, roleAccessBySection, isLoading, isFetching, refetch, refetchAll }
+  return {
+    sections,
+    steps,
+    accessBySection,
+    roleAccessBySection,
+    inheritedViewBySection,
+    viewStepId,
+    isLoading,
+    isFetching,
+    refetch,
+    refetchAll,
+  }
 }
 
 // ─── Mutaciones: clave común, optimismo y pendientes por celda ──────────────

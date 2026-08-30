@@ -24,11 +24,8 @@ import {
 } from 'platejs/react';
 
 import { Button, buttonVariants } from '@/components/ui/button';
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from '@/components/ui/popover';
+import { NodeFloatingToolbarContent } from '@/components/ui/node-floating-toolbar';
+import { Popover, PopoverAnchor } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 
 import { CaptionButton } from './caption';
@@ -76,8 +73,7 @@ export function MediaToolbar({
     <Popover open={open} modal={false}>
       <PopoverAnchor>{children}</PopoverAnchor>
 
-      <PopoverContent
-        className="w-auto p-1"
+      <NodeFloatingToolbarContent
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {isEditing ? (
@@ -113,7 +109,7 @@ export function MediaToolbar({
             </Button>
           </div>
         )}
-      </PopoverContent>
+      </NodeFloatingToolbarContent>
     </Popover>
   );
 }

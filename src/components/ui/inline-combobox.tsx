@@ -26,6 +26,7 @@ import {
 import { cva } from 'class-variance-authority';
 import { useComposedRef, useEditorRef } from 'platejs/react';
 
+import { useEditorChromeInset } from '@/components/plate-editor/components/editor-chrome-inset';
 import { cn } from '@/lib/utils';
 
 type FilterFn = (
@@ -279,6 +280,7 @@ const InlineComboboxContent: typeof ComboboxPopover = ({
 }) => {
   // Portal prevents CSS from leaking into popover
   const store = useComboboxContext();
+  const chromeInset = useEditorChromeInset();
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (!store) return;
@@ -303,9 +305,11 @@ const InlineComboboxContent: typeof ComboboxPopover = ({
     <Portal>
       <ComboboxPopover
         className={cn(
-          'z-500 max-h-72 w-75 overflow-y-auto rounded-md bg-popover shadow-md',
+          'z-(--z-editor-menu) max-h-72 w-75 overflow-y-auto rounded-md bg-popover shadow-md',
           className
         )}
+        // Evita que el menú se abra sobre el chrome fijo (header + toolbar).
+        overflowPadding={Math.max(8, chromeInset + 8)}
         onKeyDownCapture={handleKeyDown}
         {...props}
       />

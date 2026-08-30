@@ -28,6 +28,7 @@ import { HuemulStatCard } from '@/huemul/components/huemul-stat-card';
 import { HuemulLifecycleBadge } from '@/huemul/components/huemul-lifecycle-badge';
 import { HuemulAccessDenied } from '@/huemul/components/huemul-access-denied';
 import type { HuemulStatCardColor } from '@/huemul/components/huemul-stat-card';
+import { lifecycleStateHue } from '@/lib/lifecycle-colors';
 import { useHuemulFilters } from '@/hooks/useHuemulFilters';
 import { ImportAssetFromFileSheet } from '@/components/assets/dialogs/assets-import-from-file-sheet';
 import { CreateAssetSheet } from '@/components/assets/dialogs/assets-create-sheet';
@@ -497,7 +498,7 @@ export default function Home() {
   const kpiCards = useMemo(() => [
     {
       key: 'owned',
-      color: 'blue' as HuemulStatCardColor,
+      color: 'indigo' as HuemulStatCardColor,
       value: stats?.owned_count ?? 0,
       label: t('kpis.owned.label'),
       active: values.ownerValue === '__me__',
@@ -509,7 +510,7 @@ export default function Home() {
     },
     {
       key: 'draft',
-      color: 'slate' as HuemulStatCardColor,
+      color: lifecycleStateHue('draft'),
       value: stats?.draft_count ?? 0,
       label: t('kpis.draft.label'),
       active: values.lifecycleState === 'draft',
@@ -517,7 +518,7 @@ export default function Home() {
     },
     {
       key: 'inReview',
-      color: 'amber' as HuemulStatCardColor,
+      color: lifecycleStateHue('in_review'),
       value: stats?.in_review_count ?? 0,
       label: t('kpis.inReview.label'),
       active: values.lifecycleState === 'in_review',
@@ -525,7 +526,7 @@ export default function Home() {
     },
     {
       key: 'inApproval',
-      color: 'sky' as HuemulStatCardColor,
+      color: lifecycleStateHue('in_approval'),
       value: stats?.in_approval_count ?? 0,
       label: t('kpis.inApproval.label'),
       active: values.lifecycleState === 'in_approval',
@@ -533,7 +534,7 @@ export default function Home() {
     },
     {
       key: 'approved',
-      color: 'emerald' as HuemulStatCardColor,
+      color: lifecycleStateHue('approved'),
       value: stats?.approved_count ?? 0,
       label: t('kpis.approved.label'),
       active: values.lifecycleState === 'approved',
@@ -541,7 +542,7 @@ export default function Home() {
     },
     {
       key: 'published',
-      color: 'teal' as HuemulStatCardColor,
+      color: lifecycleStateHue('published'),
       value: stats?.published_count ?? 0,
       label: t('kpis.published.label'),
       active: values.lifecycleState === 'published',

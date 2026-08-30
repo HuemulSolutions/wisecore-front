@@ -566,7 +566,10 @@ export default function AppLayout() {
         <EditingGuardProvider>
         <NavKnowledgeProvider>
         <div className="flex flex-col h-screen overflow-hidden">
-          <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center justify-between gap-4 border-b bg-background px-4">
+          <header
+            className="sticky top-0 z-(--z-app-header) flex h-16 shrink-0 items-center justify-between gap-4 border-b bg-background px-4"
+            data-app-header
+          >
             {/* Left section: Organization Switcher */}
             <div className="flex items-center gap-2 min-w-45">
               <OrganizationSwitcher />

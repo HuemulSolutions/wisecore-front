@@ -22,7 +22,7 @@ import {
   useTableElement,
   useTableMergeState,
 } from '@platejs/table/react';
-import { PopoverAnchor, Content as RadixPopoverContent } from '@radix-ui/react-popover';
+import { PopoverAnchor } from '@radix-ui/react-popover';
 import { cva } from 'class-variance-authority';
 import {
   ArrowDown,
@@ -73,6 +73,7 @@ import {
   DropdownMenuPortal,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { NodeFloatingToolbarContent } from '@/components/ui/node-floating-toolbar';
 import { Popover, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
@@ -172,11 +173,10 @@ function TableFloatingToolbar({
       modal={false}
     >
       <PopoverAnchor asChild>{children}</PopoverAnchor>
-      <RadixPopoverContent
+      <NodeFloatingToolbarContent
         asChild
         onOpenAutoFocus={(e) => e.preventDefault()}
         contentEditable={false}
-        className="z-30"
         sideOffset={4}
         {...props}
       >
@@ -292,7 +292,7 @@ function TableFloatingToolbar({
             </ToolbarGroup>
           )}
         </Toolbar>
-      </RadixPopoverContent>
+      </NodeFloatingToolbarContent>
     </Popover>
   );
 }

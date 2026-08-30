@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loader2, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,7 @@ import { useOrganization } from '@/contexts/organization-context';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/logger';
 import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
+import { getExecutionPollInterval } from '@/lib/polling-intervals';
 import { Button } from '@/components/ui/button';
 import type { OtherVersionExecutionBannerProps } from '@/types/other-version-execution-banner';
 
@@ -21,8 +22,12 @@ export function OtherVersionExecutionBanner({
   const { t } = useTranslation('execute');
   const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
-  const [pollingInterval, setPollingInterval] = useState<number | false>(2000);
+  const [isPolling, setIsPolling] = useState(true);
   const [isDismissed, setIsDismissed] = useState(false);
+  // Este banner se monta una vez por executionId (key={execution.id} en el
+  // padre), así que un solo Date.now() al montar alcanza como base del
+  // backoff — se reinicia también al reanudar el polling a mano, más abajo.
+  const startedAtRef = useRef(Date.now());
 
   // Poll execution status
   const { data: execution, refetch } = useQuery({
@@ -31,24 +36,25 @@ export function OtherVersionExecutionBanner({
       logger.log('🔄 Fetching other version execution status for:', executionId);
       return getExecutionStatus(executionId!, selectedOrganizationId!);
     },
-    enabled: !!executionId && !!selectedOrganizationId && pollingInterval !== false && !isDismissed,
-    refetchInterval: pollingInterval,
-    refetchOnWindowFocus: false,
+    enabled: !!executionId && !!selectedOrganizationId && isPolling && !isDismissed,
+    refetchInterval: () => (isPolling ? getExecutionPollInterval(Date.now() - startedAtRef.current) : false),
+    refetchOnWindowFocus: true,
   });
 
   useEffect(() => {
     const terminalStates = ['completed', 'failed', 'cancelled'];
     if (execution?.status && terminalStates.includes(execution.status)) {
       logger.log('🛑 Other version execution stopped polling:', execution.status);
-      setPollingInterval(false);
+      setIsPolling(false);
     } else if (execution?.status === 'running' || execution?.status === 'pending' || execution?.status === 'paused') {
       // Ensure polling is active for active states (including paused to check for resume)
-      if (pollingInterval === false && !isDismissed) {
+      if (!isPolling && !isDismissed) {
         logger.log('🔄 Restarting other version polling for active execution');
-        setPollingInterval(2000);
+        startedAtRef.current = Date.now();
+        setIsPolling(true);
       }
     }
-  }, [execution?.status, pollingInterval, isDismissed]);
+  }, [execution?.status, isPolling, isDismissed]);
 
   const handleDismiss = () => {
     setIsDismissed(true);
@@ -59,11 +65,12 @@ export function OtherVersionExecutionBanner({
     logger.log('🔄 Manual other version refresh triggered');
     refetch();
     queryClient.invalidateQueries({ queryKey: ['execution-status', executionId] });
-    
+
     // Restart polling if it was stopped and not dismissed
-    if (pollingInterval === false && !isDismissed) {
+    if (!isPolling && !isDismissed) {
       logger.log('🔄 Restarting other version polling after manual refresh');
-      setPollingInterval(2000);
+      startedAtRef.current = Date.now();
+      setIsPolling(true);
     }
   };
 

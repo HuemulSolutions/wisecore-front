@@ -4,7 +4,7 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
-import { Settings, RefreshCw, Plus, X, Check, Globe, Shield, User, Loader2, ChevronRight } from "lucide-react"
+import { Settings, RefreshCw, Plus, X, Check, Globe, Shield, User, Loader2, ChevronRight, Lock } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
@@ -25,6 +25,9 @@ import { useUserPermissions } from "@/hooks/useUserPermissions"
 import {
   LIFECYCLE_PIPELINE_ORDER,
   isGroupableStepType,
+  isPermissionStepType,
+  isViewInheritedForRole,
+  inheritedViewSource,
   pipelineIndex,
   pipelineSortIndex,
   ownerCanExecute,
@@ -33,6 +36,7 @@ import {
   stepRoleIds,
   buildAccessPatch,
 } from "@/lib/lifecycle-access"
+import { ApiError } from "@/types/api-error"
 import type { AssetTypeLifecycleMatrixProps } from "@/types/assets"
 import type { LifecycleStep, AccessRuleType } from "@/types/lifecycle"
 import type { Role } from "@/types/rbac"
@@ -83,6 +87,15 @@ function CellDash() {
   return <span className="text-[13px] text-[#cbd5e1]">—</span>
 }
 
+/** Celda con `view` real heredado de otro step (edición/revisión/aprobación) — check bloqueado. */
+function CellInherited() {
+  return (
+    <span className="inline-flex size-4.5 items-center justify-center rounded-full bg-[#eef4ff]">
+      <Lock className="size-3 text-[#1d4ed8]" strokeWidth={2.5} />
+    </span>
+  )
+}
+
 /** Celda que no aplica a esta columna (p. ej. propietario en la etapa de creación). */
 function CellNotApplicable({ title }: { title?: string }) {
   return (
@@ -92,10 +105,11 @@ function CellNotApplicable({ title }: { title?: string }) {
   )
 }
 
-/** Botón de celda editable, con los cuatro estados: concedido / implícito / sin permiso / en vuelo. */
+/** Botón de celda editable, con los cinco estados: concedido / implícito / heredado / sin permiso / en vuelo. */
 function ToggleCell({
   checked,
   implied = false,
+  inherited = false,
   pending = false,
   disabled,
   onClick,
@@ -104,6 +118,8 @@ function ToggleCell({
 }: {
   checked: boolean
   implied?: boolean
+  /** `view` real por herencia de edición/revisión/aprobación — no se puede desmarcar acá. */
+  inherited?: boolean
   pending?: boolean
   disabled: boolean
   onClick: () => void
@@ -114,7 +130,7 @@ function ToggleCell({
     <button
       type="button"
       role="checkbox"
-      aria-checked={checked || implied}
+      aria-checked={checked || implied || inherited}
       aria-label={ariaLabel}
       title={title}
       disabled={disabled}
@@ -126,6 +142,8 @@ function ToggleCell({
     >
       {pending ? (
         <Loader2 className="size-3.5 animate-spin text-[#94a3b8]" />
+      ) : inherited ? (
+        <CellInherited />
       ) : implied ? (
         <CellImplied />
       ) : checked ? (
@@ -180,6 +198,15 @@ export function AssetTypeLifecycleMatrix({
   const allSteps = React.useMemo(() => data?.data?.steps ?? [], [data])
   const allRoles = React.useMemo(() => rolesData?.data ?? [], [rolesData])
 
+  // Los únicos configurables en esta matriz — el backend ya no manda
+  // create/publish/archive, pero por si quedan en caché vieja se filtran también
+  // acá. `earlierStepOptionsByStepId` sigue usando `allSteps` completo: un
+  // `source_step_id` puede apuntar a un step que ya no se configura acá.
+  const permissionSteps = React.useMemo(
+    () => allSteps.filter((s) => isPermissionStepType(s.type)),
+    [allSteps],
+  )
+
   const [localExtraRoleIds, setLocalExtraRoleIds] = React.useState<string[]>([])
   const [isAddingRole, setIsAddingRole] = React.useState(false)
   const [isCreatingRole, setIsCreatingRole] = React.useState(false)
@@ -200,27 +227,27 @@ export function AssetTypeLifecycleMatrix({
   const stepColumnLabel = (step: LifecycleStep) => step.name?.trim() || stepTypeLabel(step.type)
 
   const stepTypesPresent = React.useMemo(() => {
-    const present = new Set(allSteps.map((s) => s.type))
+    const present = new Set(permissionSteps.map((s) => s.type))
     const ordered = LIFECYCLE_PIPELINE_ORDER.filter((type) => present.has(type))
     const extra = [...present].filter((type) => pipelineIndex(type) === -1)
     return [...ordered, ...extra]
-  }, [allSteps])
+  }, [permissionSteps])
 
   // Cuántos grupos hay por tipo — alimenta el badge de las pastillas agrupables.
   const groupCountByType = React.useMemo(() => {
     const counts = new Map<string, number>()
-    allSteps.forEach((s) => counts.set(s.type, (counts.get(s.type) ?? 0) + 1))
+    permissionSteps.forEach((s) => counts.set(s.type, (counts.get(s.type) ?? 0) + 1))
     return counts
-  }, [allSteps])
+  }, [permissionSteps])
 
   const visibleSteps = React.useMemo(() => {
-    const sorted = [...allSteps].sort((a, b) => {
+    const sorted = [...permissionSteps].sort((a, b) => {
       const typeDiff = pipelineSortIndex(a.type) - pipelineSortIndex(b.type)
       if (typeDiff !== 0) return typeDiff
       return (a.order ?? 0) - (b.order ?? 0)
     })
     return activeStageType ? sorted.filter((s) => s.type === activeStageType) : sorted
-  }, [allSteps, activeStageType])
+  }, [permissionSteps, activeStageType])
 
   // Candidatos a `source_step_id` de "jefe de paso anterior" por columna: mismo
   // criterio que el backend valida — pasos de un tipo anterior en el pipeline, o
@@ -245,15 +272,17 @@ export function AssetTypeLifecycleMatrix({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allSteps])
 
-  // Roles ya presentes en algún step + agregados localmente sin asignaciones aún.
+  // Roles ya presentes en algún step configurable acá + agregados localmente sin
+  // asignaciones aún. `permissionSteps`, no `allSteps`: un rol asignado solo a
+  // create/publish/archive no debe generar una fila fantasma en esta matriz.
   const listedRoleIds = React.useMemo(() => {
     const ids = new Set<string>()
     // `stepRoleIds` filtra los roles residuales de pasos que ya no son custom-ish:
     // sin eso generarían filas fantasma en la tabla.
-    allSteps.forEach((s) => stepRoleIds(s).forEach((id) => ids.add(id)))
+    permissionSteps.forEach((s) => stepRoleIds(s).forEach((id) => ids.add(id)))
     localExtraRoleIds.forEach((id) => ids.add(id))
     return ids
-  }, [allSteps, localExtraRoleIds])
+  }, [permissionSteps, localExtraRoleIds])
 
   const listedRoles = React.useMemo(
     () => allRoles.filter((r) => listedRoleIds.has(r.id)).sort((a, b) => a.name.localeCompare(b.name)),
@@ -272,8 +301,15 @@ export function AssetTypeLifecycleMatrix({
     async (action: () => Promise<unknown>) => {
       try {
         await action()
-      } catch {
-        toast.error(t("lifecycle.saveError"))
+      } catch (error) {
+        // La celda de un rol con `view` heredado ya queda bloqueada en el render,
+        // pero un cambio concurrente (otra pestaña) puede volverla heredada justo
+        // antes del click — el 409 tiene su propio mensaje, no el genérico.
+        if (error instanceof ApiError && error.code === "LIFECYCLE_VIEW_ACCESS_INHERITED") {
+          toast.error(t("lifecycle.matrix.viewInheritedError"))
+        } else {
+          toast.error(t("lifecycle.saveError"))
+        }
       }
     },
     [t]
@@ -565,15 +601,27 @@ export function AssetTypeLifecycleMatrix({
       }
       case "role": {
         const implied = allowsAnyone(step.access_type)
-        const title = implied
-          ? t("lifecycle.matrix.impliedByAnyone", { action: stepActionLabel(step.type) })
-          : lockedOrAutomaticTitle
+        // Solo en la columna Lectura: `view` real por tener acceso a Elaboración/
+        // Revisión/Aprobación, sin fila propia — el backend rechaza el DELETE
+        // mientras siga vigente, así que la celda queda bloqueada, no editable.
+        const inherited = step.type === "view" && isViewInheritedForRole(step, row.role.id)
+        const inheritedFrom = inherited ? inheritedViewSource(step, row.role.id) : null
+        const title = inherited
+          ? inheritedFrom
+            ? t("lifecycle.matrix.viewInheritedFrom", {
+                step: inheritedFrom.source_step_name ?? stepTypeLabel(inheritedFrom.source_step_type),
+              })
+            : t("lifecycle.matrix.viewInheritedAllRoles")
+          : implied
+            ? t("lifecycle.matrix.impliedByAnyone", { action: stepActionLabel(step.type) })
+            : lockedOrAutomaticTitle
         return (
           <ToggleCell
             checked={isRoleAssigned(step, row.role.id)}
             implied={implied}
+            inherited={inherited}
             pending={pending}
-            disabled={commonDisabled || implied}
+            disabled={commonDisabled || implied || inherited}
             onClick={() => runToggle(() => toggleRole(step, row.role.id))}
             ariaLabel={t("lifecycle.matrix.toggleRole", {
               role: row.role.name,
@@ -906,6 +954,7 @@ export function AssetTypeLifecycleMatrix({
         items={[
           { icon: <CellCheck />, label: t("lifecycle.matrix.legendGranted") },
           { icon: <CellImplied />, label: t("lifecycle.matrix.legendImplied") },
+          { icon: <CellInherited />, label: t("lifecycle.matrix.legendInherited") },
           { icon: <CellDash />, label: t("lifecycle.matrix.legendDenied") },
           { icon: <CellNotApplicable />, label: t("lifecycle.matrix.legendNotApplicable") },
         ]}

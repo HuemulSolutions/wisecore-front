@@ -7,36 +7,28 @@ import {
   HuemulInfoSection,
   HuemulInfoItem,
 } from "@/huemul/components/huemul-info-display";
+import { HuemulLifecycleBadge } from "@/huemul/components/huemul-lifecycle-badge";
+import { HuemulExecutionStatusBadge } from "@/huemul/components/huemul-execution-status-badge";
+import { lifecycleStageColor, toneColor } from "@/lib/lifecycle-colors";
 import { formatApiDateTime } from "@/lib/utils";
 import { useUserById } from "@/hooks/useUsers";
 import { TagsObjectPicker } from "@/components/tags";
 import type { AssetsInfoSheetProps } from '@/types/assets';
+import type { ExecutionLifecycleState } from "@/types/execution";
 export type { AssetsInfoSheetProps } from '@/types/assets';
 
-const STAGE_COLORS: Record<string, string> = {
-  create: "bg-purple-100 text-purple-700",
-  edit: "bg-blue-100 text-blue-700",
-  review: "bg-amber-100 text-amber-700",
-  approve: "bg-orange-100 text-orange-700",
-  publish: "bg-green-100 text-green-700",
-  archive: "bg-gray-100 text-gray-600",
-  view: "bg-slate-100 text-slate-600",
-};
+const LIFECYCLE_STATES: ExecutionLifecycleState[] = [
+  "draft",
+  "in_review",
+  "in_approval",
+  "approved",
+  "published",
+  "archived",
+  "finalized",
+];
 
-const EXECUTION_STATUS_COLORS: Record<string, string> = {
-  completed: "bg-green-100 text-green-700",
-  approved: "bg-blue-100 text-blue-700",
-  failed: "bg-red-100 text-red-700",
-  running: "bg-amber-100 text-amber-700",
-  pending: "bg-gray-100 text-gray-600",
-};
-
-function StatusBadge({ status, colorMap }: { status: string; colorMap: Record<string, string> }) {
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorMap[status] ?? "bg-gray-100 text-gray-600"}`}>
-      {status}
-    </span>
-  );
+function isLifecycleState(state: string | null | undefined): state is ExecutionLifecycleState {
+  return !!state && (LIFECYCLE_STATES as string[]).includes(state);
 }
 
 function UserAuditRow({
@@ -176,7 +168,7 @@ export function AssetsInfoSheet({
           {selectedExecutionInfo?.status && (
             <HuemulInfoItem
               label={t("content.info.status")}
-              value={<StatusBadge status={selectedExecutionInfo.status} colorMap={EXECUTION_STATUS_COLORS} />}
+              value={<HuemulExecutionStatusBadge status={selectedExecutionInfo.status} />}
             />
           )}
           <HuemulInfoItem label={t("content.info.statusMessage")} value={selectedExecutionInfo?.status_message} hideWhenEmpty />
@@ -204,17 +196,30 @@ export function AssetsInfoSheet({
         {/* Lifecycle */}
         {documentContent?.lifecycle_status && (
           <HuemulInfoSection title={t("content.info.lifecycle")}>
-            <HuemulInfoItem label={t("content.info.state")} value={documentContent.lifecycle_status.state} />
+            <HuemulInfoItem
+              label={t("content.info.state")}
+              value={
+                isLifecycleState(documentContent.lifecycle_status.state) ? (
+                  <HuemulLifecycleBadge state={documentContent.lifecycle_status.state} />
+                ) : (
+                  documentContent.lifecycle_status.state
+                )
+              }
+            />
             <HuemulInfoItem
               label={t("content.info.stage")}
-              value={<StatusBadge status={documentContent.lifecycle_status.stage} colorMap={STAGE_COLORS} />}
+              value={
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${lifecycleStageColor(documentContent.lifecycle_status.stage)}`}>
+                  {t(`lifecycle.stageLabels.${documentContent.lifecycle_status.stage}`, { defaultValue: documentContent.lifecycle_status.stage })}
+                </span>
+              }
             />
             <HuemulInfoItem label={t("content.info.currentGroup")} value={documentContent.lifecycle_status.current_group} hideWhenEmpty />
             <HuemulInfoItem label={t("content.info.semanticVersion")} value={documentContent.lifecycle_status.version} variant="mono" hideWhenEmpty />
             <HuemulInfoItem
               label={t("content.info.canAdvance")}
               value={
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.can_advance ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.can_advance ? toneColor("emerald") : toneColor("gray")}`}>
                   {documentContent.lifecycle_status.can_advance ? t("common:yes") : t("common:no")}
                 </span>
               }
@@ -222,7 +227,7 @@ export function AssetsInfoSheet({
             <HuemulInfoItem
               label={t("content.info.canRollback")}
               value={
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.can_rollback ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.can_rollback ? toneColor("emerald") : toneColor("gray")}`}>
                   {documentContent.lifecycle_status.can_rollback ? t("common:yes") : t("common:no")}
                 </span>
               }
@@ -230,7 +235,7 @@ export function AssetsInfoSheet({
             <HuemulInfoItem
               label={t("content.info.versionRequired")}
               value={
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.version_required ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.version_required ? toneColor("amber") : toneColor("gray")}`}>
                   {documentContent.lifecycle_status.version_required ? t("common:yes") : t("common:no")}
                 </span>
               }

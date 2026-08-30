@@ -5,8 +5,10 @@ import remarkMath from 'remark-math';
 
 import { MEDIA_TOKEN_RE, isMediaToken } from '@/lib/plate-media-utils';
 import { MERMAID_KEY } from '@/lib/plate-mermaid-utils';
+import { DATA_TABLE_KEY, buildGfmTableMarkdown } from '@/lib/plate-data-table-utils';
 import { ASSET_REFERENCE_KEY, ROLE_REFERENCE_KEY } from '@/lib/plate-reference-utils';
 import type { AssetReferenceElement, RoleReferenceElement } from '@/types/reference';
+import type { DataTableElement } from '@/types/data-table-node';
 
 /** Matches `![alt]({{MEDIA:<uuid>}})` — the markdown image form of the media token. */
 const MEDIA_IMAGE_RE = /^!\[([^\]]*)\]\((\{\{MEDIA:[0-9a-f-]{36}\}\})\)$/i;
@@ -58,6 +60,19 @@ export const MarkdownKit = [
             }
             const code: string = slateNode.code ?? '';
             return { type: 'html', value: '```mermaid\n' + code + '\n```' } as any;
+          },
+        },
+        // Tabla de datos dinámica — solo serialize, sin deserialize: el nodo siempre
+        // vuelve desde `plate_content` JSON, nunca se reconstruye desde Markdown (mismo
+        // criterio que ASSET_REFERENCE_KEY más abajo). Se serializa el `snapshot` congelado
+        // por `ensureDataTableSnapshots` al guardar (ver section-plate-editor.tsx), no los
+        // datos en vivo — la serialización corre fuera de React, sin acceso al caché.
+        // Envuelta como `html` crudo, igual que MERMAID_KEY, para que remark no escape
+        // las barras `|` de la tabla GFM.
+        [DATA_TABLE_KEY]: {
+          serialize: (slateNode: DataTableElement) => {
+            const markdown = buildGfmTableMarkdown(slateNode.title, slateNode.snapshot);
+            return markdown ? ({ type: 'html', value: markdown } as any) : ({ type: 'text', value: '' } as any);
           },
         },
         // Referencias `@` (asset_reference/role_reference) — solo serialize, sin

@@ -54,6 +54,7 @@ export function LifecycleReviewSheet({
     canAssignVersionInline,
     confirmApprovalWithVersion,
     assignVersionMutation,
+    completeConfirmLabel,
   } = controller
 
   const [comment, setComment] = useState("")
@@ -83,40 +84,21 @@ export function LifecycleReviewSheet({
   const showVersionPicker = isApprovalStep && canAssignVersionInline
 
   const group = status?.current_group ?? null
-  const stage = status?.stage ?? null
   const stageLabel = (key: string) => t(`lifecycle.stageLabels.${key}`, { defaultValue: key })
 
-  let title: string
-  let description: string
-  if (isApprovalStep) {
-    title = group ? t("lifecycle.approveStepTitle", { step: group }) : t("lifecycle.advanceStepTitle")
-    description =
-      showVersionPicker || status?.will_advance_phase
-        ? t("lifecycle.approveLastDescription")
-        : group
-          ? t("lifecycle.approveStepDescription", { step: group })
-          : t("lifecycle.advanceStepDescription")
-  } else {
-    title = group ? t("lifecycle.completeStepTitle", { step: group }) : t("lifecycle.advanceStepTitle")
-    if (status?.will_advance_phase) {
-      description = progress.nextStep
-        ? t("lifecycle.completeAndAdvanceDescription", { step: group, stage: stageLabel(progress.nextStep.stage) })
-        : t("lifecycle.advanceStateDescription")
-    } else {
-      description =
-        group && stage
-          ? t("lifecycle.completeStepDescription", { step: group, stage: stageLabel(stage) })
-          : t("lifecycle.advanceStepDescription")
-    }
-  }
+  const title = isApprovalStep
+    ? group
+      ? t("lifecycle.approveStepTitle", { step: group })
+      : t("lifecycle.advanceStepTitle")
+    : group
+      ? t("lifecycle.completeStepTitle", { step: group })
+      : t("lifecycle.advanceStepTitle")
 
   const confirmLabel = showVersionPicker
     ? t("lifecycle.approveAndAssign", { version: versionValue?.versionString ?? "1.0.0" })
     : isApprovalStep
       ? t("lifecycle.approveConfirm")
-      : status?.will_advance_phase
-        ? t("lifecycle.advanceStateConfirm")
-        : t("lifecycle.advanceStepConfirm")
+      : completeConfirmLabel
 
   function handleConfirm() {
     const options = { comment, run_external_review: hasExternalReview }
@@ -132,7 +114,6 @@ export function LifecycleReviewSheet({
       open={isCheckDialogOpen}
       onOpenChange={(open) => !isProcessing && setIsCheckDialogOpen(open)}
       title={title}
-      description={description}
       icon={CheckCircle2}
       iconVariant="tile"
       maxWidth="sm:max-w-xl"
@@ -150,7 +131,11 @@ export function LifecycleReviewSheet({
           showStepProgress
           next={
             progress.nextStep
-              ? { label: t("lifecycle.nextStepLabel"), value: progress.nextStep.name ?? stageLabel(progress.nextStep.stage) }
+              ? {
+                  label: t("lifecycle.nextStepLabel"),
+                  value: progress.nextStep.name ?? stageLabel(progress.nextStep.stage),
+                  stage: progress.nextStep.stage,
+                }
               : null
           }
         />

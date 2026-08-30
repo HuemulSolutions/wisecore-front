@@ -11,11 +11,14 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
 import { cn } from "@/lib/utils"
-import type { CanvasElementKind, CanvasElementRole } from "@/types/document-type-relationships"
+import type { CanvasElementKind, CanvasElementRole, FlowCanvasNodeType } from "@/types/document-type-relationships"
 
 export interface CanvasElementNodeData {
   id: string
-  kind: CanvasElementKind
+  // Also reused by gateway/start_event/end_event nodes — they have no entity
+  // behind them, so `content` doubles as their editable label and `kind` carries
+  // their canvas node type the same way it does for text/container/role.
+  kind: CanvasElementKind | FlowCanvasNodeType
   content: string
   color: string
   // Assigned RBAC role — turns a container into a lane, or is the sole identity

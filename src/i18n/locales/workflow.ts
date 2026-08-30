@@ -32,13 +32,19 @@ const translations = {
     documentName: { en: "Asset", es: "Activo" },
     template: { en: "Workflow", es: "Workflow" },
     lifecycleState: { en: "State", es: "Estado" },
+    lifecycleStepTooltip: { en: "Pending lifecycle step", es: "Paso del ciclo de vida pendiente" },
     progress: { en: "Progress", es: "Progreso" },
-    currentStep: { en: "Current step", es: "Paso actual" },
+    currentStep: { en: "Current section", es: "Sección actual" },
     lastModified: { en: "Last modified", es: "Última modificación" },
   },
   emptyState: {
-    title: { en: "No workflow items found", es: "No se encontraron elementos de workflow" },
-    description: { en: "No documents in progress matching your search", es: "No hay documentos en curso que coincidan con tu búsqueda" },
+    empty: { en: "You don't have any assets in progress yet", es: "Aún no tienes activos en curso" },
+    emptyDescription: { en: "Start a workflow to see it here", es: "Inicia un workflow para verlo aquí" },
+    noResults: { en: "No assets found", es: "No se encontraron activos" },
+    noResultsDescription: {
+      en: "No assets in progress match your search",
+      es: "No hay activos en curso que coincidan con tu búsqueda",
+    },
   },
   actions: {
     share: { en: "Share", es: "Compartir" },
@@ -68,26 +74,37 @@ const translations = {
   },
   expressSheet: {
     welcomeTitle: { en: "General information", es: "Datos generales" },
-    welcomeDescription: { en: "Assign a name to this record to easily identify it later.", es: "Asigna un nombre a este registro para identificarlo fácilmente más adelante." },
+    welcomeDescription: { en: "Assign a name to this asset to easily identify it later.", es: "Asigna un nombre a este activo para identificarlo fácilmente más adelante." },
     name: { en: "Name", es: "Nombre" },
     namePlaceholder: { en: "e.g. Ergonomic chairs purchase", es: "Ej: Compra de sillas ergonómicas" },
     description: { en: "Description", es: "Descripción" },
-    descriptionPlaceholder: { en: "Add a description about this record (optional)", es: "Agrega una descripción sobre este registro (opcional)" },
+    descriptionPlaceholder: { en: "Add a description about this asset", es: "Agrega una descripción sobre este activo" },
     success: { en: "Document created successfully", es: "Documento creado correctamente" },
   },
   wizard: {
     back: { en: "Back", es: "Atrás" },
     finish: { en: "Finish", es: "Finalizar" },
-    finishAndAdvance: { en: "Finish and advance", es: "Finalizar y avanzar" },
     emptyStep: {
-      title: { en: "Nothing to complete here", es: "Nada que completar acá" },
+      advanceTitle: { en: "Nothing to complete here", es: "Nada que completar aquí" },
       advanceDescription: {
         en: "There are no pending forms for you at this step. You can move the workflow forward.",
-        es: "No hay formularios pendientes para vos en este paso. Podés avanzar el flujo.",
+        es: "No hay formularios pendientes para ti en este paso. Puedes avanzar el flujo.",
+      },
+      waitingTitle: {
+        en: "This section is pending on another role",
+        es: "Esta sección está pendiente de otro rol",
       },
       waitingDescription: {
-        en: "There are no pending forms for you at this step. Waiting on another role to continue.",
-        es: "No hay formularios pendientes para vos en este paso. Falta que otro rol continúe el flujo.",
+        en: "This section hasn't been completed by the person with edit permission. You can't move forward until it's completed.",
+        es: "La sección no ha sido completada por quien tiene permiso de edición. No puedes avanzar hasta que se complete.",
+      },
+      blockedTitle: {
+        en: "There are pending required answers",
+        es: "Hay respuestas obligatorias pendientes",
+      },
+      blockedDescription: {
+        en: "This stage can't be completed until the required fields in the pending sections are answered.",
+        es: "No se puede completar esta etapa hasta responder los campos obligatorios de las secciones pendientes.",
       },
     },
     summary: {
@@ -101,14 +118,14 @@ const translations = {
     },
   },
   share: {
-    dialogTitle: { en: "Share workflow", es: "Compartir workflow" },
+    dialogTitle: { en: "Share this workflow with your team", es: "Comparte este workflow con tu equipo" },
     templateDescription: {
-      en: "Anyone who opens this link creates their own copy of \"{{name}}\" and answers it independently.",
-      es: "Quien abra este link crea su propia copia de \"{{name}}\" y la responde de forma independiente.",
+      en: "People with access to the organization will be able to independently complete a copy of \"{{name}}\".",
+      es: "Las personas con acceso a la organización podrán completar de forma independiente una copia de \"{{name}}\".",
     },
     executionDescription: {
-      en: "Anyone who opens this link answers the same document: \"{{name}}\".",
-      es: "Quien abra este link responde el mismo documento: \"{{name}}\".",
+      en: "People with access to the organization will be able to answer this same document: \"{{name}}\".",
+      es: "Las personas con acceso a la organización podrán responder este mismo documento: \"{{name}}\".",
     },
     copy: { en: "Copy link", es: "Copiar link" },
     copied: { en: "Copied", es: "Copiado" },
@@ -127,9 +144,13 @@ const translations = {
       en: "You don't have permission to answer this form — you can only view it.",
       es: "No tienes permiso para responder este formulario — solo puedes verlo.",
     },
-    readOnlyStageNotice: {
-      en: "This document is in {{stage}}: fields can no longer be answered.",
-      es: "Este documento está en {{stage}}: los campos ya no se pueden responder.",
+    readOnlyStateNotice: {
+      en: "This asset is {{state}}, fields can't be edited.",
+      es: "Este activo está {{state}}, los campos no se pueden editar.",
+    },
+    readOnlyLifecycleNotice: {
+      en: "Fields can't be edited at this lifecycle stage.",
+      es: "Los campos no se pueden editar en esta etapa del ciclo de vida.",
     },
     readOnlySectionNotice: {
       en: "This section is read-only at this stage — you can view it but not answer it.",

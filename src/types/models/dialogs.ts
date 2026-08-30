@@ -17,6 +17,16 @@ export interface DeleteModelDialogProps {
   canDelete: boolean
 }
 
+export interface ModelDialogSubmitData {
+  name: string
+  internal_name: string
+  capabilities: string[]
+  provider_id?: string
+  /** USD por 1.000.000 de tokens de entrada. null cuando no se define tarifa. */
+  input_price_per_1m_tokens?: number | null
+  output_price_per_1m_tokens?: number | null
+}
+
 export interface ModelDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -25,6 +35,6 @@ export interface ModelDialogProps {
   providers?: { id: string; name: string; type?: string }[]
   isCreating: boolean
   isUpdating: boolean
-  onSubmit: (data: { name: string; internal_name: string; capabilities: string[]; provider_id?: string }) => void
+  onSubmit: (data: ModelDialogSubmitData) => void
   canSave: boolean
 }

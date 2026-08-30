@@ -1,6 +1,5 @@
 import {
   MoreVertical,
-  Tag,
   Undo2,
   Check,
   Globe,
@@ -29,8 +28,13 @@ import { useTranslation } from "react-i18next";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { HuemulButton } from "@/huemul/components/huemul-button";
@@ -41,8 +45,6 @@ interface LifecycleStatus {
   state: string;
   can_advance?: boolean;
   can_rollback?: boolean;
-  version_required?: boolean;
-  version?: string | null;
   current_group?: string | null;
 }
 
@@ -65,14 +67,14 @@ interface MoreOptionsDropdownProps {
   isViewMode: boolean;
   /** Align the dropdown content */
   dropdownAlign?: "start" | "end";
-  /** Show the bg-gray-50 wrapper (used in reader mode header) */
-  withBackground?: boolean;
   lifecyclePermissions: LifecyclePermissions | undefined;
   frontendPermissions: FrontendPermissions;
   lifecycleStatus?: LifecycleStatus | null;
   /** Etapa final del ciclo de vida del tipo de activo — oculta "Publicar" si nunca llega a publicarse. Default `'publish'`. */
   finalLifecycleStage?: "edit" | "review" | "approve" | "publish";
   selectedExecutionId?: string | null;
+  /** Label compacto de la versión seleccionada (ej. `v1.0.0`) usado en el item de eliminar versión. */
+  selectedVersionLabel?: string;
   hasTemplateName: boolean;
   canCreateTemplate: boolean;
   // Capacidades RBAC del asset. Sin default a propósito (obligatorias): un
@@ -95,7 +97,6 @@ interface MoreOptionsDropdownProps {
   /** True when there are ≥2 versions to compare */
   canCompareVersions: boolean;
   // Callbacks
-  onAssignVersion: () => void;
   onCompareVersions: () => void;
   onRejectLifecycle: () => void;
   onCheckLifecycle: () => void;
@@ -129,12 +130,12 @@ interface MoreOptionsDropdownProps {
 export function MoreOptionsDropdown({
   isViewMode,
   dropdownAlign = "end",
-  withBackground = false,
   lifecyclePermissions,
   frontendPermissions,
   lifecycleStatus,
   finalLifecycleStage = "publish",
   selectedExecutionId,
+  selectedVersionLabel,
   hasTemplateName,
   canCreateTemplate,
   canManageGrants,
@@ -148,7 +149,6 @@ export function MoreOptionsDropdown({
   hasDocumentContent,
   isTocSidebarOpen,
   canCompareVersions,
-  onAssignVersion,
   onCompareVersions,
   onRejectLifecycle,
   onCheckLifecycle,
@@ -180,6 +180,53 @@ export function MoreOptionsDropdown({
 }: MoreOptionsDropdownProps) {
   const { t } = useTranslation(["assets"]);
 
+  const groupLabelClass =
+    "px-2 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
+
+  // ── Ciclo de vida ──
+  const showReturn = isViewMode && !!lifecycleStatus && !!lifecycleStatus.can_rollback;
+  const showComplete = isViewMode && !!lifecycleStatus && !!lifecycleStatus.can_advance;
+  const showPublish =
+    isViewMode &&
+    !!lifecycleStatus &&
+    !!lifecyclePermissions?.publish &&
+    lifecycleStatus.state === "approved" &&
+    finalLifecycleStage === "publish";
+  const showArchive =
+    isViewMode &&
+    !!lifecycleStatus &&
+    !!lifecyclePermissions?.archive &&
+    (lifecycleStatus.state === "approved" || lifecycleStatus.state === "published");
+  const showRestore =
+    isViewMode &&
+    !!lifecycleStatus &&
+    !!lifecyclePermissions?.archive &&
+    isRestorableLifecycleState(lifecycleStatus.state);
+  const showRerunPublish =
+    !!lifecyclePermissions?.publish && lifecycleStatus?.state === "published";
+  const showLifecycleGroup =
+    showReturn ||
+    showComplete ||
+    showPublish ||
+    showArchive ||
+    showRestore ||
+    showRerunPublish;
+
+  // ── Vista ──
+  const showToc = isViewMode && isDocumentType && hasDocumentContent && hasTocItems;
+  const showDisplayGroup = isViewMode;
+
+  // ── Ver ──
+  const showStructure =
+    frontendPermissions.canAccessSectionSheet &&
+    (!frontendPermissions.canEditSections || isViewMode);
+
+  // ── Duplicar ──
+  const showClone = !!lifecyclePermissions?.create && canCloneVersion && !!selectedExecutionId;
+  const showCreateTemplate = !hasTemplateName && canCreateTemplate;
+  const showDuplicateGroup = showClone || showCreateTemplate;
+
+  // ── Exportar / Peligro ──
   const hasLifecyclePerms =
     lifecyclePermissions?.view ||
     lifecyclePermissions?.create ||
@@ -188,15 +235,13 @@ export function MoreOptionsDropdown({
     lifecyclePermissions?.approve ||
     lifecyclePermissions?.publish ||
     lifecyclePermissions?.archive;
+  const showExport = !!hasLifecyclePerms && canExportVersion;
+  const showDanger =
+    (lifecyclePermissions?.edit || lifecyclePermissions?.create) &&
+    canDeleteVersion &&
+    lifecycleStatus?.stage === "edit";
 
-  const hasLifecycleActions =
-    lifecyclePermissions?.approve ||
-    lifecycleStatus?.can_advance ||
-    lifecycleStatus?.can_rollback ||
-    lifecyclePermissions?.publish ||
-    lifecyclePermissions?.archive;
-
-  const menu = (
+  return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <HuemulButton
@@ -208,296 +253,294 @@ export function MoreOptionsDropdown({
           tooltip={t("content.moreOptions")}
         />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align={dropdownAlign} className="w-52">
-        {/* ── Reader mode: lifecycle actions ── */}
-        {isViewMode && lifecycleStatus && (
+      <DropdownMenuContent align={dropdownAlign} className="w-56">
+        {/* ── Ciclo de vida ── */}
+        {showLifecycleGroup && (
           <>
-            {lifecyclePermissions?.approve &&
-              (lifecycleStatus.version_required || lifecycleStatus.state === "in_approval") &&
-              !lifecycleStatus.version && (
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className={groupLabelClass}>
+                {t("content.menuGroupLifecycle")}
+              </DropdownMenuLabel>
+              {showReturn && (
                 <DropdownMenuItem
-                  onSelect={() => setTimeout(onAssignVersion, 0)}
+                  onSelect={() => setTimeout(onRejectLifecycle, 0)}
                   className="hover:cursor-pointer"
                 >
-                  <Tag className="mr-2 h-4 w-4" />
-                  {t("content.assignVersion")}
+                  <Undo2 className="h-4 w-4" />
+                  {t("lifecycle.return")}
                 </DropdownMenuItem>
               )}
-            {lifecycleStatus.can_rollback && (
-              <DropdownMenuItem
-                onSelect={() => setTimeout(onRejectLifecycle, 0)}
-                className="hover:cursor-pointer"
-              >
-                <Undo2 className="mr-2 h-4 w-4" />
-                {t("lifecycle.return")}
-              </DropdownMenuItem>
-            )}
-            {lifecycleStatus.can_advance && (
-              <DropdownMenuItem
-                onSelect={() => setTimeout(onCheckLifecycle, 0)}
-                className="hover:cursor-pointer"
-                disabled={lifecycleStatus.version_required && !lifecycleStatus.version}
-              >
-                <Check className="mr-2 h-4 w-4" />
-                {t("lifecycle.complete")}
-              </DropdownMenuItem>
-            )}
-            {lifecyclePermissions?.publish && lifecycleStatus.state === "approved" && finalLifecycleStage === "publish" && (
-              <DropdownMenuItem
-                onSelect={() => setTimeout(onPublish, 0)}
-                className="hover:cursor-pointer"
-              >
-                <Globe className="mr-2 h-4 w-4" />
-                {t("lifecycle.publish")}
-              </DropdownMenuItem>
-            )}
-            {lifecyclePermissions?.archive &&
-              (lifecycleStatus.state === "approved" || lifecycleStatus.state === "published") && (
+              {showComplete && (
+                <DropdownMenuItem
+                  onSelect={() => setTimeout(onCheckLifecycle, 0)}
+                  className="hover:cursor-pointer"
+                >
+                  <Check className="h-4 w-4" />
+                  {t("lifecycle.complete")}
+                </DropdownMenuItem>
+              )}
+              {showPublish && (
+                <DropdownMenuItem
+                  onSelect={() => setTimeout(onPublish, 0)}
+                  className="hover:cursor-pointer"
+                >
+                  <Globe className="h-4 w-4" />
+                  {t("lifecycle.publish")}
+                </DropdownMenuItem>
+              )}
+              {showArchive && (
                 <DropdownMenuItem
                   onSelect={() => setTimeout(onArchive, 0)}
                   className="hover:cursor-pointer"
                 >
-                  <Archive className="mr-2 h-4 w-4" />
+                  <Archive className="h-4 w-4" />
                   {t("lifecycle.archive")}
                 </DropdownMenuItem>
               )}
-            {lifecyclePermissions?.archive && isRestorableLifecycleState(lifecycleStatus.state) && (
-              <DropdownMenuItem
-                onSelect={() => setTimeout(onRestore, 0)}
-                className="hover:cursor-pointer"
-              >
-                <RotateCcw className="mr-2 h-4 w-4" />
-                {t("lifecycle.restore")}
-              </DropdownMenuItem>
-            )}
-            {hasLifecycleActions && <DropdownMenuSeparator />}
-          </>
-        )}
-
-        {/* ── Reader mode: refresh, TOC ── */}
-        {isViewMode && (
-          <>
-            <DropdownMenuItem
-              onSelect={() => setTimeout(onRefresh, 0)}
-              className="hover:cursor-pointer"
-              disabled={isRefreshing || isLoadingContent}
-            >
-              <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-              {t("content.refreshContent")}
-            </DropdownMenuItem>
-            {isDocumentType && hasDocumentContent && hasTocItems && (
-              <DropdownMenuItem
-                onSelect={() => onToggleToc()}
-                className="hover:cursor-pointer"
-              >
-                <List className="mr-2 h-4 w-4" />
-                {isTocSidebarOpen ? t("content.hideSidebar") : t("content.showSidebar")}
-              </DropdownMenuItem>
-            )}
-          </>
-        )}
-
-        {/* ── Rerun external publish (visible in both reader and editor mode) ── */}
-        {lifecyclePermissions?.publish && lifecycleStatus?.state === "published" && (
-          <>
-            <DropdownMenuItem
-              onSelect={() => setTimeout(onRerunExternalPublish, 0)}
-              className="hover:cursor-pointer"
-              disabled={isRerunningExternalPublish}
-            >
-              <RefreshCw className={`mr-2 h-4 w-4 ${isRerunningExternalPublish ? "animate-spin" : ""}`} />
-              {t("lifecycle.rerunExternalPublish")}
-            </DropdownMenuItem>
+              {showRestore && (
+                <DropdownMenuItem
+                  onSelect={() => setTimeout(onRestore, 0)}
+                  className="hover:cursor-pointer"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  {t("lifecycle.restore")}
+                </DropdownMenuItem>
+              )}
+              {showRerunPublish && (
+                <DropdownMenuItem
+                  onSelect={() => setTimeout(onRerunExternalPublish, 0)}
+                  className="hover:cursor-pointer"
+                  disabled={isRerunningExternalPublish}
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRerunningExternalPublish ? "animate-spin" : ""}`} />
+                  {t("lifecycle.rerunExternalPublish")}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
           </>
         )}
 
-        {/* ── Asset Info (visible in both reader and editor mode) ── */}
-        <DropdownMenuItem
-          onSelect={() => setTimeout(onOpenInfo, 0)}
-          className="hover:cursor-pointer"
-        >
-          <Info className="mr-2 h-4 w-4" />
-          {t("content.assetInfo")}
-        </DropdownMenuItem>
-
-        {/* ── Lifecycle History (visible whenever there's content to show history for) ── */}
-        {hasDocumentContent && (
-          <DropdownMenuItem
-            onSelect={() => setTimeout(onOpenLifecycleHistory, 0)}
-            className="hover:cursor-pointer"
-          >
-            <History className="mr-2 h-4 w-4" />
-            {t("lifecycleHistory.moreOptionsItem")}
-          </DropdownMenuItem>
+        {/* ── Vista ── */}
+        {showDisplayGroup && (
+          <>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className={groupLabelClass}>
+                {t("content.menuGroupDisplay")}
+              </DropdownMenuLabel>
+              <DropdownMenuItem
+                onSelect={() => setTimeout(onRefresh, 0)}
+                className="hover:cursor-pointer"
+                disabled={isRefreshing || isLoadingContent}
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                {t("content.refreshContent")}
+              </DropdownMenuItem>
+              {showToc && (
+                <DropdownMenuItem
+                  onSelect={() => setTimeout(onToggleToc, 0)}
+                  className="hover:cursor-pointer"
+                >
+                  <List className="h-4 w-4" />
+                  {isTocSidebarOpen ? t("content.hideSidebar") : t("content.showSidebar")}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+          </>
         )}
 
-        {/* ── Related Diagrams (visible when user can access diagrams) ── */}
-        {canAccessDiagrams && (
+        {/* ── Ver ── */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className={groupLabelClass}>
+            {t("content.menuGroupView")}
+          </DropdownMenuLabel>
           <DropdownMenuItem
-            onSelect={() => setTimeout(onOpenDiagrams, 0)}
+            onSelect={() => setTimeout(onOpenInfo, 0)}
             className="hover:cursor-pointer"
           >
-            <Workflow className="mr-2 h-4 w-4" />
-            {t("content.diagramsLabel")}
+            <Info className="h-4 w-4" />
+            {t("content.assetInfo")}
           </DropdownMenuItem>
-        )}
-
-        {/* ── Asset Permissions (escritura sobre el asset: otorga/revoca grants) ── */}
-        {canManageGrants && (
-          <DropdownMenuItem
-            onSelect={() => setTimeout(onOpenPermissions, 0)}
-            className="hover:cursor-pointer"
-          >
-            <ShieldCheck className="mr-2 h-4 w-4" />
-            {t("content.assetPermissions")}
-          </DropdownMenuItem>
-        )}
-
-        {/* ── Sections / Dependencies / Context ── */}
-        {frontendPermissions.canAccessSectionSheet &&
-          (!frontendPermissions.canEditSections || isViewMode) && (
+          {hasDocumentContent && (
+            <DropdownMenuItem
+              onSelect={() => setTimeout(onOpenLifecycleHistory, 0)}
+              className="hover:cursor-pointer"
+            >
+              <History className="h-4 w-4" />
+              {t("lifecycleHistory.moreOptionsItem")}
+            </DropdownMenuItem>
+          )}
+          {canAccessDiagrams && (
+            <DropdownMenuItem
+              onSelect={() => setTimeout(onOpenDiagrams, 0)}
+              className="hover:cursor-pointer"
+            >
+              <Workflow className="h-4 w-4" />
+              {t("content.diagramsLabel")}
+            </DropdownMenuItem>
+          )}
+          {canManageGrants && (
+            <DropdownMenuItem
+              onSelect={() => setTimeout(onOpenPermissions, 0)}
+              className="hover:cursor-pointer"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              {t("content.assetPermissions")}
+            </DropdownMenuItem>
+          )}
+          {showStructure && (
             <>
-              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onSelect={() => setTimeout(onOpenSections, 0)}
                 className="hover:cursor-pointer"
               >
-                <BetweenHorizontalStart className="mr-2 h-4 w-4" />
+                <BetweenHorizontalStart className="h-4 w-4" />
                 {t("content.sectionsLabel")}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() => setTimeout(onOpenDependencies, 0)}
                 className="hover:cursor-pointer"
               >
-                <Link2 className="mr-2 h-4 w-4" />
+                <Link2 className="h-4 w-4" />
                 {t("content.dependenciesLabel")}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() => setTimeout(onOpenContext, 0)}
                 className="hover:cursor-pointer"
               >
-                <Users className="mr-2 h-4 w-4" />
+                <Users className="h-4 w-4" />
                 {t("content.contextLabel")}
               </DropdownMenuItem>
-              {!isViewMode && <DropdownMenuSeparator />}
             </>
           )}
-
-        {/* ── Compare versions ── */}
-        {canCompareVersions && (
-          <>
-            <DropdownMenuSeparator />
+          {canCompareVersions && (
             <DropdownMenuItem
               onSelect={() => setTimeout(onCompareVersions, 0)}
               className="hover:cursor-pointer"
             >
-              <GitCompare className="mr-2 h-4 w-4" />
+              <GitCompare className="h-4 w-4" />
               {t("content.compareVersions")}
             </DropdownMenuItem>
-          </>
-        )}
+          )}
+        </DropdownMenuGroup>
 
-        {/* ── Clone ── */}
-        {lifecyclePermissions?.create && canCloneVersion && selectedExecutionId && (
-          <>
-            {isViewMode && <DropdownMenuSeparator />}
-            <DropdownMenuItem
-              onSelect={() => setTimeout(onClone, 0)}
-              className="hover:cursor-pointer"
-            >
-              <Copy className="mr-2 h-4 w-4" />
-              {t("content.cloneVersion")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => setTimeout(onCloneToNew, 0)}
-              className="hover:cursor-pointer"
-            >
-              <Copy className="mr-2 h-4 w-4" />
-              {t("content.cloneToNewDocument")}
-            </DropdownMenuItem>
-          </>
-        )}
-
-        {/* ── Create template ── */}
-        {!hasTemplateName && canCreateTemplate && (
+        {/* ── Duplicar ── */}
+        {showDuplicateGroup && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={() => setTimeout(onCreateTemplate, 0)}
-              className="hover:cursor-pointer"
-            >
-              <FileCode className="mr-2 h-4 w-4" />
-              {t("content.createTemplateFromAsset")}
-            </DropdownMenuItem>
-          </>
-        )}
-
-        {/* ── Export ── */}
-        {hasLifecyclePerms && canExportVersion && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="hover:cursor-pointer" onClick={onExportMarkdown}>
-              <FileText className="mr-2 h-4 w-4" />
-              {t("content.exportAsMarkdown")}
-            </DropdownMenuItem>
-            <DropdownMenuItem className="hover:cursor-pointer" onClick={onExportWord}>
-              <Download className="mr-2 h-4 w-4" />
-              {t("content.exportAsWord")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="hover:cursor-pointer"
-              onSelect={() => setTimeout(onExportCustomWord, 0)}
-            >
-              <FileCode className="mr-2 h-4 w-4" />
-              {t("content.exportAsCustomWord")}
-            </DropdownMenuItem>
-            <DropdownMenuItem className="hover:cursor-pointer" onClick={onExportExcel}>
-              <FileSpreadsheet className="mr-2 h-4 w-4" />
-              {t("content.exportAsExcel")}
-            </DropdownMenuItem>
-            <DropdownMenuItem className="hover:cursor-pointer" onClick={onExportVersion}>
-              <FileJson className="mr-2 h-4 w-4" />
-              {t("content.exportAsVersionConfig")}
-            </DropdownMenuItem>
-          </>
-        )}
-
-        {/* ── Delete (edit stage only) ── */}
-        {(lifecyclePermissions?.edit || lifecyclePermissions?.create) &&
-          canDeleteVersion &&
-          lifecycleStatus?.stage === "edit" && (
-            <>
-              <DropdownMenuSeparator />
-              {selectedExecutionId && (
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className={groupLabelClass}>
+                {t("content.menuGroupDuplicate")}
+              </DropdownMenuLabel>
+              {showClone && (
+                <>
+                  <DropdownMenuItem
+                    onSelect={() => setTimeout(onClone, 0)}
+                    className="hover:cursor-pointer"
+                  >
+                    <Copy className="h-4 w-4" />
+                    {t("content.cloneVersion")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => setTimeout(onCloneToNew, 0)}
+                    className="hover:cursor-pointer"
+                  >
+                    <Copy className="h-4 w-4" />
+                    {t("content.cloneToNewDocument")}
+                  </DropdownMenuItem>
+                </>
+              )}
+              {showCreateTemplate && (
                 <DropdownMenuItem
-                  onSelect={() => setTimeout(onDeleteVersion, 0)}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
+                  onSelect={() => setTimeout(onCreateTemplate, 0)}
+                  className="hover:cursor-pointer"
                 >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  {t("content.deleteVersion")}
+                  <FileCode className="h-4 w-4" />
+                  {t("content.createTemplateFromAsset")}
                 </DropdownMenuItem>
               )}
+            </DropdownMenuGroup>
+          </>
+        )}
+
+        {/* ── Exportar ── */}
+        {showExport && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="hover:cursor-pointer">
+                <Download className="h-4 w-4" />
+                {t("content.exportMenu")}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-48">
+                <DropdownMenuItem
+                  className="hover:cursor-pointer"
+                  onSelect={() => setTimeout(onExportMarkdown, 0)}
+                >
+                  <FileText className="h-4 w-4" />
+                  {t("content.exportFormatMarkdown")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="hover:cursor-pointer"
+                  onSelect={() => setTimeout(onExportWord, 0)}
+                >
+                  <Download className="h-4 w-4" />
+                  {t("content.exportFormatWord")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="hover:cursor-pointer"
+                  onSelect={() => setTimeout(onExportCustomWord, 0)}
+                >
+                  <FileCode className="h-4 w-4" />
+                  {t("content.exportFormatCustomWord")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="hover:cursor-pointer"
+                  onSelect={() => setTimeout(onExportExcel, 0)}
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  {t("content.exportFormatExcel")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="hover:cursor-pointer"
+                  onSelect={() => setTimeout(onExportVersion, 0)}
+                >
+                  <FileJson className="h-4 w-4" />
+                  {t("content.exportFormatPortable")}
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          </>
+        )}
+
+        {/* ── Peligro ── */}
+        {showDanger && (
+          <>
+            <DropdownMenuSeparator />
+            {selectedExecutionId && (
               <DropdownMenuItem
-                onSelect={() => setTimeout(onDeleteDocument, 0)}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
+                variant="destructive"
+                onSelect={() => setTimeout(onDeleteVersion, 0)}
+                className="hover:cursor-pointer"
               >
-                <FileX className="mr-2 h-4 w-4" />
-                {t("content.deleteDocumentLabel")}
+                <Trash2 className="h-4 w-4" />
+                {selectedVersionLabel
+                  ? t("content.deleteVersionNamed", { version: selectedVersionLabel })
+                  : t("content.deleteVersion")}
               </DropdownMenuItem>
-            </>
-          )}
+            )}
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={() => setTimeout(onDeleteDocument, 0)}
+              className="hover:cursor-pointer"
+            >
+              <FileX className="h-4 w-4" />
+              {t("content.deleteDocumentLabel")}
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
-
-  if (withBackground) {
-    return (
-      <div className="flex items-center bg-gray-50 p-1 rounded-lg">
-        {menu}
-      </div>
-    );
-  }
-
-  return menu;
 }

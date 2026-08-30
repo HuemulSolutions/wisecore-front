@@ -1,9 +1,17 @@
 import { useRef, useEffect, useCallback } from "react";
 import type { UseScrollPreservationReturn } from "@/types/huemul"
+import { resolveScrollAreaViewport } from "@/lib/scroll-area-utils";
 
 /**
  * Hook to manage scroll position preservation during content updates
  * Useful when content reloads but you want to maintain user's scroll position
+ *
+ * `scrollContainerRef` is typically attached to a plain wrapper div around a
+ * Radix ScrollArea (see pages/assets.tsx), not to the scrollable node itself —
+ * reading/writing `scrollTop` on it directly was always a no-op (no `overflow`
+ * of its own). `resolveScrollAreaViewport` finds the real
+ * `[data-radix-scroll-area-viewport]` node, whether it's an ancestor or a
+ * descendant of the ref'd element, so save/restore actually do something.
  */
 export function useScrollPreservation(): UseScrollPreservationReturn {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -14,8 +22,9 @@ export function useScrollPreservation(): UseScrollPreservationReturn {
    * Save the current scroll position
    */
   const saveScrollPosition = useCallback(() => {
-    if (scrollContainerRef.current) {
-      scrollPositionRef.current = scrollContainerRef.current.scrollTop;
+    const viewport = resolveScrollAreaViewport(scrollContainerRef.current);
+    if (viewport) {
+      scrollPositionRef.current = viewport.scrollTop;
     }
   }, []);
 
@@ -23,12 +32,13 @@ export function useScrollPreservation(): UseScrollPreservationReturn {
    * Restore the previously saved scroll position
    */
   const restoreScrollPosition = useCallback(() => {
-    if (scrollContainerRef.current && preserveScrollRef.current) {
+    if (preserveScrollRef.current) {
       const savedPosition = scrollPositionRef.current;
       // Use requestAnimationFrame to ensure DOM updates are complete
       requestAnimationFrame(() => {
-        if (scrollContainerRef.current) {
-          scrollContainerRef.current.scrollTop = savedPosition;
+        const viewport = resolveScrollAreaViewport(scrollContainerRef.current);
+        if (viewport) {
+          viewport.scrollTop = savedPosition;
         }
         preserveScrollRef.current = false;
       });
@@ -47,8 +57,8 @@ export function useScrollPreservation(): UseScrollPreservationReturn {
    * Set up scroll listener to periodically save position
    */
   useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
+    const viewport = resolveScrollAreaViewport(scrollContainerRef.current);
+    if (!viewport) return;
 
     let scrollTimer: number;
     const handleScroll = () => {
@@ -59,9 +69,9 @@ export function useScrollPreservation(): UseScrollPreservationReturn {
       }, 100);
     };
 
-    container.addEventListener('scroll', handleScroll, { passive: true });
+    viewport.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
-      container.removeEventListener('scroll', handleScroll);
+      viewport.removeEventListener('scroll', handleScroll);
       clearTimeout(scrollTimer);
     };
   }, [saveScrollPosition]);

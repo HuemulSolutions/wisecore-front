@@ -5,6 +5,7 @@ import { HuemulTable } from "@/huemul/components/huemul-table"
 import type { HuemulTableAction, HuemulTableColumn, HuemulTablePagination } from "@/huemul/components/huemul-table"
 import { HuemulLifecycleBadge } from "@/huemul/components/huemul-lifecycle-badge"
 import { formatRelativeTime } from "@/lib/format-relative-time"
+import { toneColor } from "@/lib/lifecycle-colors"
 import type { WorkflowItem } from "@/types/workflow"
 import { WorkflowProgressBar } from "./workflow-progress-bar"
 
@@ -23,6 +24,8 @@ interface WorkflowTableProps {
   onDelete: (item: WorkflowItem) => void
   /** Abre el diálogo con el link para responder esta ejecución. Quien ve la fila puede compartirla. */
   onShare: (item: WorkflowItem) => void
+  /** Hay búsqueda o filtros activos: cambia el empty state de "sin datos" a "sin resultados". */
+  hasActiveFilters?: boolean
 }
 
 export function WorkflowTable({
@@ -37,8 +40,9 @@ export function WorkflowTable({
   canDelete,
   onDelete,
   onShare,
+  hasActiveFilters,
 }: WorkflowTableProps) {
-  const { t } = useTranslation(["workflow", "common"])
+  const { t } = useTranslation(["workflow", "common", "assets"])
 
   // Cada celda envuelve su contenido en un div clickeable: no hay onRowClick nativo en
   // HuemulTable, así que el click de fila se implementa a nivel de celda (mismo patrón
@@ -68,7 +72,24 @@ export function WorkflowTable({
     {
       key: "lifecycleState",
       label: t("columns.lifecycleState"),
-      render: (item) => cell(item, <HuemulLifecycleBadge state={item.lifecycle_state} />),
+      render: (item) =>
+        cell(
+          item,
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <HuemulLifecycleBadge state={item.lifecycle_state} />
+            {item.current_lifecycle_step && (
+              <span
+                className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${toneColor("gray")}`}
+                title={t("columns.lifecycleStepTooltip")}
+              >
+                {item.current_lifecycle_step.step_name ??
+                  t(`assets:lifecycle.stageLabels.${item.current_lifecycle_step.step_type}`, {
+                    defaultValue: item.current_lifecycle_step.step_type,
+                  })}
+              </span>
+            )}
+          </div>,
+        ),
     },
     {
       key: "progress",
@@ -131,8 +152,10 @@ export function WorkflowTable({
       onRetry={onRetry}
       emptyState={{
         icon: WorkflowIcon,
-        title: t("emptyState.title"),
-        description: t("emptyState.description"),
+        title: hasActiveFilters ? t("emptyState.noResults") : t("emptyState.empty"),
+        description: hasActiveFilters
+          ? t("emptyState.noResultsDescription")
+          : t("emptyState.emptyDescription"),
       }}
       pagination={pagination}
     />

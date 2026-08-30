@@ -13,8 +13,22 @@ export interface UseLifecycleProgressOptions {
   organizationId: string | null | undefined
   lifecycleStatus: LifecycleStatus | null | undefined
   finalLifecycleStage: FinalLifecycleStage
-  /** Solo se dispara mientras algún sheet de ciclo de vida está abierto. */
+  /**
+   * Habilita `useAllLifecycleSteps` (config de steps del tipo de activo —
+   * nombres, orden). De acá salen `phases` y `nextStep`. Se comparte cache
+   * por `documentTypeId`, así que puede quedar prendido más tiempo que un
+   * sheet puntual (ej. mientras el botón "Completar" necesita el label del
+   * próximo destino) sin costo de refetch entre documentos del mismo tipo.
+   */
   enabled: boolean
+  /**
+   * Habilita `getRollbackTargets` (por ejecución, `staleTime: 0`), que solo
+   * alimenta `completedIds` para el panel "N de M" (`currentPhase`). Sin
+   * completar, los steps previos de la fase actual quedan como `upcoming` en
+   * vez de `done` — por eso se gatea aparte, solo mientras un sheet lo
+   * muestra.
+   */
+  includeCompletion: boolean
 }
 
 const EMPTY_PROGRESS: LifecycleProgress = {
@@ -47,6 +61,7 @@ export function useLifecycleProgress({
   lifecycleStatus,
   finalLifecycleStage,
   enabled,
+  includeCompletion,
 }: UseLifecycleProgressOptions): LifecycleProgress {
   const { t } = useTranslation("assets")
 
@@ -56,7 +71,7 @@ export function useLifecycleProgress({
   const { data: rollbackTargets } = useQuery({
     queryKey: ["rollback-targets", executionId, organizationId],
     queryFn: () => getRollbackTargets(executionId!, organizationId!),
-    enabled: enabled && !!executionId && !!organizationId,
+    enabled: includeCompletion && !!executionId && !!organizationId,
     staleTime: 0,
   })
 

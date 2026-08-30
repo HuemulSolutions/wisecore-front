@@ -11,6 +11,8 @@ import type { SectionPlateEditorRef, SectionPlateEditorProps } from '@/types/sec
 export type { SectionPlateEditorRef, SectionPlateEditorProps } from '@/types/section-plate-editor';
 import { normalizePlateMediaForSave } from '@/lib/plate-media-utils';
 import { ensureMermaidSnapshots } from '@/lib/plate-mermaid-utils';
+import { ensureDataTableSnapshots } from '@/lib/plate-data-table-utils';
+import { useDataTableSnapshotResolver } from '@/contexts/document-data-context';
 import { uploadMedia } from '@/services/media';
 
 /**
@@ -105,6 +107,7 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
   mediaUploadTarget,
 }, ref) {
   const editorRef = useRef<PlateRichEditorRef>(null);
+  const resolveDataTableSnapshot = useDataTableSnapshotResolver();
   const [dirty, setDirty] = useState(false);
   const [isPreparingSave, setIsPreparingSave] = useState(false);
   const prevContentRef = useRef<string>(content);
@@ -189,7 +192,12 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
     try {
       // Snapshot any changed Mermaid diagrams first – the markdown serialized right
       // after depends on their `url` already pointing at the uploaded media.
-      const { value: plateValue } = await runEnsureMermaidSnapshots();
+      const { value: mermaidValue } = await runEnsureMermaidSnapshots();
+      // Freeze the resolved rows of every `data_table` node into its `snapshot` — the
+      // Markdown serialize rule (markdown-kit.tsx) reads only that frozen snapshot, never
+      // live data, so Word/Markdown exports must get today's data at save time.
+      const { value: plateValue } = await ensureDataTableSnapshots(mermaidValue, resolveDataTableSnapshot);
+      editorRef.current?.resetValue(plateValue as Value);
       const md = editorRef.current?.getMarkdown() ?? content;
       // Rewrite url/previewUrl back to {{MEDIA:<uuid>}} for every media node before
       // persisting, so the backend always has a placeholder to re-resolve fresh on
@@ -201,7 +209,7 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
     } finally {
       setIsPreparingSave(false);
     }
-  }, [dirty, isSaving, isPreparingSave, sectionId, content, onSave, runEnsureMermaidSnapshots]);
+  }, [dirty, isSaving, isPreparingSave, sectionId, content, onSave, runEnsureMermaidSnapshots, resolveDataTableSnapshot]);
 
   const handleCancel = useCallback(() => {
     if (isSaving) return;

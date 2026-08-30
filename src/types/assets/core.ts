@@ -166,6 +166,17 @@ export interface LifecyclePermissions {
 }
 
 /**
+ * Motivo por el que `can_advance` es `false`: por ahora el único código implementado
+ * en el backend es respuestas obligatorias sin responder en una sección tipo formulario.
+ */
+export interface AdvanceBlocker {
+  code: 'REQUIRED_ANSWERS_PENDING' | (string & {});
+  section_execution_id: string;
+  section_name: string;
+  missing_required: number;
+}
+
+/**
  * Lifecycle status of a document
  */
 export interface LifecycleStatus {
@@ -179,6 +190,8 @@ export interface LifecycleStatus {
   will_advance_phase: boolean;
   version: string | null;
   version_required: boolean;
+  /** Vacío/ausente cuando no hay nada pendiente. Ausente en payloads cacheados de antes de este campo. */
+  advance_blockers?: AdvanceBlocker[];
 }
 
 /**
