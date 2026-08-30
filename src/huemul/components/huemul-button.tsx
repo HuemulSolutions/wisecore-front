@@ -152,10 +152,21 @@ export const HuemulButton = React.forwardRef<HTMLButtonElement, HuemulButtonProp
     );
 
     if (tooltip) {
+      // Radix no dispara eventos de puntero sobre un <button disabled> — sin el
+      // wrapper focuseable, un botón deshabilitado nunca abre el tooltip.
+      const isButtonDisabled = disabled || isLoading;
       return (
         <TooltipProvider>
           <Tooltip>
-            <TooltipTrigger asChild>{button}</TooltipTrigger>
+            <TooltipTrigger asChild={!isButtonDisabled}>
+              {isButtonDisabled ? (
+                <span tabIndex={0} className="inline-flex">
+                  {button}
+                </span>
+              ) : (
+                button
+              )}
+            </TooltipTrigger>
             <TooltipContent side={tooltipSide}>
               <p>{tooltip}</p>
             </TooltipContent>

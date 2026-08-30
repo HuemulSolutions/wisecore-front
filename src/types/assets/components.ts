@@ -155,7 +155,7 @@ export interface SectionExecutionProps {
   sectionIndex?: number
   documentId?: string
   executionId?: string
-  onExecutionStart?: (executionId?: string) => void
+  onExecutionStart?: (executionId: string, mode: 'single' | 'from') => void
   executionStatus?: string
   onOpenExecuteSheet?: () => void
   executionMode?: 'single' | 'from' | 'full' | 'full-single'

@@ -191,6 +191,10 @@ export const RBAC_PAGES = {
       // Bloque "Documentos relacionados" del tab Contenido: solo lectura,
       // mismo permiso que usa el listado equivalente en la página diagrams.
       listExecutionRelationships: ["execution_relationship:l", "execution_relationship:r"],
+      // El kebab de cada fila del bloque de relacionados permite borrar el
+      // vínculo (DELETE /execution_relationship/{id}): recurso propio, no
+      // `asset`.
+      deleteExecutionRelationship: "execution_relationship:d",
       // El bloque de relacionados resuelve el nombre del tipo de cada documento
       // con el catálogo GET /document_types (mismo criterio que la paleta del
       // canvas en diagrams): sin el permiso la fila omite ese segmento.

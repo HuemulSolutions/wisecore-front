@@ -13,31 +13,30 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { HuemulSheet } from '@/huemul/components/huemul-sheet';
 import { HuemulField } from '@/huemul/components/huemul-field';
 import { HuemulButton } from '@/huemul/components/huemul-button';
+import { HuemulLifecycleBadge } from '@/huemul/components/huemul-lifecycle-badge';
+import { HuemulExecutionStatusBadge } from '@/huemul/components/huemul-execution-status-badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getExecutionById, updateExecutionName, updateExecutionBusinessDates, generateExecutionSummary } from '@/services/executions';
 import { formatApiDateTime, parseApiDate } from '@/lib/utils';
-import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import type { ExecutionSummary, VersionManagementSheetProps, EditFormState, ExecutionDetailProps } from '@/types/assets';
+import type { ExecutionLifecycleState } from '@/types/execution';
 export type { VersionManagementSheetProps } from '@/types/assets';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  completed: { bg: 'bg-green-100', text: 'text-green-700', label: 'Completed' },
-  running: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Running' },
-  pending: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Pending' },
-  failed: { bg: 'bg-red-100', text: 'text-red-700', label: 'Failed' },
-  approved: { bg: 'bg-indigo-100', text: 'text-indigo-700', label: 'Approved' },
-};
+const LIFECYCLE_STATES: ExecutionLifecycleState[] = [
+  'draft',
+  'in_review',
+  'in_approval',
+  'approved',
+  'published',
+  'archived',
+  'finalized',
+];
 
-function StatusBadge({ status }: { status: string }) {
-  const style = STATUS_STYLES[status] ?? { bg: 'bg-gray-100', text: 'text-gray-600', label: status };
-  return (
-    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', style.bg, style.text)}>
-      {style.label}
-    </span>
-  );
+function isLifecycleState(state: string | null | undefined): state is ExecutionLifecycleState {
+  return !!state && (LIFECYCLE_STATES as string[]).includes(state);
 }
 
 // Statuses in which the execution content is finalized and the backend
@@ -206,12 +205,16 @@ function ExecutionDetail({
         </div>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-muted-foreground">
           <span className="text-xs font-medium uppercase tracking-wide">{t('versionManagement.status')}</span>
-          <StatusBadge status={execution.status} />
+          <HuemulExecutionStatusBadge status={execution.status} />
           <span className="text-xs font-medium uppercase tracking-wide">{t('versionManagement.lifecycle')}</span>
           <span className="text-xs">
-            {execution.lifecycle_state
-              ? t(`assets:lifecycle.stateLabels.${execution.lifecycle_state}`, { defaultValue: execution.lifecycle_state })
-              : '—'}
+            {isLifecycleState(execution.lifecycle_state) ? (
+              <HuemulLifecycleBadge state={execution.lifecycle_state} />
+            ) : execution.lifecycle_state ? (
+              t(`assets:lifecycle.stateLabels.${execution.lifecycle_state}`, { defaultValue: execution.lifecycle_state })
+            ) : (
+              '—'
+            )}
           </span>
           <span className="text-xs font-medium uppercase tracking-wide">{t('versionManagement.createdAt')}</span>
           <span className="text-xs">{formatApiDateTime(execution.created_at)}</span>

@@ -26,11 +26,15 @@ export function ModelDialog({
   const [technicalName, setTechnicalName] = useState('')
   const [capabilities, setCapabilities] = useState<string[]>(['text_input'])
   const [selectedProviderId, setSelectedProviderId] = useState('')
+  const [inputPrice, setInputPrice] = useState<number | ''>('')
+  const [outputPrice, setOutputPrice] = useState<number | ''>('')
 
   useEffect(() => {
     if (model && open) {
       setDisplayName(model.name || '')
       setTechnicalName(model.internal_name || '')
+      setInputPrice(model.input_price_per_1m_tokens ?? '')
+      setOutputPrice(model.output_price_per_1m_tokens ?? '')
     }
   }, [model, open])
 
@@ -40,6 +44,8 @@ export function ModelDialog({
       setTechnicalName('')
       setCapabilities(['text_input'])
       setSelectedProviderId(providers?.[0]?.id ?? '')
+      setInputPrice('')
+      setOutputPrice('')
     }
   }, [open])
 
@@ -59,7 +65,14 @@ export function ModelDialog({
 
   const handleSave = () => {
     if (!canSave) return
-    onSubmit({ name: displayName, internal_name: technicalName, capabilities, provider_id: selectedProviderId || undefined })
+    onSubmit({
+      name: displayName,
+      internal_name: technicalName,
+      capabilities,
+      provider_id: selectedProviderId || undefined,
+      input_price_per_1m_tokens: inputPrice === '' ? null : Number(inputPrice),
+      output_price_per_1m_tokens: outputPrice === '' ? null : Number(outputPrice),
+    })
   }
 
   const resolvedProviderName = providerName ?? providers?.find(p => p.id === selectedProviderId)?.name
@@ -68,9 +81,15 @@ export function ModelDialog({
     ? t(`modelDialog.technicalNameHelp.${resolvedProviderType}`, { defaultValue: t('modelDialog.technicalNameDescription') })
     : t('modelDialog.technicalNameDescription')
 
+  // Los precios son opcionales: solo se valida que, si vienen, no sean negativos.
+  const arePricesValid =
+    (inputPrice === '' || inputPrice >= 0) &&
+    (outputPrice === '' || outputPrice >= 0)
+
   const isFormValid =
     displayName.trim() !== '' &&
     technicalName.trim() !== '' &&
+    arePricesValid &&
     (!isEdit ? capabilities.length > 0 && (!!providerName || !!selectedProviderId) : true)
 
   if (!canSave) return null
@@ -125,6 +144,32 @@ export function ModelDialog({
           disabled={isSubmitting}
           required
         />
+        <div className="grid grid-cols-2 gap-3">
+          <HuemulField
+            type="number"
+            label={t('modelDialog.inputPriceLabel')}
+            name="inputPrice"
+            value={inputPrice}
+            onChange={(v) => setInputPrice(v === '' ? '' : Number(v))}
+            placeholder={t('modelDialog.pricePlaceholder')}
+            description={t('modelDialog.priceDescription')}
+            allowDecimal
+            min={0}
+            disabled={isSubmitting}
+          />
+          <HuemulField
+            type="number"
+            label={t('modelDialog.outputPriceLabel')}
+            name="outputPrice"
+            value={outputPrice}
+            onChange={(v) => setOutputPrice(v === '' ? '' : Number(v))}
+            placeholder={t('modelDialog.pricePlaceholder')}
+            description={t('modelDialog.priceDescription')}
+            allowDecimal
+            min={0}
+            disabled={isSubmitting}
+          />
+        </div>
         {!isEdit && (
           <div className="flex flex-col gap-2">
             <Label className="text-sm font-medium">{t('modelDialog.capabilitiesLabel')}</Label>

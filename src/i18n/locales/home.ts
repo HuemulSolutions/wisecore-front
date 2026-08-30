@@ -69,7 +69,7 @@
       label: { en: "Assets you own", es: "Activos de tu autoría" },
     },
     draft: {
-      label: { en: "In elaboration (draft)", es: "En elaboración (borrador)" },
+      label: { en: "In elaboration", es: "En elaboración" },
     },
     inReview: {
       label: { en: "Awaiting review", es: "Esperando revisión" },

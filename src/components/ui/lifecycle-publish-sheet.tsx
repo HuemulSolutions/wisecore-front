@@ -42,7 +42,6 @@ export function LifecyclePublishSheet({
       open={open}
       onOpenChange={(o) => !isProcessing && onOpenChange(o)}
       title={t("lifecycle.publishTitle")}
-      description={version ? t("lifecycle.publishVersionDescription", { version }) : t("lifecycle.publishDescription")}
       icon={Globe}
       iconVariant="tile"
       maxWidth="sm:max-w-xl"
@@ -58,7 +57,11 @@ export function LifecyclePublishSheet({
           progress={progress}
           next={
             progress.nextStep
-              ? { label: t("lifecycle.nextStepLabel"), value: progress.nextStep.name ?? progress.nextStep.stage }
+              ? {
+                  label: t("lifecycle.nextStepLabel"),
+                  value: progress.nextStep.name ?? progress.nextStep.stage,
+                  stage: progress.nextStep.stage,
+                }
               : null
           }
         />

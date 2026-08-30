@@ -87,6 +87,13 @@ export async function getExecutionsByDocumentId(documentId: string, organization
     return data.data;
 }
 
+// Nota: `Execution` (types/execution/core.ts) no modela el shape completo de
+// este endpoint (le faltan campos reales como `version`, `llm_id`, `llm_name`,
+// `instruction`, `created_by_user` que varios consumidores ya leen) — tipar el
+// retorno como `Execution` estricto rompería esos consumidores. Se deja sin
+// anotar como antes; `ExecutionSection` (con `sections?: ExecutionSection[]`
+// agregado a `Execution`) es para quien quiera tipar la porción de secciones
+// puntualmente, como en `execution-info-sheet.tsx`.
 export async function getExecutionById(executionId: string, organizationId: string) {
     logger.log(`Fetching execution with ID: ${executionId}`);
     const response = await httpClient.get(`${backendUrl}/execution/${executionId}`, {

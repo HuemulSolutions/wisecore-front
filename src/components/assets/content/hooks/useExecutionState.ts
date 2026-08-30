@@ -57,11 +57,17 @@ export function useExecutionState({
   const hasNewPendingExecution = useMemo(() => {
     const executions = documentContent?.executions || documentExecutions;
     if (!executions) return false;
-    const pendingExecution = executions.find((execution: any) => 
+    const pendingExecution = executions.find((execution: any) =>
       execution.status === 'pending'
     );
     if (!pendingExecution) return false;
-    return !pendingExecution.sections?.some((section: any) => 
+    // `pendingExecution.sections` viene embebido en el documento/lista de
+    // ejecuciones (no de `GET /execution/{id}`, que sí filtra por `view` — ver
+    // "ia context/permisos-seccion-lifecycle-guide.md" §5). Si esta lista
+    // también empezara a filtrarse por permiso de sección, un usuario sin
+    // acceso a todas las secciones podría ver `hasNewPendingExecution` en
+    // `false` de más (falso negativo) — no confirmado hoy, queda anotado.
+    return !pendingExecution.sections?.some((section: any) =>
       section.output && section.output.trim().length > 0
     );
   }, [documentContent?.executions, documentExecutions]);

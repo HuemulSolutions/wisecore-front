@@ -10,7 +10,7 @@ interface HuemulLifecycleProgressHeaderProps {
   /** Panel "N de M" de la fase actual — completar/aprobar sí, publicar/archivar/devolver no. */
   showStepProgress?: boolean
   /** Bloque destacado ("Próximo paso" / "Devolver a"). Omitir para no mostrarlo. */
-  next?: { label: string; value: string; tone?: "info" | "warning"; icon?: LucideIcon } | null
+  next?: { label: string; value: string; tone?: "info" | "warning"; stage?: string | null; icon?: LucideIcon } | null
   className?: string
 }
 
@@ -35,7 +35,15 @@ export function HuemulLifecycleProgressHeader({
       {showStepProgress && progress.currentPhase && (
         <HuemulLifecycleStepProgress currentPhase={progress.currentPhase} />
       )}
-      {next && <HuemulLifecycleNextStep label={next.label} value={next.value} tone={next.tone} icon={next.icon} />}
+      {next && (
+        <HuemulLifecycleNextStep
+          label={next.label}
+          value={next.value}
+          tone={next.tone}
+          stage={next.stage}
+          icon={next.icon}
+        />
+      )}
     </div>
   )
 }

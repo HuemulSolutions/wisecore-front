@@ -20,6 +20,8 @@ export interface TMermaidElement extends TElement {
   snapshotCode?: string
   /** Width as %, px or in – same convention as the `img` node. */
   width?: string | number
+  /** Horizontal alignment of the rendered diagram – same key `TextAlignPlugin` writes for `img`. */
+  align?: 'left' | 'center' | 'right'
   /** Caption shown centered below the image, same convention as the `img` node. */
   caption?: { text: string }[]
 }

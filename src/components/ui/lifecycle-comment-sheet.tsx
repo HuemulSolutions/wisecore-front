@@ -13,10 +13,10 @@ export function LifecycleCommentSheet({
   open,
   onOpenChange,
   title,
-  description,
   onConfirm,
   confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  // Sin default: `undefined` deja que HuemulSheet use su "Cancelar" traducido.
+  cancelLabel,
   commentLabel = "Comment",
   commentPlaceholder = "Add a comment...",
   isProcessing = false,
@@ -39,7 +39,6 @@ export function LifecycleCommentSheet({
       open={open}
       onOpenChange={(o) => !isProcessing && onOpenChange(o)}
       title={title}
-      description={description}
       icon={icon}
       iconVariant="tile"
       maxWidth="sm:max-w-xl"

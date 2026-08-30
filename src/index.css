@@ -77,6 +77,18 @@
   --diagram-role-title: #312e81;
   --diagram-role-meta: #6366f1;
   --diagram-role-edge: #a5b4fc;
+  --diagram-gateway-fill: #fffbeb;
+  --diagram-gateway-border: #fcd34d;
+  --diagram-gateway-icon-bg: #d97706;
+  --diagram-gateway-label: #78350f;
+  --diagram-event-start-fill: #f0fdf4;
+  --diagram-event-start-border: #86efac;
+  --diagram-event-start-icon: #16a34a;
+  --diagram-event-start-label: #14532d;
+  --diagram-event-end-fill: #fef2f2;
+  --diagram-event-end-border: #fca5a5;
+  --diagram-event-end-icon: #dc2626;
+  --diagram-event-end-label: #7f1d1d;
   --diagram-container-fill: rgba(241, 244, 248, 0.72);
   --diagram-container-label: #94a3b8;
   --input: oklch(0.929 0.013 255.508);
@@ -96,6 +108,21 @@
   --sidebar-ring: oklch(0.704 0.04 256.788);
   --brand: oklch(0.623 0.214 259.815);
   --highlight: oklch(0.852 0.199 91.936);
+
+  /* ── Escala de z-index ──────────────────────────────────────────────────────
+     Fuente única de la jerarquía de capas. Consumir con `z-(--z-…)`
+     (Tailwind v4 no expone namespace de tema para z-index).
+     Ver `ia context/z-index-layering-guide.md`. */
+  --z-app-header: 50;              /* header global de la app */
+  --z-page-header: 40;             /* header de detalle (activo / plantilla) */
+  --z-page-sticky-elevated: 32;    /* banner de ejecución que convive con secciones reales visibles — debe ganarle a su barra */
+  --z-page-sticky: 30;             /* barra sticky de sección, banners de ejecución que reemplazan la lista por un skeleton */
+  --z-page-sticky-secondary: 28;   /* banners que viven bajo la barra de sección */
+  --z-editor-toolbar: 30;          /* FixedToolbar del editor (dentro de su isolate) */
+  --z-editor-node-toolbar: 25;     /* toolbars flotantes de nodo (mermaid/media/tabla/link) */
+  --z-editor-floating-toolbar: 20; /* toolbar de selección de texto */
+  --z-editor-selection: 10;        /* rectángulo de selección de bloques por arrastre */
+  --z-editor-menu: 50;             /* menús invocados por el usuario: slash, emoji, selects */
 }
 
 .dark {
@@ -122,6 +149,18 @@
   --diagram-role-title: #e0e7ff;
   --diagram-role-meta: #a5b4fc;
   --diagram-role-edge: #818cf8;
+  --diagram-gateway-fill: rgba(217, 119, 6, 0.16);
+  --diagram-gateway-border: rgba(252, 211, 77, 0.55);
+  --diagram-gateway-icon-bg: #d97706;
+  --diagram-gateway-label: #fde68a;
+  --diagram-event-start-fill: rgba(22, 163, 74, 0.16);
+  --diagram-event-start-border: rgba(134, 239, 172, 0.55);
+  --diagram-event-start-icon: #4ade80;
+  --diagram-event-start-label: #bbf7d0;
+  --diagram-event-end-fill: rgba(220, 38, 38, 0.16);
+  --diagram-event-end-border: rgba(252, 165, 165, 0.55);
+  --diagram-event-end-icon: #f87171;
+  --diagram-event-end-label: #fecaca;
   --diagram-container-fill: rgba(30, 41, 59, 0.55);
   --diagram-container-label: #94a3b8;
   --input: oklch(1 0 0 / 15%);

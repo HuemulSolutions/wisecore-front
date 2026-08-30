@@ -9,6 +9,7 @@ import {
   type UseVirtualFloatingOptions,
   flip,
   offset,
+  shift,
 } from '@platejs/floating';
 import { getLinkAttributes } from '@platejs/link';
 import {
@@ -31,9 +32,10 @@ import {
 
 import { buttonVariants } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { useEditorChromeInset } from '@/components/plate-editor/components/editor-chrome-inset';
 
 const popoverVariants = cva(
-  'z-50 w-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md outline-hidden'
+  'z-(--z-editor-node-toolbar) w-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md outline-hidden'
 );
 
 const inputVariants = cva(
@@ -51,19 +53,28 @@ export function LinkFloatingToolbar({
     'activeId'
   );
 
+  // Reserva la franja del chrome fijo para no dibujarse sobre el toolbar del
+  // editor ni sobre el header (ver editor-chrome-inset).
+  const topInset = useEditorChromeInset();
+
   const floatingOptions: UseVirtualFloatingOptions = React.useMemo(
-    () => ({
-      middleware: [
-        offset(8),
-        flip({
-          fallbackPlacements: ['bottom-end', 'top-start', 'top-end'],
-          padding: 12,
-        }),
-      ],
-      placement:
-        activeSuggestionId || activeCommentId ? 'top-start' : 'bottom-start',
-    }),
-    [activeCommentId, activeSuggestionId]
+    () => {
+      const padding = { top: topInset + 12, bottom: 12, left: 12, right: 12 };
+
+      return {
+        middleware: [
+          offset(8),
+          flip({
+            fallbackPlacements: ['bottom-end', 'top-start', 'top-end'],
+            padding,
+          }),
+          shift({ padding }),
+        ],
+        placement:
+          activeSuggestionId || activeCommentId ? 'top-start' : 'bottom-start',
+      };
+    },
+    [activeCommentId, activeSuggestionId, topInset]
   );
 
   const insertState = useFloatingLinkInsertState({
