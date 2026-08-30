@@ -5,6 +5,7 @@ import { HuemulTable } from "@/huemul/components/huemul-table"
 import type { HuemulTableAction, HuemulTableColumn, HuemulTablePagination } from "@/huemul/components/huemul-table"
 import { HuemulLifecycleBadge } from "@/huemul/components/huemul-lifecycle-badge"
 import { formatRelativeTime } from "@/lib/format-relative-time"
+import { toneColor } from "@/lib/lifecycle-colors"
 import type { WorkflowItem } from "@/types/workflow"
 import { WorkflowProgressBar } from "./workflow-progress-bar"
 
@@ -41,7 +42,7 @@ export function WorkflowTable({
   onShare,
   hasActiveFilters,
 }: WorkflowTableProps) {
-  const { t } = useTranslation(["workflow", "common"])
+  const { t } = useTranslation(["workflow", "common", "assets"])
 
   // Cada celda envuelve su contenido en un div clickeable: no hay onRowClick nativo en
   // HuemulTable, así que el click de fila se implementa a nivel de celda (mismo patrón
@@ -71,7 +72,24 @@ export function WorkflowTable({
     {
       key: "lifecycleState",
       label: t("columns.lifecycleState"),
-      render: (item) => cell(item, <HuemulLifecycleBadge state={item.lifecycle_state} />),
+      render: (item) =>
+        cell(
+          item,
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <HuemulLifecycleBadge state={item.lifecycle_state} />
+            {item.current_lifecycle_step && (
+              <span
+                className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${toneColor("gray")}`}
+                title={t("columns.lifecycleStepTooltip")}
+              >
+                {item.current_lifecycle_step.step_name ??
+                  t(`assets:lifecycle.stageLabels.${item.current_lifecycle_step.step_type}`, {
+                    defaultValue: item.current_lifecycle_step.step_type,
+                  })}
+              </span>
+            )}
+          </div>,
+        ),
     },
     {
       key: "progress",

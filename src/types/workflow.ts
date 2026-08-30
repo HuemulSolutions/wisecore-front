@@ -1,10 +1,20 @@
 import type { ExecutionLifecycleState } from "@/types/execution"
+import type { LifecycleStepKind } from "@/types/execution-lifecycle"
 
 export type { ExecutionLifecycleState }
 
 export interface WorkflowCurrentStep {
   section_execution_id: string
   section_name: string
+}
+
+/** Paso del ciclo de vida pendiente para el `lifecycle_state` actual. No
+ * confundir con `WorkflowCurrentStep`, que es la sección en edición. */
+export interface WorkflowLifecycleStep {
+  step_id: string
+  step_type: LifecycleStepKind
+  /** Null si el step no tiene nombre configurado (el backend arma un respaldo tipo "Edit - 2"). */
+  step_name: string | null
 }
 
 export interface WorkflowItem {
@@ -14,6 +24,8 @@ export interface WorkflowItem {
   document_name: string
   template_name: string
   lifecycle_state: ExecutionLifecycleState
+  /** Null cuando la etapa actual no tiene steps configurables (approved/published/archived) o sin ejecución todavía. */
+  current_lifecycle_step: WorkflowLifecycleStep | null
   progress_percentage: number
   current_step: WorkflowCurrentStep | null
   last_modified_at: string
