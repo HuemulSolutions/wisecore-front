@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { X, Trash2, UserCog, UserX } from "lucide-react"
 import { HuemulField } from "@/huemul/components/huemul-field"
+import { isFlowCanvasType } from "@/lib/diagram-utils"
 import type { CanvasElementNodeData } from "./text-node"
 
 interface ElementPanelProps {
@@ -12,12 +13,20 @@ interface ElementPanelProps {
   readOnly?: boolean
 }
 
-// Editing panel for free-standing text/container/role elements — mirrors NodePanel's
-// layout so the right-side panel stays visually consistent across selection types.
+const FLOW_TITLE_KEY = {
+  gateway: "elementPanel.gatewayTitle",
+  startEvent: "elementPanel.startEventTitle",
+  endEvent: "elementPanel.endEventTitle",
+} as const
+
+// Editing panel for free-standing text/container/role elements, and now also for
+// gateway/start_event/end_event flow nodes — mirrors NodePanel's layout so the
+// right-side panel stays visually consistent across selection types.
 export function ElementPanel({ elementData, onClose, readOnly = false }: ElementPanelProps) {
   const { t } = useTranslation("document-type-relationships")
   const isContainer = elementData.kind === "container"
   const isRole = elementData.kind === "role"
+  const isFlow = isFlowCanvasType(elementData.kind)
 
   const [content, setContent] = useState(elementData.content)
   useEffect(() => setContent(elementData.content), [elementData.content])
@@ -39,7 +48,13 @@ export function ElementPanel({ elementData, onClose, readOnly = false }: Element
             style={{ backgroundColor: elementData.color || "#94a3b8" }}
           />
           <span className="text-sm font-semibold truncate">
-            {isContainer ? t("elementPanel.containerTitle") : isRole ? t("elementPanel.roleTitle") : t("elementPanel.textTitle")}
+            {isContainer
+              ? t("elementPanel.containerTitle")
+              : isRole
+                ? t("elementPanel.roleTitle")
+                : isFlow
+                  ? t(FLOW_TITLE_KEY[elementData.kind as keyof typeof FLOW_TITLE_KEY])
+                  : t("elementPanel.textTitle")}
           </span>
         </div>
         <button
@@ -55,7 +70,7 @@ export function ElementPanel({ elementData, onClose, readOnly = false }: Element
         {!isRole && (
           <HuemulField
             type="textarea"
-            label={isContainer ? t("elementPanel.title") : t("elementPanel.content")}
+            label={isContainer ? t("elementPanel.title") : isFlow ? t("elementPanel.label") : t("elementPanel.content")}
             name="element_content"
             value={content}
             onChange={(v) => handleContentChange(String(v))}
@@ -64,13 +79,16 @@ export function ElementPanel({ elementData, onClose, readOnly = false }: Element
           />
         )}
 
+        {/* gateway/start_event/end_event have no color field on the backend (like
+            role) — the swatch below only feeds the header dot, shown disabled so it
+            can't be mistaken for a persisted per-instance color. */}
         <HuemulField
           type="color"
-          label={isContainer ? t("elementPanel.borderColor") : isRole ? t("elementPanel.color") : t("elementPanel.textColor")}
+          label={isContainer ? t("elementPanel.borderColor") : isRole || isFlow ? t("elementPanel.color") : t("elementPanel.textColor")}
           name="element_color"
           value={elementData.color}
           onChange={(v) => elementData.onColorChange?.(elementData.id, String(v))}
-          disabled={readOnly || isRole}
+          disabled={readOnly || isRole || isFlow}
         />
 
         {/* Role assignment — containers can optionally act as a lane; a role node's

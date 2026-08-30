@@ -35,6 +35,9 @@ const translations = {
       es: "{{count}} contenedor(es)",
     },
     rolesColumnLabel: { en: "ROLES", es: "ROLES" },
+    defaultGatewayLabel: { en: "Decision?", es: "¿Decisión?" },
+    defaultStartLabel: { en: "Start", es: "Inicio" },
+    defaultEndLabel: { en: "End", es: "Fin" },
     noRelationshipsFound: {
       en: "No relationships found for this asset type",
       es: "No se encontraron relaciones para este tipo de activo",
@@ -51,6 +54,9 @@ const translations = {
     container: { en: "Container", es: "Contenedor" },
     text: { en: "Text", es: "Texto" },
     role: { en: "Role", es: "Rol" },
+    gateway: { en: "Gateway", es: "Compuerta" },
+    startEvent: { en: "Start", es: "Inicio" },
+    endEvent: { en: "End", es: "Fin" },
   },
   canvas: {
     empty: {
@@ -88,6 +94,9 @@ const translations = {
     addContainer: { en: "Add Container", es: "Agregar Contenedor" },
     addText: { en: "Add Text", es: "Agregar Texto" },
     addRole: { en: "Add Role", es: "Agregar Rol" },
+    addGateway: { en: "Add Gateway", es: "Agregar Compuerta" },
+    addStartEvent: { en: "Add Start Event", es: "Agregar Inicio" },
+    addEndEvent: { en: "Add End Event", es: "Agregar Fin" },
     readOnly: { en: "Read only", es: "Solo lectura" },
     palette: {
       title: { en: "new", es: "nuevo" },
@@ -112,8 +121,8 @@ const translations = {
       es: "Ese rol ya está en el canvas.",
     },
     roleEdgeExecutionOnly: {
-      en: "Role connections are only available while editing a diagram",
-      es: "Las conexiones de rol solo están disponibles al editar un diagrama",
+      en: "Diagram connections are only available while editing a diagram",
+      es: "Las conexiones del diagrama solo están disponibles al editar un diagrama",
     },
     roleEdgeNoPermission: {
       en: "You don't have permission to edit this diagram's connections.",
@@ -124,12 +133,12 @@ const translations = {
       es: "Ambos extremos deben estar listos primero: elige una versión para el activo o un rol para el nodo.",
     },
     roleSelfLoopUnsupported: {
-      en: "A role can't connect to itself yet",
-      es: "Un rol aún no puede conectarse consigo mismo",
+      en: "A node can't connect to itself yet",
+      es: "Un nodo aún no puede conectarse consigo mismo",
     },
     saveDetailsRequired: {
-      en: "Add at least one asset version or role node before saving",
-      es: "Agrega al menos una versión de activo o un nodo de rol antes de guardar",
+      en: "Add at least one asset version, role, gateway or event node before saving",
+      es: "Agrega al menos una versión de activo, un rol, una compuerta o un evento antes de guardar",
     },
   },
   loadDiagramSheet: {
@@ -224,8 +233,12 @@ const translations = {
     containerTitle: { en: "Container", es: "Contenedor" },
     textTitle: { en: "Text", es: "Texto" },
     roleTitle: { en: "Role", es: "Rol" },
+    gatewayTitle: { en: "Gateway", es: "Compuerta" },
+    startEventTitle: { en: "Start event", es: "Evento de inicio" },
+    endEventTitle: { en: "End event", es: "Evento de fin" },
     title: { en: "Title", es: "Título" },
     content: { en: "Content", es: "Contenido" },
+    label: { en: "Label", es: "Etiqueta" },
     borderColor: { en: "Border color", es: "Color de borde" },
     textColor: { en: "Text color", es: "Color de texto" },
     color: { en: "Color", es: "Color" },

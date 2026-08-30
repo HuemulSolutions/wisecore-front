@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import type { AssetTypeNodeData } from "./asset-type-node"
 import type { CanvasElementNodeData } from "./text-node"
 import type { RelationshipEdgeData } from "./relationship-edge"
+import { isFlowCanvasType } from "@/lib/diagram-utils"
 
 interface RelationshipPanelProps {
   selectedEdgeId: string
@@ -16,13 +17,17 @@ interface RelationshipPanelProps {
 }
 
 // Same criterion as `nodeLabel` in relationships-canvas.tsx: a role node's label is
-// its assigned role's name (falling back to raw canvas content), everything else
-// shows its asset/document-type name.
+// its assigned role's name (falling back to raw canvas content); a gateway/
+// start_event/end_event shows its own content (there's no entity to fall back to);
+// everything else shows its asset/document-type name.
 function endpointLabel(node?: Node<AssetTypeNodeData | CanvasElementNodeData>): string | undefined {
   if (!node) return undefined
   if (node.type === "role") {
     const d = node.data as CanvasElementNodeData
     return d.role?.name ?? d.content
+  }
+  if (isFlowCanvasType(node.type)) {
+    return (node.data as CanvasElementNodeData).content
   }
   return (node.data as AssetTypeNodeData).name
 }

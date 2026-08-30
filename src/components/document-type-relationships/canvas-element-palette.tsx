@@ -3,9 +3,9 @@
 import type React from "react"
 import { useTranslation } from "react-i18next"
 import { Panel } from "@xyflow/react"
-import { Shield, Square, Type } from "lucide-react"
+import { Circle, CircleDot, Diamond, Shield, Square, Type } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { CanvasElementKind } from "@/types/document-type-relationships"
+import type { CanvasElementKind, FlowCanvasNodeType } from "@/types/document-type-relationships"
 import type { CanvasElementPaletteProps } from "@/types/document-type-relationships"
 
 /**
@@ -14,7 +14,7 @@ import type { CanvasElementPaletteProps } from "@/types/document-type-relationsh
  * de qué se podía crear. Solo agrega elementos (Contenedor/Texto/Rol); cargar
  * diagrama y limpiar canvas viven en `CanvasActionsBar`.
  */
-export function CanvasElementPalette({ canAddRole, onAdd, compact }: CanvasElementPaletteProps) {
+export function CanvasElementPalette({ canAddRole, canAddFlow, onAdd, compact }: CanvasElementPaletteProps) {
   const { t } = useTranslation("document-type-relationships")
 
   return (
@@ -51,6 +51,35 @@ export function CanvasElementPalette({ canAddRole, onAdd, compact }: CanvasEleme
             onAdd={onAdd}
           />
         )}
+        {canAddFlow && (
+          <>
+            <div className="my-0.5 h-px bg-border" />
+            <PaletteItem
+              kind="startEvent"
+              icon={Circle}
+              label={t("sidebar.startEvent")}
+              tooltip={t("canvas.addStartEvent")}
+              compact={compact}
+              onAdd={onAdd}
+            />
+            <PaletteItem
+              kind="gateway"
+              icon={Diamond}
+              label={t("sidebar.gateway")}
+              tooltip={t("canvas.addGateway")}
+              compact={compact}
+              onAdd={onAdd}
+            />
+            <PaletteItem
+              kind="endEvent"
+              icon={CircleDot}
+              label={t("sidebar.endEvent")}
+              tooltip={t("canvas.addEndEvent")}
+              compact={compact}
+              onAdd={onAdd}
+            />
+          </>
+        )}
       </div>
     </Panel>
   )
@@ -64,12 +93,12 @@ function PaletteItem({
   compact,
   onAdd,
 }: {
-  kind: CanvasElementKind
+  kind: CanvasElementKind | FlowCanvasNodeType
   icon: React.ComponentType<{ className?: string }>
   label: string
   tooltip: string
   compact?: boolean
-  onAdd: (kind: CanvasElementKind) => void
+  onAdd: (kind: CanvasElementKind | FlowCanvasNodeType) => void
 }) {
   // Clicable y arrastrable a la vez: mismo payload que `asset-type-sidebar.tsx`,
   // así `handleDrop` del canvas lo consume sin cambios. `div role="button"` en vez

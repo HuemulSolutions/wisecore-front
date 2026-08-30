@@ -30,6 +30,9 @@ import { MemoizedAssetTypeNode, type AssetTypeNodeData } from "./asset-type-node
 import { MemoizedTextNode, type CanvasElementNodeData } from "./text-node"
 import { MemoizedContainerNode } from "./container-node"
 import { MemoizedRoleNode, type RoleNodeMeta } from "./role-node"
+import { MemoizedGatewayNode } from "./gateway-node"
+import { MemoizedStartEventNode } from "./start-event-node"
+import { MemoizedEndEventNode } from "./end-event-node"
 import { RoleColumnLabel } from "./role-column-label"
 import { CanvasElementPalette } from "./canvas-element-palette"
 import { CanvasActionsBar, CanvasReadOnlyBadge } from "./canvas-actions-bar"
@@ -62,6 +65,7 @@ import type {
   InitialCanvasElement,
   CanvasElementKind,
   CanvasElementRole,
+  FlowCanvasNodeType,
   PendingConnection,
   PendingRoleEdge,
   RelationshipsCanvasProps,
@@ -75,6 +79,8 @@ import {
   DEFAULT_CANVAS_ELEMENT_COLOR,
   EXEC_EDGE_ID_PREFIX,
   DIRECT_EDGE_ID_PREFIX,
+  CANVAS_TYPE_BY_FLOW_NODE_TYPE,
+  isFlowCanvasType,
   type CanvasNode,
 } from "@/lib/diagram-utils"
 import { useSaveDiagramGraph } from "@/hooks/useDiagrams"
@@ -87,6 +93,9 @@ const NODE_TYPES = {
   text: MemoizedTextNode,
   container: MemoizedContainerNode,
   role: MemoizedRoleNode,
+  gateway: MemoizedGatewayNode,
+  startEvent: MemoizedStartEventNode,
+  endEvent: MemoizedEndEventNode,
 }
 
 const EDGE_TYPES = {
@@ -136,6 +145,9 @@ function nodeLabel(node: Node): string {
   if (node.type === "role") {
     const d = node.data as CanvasElementNodeData
     return d.role?.name ?? d.content
+  }
+  if (isFlowCanvasType(node.type)) {
+    return (node.data as CanvasElementNodeData).content
   }
   return (node.data as AssetTypeNodeData).name
 }
@@ -318,6 +330,9 @@ function RelationshipsCanvasFlow({
   // it does NOT require execution_relationship:c/u, only a diagram write permission.
   const canWriteDiagramGraph = canUpdateDiagram || canCreateDiagram
   const canAddRoleNode = mode === 'execution' && canPickRole && canWriteDiagramGraph
+  // Unlike a role node, a gateway/start_event/end_event has no entity behind it —
+  // no /rbac/roles fetch involved, so no `canPickRole` gate, just diagram write access.
+  const canAddFlowNode = mode === 'execution' && canWriteDiagramGraph
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
@@ -405,6 +420,11 @@ function RelationshipsCanvasFlow({
   // Dialog state
   const [pendingConnection, setPendingConnection] = useState<PendingConnection | null>(null)
   const pendingConnectionRef = useRef<PendingConnection | null>(null)
+  // Bridges `onConnect` (declared above `handleRoleEdgeCreated` in this file) to it —
+  // a flow-only edge (no role on either end) skips the name/type dialog entirely and
+  // creates the direct edge immediately, unlike a role edge. Same ref-bridge pattern
+  // as `handleLoadExecRelRef` below.
+  const createDirectEdgeRef = useRef<((pending: PendingRoleEdge, name: string, type: string) => void) | null>(null)
   const [editingRelationship, setEditingRelationship] = useState<DocumentTypeRelationship | null>(null)
   // execution-mode edit state
   const [editingExecRelationship, setEditingExecRelationship] = useState<ExecutionRelationship | null>(null)
@@ -892,8 +912,21 @@ function RelationshipsCanvasFlow({
   // Opens the role picker dialog scoped to an existing element (container or role node).
   const handleRequestRolePick = useCallback((id: string) => setPendingRolePick({ nodeId: id }), [])
 
+  const defaultContentFor = useCallback((kind: CanvasElementKind | FlowCanvasNodeType): string => {
+    switch (kind) {
+      case "container": return t("elementPanel.defaultContainerTitle")
+      case "gateway": return t("node.defaultGatewayLabel")
+      case "startEvent": return t("node.defaultStartLabel")
+      case "endEvent": return t("node.defaultEndLabel")
+      default: return t("elementPanel.defaultTextContent")
+    }
+  }, [t])
+
+  // Creates a text/container/role element OR a gateway/start_event/end_event flow
+  // node — same shape (`CanvasElementNodeData`, `content` doubling as the flow
+  // node's label), just no `role` and no resizable `style` for the flow kinds.
   const createElementNode = useCallback(
-    (kind: CanvasElementKind, position: { x: number; y: number }, content?: string, color?: string, width?: number, height?: number, role?: CanvasElementRole) => {
+    (kind: CanvasElementKind | FlowCanvasNodeType, position: { x: number; y: number }, content?: string, color?: string, width?: number, height?: number, role?: CanvasElementRole) => {
       const id = `${kind}-${Math.random().toString(36).slice(2, 9)}`
       const node: Node<CanvasElementNodeData> = {
         id,
@@ -903,7 +936,7 @@ function RelationshipsCanvasFlow({
         data: {
           id,
           kind,
-          content: content ?? (kind === "container" ? t("elementPanel.defaultContainerTitle") : t("elementPanel.defaultTextContent")),
+          content: content ?? defaultContentFor(kind),
           color: color ?? DEFAULT_CANVAS_ELEMENT_COLOR[kind],
           ...(role ? { role } : {}),
           onContentChange: handleUpdateElementContent,
@@ -916,7 +949,7 @@ function RelationshipsCanvasFlow({
       setNodes((nds) => [...nds, node])
       return id
     },
-    [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRequestRolePick, handleClearElementRole, handleRemoveNode, t],
+    [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRequestRolePick, handleClearElementRole, handleRemoveNode, defaultContentFor],
   )
 
   // In-canvas toolbar entry point: adds the element at the current viewport's
@@ -924,8 +957,10 @@ function RelationshipsCanvasFlow({
   // every screen that embeds this canvas (e.g. the executions canvas, diagram edit sheet).
   // A "role" element has no content until a role is chosen, so it opens the picker
   // instead of creating the node directly — the node is created once it resolves.
+  // gateway/start_event/end_event have no such precondition (no entity, always
+  // persistable), so they're created directly like text/container.
   const addElementAtCenter = useCallback(
-    (kind: CanvasElementKind) => {
+    (kind: CanvasElementKind | FlowCanvasNodeType) => {
       const rect = containerRef.current?.getBoundingClientRect()
       const center = rect
         ? screenToFlowPosition({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 })
@@ -947,7 +982,7 @@ function RelationshipsCanvasFlow({
 
       const elementRaw = e.dataTransfer.getData("application/canvas-element")
       if (elementRaw) {
-        let element: { kind: CanvasElementKind }
+        let element: { kind: CanvasElementKind | FlowCanvasNodeType }
         try {
           element = JSON.parse(elementRaw)
         } catch {
@@ -1018,26 +1053,34 @@ function RelationshipsCanvasFlow({
     if (!srcNode || !tgtNode) return
 
     const involvesRole = srcNode.type === "role" || tgtNode.type === "role"
-    if (involvesRole) {
+    const involvesFlow = isFlowCanvasType(srcNode.type) || isFlowCanvasType(tgtNode.type)
+    if (involvesRole || involvesFlow) {
       if (mode !== 'execution') { toast.info(t('canvas.roleEdgeExecutionOnly')); return }
       if (!canWriteDiagramGraph) { toast.warning(t('canvas.roleEdgeNoPermission')); return }
       if (params.source === params.target) { toast.info(t('canvas.roleSelfLoopUnsupported')); return }
       const src = detailEndpointOf(srcNode as CanvasNode)
       const tgt = detailEndpointOf(tgtNode as CanvasNode)
       // No version picked on the asset, or no role assigned on the role node: it
-      // wouldn't reach `details`, so the backend would 400 the edge on save.
+      // wouldn't reach `details`, so the backend would 400 the edge on save. A
+      // gateway/start_event/end_event never fails this — it's always persistable.
       if (!src || !tgt) { toast.warning(t('canvas.roleEdgeInvalidEndpoint')); return }
-      setRoleEdgeDialogState({
-        mode: 'create',
-        pending: {
-          sourceId: params.source,
-          targetId: params.target,
-          sourceLabel: nodeLabel(srcNode),
-          targetLabel: nodeLabel(tgtNode),
-          sourceColor: nodeColor(srcNode),
-          targetColor: nodeColor(tgtNode),
-        },
-      })
+      const pending: PendingRoleEdge = {
+        sourceId: params.source,
+        targetId: params.target,
+        sourceLabel: nodeLabel(srcNode),
+        targetLabel: nodeLabel(tgtNode),
+        sourceColor: nodeColor(srcNode),
+        targetColor: nodeColor(tgtNode),
+      }
+      if (involvesRole) {
+        // A role is involved — keep asking for a name/type up front, unchanged.
+        setRoleEdgeDialogState({ mode: 'create', pending })
+        return
+      }
+      // Flow-only edge (flow↔flow or flow↔execution, no role): create it right
+      // away — no dialog. The label is edited later from the edge's own menu
+      // (`openRenameRoleEdgeDialog`), same as renaming an existing direct edge.
+      createDirectEdgeRef.current?.(pending, '', '')
       return
     }
     // ── from here on: everything is unchanged (execution↔execution and document-type) ──
@@ -1587,7 +1630,7 @@ function RelationshipsCanvasFlow({
     setEdges((eds) => eds.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target)))
   }, [nodes, setEdges])
 
-  // ─── Direct (role) edge mutations — local-only until the diagram is saved ──────
+  // ─── Direct edge mutations (role/flow) — local-only until the diagram is saved ──
   const handleRemoveDirectEdge = useCallback((edgeId: string) => {
     setEdges((eds) => eds.filter((e) => e.id !== edgeId))
     setSelectedEdgeId((cur) => (cur === edgeId ? null : cur))
@@ -1619,8 +1662,11 @@ function RelationshipsCanvasFlow({
     )))
   }, [setEdges])
 
-  // Adds a brand-new role↔role / role↔asset edge to the canvas only — nothing is
-  // sent to the backend until the diagram itself is saved.
+  // Adds a brand-new direct edge to the canvas only (role↔role, role↔asset, or now
+  // any pairing involving a gateway/start_event/end_event) — nothing is sent to the
+  // backend until the diagram itself is saved. Also reached, with a blank name/type,
+  // from `onConnect`'s flow-only branch above (via `createDirectEdgeRef`) when
+  // neither endpoint is a role — that path skips the naming dialog entirely.
   const handleRoleEdgeCreated = useCallback((pending: PendingRoleEdge, name: string, type: string) => {
     const edgeId = `${DIRECT_EDGE_ID_PREFIX}local-${Math.random().toString(36).slice(2, 9)}`
     setEdges((eds) => {
@@ -1647,6 +1693,10 @@ function RelationshipsCanvasFlow({
     })
   }, [setEdges, canWriteDiagramGraph, openRenameRoleEdgeDialog, handleRemoveDirectEdge])
 
+  useEffect(() => {
+    createDirectEdgeRef.current = handleRoleEdgeCreated
+  }, [handleRoleEdgeCreated])
+
   // ─── Draw relationship edges for a freshly-seeded batch of nodes ──────────
   // The saved Diagram's relationships arrive already resolved by the backend
   // (source/target endpoints, document_type_relationship, etc.) — no fetch needed
@@ -1661,12 +1711,19 @@ function RelationshipsCanvasFlow({
 
       const execToNodeId = new Map<string, string>()
       const roleToNodeId = new Map<string, string>()
+      // Keyed by `detail_id` — the only identity a gateway/start_event/end_event
+      // endpoint carries (two of them are otherwise indistinguishable).
+      const flowToNodeId = new Map<string, string>()
       for (const { canvasNodeId, seed } of seeded) {
         if (seed.nodeType === 'role') roleToNodeId.set(seed.role.id, canvasNodeId)
+        else if (seed.nodeType === 'flow') flowToNodeId.set(seed.detailId, canvasNodeId)
         else execToNodeId.set(seed.executionId, canvasNodeId)
       }
-      const resolve = (ep: DiagramRelationshipEndpoint): string | undefined =>
-        ep.node_type === 'role' ? roleToNodeId.get(ep.role_id) : execToNodeId.get(ep.execution_id)
+      const resolve = (ep: DiagramRelationshipEndpoint): string | undefined => {
+        if (ep.node_type === 'role') return roleToNodeId.get(ep.role_id)
+        if (ep.node_type === 'execution') return execToNodeId.get(ep.execution_id)
+        return flowToNodeId.get(ep.detail_id)
+      }
 
       const newEdges: Edge[] = []
       const edgeIds = new Set<string>()
@@ -1806,6 +1863,26 @@ function RelationshipsCanvasFlow({
         }
         return { canvasNodeId, seed: n, node }
       }
+      if (n.nodeType === 'flow') {
+        const canvasType = CANVAS_TYPE_BY_FLOW_NODE_TYPE[n.flowType]
+        const canvasNodeId = `${canvasType}-${Math.random().toString(36).slice(2, 9)}`
+        const node: Node<CanvasElementNodeData> = {
+          id: canvasNodeId,
+          type: canvasType,
+          position: n.position,
+          data: {
+            id: canvasNodeId,
+            kind: canvasType,
+            content: n.label,
+            color: DEFAULT_CANVAS_ELEMENT_COLOR[canvasType],
+            ...(readOnly ? { readOnly: true } : {
+              onContentChange: handleUpdateElementContent,
+              onRemove: handleRemoveNode,
+            }),
+          },
+        }
+        return { canvasNodeId, seed: n, node }
+      }
       const canvasNodeId = `${n.assetId}-${Math.random().toString(36).slice(2, 9)}`
       const node: Node<AssetTypeNodeData> = {
         id: canvasNodeId,
@@ -1831,7 +1908,7 @@ function RelationshipsCanvasFlow({
 
     setNodes((nds) => [...nds, ...seeded.map((s) => s.node)])
     pendingEdgeSeedRef.current = { seeded, relationships }
-  }, [setNodes, handleRemoveNode, handleRequestRolePick, readOnly])
+  }, [setNodes, handleRemoveNode, handleRequestRolePick, handleUpdateElementContent, readOnly])
 
   // Flush any pending edge seed once react-flow reports the current nodes are
   // initialized (measured). Depends on `nodes` too (not just the boolean) so a
@@ -2040,7 +2117,7 @@ function RelationshipsCanvasFlow({
 
           {/* Always available — not gated on the drag palette, which isn't mounted on every screen */}
           {!readOnly && (
-            <CanvasElementPalette canAddRole={canAddRoleNode} onAdd={addElementAtCenter} compact={isNarrow} />
+            <CanvasElementPalette canAddRole={canAddRoleNode} canAddFlow={canAddFlowNode} onAdd={addElementAtCenter} compact={isNarrow} />
           )}
 
           {readOnly && <CanvasReadOnlyBadge />}
@@ -2075,7 +2152,7 @@ function RelationshipsCanvasFlow({
 
         {selectedNodeId && (() => {
           const selectedNode = nodes.find((n) => n.id === selectedNodeId)
-          if (selectedNode?.type === "text" || selectedNode?.type === "container" || selectedNode?.type === "role") {
+          if (selectedNode?.type === "text" || selectedNode?.type === "container" || selectedNode?.type === "role" || isFlowCanvasType(selectedNode?.type)) {
             return (
               <ElementPanel
                 elementData={selectedNode.data as CanvasElementNodeData}

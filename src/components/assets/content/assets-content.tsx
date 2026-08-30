@@ -3774,6 +3774,7 @@ export function AssetContent({
       <LifecycleHistorySheet
         open={isLifecycleHistorySheetOpen}
         onOpenChange={setIsLifecycleHistorySheetOpen}
+        documentId={selectedFile?.id ?? ''}
         executionId={selectedExecutionId || documentContent?.execution_id || ''}
         organizationId={selectedOrganizationId ?? ''}
         allExecutions={allExecutions ?? []}
