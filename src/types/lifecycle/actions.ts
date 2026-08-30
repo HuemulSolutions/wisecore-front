@@ -1,5 +1,5 @@
 import type { QueryKey, UseMutationResult } from '@tanstack/react-query'
-import type { LifecycleStatus, LifecyclePermissions } from '@/types/assets'
+import type { LifecycleStatus, LifecyclePermissions, AdvanceBlocker } from '@/types/assets'
 import type { FinalLifecycleStage } from '@/types/document-types'
 import type { LifecycleProgress } from './progress'
 
@@ -53,6 +53,8 @@ export interface UseLifecycleActionsOptions {
   canListCustomFields?: boolean
   /** Abre el tab de campos personalizados del documento. Omitir donde ese tab no existe (WorkflowDetailPanel): el botón "Ir a campos personalizados" se oculta. */
   onOpenCustomFields?: () => void
+  /** Navega a la sección con este `section_execution_id` (primer blocker de `advance_blockers`). Omitir donde la superficie no puede navegar a una sección puntual: el botón "Ir a la sección" se oculta. */
+  onGoToSection?: (sectionExecutionId: string) => void
 }
 
 export interface LifecycleActionsController {
@@ -77,6 +79,8 @@ export interface LifecycleActionsController {
   setIsAssignVersionDialogOpen: (open: boolean) => void
   isRequiredCustomFieldsDialogOpen: boolean
   setIsRequiredCustomFieldsDialogOpen: (open: boolean) => void
+  isAdvanceBlockersDialogOpen: boolean
+  setIsAdvanceBlockersDialogOpen: (open: boolean) => void
 
   checkMutation: UseMutationResult<unknown, unknown, { comment?: string; run_external_review?: boolean } | undefined>
   rejectMutation: UseMutationResult<unknown, unknown, { comment: string; target_state?: string; target_step_id?: string } | undefined>
@@ -102,6 +106,17 @@ export interface LifecycleActionsController {
   onOpenCustomFields?: () => void
   /** Stepper de fases + panel "N de M" + próximo paso, para las 4 sheets que lo muestran. `isAvailable: false` = degradar (sin datos/sin permiso). */
   progress: LifecycleProgress
+
+  /** `status.advance_blockers`, normalizado a `[]`. */
+  advanceBlockers: AdvanceBlocker[]
+  /** `true` si `can_advance` es `false` por respuestas obligatorias pendientes (no por permiso/rol/estado) — el botón "Completar" se muestra deshabilitado en vez de ocultarse. */
+  isBlockedByRequiredAnswers: boolean
+  /** Tooltip del botón deshabilitado por `isBlockedByRequiredAnswers`. Cadena vacía si no aplica. */
+  advanceBlockersTooltip: string
+  /** Blockers que el backend reportó al rechazar la transición con 409 REQUIRED_ANSWERS_PENDING (local, o parseados del detail como fallback). */
+  advanceBlockersError: AdvanceBlocker[]
+  /** Passthrough de la opción homónima; undefined = la superficie no puede navegar a una sección puntual. */
+  onGoToSection?: (sectionExecutionId: string) => void
 
   /** Label del botón/CTA de completar, ya resuelto según la etapa actual y (si se conoce) el destino real del avance. Ver `lib/lifecycle-labels.ts`. */
   completeLabel: string

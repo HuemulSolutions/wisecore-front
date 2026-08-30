@@ -4,6 +4,7 @@ import { LifecycleRollbackSheet } from "@/components/ui/lifecycle-rollback-sheet
 import { LifecyclePublishSheet } from "@/components/ui/lifecycle-publish-sheet"
 import { LifecycleCommentSheet } from "@/components/ui/lifecycle-comment-sheet"
 import { LifecycleRequiredCustomFieldsDialog } from "@/components/ui/lifecycle-required-custom-fields-dialog"
+import { LifecycleAdvanceBlockersDialog } from "@/components/ui/lifecycle-advance-blockers-dialog"
 import { AssignVersionDialog } from "@/components/assets/dialogs/assets-assign-version-dialog"
 import type { HuemulLifecycleSheetsProps } from "@/types/lifecycle"
 
@@ -32,6 +33,20 @@ export function HuemulLifecycleSheets({
         controller.onOpenCustomFields!()
       }
     : undefined
+
+  // Ir a la sección con obligatorios pendientes cierra el sheet/diálogo que lo
+  // lanzó — mismo criterio que `goToCustomFields`. Usa la primera sección de
+  // la lista: es la que el backend reportó primero, y el diálogo ya muestra
+  // todas por si hay más de una.
+  const firstBlockerSectionId = controller.advanceBlockersError[0]?.section_execution_id
+  const goToBlockedSection =
+    controller.onGoToSection && firstBlockerSectionId
+      ? () => {
+          controller.setIsCheckDialogOpen(false)
+          controller.setIsAdvanceBlockersDialogOpen(false)
+          controller.onGoToSection!(firstBlockerSectionId)
+        }
+      : undefined
 
   const nextStepBlock = progress.nextStep
     ? {
@@ -132,6 +147,13 @@ export function HuemulLifecycleSheets({
         onOpenChange={controller.setIsRequiredCustomFieldsDialogOpen}
         fieldNames={controller.requiredCustomFieldsError}
         onGoToCustomFields={goToCustomFields}
+      />
+
+      <LifecycleAdvanceBlockersDialog
+        open={controller.isAdvanceBlockersDialogOpen}
+        onOpenChange={controller.setIsAdvanceBlockersDialogOpen}
+        blockers={controller.advanceBlockersError}
+        onGoToSection={goToBlockedSection}
       />
     </>
   )

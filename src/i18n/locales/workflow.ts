@@ -97,6 +97,14 @@ const translations = {
         en: "This section hasn't been completed by the person with edit permission. You can't move forward until it's completed.",
         es: "La sección no ha sido completada por quien tiene permiso de edición. No puedes avanzar hasta que se complete.",
       },
+      blockedTitle: {
+        en: "There are pending required answers",
+        es: "Hay respuestas obligatorias pendientes",
+      },
+      blockedDescription: {
+        en: "This stage can't be completed until the required fields in the pending sections are answered.",
+        es: "No se puede completar esta etapa hasta responder los campos obligatorios de las secciones pendientes.",
+      },
     },
     summary: {
       tooltip: { en: "Back to summary", es: "Volver al resumen" },

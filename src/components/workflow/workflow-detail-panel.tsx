@@ -307,6 +307,14 @@ export function WorkflowDetailPanel({
     // personalizados. El diálogo oculta el botón y queda solo con "Cerrar" +
     // la lista de campos (que sigue siendo la información útil).
     canListCustomFields: can("listCustomFields"),
+    // Mapea el section_execution_id que reporta un blocker al índice del wizard:
+    // ContentSection.id ES el section execution id. Si la sección no está en
+    // formSections (de otro step, o sin permiso de vista para este usuario), no
+    // hay a dónde navegar y el botón "Ir a la sección" del diálogo se omite.
+    onGoToSection: (sectionExecutionId) => {
+      const index = formSections.findIndex((s) => s.id === sectionExecutionId)
+      if (index !== -1) setStep(index)
+    },
     onAfterComplete: () => {
       if (!finishAfterCompleteRef.current) return
       finishAfterCompleteRef.current = false
@@ -338,12 +346,23 @@ export function WorkflowDetailPanel({
 
   // Solo para el label del botón: si el clic en "Finalizar" va a disparar la
   // confirmación de "Completar" en vez de cerrar directo (misma condición de `goNext`).
-  const willAdvanceOnFinish = isLastStep && lifecycle.canTransition && !!lifecycle.status?.can_advance
+  // Incluye el caso bloqueado por respuestas obligatorias pendientes: el label
+  // debe nombrar la transición aunque el botón se muestre deshabilitado (ver
+  // `isBlockedLastStep` más abajo, que sí gatea el `disabled`).
+  const willAdvanceOnFinish =
+    isLastStep && lifecycle.canTransition && (!!lifecycle.status?.can_advance || lifecycle.isBlockedByRequiredAnswers)
 
   // Sin secciones form para este paso/usuario (etapas de revisión/aprobación típicamente):
   // mismo criterio que willAdvanceOnFinish pero sin depender de isLastStep, ya que acá no
   // hay wizard de pasos que recorrer.
-  const canAdvanceEmptyStep = lifecycle.canTransition && !!lifecycle.status?.can_advance
+  const canAdvanceEmptyStep =
+    lifecycle.canTransition && (!!lifecycle.status?.can_advance || lifecycle.isBlockedByRequiredAnswers)
+
+  // Último paso del wizard bloqueado por respuestas obligatorias pendientes (en
+  // esta sección u otra): el botón "Finalizar" se deshabilita con tooltip en vez
+  // de degradar a un simple cierre — evita completar en falso mientras el
+  // backend seguiría rechazando con 409.
+  const isBlockedLastStep = isLastStep && lifecycle.canTransition && lifecycle.isBlockedByRequiredAnswers
 
   // La fila de ciclo de vida solo existe en el panel de /workflow. Cuando está,
   // el badge de etapa sube bajo el título y la sección actual baja a esa fila;
@@ -494,10 +513,18 @@ export function WorkflowDetailPanel({
           <div className="flex flex-col items-center gap-2 py-8 text-center">
             <CheckCircle2 className="h-8 w-8 text-muted-foreground" />
             <p className="text-sm font-medium text-foreground">
-              {canAdvanceEmptyStep ? t("wizard.emptyStep.advanceTitle") : t("wizard.emptyStep.waitingTitle")}
+              {lifecycle.isBlockedByRequiredAnswers
+                ? t("wizard.emptyStep.blockedTitle")
+                : canAdvanceEmptyStep
+                  ? t("wizard.emptyStep.advanceTitle")
+                  : t("wizard.emptyStep.waitingTitle")}
             </p>
             <p className="max-w-sm text-xs text-muted-foreground">
-              {canAdvanceEmptyStep ? t("wizard.emptyStep.advanceDescription") : t("wizard.emptyStep.waitingDescription")}
+              {lifecycle.isBlockedByRequiredAnswers
+                ? t("wizard.emptyStep.blockedDescription")
+                : canAdvanceEmptyStep
+                  ? t("wizard.emptyStep.advanceDescription")
+                  : t("wizard.emptyStep.waitingDescription")}
             </p>
             {canAdvanceEmptyStep && (
               <HuemulButton
@@ -505,8 +532,9 @@ export function WorkflowDetailPanel({
                 icon={Check}
                 iconPosition="left"
                 label={lifecycle.completeLabel}
-                tooltip={lifecycle.completeTooltip}
+                tooltip={lifecycle.isBlockedByRequiredAnswers ? lifecycle.advanceBlockersTooltip : lifecycle.completeTooltip}
                 loading={lifecycle.checkMutation.isPending}
+                disabled={lifecycle.isBlockedByRequiredAnswers}
                 onClick={() => {
                   finishAfterCompleteRef.current = true
                   lifecycle.setIsCheckDialogOpen(true)
@@ -575,7 +603,8 @@ export function WorkflowDetailPanel({
                   : t("wizard.finish")
                 : tCommon("next")
             }
-            disabled={isFormSaving}
+            disabled={isFormSaving || isBlockedLastStep}
+            tooltip={isBlockedLastStep ? lifecycle.advanceBlockersTooltip : undefined}
             // Sin permiso de escritura (documento, etapa o esta sección puntual) el
             // wizard sigue navegable pero no pasa por `exit()`: ese handle guarda los
             // cambios Y marca la sección como 'finished' (PATCH /review_status), dos

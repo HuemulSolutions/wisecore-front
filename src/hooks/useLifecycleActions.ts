@@ -5,6 +5,7 @@ import { ApiError, handleApiError } from "@/lib/error-utils"
 import { withRefresh } from "@/lib/query-utils"
 import { logger } from "@/lib/logger"
 import { parseMissingRequiredCustomFieldsDetail } from "@/lib/custom-field-required-utils"
+import { getAdvanceBlockers, parseAdvanceBlockersDetail } from "@/lib/advance-blockers-utils"
 import { completeActionLabelKey, completeActionTooltipKey } from "@/lib/lifecycle-labels"
 import { useExternalReviewActions } from "@/hooks/useLifecycle"
 import { useLifecycleProgress } from "@/hooks/useLifecycleProgress"
@@ -25,9 +26,11 @@ import type {
   LifecycleActionsController,
   PendingVersionLifecycleAction,
 } from "@/types/lifecycle"
+import type { AdvanceBlocker } from "@/types/assets"
 
 const VERSION_REQUIRED_CODE = "VERSION_REQUIRED_FOR_APPROVAL"
 const REQUIRED_CUSTOM_FIELDS_CODE = "CUSTOM_FIELD_DOCUMENT_REQUIRED_VALUE_MISSING"
+const REQUIRED_ANSWERS_CODE = "REQUIRED_ANSWERS_PENDING"
 
 /** Defensa en profundidad: los botones ya no se renderizan sin `asset:u`. */
 const NO_TRANSITION_PERMISSION = "Missing permission to transition the lifecycle"
@@ -60,6 +63,7 @@ export function useLifecycleActions({
   onViewChanges,
   canListCustomFields = false,
   onOpenCustomFields,
+  onGoToSection,
 }: UseLifecycleActionsOptions): LifecycleActionsController {
   const { t } = useTranslation(["assets", "common"])
   const queryClient = useQueryClient()
@@ -82,6 +86,8 @@ export function useLifecycleActions({
   const [pendingVersionAction, setPendingVersionAction] = useState<PendingVersionLifecycleAction | null>(null)
   const [isRequiredCustomFieldsDialogOpen, setIsRequiredCustomFieldsDialogOpen] = useState(false)
   const [requiredCustomFieldsError, setRequiredCustomFieldsError] = useState<string[]>([])
+  const [isAdvanceBlockersDialogOpen, setIsAdvanceBlockersDialogOpen] = useState(false)
+  const [advanceBlockersError, setAdvanceBlockersError] = useState<AdvanceBlocker[]>([])
 
   // Closing the assign-version dialog (by any path — cancel, backdrop click, or
   // after a successful/failed confirm) must drop any pending retry action, or a
@@ -131,6 +137,22 @@ export function useLifecycleActions({
     return true
   }
 
+  // Bloqueos de `can_advance` por respuestas obligatorias pendientes. Se
+  // prefieren los blockers ya presentes en `lifecycleStatus` (cache local,
+  // sin esperar el 409) y se cae al `detail` del error como fallback — mismo
+  // criterio que `handleRequiredCustomFieldsError`, pero acá ambas fuentes
+  // comparten shape (AdvanceBlocker[]) porque el detail es JSON, no texto libre.
+  const advanceBlockers = getAdvanceBlockers(lifecycleStatus)
+  const isBlockedByRequiredAnswers = !lifecycleStatus?.can_advance && advanceBlockers.length > 0
+
+  const handleRequiredAnswersError = (error: unknown): boolean => {
+    const blockers = advanceBlockers.length > 0 ? advanceBlockers : parseAdvanceBlockersDetail(error)
+    if (blockers.length === 0) return false
+    setAdvanceBlockersError(blockers)
+    setIsAdvanceBlockersDialogOpen(true)
+    return true
+  }
+
   const checkMutation = useMutation({
     mutationFn: withRefresh(
       async (options?: { comment?: string; run_external_review?: boolean }) => {
@@ -154,6 +176,7 @@ export function useLifecycleActions({
       handleApiError(error, {
         fallbackMessage: t("lifecycle.errorComplete"),
         onErrorCode: (code) => {
+          if (code === REQUIRED_ANSWERS_CODE) return handleRequiredAnswersError(error)
           if (code === REQUIRED_CUSTOM_FIELDS_CODE) return handleRequiredCustomFieldsError(error)
           if (code !== VERSION_REQUIRED_CODE) return false
           setPendingVersionAction({ kind: "complete", options: variables })
@@ -218,6 +241,7 @@ export function useLifecycleActions({
       handleApiError(error, {
         fallbackMessage: t("lifecycle.errorAdvance"),
         onErrorCode: (code) => {
+          if (code === REQUIRED_ANSWERS_CODE) return handleRequiredAnswersError(error)
           if (code === REQUIRED_CUSTOM_FIELDS_CODE) return handleRequiredCustomFieldsError(error)
           if (code !== VERSION_REQUIRED_CODE) return false
           setPendingVersionAction({ kind: "advance", options: variables })
@@ -357,7 +381,7 @@ export function useLifecycleActions({
     organizationId,
     lifecycleStatus,
     finalLifecycleStage,
-    enabled: anySheetOpen || !!lifecycleStatus?.can_advance,
+    enabled: anySheetOpen || !!lifecycleStatus?.can_advance || isBlockedByRequiredAnswers,
     includeCompletion: anySheetOpen,
   })
 
@@ -377,6 +401,18 @@ export function useLifecycleActions({
         }
       : undefined,
   )
+
+  // Tooltip del botón deshabilitado por `isBlockedByRequiredAnswers`: nombra la
+  // sección cuando es una sola, o la cantidad de secciones cuando son varias.
+  const advanceBlockersTooltip =
+    advanceBlockers.length === 1
+      ? t("lifecycle.advanceBlockers.tooltipSection", {
+          count: advanceBlockers[0].missing_required,
+          section: advanceBlockers[0].section_name,
+        })
+      : advanceBlockers.length > 1
+        ? t("lifecycle.advanceBlockers.tooltipMultiple", { count: advanceBlockers.length })
+        : ""
 
   return {
     status: lifecycleStatus,
@@ -398,6 +434,8 @@ export function useLifecycleActions({
     setIsAssignVersionDialogOpen,
     isRequiredCustomFieldsDialogOpen,
     setIsRequiredCustomFieldsDialogOpen,
+    isAdvanceBlockersDialogOpen,
+    setIsAdvanceBlockersDialogOpen,
 
     checkMutation,
     rejectMutation,
@@ -419,6 +457,12 @@ export function useLifecycleActions({
     requiredCustomFieldsError,
     onOpenCustomFields,
     progress,
+
+    advanceBlockers,
+    isBlockedByRequiredAnswers,
+    advanceBlockersTooltip,
+    advanceBlockersError,
+    onGoToSection,
 
     completeLabel,
     completeTooltip,
