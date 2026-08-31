@@ -63,6 +63,8 @@ const translations = {
     sectionNotFound: { en: "Section not found in the asset content", es: "No se encontró la sección en el contenido del activo" },
     loadError: { en: "Failed to load the form fields", es: "Error al cargar los campos del formulario" },
     edit: { en: "Edit asset", es: "Editar activo" },
+    stageLabel: { en: "Stage:", es: "Etapa:" },
+    sectionLabel: { en: "Section:", es: "Sección:" },
   },
   availableTemplates: {
     title: { en: "Available workflows", es: "Workflows disponibles" },
