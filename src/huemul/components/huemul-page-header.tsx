@@ -15,7 +15,7 @@ export type { PageHeaderBadge, PageHeaderAction, PageHeaderSearchConfig, PageHea
 const ACTION_ICON_COLORS = [
   "text-blue-600",
   "text-violet-600",
-  "text-emerald-600",
+  "text-green-600",
   "text-amber-600",
 ]
 

@@ -77,7 +77,7 @@ export function WorkflowShareDialog({ open, onOpenChange, url, description }: Wo
             aria-label={t("share.copy")}
             title={copied ? t("share.copied") : t("share.copy")}
           >
-            {copied ? <Check className="text-emerald-600" /> : <Copy />}
+            {copied ? <Check className="text-green-600" /> : <Copy />}
           </InputGroupButton>
         </InputGroupAddon>
       </InputGroup>

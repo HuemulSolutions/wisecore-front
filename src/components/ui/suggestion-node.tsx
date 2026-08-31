@@ -17,7 +17,7 @@ import {
 
 const suggestionVariants = cva(
   cn(
-    'bg-emerald-100 text-emerald-700 no-underline transition-colors duration-200'
+    'bg-green-100 text-green-700 no-underline transition-colors duration-200'
   ),
   {
     defaultVariants: {
@@ -28,7 +28,7 @@ const suggestionVariants = cva(
     variants: {
       insertActive: {
         false: '',
-        true: 'bg-emerald-200/80',
+        true: 'bg-green-200/80',
       },
       remove: {
         false: '',

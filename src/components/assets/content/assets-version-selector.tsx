@@ -188,7 +188,7 @@ export function VersionSelectorDropdown({
                           </span>
                         )}
                         {isApproved && (
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-600 shrink-0">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-teal-600 shrink-0">
                             {t("content.approved")}
                           </span>
                         )}

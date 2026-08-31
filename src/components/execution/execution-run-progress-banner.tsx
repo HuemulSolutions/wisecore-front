@@ -4,6 +4,7 @@ import { Loader2, Clock, XCircle, CheckCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
+import { executionStatusBannerStyle, executionStatusDot } from '@/lib/lifecycle-colors';
 import { Button } from '@/components/ui/button';
 import type { ExecutionRunProgressBannerProps } from '@/types/execution';
 
@@ -109,59 +110,72 @@ export function ExecutionRunProgressBanner({
     onDismiss?.();
   };
 
-  const isFailure = phase === 'failed' || phase === 'cancelled';
+  // `cancelled` es un estado gris (terminal-sin-éxito, no un error) — no comparte
+  // color con `failed`, aunque ambos paran el polling. Ver `lib/execution-status.ts`
+  // para la semántica de "terminal" (eso sí incluye cancelled entre los no-éxito;
+  // acá solo es presentación).
+  const isFailure = phase === 'failed';
+  const isCancelled = phase === 'cancelled';
+
+  // Mapear la fase de UI al `status` de ejecución que entiende `lib/lifecycle-colors.ts`,
+  // fuente única de color para el eje de ejecución.
+  const statusForColor = isFailure
+    ? 'failed'
+    : isCancelled
+      ? 'cancelled'
+      : succeededAndFresh
+        ? 'completed'
+        : phase === 'arming'
+          ? 'pending'
+          : 'running';
+  const tone = executionStatusBannerStyle(statusForColor);
+
   const display = isFailure
     ? {
-        icon: <XCircle className="h-5 w-5 text-red-600" />,
-        title: phase === 'cancelled' ? t('executionRun.title.cancelled') : t('executionRun.title.failed'),
+        icon: <XCircle className={cn('h-5 w-5', tone.icon)} />,
+        title: t('executionRun.title.failed'),
         description: isMissingDependencyFailure(failureMessage)
           ? t('executionRun.description.missingDependency')
           : t('executionRun.description.failed'),
-        bgColor: 'bg-red-50',
-        borderColor: 'border-red-200',
-        textColor: 'text-red-800',
       }
-    : succeededAndFresh
+    : isCancelled
       ? {
-          icon: <CheckCircle className="h-5 w-5 text-green-600" />,
-          title: t('executionRun.title.succeeded'),
+          icon: <XCircle className={cn('h-5 w-5', tone.icon)} />,
+          title: t('executionRun.title.cancelled'),
           description: undefined,
-          bgColor: 'bg-green-50',
-          borderColor: 'border-green-200',
-          textColor: 'text-green-800',
         }
-      : phase === 'arming'
+      : succeededAndFresh
         ? {
-            icon: <Clock className="h-5 w-5 text-amber-600" />,
-            title: t('executionRun.title.arming'),
+            icon: <CheckCircle className={cn('h-5 w-5', tone.icon)} />,
+            title: t('executionRun.title.succeeded'),
             description: undefined,
-            bgColor: 'bg-amber-50',
-            borderColor: 'border-amber-200',
-            textColor: 'text-amber-800',
           }
-        : {
-            icon: <Loader2 className="h-5 w-5 animate-spin text-blue-600" />,
-            title: t('executionRun.title.running'),
-            description: currentSectionName
-              ? t('executionRun.currentSection', { section: currentSectionName })
-              : undefined,
-            bgColor: 'bg-blue-50',
-            borderColor: 'border-blue-200',
-            textColor: 'text-blue-800',
-          };
+        : phase === 'arming'
+          ? {
+              icon: <Clock className={cn('h-5 w-5', tone.icon)} />,
+              title: t('executionRun.title.arming'),
+              description: undefined,
+            }
+          : {
+              icon: <Loader2 className={cn('h-5 w-5 animate-spin', tone.icon)} />,
+              title: t('executionRun.title.running'),
+              description: currentSectionName
+                ? t('executionRun.currentSection', { section: currentSectionName })
+                : undefined,
+            };
 
   const showProgress = progress.total > 1;
   const progressPct = showProgress ? Math.round((progress.done / progress.total) * 100) : 0;
   const showRefresh = phase === 'arming' || phase === 'running';
 
   return (
-    <div className={cn('border-l-4 p-4 rounded-lg', display.bgColor, display.borderColor, className)}>
+    <div className={cn('border-l-4 p-4 rounded-lg', tone.bg, tone.border, className)}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start space-x-3 flex-1 min-w-0">
           <div className="shrink-0 mt-0.5">{display.icon}</div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className={cn('text-sm font-medium', display.textColor)}>{display.title}</p>
+              <p className={cn('text-sm font-medium', tone.text)}>{display.title}</p>
               {showProgress && (
                 <span className="text-xs text-gray-500">
                   {t('executionRun.progress', { done: progress.done, total: progress.total })}
@@ -174,7 +188,7 @@ export function ExecutionRunProgressBanner({
             {showProgress && (
               <div className="mt-2 h-1.5 w-full max-w-xs rounded-full bg-gray-200 overflow-hidden">
                 <div
-                  className={cn('h-full rounded-full transition-all', isFailure ? 'bg-red-400' : 'bg-blue-500')}
+                  className={cn('h-full rounded-full transition-all', executionStatusDot(statusForColor))}
                   style={{ width: `${progressPct}%` }}
                 />
               </div>
