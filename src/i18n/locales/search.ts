@@ -28,7 +28,7 @@ const translations = {
     ownerScopeLabel: { en: "Quick filters", es: "Filtros rápidos" },
     ownerUsersLabel: { en: "Specific user", es: "Usuario específico" },
     ownerMe: { en: "Me", es: "Yo" },
-    ownerMeDescription: { en: "Documents you own", es: "Documentos de tu autoría" },
+    ownerMeDescription: { en: "Assets you own", es: "Activos de tu autoría" },
     unresolvedComments: { en: "Unresolved comments", es: "Comentarios sin resolver" },
     pendingAiSuggestion: { en: "Pending AI suggestion", es: "Sugerencia IA pendiente" },
     expirationDate: { en: "Expiration Date", es: "Fecha de expiración" },

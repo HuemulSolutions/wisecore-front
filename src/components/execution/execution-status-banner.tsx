@@ -90,22 +90,24 @@ export function ExecutionStatusBanner({
     return null;
   }
 
-  // Icono por estado — el color de fondo/borde/texto sale de `lib/lifecycle-colors.ts`
-  // (única fuente, compartida con los badges de lifecycle y ejecución).
-  const statusIconMap: Record<string, React.ReactNode> = {
-    importing: <Loader2 className="h-5 w-5 animate-spin text-blue-600" />,
-    import_failed: <XCircle className="h-5 w-5 text-red-600" />,
-    running: <Loader2 className="h-5 w-5 animate-spin text-blue-600" />,
-    approving: <Loader2 className="h-5 w-5 animate-spin text-blue-600" />,
-    pending: <Clock className="h-5 w-5 text-slate-600" />,
-    queued: <Clock className="h-5 w-5 text-slate-600" />,
-    completed: <CheckCircle className="h-5 w-5 text-emerald-600" />,
-    failed: <XCircle className="h-5 w-5 text-red-600" />,
-    cancelled: <XCircle className="h-5 w-5 text-gray-600" />,
-    paused: <Clock className="h-5 w-5 text-amber-600" />,
+  // Forma del icono por estado — el color sale de `executionStatusBannerStyle`
+  // (`lib/lifecycle-colors.ts`, única fuente, compartida con los badges de
+  // lifecycle y ejecución): así el icono nunca se desincroniza del fondo si
+  // cambia el hue del estado.
+  const statusIconShapeMap: Record<string, typeof Loader2> = {
+    importing: Loader2,
+    import_failed: XCircle,
+    running: Loader2,
+    approving: Loader2,
+    generating: Loader2,
+    pending: Clock,
+    queued: Clock,
+    completed: CheckCircle,
+    failed: XCircle,
+    cancelled: XCircle,
+    paused: Clock,
   };
-
-  const defaultIcon = <Clock className="h-5 w-5 text-gray-600" />;
+  const spinningStatuses = new Set(['importing', 'running', 'approving', 'generating']);
 
   const statusKeyMap: Record<string, string> = {
     importing: 'importing',
@@ -122,7 +124,8 @@ export function ExecutionStatusBanner({
 
   const getStatusConfig = (status: string) => {
     const tone = executionStatusBannerStyle(status);
-    const icon = statusIconMap[status] ?? defaultIcon;
+    const IconShape = statusIconShapeMap[status] ?? Clock;
+    const icon = <IconShape className={cn('h-5 w-5', spinningStatuses.has(status) && 'animate-spin', tone.icon)} />;
     const key = statusKeyMap[status];
     const text = key ? t(`banner.status.${key}`) : status;
     const description = status === 'import_failed'

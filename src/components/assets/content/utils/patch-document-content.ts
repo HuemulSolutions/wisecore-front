@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { computeSectionStats } from '@/components/workflow/workflow-section-stats';
 import type { ContentSection } from '@/types/assets';
 import type { FormValuesSectionPayload } from '@/types/sections/core';
 
@@ -40,6 +41,31 @@ export function applyFormValuesPatch(
   }
 
   const groupsBySectionId = new Map(payload.map((p) => [p.section_execution_id, p]));
+
+  // `PATCH /form_values` tampoco devuelve `lifecycle_status`: `can_advance` y
+  // `advance_blockers` (respuestas obligatorias pendientes) quedarían con el valor del
+  // último GET /content, y el botón "Completar" seguiría deshabilitado después de
+  // responder el último obligatorio hasta que el usuario apretara refresh. Se detecta
+  // el cruce del umbral "esta sección tiene obligatorios pendientes" (0 ↔ >0, en ambas
+  // direcciones) y solo entonces se refetchea. No se refetchea por cada respuesta: pasar
+  // de 3 a 2 pendientes no cambia `can_advance`, solo el conteo del diálogo de blockers,
+  // y sería un GET /content por campo respondido. El backend sigue siendo la única
+  // autoridad — acá no se recalculan blockers en el cliente, solo se decide cuándo pedirlos.
+  let crossedRequiredThreshold = false;
+  for (const [, data] of queryClient.getQueriesData<{ content?: ContentSection[] }>(queryKey)) {
+    for (const section of data?.content ?? []) {
+      const group = groupsBySectionId.get(section.id);
+      if (!group) continue;
+      const prev = computeSectionStats(section);
+      const next = computeSectionStats({ ...section, form_fields: group.form_fields });
+      if ((prev.missingRequired === 0) !== (next.missingRequired === 0)) {
+        crossedRequiredThreshold = true;
+        break;
+      }
+    }
+    if (crossedRequiredThreshold) break;
+  }
+
   queryClient.setQueriesData<{ content?: ContentSection[] } | undefined>(queryKey, (old) => {
     if (!old?.content || !Array.isArray(old.content)) return old;
     return {
@@ -51,4 +77,12 @@ export function applyFormValuesPatch(
       }),
     };
   });
+
+  // Después del parche optimista, nunca antes: `invalidateQueries` no borra la data
+  // cacheada (solo la marca stale y refetchea las queries activas), así que la UI sigue
+  // mostrando las respuestas recién guardadas mientras llega el /content con el
+  // `lifecycle_status` recalculado.
+  if (crossedRequiredThreshold) {
+    queryClient.invalidateQueries(queryKey);
+  }
 }

@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { logger } from '@/lib/logger';
 import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
 import { getExecutionPollInterval } from '@/lib/polling-intervals';
+import { executionStatusBannerStyle } from '@/lib/lifecycle-colors';
 import { Button } from '@/components/ui/button';
 import type { OtherVersionExecutionBannerProps } from '@/types/other-version-execution-banner';
 
@@ -78,65 +79,36 @@ export function OtherVersionExecutionBanner({
     return null;
   }
 
+  // Forma del icono por estado — el color sale de `executionStatusBannerStyle`
+  // (misma fuente que el resto de banners de ejecución), para no desincronizarse
+  // del fondo si cambia el hue del estado.
+  const statusIconShape: Record<string, typeof Loader2> = {
+    running: Loader2,
+    pending: Clock,
+    completed: CheckCircle,
+    failed: XCircle,
+    cancelled: XCircle,
+    paused: Clock,
+  };
+
   const getStatusInfo = () => {
-    switch (execution.status) {
-      case 'running':
-        return {
-          icon: <Loader2 className="h-5 w-5 animate-spin text-blue-600" />,
-          text: t('banner.status.running'),
-          bgColor: 'bg-blue-50',
-          borderColor: 'border-blue-200',
-          textColor: 'text-blue-800'
-        };
-      case 'pending':
-        return {
-          icon: <Clock className="h-5 w-5 text-amber-600" />,
-          text: t('banner.status.queued'),
-          bgColor: 'bg-amber-50',
-          borderColor: 'border-amber-200',
-          textColor: 'text-amber-800'
-        };
-      case 'completed':
-        return {
-          icon: <CheckCircle className="h-5 w-5 text-green-600" />,
-          text: t('banner.status.completed'),
-          bgColor: 'bg-green-50',
-          borderColor: 'border-green-200',
-          textColor: 'text-green-800'
-        };
-      case 'failed':
-        return {
-          icon: <XCircle className="h-5 w-5 text-red-600" />,
-          text: t('banner.status.failed'),
-          bgColor: 'bg-red-50',
-          borderColor: 'border-red-200',
-          textColor: 'text-red-800'
-        };
-      case 'cancelled':
-        return {
-          icon: <XCircle className="h-5 w-5 text-gray-600" />,
-          text: t('banner.status.cancelled'),
-          bgColor: 'bg-gray-50',
-          borderColor: 'border-gray-200',
-          textColor: 'text-gray-800'
-        };
-      case 'paused':
-        return {
-          icon: <Clock className="h-5 w-5 text-amber-600" />,
-          text: t('banner.status.paused'),
-          bgColor: 'bg-amber-50',
-          borderColor: 'border-amber-200',
-          textColor: 'text-amber-800'
-        };
-      default:
-        return {
-          icon: <Clock className="h-5 w-5 text-gray-600" />,
-          text: execution.status,
-          bgColor: 'bg-gray-50',
-          borderColor: 'border-gray-200',
-          textColor: 'text-gray-800'
-        };
-    }
+    const tone = executionStatusBannerStyle(execution.status);
+    const Icon = statusIconShape[execution.status] ?? Clock;
+    const textKey: Record<string, string> = {
+      running: 'banner.status.running',
+      pending: 'banner.status.queued',
+      completed: 'banner.status.completed',
+      failed: 'banner.status.failed',
+      cancelled: 'banner.status.cancelled',
+      paused: 'banner.status.paused',
+    };
+    return {
+      icon: <Icon className={cn('h-5 w-5', execution.status === 'running' && 'animate-spin', tone.icon)} />,
+      text: textKey[execution.status] ? t(textKey[execution.status]) : execution.status,
+      bgColor: tone.bg,
+      borderColor: tone.border,
+      textColor: tone.text,
+    };
   };
 
   const statusInfo = getStatusInfo();

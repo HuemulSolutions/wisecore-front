@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 // workflow-sections-summary.tsx / asset-form-section-reader.tsx): éxito = respondida/finalizada,
 // advertencia = pendiente. No agregar un tercer tono sin revisar ambos consumidores.
 const TONE_STYLES = {
-  success: { accentClass: "bg-emerald-500", circleClass: "bg-emerald-100 text-emerald-700" },
+  success: { accentClass: "bg-green-500", circleClass: "bg-green-100 text-green-700" },
   warning: { accentClass: "bg-amber-400", circleClass: "bg-amber-100 text-amber-700" },
 } as const;
 

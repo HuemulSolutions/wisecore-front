@@ -122,7 +122,7 @@ const Markdown: React.FC<MarkdownProps> = ({ children, sectionIndex }) => {
             );
           },
           mark: ({ children }) => (
-            <mark className="rounded-md bg-amber-200 px-1 py-0.5 text-amber-950 ring-1 ring-amber-400/60">
+            <mark className="rounded-md bg-highlight px-1 py-0.5 text-highlight-foreground">
               {children}
             </mark>
           ),

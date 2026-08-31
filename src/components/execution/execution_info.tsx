@@ -1,7 +1,7 @@
 import { useOrgNavigate } from '@/hooks/useOrgRouter';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { HuemulExecutionStatusBadge } from "@/huemul/components/huemul-execution-status-badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { RefreshCw, MoreVertical, Plus, Trash2, Network, DiamondMinus } from "lucide-react";
 import { formatDate } from '@/services/utils';
@@ -80,26 +80,6 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
             handleApiError(error);
           });
       };
-    const getStatusBadge = (status: string) => {
-        const statusConfig = {
-            pending: { variant: "outline", label: "Pending", className: "bg-yellow-100 text-yellow-800 border-yellow-300" },
-            running: { variant: "outline", label: "Executing", className: "bg-blue-100 text-blue-800 border-blue-300" },
-            completed: { variant: "outline", label: "Completed", className: "bg-green-100 text-green-800 border-green-300" },
-            failed: { variant: "outline", label: "Failed", className: "bg-red-100 text-red-800 border-red-300" },
-            approved: { variant: "outline", label: "Approved", className: "bg-green-100 text-green-800 border-green-300" }
-        };
-        
-        const config = statusConfig[status as keyof typeof statusConfig] || { variant: "secondary", label: status, className: "" };
-        return (
-            <Badge 
-                variant={config.variant as "default" | "secondary" | "destructive" | "outline"} 
-                className={config.className || ""}
-            >
-                {config.label}
-            </Badge>
-        );
-    };
-
     return (
         <>
             <Card>
@@ -185,7 +165,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <p className="text-sm font-medium text-gray-600">Status</p>
-                            {getStatusBadge(execution.status)}
+                            <HuemulExecutionStatusBadge status={execution.status} />
                         </div>
                         <div className="space-y-2">
                             <p className="text-sm font-medium text-gray-600">Created at</p>

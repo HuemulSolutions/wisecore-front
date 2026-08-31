@@ -2,16 +2,16 @@ const translations = {
   header: {
     title: { en: "My Subscriptions", es: "Mis Suscripciones" },
     description: {
-      en: "Documents and executions you are watching or have marked as favorite.",
-      es: "Documentos y versiones que estás siguiendo o marcaste como favorito.",
+      en: "Assets and executions you are watching or have marked as favorite.",
+      es: "Activos y versiones que estás siguiendo o marcaste como favorito.",
     },
     addItem: { en: "Add Subscription", es: "Agregar Suscripción" },
   },
   emptyState: {
     title: { en: "No subscriptions yet", es: "Sin suscripciones aún" },
     description: {
-      en: "You are not watching any document or execution.",
-      es: "No estás siguiendo ningún documento o versión.",
+      en: "You are not watching any asset or execution.",
+      es: "No estás siguiendo ningún activo o versión.",
     },
   },
   errorState: {
@@ -22,7 +22,7 @@ const translations = {
     },
   },
   columns: {
-    document: { en: "Document", es: "Documento" },
+    document: { en: "Asset", es: "Activo" },
     reactionType: { en: "Reaction", es: "Reacción" },
     eventType: { en: "Event", es: "Evento" },
     notifications: { en: "Notify", es: "Notificar" },
@@ -48,7 +48,7 @@ const translations = {
     document_stage_archived: { en: "Stage: Archived", es: "Estado: Archivado" },
   },
   labels: {
-    document: { en: "Document", es: "Documento" },
+    document: { en: "Asset", es: "Activo" },
     execution: { en: "Version", es: "Versión" },
     event: { en: "Event", es: "Evento" },
     email: { en: "Email", es: "Email" },
@@ -56,7 +56,7 @@ const translations = {
     noEvent: { en: "—", es: "—" },
   },
   form: {
-    documentPlaceholder: { en: "Search document...", es: "Buscar documento..." },
+    documentPlaceholder: { en: "Search asset...", es: "Buscar activo..." },
     reactionTypePlaceholder: { en: "Select reaction type", es: "Seleccionar tipo de reacción" },
     eventTypePlaceholder: { en: "Select event type (optional)", es: "Seleccionar tipo de evento (opcional)" },
     daysBefore: { en: "Days Before", es: "Días Antes" },

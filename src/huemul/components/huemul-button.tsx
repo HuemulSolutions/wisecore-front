@@ -158,7 +158,7 @@ export const HuemulButton = React.forwardRef<HTMLButtonElement, HuemulButtonProp
       return (
         <TooltipProvider>
           <Tooltip>
-            <TooltipTrigger asChild={!isButtonDisabled}>
+            <TooltipTrigger asChild>
               {isButtonDisabled ? (
                 <span tabIndex={0} className="inline-flex">
                   {button}

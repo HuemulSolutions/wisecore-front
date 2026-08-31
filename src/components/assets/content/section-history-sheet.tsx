@@ -60,12 +60,12 @@ const CHANGE_TYPE_CONFIG: Record<
     },
     modify_form: {
         icon: ClipboardList,
-        iconColorClass: 'text-emerald-500',
-        activeBgClass: 'bg-emerald-50',
-        activeTextClass: 'text-emerald-700',
-        activeBorderClass: 'border-l-emerald-500',
-        badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        dotClass: 'bg-emerald-400',
+        iconColorClass: 'text-green-500',
+        activeBgClass: 'bg-green-50',
+        activeTextClass: 'text-green-700',
+        activeBorderClass: 'border-l-green-500',
+        badgeClass: 'bg-green-50 text-green-700 border-green-200',
+        dotClass: 'bg-green-400',
     },
 };
 

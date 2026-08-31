@@ -92,7 +92,7 @@ function GlobalPanelOutlet() {
   )
 
   const outletPanel = (
-    <ResizablePanel order={side === "left" ? 2 : 1} defaultSize={isOpen ? 100 - defaultSize : 100} minSize={30} className="overflow-auto">
+    <ResizablePanel id="outlet" order={side === "left" ? 2 : 1} defaultSize={isOpen ? 100 - defaultSize : 100} minSize={30} className="overflow-auto">
       <Suspense fallback={<PageSkeleton />}>
         <Outlet />
       </Suspense>
@@ -101,6 +101,7 @@ function GlobalPanelOutlet() {
 
   const sidePanel = (
     <ResizablePanel
+      id="global-panel"
       ref={panelRef}
       order={side === "left" ? 1 : 3}
       defaultSize={isOpen ? defaultSize : 0}

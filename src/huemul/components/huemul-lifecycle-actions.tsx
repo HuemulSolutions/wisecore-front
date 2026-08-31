@@ -64,7 +64,7 @@ export function HuemulLifecycleActions({
           icon={Check}
           iconPosition="left"
           iconClassName={iconClassName}
-          className={`${sizeClass} ${isCompact ? "" : "bg-[#4464f7] text-white hover:bg-[#3451e6] hover:text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed"} hover:cursor-pointer`}
+          className={`${sizeClass} ${isCompact ? "" : "bg-primary text-white hover:bg-primary/90 hover:text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed"} hover:cursor-pointer`}
           loading={controller.checkMutation.isPending}
           disabled={controller.isBlockedByRequiredAnswers}
           tooltip={controller.isBlockedByRequiredAnswers ? controller.advanceBlockersTooltip : controller.completeTooltip}
@@ -79,6 +79,7 @@ export function HuemulLifecycleActions({
           icon={Globe}
           iconPosition="left"
           iconClassName={iconClassName}
+          // green-600 es el hue de "published" en lib/lifecycle-colors.ts — si ese hue cambia, actualizar acá también.
           className={`${sizeClass} bg-green-600 text-white hover:bg-green-700 ${isCompact ? "" : "rounded-md"} hover:cursor-pointer`}
           loading={controller.advanceMutation.isPending}
           tooltip={t("lifecycle.tooltipPublish")}

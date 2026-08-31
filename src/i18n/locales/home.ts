@@ -10,13 +10,13 @@
   },
 
   actions: {
-    uploadDocument: { en: "Upload Document", es: "Subir Documento" },
+    uploadDocument: { en: "Upload Asset", es: "Subir Activo" },
     pendingReviews: { en: "Pending Reviews", es: "Revisiones Pendientes" },
     createAsset: { en: "Create Asset", es: "Crear Activo" },
     pendingReviewsTitle: { en: "Pending Reviews", es: "Revisiones Pendientes" },
     pendingReviewsDescription: {
-      en: "Documents with pending AI suggestions awaiting review.",
-      es: "Documentos con sugerencias de IA pendientes de revisión.",
+      en: "Assets with pending AI suggestions awaiting review.",
+      es: "Activos con sugerencias de IA pendientes de revisión.",
     },
   },
 
@@ -36,7 +36,7 @@
     allOwners: { en: "All owners", es: "Todos los propietarios" },
     ownerAll: { en: "All", es: "Todos" },
     ownerMe: { en: "Me", es: "Yo" },
-    ownerMeDescription: { en: "Documents you own", es: "Documentos de tu autoría" },
+    ownerMeDescription: { en: "Assets you own", es: "Activos de tu autoría" },
     ownerScopeLabel: { en: "Quick filters", es: "Filtros rápidos" },
     ownerUsersLabel: { en: "Specific user", es: "Usuario específico" },
     ownerSpecific: { en: "Specific user", es: "Usuario específico" },
@@ -44,7 +44,7 @@
     pendingAiSuggestion: { en: "AI Suggestions", es: "Sugerencias IA" },
     unresolvedComments: { en: "Unresolved Comments", es: "Con comentarios sin resolver" },
     expiringSoon: { en: "Expiring soon", es: "Próximos a expirar" },
-    documentType: { en: "Document Type", es: "Tipo de Documento" },
+    documentType: { en: "Asset Type", es: "Tipo de Activo" },
     allDocumentTypes: { en: "All types", es: "Todos los tipos" },
     expirationDate: { en: "Expiration Date", es: "Fecha de Expiración" },
     expirationDateFrom: { en: "Exp. from", es: "Exp. desde" },
