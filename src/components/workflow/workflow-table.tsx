@@ -5,7 +5,7 @@ import { HuemulTable } from "@/huemul/components/huemul-table"
 import type { HuemulTableAction, HuemulTableColumn, HuemulTablePagination } from "@/huemul/components/huemul-table"
 import { HuemulLifecycleBadge } from "@/huemul/components/huemul-lifecycle-badge"
 import { formatRelativeTime } from "@/lib/format-relative-time"
-import { toneColor } from "@/lib/lifecycle-colors"
+import { lifecycleStageColor } from "@/lib/lifecycle-colors"
 import type { WorkflowItem } from "@/types/workflow"
 import { WorkflowProgressBar } from "./workflow-progress-bar"
 
@@ -79,7 +79,7 @@ export function WorkflowTable({
             <HuemulLifecycleBadge state={item.lifecycle_state} />
             {item.current_lifecycle_step && (
               <span
-                className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${toneColor("gray")}`}
+                className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${lifecycleStageColor(item.current_lifecycle_step.step_type)}`}
                 title={t("columns.lifecycleStepTooltip")}
               >
                 {item.current_lifecycle_step.step_name ??

@@ -381,12 +381,14 @@ export function WorkflowDetailPanel({
           <p className="truncate text-sm font-semibold">{documentName}</p>
           {internalCode && <p className="truncate text-xs font-mono text-muted-foreground">{internalCode}</p>}
           {showLifecycleRow && data?.lifecycle_status ? (
-            <div className="mt-1 flex">
+            <div className="mt-1 flex items-center gap-1.5">
+              <span className="shrink-0 text-xs text-muted-foreground">{t("panel.stageLabel")}</span>
               <HuemulLifecycleStageBadge status={data.lifecycle_status} />
             </div>
           ) : (
             currentSection?.section_name && (
               <div className="flex items-center gap-1.5">
+                <span className="shrink-0 text-xs text-muted-foreground">{t("panel.sectionLabel")}</span>
                 <p className="truncate text-xs text-muted-foreground">{currentSection.section_name}</p>
                 <HuemulReviewStatusBadge status={currentSection.review_status as ReviewStatus | null} sectionType="form" />
               </div>
@@ -432,6 +434,7 @@ export function WorkflowDetailPanel({
         <div className="flex items-center justify-between gap-2 border-b px-4 py-2 shrink-0 flex-wrap">
           {currentSection?.section_name ? (
             <div className="flex min-w-0 items-center gap-1.5">
+              <span className="shrink-0 text-xs text-muted-foreground">{t("panel.sectionLabel")}</span>
               <p className="truncate text-xs text-muted-foreground">{currentSection.section_name}</p>
               <HuemulReviewStatusBadge status={currentSection.review_status as ReviewStatus | null} sectionType="form" />
             </div>

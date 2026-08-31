@@ -20,7 +20,7 @@ const translations = {
     viewObjects: { en: "View objects", es: "Ver objetos" },
     viewTemplates: { en: "View templates", es: "Ver plantillas" },
     viewAssetTypes: { en: "View asset types", es: "Ver tipos de activo" },
-    viewDocuments: { en: "View documents", es: "Ver documentos" },
+    viewDocuments: { en: "View assets", es: "Ver activos" },
   },
   mutations: {
     createSuccess: { en: "Tag created successfully", es: "Etiqueta creada correctamente" },
@@ -53,7 +53,7 @@ const translations = {
   },
   emptyState: {
     empty: { en: "No tags found", es: "No se encontraron etiquetas" },
-    emptyDescription: { en: "Create your first tag to start organizing documents, templates and asset types.", es: "Creá tu primera etiqueta para empezar a organizar documentos, plantillas y tipos de activo." },
+    emptyDescription: { en: "Create your first tag to start organizing assets, templates and asset types.", es: "Creá tu primera etiqueta para empezar a organizar activos, plantillas y tipos de activo." },
     noResults: { en: "No tags found matching your search", es: "No se encontraron etiquetas que coincidan con tu búsqueda" },
   },
   errorState: {

@@ -219,7 +219,7 @@ export function AssetsInfoSheet({
             <HuemulInfoItem
               label={t("content.info.canAdvance")}
               value={
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.can_advance ? toneColor("emerald") : toneColor("gray")}`}>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.can_advance ? toneColor("green") : toneColor("gray")}`}>
                   {documentContent.lifecycle_status.can_advance ? t("common:yes") : t("common:no")}
                 </span>
               }
@@ -227,7 +227,7 @@ export function AssetsInfoSheet({
             <HuemulInfoItem
               label={t("content.info.canRollback")}
               value={
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.can_rollback ? toneColor("emerald") : toneColor("gray")}`}>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.can_rollback ? toneColor("green") : toneColor("gray")}`}>
                   {documentContent.lifecycle_status.can_rollback ? t("common:yes") : t("common:no")}
                 </span>
               }

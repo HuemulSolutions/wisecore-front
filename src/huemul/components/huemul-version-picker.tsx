@@ -201,7 +201,7 @@ export function HuemulVersionPicker({
       {/* Validation checklist */}
       <div className="flex flex-col gap-1.5 w-full">
         {baseParsed && (
-          <div className={cn("flex items-center gap-1.5 text-xs", isNewer ? "text-emerald-600" : "text-amber-600")}>
+          <div className={cn("flex items-center gap-1.5 text-xs", isNewer ? "text-green-600" : "text-amber-600")}>
             {isNewer ? <Check className="h-3.5 w-3.5 shrink-0" /> : <AlertCircle className="h-3.5 w-3.5 shrink-0" />}
             <span>
               {isNewer
@@ -210,7 +210,7 @@ export function HuemulVersionPicker({
             </span>
           </div>
         )}
-        <div className={cn("flex items-center gap-1.5 text-xs", isUnique ? "text-emerald-600" : "text-amber-600")}>
+        <div className={cn("flex items-center gap-1.5 text-xs", isUnique ? "text-green-600" : "text-amber-600")}>
           {isUnique ? <Check className="h-3.5 w-3.5 shrink-0" /> : <AlertCircle className="h-3.5 w-3.5 shrink-0" />}
           <span>{isUnique ? t("assignVersion.validation.isUnique") : t("assignVersion.validation.isUniqueFail")}</span>
         </div>

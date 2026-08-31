@@ -79,6 +79,7 @@ export function WorkflowSectionsSummary({ sections, onGoToSection, canGoToSectio
                   iconPosition="right"
                   label={t("wizard.summary.goToSection")}
                   onClick={() => onGoToSection(index)}
+                  variant="outline"
                 />
               ) : undefined
             }

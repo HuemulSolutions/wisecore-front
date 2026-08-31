@@ -76,15 +76,15 @@ const translations = {
   templateTab: {
     title: { en: "Context", es: "Contexto" },
     description: {
-      en: "Text context copied to every document created from this template.",
-      es: "Contexto de texto que se copia a cada documento creado desde esta plantilla.",
+      en: "Text context copied to every asset created from this template.",
+      es: "Contexto de texto que se copia a cada activo creado desde esta plantilla.",
     },
     count: { en: "{{count}} contexts", es: "{{count}} contextos" },
     addButton: { en: "Add context", es: "Agregar contexto" },
     empty: { en: "No context configured", es: "Sin contextos configurados" },
     emptyHint: {
-      en: "Add context to provide additional information for documents created from this template.",
-      es: "Agrega contexto para proporcionar información adicional a los documentos creados desde esta plantilla.",
+      en: "Add context to provide additional information for assets created from this template.",
+      es: "Agrega contexto para proporcionar información adicional a los activos creados desde esta plantilla.",
     },
     editTitle: { en: "Edit context", es: "Editar contexto" },
     deleteTitle: { en: "Delete context", es: "Eliminar contexto" },
@@ -107,8 +107,8 @@ const translations = {
     deleteDialog: {
       title: { en: "Delete context", es: "Eliminar contexto" },
       description: {
-        en: "Are you sure you want to delete this context? This action cannot be undone. It won't affect documents already created from this template.",
-        es: "¿Estás seguro de que deseas eliminar este contexto? Esta acción no se puede deshacer. No afecta a los documentos ya creados desde esta plantilla.",
+        en: "Are you sure you want to delete this context? This action cannot be undone. It won't affect assets already created from this template.",
+        es: "¿Estás seguro de que deseas eliminar este contexto? Esta acción no se puede deshacer. No afecta a los activos ya creados desde esta plantilla.",
       },
     },
     fields: {

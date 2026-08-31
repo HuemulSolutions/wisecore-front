@@ -96,29 +96,29 @@ const translations = {
   templateTab: {
     title: { en: "Dependencies", es: "Dependencias" },
     description: {
-      en: "Document dependencies copied to every document created from this template.",
-      es: "Dependencias de documentos que se copian a cada documento creado desde esta plantilla.",
+      en: "Asset dependencies copied to every asset created from this template.",
+      es: "Dependencias de activos que se copian a cada activo creado desde esta plantilla.",
     },
     count: { en: "{{count}} dependencies", es: "{{count}} dependencias" },
     addButton: { en: "Add dependency", es: "Agregar dependencia" },
     empty: { en: "This template has no dependencies yet", es: "Esta plantilla aún no tiene dependencias" },
     emptyHint: {
-      en: "Link it to assets to create relationships and shared context for documents created from it.",
-      es: "Vincúlala con activos para crear relaciones y contexto compartido para los documentos creados desde ella.",
+      en: "Link it to assets to create relationships and shared context for assets created from it.",
+      es: "Vincúlala con activos para crear relaciones y contexto compartido para los activos creados desde ella.",
     },
     picker: {
       title: { en: "Add dependency", es: "Agregar dependencia" },
       description: {
-        en: "Search or browse the library to pick the asset this template's documents depend on.",
-        es: "Busca o navega la biblioteca para elegir el activo del que dependerán los documentos de esta plantilla.",
+        en: "Search or browse the library to pick the asset this template's assets depend on.",
+        es: "Busca o navega la biblioteca para elegir el activo del que dependerán los activos de esta plantilla.",
       },
       alreadyDependency: { en: "Already a dependency of this template", es: "Ya es una dependencia de esta plantilla" },
     },
     deleteDialog: {
       title: { en: "Remove dependency", es: "Eliminar dependencia" },
       description: {
-        en: "Are you sure you want to remove this dependency? This action cannot be undone. It won't affect documents already created from this template.",
-        es: "¿Estás seguro de que deseas eliminar esta dependencia? Esta acción no se puede deshacer. No afecta a los documentos ya creados desde esta plantilla.",
+        en: "Are you sure you want to remove this dependency? This action cannot be undone. It won't affect assets already created from this template.",
+        es: "¿Estás seguro de que deseas eliminar esta dependencia? Esta acción no se puede deshacer. No afecta a los activos ya creados desde esta plantilla.",
       },
     },
     toast: {

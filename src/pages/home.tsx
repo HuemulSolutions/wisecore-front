@@ -558,7 +558,7 @@ export default function Home() {
     },
     {
       key: 'unresolvedComments',
-      color: 'violet' as HuemulStatCardColor,
+      color: 'fuchsia' as HuemulStatCardColor,
       value: stats?.unresolved_comments_count ?? 0,
       label: t('kpis.unresolvedComments.label'),
       active: !!values.hasUnresolvedComments,

@@ -110,7 +110,7 @@ export function highlightSearchMatches(fullContent: string, searchContent: strin
         // Don't highlight if already highlighted
         if (match.includes('<mark')) return match;
         highlightCount++;
-        return `<mark class="bg-yellow-200 dark:bg-yellow-800 rounded px-1">${match}</mark>`;
+        return `<mark class="bg-highlight text-highlight-foreground rounded px-1">${match}</mark>`;
       });
       
       if (before !== highlightedContent) {

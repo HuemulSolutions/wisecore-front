@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import type { ColorHue } from "@/lib/lifecycle-colors";
 
 /** Paleta del ciclo de vida (`ColorHue`) + hues propios de KPIs ajenos al lifecycle. */
-export type HuemulStatCardColor = ColorHue | "violet";
+export type HuemulStatCardColor = ColorHue | "fuchsia";
 
 const COLOR_CLASSES: Record<
   HuemulStatCardColor,
@@ -11,13 +11,17 @@ const COLOR_CLASSES: Record<
   blue: { dot: "bg-blue-500", text: "text-blue-600 dark:text-blue-400", activeBg: "bg-blue-50 dark:bg-blue-950/30", activeBorder: "border-blue-500/50" },
   slate: { dot: "bg-slate-500", text: "text-slate-600 dark:text-slate-400", activeBg: "bg-slate-50 dark:bg-slate-800/40", activeBorder: "border-slate-500/50" },
   amber: { dot: "bg-amber-500", text: "text-amber-600 dark:text-amber-400", activeBg: "bg-amber-50 dark:bg-amber-950/30", activeBorder: "border-amber-500/50" },
+  yellow: { dot: "bg-yellow-500", text: "text-yellow-600 dark:text-yellow-400", activeBg: "bg-yellow-50 dark:bg-yellow-950/30", activeBorder: "border-yellow-500/50" },
   sky: { dot: "bg-sky-500", text: "text-sky-600 dark:text-sky-400", activeBg: "bg-sky-50 dark:bg-sky-950/30", activeBorder: "border-sky-500/50" },
-  emerald: { dot: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400", activeBg: "bg-emerald-50 dark:bg-emerald-950/30", activeBorder: "border-emerald-500/50" },
+  green: { dot: "bg-green-500", text: "text-green-600 dark:text-green-400", activeBg: "bg-green-50 dark:bg-green-950/30", activeBorder: "border-green-500/50" },
   teal: { dot: "bg-teal-500", text: "text-teal-600 dark:text-teal-400", activeBg: "bg-teal-50 dark:bg-teal-950/30", activeBorder: "border-teal-500/50" },
+  cyan: { dot: "bg-cyan-500", text: "text-cyan-600 dark:text-cyan-400", activeBg: "bg-cyan-50 dark:bg-cyan-950/30", activeBorder: "border-cyan-500/50" },
   gray: { dot: "bg-gray-500", text: "text-gray-600 dark:text-gray-400", activeBg: "bg-gray-50 dark:bg-gray-800/40", activeBorder: "border-gray-500/50" },
+  stone: { dot: "bg-stone-500", text: "text-stone-600 dark:text-stone-400", activeBg: "bg-stone-50 dark:bg-stone-800/40", activeBorder: "border-stone-500/50" },
   indigo: { dot: "bg-indigo-500", text: "text-indigo-600 dark:text-indigo-400", activeBg: "bg-indigo-50 dark:bg-indigo-950/30", activeBorder: "border-indigo-500/50" },
   red: { dot: "bg-red-500", text: "text-red-600 dark:text-red-400", activeBg: "bg-red-50 dark:bg-red-950/30", activeBorder: "border-red-500/50" },
   violet: { dot: "bg-violet-500", text: "text-violet-600 dark:text-violet-400", activeBg: "bg-violet-50 dark:bg-violet-950/30", activeBorder: "border-violet-500/50" },
+  fuchsia: { dot: "bg-fuchsia-500", text: "text-fuchsia-600 dark:text-fuchsia-400", activeBg: "bg-fuchsia-50 dark:bg-fuchsia-950/30", activeBorder: "border-fuchsia-500/50" },
 };
 
 export interface HuemulStatCardProps {

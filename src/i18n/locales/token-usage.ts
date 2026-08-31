@@ -21,8 +21,8 @@ const translations = {
   },
   tabs: {
     byUser: { en: "By user", es: "Por usuario" },
-    byDocumentType: { en: "By document type", es: "Por tipo de documento" },
-    byDocument: { en: "By document", es: "Por documento" },
+    byDocumentType: { en: "By asset type", es: "Por tipo de activo" },
+    byDocument: { en: "By asset", es: "Por activo" },
   },
   columns: {
     user: { en: "User", es: "Usuario" },

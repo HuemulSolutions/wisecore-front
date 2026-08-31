@@ -2095,7 +2095,7 @@ export function AssetContent({
                       onPreserveScroll?.();
                       openCreateAssetDialog(currentFolderId);
                     }}
-                    className="bg-[#4464f7] hover:bg-[#3451e6]"
+                    className="bg-primary hover:bg-primary/90"
                     icon={FileText}
                     iconClassName="h-4 w-4"
                     label={t('content.createAsset')}
@@ -2268,7 +2268,7 @@ export function AssetContent({
                     iconClassName="h-3.5 w-3.5"
                     className={`h-7 w-7 p-0 rounded-md transition-all ${
                       !isViewMode
-                        ? 'bg-white text-[#4464f7] shadow-sm'
+                        ? 'bg-white text-primary shadow-sm'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                     tooltip={t('content.editorMode')}
@@ -2291,7 +2291,7 @@ export function AssetContent({
                 disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate}
                 className={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate
                   ? "h-8 w-8 p-0 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm rounded-full"
-                  : "h-8 w-8 p-0 bg-[#4464f7] hover:bg-[#3451e6] text-white border-none hover:cursor-pointer shadow-sm rounded-full"
+                  : "h-8 w-8 p-0 bg-primary hover:bg-primary/90 text-white border-none hover:cursor-pointer shadow-sm rounded-full"
                 }
                 title={executeDocumentMutation.isPending || hasExecutionInProcess
                   ? t('content.cannotExecuteInProgress')
@@ -3166,7 +3166,7 @@ export function AssetContent({
                                           resource="section"
                                           lifecyclePermissions={lifecyclePermissions}
                                           onClick={() => setIsSectionSheetOpen(true)}
-                                          className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
+                                          className="hover:cursor-pointer bg-primary hover:bg-primary/90"
                                         >
                                           <BetweenHorizontalStart className="h-4 w-4 mr-2" />
                                           {t('content.addSections')}
@@ -3184,7 +3184,7 @@ export function AssetContent({
                                             title={!canGenerate ? cannotGenerateReason : undefined}
                                             className={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate
                                               ? "hover:cursor-not-allowed bg-gray-300 text-gray-500"
-                                              : "bg-[#4464f7] hover:bg-[#3451e6]"
+                                              : "bg-primary hover:bg-primary/90"
                                             }
                                           >
                                             {executeDocumentMutation.isPending ? (
@@ -3319,7 +3319,7 @@ export function AssetContent({
                     return (
                       <div className="flex items-center justify-center h-full min-h-100">
                         <div className="text-center">
-                          <File className="h-16 w-16 mx-auto mb-4 opacity-40" style={{ color: '#4464f7' }} />
+                          <File className="h-16 w-16 mx-auto mb-4 text-primary opacity-40" />
                           <p className="text-lg font-medium text-gray-500">{t('content.noContentTitle')}</p>
                           <p className="text-sm text-gray-400 mt-1 mb-6">{t('content.noContentDescription')}</p>
                           
@@ -3332,7 +3332,7 @@ export function AssetContent({
                               lifecyclePermissions={lifecyclePermissions}
                               variant="outline" 
                               onClick={handleAddSection}
-                              className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200"
+                              className="hover:cursor-pointer border-primary text-primary hover:bg-primary hover:text-white transition-colors duration-200"
                             >
                               <BetweenHorizontalStart className="h-4 w-4 mr-2" />
                               {t('content.addSection')}
@@ -3348,7 +3348,7 @@ export function AssetContent({
                               onClick={handleCreateExecutionFromHeader}
                               disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate}
                               title={!canGenerate ? cannotGenerateReason : undefined}
-                              className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="hover:cursor-pointer border-primary text-primary hover:bg-primary hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {executeDocumentMutation.isPending ? (
                                 <>

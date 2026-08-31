@@ -2235,7 +2235,7 @@ export function HuemulField({
                   className={cn(
                     "inline-flex h-9 items-center rounded-md border px-4 text-sm transition-colors",
                     selected
-                      ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                      ? "border-primary bg-[color-mix(in_srgb,var(--primary)_5%,var(--card))] text-primary"
                       : error
                         ? "border-destructive bg-white text-gray-600 hover:bg-gray-50"
                         : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
@@ -2272,7 +2272,7 @@ export function HuemulField({
                     className={cn(
                       "flex size-9 items-center justify-center rounded-md border text-sm transition-colors",
                       selected
-                        ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                        ? "border-primary bg-[color-mix(in_srgb,var(--primary)_5%,var(--card))] text-primary"
                         : error
                           ? "border-destructive bg-white text-gray-600 hover:bg-gray-50"
                           : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
