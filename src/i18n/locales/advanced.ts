@@ -108,8 +108,8 @@ const translations = {
       review: {
         title: { en: "Execute and review", es: "Ejecutar y revisar" },
         description: {
-          en: "Section is left pending review in the document",
-          es: "Sección queda pendiente de revisión en el documento",
+          en: "Section is left pending review in the asset",
+          es: "Sección queda pendiente de revisión en el activo",
         },
       },
       save: {
@@ -137,17 +137,17 @@ const translations = {
   changeHistory: {
     title: { en: "Change History", es: "Historial de cambios" },
     subtitle: {
-      en: "Select a document to view its changes",
-      es: "Selecciona un documento para ver sus cambios",
+      en: "Select an asset to view its changes",
+      es: "Selecciona un activo para ver sus cambios",
     },
-    searchPlaceholder: { en: "Search document...", es: "Buscar documento..." },
+    searchPlaceholder: { en: "Search asset...", es: "Buscar activo..." },
     filterPending: {
       en: "View unapproved changes",
       es: "Ver cambios sin aprobar",
     },
     sectionTitle: {
-      en: "Documents with pending changes",
-      es: "Documentos con cambios pendientes",
+      en: "Assets with pending changes",
+      es: "Activos con cambios pendientes",
     },
     lastModified: {
       en: "Last modified: {{date}}",
@@ -161,15 +161,15 @@ const translations = {
       es: "{{count}} pendientes",
     },
     empty: {
-      en: "No documents with pending changes",
-      es: "No hay documentos con cambios pendientes",
+      en: "No assets with pending changes",
+      es: "No hay activos con cambios pendientes",
     },
     noResults: {
-      en: "No documents match your search",
-      es: "No se encontraron documentos con tu búsqueda",
+      en: "No assets match your search",
+      es: "No se encontraron activos con tu búsqueda",
     },
     page: { en: "Page {{page}}", es: "Página {{page}}" },
-    openAsset: { en: "Open document", es: "Abrir documento" },
+    openAsset: { en: "Open asset", es: "Abrir activo" },
     openVersion: {
       en: "Open this version in a new tab",
       es: "Abrir esta versión en una nueva pestaña",

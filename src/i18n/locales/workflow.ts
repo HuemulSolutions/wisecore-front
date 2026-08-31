@@ -5,14 +5,14 @@ const translations = {
   filters: {
     search: { en: "Search", es: "Búsqueda" },
     searchPlaceholder: { en: "Search by name or code...", es: "Buscar por nombre o código..." },
-    documentType: { en: "Document Type", es: "Tipo de Documento" },
-    allDocumentTypes: { en: "All document types", es: "Todos los tipos de documento" },
+    documentType: { en: "Asset Type", es: "Tipo de Activo" },
+    allDocumentTypes: { en: "All asset types", es: "Todos los tipos de activo" },
     lifecycleState: { en: "Lifecycle", es: "Ciclo de Vida" },
     allLifecycleStates: { en: "All states", es: "Todos los estados" },
     ownerScope: { en: "Owner", es: "Propietario" },
     allOwners: { en: "All owners", es: "Todos los propietarios" },
     ownerMe: { en: "Me", es: "Yo" },
-    ownerMeDescription: { en: "Documents you own", es: "Documentos de tu autoría" },
+    ownerMeDescription: { en: "Assets you own", es: "Activos de tu autoría" },
     ownerScopeLabel: { en: "Quick filters", es: "Filtros rápidos" },
     ownerUsersLabel: { en: "Specific user", es: "Usuario específico" },
     template: { en: "Workflow template", es: "Template de workflow" },
@@ -60,7 +60,7 @@ const translations = {
   panel: {
     noSelection: { en: "Select a row to view its form fields", es: "Selecciona una fila para ver los campos del formulario" },
     noCurrentStep: { en: "This item has no current step", es: "Este elemento no tiene un paso actual" },
-    sectionNotFound: { en: "Section not found in the document content", es: "No se encontró la sección en el contenido del documento" },
+    sectionNotFound: { en: "Section not found in the asset content", es: "No se encontró la sección en el contenido del activo" },
     loadError: { en: "Failed to load the form fields", es: "Error al cargar los campos del formulario" },
     edit: { en: "Edit asset", es: "Editar activo" },
   },
@@ -79,7 +79,7 @@ const translations = {
     namePlaceholder: { en: "e.g. Ergonomic chairs purchase", es: "Ej: Compra de sillas ergonómicas" },
     description: { en: "Description", es: "Descripción" },
     descriptionPlaceholder: { en: "Add a description about this asset", es: "Agrega una descripción sobre este activo" },
-    success: { en: "Document created successfully", es: "Documento creado correctamente" },
+    success: { en: "Asset created successfully", es: "Activo creado correctamente" },
   },
   wizard: {
     back: { en: "Back", es: "Atrás" },
@@ -124,8 +124,8 @@ const translations = {
       es: "Las personas con acceso a la organización podrán completar de forma independiente una copia de \"{{name}}\".",
     },
     executionDescription: {
-      en: "People with access to the organization will be able to answer this same document: \"{{name}}\".",
-      es: "Las personas con acceso a la organización podrán responder este mismo documento: \"{{name}}\".",
+      en: "People with access to the organization will be able to answer this same asset: \"{{name}}\".",
+      es: "Las personas con acceso a la organización podrán responder este mismo activo: \"{{name}}\".",
     },
     copy: { en: "Copy link", es: "Copiar link" },
     copied: { en: "Copied", es: "Copiado" },
@@ -163,12 +163,12 @@ const translations = {
     notFound: { en: "This link is invalid or incomplete", es: "Este link no es válido o está incompleto" },
     templateFallbackName: { en: "Workflow", es: "Workflow" },
     noCreatePermission: {
-      en: "You don't have permission to create a document from this link.",
-      es: "No tienes permiso para crear un documento desde este link.",
+      en: "You don't have permission to create an asset from this link.",
+      es: "No tienes permiso para crear un activo desde este link.",
     },
     createError: {
-      en: "Something went wrong creating this document.",
-      es: "Ocurrió un error al crear este documento.",
+      en: "Something went wrong creating this asset.",
+      es: "Ocurrió un error al crear este activo.",
     },
   },
 }

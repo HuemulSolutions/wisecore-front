@@ -60,8 +60,8 @@ const translations = {
       es: "se convierte en un campo del formulario al importar un activo desde un sistema externo.",
     },
     bodyHelpUnavailable: {
-      en: "not available when the objective is \"Import Asset\" — the document doesn't exist yet at call time.",
-      es: "no disponibles cuando el objetivo es \"Importar Activo\": el documento aún no existe al momento de la llamada.",
+      en: "not available when the objective is \"Import Asset\" — the asset doesn't exist yet at call time.",
+      es: "no disponibles cuando el objetivo es \"Importar Activo\": el activo aún no existe al momento de la llamada.",
     },
   },
   create: {
@@ -108,7 +108,7 @@ const translations = {
     status: { en: "Status", es: "Estado" },
     httpStatus: { en: "HTTP", es: "HTTP" },
     url: { en: "URL", es: "URL" },
-    document: { en: "Document", es: "Documento" },
+    document: { en: "Asset", es: "Activo" },
     date: { en: "Date", es: "Fecha" },
     order: { en: "Order", es: "Orden" },
     error: { en: "Error", es: "Error" },
@@ -131,7 +131,7 @@ const translations = {
         error: { en: "Error", es: "Error" },
       },
       fields: {
-        documentId: { en: "Document ID", es: "ID de documento" },
+        documentId: { en: "Asset ID", es: "ID de activo" },
         executionId: { en: "Execution ID", es: "ID de ejecución" },
         publishRunId: { en: "Publish Run ID", es: "ID de corrida de publicación" },
         lifecycleStepId: { en: "Lifecycle Step ID", es: "ID de paso de ciclo de vida" },
@@ -154,13 +154,13 @@ const translations = {
     },
   },
   publishActions: {
-    selectDocumentType: { en: "Asset Type", es: "Tipo de asset" },
-    selectDocumentTypePlaceholder: { en: "Select an asset type", es: "Selecciona un tipo de asset" },
+    selectDocumentType: { en: "Asset Type", es: "Tipo de activo" },
+    selectDocumentTypePlaceholder: { en: "Select an asset type", es: "Selecciona un tipo de activo" },
     selectStep: { en: "Publish Step", es: "Paso de publicación" },
     selectStepPlaceholder: { en: "Select a step", es: "Selecciona un paso" },
     noStepSelected: {
       en: "Select an asset type and a publish step to view its actions",
-      es: "Selecciona un tipo de asset y un paso para ver sus acciones",
+      es: "Selecciona un tipo de activo y un paso para ver sus acciones",
     },
     addAction: { en: "Add action", es: "Agregar acción" },
     editAction: { en: "Edit action", es: "Editar acción" },

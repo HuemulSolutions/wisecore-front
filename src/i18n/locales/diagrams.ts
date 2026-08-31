@@ -40,13 +40,13 @@ const translations = {
   relatedSheet: {
     title: { en: "Related Diagrams", es: "Diagramas Relacionados" },
     description: {
-      en: "Diagrams that include this document.",
-      es: "Diagramas que incluyen este documento.",
+      en: "Diagrams that include this asset.",
+      es: "Diagramas que incluyen este activo.",
     },
     loadingError: { en: "Failed to load diagrams.", es: "Error al cargar los diagramas." },
     empty: {
-      en: "This document isn't part of any diagram yet.",
-      es: "Este documento aún no forma parte de ningún diagrama.",
+      en: "This asset isn't part of any diagram yet.",
+      es: "Este activo aún no forma parte de ningún diagrama.",
     },
     createAction: { en: "New diagram", es: "Nuevo diagrama" },
   },
