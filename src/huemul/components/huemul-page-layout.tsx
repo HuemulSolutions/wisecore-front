@@ -22,7 +22,7 @@ export type { HuemulColumnSection, HuemulPageLayoutColumn, HuemulPageLayoutProps
  * - Columns with no `defaultSize` share the remaining space equally.
  * - Columns whose explicit sizes don't sum to 100 are scaled proportionally.
  */
-function normalise(visible: HuemulPageLayoutColumn[]): (HuemulPageLayoutColumn & { defaultSize: number })[] {
+function normalise<T extends HuemulPageLayoutColumn>(visible: T[]): (T & { defaultSize: number })[] {
   if (visible.length === 0) return []
 
   const specified = visible.filter((c) => c.defaultSize != null)
@@ -49,6 +49,11 @@ function normalise(visible: HuemulPageLayoutColumn[]): (HuemulPageLayoutColumn &
 }
 
 // ─── Column-section helpers ───────────────────────────────────────────────────
+
+type SectionKey = "header" | "content" | "footer"
+
+/** Stable panel order per section, independent of which sections are visible. */
+const SECTION_ORDER: Record<SectionKey, number> = { header: 0, content: 1, footer: 2 }
 
 /** Returns true if the column has at least one visible header or footer section. */
 function hasColumnSections(col: HuemulPageLayoutColumn): boolean {
@@ -98,7 +103,7 @@ function renderColumnInner(
 
   // ── At least one resizable section ─────────────────────────────────────────
   type SectionEntry = {
-    key: string
+    key: SectionKey
     content: React.ReactNode
     sec: HuemulColumnSection | null
     rawSize: number | undefined
@@ -123,6 +128,8 @@ function renderColumnInner(
           <React.Fragment key={entry.key}>
             {i > 0 && <ResizableHandle withHandle={withHandle} />}
             <ResizablePanel
+              id={entry.key}
+              order={SECTION_ORDER[entry.key]}
               ref={sec?.panelRef}
               defaultSize={defaultSize}
               minSize={sec?.minSize}
@@ -205,8 +212,20 @@ export function HuemulPageLayout({
   withHandle = false,
   direction = "horizontal",
 }: HuemulPageLayoutProps) {
+  // `id`/`order` estables derivados de la posición en el array sin filtrar:
+  // react-resizable-panels identifica los paneles por registro, y las columnas
+  // con `show` dinámico cambian de índice al ocultarse otra columna.
   const normalizedColumns = React.useMemo(
-    () => normalise(columns.filter((c) => c.show !== false)),
+    () =>
+      normalise(
+        columns
+          .map((col, position) => ({
+            ...col,
+            panelId: col.id ?? `col-${position}`,
+            panelOrder: position,
+          }))
+          .filter((c) => c.show !== false),
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [columns],
   )
@@ -236,7 +255,7 @@ export function HuemulPageLayout({
         ) : (
           <ResizablePanelGroup direction={direction} className="h-full">
             {normalizedColumns.map((col, index) => (
-              <React.Fragment key={index}>
+              <React.Fragment key={col.panelId}>
                 {index > 0 && (
                   <ResizableHandle
                     withHandle={withHandle}
@@ -247,6 +266,8 @@ export function HuemulPageLayout({
                   />
                 )}
                 <ResizablePanel
+                  id={col.panelId}
+                  order={col.panelOrder}
                   ref={col.panelRef}
                   defaultSize={col.defaultSize}
                   minSize={col.minSize}
