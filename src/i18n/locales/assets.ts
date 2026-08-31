@@ -217,7 +217,7 @@ const translations = {
     completeLabels: {
       stage: {
         create: { en: "Complete creation", es: "Completar creación" },
-        edit: { en: "Complete elaboration", es: "Completar" },
+        edit: { en: "Complete", es: "Completar" },
         review: { en: "Complete review", es: "Completar revisión" },
         approve: { en: "Approve", es: "Aprobar" },
         publish: { en: "Complete publication", es: "Completar publicación" },
