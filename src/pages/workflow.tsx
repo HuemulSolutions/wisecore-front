@@ -1,15 +1,14 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useQueryClient } from "@tanstack/react-query"
+import { useIsFetching, useQueryClient } from "@tanstack/react-query"
 import { Loader2, Trash2 } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { useWorkflows, useWorkflowMutations, workflowQueryKeys } from "@/hooks/useWorkflows"
-import { useWorkflowTemplates, useCreateTemplateExpress, workflowTemplateQueryKeys } from "@/hooks/useWorkflowTemplates"
+import { useCreateTemplateExpress, workflowTemplateQueryKeys } from "@/hooks/useWorkflowTemplates"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
-import { useGridColumns } from "@/hooks/useGridColumns"
 import { useWorkflowFilters } from "@/components/workflow/hooks/useWorkflowFilters"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
@@ -17,7 +16,7 @@ import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulFilterChips } from "@/huemul/components/huemul-filter-chips"
 import { HuemulFilterPanel } from "@/huemul/components/huemul-filter-panel"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
-import { WorkflowTable, WorkflowDetailPanel, WorkflowTemplateCards, WorkflowShareDialog, WorkflowToolbar } from "@/components/workflow"
+import { WorkflowTable, WorkflowDetailPanel, WorkflowLauncher, WorkflowShareDialog, WorkflowToolbar } from "@/components/workflow"
 import { buildTemplateShareUrl, buildExecutionShareUrl } from "@/lib/workflow-share-url"
 import type { WorkflowItem } from "@/types/workflow"
 import type { WorkflowTemplateItem, CreateExpressResult } from "@/types/templates"
@@ -116,26 +115,10 @@ export default function WorkflowPage() {
 
   const items = workflowsResponse?.data ?? []
 
-  const templateColumns = useGridColumns()
-  const templatesPageSize = templateColumns * 2
-  const [templatesPage, setTemplatesPage] = useState(1)
-
-  useEffect(() => {
-    setTemplatesPage(1)
-  }, [templatesPageSize])
-
-  const { data: templatesResponse, isLoading: isLoadingTemplates, isFetching: isFetchingTemplates } = useWorkflowTemplates(
-    selectedOrganizationId ?? "",
-    {
-      enabled: !!selectedOrganizationId && !!organizationToken && canCreateExpress,
-    },
-  )
-  const allTemplateItems = templatesResponse?.items ?? []
-  const templateItems = allTemplateItems.slice(
-    (templatesPage - 1) * templatesPageSize,
-    templatesPage * templatesPageSize,
-  )
-  const templatesHasNext = templatesPage * templatesPageSize < allTemplateItems.length
+  // El launcher hace sus propias queries (búsqueda/filtro/paginación
+  // server-side); aquí solo se refleja su actividad en el botón de refresh.
+  const isFetchingTemplates = useIsFetching({ queryKey: workflowTemplateQueryKeys.listBase() }) > 0
+  const startingTemplateId = createExpress.isPending ? (createExpress.variables?.templateId ?? null) : null
 
   if (isLoadingPermissions) {
     return (
@@ -185,20 +168,43 @@ export default function WorkflowPage() {
             minSize: 30,
             header: {
               content: (
-                <WorkflowToolbar
-                  filters={filterDefs}
-                  values={values}
-                  onChange={handleFilterChange}
-                  onSelectedLabel={setSelectedLabel}
-                  activeCount={activeCount}
-                  filtersOpen={filtersOpen}
-                  onToggleFilters={() => setFiltersOpen(!filtersOpen)}
-                  isRefreshing={isFetching || isFetchingTemplates}
-                  onRefresh={() => {
-                    queryClient.invalidateQueries({ queryKey: workflowQueryKeys.listBase() })
-                    queryClient.invalidateQueries({ queryKey: workflowTemplateQueryKeys.listBase() })
-                  }}
-                />
+                <>
+                  <WorkflowToolbar
+                    filters={filterDefs}
+                    values={values}
+                    onChange={handleFilterChange}
+                    onSelectedLabel={setSelectedLabel}
+                    activeCount={activeCount}
+                    filtersOpen={filtersOpen}
+                    onToggleFilters={() => setFiltersOpen(!filtersOpen)}
+                    isRefreshing={isFetching || isFetchingTemplates}
+                    onRefresh={() => {
+                      queryClient.invalidateQueries({ queryKey: workflowQueryKeys.listBase() })
+                      queryClient.invalidateQueries({ queryKey: workflowTemplateQueryKeys.listBase() })
+                    }}
+                  />
+                  <WorkflowLauncher
+                    canCreate={canCreateExpress}
+                    onShare={handleShareTemplate}
+                    startingTemplateId={startingTemplateId}
+                    onStart={(item) => {
+                      if (!canCreateExpress) return
+                      setSelectedRow(null)
+                      setExpressDoc(null)
+                      setExpressTemplate(item)
+                      if (!item.require_name_on_express) {
+                        createExpress
+                          .mutateAsync({
+                            documentTypeId: item.document_type_id,
+                            templateId: item.id,
+                            body: { name: "" },
+                          })
+                          .then(setExpressDoc)
+                          .catch(() => {})
+                      }
+                    }}
+                  />
+                </>
               ),
             },
             content: (
@@ -207,32 +213,6 @@ export default function WorkflowPage() {
                   chips={chips}
                   onRemove={handleChipRemove}
                   onClearAll={handleClearAll}
-                />
-                <WorkflowTemplateCards
-                  canCreate={canCreateExpress}
-                  items={templateItems}
-                  isLoading={isLoadingTemplates}
-                  page={templatesPage}
-                  pageSize={templatesPageSize}
-                  hasNext={templatesHasNext}
-                  onPageChange={setTemplatesPage}
-                  onShare={handleShareTemplate}
-                  onStart={(item) => {
-                    if (!canCreateExpress) return
-                    setSelectedRow(null)
-                    setExpressDoc(null)
-                    setExpressTemplate(item)
-                    if (!item.require_name_on_express) {
-                      createExpress
-                        .mutateAsync({
-                          documentTypeId: item.document_type_id,
-                          templateId: item.id,
-                          body: { name: "" },
-                        })
-                        .then(setExpressDoc)
-                        .catch(() => {})
-                    }
-                  }}
                 />
                 <div className="flex-1 min-h-0">
                   <WorkflowTable

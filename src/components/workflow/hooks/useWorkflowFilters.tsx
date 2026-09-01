@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react"
 import { useTranslation } from "react-i18next"
+import { Search } from "lucide-react"
 import { useHuemulFilters } from "@/hooks/useHuemulFilters"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { HuemulCustomFieldFilter } from "@/huemul/components/huemul-custom-field-filter"
@@ -90,6 +91,10 @@ export function useWorkflowFilters({ can, selectedOrganizationId, onPageReset }:
         label: t("filters.search"),
         placeholder: t("filters.searchPlaceholder"),
         inputClassName: "w-full min-w-0",
+        // Server-side: cada tecla que deja de escribirse dispara la query de
+        // /workflow tras 300ms; Enter la dispara al instante (ver huemul-filter-inline.tsx).
+        debounceMs: 300,
+        icon: Search,
       },
       {
         key: "lifecycleState",

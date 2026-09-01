@@ -16,31 +16,51 @@ export const workflowTemplateQueryKeys = {
 
 // ─── List query ───────────────────────────────────────────────────────────────
 
-export interface UseWorkflowTemplatesOptions {
+export interface UseWorkflowTemplatesParams {
+  /** Texto ya debounceado; viaja como `search` al backend. */
+  search?: string
+  page?: number
+  pageSize?: number
   enabled?: boolean
 }
 
 export interface WorkflowTemplatesPage {
   items: WorkflowTemplateItem[]
+  page: number
+  pageSize: number
+  hasNext: boolean
+  /** El backend no siempre lo envia: sin el, la paginacion va por has_next. */
+  total?: number
 }
 
 // Templates disponibles para iniciar desde la pagina de Workflow: filtra por
-// mostrar_en_workflow + can_create_express. Filtra tambien del lado del cliente
-// los items sin document_type_id, ya que sin el no se puede llamar al express.
-// Se trae una sola pagina grande y la paginacion visual (2 filas del grid) se
-// resuelve en el cliente: es una lista curada y acotada, no la tabla principal.
-export function useWorkflowTemplates(organizationId: string, options: UseWorkflowTemplatesOptions = {}) {
-  const { enabled = true } = options
+// mostrar_en_workflow + can_create_express. Busqueda y paginacion son
+// server-side; lo unico que se descarta en cliente son los items sin
+// document_type_id (sin el no se puede llamar al express), por lo que una
+// pagina puede quedar con menos items que `pageSize`.
+export function useWorkflowTemplates(organizationId: string, params: UseWorkflowTemplatesParams = {}) {
+  const { search, page = 1, pageSize = DEFAULT_PAGE_SIZE, enabled = true } = params
+  const normalizedSearch = search?.trim() || undefined
+  // Piso de página: el launcher pinta riel y panel desde la misma respuesta, y
+  // ningún call-site debería pedir menos que el mínimo del proyecto.
+  const effectivePageSize = Math.max(pageSize, DEFAULT_PAGE_SIZE)
 
   return useQuery({
-    queryKey: workflowTemplateQueryKeys.list(organizationId),
+    queryKey: [
+      ...workflowTemplateQueryKeys.list(organizationId),
+      { search: normalizedSearch ?? null, page, pageSize: effectivePageSize },
+    ],
     queryFn: async (): Promise<WorkflowTemplatesPage> => {
-      const res = await getAllTemplates(organizationId, undefined, 1, DEFAULT_PAGE_SIZE, {
+      const res = await getAllTemplates(organizationId, normalizedSearch, page, effectivePageSize, {
         mostrar_en_workflow: true,
         can_create_express: true,
       })
       return {
         items: res.data.filter((item): item is WorkflowTemplateItem => !!item.document_type_id),
+        page: res.page ?? page,
+        pageSize: res.page_size ?? effectivePageSize,
+        hasNext: res.has_next ?? false,
+        total: res.total,
       }
     },
     enabled: enabled && !!organizationId,

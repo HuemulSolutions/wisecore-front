@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { useDebounce } from "@/hooks/use-debounce";
 import { HuemulField } from "./huemul-field";
 
 import type {
@@ -127,7 +128,11 @@ function InlineControl({ def, value, onChange, onSelectedLabel }: InlineControlP
   }
 }
 
-/** Text filter with a local draft that commits on Enter (avoids per-keystroke queries). */
+/**
+ * Text filter with a local draft. Without `debounceMs`, commits only on Enter
+ * (avoids per-keystroke queries). With `debounceMs`, also auto-commits the
+ * debounced draft — for server-side search boxes (Enter still commits instantly).
+ */
 function InlineTextControl({
   def,
   value,
@@ -138,22 +143,43 @@ function InlineTextControl({
   onChange: HuemulFilterInlineProps["onChange"];
 }) {
   const [draft, setDraft] = React.useState(value);
+  const debouncedDraft = useDebounce(draft, def.debounceMs ?? 0);
+  // Evita commitear en el mount y al resincronizar `draft` cuando `value`
+  // cambia desde afuera (ver huemul-page-header.tsx para el mismo patrón).
+  const isMountedRef = React.useRef(false);
 
   React.useEffect(() => {
     setDraft(value);
   }, [value]);
 
+  React.useEffect(() => {
+    if (!def.debounceMs) return;
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      return;
+    }
+    if (debouncedDraft !== value) onChange(def.key, debouncedDraft);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedDraft]);
+
+  const Icon = def.icon;
+
   return (
-    <HuemulField
-      type="text"
-      value={draft}
-      onChange={(v) => setDraft(String(v ?? ""))}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") onChange(def.key, draft);
-      }}
-      placeholder={def.placeholder}
-      className="min-w-0 flex-1"
-      inputClassName={cn("h-8 text-xs", def.inputClassName ?? "w-48")}
-    />
+    <div className={cn("relative min-w-0 flex-1", def.icon && "flex items-center")}>
+      {Icon && (
+        <Icon className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/60" />
+      )}
+      <HuemulField
+        type="text"
+        value={draft}
+        onChange={(v) => setDraft(String(v ?? ""))}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onChange(def.key, draft);
+        }}
+        placeholder={def.placeholder}
+        className="min-w-0 flex-1"
+        inputClassName={cn("h-8 text-xs", Icon && "pl-8", def.inputClassName ?? "w-48")}
+      />
+    </div>
   );
 }

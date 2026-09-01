@@ -35,13 +35,15 @@ export function WorkflowToolbar({
   const { t: tCommon } = useTranslation("common")
 
   return (
-    <div className="flex items-center gap-2 border-b bg-background px-2 py-1.5 sm:px-4 md:px-4 lg:px-6">
-      <h1 className="min-w-0 truncate text-sm font-semibold text-foreground">{t("header.title")}</h1>
+    <div className="flex items-center gap-3 bg-background px-4.5 py-3">
+      <h1 className="min-w-0 shrink-0 truncate text-[17px] font-semibold tracking-[-0.02em] text-foreground">
+        {t("header.title")}
+      </h1>
       <HuemulFilterButton
         count={activeCount}
         open={filtersOpen}
         onToggle={onToggleFilters}
-        className="h-8 shrink-0 px-2 text-xs"
+        className="h-8 shrink-0 rounded-lg px-2 text-xs"
       />
       <HuemulFilterInline
         filters={filters}
