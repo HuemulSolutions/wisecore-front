@@ -547,7 +547,7 @@ export default function AppLayout() {
           <TooltipProvider>
             <EditingGuardProvider>
               <NavKnowledgeProvider>
-                <div className="flex flex-col h-screen overflow-hidden">
+                <div className="flex flex-col h-dvh overflow-hidden">
                   <Suspense fallback={<PageSkeleton />}>
                     <Outlet />
                   </Suspense>
@@ -566,7 +566,7 @@ export default function AppLayout() {
       <TooltipProvider>
         <EditingGuardProvider>
         <NavKnowledgeProvider>
-        <div className="flex flex-col h-screen overflow-hidden">
+        <div className="flex flex-col h-dvh overflow-hidden">
           <header
             className="sticky top-0 z-(--z-app-header) flex h-16 shrink-0 items-center justify-between gap-4 border-b bg-background px-4"
             data-app-header

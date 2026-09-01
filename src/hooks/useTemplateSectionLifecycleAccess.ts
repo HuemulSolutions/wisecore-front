@@ -6,7 +6,7 @@ import {
   getTemplateLifecycleAccessMatrix,
   setTemplateSectionLifecycleAccess,
 } from '@/services/template-section-lifecycle-access'
-import { isPermissionStepType, pipelineSortIndex } from '@/lib/lifecycle-access'
+import { isSectionPermissionStepType, pipelineSortIndex } from '@/lib/lifecycle-access'
 import type {
   InheritedViewAccess,
   TemplateLifecycleAccessMatrix,
@@ -130,10 +130,12 @@ export function useTemplateLifecycleAccessMatrix(
   )
 
   const steps = useMemo<MatrixStep[]>(() => {
-    // `isPermissionStepType` descarta create/publish/archive: el backend ya no
-    // los manda, pero se filtran también acá por si quedan en caché vieja.
+    // `isSectionPermissionStepType` descarta create/publish/archive: no se
+    // asigna acceso sección por sección en esas etapas. La matriz de permisos
+    // por rol del tipo de activo sí las muestra — este filtro es solo de esta
+    // pantalla.
     const ownSteps = (data?.lifecycle_steps ?? []).filter(
-      (step) => step.document_type_id === documentTypeId && isPermissionStepType(step.type),
+      (step) => step.document_type_id === documentTypeId && isSectionPermissionStepType(step.type),
     )
     return [...ownSteps].sort((a, b) => {
       const typeDiff = pipelineSortIndex(a.type) - pipelineSortIndex(b.type)

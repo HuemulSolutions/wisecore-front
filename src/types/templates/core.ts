@@ -43,6 +43,15 @@ export interface TemplatesResponse {
     require_name_on_express?: boolean;
     name_placeholder?: string | null;
     relation_name?: string | null;
+    created_at?: string;
+    updated_at?: string;
+    /** Marcado por el backend como destacado del catalogo. */
+    is_top_pick?: boolean;
+    orden?: number;
+    context_required?: boolean;
+    /** Metadata que el backend aun no envia en este listado; la UI se degrada sin ella. */
+    sections_count?: number;
+    usage_count?: number;
   }[];
   page: number;
   page_size: number;
@@ -66,6 +75,15 @@ export interface WorkflowTemplateItem {
   require_name_on_express?: boolean;
   name_placeholder?: string | null;
   relation_name?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  /** Marcado por el backend como destacado del catalogo. */
+  is_top_pick?: boolean;
+  orden?: number;
+  context_required?: boolean;
+  /** Metadata que el backend aun no envia en este listado; la UI se degrada sin ella. */
+  sections_count?: number;
+  usage_count?: number;
 }
 
 // Filtros opcionales para GET /templates/

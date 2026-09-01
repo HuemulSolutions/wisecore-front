@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import type { LucideIcon } from 'lucide-react'
 import type {
   HuemulFieldOption,
   AsyncSelectOption,
@@ -91,6 +92,10 @@ export interface HuemulBooleanFilterDef extends HuemulFilterDefBase {
 export interface HuemulTextFilterDef extends HuemulFilterDefBase {
   type: 'text';
   placeholder?: string;
+  /** Ms de espera antes de commitear el draft. Sin valor: commit solo con Enter (comportamiento por defecto). */
+  debounceMs?: number;
+  /** Ícono decorativo dentro del input (p. ej. lupa en buscadores de toolbar). */
+  icon?: LucideIcon;
 }
 
 /** Escape hatch: render an arbitrary control for a filter. The control reports

@@ -1,9 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useParams, useLocation } from "react-router-dom"
+import { useParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import { Loader2, CheckCircle2, RotateCcw, AlertCircle } from "lucide-react"
+import { Loader2, RotateCcw, AlertCircle } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { usePageAccess } from "@/hooks/usePageAccess"
@@ -11,22 +11,22 @@ import { useWorkflowTemplates, useCreateTemplateExpress } from "@/hooks/useWorkf
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { WorkflowDetailPanel } from "@/components/workflow"
-import { WORKFLOW_SHARE_EXECUTION_PATH, WORKFLOW_SHARE_TEMPLATE_PATH } from "@/lib/workflow-share-url"
+import { WORKFLOW_SHARE_EXECUTION_PATH } from "@/lib/workflow-share-url"
 import type { WorkflowTemplateItem } from "@/types/templates"
 import type { WorkflowRowRef } from "@/types/workflow"
 
 type ShareMode = "template" | "execution"
-
-/** Viaja en el history state de la redirección post-creación — ver navigate() más abajo. */
-interface FillLocationState {
-  fromTemplate?: { documentTypeId: string; templateId: string }
-}
 
 /**
  * Vista compartida a pantalla completa (ver ia context/fullscreen-share-route-guide.md).
  * Se llega acá SOLO por un link generado desde /workflow ("Compartir"), nunca por
  * navegación normal. AppLayout la monta en su modo "bare" (sin header/nav) pero
  * con los mismos providers — ver app-layout.tsx.
+ *
+ * Reutiliza WorkflowDetailPanel completo (wizard, resumen de secciones, badge y
+ * acciones de ciclo de vida según permiso) — no hay pantalla terminal propia: al
+ * terminar el último paso el panel vuelve solo al resumen de secciones con el
+ * documento en su nuevo estado, igual que la columna derecha de /workflow.
  *
  * Dos modos según la ruta (ver workflow-share-url.ts):
  * - "template" (:documentTypeId/:templateId): cada persona que abre el link crea
@@ -45,15 +45,12 @@ export default function WorkflowFillPage() {
     documentId?: string
     executionId?: string
   }>()
-  const location = useLocation()
   const navigate = useOrgNavigate()
   const { selectedOrganizationId, organizationToken } = useOrganization()
   const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess("workflow")
 
   const mode: ShareMode = params.templateId ? "template" : "execution"
-  const fromTemplate = (location.state as FillLocationState | null)?.fromTemplate ?? null
 
-  const [finished, setFinished] = useState(false)
   // Distinto de un `error` de la query de contenido (eso ya lo maneja el propio
   // panel): esto es "el POST .../express falló" — sin esto, el usuario se queda
   // en el spinner de carga del panel sin ningún mensaje.
@@ -104,14 +101,10 @@ export default function WorkflowFillPage() {
 
   // Ancla el documento recién creado en la URL: reemplaza la ruta de template por
   // la de ejecución (sin executionId, ver App.tsx) para que un refresh posterior
-  // ya no pase por ninguna lógica de creación. `state.fromTemplate` es lo único
-  // que "Responder otro" necesita para volver al link original.
+  // ya no pase por ninguna lógica de creación.
   const anchorCreatedDocument = useCallback(
-    (documentId: string, documentTypeId: string, templateId: string) => {
-      navigate(`/${WORKFLOW_SHARE_EXECUTION_PATH}/${documentId}`, {
-        replace: true,
-        state: { fromTemplate: { documentTypeId, templateId } } satisfies FillLocationState,
-      })
+    (documentId: string) => {
+      navigate(`/${WORKFLOW_SHARE_EXECUTION_PATH}/${documentId}`, { replace: true })
     },
     [navigate],
   )
@@ -125,7 +118,7 @@ export default function WorkflowFillPage() {
     autoStartedRef.current = true
     createExpress
       .mutateAsync({ documentTypeId: template.document_type_id, templateId: template.id, body: { name: "" } })
-      .then((result) => anchorCreatedDocument(result.id, template.document_type_id, template.id))
+      .then((result) => anchorCreatedDocument(result.id))
       .catch(() => {
         autoStartedRef.current = false
         setAutoCreateError(true)
@@ -138,7 +131,7 @@ export default function WorkflowFillPage() {
       setAutoCreateError(false)
       createExpress
         .mutateAsync({ documentTypeId: template.document_type_id, templateId: template.id, body: { name, description } })
-        .then((result) => anchorCreatedDocument(result.id, template.document_type_id, template.id))
+        .then((result) => anchorCreatedDocument(result.id))
         .catch(() => setAutoCreateError(true))
     },
     [template, canCreateExpress, createExpress, anchorCreatedDocument],
@@ -149,13 +142,6 @@ export default function WorkflowFillPage() {
     setAutoCreateError(false)
     setRetryToken((n) => n + 1)
   }, [])
-
-  const handleAnswerAnother = useCallback(() => {
-    if (!fromTemplate) return
-    navigate(`/${WORKFLOW_SHARE_TEMPLATE_PATH}/${fromTemplate.documentTypeId}/${fromTemplate.templateId}`, {
-      replace: true,
-    })
-  }, [fromTemplate, navigate])
 
   const row: WorkflowRowRef | null =
     mode === "execution" && params.documentId
@@ -189,30 +175,6 @@ export default function WorkflowFillPage() {
   // oculta directamente las tarjetas de "Iniciar").
   if (mode === "template" && !canCreateExpress) {
     return <HuemulAccessDenied variant="inline" description={t("fill.noCreatePermission")} />
-  }
-
-  if (finished) {
-    return (
-      <div className="flex h-full items-center justify-center p-6">
-        <div className="flex max-w-sm flex-col items-center gap-3 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-            <CheckCircle2 className="h-6 w-6 text-green-600" />
-          </div>
-          <p className="text-sm font-semibold text-foreground">{t("fill.finishedTitle")}</p>
-          <p className="text-xs text-muted-foreground">{t("fill.finishedDescription")}</p>
-          {fromTemplate && (
-            <HuemulButton
-              variant="outline"
-              size="sm"
-              icon={RotateCcw}
-              label={t("fill.answerAnother")}
-              onClick={handleAnswerAnother}
-              className="mt-2"
-            />
-          )}
-        </div>
-      </div>
-    )
   }
 
   if (mode === "template" && stillResolvingTemplate) {
@@ -254,13 +216,11 @@ export default function WorkflowFillPage() {
       variant="fullscreen"
       showClose={false}
       showAssetEdit={false}
-      showLifecycle={false}
       row={row}
       template={mode === "template" ? (template ?? undefined) : undefined}
       isCreating={createExpress.isPending}
       onSubmitName={handleSubmitName}
       onClose={() => {}}
-      onFinish={() => setFinished(true)}
     />
   )
 }

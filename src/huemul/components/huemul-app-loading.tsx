@@ -11,7 +11,7 @@ import { PageSkeleton } from "@/components/ui/page-skeleton"
  */
 export function HuemulAppLoading() {
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-dvh overflow-hidden">
       <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b bg-background px-4">
         <div className="flex items-center gap-2 min-w-45">
           <Skeleton className="h-8 w-32" />
