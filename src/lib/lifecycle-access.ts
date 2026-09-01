@@ -169,6 +169,19 @@ export function getLifecycleMilestones(
   )
 }
 
+/**
+ * Hito del stepper que representa una etapa de runtime (`LifecycleStatus.stage`).
+ * `publish`/`archive` son acciones, no hitos: publicar se dispara desde el hito
+ * "Aprobado" y archivar desde "Publicado". Sin esta normalización el stepper del
+ * sheet de publicación marcaba "Publicado" como fase actual (el `indexOf` de
+ * `stage: "publish"` daba `-1` y caía al último hito).
+ */
+export function milestoneForStage(stage: string): string {
+  if (stage === "publish") return "approved"
+  if (stage === "archive") return "published"
+  return stage
+}
+
 // ─── Estados terminales ──────────────────────────────────────────────────────
 
 /**

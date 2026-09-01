@@ -2,10 +2,15 @@ import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { useAllLifecycleSteps } from "@/hooks/useLifecycle"
 import { getRollbackTargets } from "@/services/executions"
-import { pipelineSortIndex, getLifecycleMilestones, isGroupableStepType } from "@/lib/lifecycle-access"
+import {
+  pipelineSortIndex,
+  getLifecycleMilestones,
+  isGroupableStepType,
+  milestoneForStage,
+} from "@/lib/lifecycle-access"
 import type { LifecycleStatus } from "@/types/assets"
 import type { FinalLifecycleStage } from "@/types/document-types"
-import type { LifecycleProgress } from "@/types/lifecycle"
+import type { LifecycleNextStep, LifecycleProgress, LifecycleStep } from "@/types/lifecycle"
 
 export interface UseLifecycleProgressOptions {
   documentTypeId: string | null | undefined
@@ -90,12 +95,15 @@ export function useLifecycleProgress({
   // ── Stepper de fases ────────────────────────────────────────────────────
   const presentStageTypes = new Set(ordered.map((s) => s.type))
   const milestoneKeys = getLifecycleMilestones(finalLifecycleStage, presentStageTypes)
-  let currentMilestoneIndex = currentStage ? milestoneKeys.indexOf(currentStage) : -1
-  if (currentMilestoneIndex === -1) currentMilestoneIndex = milestoneKeys.length - 1
+  const currentMilestoneIndex = currentStage ? milestoneKeys.indexOf(milestoneForStage(currentStage)) : -1
+  // El stepper siempre necesita un nodo actual: si el `stage` no cae en la lista
+  // recortada, se asume el último hito. `nextStep` NO usa este fallback (no se
+  // adivina un destino).
+  const phaseIndex = currentMilestoneIndex === -1 ? milestoneKeys.length - 1 : currentMilestoneIndex
   const phases = milestoneKeys.map((key, index) => ({
     key,
     label: stageLabel(key),
-    state: (index < currentMilestoneIndex ? "done" : index === currentMilestoneIndex ? "current" : "upcoming") as
+    state: (index < phaseIndex ? "done" : index === phaseIndex ? "current" : "upcoming") as
       | "done"
       | "current"
       | "upcoming",
@@ -127,17 +135,39 @@ export function useLifecycleProgress({
       : null
 
   // ── Próximo paso ─────────────────────────────────────────────────────────
+  // El destino NO es el siguiente step del array plano: eso mostraba "Publish"
+  // en la aprobación (saltándose el hito "Aprobado", que sí pinta el stepper del
+  // mismo sheet) y podía caer en steps que no son destinos de flujo
+  // (`publish`/`archive`/`view`). Es el siguiente step del grupo actual si queda
+  // alguno, y si el paso cierra la fase, el siguiente hito del stepper.
+  const toNextStep = (step: LifecycleStep): LifecycleNextStep => ({
+    name: step.name,
+    stage: step.type,
+    roleNames: step.step_roles.map((r) => r.role_name).filter((name): name is string => !!name),
+  })
+
   const nextStep = (() => {
-    if (!currentStepId) return null
-    const currentIndex = ordered.findIndex((s) => s.id === currentStepId)
-    if (currentIndex === -1) return null
-    const next = ordered[currentIndex + 1]
-    if (!next) return null
-    return {
-      name: next.name,
-      stage: next.type,
-      roleNames: next.step_roles.map((r) => r.role_name).filter((name): name is string => !!name),
+    if (!currentStage) return null
+
+    // 1. Grupo secuencial en curso (edit/review/approve con varios steps).
+    //    `will_advance_phase` del backend es la autoridad sobre si este paso
+    //    cierra la fase; la lista local solo resuelve el nombre.
+    if (!lifecycleStatus?.will_advance_phase && currentStepId) {
+      const stepsInStage = ordered.filter((s) => s.type === currentStage)
+      const currentIndex = stepsInStage.findIndex((s) => s.id === currentStepId)
+      const nextInStage = currentIndex === -1 ? undefined : stepsInStage[currentIndex + 1]
+      if (nextInStage) return toNextStep(nextInStage)
     }
+
+    // 2. Cierra fase → siguiente hito del stepper (ya recortado por
+    //    `final_lifecycle_stage` y por los stages con steps configurados).
+    if (currentMilestoneIndex === -1) return null
+    const nextMilestone = milestoneKeys[currentMilestoneIndex + 1]
+    if (!nextMilestone) return null
+    const firstOfMilestone = ordered.find((s) => s.type === nextMilestone)
+    // Los hitos terminales (`approved`/`published`) no son steps: `name: null`
+    // hace que el caller pinte el label traducido de la etapa.
+    return firstOfMilestone ? toNextStep(firstOfMilestone) : { name: null, stage: nextMilestone, roleNames: [] }
   })()
 
   return { phases, currentPhase, nextStep, isAvailable: true }
