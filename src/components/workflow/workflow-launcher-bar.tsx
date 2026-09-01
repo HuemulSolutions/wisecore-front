@@ -5,6 +5,7 @@ import { ChevronRight, Loader2, MoreVertical, RefreshCw, Search, Share2 } from "
 import { cn } from "@/lib/utils"
 import { useOrgPath } from "@/hooks/useOrgRouter"
 import { PopoverTrigger } from "@/components/ui/popover"
+import { HuemulSearchClearButton } from "@/huemul/components/huemul-search-clear-button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +28,8 @@ interface WorkflowLauncherBarProps {
   onQueryChange: (query: string) => void
   /** `Enter` en el buscador: aplica la búsqueda. */
   onSubmitQuery: () => void
+  /** X del buscador: vacía el texto en edición y la búsqueda aplicada. */
+  onClearSearch: () => void
   /** Búsqueda vigente, la que produjo este listado. */
   appliedQuery: string
   hasQuery: boolean
@@ -57,6 +60,7 @@ export const WorkflowLauncherBar = forwardRef<HTMLDivElement, WorkflowLauncherBa
       query,
       onQueryChange,
       onSubmitQuery,
+      onClearSearch,
       appliedQuery,
       hasQuery,
       panelOpen,
@@ -151,6 +155,13 @@ export const WorkflowLauncherBar = forwardRef<HTMLDivElement, WorkflowLauncherBa
                     aria-label={t("launcher.searchPlaceholder")}
                     className="min-w-0 flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
                   />
+                  {query.length > 0 && (
+                    <HuemulSearchClearButton
+                      onClear={onClearSearch}
+                      label={t("launcher.clearSearch")}
+                      iconClassName="size-3"
+                    />
+                  )}
                 </div>
 
                 <PopoverTrigger asChild>

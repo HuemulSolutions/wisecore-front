@@ -5,6 +5,7 @@ import { formatRelativeTime } from "@/lib/format-relative-time"
 import { HighlightedText } from "@/components/ui/highlighted-text"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulPagination } from "@/huemul/components/huemul-pagination"
+import { HuemulSearchClearButton } from "@/huemul/components/huemul-search-clear-button"
 import type { WorkflowTemplateItem } from "@/types/templates"
 
 interface WorkflowLauncherPanelProps {
@@ -255,6 +256,15 @@ export function WorkflowLauncherPanel({
             aria-label={t("launcher.searchPlaceholder")}
             className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
           />
+          {query.length > 0 && (
+            <HuemulSearchClearButton
+              onClear={() => {
+                onClearSearch()
+                searchRef.current?.focus()
+              }}
+              label={t("launcher.clearSearch")}
+            />
+          )}
           {total != null && (
             <>
               <span className="h-4 w-px shrink-0 bg-border" />

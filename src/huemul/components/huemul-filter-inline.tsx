@@ -1,8 +1,10 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { useDebounce } from "@/hooks/use-debounce";
 import { HuemulField } from "./huemul-field";
+import { HuemulSearchClearButton } from "./huemul-search-clear-button";
 
 import type {
   HuemulDateRangeValue,
@@ -142,6 +144,7 @@ function InlineTextControl({
   value: string;
   onChange: HuemulFilterInlineProps["onChange"];
 }) {
+  const { t } = useTranslation("huemul-filters");
   const [draft, setDraft] = React.useState(value);
   const debouncedDraft = useDebounce(draft, def.debounceMs ?? 0);
   // Evita commitear en el mount y al resincronizar `draft` cuando `value`
@@ -164,6 +167,13 @@ function InlineTextControl({
 
   const Icon = def.icon;
 
+  // Vaciar el draft no alcanza: sin commitear, el listado seguiría filtrado
+  // hasta que venza el debounce (o para siempre si el filtro no lo tiene).
+  const clear = () => {
+    setDraft("");
+    onChange(def.key, "");
+  };
+
   return (
     <div className={cn("relative min-w-0 flex-1", def.icon && "flex items-center")}>
       {Icon && (
@@ -175,11 +185,22 @@ function InlineTextControl({
         onChange={(v) => setDraft(String(v ?? ""))}
         onKeyDown={(e) => {
           if (e.key === "Enter") onChange(def.key, draft);
+          if (e.key === "Escape" && draft) {
+            e.preventDefault();
+            clear();
+          }
         }}
         placeholder={def.placeholder}
         className="min-w-0 flex-1"
-        inputClassName={cn("h-8 text-xs", Icon && "pl-8", def.inputClassName ?? "w-48")}
+        inputClassName={cn("h-8 text-xs", Icon && "pl-8", draft && "pr-7", def.inputClassName ?? "w-48")}
       />
+      {draft && (
+        <HuemulSearchClearButton
+          onClear={clear}
+          label={t("clear")}
+          className="absolute right-2 top-1/2 -translate-y-1/2"
+        />
+      )}
     </div>
   );
 }

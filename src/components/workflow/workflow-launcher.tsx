@@ -75,6 +75,7 @@ export function WorkflowLauncher({ canCreate, onStart, onShare, startingTemplate
           query={state.query}
           onQueryChange={state.setQuery}
           onSubmitQuery={state.submitQuery}
+          onClearSearch={state.clearSearch}
           appliedQuery={state.appliedQuery}
           hasQuery={state.hasQuery}
           panelOpen={state.panelOpen}

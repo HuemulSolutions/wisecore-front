@@ -26,8 +26,9 @@ import type { WorkflowRowRef } from "@/types/workflow"
 import type { WorkflowTemplateItem, CreateExpressResult } from "@/types/templates"
 import type { FormValuesSectionPayload } from "@/types/sections/core"
 import type { ReviewStatus } from "@/types/section-execution"
-import { applyFormValuesPatch } from "@/components/assets/content/utils/patch-document-content"
+import { applyFormValuesPatch, applyReviewStatusPatch } from "@/components/assets/content/utils/patch-document-content"
 import { isSectionAnswerable, isSectionApplicable } from "@/components/workflow/workflow-section-stats"
+import { useReconcileFormReviewStatus } from "@/hooks/useReconcileFormReviewStatus"
 import {
   useDocumentSectionAccess,
   useInvalidateDocumentSectionAccess,
@@ -134,7 +135,7 @@ export function WorkflowDetailPanel({
     onSubmitName?.(nameValue.trim(), descriptionValue.trim() || undefined)
   }
 
-  const { data, isLoading, isFetching, error } = useQuery({
+  const { data, isLoading, isFetching, error, dataUpdatedAt } = useQuery({
     queryKey: ["document-content", documentId, executionId],
     queryFn: () =>
       getDocumentContent(documentId ?? "", selectedOrganizationId ?? "", executionId) as Promise<
@@ -205,16 +206,7 @@ export function WorkflowDetailPanel({
   const handleReviewStatusChange = React.useCallback(
     (sectionExecutionId: string, status: ReviewStatus) => {
       if (!documentId) return
-      queryClient.setQueriesData(
-        { queryKey: ["document-content", documentId] },
-        (old: { content?: ContentSection[] } | undefined) => {
-          if (!old?.content || !Array.isArray(old.content)) return old
-          return {
-            ...old,
-            content: old.content.map((s) => (s.id === sectionExecutionId ? { ...s, review_status: status } : s)),
-          }
-        },
-      )
+      applyReviewStatusPatch(queryClient, documentId, sectionExecutionId, status)
     },
     [queryClient, documentId],
   )
@@ -257,6 +249,21 @@ export function WorkflowDetailPanel({
   )
 
   const canAnswerSection = currentSection ? canAnswerSpecificSection(currentSection) : canAnswerForm
+
+  // Reconcilia review_status de las secciones form contra lifecycle_status.advance_blockers
+  // (autoridad del backend) cada vez que llega un /content fresco — segunda capa sobre el
+  // marcado inmediato que ya hace el autoguardado (asset-form-section.tsx). Ver
+  // src/hooks/useReconcileFormReviewStatus.ts.
+  useReconcileFormReviewStatus({
+    documentId,
+    organizationId: selectedOrganizationId ?? undefined,
+    sections: data?.content,
+    lifecycleStatus: data?.lifecycle_status,
+    sectionAccess,
+    enabled: canAnswerForm,
+    dataUpdatedAt,
+    isFetching,
+  })
 
   // Motivo del aviso de solo lectura: distingue "no tenés permiso/rol", "esta etapa ya
   // no admite respuestas", "esta sección está inactiva según las respuestas dadas" y
@@ -560,6 +567,7 @@ export function WorkflowDetailPanel({
             isEditing={canAnswerSection}
             onExitEditing={goNext}
             reviewStatus={currentSection.review_status as ReviewStatus | null}
+            sectionFlags={currentSection}
             onReviewStatusChange={(status) => handleReviewStatusChange(currentSection.id, status)}
             onUpdate={handleSectionUpdate}
             onSavingChange={setIsFormSaving}
