@@ -581,28 +581,32 @@ export function WorkflowDetailPanel({
       {!needsNameStep && documentId && !isLoading && !error && formSections.length > 0 && step !== null && (
         <div
           className={cn(
-            "flex items-center justify-between gap-2 border-t p-4 shrink-0",
+            "flex flex-wrap items-center justify-between gap-2 border-t p-4 shrink-0",
             isFullscreen && "px-4 py-4 sm:px-8",
           )}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <HuemulButton
               variant="outline"
               size="sm"
-              icon={ListChecks}
-              label={t("wizard.summary.tooltip")}
+              tooltip={t("wizard.summary.tooltip")}
               disabled={isFormSaving}
               onClick={() => setStep(null)}
-            />
+            >
+              <ListChecks />
+              <span className="hidden sm:inline">{t("wizard.summary.tooltip")}</span>
+            </HuemulButton>
             {step > 0 && (
               <HuemulButton
                 variant="outline"
                 size="sm"
-                icon={ChevronLeft}
-                label={t("wizard.back")}
+                tooltip={t("wizard.back")}
                 disabled={isFormSaving}
                 onClick={() => setStep((s) => Math.max(0, (s ?? 1) - 1))}
-              />
+              >
+                <ChevronLeft />
+                <span className="hidden sm:inline">{t("wizard.back")}</span>
+              </HuemulButton>
             )}
           </div>
           <HuemulButton
