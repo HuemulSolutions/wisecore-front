@@ -2,7 +2,8 @@ import type { ExecutionRelationshipType, ExecutionRelationshipAttributeValue } f
 
 // ─── Shared fragments ───────────────────────────────────────────────────────────
 
-export type DiagramNodeType = 'execution' | 'role'
+export type DiagramFlowNodeType = 'gateway' | 'start_event' | 'end_event'
+export type DiagramNodeType = 'execution' | 'role' | DiagramFlowNodeType
 
 export interface DiagramDocumentTypeRef {
   id: string
@@ -44,7 +45,16 @@ export interface DiagramRoleDetail extends DiagramDetailBase {
   role_name: string
 }
 
-export type DiagramDetail = DiagramExecutionDetail | DiagramRoleDetail
+// A gateway/start_event/end_event detail — no execution/role behind it, just a
+// label to show inside the node. Denormalizes nothing because there's nothing to
+// denormalize; `label` is the only thing the backend persists for these besides
+// position.
+export interface DiagramFlowDetail extends DiagramDetailBase {
+  node_type: DiagramFlowNodeType
+  label: string | null
+}
+
+export type DiagramDetail = DiagramExecutionDetail | DiagramRoleDetail | DiagramFlowDetail
 
 export interface DiagramText {
   id: string
@@ -79,7 +89,17 @@ export interface DiagramRoleEndpoint {
   role_name: string
 }
 
-export type DiagramRelationshipEndpoint = DiagramExecutionEndpoint | DiagramRoleEndpoint
+// A gateway/start_event/end_event endpoint — identified by `detail_id` rather than
+// a business id, because there's no entity behind it. Two diamonds on the same
+// diagram are otherwise indistinguishable, so `detail_id` is the ONLY way to know
+// which one a relationship's source/target actually points at.
+export interface DiagramFlowEndpoint {
+  node_type: DiagramFlowNodeType
+  detail_id: string
+  label: string | null
+}
+
+export type DiagramRelationshipEndpoint = DiagramExecutionEndpoint | DiagramRoleEndpoint | DiagramFlowEndpoint
 
 interface DiagramRelationshipBase {
   id: string
@@ -170,9 +190,15 @@ export interface GetDiagramsParams {
 // explicit even for the execution variant (matches the backend default, doesn't
 // change the wire shape) so TS can discriminate the union the same way as reads.
 
+// `key` is accepted by the backend on any detail (never persisted — request-scoped
+// only, used to let a relationship point at a not-yet-created detail in the same
+// request) but only the flow variant actually needs one here: execution/role
+// details keep resolving relationships by their real `execution_id`/`role_id`,
+// the already-proven path. A flow detail has no such id, so `key` is required for it.
 export type DiagramDetailInput =
-  | { node_type: 'execution'; execution_id: string; document_id: string; position: Record<string, unknown> }
-  | { node_type: 'role'; role_id: string; position: Record<string, unknown> }
+  | { node_type: 'execution'; execution_id: string; document_id: string; position: Record<string, unknown>; key?: string }
+  | { node_type: 'role'; role_id: string; position: Record<string, unknown>; key?: string }
+  | { node_type: DiagramFlowNodeType; label?: string | null; position: Record<string, unknown>; key: string }
 
 export interface DiagramTextInput {
   content: string
@@ -184,14 +210,19 @@ export interface DiagramTextInput {
   font_family?: string
 }
 
-// `?: never` on the sibling field gives mutual exclusivity between the two ways of
-// naming each endpoint, without exploding into 4 separate interfaces.
+// `?: never` on the sibling fields gives mutual exclusivity between the three ways
+// of naming each endpoint (id / role id / key), without exploding into a separate
+// interface per combination. `*_key` targets a detail by its request-scoped `key`
+// (see `DiagramDetailInput` above) — used for gateway/start_event/end_event
+// endpoints, and for an execution/role detail that was given a `key` too.
 type DirectEdgeSource =
-  | { source_execution_id: string; source_role_id?: never }
-  | { source_role_id: string; source_execution_id?: never }
+  | { source_execution_id: string; source_role_id?: never; source_key?: never }
+  | { source_role_id: string; source_execution_id?: never; source_key?: never }
+  | { source_key: string; source_execution_id?: never; source_role_id?: never }
 type DirectEdgeTarget =
-  | { target_execution_id: string; target_role_id?: never }
-  | { target_role_id: string; target_execution_id?: never }
+  | { target_execution_id: string; target_role_id?: never; target_key?: never }
+  | { target_role_id: string; target_execution_id?: never; target_key?: never }
+  | { target_key: string; target_execution_id?: never; target_role_id?: never }
 
 export type DiagramRelationshipInput =
   | { execution_relationship_id: string }

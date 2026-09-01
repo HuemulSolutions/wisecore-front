@@ -17,6 +17,8 @@ export interface HuemulColumnSection {
 }
 
 export interface HuemulPageLayoutColumn {
+  /** Stable panel id. Defaults to the column position within `columns`. */
+  id?: string
   content: ReactNode
   defaultSize?: number
   minSize?: number

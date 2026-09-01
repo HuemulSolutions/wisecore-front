@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ export function HuemulDialog({
   bodyLoading = false,
   showFooter = true,
   showCancelButton = true,
-  cancelLabel = "Cancel",
+  cancelLabel,
   onCancel,
   saveAction,
   extraActions,
@@ -37,6 +38,9 @@ export function HuemulDialog({
   footerLeft,
   children,
 }: HuemulDialogProps) {
+  // Default traducido del botón de cancelar (ver HuemulSheet).
+  const { t } = useTranslation("common");
+
   // Shared helpers so every path goes through Radix's onOpenChange
   const closeDialog = React.useCallback(() => {
     onOpenChange(false);
@@ -140,7 +144,7 @@ export function HuemulDialog({
                     className="hover:cursor-pointer"
                     onClick={() => onCancel?.()}
                   >
-                    {cancelLabel}
+                    {cancelLabel ?? t("cancel")}
                   </Button>
                 </DialogClose>
               )}

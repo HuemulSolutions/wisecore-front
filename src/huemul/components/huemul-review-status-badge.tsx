@@ -1,11 +1,13 @@
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
+import { toneColor } from "@/lib/lifecycle-colors"
 import type { ReviewStatus } from "@/types/section-execution"
 
-const REVIEW_STATUS_COLORS: Record<ReviewStatus, string> = {
-  editing: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
-  reviewing: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
-  finished: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
+/** Hue de `lib/lifecycle-colors.ts` por `ReviewStatus` — no declarar la clase acá, es la fuente única. */
+const REVIEW_STATUS_HUE: Record<ReviewStatus, Parameters<typeof toneColor>[0]> = {
+  editing: "amber",
+  reviewing: "amber",
+  finished: "green",
 }
 
 interface HuemulReviewStatusBadgeProps {
@@ -30,7 +32,7 @@ export function HuemulReviewStatusBadge({ status, sectionType, className }: Huem
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-        REVIEW_STATUS_COLORS[resolvedStatus],
+        toneColor(REVIEW_STATUS_HUE[resolvedStatus]),
         className,
       )}
     >

@@ -165,29 +165,25 @@ const translations = {
     documentPrefix: { en: "Asset is {{status}}", es: "El activo se está {{status}}" },
     documentError: { en: "Asset {{status}}", es: "Activo {{status}}" },
   },
-  sectionFeedback: {
-    status: {
-      pending: { en: "pending", es: "pendiente" },
-      generating: { en: "generating", es: "generando" },
-      completed: { en: "completed", es: "completado" },
-      processing: { en: "processing", es: "procesando" },
-      failed: { en: "failed", es: "fallida" },
+  // Banner único de progreso de una corrida single/from (un solo banner por
+  // corrida, no uno por sección — ver execution-run-progress-banner.tsx).
+  executionRun: {
+    title: {
+      arming: { en: "Starting…", es: "Iniciando…" },
+      running: { en: "Generating sections…", es: "Generando secciones…" },
+      succeeded: { en: "Sections regenerated", es: "Secciones regeneradas" },
+      failed: { en: "Section regeneration failed", es: "La regeneración de la sección falló" },
+      cancelled: { en: "Section regeneration was cancelled", es: "La regeneración de la sección fue cancelada" },
     },
+    progress: { en: "{{done}} of {{total}} sections", es: "{{done}} de {{total}} secciones" },
+    currentSection: { en: "Working on “{{section}}”…", es: "Trabajando en «{{section}}»…" },
     description: {
-      pendingSingle: { en: "This section is queued for regeneration", es: "Esta sección está en cola para regeneración" },
-      pendingFrom: { en: "Waiting for previous sections to complete", es: "Esperando a que las secciones anteriores se completen" },
-      generatingSingle: { en: "AI is regenerating this section...", es: "La IA está regenerando esta sección..." },
-      generatingFrom: { en: "AI is working on this section...", es: "La IA está trabajando en esta sección..." },
-      doneSingle: { en: "This section has been successfully regenerated. Click dismiss to remove this message.", es: "Esta sección se ha regenerado exitosamente. Haz clic en descartar para quitar este mensaje." },
-      doneFrom: { en: "This section has been regenerated. Click dismiss to remove this message.", es: "Esta sección se ha regenerado. Haz clic en descartar para quitar este mensaje." },
-      default: { en: "Section is being processed", es: "La sección se está procesando" },
-      failed: { en: "The section regeneration failed. Please try again.", es: "La regeneración de la sección falló. Por favor intenta de nuevo." },
+      failed: { en: "There was an error regenerating the content. Please try again.", es: "Hubo un error al regenerar el contenido. Por favor intenta de nuevo." },
       missingDependency: {
-        en: "This section couldn't be generated because one of its dependencies has no content yet. Generate or fill in that section and try again.",
-        es: "Esta sección no se pudo generar porque una de sus dependencias aún no tiene contenido. Genera o completa esa sección y vuelve a intentar.",
+        en: "One of the sections in this run couldn't be generated because a dependency has no content yet. Generate or fill in that section and try again.",
+        es: "Una de las secciones de esta corrida no se pudo generar porque una dependencia aún no tiene contenido. Genera o completa esa sección y vuelve a intentar.",
       },
     },
-    sectionIs: { en: "Section is {{status}}", es: "La sección está {{status}}" },
     refreshStatus: { en: "Refresh status", es: "Actualizar estado" },
     dismiss: { en: "Dismiss", es: "Descartar" },
     toast: {
@@ -200,15 +196,18 @@ const translations = {
       cancelled: { en: "Section regeneration was cancelled", es: "La regeneración de la sección fue cancelada" },
     },
   },
-  sectionRegeneration: {
-    regeneratingSingle: { en: "Regenerating section {{current}}{{ofTotal}}...", es: "Regenerando sección {{current}}{{ofTotal}}..." },
-    regeneratingFrom: { en: "Regenerating from section {{current}}{{ofTotal}}...", es: "Regenerando desde la sección {{current}}{{ofTotal}}..." },
-    ofTotal: { en: " of {{total}}", es: " de {{total}}" },
-    starting: { en: "Starting...", es: "Iniciando..." },
-    processing: { en: "Processing...", es: "Procesando..." },
+  // Chip discreto junto al título de cada sección en scope de la corrida —
+  // reemplaza el banner por sección de antes.
+  sectionChip: {
+    pending: { en: "queued", es: "en cola" },
+    generating: { en: "generating", es: "generando" },
+    failed: { en: "failed", es: "falló" },
   },
   otherVersionBanner: {
     versionTitle: { en: "Version \"{{name}}\" is {{status}}", es: "La versión \"{{name}}\" está {{status}}" },
+    // Se muestra apenas se crea una versión nueva, antes de que /content
+    // devuelva la ejecución con su nombre real (ver A4 en la guía de generación).
+    newVersionFallback: { en: "New version", es: "Nueva versión" },
     viewVersion: { en: "View Version", es: "Ver Versión" },
     description: {
       running: { en: "Content is being generated for this version...", es: "Se está generando el contenido para esta versión..." },

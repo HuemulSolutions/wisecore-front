@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Loader2, Clock, RefreshCw, XCircle, CheckCircle, AlertCircle, GitCompare } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Loader2, RefreshCw, XCircle, CheckCircle, AlertCircle, GitCompare } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { getAiSuggestion } from '@/services/section_execution';
 import { useOrganization } from '@/contexts/organization-context';
 import { cn } from '@/lib/utils';
+import { getExecutionPollInterval } from '@/lib/polling-intervals';
+import { executionStatusBannerStyle, executionStatusSolidColor } from '@/lib/lifecycle-colors';
 import { Button } from '@/components/ui/button';
 import type { AiSuggestionFeedbackProps } from '@/types/ai-suggestion-feedback';
 
@@ -20,30 +22,35 @@ export function AiSuggestionFeedback({
 }: AiSuggestionFeedbackProps) {
   const { selectedOrganizationId } = useOrganization();
   const { t } = useTranslation('execute');
-  const [pollingInterval, setPollingInterval] = useState<number | false>(2000);
+  const [isPolling, setIsPolling] = useState(true);
   const [isDismissed, setIsDismissed] = useState(false);
   const [hasHandledTerminalState, setHasHandledTerminalState] = useState(false);
   const [completedContent, setCompletedContent] = useState<string | null>(null);
+  // Este feedback se monta al activarse la sugerencia (isAiSuggestionActive
+  // en assets-section.tsx) y se desmonta al terminar/descartarse — un solo
+  // Date.now() al montar alcanza como base del backoff, y se reinicia al
+  // reanudar el polling a mano, más abajo.
+  const startedAtRef = useRef(Date.now());
 
   const { data, refetch } = useQuery({
     queryKey: ['ai-suggestion', sectionExecutionId],
     queryFn: () => getAiSuggestion(sectionExecutionId, selectedOrganizationId ?? undefined),
-    enabled: !!sectionExecutionId && !!selectedOrganizationId && pollingInterval !== false && !isDismissed,
-    refetchInterval: pollingInterval,
-    refetchOnWindowFocus: false,
+    enabled: !!sectionExecutionId && !!selectedOrganizationId && isPolling && !isDismissed,
+    refetchInterval: () => (isPolling ? getExecutionPollInterval(Date.now() - startedAtRef.current) : false),
+    refetchOnWindowFocus: true,
   });
 
   useEffect(() => {
     if (!data || hasHandledTerminalState) return;
 
     if (data.status === 'completed' && data.content != null) {
-      setPollingInterval(false);
+      setIsPolling(false);
       setHasHandledTerminalState(true);
       setCompletedContent(data.content);
       // Notify parent to invalidate queries; banner stays visible for user action.
       onCompleted(data.content);
     } else if (data.status === 'failed') {
-      setPollingInterval(false);
+      setIsPolling(false);
       setHasHandledTerminalState(true);
       // Banner stays visible so user can see the error before dismissing.
     }
@@ -51,14 +58,15 @@ export function AiSuggestionFeedback({
 
   const handleRefresh = () => {
     refetch();
-    if (pollingInterval === false && !isDismissed) {
-      setPollingInterval(2000);
+    if (!isPolling && !isDismissed) {
+      startedAtRef.current = Date.now();
+      setIsPolling(true);
     }
   };
 
   const handleDismiss = () => {
     setIsDismissed(true);
-    setPollingInterval(false);
+    setIsPolling(false);
     if (data?.status === 'failed') {
       onFailed?.();
     }
@@ -67,7 +75,7 @@ export function AiSuggestionFeedback({
 
   const handleViewSuggestion = () => {
     setIsDismissed(true);
-    setPollingInterval(false);
+    setIsPolling(false);
     onViewSuggestion?.(completedContent ?? '');
   };
 
@@ -77,18 +85,21 @@ export function AiSuggestionFeedback({
 
   // Completed state: prominent action banner so the user doesn't miss the suggestion.
   if (data?.status === 'completed') {
+    const completedTone = executionStatusBannerStyle('completed');
     return (
       <div
         className={cn(
-          'rounded-md border border-green-200 bg-green-50 p-3 text-sm shadow-sm animate-in fade-in duration-300',
+          'rounded-md border p-3 text-sm shadow-sm animate-in fade-in duration-300',
+          completedTone.bg,
+          completedTone.border,
           className
         )}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 flex-1 min-w-0">
-            <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+            <CheckCircle className={cn('h-4 w-4 flex-shrink-0', completedTone.icon)} />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-green-800">
+              <p className={cn('text-sm font-medium', completedTone.text)}>
                 {t('aiSuggestion.status.completed')}
               </p>
               <p className="text-xs text-green-700/70 mt-0.5">
@@ -100,7 +111,7 @@ export function AiSuggestionFeedback({
             <Button
               size="sm"
               onClick={handleViewSuggestion}
-              className="h-7 px-3 text-xs bg-green-600 hover:bg-green-700 text-white hover:cursor-pointer gap-1.5"
+              className={cn('h-7 px-3 text-xs hover:opacity-90 text-white hover:cursor-pointer gap-1.5', executionStatusSolidColor('completed'))}
             >
               <GitCompare className="h-3.5 w-3.5" />
               {t('aiSuggestion.completed.viewSuggestion')}
@@ -120,32 +131,42 @@ export function AiSuggestionFeedback({
     );
   }
 
+  // "pending" es el único estado intermedio que devuelve el backend (ver
+  // `AiSuggestionStatus` en types/sections/execution-core.ts): la IA está
+  // trabajando, así que usa el hue "running" del eje de ejecución (sky), no
+  // "pending"/slate — acá no hay una cola separada de un procesamiento activo.
   const getStatusDisplay = () => {
     switch (data?.status) {
-      case 'pending':
+      case 'pending': {
+        const tone = executionStatusBannerStyle('running');
         return {
-          icon: <Clock className="h-5 w-5 text-amber-600" />,
+          icon: <Loader2 className={cn('h-5 w-5 animate-spin', tone.icon)} />,
           text: t('aiSuggestion.status.pending'),
           description: t('aiSuggestion.description.pending'),
-          textColor: 'text-amber-800',
-          bgColor: 'bg-amber-50 border-amber-200',
+          textColor: tone.text,
+          bgColor: cn(tone.bg, tone.border),
         };
-      case 'failed':
+      }
+      case 'failed': {
+        const tone = executionStatusBannerStyle('failed');
         return {
-          icon: <AlertCircle className="h-5 w-5 text-red-600" />,
+          icon: <AlertCircle className={cn('h-5 w-5', tone.icon)} />,
           text: t('aiSuggestion.status.failed'),
           description: (data as any)?.error ?? t('aiSuggestion.description.failed'),
-          textColor: 'text-red-800',
-          bgColor: 'bg-red-50 border-red-200',
+          textColor: tone.text,
+          bgColor: cn(tone.bg, tone.border),
         };
-      default:
+      }
+      default: {
+        const tone = executionStatusBannerStyle('running');
         return {
-          icon: <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />,
+          icon: <Loader2 className={cn('h-5 w-5 animate-spin', tone.icon)} />,
           text: t('aiSuggestion.status.processing'),
           description: t('aiSuggestion.description.processing'),
-          textColor: 'text-blue-800',
-          bgColor: 'bg-blue-50 border-blue-200',
+          textColor: tone.text,
+          bgColor: cn(tone.bg, tone.border),
         };
+      }
     }
   };
 

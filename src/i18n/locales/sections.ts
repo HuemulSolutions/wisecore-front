@@ -25,7 +25,7 @@ const translations = {
     version: { en: "Version:", es: "Versión:" },
     selectVersion: { en: "Select version", es: "Seleccionar versión" },
     versionNumber: { en: "Version {{number}}", es: "Versión {{number}}" },
-    documentOption: { en: "Document", es: "Documento" },
+    documentOption: { en: "Asset", es: "Activo" },
   },
   sections: {
     title: { en: "Existing Sections ({{count}})", es: "Secciones existentes ({{count}})" },

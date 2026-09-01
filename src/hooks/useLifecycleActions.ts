@@ -5,6 +5,8 @@ import { ApiError, handleApiError } from "@/lib/error-utils"
 import { withRefresh } from "@/lib/query-utils"
 import { logger } from "@/lib/logger"
 import { parseMissingRequiredCustomFieldsDetail } from "@/lib/custom-field-required-utils"
+import { getAdvanceBlockers, parseAdvanceBlockersDetail } from "@/lib/advance-blockers-utils"
+import { completeActionLabelKey, completeActionTooltipKey } from "@/lib/lifecycle-labels"
 import { useExternalReviewActions } from "@/hooks/useLifecycle"
 import { useLifecycleProgress } from "@/hooks/useLifecycleProgress"
 import { useMissingRequiredCustomFields } from "@/hooks/useCustomFieldDocuments"
@@ -24,9 +26,11 @@ import type {
   LifecycleActionsController,
   PendingVersionLifecycleAction,
 } from "@/types/lifecycle"
+import type { AdvanceBlocker } from "@/types/assets"
 
 const VERSION_REQUIRED_CODE = "VERSION_REQUIRED_FOR_APPROVAL"
 const REQUIRED_CUSTOM_FIELDS_CODE = "CUSTOM_FIELD_DOCUMENT_REQUIRED_VALUE_MISSING"
+const REQUIRED_ANSWERS_CODE = "REQUIRED_ANSWERS_PENDING"
 
 /** Defensa en profundidad: los botones ya no se renderizan sin `asset:u`. */
 const NO_TRANSITION_PERMISSION = "Missing permission to transition the lifecycle"
@@ -59,6 +63,7 @@ export function useLifecycleActions({
   onViewChanges,
   canListCustomFields = false,
   onOpenCustomFields,
+  onGoToSection,
 }: UseLifecycleActionsOptions): LifecycleActionsController {
   const { t } = useTranslation(["assets", "common"])
   const queryClient = useQueryClient()
@@ -81,6 +86,8 @@ export function useLifecycleActions({
   const [pendingVersionAction, setPendingVersionAction] = useState<PendingVersionLifecycleAction | null>(null)
   const [isRequiredCustomFieldsDialogOpen, setIsRequiredCustomFieldsDialogOpen] = useState(false)
   const [requiredCustomFieldsError, setRequiredCustomFieldsError] = useState<string[]>([])
+  const [isAdvanceBlockersDialogOpen, setIsAdvanceBlockersDialogOpen] = useState(false)
+  const [advanceBlockersError, setAdvanceBlockersError] = useState<AdvanceBlocker[]>([])
 
   // Closing the assign-version dialog (by any path — cancel, backdrop click, or
   // after a successful/failed confirm) must drop any pending retry action, or a
@@ -130,6 +137,22 @@ export function useLifecycleActions({
     return true
   }
 
+  // Bloqueos de `can_advance` por respuestas obligatorias pendientes. Se
+  // prefieren los blockers ya presentes en `lifecycleStatus` (cache local,
+  // sin esperar el 409) y se cae al `detail` del error como fallback — mismo
+  // criterio que `handleRequiredCustomFieldsError`, pero acá ambas fuentes
+  // comparten shape (AdvanceBlocker[]) porque el detail es JSON, no texto libre.
+  const advanceBlockers = getAdvanceBlockers(lifecycleStatus)
+  const isBlockedByRequiredAnswers = !lifecycleStatus?.can_advance && advanceBlockers.length > 0
+
+  const handleRequiredAnswersError = (error: unknown): boolean => {
+    const blockers = advanceBlockers.length > 0 ? advanceBlockers : parseAdvanceBlockersDetail(error)
+    if (blockers.length === 0) return false
+    setAdvanceBlockersError(blockers)
+    setIsAdvanceBlockersDialogOpen(true)
+    return true
+  }
+
   const checkMutation = useMutation({
     mutationFn: withRefresh(
       async (options?: { comment?: string; run_external_review?: boolean }) => {
@@ -153,6 +176,7 @@ export function useLifecycleActions({
       handleApiError(error, {
         fallbackMessage: t("lifecycle.errorComplete"),
         onErrorCode: (code) => {
+          if (code === REQUIRED_ANSWERS_CODE) return handleRequiredAnswersError(error)
           if (code === REQUIRED_CUSTOM_FIELDS_CODE) return handleRequiredCustomFieldsError(error)
           if (code !== VERSION_REQUIRED_CODE) return false
           setPendingVersionAction({ kind: "complete", options: variables })
@@ -217,6 +241,7 @@ export function useLifecycleActions({
       handleApiError(error, {
         fallbackMessage: t("lifecycle.errorAdvance"),
         onErrorCode: (code) => {
+          if (code === REQUIRED_ANSWERS_CODE) return handleRequiredAnswersError(error)
           if (code === REQUIRED_CUSTOM_FIELDS_CODE) return handleRequiredCustomFieldsError(error)
           if (code !== VERSION_REQUIRED_CODE) return false
           setPendingVersionAction({ kind: "advance", options: variables })
@@ -315,9 +340,8 @@ export function useLifecycleActions({
     onViewChanges?.(previousExecutionId, executionId)
   }
 
-  // Misma condición que `canAssignVersion` en `huemul-lifecycle-actions.tsx` —
-  // única fuente ahora que el sheet de aprobación también la necesita para
-  // decidir si embebe el selector de versión inline.
+  // Única fuente para decidir si el sheet de aprobación embebe el selector de
+  // versión inline (en vez de bloquear el botón que lo abre, como antes).
   const canAssignVersionInline =
     !!lifecyclePermissions?.approve &&
     (!!lifecycleStatus?.version_required || lifecycleStatus?.state === "in_approval") &&
@@ -339,19 +363,56 @@ export function useLifecycleActions({
     assignVersionMutation.mutate(version)
   }
 
+  const anySheetOpen =
+    isCheckDialogOpen || isRejectDialogOpen || isPublishDialogOpen || isArchiveDialogOpen || isRestoreDialogOpen
+
   // Progreso visual (stepper de fases + panel "N de M" + próximo paso) para
-  // las 4 sheets que lo muestran. Best-effort: si el GET de steps falla por
-  // permisos, `progress.isAvailable` es `false` y las sheets degradan sin
-  // avisar (ver `useLifecycleProgress`).
+  // las 4 sheets que lo muestran, y ahora también el label del botón
+  // "Completar" (necesita `progress.nextStep.stage` para saber a qué fase
+  // avanza). Por eso `enabled` (que trae `phases`/`nextStep`) se separa de
+  // `includeCompletion` (que trae el panel "N de M"): el label debe estar
+  // disponible con solo `can_advance`, sin esperar a que se abra un sheet.
+  // Best-effort: si el GET de steps falla por permisos, `progress.isAvailable`
+  // es `false` y tanto las sheets como el label degradan sin avisar (ver
+  // `useLifecycleProgress`).
   const progress = useLifecycleProgress({
     documentTypeId,
     executionId,
     organizationId,
     lifecycleStatus,
     finalLifecycleStage,
-    enabled:
-      isCheckDialogOpen || isRejectDialogOpen || isPublishDialogOpen || isArchiveDialogOpen || isRestoreDialogOpen,
+    enabled: anySheetOpen || !!lifecycleStatus?.can_advance || isBlockedByRequiredAnswers,
+    includeCompletion: anySheetOpen,
   })
+
+  const nextStage = progress.nextStep?.stage ?? null
+  const stageLabel = (stage: string) => t(`lifecycle.stageLabels.${stage}`, { defaultValue: stage })
+
+  const completeLabel = t(completeActionLabelKey(lifecycleStatus, nextStage))
+  const completeConfirmLabel = completeLabel
+  const tooltipInfo = completeActionTooltipKey(lifecycleStatus, nextStage)
+  const completeTooltip = t(
+    tooltipInfo.key,
+    tooltipInfo.params
+      ? {
+          ...tooltipInfo.params,
+          ...(tooltipInfo.params.stage ? { stage: stageLabel(tooltipInfo.params.stage) } : {}),
+          ...(tooltipInfo.params.next ? { next: stageLabel(tooltipInfo.params.next) } : {}),
+        }
+      : undefined,
+  )
+
+  // Tooltip del botón deshabilitado por `isBlockedByRequiredAnswers`: nombra la
+  // sección cuando es una sola, o la cantidad de secciones cuando son varias.
+  const advanceBlockersTooltip =
+    advanceBlockers.length === 1
+      ? t("lifecycle.advanceBlockers.tooltipSection", {
+          count: advanceBlockers[0].missing_required,
+          section: advanceBlockers[0].section_name,
+        })
+      : advanceBlockers.length > 1
+        ? t("lifecycle.advanceBlockers.tooltipMultiple", { count: advanceBlockers.length })
+        : ""
 
   return {
     status: lifecycleStatus,
@@ -373,6 +434,8 @@ export function useLifecycleActions({
     setIsAssignVersionDialogOpen,
     isRequiredCustomFieldsDialogOpen,
     setIsRequiredCustomFieldsDialogOpen,
+    isAdvanceBlockersDialogOpen,
+    setIsAdvanceBlockersDialogOpen,
 
     checkMutation,
     rejectMutation,
@@ -394,6 +457,16 @@ export function useLifecycleActions({
     requiredCustomFieldsError,
     onOpenCustomFields,
     progress,
+
+    advanceBlockers,
+    isBlockedByRequiredAnswers,
+    advanceBlockersTooltip,
+    advanceBlockersError,
+    onGoToSection,
+
+    completeLabel,
+    completeTooltip,
+    completeConfirmLabel,
 
     canAssignVersionInline,
     confirmApprovalWithVersion,

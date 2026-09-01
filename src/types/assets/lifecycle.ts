@@ -44,18 +44,19 @@ export type LifecycleSaveApiRef = MutableRefObject<LifecycleSaveApi | null>
 // Create Step
 // ----------------------------------------
 
+/**
+ * Único consumidor hoy: los steps `view`/`read` (Lectura) — el único tipo sin
+ * grupo que queda configurable en el panel de etapa. `create`/`publish`/
+ * `archive` salieron de esta pantalla (ver "ia context/permisos-seccion-lifecycle-guide.md"),
+ * así que ya no hace falta representar SLA, vigencia ni "sin propietario" acá.
+ */
 export interface CreateStepContentProps {
   documentTypeId: string
   stepType: string
   /** Título mostrado en la cabecera de la tarjeta colapsable; cae a `step.name` cuando existe. */
   stepLabel?: string
-  hasSla?: boolean
-  hasValidity?: boolean
-  noOwner?: boolean
-  useAllOrCustomOwner?: boolean
   /** Publica `save`/`isDirty` hacia el footer del sheet. `null` al desmontar. */
   onRegisterEditor?: (api: LifecycleEditorApi | null) => void
-  organizationId?: string
 }
 
 // ----------------------------------------
@@ -206,4 +207,15 @@ export interface LifecycleStepPanelProps {
   onClose: () => void
   onRegisterEditor?: (api: LifecycleEditorApi | null) => void
   organizationId?: string
+  /**
+   * Guarda los cambios acumulados de la etapa. Presente solo cuando el
+   * contenedor no tiene footer y el botón debe vivir en el footer propio del
+   * panel de etapa.
+   */
+  onSave?: () => void | Promise<void>
+  /** Descarta los cambios acumulados de la etapa (footer propio del panel). */
+  onDiscard?: () => void
+  /** Habilita el botón de guardar del footer. */
+  isDirty?: boolean
+  isSaving?: boolean
 }

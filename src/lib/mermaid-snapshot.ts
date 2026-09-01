@@ -51,15 +51,12 @@ export async function renderMermaidSvg(code: string): Promise<string> {
 }
 
 /**
- * Give the <svg> explicit pixel width/height derived from its viewBox. Mermaid emits
- * `style="max-width: …"` without intrinsic dimensions, and without them the canvas
- * used for rasterization ends up 0×0.
+ * Read the <svg>'s own intrinsic size from its `width`/`height` attributes, falling
+ * back to the `viewBox` when either is missing (mermaid's default output has a
+ * `viewBox` but only a `width="100%"` – not a usable pixel size). Falls back to a
+ * fixed 800×600 when neither is present so callers never divide by zero.
  */
-function withExplicitDimensions(svg: string, scale: number): { svg: string; width: number; height: number } {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(svg, 'image/svg+xml');
-  const svgEl = doc.documentElement;
-
+export function readSvgIntrinsicSize(svgEl: Element): { width: number; height: number } {
   const viewBox = svgEl.getAttribute('viewBox');
   let width = Number.parseFloat(svgEl.getAttribute('width') ?? '');
   let height = Number.parseFloat(svgEl.getAttribute('height') ?? '');
@@ -72,8 +69,22 @@ function withExplicitDimensions(svg: string, scale: number): { svg: string; widt
     }
   }
 
-  width = Math.max(1, Math.round((width || 800) * scale));
-  height = Math.max(1, Math.round((height || 600) * scale));
+  return { width: width || 800, height: height || 600 };
+}
+
+/**
+ * Give the <svg> explicit pixel width/height derived from its viewBox. Mermaid emits
+ * `style="max-width: …"` without intrinsic dimensions, and without them the canvas
+ * used for rasterization ends up 0×0.
+ */
+function withExplicitDimensions(svg: string, scale: number): { svg: string; width: number; height: number } {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svg, 'image/svg+xml');
+  const svgEl = doc.documentElement;
+
+  const { width: rawWidth, height: rawHeight } = readSvgIntrinsicSize(svgEl);
+  const width = Math.max(1, Math.round(rawWidth * scale));
+  const height = Math.max(1, Math.round(rawHeight * scale));
 
   svgEl.setAttribute('width', String(width));
   svgEl.setAttribute('height', String(height));

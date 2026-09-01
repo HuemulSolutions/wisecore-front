@@ -5,6 +5,12 @@ import { useTranslation } from "react-i18next"
 import { Copy, Check, ExternalLink, Share2 } from "lucide-react"
 import { toast } from "sonner"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group"
 
 interface WorkflowShareDialogProps {
   open: boolean
@@ -20,7 +26,7 @@ interface WorkflowShareDialogProps {
  * clipboard compartido en el repo).
  */
 export function WorkflowShareDialog({ open, onOpenChange, url, description }: WorkflowShareDialogProps) {
-  const { t } = useTranslation(["workflow", "common"])
+  const { t } = useTranslation("workflow")
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -46,29 +52,35 @@ export function WorkflowShareDialog({ open, onOpenChange, url, description }: Wo
       title={t("share.dialogTitle")}
       description={description}
       icon={Share2}
-      showCancelButton
-      cancelLabel={t("common:close")}
-      extraActions={[
-        {
-          label: t("share.openInNewTab"),
-          icon: ExternalLink,
-          variant: "outline",
-          onClick: () => {
-            if (url) window.open(url, "_blank", "noopener,noreferrer")
-          },
-          closeOnSuccess: false,
-        },
-      ]}
+      showCancelButton={false}
       saveAction={{
-        label: copied ? t("share.copied") : t("share.copy"),
-        icon: copied ? Check : Copy,
-        onClick: handleCopy,
+        label: t("share.openInNewTab"),
+        icon: ExternalLink,
+        variant: "outline",
+        onClick: () => {
+          if (url) window.open(url, "_blank", "noopener,noreferrer")
+        },
         closeOnSuccess: false,
       }}
     >
-      <div className="flex items-start gap-2 rounded-md border bg-muted/30 px-3 py-2">
-        <code className="flex-1 break-all font-mono text-xs text-foreground">{url}</code>
-      </div>
+      <InputGroup>
+        <InputGroupInput
+          readOnly
+          value={url ?? ""}
+          onFocus={(e) => e.currentTarget.select()}
+          className="font-mono text-xs"
+        />
+        <InputGroupAddon align="inline-end">
+          <InputGroupButton
+            size="icon-xs"
+            onClick={handleCopy}
+            aria-label={t("share.copy")}
+            title={copied ? t("share.copied") : t("share.copy")}
+          >
+            {copied ? <Check className="text-green-600" /> : <Copy />}
+          </InputGroupButton>
+        </InputGroupAddon>
+      </InputGroup>
     </HuemulDialog>
   )
 }

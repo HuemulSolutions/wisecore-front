@@ -45,7 +45,7 @@ export function TemplateHeader({
 
   if (isMobile) {
     return (
-      <div className="bg-white border-b border-gray-200 shadow-sm py-1 px-3 z-20 shrink-0">
+      <div className="bg-white border-b border-gray-200 shadow-sm py-1 px-3 z-(--z-page-header) shrink-0">
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-col gap-0.5 flex-1 min-w-0">
             <div className="flex items-center gap-2">
@@ -88,7 +88,7 @@ export function TemplateHeader({
   }
 
   return (
-    <div className="bg-white px-4 py-4 z-10 shrink-0">
+    <div className="bg-white px-4 py-4 z-(--z-page-header) shrink-0">
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-1 flex-col gap-1 min-w-0">
           {/* Template Name */}

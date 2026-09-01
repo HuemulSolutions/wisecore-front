@@ -1,5 +1,5 @@
 import type { DocumentType } from '@/types/document-types'
-import type { Diagram, DiagramRelationshipDetail } from '@/types/diagrams'
+import type { Diagram, DiagramFlowNodeType, DiagramRelationshipDetail } from '@/types/diagrams'
 import type React from 'react'
 
 // ─── Canvas ───────────────────────────────────────────────────────────────────
@@ -37,7 +37,13 @@ export interface CanvasNodeAction {
 // than a separate `initialRoleNodes` prop: the canvas' edge-seeding batch
 // (`pendingEdgeSeedRef`) is a single slot flushed once via `useNodesInitialized` — two
 // separate seed calls would have the second overwrite the first and drop edges.
-export type InitialCanvasNode = InitialCanvasAssetNode | InitialCanvasRoleNode
+export type InitialCanvasNode = InitialCanvasAssetNode | InitialCanvasRoleNode | InitialCanvasFlowNode
+
+// Canvas `type` for a gateway/start_event/end_event node — distinct from the
+// backend's `DiagramFlowNodeType` naming (snake_case) because these double as
+// React Flow node type keys, which follow the rest of this canvas's camelCase
+// (`assetType`, not `asset_type`).
+export type FlowCanvasNodeType = 'gateway' | 'startEvent' | 'endEvent'
 
 export interface InitialCanvasAssetNode {
   nodeType: 'execution'
@@ -57,6 +63,18 @@ export interface InitialCanvasRoleNode {
   // Only set when migrating a legacy role stashed in `texts` (carries its old
   // font_color forward) — a first-class role detail has no color of its own.
   color?: string
+}
+
+// A gateway/start_event/end_event node to seed the canvas with — no backing
+// entity, just a label. `detailId` (the backend detail's real `id`) is what lets
+// `seedRelationshipEdges` resolve a saved relationship's `source`/`target` back to
+// this specific canvas node: two diamonds are otherwise indistinguishable.
+export interface InitialCanvasFlowNode {
+  nodeType: 'flow'
+  flowType: DiagramFlowNodeType
+  detailId: string
+  label: string
+  position: { x: number; y: number }
 }
 
 // A saved Diagram relationship, already resolved by the backend — the shape the
@@ -142,6 +160,39 @@ export interface RelationshipsCanvasProps {
   // just pan/zoom and the informational side panels. Used by the diagram viewer sheet;
   // real editing happens back on the assets page in relations mode.
   readOnly?: boolean
+}
+
+// ─── Floating canvas toolbars ───────────────────────────────────────────────────
+
+export interface CanvasElementPaletteProps {
+  /** Mismo valor que `canAddRoleNode` del canvas — oculta el ítem "Rol" fuera de execution/sin permiso. */
+  canAddRole: boolean
+  /** Mismo valor que `canAddFlowNode` del canvas — oculta Inicio/Rombo/Fin fuera de execution/sin permiso. */
+  canAddFlow: boolean
+  /** Click: agrega el elemento al centro del viewport (`addElementAtCenter`). */
+  onAdd: (kind: CanvasElementKind | FlowCanvasNodeType) => void
+  /** Canvas angosto: oculta el eyebrow y los labels, deja solo iconos con tooltip. */
+  compact?: boolean
+}
+
+export interface CanvasActionsBarProps {
+  /** Nombre del diagrama en edición; ausente ⇒ se muestra un título genérico. */
+  diagramName?: string
+  isDirty: boolean
+  isSaving: boolean
+  /** El canvas no tiene nodos: promueve "Cargar diagrama" a botón visible. */
+  isEmpty?: boolean
+  /** Canvas angosto: labels → iconos + tooltip. */
+  compact?: boolean
+  /** Canvas muy angosto: toda la barra colapsa a un único menú "⋯". */
+  collapsed?: boolean
+  // Cada handler `undefined` = acción no permitida/no aplicable en el modo actual
+  // ⇒ el botón correspondiente NO se renderiza (nunca se muestra deshabilitado).
+  onSaveChanges?: () => void
+  onSaveAsNew?: () => void
+  onEditMetadata?: () => void
+  onLoadDiagram?: () => void
+  onClearCanvas?: () => void
 }
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────

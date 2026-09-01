@@ -45,6 +45,7 @@ export function TagsObjectPicker({
   variant,
   canView = false,
   canAssign = false,
+  initialTags,
   className,
 }: TagsObjectPickerProps) {
   const { t } = useTranslation(["tags", "common"])
@@ -55,12 +56,19 @@ export function TagsObjectPicker({
 
   // Un GET por objeto (staleTime propio) — en field/cell es un solo elemento;
   // en bulk resuelve el tri-estado sin más cambios en el picker.
+  //
+  // `initialTags` evita ese GET cuando el caller ya trajo las etiquetas en su
+  // propio listado (`include_tags=true`): montado en una celda de tabla, un
+  // fetch por fila sería un N+1. Se siembra como `initialData` (no
+  // `placeholderData`) para que quede en la caché bajo la misma key que
+  // parchean las mutaciones optimistas de `useTagMutations`.
   const objectQueries = useQueries({
     queries: objectIds.map((objectId) => ({
       queryKey: tagsQueryKeys.objectTags(objectType, objectId),
       queryFn: () => getObjectTags(objectType, objectId),
       enabled: canView && !!objectId,
       staleTime: 2 * 60 * 1000,
+      initialData: initialTags?.[objectId],
     })),
   })
 

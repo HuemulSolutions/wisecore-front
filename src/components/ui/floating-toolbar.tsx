@@ -7,6 +7,7 @@ import {
   arrow,
   flip,
   offset,
+  shift,
   useFloatingToolbar,
   useFloatingToolbarState,
 } from '@platejs/floating';
@@ -17,6 +18,7 @@ import {
   usePluginOption,
 } from 'platejs/react';
 
+import { useEditorChromeInset } from '@/components/plate-editor/components/editor-chrome-inset';
 import { cn } from '@/lib/utils';
 
 import { Toolbar } from './toolbar';
@@ -41,14 +43,15 @@ export function FloatingToolbar({
   const isFloatingLinkOpen = !!usePluginOption({ key: KEYS.link }, 'mode');
   const arrowRef = React.useRef<HTMLDivElement>(null);
 
-  const floatingToolbarState = useFloatingToolbarState({
-    editorId,
-    focusedEditorId,
-    hideToolbar: isFloatingLinkOpen,
-    showWhenReadOnly: true,
-    ...state,
-    floatingOptions: {
-      middleware: [
+  // Franja superior ocupada por el chrome fijo (header + toolbar del editor):
+  // el toolbar de selección debe hacer flip hacia abajo antes que invadirla.
+  const topInset = useEditorChromeInset();
+
+  const middleware = React.useMemo(
+    () => {
+      const padding = { top: topInset + 12, bottom: 12, left: 12, right: 12 };
+
+      return [
         offset(10),
         flip({
           fallbackPlacements: [
@@ -57,10 +60,23 @@ export function FloatingToolbar({
             'bottom-start',
             'bottom-end',
           ],
-          padding: 12,
+          padding,
         }),
+        shift({ padding }),
         arrow({ element: arrowRef, padding: 12 }),
-      ],
+      ];
+    },
+    [topInset]
+  );
+
+  const floatingToolbarState = useFloatingToolbarState({
+    editorId,
+    focusedEditorId,
+    hideToolbar: isFloatingLinkOpen,
+    showWhenReadOnly: true,
+    ...state,
+    floatingOptions: {
+      middleware,
       placement: 'top',
       ...state?.floatingOptions,
     },
@@ -82,7 +98,11 @@ export function FloatingToolbar({
 
   return (
     <div ref={clickOutsideRef}>
-      <div {...rootProps} ref={floatingRef} className="absolute z-50 print:hidden">
+      <div
+        {...rootProps}
+        ref={floatingRef}
+        className="absolute z-(--z-editor-floating-toolbar) print:hidden"
+      >
         <Toolbar
           {...props}
           className={cn(

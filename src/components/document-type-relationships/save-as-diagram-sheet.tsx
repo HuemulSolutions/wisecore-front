@@ -49,8 +49,12 @@ export interface SaveAsDiagramSheetProps {
    * el snapshot existente. Requiere `diagramId`.
    */
   metadataOnly?: boolean
-  /** Se dispara al terminar un guardado exitoso (create o update) con el Diagram resultante. */
-  onSaved?: (diagram: Diagram) => void
+  /**
+   * Se dispara al terminar un guardado exitoso (create o update) con el Diagram
+   * resultante y el grafo EXACTO que se envió — el canvas lo usa para re-estampar
+   * su línea base de "cambios sin guardar" (ver `useDiagramDirtyState`).
+   */
+  onSaved?: (diagram: Diagram, savedGraph: { nodes: CanvasNode[]; edges: Edge<RelationshipEdgeData>[] }) => void
 }
 
 export function SaveAsDiagramSheet({
@@ -145,7 +149,7 @@ export function SaveAsDiagramSheet({
         fitView,
         skipSnapshot: metadataOnly,
       })
-      onSaved?.(saved)
+      onSaved?.(saved, { nodes, edges })
       toast.success(successMessage, {
         action: {
           label: t('saveAsDiagramDialog.viewDiagrams'),

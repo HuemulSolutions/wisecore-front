@@ -191,30 +191,38 @@ export function StepContent({
     )
   }
 
+  // `view` (y `read`, alias legado) son las únicas etapas sin grupo que quedan
+  // configurables acá — create/publish/archive salieron de esta pantalla: son
+  // transiciones automáticas o ligadas al creador del documento, ya no se
+  // asignan roles desde "permisos por rol" ni desde la matriz de plantillas (el
+  // backend ni siquiera las devuelve más en este endpoint).
+  //
   // Other step types don't have their own scroll container — wrap them so they scroll
   // within the fixed-height panel instead of relying on the sheet itself to scroll.
+  // Mismo patrón que `EditStepContent` (assets-types-lifecycle-edit-step.tsx:844-847):
+  // el wrapper `flex h-full min-h-0 flex-col` es lo que le da a `ScrollArea` una
+  // altura definida de la que `min-h-0 flex-1` pueda partir — un `ScrollArea` con
+  // `h-full` sin ese wrapper directo quedaba resolviendo su altura contra el
+  // contenedor del panel en vez de un flex padre propio.
   return (
-    <ScrollArea className="h-full" viewportClassName="pr-1">
-      {stepType === "create" || stepType === "view" || stepType === "publish" || stepType === "archive" || stepType === "read" ? (
-        <CreateStepContent
-          documentTypeId={documentTypeId}
-          stepType={stepType}
-          stepLabel={stepLabel}
-          hasSla={stepType === "publish" || stepType === "archive"}
-          hasValidity={stepType === "create"}
-          noOwner={stepType === "create"}
-          useAllOrCustomOwner={stepType === "publish" || stepType === "archive" || stepType === "read" || stepType === "view"}
-          onRegisterEditor={onRegisterEditor}
-          organizationId={organizationId}
-        />
-      ) : (
-        <DefaultStepContent
-          documentTypeId={documentTypeId}
-          stepType={stepType}
-          stepLabel={stepLabel}
-        />
-      )}
-    </ScrollArea>
+    <div className="flex h-full min-h-0 flex-col">
+      <ScrollArea className="min-h-0 flex-1" viewportClassName="pr-1">
+        {stepType === "view" || stepType === "read" ? (
+          <CreateStepContent
+            documentTypeId={documentTypeId}
+            stepType={stepType}
+            stepLabel={stepLabel}
+            onRegisterEditor={onRegisterEditor}
+          />
+        ) : (
+          <DefaultStepContent
+            documentTypeId={documentTypeId}
+            stepType={stepType}
+            stepLabel={stepLabel}
+          />
+        )}
+      </ScrollArea>
+    </div>
   )
 }
 
@@ -229,6 +237,12 @@ interface AssetTypeLifecyclePanelProps {
   saveApiRef?: LifecycleSaveApiRef
   /** Envuelve las acciones que descartarían cambios sin guardar. */
   guardedAction: (action: () => void) => void
+  /**
+   * Monta el botón «Guardar cambios» en el header del panel de etapa. Solo para
+   * contenedores sin footer (`AssetTypeConfigSheet`); el sheet standalone de más
+   * abajo lo deja en `false` porque su footer ya trae el botón.
+   */
+  showSaveButton?: boolean
 }
 
 /**
@@ -243,8 +257,9 @@ interface AssetTypeLifecyclePanelProps {
  * reglas de acceso).
  *
  * Los controles del panel están siempre editables: los cambios se acumulan en
- * el contenido de la etapa y se persisten con «Guardar cambios» del footer del
- * sheet, vía la API publicada en `saveApiRef`.
+ * el contenido de la etapa y se persisten con «Guardar cambios», que vive en el
+ * header del panel de etapa (`showSaveButton`) o en el footer del sheet
+ * contenedor vía la API publicada en `saveApiRef`.
  */
 export function AssetTypeLifecyclePanel({
   documentTypeId,
@@ -253,6 +268,7 @@ export function AssetTypeLifecyclePanel({
   onDirtyChange,
   saveApiRef,
   guardedAction,
+  showSaveButton = false,
 }: AssetTypeLifecyclePanelProps) {
   const { t } = useTranslation("asset-types")
   const { data } = useAllLifecycleSteps(documentTypeId, enabled)
@@ -335,6 +351,10 @@ export function AssetTypeLifecyclePanel({
               onClose={handleClosePanel}
               onRegisterEditor={handleRegisterEditor}
               organizationId={organizationId}
+              onSave={showSaveButton ? save : undefined}
+              onDiscard={showSaveButton ? discard : undefined}
+              isDirty={isDirty}
+              isSaving={isSaving}
             />
           </ResizablePanel>
         </>

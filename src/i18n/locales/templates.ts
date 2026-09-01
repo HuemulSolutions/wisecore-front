@@ -71,7 +71,7 @@ const translations = {
     cloneSuccess: { en: "Template cloned successfully", es: "Plantilla clonada correctamente" },
     cloneDialogTitle: { en: "Clone template", es: "Clonar plantilla" },
     cloneDialogDescription: { en: "Create a copy of this template.", es: "Crear una copia de esta plantilla." },
-    copyDocumentTypeRelationships: { en: "Copy document-type associations", es: "Copiar asociaciones de tipos de documento" },
+    copyDocumentTypeRelationships: { en: "Copy asset-type associations", es: "Copiar asociaciones de tipos de activo" },
     editTemplate: { en: "Edit template", es: "Editar plantilla" },
     deleteTemplate: { en: "Delete template", es: "Eliminar plantilla" },
     loadError: { en: "Failed to load template", es: "Error al cargar la plantilla" },
@@ -104,7 +104,7 @@ const translations = {
     fileLabel: { en: "File (.docx)", es: "Archivo (.docx)" },
     loading: { en: "Loading templates...", es: "Cargando plantillas..." },
     emptyTitle: { en: "No DOCX Templates", es: "Sin Plantillas DOCX" },
-    emptyDescription: { en: "Upload a Word document template to use when exporting documents from this template.", es: "Sube una plantilla de Word para usar al exportar documentos de esta plantilla." },
+    emptyDescription: { en: "Upload a Word document template to use when exporting assets from this template.", es: "Sube una plantilla de Word para usar al exportar activos de esta plantilla." },
   },
   infoSheet: {
     title: { en: "Template Details", es: "Detalles de la Plantilla" },

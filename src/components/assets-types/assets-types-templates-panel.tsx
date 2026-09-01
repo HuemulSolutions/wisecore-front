@@ -4,16 +4,7 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import {
-  ArrowLeft,
-  ChevronDown,
-  FileText,
-  GripVertical,
-  LayoutTemplate,
-  Loader2,
-  RefreshCw,
-  X,
-} from "lucide-react"
+import { FileText, GripVertical, LayoutTemplate, RefreshCw, X } from "lucide-react"
 import {
   DndContext,
   closestCenter,
@@ -27,16 +18,16 @@ import {
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { HuemulCombobox } from "@/huemul/components/huemul-combobox"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import {
+  PanelBadge,
+  PanelBreadcrumb,
   PanelCard,
-  PanelDirtyBadge,
+  PanelCollapsibleCard,
   PanelFieldLabel,
   PanelIconButton,
   PanelSectionLabel,
@@ -80,7 +71,7 @@ function SortableTemplateRow({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("flex items-center gap-2 px-3 py-2.5", isDragging && "opacity-50 z-50 bg-white")}
+      className={cn("flex items-center gap-3 px-3 py-2.5", isDragging && "opacity-50 z-50 bg-white")}
     >
       {canManage && (
         <button
@@ -93,17 +84,39 @@ function SortableTemplateRow({
           <GripVertical className="size-4" />
         </button>
       )}
-      <FileText className="size-4 shrink-0 text-[#6d5ae0]" />
-      <p className="flex-1 min-w-0 truncate text-[12.5px] font-medium text-[#334155]">
-        {template.template_name}
-      </p>
-      {isDirty && <PanelDirtyBadge label={t("lifecycle.editedBadge")} />}
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[#f1effc]">
+        <FileText className="size-3.5 text-[#6d5ae0]" />
+      </span>
+      <div className="flex flex-1 min-w-0 flex-col gap-1">
+        <p className="truncate text-[12.5px] font-medium text-[#334155]">
+          {template.template_name}
+          {template.relation_name && (
+            <span className="ml-1.5 font-normal text-[#94a3b8]">
+              {t("templates.displayNameBadge", { name: template.relation_name })}
+            </span>
+          )}
+        </p>
+        <div className="flex flex-wrap items-center gap-1">
+          {isDirty && <PanelBadge label={t("templates.unsavedBadge")} tone="warning" />}
+          <PanelBadge
+            label={t(
+              template.mostrar_en_workflow
+                ? "templates.summary.visibleInWorkflows"
+                : "templates.summary.notVisibleInWorkflows",
+            )}
+            tone={template.mostrar_en_workflow ? "success" : "neutral"}
+          />
+          {template.require_name_on_express && (
+            <PanelBadge label={t("templates.summary.asksName")} />
+          )}
+        </div>
+      </div>
       {canManage && (
         <>
           <button
             type="button"
             onClick={onConfigure}
-            className="shrink-0 text-[12px] font-medium text-[#1d4ed8] hover:cursor-pointer hover:underline"
+            className="inline-flex h-7 shrink-0 items-center rounded-lg border border-[#dde4ec] px-2.5 text-[12px] font-medium text-[#475569] transition-colors hover:cursor-pointer hover:bg-[#f8fafc] hover:text-[#0f172a]"
           >
             {t("templates.configure")}
           </button>
@@ -125,12 +138,14 @@ function SortableTemplateRow({
 function TemplateDetailView({
   template,
   documentTypeId,
+  isDirty,
   onBack,
   onChange,
   disabled,
 }: {
   template: LinkedTemplate
   documentTypeId: string
+  isDirty: boolean
   onBack: () => void
   onChange: (patch: Partial<DocumentTypeTemplateLinkBody>) => void
   disabled: boolean
@@ -142,45 +157,33 @@ function TemplateDetailView({
 
   return (
     <div className="flex flex-col gap-4">
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex w-fit items-center gap-1 text-[12px] font-medium text-[#1d4ed8] hover:cursor-pointer hover:underline"
+      <PanelBreadcrumb
+        rootLabel={t("templates.breadcrumbRoot")}
+        onBack={onBack}
+        current={template.template_name}
+        badge={isDirty && <PanelBadge label={t("templates.unsavedBadge")} tone="warning" />}
+      />
+
+      <PanelCollapsibleCard
+        title={t("templates.workflowConfig")}
+        subtitle={t("templates.workflowConfigSubtitle")}
+        headerRight={isDirty && <PanelBadge label={t("templates.unsavedBadge")} tone="warning" />}
+        open={workflowConfigOpen}
+        onOpenChange={setWorkflowConfigOpen}
       >
-        <ArrowLeft className="size-3.5" />
-        {t("templates.backToList")}
-      </button>
-
-      <h3 className="text-[15px] font-semibold text-[#0f172a]">{template.template_name}</h3>
-
-      <Collapsible open={workflowConfigOpen} onOpenChange={setWorkflowConfigOpen}>
-        <CollapsibleTrigger className="flex w-full items-center gap-2 py-1 hover:cursor-pointer">
-          <ChevronDown
-            className={cn("size-3.5 text-[#94a3b8] transition-transform", !workflowConfigOpen && "-rotate-90")}
-          />
-          <PanelSectionLabel label={t("templates.workflowConfig")} />
-        </CollapsibleTrigger>
-        <CollapsibleContent className="flex flex-col gap-4 pt-3">
-          <div className="flex flex-col gap-1.5">
-            <PanelFieldLabel disabled={disabled}>{t("templates.workflowDisplayName")}</PanelFieldLabel>
-            <Input
-              value={template.relation_name ?? ""}
-              onChange={(e) => onChange({ relation_name: e.target.value.trim() ? e.target.value : null })}
-              disabled={disabled}
-            />
-            <p className="text-[11px] leading-snug text-[#94a3b8]">
-              {t("templates.workflowDisplayNameHint")}
-            </p>
-          </div>
-
-          <SettingToggleRow
-            className="px-0 py-0"
-            label={t("templates.askNameBeforeStart")}
-            description={t("templates.askNameBeforeStartHint")}
-            checked={template.require_name_on_express}
-            disabled={disabled}
-            onChange={(value) => onChange({ require_name_on_express: value })}
-          >
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <PanelFieldLabel disabled={disabled}>{t("templates.workflowDisplayName")}</PanelFieldLabel>
+              <Input
+                value={template.relation_name ?? ""}
+                onChange={(e) => onChange({ relation_name: e.target.value.trim() ? e.target.value : null })}
+                disabled={disabled}
+              />
+              <p className="text-[11px] leading-snug text-[#94a3b8]">
+                {t("templates.workflowDisplayNameHint")}
+              </p>
+            </div>
             {template.require_name_on_express && (
               <div className="flex flex-col gap-1.5">
                 <PanelFieldLabel disabled={disabled}>{t("templates.namePlaceholderLabel")}</PanelFieldLabel>
@@ -195,53 +198,57 @@ function TemplateDetailView({
                 </p>
               </div>
             )}
-          </SettingToggleRow>
+          </div>
 
-          <SettingToggleRow
-            className="px-0 py-0"
-            label={t("templates.showInWorkflows")}
-            description={t("templates.showInWorkflowsHint")}
-            checked={template.mostrar_en_workflow}
-            disabled={disabled}
-            onChange={(value) => onChange({ mostrar_en_workflow: value, can_create_express: value })}
-          />
-        </CollapsibleContent>
-      </Collapsible>
+          <div className="grid grid-cols-2 gap-3">
+            <SettingToggleRow
+              className="rounded-xl border border-[#e5eaf0]"
+              label={t("templates.askNameBeforeStart")}
+              description={t("templates.askNameBeforeStartHint")}
+              checked={template.require_name_on_express}
+              disabled={disabled}
+              onChange={(value) => onChange({ require_name_on_express: value })}
+            />
+            <SettingToggleRow
+              className="rounded-xl border border-[#e5eaf0]"
+              label={t("templates.showInWorkflows")}
+              description={t("templates.showInWorkflowsHint")}
+              checked={template.mostrar_en_workflow}
+              disabled={disabled}
+              onChange={(value) => onChange({ mostrar_en_workflow: value, can_create_express: value })}
+            />
+          </div>
+        </div>
+      </PanelCollapsibleCard>
 
       {/* Permisos por sección: qué ve o edita cada sección en cada etapa del ciclo
           de vida. Escribe entidades propias (`lifecycle_access`), no el vínculo
           documento-tipo ↔ plantilla que guarda el footer, así que persiste al instante. */}
-      <Collapsible open={sectionAccessOpen} onOpenChange={setSectionAccessOpen}>
-        <CollapsibleTrigger className="flex w-full items-center gap-2 py-1 hover:cursor-pointer">
-          <ChevronDown
-            className={cn("size-3.5 text-[#94a3b8] transition-transform", !sectionAccessOpen && "-rotate-90")}
-          />
-          <PanelSectionLabel label={t("templates.sectionAccess.title")} />
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-3">
-          <TemplateSectionAccessMatrix
-            templateId={template.template_id}
-            documentTypeId={documentTypeId}
-          />
-        </CollapsibleContent>
-      </Collapsible>
+      <PanelCollapsibleCard
+        title={t("templates.sectionAccess.title")}
+        open={sectionAccessOpen}
+        onOpenChange={setSectionAccessOpen}
+      >
+        <TemplateSectionAccessMatrix
+          templateId={template.template_id}
+          documentTypeId={documentTypeId}
+        />
+      </PanelCollapsibleCard>
 
       {/* Condiciones: depends_on/show_when_inactive a nivel de TemplateSection (ver
           ia context/dependencias-condicionales-formularios-guide.md §3.2). Mismo dato
           que se edita en sections-form.tsx — este es un punto de entrada centralizado
           por plantilla. Escribe la entidad TemplateSection directamente, así que
           persiste al instante como "Permisos por sección" arriba. */}
-      <Collapsible open={conditionsOpen} onOpenChange={setConditionsOpen}>
-        <CollapsibleTrigger className="flex w-full items-center gap-2 py-1 hover:cursor-pointer">
-          <ChevronDown
-            className={cn("size-3.5 text-[#94a3b8] transition-transform", !conditionsOpen && "-rotate-90")}
-          />
-          <PanelSectionLabel label={t("templates.conditions.title")} />
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-3">
-          <TemplateSectionConditions templateId={template.template_id} />
-        </CollapsibleContent>
-      </Collapsible>
+      <PanelCollapsibleCard
+        title={t("templates.conditions.title")}
+        subtitle={t("templates.conditions.subtitle")}
+        headerRight={<PanelBadge label={t("templates.instantSaveBadge")} />}
+        open={conditionsOpen}
+        onOpenChange={setConditionsOpen}
+      >
+        <TemplateSectionConditions templateId={template.template_id} />
+      </PanelCollapsibleCard>
     </div>
   )
 }
@@ -249,8 +256,9 @@ function TemplateDetailView({
 /**
  * Contenido de gestión de plantillas vinculadas a un tipo de activo. Se monta
  * como tab dentro del sheet de configuración (`AssetTypeConfigSheet`); los
- * cambios se acumulan en estado local y se persisten en batch con el footer
- * del sheet (ver `saveApiRef`), igual que el tab «Permisos por rol».
+ * cambios se acumulan en estado local y se persisten en batch con el botón
+ * «Guardar cambios» del propio panel. `saveApiRef` sigue publicándose para que
+ * el contenedor pueda llamar `discard()` desde el guard de cambios sin guardar.
  */
 export function AssetTypeTemplatesPanel({
   documentTypeId,
@@ -450,6 +458,7 @@ export function AssetTypeTemplatesPanel({
         <TemplateDetailView
           template={configuringTemplate}
           documentTypeId={documentTypeId}
+          isDirty={dirtyIds.has(configuringTemplate.template_id)}
           onBack={() => setConfiguringId(null)}
           onChange={(patch) => patchLocal(configuringTemplate.template_id, patch)}
           disabled={!canManage}
@@ -457,10 +466,10 @@ export function AssetTypeTemplatesPanel({
       ) : (
         <div className="flex flex-col gap-5">
           {canManage && (
-            <section className="flex flex-col gap-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            <PanelCard className="p-4">
+              <h3 className="mb-2 text-[13px] font-semibold text-[#0f172a]">
                 {t("templates.addTemplate")}
-              </p>
+              </h3>
               <div className="flex gap-2">
                 <div className="flex-1 min-w-0">
                   <HuemulCombobox
@@ -475,25 +484,26 @@ export function AssetTypeTemplatesPanel({
                     pageSize={20}
                   />
                 </div>
-                <Button
+                <HuemulButton
                   size="sm"
+                  label={t("templates.add")}
+                  loading={mutations.linkTemplate.isPending}
+                  disabled={!selectedTemplateId}
                   onClick={handleAdd}
-                  disabled={!selectedTemplateId || mutations.linkTemplate.isPending}
                   className="shrink-0"
-                >
-                  {mutations.linkTemplate.isPending ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    t("templates.add")
-                  )}
-                </Button>
+                />
               </div>
-            </section>
+            </PanelCard>
           )}
 
           <section className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <PanelSectionLabel label={t("templates.addedTemplates")} count={localLinks.length} />
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-baseline gap-2">
+                <PanelSectionLabel label={t("templates.addedTemplates")} count={localLinks.length} />
+                <span className="truncate text-[11px] text-[#94a3b8]">
+                  {t("templates.addedTemplatesHint")}
+                </span>
+              </div>
               <HuemulButton
                 variant="ghost"
                 size="icon"

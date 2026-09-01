@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/logger';
 import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
+import { executionStatusBannerStyle } from '@/lib/lifecycle-colors';
 import type { ExecutionStatusBannerProps } from '@/types/execution';
 
 export type { ExecutionStatusBannerProps } from '@/types/execution';
@@ -89,75 +90,24 @@ export function ExecutionStatusBanner({
     return null;
   }
 
-  const statusStyleMap: Record<string, { icon: React.ReactNode; bgColor: string; borderColor: string; textColor: string }> = {
-    importing: {
-      icon: <Loader2 className="h-5 w-5 animate-spin text-blue-600" />,
-      bgColor: 'bg-blue-50',
-      borderColor: 'border-blue-200',
-      textColor: 'text-blue-800'
-    },
-    import_failed: {
-      icon: <XCircle className="h-5 w-5 text-red-600" />,
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
-      textColor: 'text-red-800'
-    },
-    running: {
-      icon: <Loader2 className="h-5 w-5 animate-spin text-blue-600" />,
-      bgColor: 'bg-blue-50',
-      borderColor: 'border-blue-200',
-      textColor: 'text-blue-800'
-    },
-    approving: {
-      icon: <Loader2 className="h-5 w-5 animate-spin text-green-600" />,
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200',
-      textColor: 'text-green-800'
-    },
-    pending: {
-      icon: <Clock className="h-5 w-5 text-amber-600" />,
-      bgColor: 'bg-amber-50',
-      borderColor: 'border-amber-200',
-      textColor: 'text-amber-800'
-    },
-    queued: {
-      icon: <Clock className="h-5 w-5 text-orange-600" />,
-      bgColor: 'bg-orange-50',
-      borderColor: 'border-orange-200',
-      textColor: 'text-orange-800'
-    },
-    completed: {
-      icon: <CheckCircle className="h-5 w-5 text-green-600" />,
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200',
-      textColor: 'text-green-800'
-    },
-    failed: {
-      icon: <XCircle className="h-5 w-5 text-red-600" />,
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
-      textColor: 'text-red-800'
-    },
-    cancelled: {
-      icon: <XCircle className="h-5 w-5 text-gray-600" />,
-      bgColor: 'bg-gray-50',
-      borderColor: 'border-gray-200',
-      textColor: 'text-gray-800'
-    },
-    paused: {
-      icon: <Clock className="h-5 w-5 text-amber-600" />,
-      bgColor: 'bg-amber-50',
-      borderColor: 'border-amber-200',
-      textColor: 'text-amber-800'
-    },
+  // Forma del icono por estado — el color sale de `executionStatusBannerStyle`
+  // (`lib/lifecycle-colors.ts`, única fuente, compartida con los badges de
+  // lifecycle y ejecución): así el icono nunca se desincroniza del fondo si
+  // cambia el hue del estado.
+  const statusIconShapeMap: Record<string, typeof Loader2> = {
+    importing: Loader2,
+    import_failed: XCircle,
+    running: Loader2,
+    approving: Loader2,
+    generating: Loader2,
+    pending: Clock,
+    queued: Clock,
+    completed: CheckCircle,
+    failed: XCircle,
+    cancelled: XCircle,
+    paused: Clock,
   };
-
-  const defaultStyle = {
-    icon: <Clock className="h-5 w-5 text-gray-600" />,
-    bgColor: 'bg-gray-50',
-    borderColor: 'border-gray-200',
-    textColor: 'text-gray-800'
-  };
+  const spinningStatuses = new Set(['importing', 'running', 'approving', 'generating']);
 
   const statusKeyMap: Record<string, string> = {
     importing: 'importing',
@@ -173,7 +123,9 @@ export function ExecutionStatusBanner({
   };
 
   const getStatusConfig = (status: string) => {
-    const style = statusStyleMap[status] || defaultStyle;
+    const tone = executionStatusBannerStyle(status);
+    const IconShape = statusIconShapeMap[status] ?? Clock;
+    const icon = <IconShape className={cn('h-5 w-5', spinningStatuses.has(status) && 'animate-spin', tone.icon)} />;
     const key = statusKeyMap[status];
     const text = key ? t(`banner.status.${key}`) : status;
     const description = status === 'import_failed'
@@ -181,7 +133,7 @@ export function ExecutionStatusBanner({
       : status === 'failed' && isMissingDependencyFailure(currentExecution?.status_message)
       ? t('banner.description.missingDependency')
       : t(`banner.description.${key || 'default'}`);
-    return { ...style, text, description };
+    return { icon, bgColor: tone.bg, borderColor: tone.border, textColor: tone.text, text, description };
   };
 
   const statusConfig = getStatusConfig(currentExecution.status);

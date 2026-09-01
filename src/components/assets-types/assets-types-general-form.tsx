@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
+import type { ReactNode } from "react";
+import { Info } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useOrganization } from "@/contexts/organization-context";
 import { HuemulField } from "@/huemul/components/huemul-field";
+import { PanelCard } from "@/components/assets-types/assets-types-lifecycle-ui";
 import { createDocumentType, updateDocumentType, getDocumentTypeById } from "@/services/document-types";
 import { getErrorMessage, isErrorCode } from "@/lib/error-utils";
 import type { DocumentType, CreateDocumentTypeData, FinalLifecycleStage } from "@/types/document-types";
@@ -199,68 +202,131 @@ interface AssetTypeGeneralFormFieldsProps {
   form: AssetTypeGeneralForm;
   type?: 'document' | 'asset';
   disabled?: boolean;
+  /**
+   * `"stack"` (default): lista plana de campos — la usa el sheet de creación.
+   * `"cards"`: agrupa los campos en tarjetas «Identidad» y «Versionado» — la
+   * usa el tab General del sheet de configuración.
+   */
+  variant?: 'stack' | 'cards';
+  /** Solo con `variant="cards"`: contenido extra al pie de la tarjeta «Identidad» (ej. etiquetas). */
+  identityExtra?: ReactNode;
 }
 
 export function AssetTypeGeneralFormFields({
   form,
   type = 'document',
   disabled = false,
+  variant = 'stack',
+  identityExtra,
 }: AssetTypeGeneralFormFieldsProps) {
   const { t } = useTranslation('asset-types');
 
+  const nameField = (
+    <HuemulField
+      label={t(type === 'asset' ? 'form.assetNameLabel' : 'form.documentNameLabel')}
+      name="name"
+      value={form.values.name}
+      onChange={(v) => form.setName(String(v))}
+      placeholder={t(type === 'asset' ? 'form.assetNameLabel' : 'form.documentNameLabel')}
+      error={form.nameError ?? undefined}
+      disabled={disabled}
+      required
+    />
+  );
+
+  const colorField = (
+    <HuemulField
+      type="color"
+      label={t('form.color')}
+      name="color"
+      value={form.values.color}
+      onChange={(v) => form.setColor(String(v))}
+      disabled={disabled}
+    />
+  );
+
+  const isoToggleField = (
+    <HuemulField
+      type="switch"
+      label={t('form.requiresIsoStrictVersioning')}
+      description={t('form.requiresIsoStrictVersioningDescription')}
+      name="requires_iso_strict_versioning"
+      value={form.values.requiresIsoStrictVersioning}
+      onChange={(v) => form.setRequiresIsoStrictVersioning(v as boolean)}
+      disabled={disabled}
+    />
+  );
+
+  const finalStageSelectField = (
+    <HuemulField
+      type="select"
+      label={t('form.finalLifecycleStage')}
+      description={t('form.finalLifecycleStageDescription')}
+      name="final_lifecycle_stage"
+      value={form.values.finalLifecycleStage}
+      onChange={(v) => form.setFinalLifecycleStage(v as FinalLifecycleStage)}
+      options={FINAL_STAGE_OPTIONS.map((value) => ({
+        value,
+        label: t(`form.finalLifecycleStageOptions.${value}`),
+      }))}
+      disabled={disabled}
+    />
+  );
+
+  const finalStageHint = t('form.finalStageLockedHint', { stage: t('form.finalLifecycleStageOptions.publish') });
+
+  const errorBlock = form.error && (
+    <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+      {form.error}
+    </div>
+  );
+
+  if (variant === 'cards') {
+    return (
+      <div className="space-y-4">
+        <PanelCard className="overflow-hidden">
+          <div className="flex items-baseline gap-2 px-4 py-3">
+            <h3 className="shrink-0 text-[13px] font-semibold text-[#0f172a]">{t('form.identityTitle')}</h3>
+            <p className="truncate text-[11.5px] text-[#94a3b8]">{t('form.identitySubtitle')}</p>
+          </div>
+          <div className="border-t border-[#eef1f5] px-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              {nameField}
+              {colorField}
+            </div>
+            {identityExtra && <div className="mt-4">{identityExtra}</div>}
+          </div>
+        </PanelCard>
+
+        <PanelCard className="overflow-hidden">
+          <div className="flex items-baseline gap-2 px-4 py-3">
+            <h3 className="shrink-0 text-[13px] font-semibold text-[#0f172a]">{t('form.versioningTitle')}</h3>
+            <p className="truncate text-[11.5px] text-[#94a3b8]">{t('form.versioningSubtitle')}</p>
+          </div>
+          <div className="space-y-3 border-t border-[#eef1f5] px-4 py-4">
+            {isoToggleField}
+            {!form.values.requiresIsoStrictVersioning && finalStageSelectField}
+          </div>
+          {form.values.requiresIsoStrictVersioning && (
+            <div className="flex items-start gap-2 border-t border-[#eef1f5] bg-[#f8fafc] px-4 py-3 text-[12px] leading-snug text-[#475569]">
+              <Info className="mt-0.5 size-3.5 shrink-0 text-[#64748b]" />
+              <span>{finalStageHint}</span>
+            </div>
+          )}
+        </PanelCard>
+
+        {errorBlock}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <HuemulField
-        label={t(type === 'asset' ? 'form.assetNameLabel' : 'form.documentNameLabel')}
-        name="name"
-        value={form.values.name}
-        onChange={(v) => form.setName(String(v))}
-        placeholder={t(type === 'asset' ? 'form.assetNameLabel' : 'form.documentNameLabel')}
-        error={form.nameError ?? undefined}
-        disabled={disabled}
-        required
-      />
-
-      <HuemulField
-        type="color"
-        label={t('form.color')}
-        name="color"
-        value={form.values.color}
-        onChange={(v) => form.setColor(String(v))}
-        disabled={disabled}
-      />
-
-      <HuemulField
-        type="switch"
-        label={t('form.requiresIsoStrictVersioning')}
-        description={t('form.requiresIsoStrictVersioningDescription')}
-        name="requires_iso_strict_versioning"
-        value={form.values.requiresIsoStrictVersioning}
-        onChange={(v) => form.setRequiresIsoStrictVersioning(v as boolean)}
-        disabled={disabled}
-      />
-
-      {!form.values.requiresIsoStrictVersioning && (
-        <HuemulField
-          type="select"
-          label={t('form.finalLifecycleStage')}
-          description={t('form.finalLifecycleStageDescription')}
-          name="final_lifecycle_stage"
-          value={form.values.finalLifecycleStage}
-          onChange={(v) => form.setFinalLifecycleStage(v as FinalLifecycleStage)}
-          options={FINAL_STAGE_OPTIONS.map((value) => ({
-            value,
-            label: t(`form.finalLifecycleStageOptions.${value}`),
-          }))}
-          disabled={disabled}
-        />
-      )}
-
-      {form.error && (
-        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
-          {form.error}
-        </div>
-      )}
+      {nameField}
+      {colorField}
+      {isoToggleField}
+      {!form.values.requiresIsoStrictVersioning && finalStageSelectField}
+      {errorBlock}
     </div>
   );
 }

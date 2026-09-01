@@ -1,4 +1,4 @@
-import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitCompare, History, Eye } from 'lucide-react';
+import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitCompare, History, Eye, XCircle, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { memo, useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -10,7 +10,7 @@ import ExecutionConfigDialog, { type ExecutionConfig } from '@/components/execut
 import { DeleteSectionDialog } from '@/components/assets/dialogs/assets-delete-section-dialog';
 import { AiEditSectionDialog } from '@/components/assets/dialogs/assets-ai-edit-section-dialog';
 import { SectionHistorySheet } from '@/components/assets/content/section-history-sheet';
-import { SectionExecutionFeedback } from '@/components/execution/section-execution-feedback';
+import { isExecutionTerminal } from '@/lib/execution-status';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,8 +42,8 @@ function SectionExecutionInner({
     readyToEdit, 
     sectionIndex, 
     documentId, 
-    executionId, 
-    onExecutionStart, 
+    executionId,
+    onExecutionStart,
     executionStatus,
     onOpenExecuteSheet,
     executionMode = 'single',
@@ -124,17 +124,25 @@ function SectionExecutionInner({
     const [executionConfigOpen, setExecutionConfigOpen] = useState(false);
     const [localExecutionMode, setLocalExecutionMode] = useState<'single' | 'from'>('single');
     const isMobile = useIsMobile();
-    const { t } = useTranslation(["assets", "common", "sections"]);
+    const { t } = useTranslation(["assets", "common", "sections", "execute"]);
     const isExecutionApproved = executionStatus === 'approved';
-    
+
     // Determine which actions are available based on section type
     const canExecute = sectionType === 'ai' || sectionType === null; // AI sections y null pueden ejecutarse
     const canEdit = sectionType !== 'reference' && (sectionType !== 'form' || formHasEditableFields); // Manual, AI y form (con campos editables) pueden editarse
     const canAiEdit = sectionType !== 'reference' && sectionType !== 'form'; // Manual y AI pueden usar AI edit
     const canDelete = sectionType !== 'reference'; // Manual, AI y form pueden eliminarse, reference no
-    
-    // Check if there's an execution in progress
-    const isExecutionInProgress = !!(executionStatus && !['completed', 'done', 'failed', 'cancelled', 'approved', 'approving'].includes(executionStatus));
+
+    // Check if there's an execution in progress. 'approving' no cuenta como
+    // "en progreso de generación": la sección ya terminó, solo falta aprobar.
+    const isExecutionInProgress = !!executionStatus && !isExecutionTerminal(executionStatus) && executionStatus !== 'approving';
+
+    // Esta sección puntual está siendo generada/regenerada AHORA por la
+    // corrida single/from en curso (a diferencia de isExecutionInProgress,
+    // que solo mira executionStatus — acá también hace falta showExecutionFeedback,
+    // que AssetContent solo prende para las secciones dentro del scope de esa corrida).
+    const isSectionRunActive = showExecutionFeedback && !!executionId &&
+        (executionMode === 'single' || executionMode === 'from') && isExecutionInProgress;
     
     // If section_id is null, the section was removed from the structure and cannot be executed
     const sectionIdForExecution = sectionExecution.section_id ?? null;
@@ -329,9 +337,14 @@ function SectionExecutionInner({
         try {
             setIsExecuting(true);
             setExecutionConfigOpen(false);
-            onExecutionStart?.(executionId); // Pass executionId to show banner
+            // localExecutionMode es lo que el usuario eligió en el menú ("Ejecutar
+            // sección" vs "Ejecutar desde esta sección"); el prop executionMode
+            // describe la ejecución EN CURSO (default 'single') y no debe usarse acá
+            // para elegir el endpoint — hacerlo regeneraba siempre desde la sección
+            // en adelante, sin importar qué opción se hubiera elegido.
+            onExecutionStart?.(executionId, localExecutionMode); // Pass executionId to show banner
 
-            if (executionMode === 'single') {
+            if (localExecutionMode === 'single') {
                 await executeSingleSection(
                     documentId,
                     executionId,
@@ -352,8 +365,9 @@ function SectionExecutionInner({
                 );
                 toast.success(t('section.executionFromSectionStarted'));
             }
-
-            onUpdate?.();
+            // No se invalida document-content acá (B8): el contenido todavía no
+            // cambió, lo refresca AssetContent cuando la sección aparece 'done'
+            // de verdad en sections_status.
         } catch (error) {
             handleApiError(error, { fallbackMessage: t('section.executionFailed') });
         } finally {
@@ -453,7 +467,7 @@ function SectionExecutionInner({
         <div ref={containerRef} className={`${readyToEdit ? 'p-2' : 'py-0 px-2'} relative`}>
             {/* Action Buttons - Always sticky */}
             {readyToEdit && (
-                <div className="sticky top-0 z-50 justify-end py-1 px-2 bg-white backdrop-blur-sm -mx-2 -mt-2 mb-2 max-w-full w-full flex items-center">
+                <div className="sticky top-0 z-(--z-page-sticky) justify-end py-1 px-2 bg-white backdrop-blur-sm -mx-2 -mt-2 mb-2 max-w-full w-full flex items-center">
                     {/* Left side: section info + review status */}
                     <div className="mr-auto flex items-center gap-1.5">
                         {(sectionName || sectionType) && (
@@ -698,7 +712,7 @@ function SectionExecutionInner({
                                                 onSelect={() => {
                                                     setTimeout(() => handleOpenExecutionConfig('single'), 0);
                                                 }}
-                                                disabled={isExecuting || generationBlocked}
+                                                disabled={isExecuting || isExecutionInProgress || generationBlocked}
                                             >
                                                 <Play className="h-4 w-4 mr-2" />
                                                 {t('section.executeSection')}
@@ -708,7 +722,7 @@ function SectionExecutionInner({
                                                 onSelect={() => {
                                                     setTimeout(() => handleOpenExecutionConfig('from'), 0);
                                                 }}
-                                                disabled={isExecuting || generationBlocked}
+                                                disabled={isExecuting || isExecutionInProgress || generationBlocked}
                                             >
                                                 <FastForward className="h-4 w-4 mr-2" />
                                                 {t('section.executeFromSection')}
@@ -785,7 +799,7 @@ function SectionExecutionInner({
             )}
             
             {isAiSuggestionActive && (
-                <div className="mb-3 sticky top-9 z-40 shadow-lg">
+                <div className="mb-3 sticky top-9 z-(--z-page-sticky-secondary) shadow-lg">
                     <AiSuggestionFeedback
                         sectionExecutionId={sectionExecution.id}
                         onCompleted={handleAiSuggestionCompleted}
@@ -796,7 +810,7 @@ function SectionExecutionInner({
                 </div>
             )}
             {aiPreview !== null && !isAiSuggestionActive && !isDiffOpen && (
-                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between sticky top-9 z-40 shadow-lg">
+                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between sticky top-9 z-(--z-page-sticky-secondary) shadow-lg">
                     <span className="text-sm text-amber-800">{t('section.aiPreviewReady')}</span>
                     <div className="flex gap-2">
                         <Button
@@ -820,34 +834,47 @@ function SectionExecutionInner({
                 </div>
             )}
             
-            {/* Section Execution Feedback Banner - for single/from modes */}
-            {showExecutionFeedback && executionId && sectionExecution.section_id && sectionIndex !== undefined && 
-             (executionMode === 'single' || executionMode === 'from') && (
-                <div className="mb-3">
-                    <SectionExecutionFeedback
-                        executionId={executionId}
-                        sectionId={sectionExecution.section_id}
-                        sectionIndex={sectionIndex}
-                        executionMode={executionMode}
-                        onComplete={() => {
-                            // Content refresh is owned by AssetContent (a single invalidate per
-                            // polling tick, shared across all sections finishing together);
-                            // this banner only needs to know completion happened, not re-trigger it.
-                            logger.log('🎯 Section execution feedback completed');
-                        }}
-                    />
+            {/* Chip discreto de estado — el progreso agregado de la corrida vive en un
+                único banner por encima del contenido (ver ExecutionRunProgressBanner
+                en AssetContent), no uno por sección. */}
+            {isSectionRunActive && (
+                <div className="mb-2 flex items-center gap-1.5">
+                    <span className={cn(
+                        'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                        executionStatus === 'failed'
+                            ? 'border-red-200 bg-red-50 text-red-700'
+                            : 'border-blue-200 bg-blue-50 text-blue-700'
+                    )}>
+                        {executionStatus === 'failed'
+                            ? <XCircle className="h-3 w-3" />
+                            : executionStatus === 'pending'
+                                ? <Clock className="h-3 w-3" />
+                                : <Loader2 className="h-3 w-3 animate-spin" />}
+                        {executionStatus === 'failed'
+                            ? t('execute:sectionChip.failed')
+                            : executionStatus === 'pending'
+                                ? t('execute:sectionChip.pending')
+                                : t('execute:sectionChip.generating')}
+                    </span>
                 </div>
             )}
-            
-            {/* Content area */}
-            {showExecutionFeedback && executionId && (executionMode === 'single' || executionMode === 'from') && 
-                 executionStatus && !['completed', 'done', 'failed', 'cancelled', 'approved', 'approving'].includes(executionStatus) ? (
-                /* Show skeleton ONLY when section is actively being executed (not when completed) */
+
+            {/* Content area — wrapped in a relative container so the "generating"
+                skeleton can be OVERLAID on top of the real content instead of
+                replacing it in the tree. Unmounting/remounting SectionPlateEditor
+                on every run (as before) tears down and rebuilds a full Plate
+                instance (~22 plugin kits) synchronously on the main thread right
+                when the run finishes — that's the freeze users hit. Keeping it
+                mounted and just hiding it (`invisible`) avoids that rebuild; the
+                editor picks up the fresh content via its own reset effect once
+                `content`/`plateContent` change (see SectionPlateEditor). */}
+            <div className="relative">
+            {isSectionRunActive && (
                 <div className="pt-4 pr-4">
                     <div className="animate-pulse space-y-4">
                         {/* Title skeleton */}
                         <div className="h-6 bg-gray-200 rounded w-2/3"></div>
-                        
+
                         {/* Paragraph skeletons */}
                         <div className="space-y-3 pt-4">
                             <div className="h-4 bg-gray-200 rounded"></div>
@@ -856,7 +883,7 @@ function SectionExecutionInner({
                             <div className="h-4 bg-gray-200 rounded w-5/6"></div>
                             <div className="h-4 bg-gray-200 rounded w-3/4"></div>
                         </div>
-                        
+
                         {/* Loading indicator */}
                         <div className="flex items-center justify-center pt-4 pb-2">
                             <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
@@ -864,7 +891,9 @@ function SectionExecutionInner({
                         </div>
                     </div>
                 </div>
-            ) : sectionType === 'form' ? (
+            )}
+            <div className={isSectionRunActive ? 'invisible absolute inset-0 overflow-hidden' : undefined}>
+            {sectionType === 'form' ? (
                 !readyToEdit ? (
                     /* Reader mode: numbered/collapsible summary card instead of the flat answer stack */
                     <AssetFormSectionReader
@@ -942,7 +971,9 @@ function SectionExecutionInner({
                     />
                 </div>
             )}
-        
+            </div>
+            </div>
+
         {/* Delete Confirmation Dialog */}
         <DeleteSectionDialog
             open={isDeleteDialogOpen}
@@ -1059,7 +1090,15 @@ function areSectionPropsEqual(prev: SectionExecutionProps, next: SectionExecutio
     ...Object.keys(prev.sectionExecution),
     ...Object.keys(next.sectionExecution),
   ]);
+  // `output` (markdown) is a single string compare — cheap even for a huge section.
+  // `plate_content`/`form_fields` never change without `output` also changing, so
+  // skip their per-item walk (shallowEqualValue over every JSON string / field
+  // object) when output didn't move. Without this, every render of AssetContent
+  // (e.g. each 2s execution-status poll) re-scans the full serialized content of
+  // every section just to conclude nothing changed.
+  const outputChanged = !Object.is(prev.sectionExecution.output, next.sectionExecution.output);
   for (const key of sectionKeys) {
+    if (!outputChanged && (key === 'plate_content' || key === 'form_fields')) continue;
     const k = key as keyof typeof next.sectionExecution;
     if (!shallowEqualValue(prev.sectionExecution[k], next.sectionExecution[k])) return false;
   }

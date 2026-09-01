@@ -1,7 +1,7 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, CheckCircle2, Edit3, ListChecks, RefreshCw, Eye } from "lucide-react"
+import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, CheckCircle2, Edit3, ListChecks, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Input } from "@/components/ui/input"
@@ -18,6 +18,7 @@ import { getDocumentContent } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { lifecycleAllows, lifecycleStageAllowsEditing } from "@/hooks/useDocumentAccess"
+import { READ_ONLY_NOTICE_STATES } from "@/lib/lifecycle-access"
 import { workflowQueryKeys } from "@/hooks/useWorkflows"
 import { useLifecycleActions } from "@/hooks/useLifecycleActions"
 import type { AssetContentResponse, ContentSection } from "@/types/assets"
@@ -271,6 +272,18 @@ export function WorkflowDetailPanel({
           ? "sectionInactive"
           : "section"
 
+  // El bloqueo por ciclo de vida viene de lifecycleStageAllowsEditing: stage distinto de
+  // `edit` o estado terminal. En el caso terminal el `stage` miente (publish vs published),
+  // así que el aviso nombra el `state`; los que no encajan en la frase caen al genérico.
+  const stageNotice = React.useMemo(() => {
+    const state = data?.lifecycle_status?.state
+    if (!state || !READ_ONLY_NOTICE_STATES.has(state)) return t("fill.readOnlyLifecycleNotice")
+    return t("fill.readOnlyStateNotice", {
+      // En minúscula: el label va embebido en la frase, no como título.
+      state: t(`lifecycle.stateLabels.${state}`, { ns: "assets", defaultValue: state }).toLocaleLowerCase(),
+    })
+  }, [data?.lifecycle_status?.state, t])
+
   // Se levanta justo antes de abrir el diálogo de "Completar" desde el botón de
   // Finalizar del wizard, para distinguir esa apertura de la del botón "Completar"
   // de HuemulLifecycleActions (mismo `isCheckDialogOpen` compartido) — solo la
@@ -294,6 +307,14 @@ export function WorkflowDetailPanel({
     // personalizados. El diálogo oculta el botón y queda solo con "Cerrar" +
     // la lista de campos (que sigue siendo la información útil).
     canListCustomFields: can("listCustomFields"),
+    // Mapea el section_execution_id que reporta un blocker al índice del wizard:
+    // ContentSection.id ES el section execution id. Si la sección no está en
+    // formSections (de otro step, o sin permiso de vista para este usuario), no
+    // hay a dónde navegar y el botón "Ir a la sección" del diálogo se omite.
+    onGoToSection: (sectionExecutionId) => {
+      const index = formSections.findIndex((s) => s.id === sectionExecutionId)
+      if (index !== -1) setStep(index)
+    },
     onAfterComplete: () => {
       if (!finishAfterCompleteRef.current) return
       finishAfterCompleteRef.current = false
@@ -325,18 +346,28 @@ export function WorkflowDetailPanel({
 
   // Solo para el label del botón: si el clic en "Finalizar" va a disparar la
   // confirmación de "Completar" en vez de cerrar directo (misma condición de `goNext`).
-  const willAdvanceOnFinish = isLastStep && lifecycle.canTransition && !!lifecycle.status?.can_advance
+  // Incluye el caso bloqueado por respuestas obligatorias pendientes: el label
+  // debe nombrar la transición aunque el botón se muestre deshabilitado (ver
+  // `isBlockedLastStep` más abajo, que sí gatea el `disabled`).
+  const willAdvanceOnFinish =
+    isLastStep && lifecycle.canTransition && (!!lifecycle.status?.can_advance || lifecycle.isBlockedByRequiredAnswers)
 
   // Sin secciones form para este paso/usuario (etapas de revisión/aprobación típicamente):
   // mismo criterio que willAdvanceOnFinish pero sin depender de isLastStep, ya que acá no
   // hay wizard de pasos que recorrer.
-  const canAdvanceEmptyStep = lifecycle.canTransition && !!lifecycle.status?.can_advance
-  const emptyStepAdvanceDisabled = !!data?.lifecycle_status?.version_required && !data?.lifecycle_status?.version
-  const emptyStepAdvanceTooltip = emptyStepAdvanceDisabled
-    ? t("content.assignVersionBeforeComplete", { ns: "assets" })
-    : data?.lifecycle_status?.will_advance_phase
-      ? t("lifecycle.tooltipCompletePhase", { ns: "assets" })
-      : t("lifecycle.tooltipComplete", { ns: "assets" })
+  const canAdvanceEmptyStep =
+    lifecycle.canTransition && (!!lifecycle.status?.can_advance || lifecycle.isBlockedByRequiredAnswers)
+
+  // Último paso del wizard bloqueado por respuestas obligatorias pendientes (en
+  // esta sección u otra): el botón "Finalizar" se deshabilita con tooltip en vez
+  // de degradar a un simple cierre — evita completar en falso mientras el
+  // backend seguiría rechazando con 409.
+  const isBlockedLastStep = isLastStep && lifecycle.canTransition && lifecycle.isBlockedByRequiredAnswers
+
+  // La fila de ciclo de vida solo existe en el panel de /workflow. Cuando está,
+  // el badge de etapa sube bajo el título y la sección actual baja a esa fila;
+  // en el link compartido (showLifecycle=false) la sección se queda arriba.
+  const showLifecycleRow = showLifecycle && !!data?.lifecycle_status && !needsNameStep
 
   return (
     <div className="flex h-full flex-col">
@@ -349,11 +380,19 @@ export function WorkflowDetailPanel({
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">{documentName}</p>
           {internalCode && <p className="truncate text-xs font-mono text-muted-foreground">{internalCode}</p>}
-          {currentSection?.section_name && (
-            <div className="flex items-center gap-1.5">
-              <p className="truncate text-xs text-muted-foreground">{currentSection.section_name}</p>
-              <HuemulReviewStatusBadge status={currentSection.review_status as ReviewStatus | null} sectionType="form" />
+          {showLifecycleRow && data?.lifecycle_status ? (
+            <div className="mt-1 flex items-center gap-1.5">
+              <span className="shrink-0 text-xs text-muted-foreground">{t("panel.stageLabel")}</span>
+              <HuemulLifecycleStageBadge status={data.lifecycle_status} />
             </div>
+          ) : (
+            currentSection?.section_name && (
+              <div className="flex items-center gap-1.5">
+                <span className="shrink-0 text-xs text-muted-foreground">{t("panel.sectionLabel")}</span>
+                <p className="truncate text-xs text-muted-foreground">{currentSection.section_name}</p>
+                <HuemulReviewStatusBadge status={currentSection.review_status as ReviewStatus | null} sectionType="form" />
+              </div>
+            )
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -391,9 +430,17 @@ export function WorkflowDetailPanel({
         </div>
       </div>
 
-      {showLifecycle && data?.lifecycle_status && !needsNameStep && (
+      {showLifecycleRow && (
         <div className="flex items-center justify-between gap-2 border-b px-4 py-2 shrink-0 flex-wrap">
-          <HuemulLifecycleStageBadge status={data.lifecycle_status} />
+          {currentSection?.section_name ? (
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span className="shrink-0 text-xs text-muted-foreground">{t("panel.sectionLabel")}</span>
+              <p className="truncate text-xs text-muted-foreground">{currentSection.section_name}</p>
+              <HuemulReviewStatusBadge status={currentSection.review_status as ReviewStatus | null} sectionType="form" />
+            </div>
+          ) : (
+            <div />
+          )}
           <HuemulLifecycleActions
             controller={lifecycle}
             variant="row"
@@ -406,15 +453,9 @@ export function WorkflowDetailPanel({
       <div className={cn("flex-1 overflow-auto p-4", isFullscreen && "sm:px-8")}>
         <div className={cn(isFullscreen && "mx-auto w-full max-w-3xl")}>
         {!needsNameStep && documentId && !isLoading && !error && formSections.length > 0 && readOnlyReason && (
-          <div className="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            <Eye className="h-4 w-4 shrink-0" />
+          <div className="mb-4 flex items-center rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
             {readOnlyReason === "stage"
-              ? t("fill.readOnlyStageNotice", {
-                  stage: t(`lifecycle.stageLabels.${data?.lifecycle_status?.stage}`, {
-                    ns: "assets",
-                    defaultValue: data?.lifecycle_status?.stage,
-                  }),
-                })
+              ? stageNotice
               : readOnlyReason === "sectionInactive"
                 ? t("fill.readOnlyInactiveSectionNotice")
                 : readOnlyReason === "section"
@@ -474,19 +515,29 @@ export function WorkflowDetailPanel({
         ) : formSections.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-8 text-center">
             <CheckCircle2 className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm font-medium text-foreground">{t("wizard.emptyStep.title")}</p>
+            <p className="text-sm font-medium text-foreground">
+              {lifecycle.isBlockedByRequiredAnswers
+                ? t("wizard.emptyStep.blockedTitle")
+                : canAdvanceEmptyStep
+                  ? t("wizard.emptyStep.advanceTitle")
+                  : t("wizard.emptyStep.waitingTitle")}
+            </p>
             <p className="max-w-sm text-xs text-muted-foreground">
-              {canAdvanceEmptyStep ? t("wizard.emptyStep.advanceDescription") : t("wizard.emptyStep.waitingDescription")}
+              {lifecycle.isBlockedByRequiredAnswers
+                ? t("wizard.emptyStep.blockedDescription")
+                : canAdvanceEmptyStep
+                  ? t("wizard.emptyStep.advanceDescription")
+                  : t("wizard.emptyStep.waitingDescription")}
             </p>
             {canAdvanceEmptyStep && (
               <HuemulButton
                 size="sm"
                 icon={Check}
                 iconPosition="left"
-                label={t("lifecycle.complete", { ns: "assets" })}
-                disabled={emptyStepAdvanceDisabled}
-                tooltip={emptyStepAdvanceTooltip}
+                label={lifecycle.completeLabel}
+                tooltip={lifecycle.isBlockedByRequiredAnswers ? lifecycle.advanceBlockersTooltip : lifecycle.completeTooltip}
                 loading={lifecycle.checkMutation.isPending}
+                disabled={lifecycle.isBlockedByRequiredAnswers}
                 onClick={() => {
                   finishAfterCompleteRef.current = true
                   lifecycle.setIsCheckDialogOpen(true)
@@ -551,11 +602,12 @@ export function WorkflowDetailPanel({
             label={
               isLastStep
                 ? willAdvanceOnFinish
-                  ? t("wizard.finishAndAdvance")
+                  ? lifecycle.completeLabel
                   : t("wizard.finish")
                 : tCommon("next")
             }
-            disabled={isFormSaving}
+            disabled={isFormSaving || isBlockedLastStep}
+            tooltip={isBlockedLastStep ? lifecycle.advanceBlockersTooltip : undefined}
             // Sin permiso de escritura (documento, etapa o esta sección puntual) el
             // wizard sigue navegable pero no pasa por `exit()`: ese handle guarda los
             // cambios Y marca la sección como 'finished' (PATCH /review_status), dos

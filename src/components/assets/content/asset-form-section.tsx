@@ -714,7 +714,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
                   </span>
                 )}
                 {!savingFieldIds.has(field.id) && savedFieldIds.has(field.id) && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600 animate-in fade-in duration-200">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-600 animate-in fade-in duration-200">
                     <Check className="h-3 w-3" />
                     {t("form.fill.savedField")}
                   </span>
@@ -749,7 +749,7 @@ export function FormStatusBadge({ status }: { status?: string }) {
       variant="secondary"
       className={cn(
         "font-normal",
-        answered ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700",
+        answered ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700",
       )}
     >
       {answered ? t("form.fill.statusResponded") : t("form.fill.statusPending")}

@@ -92,7 +92,7 @@ function GlobalPanelOutlet() {
   )
 
   const outletPanel = (
-    <ResizablePanel order={side === "left" ? 2 : 1} defaultSize={isOpen ? 100 - defaultSize : 100} minSize={30} className="overflow-auto">
+    <ResizablePanel id="outlet" order={side === "left" ? 2 : 1} defaultSize={isOpen ? 100 - defaultSize : 100} minSize={30} className="overflow-auto">
       <Suspense fallback={<PageSkeleton />}>
         <Outlet />
       </Suspense>
@@ -101,6 +101,7 @@ function GlobalPanelOutlet() {
 
   const sidePanel = (
     <ResizablePanel
+      id="global-panel"
       ref={panelRef}
       order={side === "left" ? 1 : 3}
       defaultSize={isOpen ? defaultSize : 0}
@@ -566,7 +567,10 @@ export default function AppLayout() {
         <EditingGuardProvider>
         <NavKnowledgeProvider>
         <div className="flex flex-col h-screen overflow-hidden">
-          <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center justify-between gap-4 border-b bg-background px-4">
+          <header
+            className="sticky top-0 z-(--z-app-header) flex h-16 shrink-0 items-center justify-between gap-4 border-b bg-background px-4"
+            data-app-header
+          >
             {/* Left section: Organization Switcher */}
             <div className="flex items-center gap-2 min-w-45">
               <OrganizationSwitcher />
