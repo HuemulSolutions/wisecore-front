@@ -77,22 +77,25 @@ export function pipelineSortIndex(type: string): number {
 }
 
 /**
- * Tipos configurables en las dos pantallas de permisos («Permisos por rol» y la
- * matriz de plantilla). `create`/`publish`/`archive` siguen existiendo en el
- * ciclo de vida del `document_type` —y en `LIFECYCLE_PIPELINE_ORDER`— pero el
- * backend ya no los devuelve en `GET /lifecycle/document-types/{id}/steps` ni en
- * `GET /templates/{id}/lifecycle_access_matrix`: son transiciones automáticas o
- * ligadas al creador del documento, no tiene sentido asignarles roles ahí.
+ * Tipos de step con permiso POR SECCIÓN de plantilla (matriz sección × step de
+ * `GET /templates/{id}/lifecycle_access_matrix`). `create`/`publish`/`archive`
+ * quedan fuera: son transiciones automáticas o ligadas al creador del documento,
+ * no tiene sentido darles acceso sección por sección.
+ *
+ * OJO: NO es «los tipos configurables en cualquier pantalla de permisos». La
+ * matriz de permisos por rol del tipo de activo
+ * (`assets-types-lifecycle-matrix.tsx`) muestra TODAS las etapas que devuelve
+ * `GET /lifecycle/document-types/{id}/steps`, las siete incluidas.
  */
-export const LIFECYCLE_PERMISSION_STEP_TYPES: ReadonlySet<string> = new Set([
+export const SECTION_PERMISSION_STEP_TYPES: ReadonlySet<string> = new Set([
   "view",
   "edit",
   "review",
   "approve",
 ])
 
-export function isPermissionStepType(type: string): boolean {
-  return LIFECYCLE_PERMISSION_STEP_TYPES.has(type)
+export function isSectionPermissionStepType(type: string): boolean {
+  return SECTION_PERMISSION_STEP_TYPES.has(type)
 }
 
 // ─── Herencia de `view` ──────────────────────────────────────────────────────
@@ -167,6 +170,19 @@ export function getLifecycleMilestones(
   return bounded.filter(
     (milestone) => milestone === "approved" || milestone === "published" || presentStageTypes.has(milestone),
   )
+}
+
+/**
+ * Hito del stepper que representa una etapa de runtime (`LifecycleStatus.stage`).
+ * `publish`/`archive` son acciones, no hitos: publicar se dispara desde el hito
+ * "Aprobado" y archivar desde "Publicado". Sin esta normalización el stepper del
+ * sheet de publicación marcaba "Publicado" como fase actual (el `indexOf` de
+ * `stage: "publish"` daba `-1` y caía al último hito).
+ */
+export function milestoneForStage(stage: string): string {
+  if (stage === "publish") return "approved"
+  if (stage === "archive") return "published"
+  return stage
 }
 
 // ─── Estados terminales ──────────────────────────────────────────────────────

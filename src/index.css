@@ -125,6 +125,7 @@
   --z-editor-floating-toolbar: 20; /* toolbar de selección de texto */
   --z-editor-selection: 10;        /* rectángulo de selección de bloques por arrastre */
   --z-editor-menu: 50;             /* menús invocados por el usuario: slash, emoji, selects */
+  --z-launcher-scrim: 49;          /* velo de contexto bajo el panel del lanzador de workflows */
 }
 
 .dark {

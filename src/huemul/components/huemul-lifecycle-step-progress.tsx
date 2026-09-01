@@ -69,7 +69,10 @@ export function HuemulLifecycleStepProgress({ currentPhase, className }: HuemulL
                 step.state === "upcoming" && "text-muted-foreground",
               )}
             >
-              {step.name}
+              {/* `name` es el nombre configurado del step (dato del backend, se
+                  muestra crudo); sin nombre cae al label de la etapa para no
+                  dejar la fila vacía. */}
+              {step.name ?? currentPhase.label}
             </span>
           </li>
         ))}

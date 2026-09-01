@@ -4,7 +4,6 @@ import { toast } from "sonner"
 import { Pencil } from "lucide-react"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import {
-  useLifecycleSteps,
   useAllLifecycleSteps,
   useLifecycleMutations,
   useLifecycleAccessRuleTypes,
@@ -38,19 +37,19 @@ export type { CreateStepContentProps } from '@/types/assets'
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /**
- * Etapa sin grupos «Lectura» (`view`, o su alias legado `read`): un único
- * `LifecycleStep` con permisos simples. Siempre muestra todo el contenido
- * (resumen en lectura o controles en edición) — es una sola tarjeta y el
- * header del panel ya titula la etapa, así que un colapso no aporta nada.
- * El lápiz («Editar») habilita los controles, cuyos cambios se acumulan en
- * estado local y se persisten con «Guardar cambios» del footer del sheet a
- * través de `onRegisterEditor` — mismo patrón que las tarjetas de grupo de
- * `EditStepContent`.
+ * Contenido de una etapa SIN grupos: «Lectura» (`view`, o su alias legado
+ * `read`), «Creador» (`create`), «Publicación» (`publish`) y «Archivado»
+ * (`archive`) — un único `LifecycleStep` por tipo con permisos simples. Las
+ * etapas agrupables (`edit`/`review`/`approve`) van por `EditStepContent`.
  *
- * `create`/`publish`/`archive` ya no llegan a este componente (ver
- * "ia context/permisos-seccion-lifecycle-guide.md"): salieron de las dos
- * pantallas de permisos, así que SLA, vigencia y "sin propietario" —que solo
- * ellos usaban— se sacaron de acá.
+ * Siempre muestra todo el contenido (resumen en lectura o controles en edición)
+ * — es una sola tarjeta y el header del panel ya titula la etapa, así que un
+ * colapso no aporta nada. El lápiz («Editar») habilita los controles, cuyos
+ * cambios se acumulan en estado local y se persisten con «Guardar cambios» del
+ * footer del sheet a través de `onRegisterEditor` — mismo patrón que las
+ * tarjetas de grupo de `EditStepContent`.
+ *
+ * Acá no hay SLA ni vigencia: son propias de las etapas con grupos.
  */
 export function CreateStepContent({
   documentTypeId,
@@ -61,14 +60,18 @@ export function CreateStepContent({
   const { t } = useTranslation(["asset-types", "common"])
   const { canUpdate } = useUserPermissions()
   const canManage = canUpdate('asset_type')
-  const { data, isLoading } = useLifecycleSteps(documentTypeId, stepType, true)
-  const { data: allStepsData } = useAllLifecycleSteps(documentTypeId, true)
+  // Una sola query de steps para todo el componente: la del document type
+  // completo, que además alimenta `earlierSteps`. Así no se depende de que el
+  // backend soporte `?step_type=` para cada tipo, y el step llega igual de
+  // fresco — `applyOptimisticStepPatch`/`invalidateSteps` (useLifecycle.ts)
+  // trabajan sobre el prefijo `stepsByDocumentType`, que la incluye.
+  const { data: allStepsData, isLoading } = useAllLifecycleSteps(documentTypeId, true)
   const { data: rolesData } = useRoles(true, 1, 1000)
   const { updateStep } = useLifecycleMutations(documentTypeId, stepType)
   const { data: accessRuleTypesData } = useLifecycleAccessRuleTypes()
   const stepAction = t(`lifecycle.stepActions.${stepType}`, { defaultValue: stepType })
 
-  const step = data?.data?.steps?.[0] ?? null
+  const step = (allStepsData?.data?.steps ?? []).find((s) => s.type === stepType) ?? null
   const allRoles = rolesData?.data ?? []
   const accessRuleTypeOptions = accessRuleTypesData?.data ?? []
 

@@ -9,28 +9,13 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable"
-import {
-  useLifecycleSteps,
-  useAllLifecycleSteps,
-  useLifecycleMutations,
-} from "@/hooks/useLifecycle"
-import { useRoles } from "@/hooks/useRbac"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
-import { Skeleton } from "@/components/ui/skeleton"
+import { useAllLifecycleSteps } from "@/hooks/useLifecycle"
+import { isGroupableStepType } from "@/lib/lifecycle-access"
 import { CreateStepContent } from "./assets-types-lifecycle-create-step"
 import { EditStepContent } from "./assets-types-lifecycle-edit-step"
 import { AssetTypeLifecycleMatrix } from "./assets-types-lifecycle-matrix"
 import { LifecycleStepPanel } from "./assets-types-lifecycle-step-panel"
-import {
-  ChipList,
-  PanelFieldLabel,
-  RemovableChip,
-  SettingToggleList,
-  SettingToggleRow,
-} from "./assets-types-lifecycle-ui"
-import { HuemulField } from "@/huemul/components/huemul-field"
 import type {
-  DefaultStepContentProps,
   StepContentProps,
   AssetTypeLifecycleDialogProps,
   LifecycleEditorApi,
@@ -38,133 +23,6 @@ import type {
 } from '@/types/assets'
 
 export type { AssetTypeLifecycleDialogProps } from '@/types/assets'
-
-// Handles all step types that are not "create" or "edit" (review, approve, etc.)
-
-function DefaultStepContent({
-  documentTypeId,
-  stepType,
-  stepLabel,
-}: DefaultStepContentProps) {
-  const { t } = useTranslation("asset-types")
-  const { canUpdate } = useUserPermissions()
-  const canManage = canUpdate('asset_type')
-  const { data, isLoading } = useLifecycleSteps(documentTypeId, stepType, true)
-  const { data: rolesData } = useRoles(true, 1, 1000)
-  const { updateStep, addRole, removeRole } = useLifecycleMutations(
-    documentTypeId,
-    stepType
-  )
-  const stepAction = t(`lifecycle.stepActions.${stepType}`, { defaultValue: stepType })
-
-  const step = data?.data?.steps?.[0] ?? null
-  const allRoles = rolesData?.data ?? []
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-col gap-3 py-2">
-        <Skeleton className="h-5 w-40" />
-        <Skeleton className="h-14 w-full rounded-md" />
-        <Skeleton className="h-14 w-full rounded-md" />
-      </div>
-    )
-  }
-
-  if (!step) {
-    return (
-      <p className="py-4 text-[12.5px] text-[#64748b]">
-        {t("lifecycle.noConfig")}
-      </p>
-    )
-  }
-
-  const isAll = step.access_type === "all"
-  const isCustom = step.access_type === "custom"
-  const isMutating =
-    updateStep.isPending || addRole.isPending || removeRole.isPending
-  const ro = !canManage || isMutating
-
-  const assignedRoleIds = new Set(step.step_roles.map((r) => r.role_id))
-  const availableRoles = allRoles.filter((r) => !assignedRoleIds.has(r.id))
-
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="text-[13px] font-semibold text-[#0f172a]">
-        {step.name ?? stepLabel}
-      </p>
-
-      <SettingToggleList>
-        <SettingToggleRow
-          label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
-          description={t("lifecycle.allowAnyoneDescShort")}
-          checked={isAll}
-          disabled={ro || isCustom}
-          onChange={(v) => {
-            if (!canManage) return
-            updateStep.mutate({
-              stepId: step.id,
-              data: { access_type: v ? "all" : "owner" },
-            })
-          }}
-        />
-        <SettingToggleRow
-          label={t("lifecycle.customRolesLabel")}
-          description={t("lifecycle.customRolesDesc", { action: stepAction })}
-          checked={isCustom}
-          disabled={ro}
-          onChange={(v) => {
-            if (!canManage) return
-            updateStep.mutate({
-              stepId: step.id,
-              data: { access_type: v ? "custom" : "owner" },
-            })
-          }}
-        />
-      </SettingToggleList>
-
-      {isCustom && (
-        <div className="flex flex-col gap-1.5">
-          <PanelFieldLabel disabled={ro}>
-            {t("lifecycle.rolesAllowedLabel", { action: stepAction })}
-          </PanelFieldLabel>
-          {step.step_roles.length > 0 && (
-            <ChipList>
-              {step.step_roles.map((sr) => (
-                <RemovableChip
-                  key={sr.role_id}
-                  label={sr.role_name ?? sr.role_id}
-                  disabled={removeRole.isPending}
-                  removeLabel={t("lifecycle.matrix.removeRole")}
-                  onRemove={
-                    canManage
-                      ? () =>
-                          removeRole.mutate({ stepId: step.id, roleId: sr.role_id })
-                      : undefined
-                  }
-                />
-              ))}
-            </ChipList>
-          )}
-          {canManage && (
-            <HuemulField
-              type="combobox"
-              label=""
-              name="add-role"
-              placeholder={t("lifecycle.panel.addRoleToStep")}
-              value=""
-              options={availableRoles.map((r) => ({ value: r.id, label: r.name }))}
-              onChange={(roleId) => {
-                if (!roleId) return
-                addRole.mutate({ stepId: step.id, roleId: roleId as string })
-              }}
-              disabled={addRole.isPending}
-            />
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
 
 // Routes to the appropriate sub-component based on stepType. Exportado para que
 // el panel lateral de la matriz de permisos por rol (`LifecycleStepPanel`) lo
@@ -178,8 +36,8 @@ export function StepContent({
   organizationId,
   addGroupSignal,
 }: StepContentProps) {
-  // Edit-style steps manage their own internal scroll area (cards scroll)
-  if (stepType === "edit" || stepType === "review" || stepType === "approve") {
+  // Etapas con grupos: manejan su propio scroll interno (scrollean las tarjetas).
+  if (isGroupableStepType(stepType)) {
     return (
       <EditStepContent
         documentTypeId={documentTypeId}
@@ -191,14 +49,12 @@ export function StepContent({
     )
   }
 
-  // `view` (y `read`, alias legado) son las únicas etapas sin grupo que quedan
-  // configurables acá — create/publish/archive salieron de esta pantalla: son
-  // transiciones automáticas o ligadas al creador del documento, ya no se
-  // asignan roles desde "permisos por rol" ni desde la matriz de plantillas (el
-  // backend ni siquiera las devuelve más en este endpoint).
+  // Etapas sin grupos —`view` (y `read`, alias legado), `create`, `publish`,
+  // `archive`— comparten `CreateStepContent`: un único step por tipo con
+  // permisos simples y guardado batch.
   //
-  // Other step types don't have their own scroll container — wrap them so they scroll
-  // within the fixed-height panel instead of relying on the sheet itself to scroll.
+  // No traen contenedor de scroll propio, así que se envuelven para que
+  // scrolleen dentro del panel de altura fija en vez de depender del sheet.
   // Mismo patrón que `EditStepContent` (assets-types-lifecycle-edit-step.tsx:844-847):
   // el wrapper `flex h-full min-h-0 flex-col` es lo que le da a `ScrollArea` una
   // altura definida de la que `min-h-0 flex-1` pueda partir — un `ScrollArea` con
@@ -207,20 +63,12 @@ export function StepContent({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <ScrollArea className="min-h-0 flex-1" viewportClassName="pr-1">
-        {stepType === "view" || stepType === "read" ? (
-          <CreateStepContent
-            documentTypeId={documentTypeId}
-            stepType={stepType}
-            stepLabel={stepLabel}
-            onRegisterEditor={onRegisterEditor}
-          />
-        ) : (
-          <DefaultStepContent
-            documentTypeId={documentTypeId}
-            stepType={stepType}
-            stepLabel={stepLabel}
-          />
-        )}
+        <CreateStepContent
+          documentTypeId={documentTypeId}
+          stepType={stepType}
+          stepLabel={stepLabel}
+          onRegisterEditor={onRegisterEditor}
+        />
       </ScrollArea>
     </div>
   )
