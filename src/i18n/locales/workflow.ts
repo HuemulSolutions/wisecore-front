@@ -161,12 +161,6 @@ const translations = {
     openInNewTab: { en: "Open in new tab", es: "Abrir en pestaña nueva" },
   },
   fill: {
-    finishedTitle: { en: "Answers submitted", es: "Respuestas enviadas" },
-    finishedDescription: {
-      en: "Thanks for completing this form. You can close this tab now.",
-      es: "Gracias por completar este formulario. Ya puedes cerrar esta pestaña.",
-    },
-    answerAnother: { en: "Answer another", es: "Responder otro" },
     readOnlyNotice: {
       en: "You don't have permission to answer this form — you can only view it.",
       es: "No tienes permiso para responder este formulario — solo puedes verlo.",

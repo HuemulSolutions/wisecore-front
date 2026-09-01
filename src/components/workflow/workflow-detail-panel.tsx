@@ -60,8 +60,6 @@ interface WorkflowDetailPanelProps {
   showAssetEdit?: boolean
   /** Oculta el badge y las acciones de ciclo de vida. Default true. */
   showLifecycle?: boolean
-  /** Se llama en vez de handleClose al terminar el último paso. Default: handleClose. */
-  onFinish?: () => void
 }
 
 /**
@@ -82,7 +80,6 @@ export function WorkflowDetailPanel({
   showClose = true,
   showAssetEdit = true,
   showLifecycle = true,
-  onFinish,
 }: WorkflowDetailPanelProps) {
   const isFullscreen = variant === "fullscreen"
   const { t } = useTranslation(["workflow", "sections", "assets"])
@@ -294,8 +291,7 @@ export function WorkflowDetailPanel({
   // Se levanta justo antes de abrir el diálogo de "Completar" desde el botón de
   // Finalizar del wizard, para distinguir esa apertura de la del botón "Completar"
   // de HuemulLifecycleActions (mismo `isCheckDialogOpen` compartido) — solo la
-  // primera debe volver al resumen del wizard (o disparar `onFinish`) cuando la
-  // transición termine.
+  // primera debe volver al resumen del wizard cuando la transición termine.
   const finishAfterCompleteRef = React.useRef(false)
 
   // Ciclo de vida del documento (completar/devolver, publicar, archivar, restaurar,
@@ -325,8 +321,7 @@ export function WorkflowDetailPanel({
     onAfterComplete: () => {
       if (!finishAfterCompleteRef.current) return
       finishAfterCompleteRef.current = false
-      if (onFinish) onFinish()
-      else setStep(null)
+      setStep(null)
     },
   })
 
@@ -334,8 +329,8 @@ export function WorkflowDetailPanel({
   // Solo se invoca mientras se está respondiendo un paso (step !== null). En el
   // último paso, si el usuario puede avanzar el ciclo de vida, "Finalizar" no
   // resuelve directo: abre el diálogo de confirmación de "Completar" y el paso
-  // siguiente (volver al resumen u `onFinish`) queda encadenado a
-  // `onAfterComplete` (arriba) para no saltarse esa confirmación.
+  // siguiente (volver al resumen) queda encadenado a `onAfterComplete` (arriba)
+  // para no saltarse esa confirmación.
   const goNext = React.useCallback(() => {
     if (!isLastStep) {
       setStep((s) => (s ?? -1) + 1)
@@ -344,12 +339,14 @@ export function WorkflowDetailPanel({
     if (lifecycle.canTransition && lifecycle.status?.can_advance) {
       finishAfterCompleteRef.current = true
       lifecycle.setIsCheckDialogOpen(true)
-    } else if (onFinish) {
-      onFinish()
+    } else if (isFullscreen) {
+      // Fullscreen no tiene panel que cerrar: el equivalente de "cerrar" es
+      // volver al resumen de secciones (mismo destino que completar).
+      setStep(null)
     } else {
       handleClose()
     }
-  }, [isLastStep, onFinish, handleClose, lifecycle])
+  }, [isLastStep, isFullscreen, handleClose, lifecycle])
 
   // Solo para el label del botón: si el clic en "Finalizar" va a disparar la
   // confirmación de "Completar" en vez de cerrar directo (misma condición de `goNext`).
@@ -438,7 +435,12 @@ export function WorkflowDetailPanel({
       </div>
 
       {showLifecycleRow && (
-        <div className="flex items-center justify-between gap-2 border-b px-4 py-2 shrink-0 flex-wrap">
+        <div
+          className={cn(
+            "flex items-center justify-between gap-2 border-b px-4 py-2 shrink-0 flex-wrap",
+            isFullscreen && "sm:px-8",
+          )}
+        >
           {currentSection?.section_name ? (
             <div className="flex min-w-0 items-center gap-1.5">
               <span className="shrink-0 text-xs text-muted-foreground">{t("panel.sectionLabel")}</span>
