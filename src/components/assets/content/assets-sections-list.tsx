@@ -129,6 +129,7 @@ function AssetsSectionsListInner({
                   ai_suggestion_content: section.ai_suggestion_content,
                   ai_suggestion_instruction: section.ai_suggestion_instruction,
                   review_status: section.review_status,
+                  answers_status: section.answers_status,
                   form_fields: section.form_fields,
                 }}
                 status={section.status}

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { AssetFormSection, type AssetFormSectionHandle } from "@/components/assets/content/asset-form-section"
 import { WorkflowAssetEditSheet } from "@/components/workflow/workflow-asset-edit-sheet"
 import { WorkflowSectionsSummary } from "@/components/workflow/workflow-sections-summary"
-import { HuemulReviewStatusBadge } from "@/huemul/components/huemul-review-status-badge"
+import { HuemulAnswersStatusBadge } from "@/huemul/components/huemul-answers-status-badge"
 import { HuemulLifecycleStageBadge } from "@/huemul/components/huemul-lifecycle-stage-badge"
 import { HuemulLifecycleActions } from "@/huemul/components/huemul-lifecycle-actions"
 import { HuemulLifecycleSheets } from "@/huemul/components/huemul-lifecycle-sheets"
@@ -25,10 +25,8 @@ import type { AssetContentResponse, ContentSection } from "@/types/assets"
 import type { WorkflowRowRef } from "@/types/workflow"
 import type { WorkflowTemplateItem, CreateExpressResult } from "@/types/templates"
 import type { FormValuesSectionPayload } from "@/types/sections/core"
-import type { ReviewStatus } from "@/types/section-execution"
-import { applyFormValuesPatch, applyReviewStatusPatch } from "@/components/assets/content/utils/patch-document-content"
+import { applyFormValuesPatch } from "@/components/assets/content/utils/patch-document-content"
 import { isSectionAnswerable, isSectionApplicable } from "@/components/workflow/workflow-section-stats"
-import { useReconcileFormReviewStatus } from "@/hooks/useReconcileFormReviewStatus"
 import {
   useDocumentSectionAccess,
   useInvalidateDocumentSectionAccess,
@@ -132,7 +130,7 @@ export function WorkflowDetailPanel({
     onSubmitName?.(nameValue.trim(), descriptionValue.trim() || undefined)
   }
 
-  const { data, isLoading, isFetching, error, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ["document-content", documentId, executionId],
     queryFn: () =>
       getDocumentContent(documentId ?? "", selectedOrganizationId ?? "", executionId) as Promise<
@@ -197,17 +195,6 @@ export function WorkflowDetailPanel({
     [queryClient, documentId],
   )
 
-  // review_status es puramente visual: al terminar de responder el paso (handleDoneEditing
-  // dentro de AssetFormSection) queda en 'finished'. Se parchea igual que form_fields —sin
-  // refetch— para que el badge del header refleje el cambio al volver con "Atrás".
-  const handleReviewStatusChange = React.useCallback(
-    (sectionExecutionId: string, status: ReviewStatus) => {
-      if (!documentId) return
-      applyReviewStatusPatch(queryClient, documentId, sectionExecutionId, status)
-    },
-    [queryClient, documentId],
-  )
-
   const handleClose = React.useCallback(() => {
     queryClient.invalidateQueries({ queryKey: workflowQueryKeys.listBase() })
     onClose()
@@ -246,21 +233,6 @@ export function WorkflowDetailPanel({
   )
 
   const canAnswerSection = currentSection ? canAnswerSpecificSection(currentSection) : canAnswerForm
-
-  // Reconcilia review_status de las secciones form contra lifecycle_status.advance_blockers
-  // (autoridad del backend) cada vez que llega un /content fresco — segunda capa sobre el
-  // marcado inmediato que ya hace el autoguardado (asset-form-section.tsx). Ver
-  // src/hooks/useReconcileFormReviewStatus.ts.
-  useReconcileFormReviewStatus({
-    documentId,
-    organizationId: selectedOrganizationId ?? undefined,
-    sections: data?.content,
-    lifecycleStatus: data?.lifecycle_status,
-    sectionAccess,
-    enabled: canAnswerForm,
-    dataUpdatedAt,
-    isFetching,
-  })
 
   // Motivo del aviso de solo lectura: distingue "no tenés permiso/rol", "esta etapa ya
   // no admite respuestas", "esta sección está inactiva según las respuestas dadas" y
@@ -394,7 +366,7 @@ export function WorkflowDetailPanel({
               <div className="flex items-center gap-1.5">
                 <span className="shrink-0 text-xs text-muted-foreground">{t("panel.sectionLabel")}</span>
                 <p className="truncate text-xs text-muted-foreground">{currentSection.section_name}</p>
-                <HuemulReviewStatusBadge status={currentSection.review_status as ReviewStatus | null} sectionType="form" />
+                <HuemulAnswersStatusBadge status={currentSection.answers_status} />
               </div>
             )
           )}
@@ -445,7 +417,7 @@ export function WorkflowDetailPanel({
             <div className="flex min-w-0 items-center gap-1.5">
               <span className="shrink-0 text-xs text-muted-foreground">{t("panel.sectionLabel")}</span>
               <p className="truncate text-xs text-muted-foreground">{currentSection.section_name}</p>
-              <HuemulReviewStatusBadge status={currentSection.review_status as ReviewStatus | null} sectionType="form" />
+              <HuemulAnswersStatusBadge status={currentSection.answers_status} />
             </div>
           ) : (
             <div />
@@ -568,9 +540,6 @@ export function WorkflowDetailPanel({
             canInteract={canAnswerSection}
             isEditing={canAnswerSection}
             onExitEditing={goNext}
-            reviewStatus={currentSection.review_status as ReviewStatus | null}
-            sectionFlags={currentSection}
-            onReviewStatusChange={(status) => handleReviewStatusChange(currentSection.id, status)}
             onUpdate={handleSectionUpdate}
             onSavingChange={setIsFormSaving}
           />
