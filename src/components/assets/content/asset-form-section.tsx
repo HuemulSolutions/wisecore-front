@@ -10,10 +10,9 @@ import type { HuemulQuestionInputValue } from "@/huemul/components/huemul-questi
 import { handleApiError } from "@/lib/error-utils";
 import { isSectionPermissionDeniedError } from "@/lib/section-permission-errors";
 import { cn } from "@/lib/utils";
-import { updateReviewStatus, updateSectionFormValues } from "@/services/section_execution";
+import { updateSectionFormValues } from "@/services/section_execution";
 import { uploadMedia } from "@/services/media";
 import type { FormFieldValue, FormValuesSectionPayload } from "@/types/sections/core";
-import type { ReviewStatus } from "@/types/section-execution";
 import { isMediaToken } from "@/lib/plate-media-utils";
 import { AlertTriangle, Check, FileX, Info, Loader2, X } from "lucide-react";
 import {
@@ -49,10 +48,6 @@ interface AssetFormSectionProps {
   isEditing: boolean;
   /** El padre sale del modo edición (tras el flush final de "Dejar de editar"). */
   onExitEditing: () => void;
-  /** Estado actual de revisión — evita repetir el PATCH si ya está en 'finished'. */
-  reviewStatus?: ReviewStatus | null;
-  /** Notifica al padre que review_status pasó a 'finished' tras el flush final. */
-  onReviewStatusChange?: (status: ReviewStatus) => void;
   /**
    * Refresca el contenido del asset tras guardar. Cuando el autoguardado o el flush
    * final trae la respuesta del PATCH /form_values, se pasa el payload (agrupado por
@@ -103,8 +98,6 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   canInteract,
   isEditing,
   onExitEditing,
-  reviewStatus,
-  onReviewStatusChange,
   onUpdate,
   onSavingChange,
 }, ref) {
@@ -230,6 +223,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   isSavingRef.current = isSaving;
   const uploadingCountRef = useRef(uploadingFields.size);
   uploadingCountRef.current = uploadingFields.size;
+
   // ids con un PATCH ya en vuelo — evita reenviar el mismo campo si el blur y el timer de
   // commit (widgets atómicos) caen casi al mismo tiempo.
   const inFlightIdsRef = useRef<Set<string>>(new Set());
@@ -290,7 +284,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     updateSectionFormValues(sectionExecutionId, values, organizationId)
       .then((payload) => {
         for (const f of valid) lastSavedAnswersRef.current[f.id] = currentAnswers[f.id];
-        onUpdate?.(payload);
+
         setSavedFieldIds((prev) => new Set([...prev, ...ids]));
         ids.forEach((id) => {
           clearTimeout(savedTimeoutsRef.current[id]);
@@ -303,6 +297,11 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
             delete savedTimeoutsRef.current[id];
           }, 1500);
         });
+
+        // answers_status de esta sección se recalcula en el propio parche optimista
+        // (applyFormValuesPatch → patch-document-content.ts) a partir del payload, y el
+        // backend lo confirma en el próximo /content — acá no hay nada más que decidir.
+        onUpdate?.(payload);
       })
       .catch((error) => {
         // Best-effort: si falla, se reintenta en el próximo flush o al guardar con el botón.
@@ -430,23 +429,8 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   // de lo que pudiera seguir pendiente (por ej. si el usuario sale justo después de tipear,
   // sin llegar a disparar un blur). Antes de salir, bloquea si queda algún obligatorio sin
   // responder o algún valor con error de formato/rango — al ser obligatorio debe
-  // contestarse sí o sí. Si todo pasa, marca review_status='finished' (estado puramente
-  // visual): el usuario terminó de responder, sea desde assets ("Dejar de editar") o desde
-  // el wizard de workflow ("Siguiente"/"Finalizar"), ambos disparan este mismo handler.
-  const finishAndExit = async () => {
-    if (reviewStatus !== "finished") {
-      try {
-        await updateReviewStatus(sectionExecutionId, "finished", organizationId);
-        onReviewStatusChange?.("finished");
-      } catch (error) {
-        // Estado visual: no bloquea la salida de edición ni el avance del wizard.
-        handleApiError(error, { fallbackMessage: t("form.fill.reviewStatusUpdateFailed") });
-        invalidateContentOnPermissionDenied(error);
-      }
-    }
-    onExitEditing();
-  };
-
+  // contestarse sí o sí. answers_status lo recalcula el backend en el próximo /content
+  // (o el parche optimista de onUpdate); acá ya no hay nada que sincronizar.
   const handleDoneEditing = async () => {
     clearAutosaveTimers();
 
@@ -483,16 +467,16 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
       (f) => isFieldAnswerable(f) && !valuesEqual(answers[f.id], lastSavedAnswersRef.current[f.id]),
     );
     if (changed.length === 0) {
-      await finishAndExit();
+      onExitEditing();
       return;
     }
 
     setIsSaving(true);
+    let payload: FormValuesSectionPayload[] | undefined;
     try {
       const values = changed.map((f) => ({ id: f.id, value: answers[f.id] ?? null }));
-      const payload = await updateSectionFormValues(sectionExecutionId, values, organizationId);
+      payload = await updateSectionFormValues(sectionExecutionId, values, organizationId);
       for (const f of changed) lastSavedAnswersRef.current[f.id] = answers[f.id];
-      onUpdate?.(payload);
     } catch (error) {
       handleApiError(error, { fallbackMessage: t("form.fill.saveError") });
       invalidateContentOnPermissionDenied(error);
@@ -500,7 +484,8 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     } finally {
       setIsSaving(false);
     }
-    await finishAndExit();
+    onUpdate?.(payload!);
+    onExitEditing();
   };
 
   // El padre (barra de acciones de assets-section.tsx) dispara "Dejar de editar" a través de esta ref.

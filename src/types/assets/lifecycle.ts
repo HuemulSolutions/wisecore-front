@@ -45,10 +45,10 @@ export type LifecycleSaveApiRef = MutableRefObject<LifecycleSaveApi | null>
 // ----------------------------------------
 
 /**
- * Único consumidor hoy: los steps `view`/`read` (Lectura) — el único tipo sin
- * grupo que queda configurable en el panel de etapa. `create`/`publish`/
- * `archive` salieron de esta pantalla (ver "ia context/permisos-seccion-lifecycle-guide.md"),
- * así que ya no hace falta representar SLA, vigencia ni "sin propietario" acá.
+ * Contenido del panel para TODA etapa sin grupos: `view` (y su alias legado
+ * `read`), `create`, `publish` y `archive` — un único `LifecycleStep` por tipo
+ * con permisos simples. Las etapas agrupables (`edit`/`review`/`approve`) usan
+ * `EditStepContent`.
  */
 export interface CreateStepContentProps {
   documentTypeId: string
@@ -62,12 +62,6 @@ export interface CreateStepContentProps {
 // ----------------------------------------
 // Lifecycle Dialog
 // ----------------------------------------
-
-export interface DefaultStepContentProps {
-  documentTypeId: string
-  stepType: string
-  stepLabel: string
-}
 
 export interface StepContentProps {
   documentTypeId: string

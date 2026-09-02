@@ -19,6 +19,9 @@ export interface AiSuggestionStatus {
 
 export type ReviewStatus = 'editing' | 'reviewing' | 'finished';
 
+/** Completitud de obligatorios de una sección form, resuelta por el backend en /content. */
+export type SectionAnswersStatus = 'completed' | 'pending';
+
 export type SectionHistoryChangeType = 'manual' | 'modify_ai' | 'run_ai';
 
 export interface SectionHistoryEntry {

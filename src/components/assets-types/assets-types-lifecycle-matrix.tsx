@@ -25,7 +25,6 @@ import { useUserPermissions } from "@/hooks/useUserPermissions"
 import {
   LIFECYCLE_PIPELINE_ORDER,
   isGroupableStepType,
-  isPermissionStepType,
   isViewInheritedForRole,
   inheritedViewSource,
   pipelineIndex,
@@ -198,15 +197,6 @@ export function AssetTypeLifecycleMatrix({
   const allSteps = React.useMemo(() => data?.data?.steps ?? [], [data])
   const allRoles = React.useMemo(() => rolesData?.data ?? [], [rolesData])
 
-  // Los únicos configurables en esta matriz — el backend ya no manda
-  // create/publish/archive, pero por si quedan en caché vieja se filtran también
-  // acá. `earlierStepOptionsByStepId` sigue usando `allSteps` completo: un
-  // `source_step_id` puede apuntar a un step que ya no se configura acá.
-  const permissionSteps = React.useMemo(
-    () => allSteps.filter((s) => isPermissionStepType(s.type)),
-    [allSteps],
-  )
-
   const [localExtraRoleIds, setLocalExtraRoleIds] = React.useState<string[]>([])
   const [isAddingRole, setIsAddingRole] = React.useState(false)
   const [isCreatingRole, setIsCreatingRole] = React.useState(false)
@@ -226,28 +216,31 @@ export function AssetTypeLifecycleMatrix({
     t(`lifecycle.accessRuleTypes.${ruleType}`, { defaultValue: ruleType })
   const stepColumnLabel = (step: LifecycleStep) => step.name?.trim() || stepTypeLabel(step.type)
 
+  // Todas las etapas que devuelva el endpoint son configurables acá: `create`,
+  // `publish` y `archive` incluidas. Los tipos que no estén en
+  // `LIFECYCLE_PIPELINE_ORDER` no se descartan, van al final.
   const stepTypesPresent = React.useMemo(() => {
-    const present = new Set(permissionSteps.map((s) => s.type))
+    const present = new Set(allSteps.map((s) => s.type))
     const ordered = LIFECYCLE_PIPELINE_ORDER.filter((type) => present.has(type))
     const extra = [...present].filter((type) => pipelineIndex(type) === -1)
     return [...ordered, ...extra]
-  }, [permissionSteps])
+  }, [allSteps])
 
   // Cuántos grupos hay por tipo — alimenta el badge de las pastillas agrupables.
   const groupCountByType = React.useMemo(() => {
     const counts = new Map<string, number>()
-    permissionSteps.forEach((s) => counts.set(s.type, (counts.get(s.type) ?? 0) + 1))
+    allSteps.forEach((s) => counts.set(s.type, (counts.get(s.type) ?? 0) + 1))
     return counts
-  }, [permissionSteps])
+  }, [allSteps])
 
   const visibleSteps = React.useMemo(() => {
-    const sorted = [...permissionSteps].sort((a, b) => {
+    const sorted = [...allSteps].sort((a, b) => {
       const typeDiff = pipelineSortIndex(a.type) - pipelineSortIndex(b.type)
       if (typeDiff !== 0) return typeDiff
       return (a.order ?? 0) - (b.order ?? 0)
     })
     return activeStageType ? sorted.filter((s) => s.type === activeStageType) : sorted
-  }, [permissionSteps, activeStageType])
+  }, [allSteps, activeStageType])
 
   // Candidatos a `source_step_id` de "jefe de paso anterior" por columna: mismo
   // criterio que el backend valida — pasos de un tipo anterior en el pipeline, o
@@ -272,17 +265,15 @@ export function AssetTypeLifecycleMatrix({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allSteps])
 
-  // Roles ya presentes en algún step configurable acá + agregados localmente sin
-  // asignaciones aún. `permissionSteps`, no `allSteps`: un rol asignado solo a
-  // create/publish/archive no debe generar una fila fantasma en esta matriz.
+  // Roles ya presentes en algún step + agregados localmente sin asignaciones aún.
   const listedRoleIds = React.useMemo(() => {
     const ids = new Set<string>()
     // `stepRoleIds` filtra los roles residuales de pasos que ya no son custom-ish:
     // sin eso generarían filas fantasma en la tabla.
-    permissionSteps.forEach((s) => stepRoleIds(s).forEach((id) => ids.add(id)))
+    allSteps.forEach((s) => stepRoleIds(s).forEach((id) => ids.add(id)))
     localExtraRoleIds.forEach((id) => ids.add(id))
     return ids
-  }, [permissionSteps, localExtraRoleIds])
+  }, [allSteps, localExtraRoleIds])
 
   const listedRoles = React.useMemo(
     () => allRoles.filter((r) => listedRoleIds.has(r.id)).sort((a, b) => a.name.localeCompare(b.name)),

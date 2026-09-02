@@ -2,12 +2,11 @@ import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowRight } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
-import { HuemulReviewStatusBadge } from "@/huemul/components/huemul-review-status-badge";
+import { HuemulAnswersStatusBadge } from "@/huemul/components/huemul-answers-status-badge";
 import { HuemulNumberedStatusCard } from "@/huemul/components/huemul-numbered-status-card";
 import { FormAnswersList } from "@/components/sections/form-answers-list";
-import { computeSectionStats, isSectionAnswerable } from "@/components/workflow/workflow-section-stats";
+import { computeSectionStats, isSectionAnswerable, isSectionAnswersCompleted } from "@/components/workflow/workflow-section-stats";
 import type { ContentSection } from "@/types/assets";
-import type { ReviewStatus } from "@/types/section-execution";
 
 export interface WorkflowSectionsSummaryProps {
   /** Secciones form del documento, en el orden del wizard (formSections). */
@@ -58,11 +57,11 @@ export function WorkflowSectionsSummary({ sections, onGoToSection, canGoToSectio
             onOpenChange={(open) => setSectionOpen(section.id, open)}
             number={index + 1}
             title={section.section_name ?? ""}
-            tone={section.review_status === "finished" ? "success" : "warning"}
+            tone={isSectionAnswersCompleted(section) ? "success" : "warning"}
             className={isInactive ? "opacity-70" : undefined}
             headerExtra={
               <>
-                <HuemulReviewStatusBadge status={section.review_status as ReviewStatus | null} sectionType="form" />
+                <HuemulAnswersStatusBadge status={section.answers_status} />
                 {isInactive && (
                   <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
                     {t("sections:form.fill.sectionInactive")}

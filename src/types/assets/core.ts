@@ -406,6 +406,8 @@ export interface CreateFolderRequest {
 export interface ContentSection {
   id: string;
   section_id?: string;
+  /** Sección del template de la que deriva esta section_execution. */
+  template_section_id?: string;
   section_name?: string;
   section_type?: 'ai' | 'manual' | 'reference' | 'form';
   content: string;
@@ -456,6 +458,15 @@ export interface ContentSection {
    * `section.can_edit` directo — usar `resolveSectionCanEdit(section, access)`.
    */
   can_edit?: boolean | null;
+  /**
+   * Completitud de los obligatorios de la sección, resuelta por el backend
+   * (depends_on + permiso de sección + step actual). Fuente única para el
+   * badge y el tono de las secciones form — NO recalcular en el cliente.
+   * Ver isSectionAnswersCompleted en workflow-section-stats.ts.
+   */
+  answers_status?: import('../sections/execution-core').SectionAnswersStatus | null;
+  /** Obligatorios visibles y respondibles sin valor, según el backend. */
+  missing_required?: number;
 }
 
 /**

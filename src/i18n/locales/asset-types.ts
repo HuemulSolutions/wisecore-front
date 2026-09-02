@@ -255,8 +255,6 @@ const translations = {
     ownerCanExecuteLabel: { en: "Owner can {{action}}", es: "El propietario puede {{action}}" },
     ownerCanExecuteDescOn: { en: "The asset owner can {{action}}.", es: "El dueño del activo puede {{action}}." },
     ownerCanExecuteDescOff: { en: "Only roles with assigned permissions can {{action}}.", es: "Solo los roles con permisos asignados pueden {{action}}." },
-    customRolesLabel: { en: "Configure by specific roles", es: "Configurar por roles específicos" },
-    customRolesDesc: { en: "Assign specific roles that can {{action}}.", es: "Asigna roles específicos que pueden {{action}}." },
     assignedRoles: { en: "Assigned roles", es: "Roles asignados" },
     noRolesAssigned: { en: "No roles assigned. Add roles below.", es: "Sin roles asignados. Agrega roles a continuación." },
     creatorTitle: { en: "Creator", es: "Creador" },

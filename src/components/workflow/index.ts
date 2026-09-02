@@ -1,7 +1,7 @@
 export { WorkflowTable } from "./workflow-table"
 export { WorkflowDetailPanel } from "./workflow-detail-panel"
 export { WorkflowProgressBar } from "./workflow-progress-bar"
-export { WorkflowTemplateCards } from "./workflow-template-cards"
+export { WorkflowLauncher } from "./workflow-launcher"
 export { WorkflowAssetEditSheet } from "./workflow-asset-edit-sheet"
 export { WorkflowSectionsSummary } from "./workflow-sections-summary"
 export { WorkflowShareDialog } from "./workflow-share-dialog"

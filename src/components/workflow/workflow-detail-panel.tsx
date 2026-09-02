@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { AssetFormSection, type AssetFormSectionHandle } from "@/components/assets/content/asset-form-section"
 import { WorkflowAssetEditSheet } from "@/components/workflow/workflow-asset-edit-sheet"
 import { WorkflowSectionsSummary } from "@/components/workflow/workflow-sections-summary"
-import { HuemulReviewStatusBadge } from "@/huemul/components/huemul-review-status-badge"
+import { HuemulAnswersStatusBadge } from "@/huemul/components/huemul-answers-status-badge"
 import { HuemulLifecycleStageBadge } from "@/huemul/components/huemul-lifecycle-stage-badge"
 import { HuemulLifecycleActions } from "@/huemul/components/huemul-lifecycle-actions"
 import { HuemulLifecycleSheets } from "@/huemul/components/huemul-lifecycle-sheets"
@@ -25,7 +25,6 @@ import type { AssetContentResponse, ContentSection } from "@/types/assets"
 import type { WorkflowRowRef } from "@/types/workflow"
 import type { WorkflowTemplateItem, CreateExpressResult } from "@/types/templates"
 import type { FormValuesSectionPayload } from "@/types/sections/core"
-import type { ReviewStatus } from "@/types/section-execution"
 import { applyFormValuesPatch } from "@/components/assets/content/utils/patch-document-content"
 import { isSectionAnswerable, isSectionApplicable } from "@/components/workflow/workflow-section-stats"
 import {
@@ -59,8 +58,6 @@ interface WorkflowDetailPanelProps {
   showAssetEdit?: boolean
   /** Oculta el badge y las acciones de ciclo de vida. Default true. */
   showLifecycle?: boolean
-  /** Se llama en vez de handleClose al terminar el último paso. Default: handleClose. */
-  onFinish?: () => void
 }
 
 /**
@@ -81,7 +78,6 @@ export function WorkflowDetailPanel({
   showClose = true,
   showAssetEdit = true,
   showLifecycle = true,
-  onFinish,
 }: WorkflowDetailPanelProps) {
   const isFullscreen = variant === "fullscreen"
   const { t } = useTranslation(["workflow", "sections", "assets"])
@@ -199,26 +195,6 @@ export function WorkflowDetailPanel({
     [queryClient, documentId],
   )
 
-  // review_status es puramente visual: al terminar de responder el paso (handleDoneEditing
-  // dentro de AssetFormSection) queda en 'finished'. Se parchea igual que form_fields —sin
-  // refetch— para que el badge del header refleje el cambio al volver con "Atrás".
-  const handleReviewStatusChange = React.useCallback(
-    (sectionExecutionId: string, status: ReviewStatus) => {
-      if (!documentId) return
-      queryClient.setQueriesData(
-        { queryKey: ["document-content", documentId] },
-        (old: { content?: ContentSection[] } | undefined) => {
-          if (!old?.content || !Array.isArray(old.content)) return old
-          return {
-            ...old,
-            content: old.content.map((s) => (s.id === sectionExecutionId ? { ...s, review_status: status } : s)),
-          }
-        },
-      )
-    },
-    [queryClient, documentId],
-  )
-
   const handleClose = React.useCallback(() => {
     queryClient.invalidateQueries({ queryKey: workflowQueryKeys.listBase() })
     onClose()
@@ -287,8 +263,7 @@ export function WorkflowDetailPanel({
   // Se levanta justo antes de abrir el diálogo de "Completar" desde el botón de
   // Finalizar del wizard, para distinguir esa apertura de la del botón "Completar"
   // de HuemulLifecycleActions (mismo `isCheckDialogOpen` compartido) — solo la
-  // primera debe volver al resumen del wizard (o disparar `onFinish`) cuando la
-  // transición termine.
+  // primera debe volver al resumen del wizard cuando la transición termine.
   const finishAfterCompleteRef = React.useRef(false)
 
   // Ciclo de vida del documento (completar/devolver, publicar, archivar, restaurar,
@@ -318,8 +293,7 @@ export function WorkflowDetailPanel({
     onAfterComplete: () => {
       if (!finishAfterCompleteRef.current) return
       finishAfterCompleteRef.current = false
-      if (onFinish) onFinish()
-      else setStep(null)
+      setStep(null)
     },
   })
 
@@ -327,8 +301,8 @@ export function WorkflowDetailPanel({
   // Solo se invoca mientras se está respondiendo un paso (step !== null). En el
   // último paso, si el usuario puede avanzar el ciclo de vida, "Finalizar" no
   // resuelve directo: abre el diálogo de confirmación de "Completar" y el paso
-  // siguiente (volver al resumen u `onFinish`) queda encadenado a
-  // `onAfterComplete` (arriba) para no saltarse esa confirmación.
+  // siguiente (volver al resumen) queda encadenado a `onAfterComplete` (arriba)
+  // para no saltarse esa confirmación.
   const goNext = React.useCallback(() => {
     if (!isLastStep) {
       setStep((s) => (s ?? -1) + 1)
@@ -337,12 +311,14 @@ export function WorkflowDetailPanel({
     if (lifecycle.canTransition && lifecycle.status?.can_advance) {
       finishAfterCompleteRef.current = true
       lifecycle.setIsCheckDialogOpen(true)
-    } else if (onFinish) {
-      onFinish()
+    } else if (isFullscreen) {
+      // Fullscreen no tiene panel que cerrar: el equivalente de "cerrar" es
+      // volver al resumen de secciones (mismo destino que completar).
+      setStep(null)
     } else {
       handleClose()
     }
-  }, [isLastStep, onFinish, handleClose, lifecycle])
+  }, [isLastStep, isFullscreen, handleClose, lifecycle])
 
   // Solo para el label del botón: si el clic en "Finalizar" va a disparar la
   // confirmación de "Completar" en vez de cerrar directo (misma condición de `goNext`).
@@ -390,7 +366,7 @@ export function WorkflowDetailPanel({
               <div className="flex items-center gap-1.5">
                 <span className="shrink-0 text-xs text-muted-foreground">{t("panel.sectionLabel")}</span>
                 <p className="truncate text-xs text-muted-foreground">{currentSection.section_name}</p>
-                <HuemulReviewStatusBadge status={currentSection.review_status as ReviewStatus | null} sectionType="form" />
+                <HuemulAnswersStatusBadge status={currentSection.answers_status} />
               </div>
             )
           )}
@@ -431,12 +407,17 @@ export function WorkflowDetailPanel({
       </div>
 
       {showLifecycleRow && (
-        <div className="flex items-center justify-between gap-2 border-b px-4 py-2 shrink-0 flex-wrap">
+        <div
+          className={cn(
+            "flex items-center justify-between gap-2 border-b px-4 py-2 shrink-0 flex-wrap",
+            isFullscreen && "sm:px-8",
+          )}
+        >
           {currentSection?.section_name ? (
             <div className="flex min-w-0 items-center gap-1.5">
               <span className="shrink-0 text-xs text-muted-foreground">{t("panel.sectionLabel")}</span>
               <p className="truncate text-xs text-muted-foreground">{currentSection.section_name}</p>
-              <HuemulReviewStatusBadge status={currentSection.review_status as ReviewStatus | null} sectionType="form" />
+              <HuemulAnswersStatusBadge status={currentSection.answers_status} />
             </div>
           ) : (
             <div />
@@ -559,8 +540,6 @@ export function WorkflowDetailPanel({
             canInteract={canAnswerSection}
             isEditing={canAnswerSection}
             onExitEditing={goNext}
-            reviewStatus={currentSection.review_status as ReviewStatus | null}
-            onReviewStatusChange={(status) => handleReviewStatusChange(currentSection.id, status)}
             onUpdate={handleSectionUpdate}
             onSavingChange={setIsFormSaving}
           />
@@ -571,28 +550,32 @@ export function WorkflowDetailPanel({
       {!needsNameStep && documentId && !isLoading && !error && formSections.length > 0 && step !== null && (
         <div
           className={cn(
-            "flex items-center justify-between gap-2 border-t p-4 shrink-0",
+            "flex flex-wrap items-center justify-between gap-2 border-t p-4 shrink-0",
             isFullscreen && "px-4 py-4 sm:px-8",
           )}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <HuemulButton
               variant="outline"
               size="sm"
-              icon={ListChecks}
-              label={t("wizard.summary.tooltip")}
+              tooltip={t("wizard.summary.tooltip")}
               disabled={isFormSaving}
               onClick={() => setStep(null)}
-            />
+            >
+              <ListChecks />
+              <span className="hidden sm:inline">{t("wizard.summary.tooltip")}</span>
+            </HuemulButton>
             {step > 0 && (
               <HuemulButton
                 variant="outline"
                 size="sm"
-                icon={ChevronLeft}
-                label={t("wizard.back")}
+                tooltip={t("wizard.back")}
                 disabled={isFormSaving}
                 onClick={() => setStep((s) => Math.max(0, (s ?? 1) - 1))}
-              />
+              >
+                <ChevronLeft />
+                <span className="hidden sm:inline">{t("wizard.back")}</span>
+              </HuemulButton>
             )}
           </div>
           <HuemulButton
