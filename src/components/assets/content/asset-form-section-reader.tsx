@@ -2,15 +2,14 @@ import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Edit3, Eye } from "lucide-react";
 import { HuemulNumberedStatusCard } from "@/huemul/components/huemul-numbered-status-card";
-import { HuemulReviewStatusBadge } from "@/huemul/components/huemul-review-status-badge";
+import { HuemulAnswersStatusBadge } from "@/huemul/components/huemul-answers-status-badge";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { FormAnswersList } from "@/components/sections/form-answers-list";
-import { computeSectionStats } from "@/components/workflow/workflow-section-stats";
+import { computeSectionStats, isSectionAnswersCompleted } from "@/components/workflow/workflow-section-stats";
 import type { ContentSection } from "@/types/assets";
-import type { ReviewStatus } from "@/types/section-execution";
 
 interface AssetFormSectionReaderProps {
-  section: Pick<ContentSection, "form_fields" | "review_status">;
+  section: Pick<ContentSection, "form_fields" | "answers_status">;
   sectionName?: string;
   /** Posición 0-based de la sección en el documento (mismo índice que el tab de contenido). */
   sectionIndex: number;
@@ -88,8 +87,8 @@ export function AssetFormSectionReader({
         onOpenChange={setOpen}
         number={sectionIndex + 1}
         title={sectionName ?? ""}
-        tone={section.review_status === "finished" ? "success" : "warning"}
-        headerExtra={<HuemulReviewStatusBadge status={section.review_status as ReviewStatus | null} sectionType="form" />}
+        tone={isSectionAnswersCompleted(section) ? "success" : "warning"}
+        headerExtra={<HuemulAnswersStatusBadge status={section.answers_status} />}
         subtitle={t("form.fill.answeredCount", { answered: answeredCount, total: questions.length })}
         actions={actions}
       >

@@ -37,6 +37,20 @@ export function isSectionAnswerable(section: ContentSection): boolean {
   return isSectionVisible(section) && section.can_answer !== false;
 }
 
+/**
+ * Espejo de lectura de `ContentSection.answers_status` (calculado por el backend) —
+ * un solo lugar donde vive el literal 'completed'. Fuente única del badge y el tono
+ * de las secciones form; NO usar `missingRequired` de computeSectionStats para esto
+ * (se mantiene solo para el contador "N/M respondidas" y el cruce de umbral de refetch).
+ */
+export function isSectionAnswersCompleted(section: Pick<ContentSection, "answers_status">): boolean {
+  return section.answers_status === "completed";
+}
+
+// missingRequired ya NO decide "completada"/"pendiente" — eso lo resuelve el backend
+// vía answers_status (ver isSectionAnswersCompleted arriba). Se mantiene acá solo como
+// insumo del contador "N/M respondidas" (answeredCount/questions.length) y para que
+// applyFormValuesPatch detecte el cruce de umbral que dispara un refetch de /content.
 export function computeSectionStats(section: ContentSection): SectionStats {
   const fields = [...(section.form_fields ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   // Solo preguntas visibles: una oculta por depends_on no está en pantalla,

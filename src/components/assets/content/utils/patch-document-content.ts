@@ -8,15 +8,14 @@ type DocumentContentCache = { content?: ContentSection[] } | undefined;
 
 // Los parches optimistas NO son data fresca del servidor: si dejan que TanStack selle
 // `dataUpdatedAt = Date.now()` (comportamiento por defecto de setQueryData/setQueriesData
-// sin `updatedAt` explícito), useReconcileFormReviewStatus los confunde con un /content
-// real y reconcilia contra un `lifecycle_status.advance_blockers` que ningún parche de
-// acá actualiza — degradando a 'editing' una sección recién marcada 'finished'. Por eso
-// cada parche de este archivo preserva el `dataUpdatedAt` que la query ya tenía en vez
-// de dejar que se renueve. Se itera con setQueryData (no setQueriesData) porque cada
+// sin `updatedAt` explícito), un componente que confíe en ese timestamp para distinguir
+// "esto vino de un /content real" no podría hacerlo más. applyFormValuesPatch en
+// particular escribe un `answers_status` aproximado (ver más abajo) que el backend
+// todavía no confirmó — preservar el `dataUpdatedAt` que la query ya tenía evita que ese
+// valor se lea como definitivo. Se itera con setQueryData (no setQueriesData) porque cada
 // query cacheada bajo el mismo prefijo (['document-content', id] y
 // ['document-content', id, execId] pueden coexistir) tiene su propio dataUpdatedAt a
-// preservar — un solo `updatedAt` para todas sería incorrecto. Ver
-// src/hooks/useReconcileFormReviewStatus.ts para el otro lado de este invariante.
+// preservar — un solo `updatedAt` para todas sería incorrecto.
 function patchContentQueries(
   queryClient: QueryClient,
   documentId: string,
@@ -98,7 +97,19 @@ export function applyFormValuesPatch(
       content: old.content.map((s) => {
         const group = groupsBySectionId.get(s.id);
         if (!group) return s;
-        return { ...s, form_fields: group.form_fields, section_name: group.section_name ?? s.section_name };
+        // Aproximación de un solo render de answers_status/missing_required — el backend
+        // no los devuelve en PATCH /form_values. Misma regla que aplica ahí (missingRequired
+        // 0 ⇒ completed), para que el badge no se quede en 'pending' hasta el próximo
+        // /content. El refetch por cruce de umbral (más abajo) la confirma con el valor real;
+        // no es una segunda fuente de verdad.
+        const { missingRequired } = computeSectionStats({ ...s, form_fields: group.form_fields });
+        return {
+          ...s,
+          form_fields: group.form_fields,
+          section_name: group.section_name ?? s.section_name,
+          missing_required: missingRequired,
+          answers_status: missingRequired === 0 ? "completed" : "pending",
+        };
       }),
     };
   });
@@ -113,8 +124,9 @@ export function applyFormValuesPatch(
 }
 
 // Parchea review_status de una sola sección en el caché de ['document-content', documentId],
-// sin refetch. Usado tras el PATCH /review_status del autoguardado (asset-form-section.tsx,
-// assets-section.tsx) y de la reconciliación contra advance_blockers (useReconcileFormReviewStatus).
+// sin refetch. Solo para secciones NO form: usado tras el PATCH /review_status del
+// selector manual del tab de contenido (assets-section.tsx → handleReviewStatusChange).
+// Las secciones form ya no escriben review_status — ver answers_status.
 export function applyReviewStatusPatch(
   queryClient: QueryClient,
   documentId: string,

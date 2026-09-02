@@ -96,7 +96,6 @@ import {
   useInvalidateDocumentSectionAccess,
 } from '@/hooks/useDocumentSectionAccess';
 import { usePageAccess } from '@/hooks/usePageAccess';
-import { useReconcileFormReviewStatus } from '@/hooks/useReconcileFormReviewStatus';
 import type { ContentSection, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
 import type { FormValuesSectionPayload } from '@/types/sections/core';
 import { applyFormValuesPatch } from '@/components/assets/content/utils/patch-document-content';
@@ -1372,22 +1371,6 @@ export function AssetContent({
     isViewOnly,
     canSwitchToEditorMode,
   } = useAssetContentPermissions(lifecyclePermissions, documentContent?.lifecycle_status);
-
-  // Reconcilia review_status de las secciones form contra lifecycle_status.advance_blockers
-  // (autoridad del backend) cada vez que llega un /content fresco — segunda capa sobre el
-  // marcado inmediato que ya hace el autoguardado (asset-form-section.tsx). `canEditSections`
-  // ya es el mismo cruce RBAC × lifecycle × etapa que habilita responder el formulario. Ver
-  // src/hooks/useReconcileFormReviewStatus.ts.
-  useReconcileFormReviewStatus({
-    documentId: selectedFile?.type === 'document' ? selectedFile?.id : undefined,
-    organizationId: selectedOrganizationId ?? undefined,
-    sections: documentContent?.content,
-    lifecycleStatus: documentContent?.lifecycle_status,
-    sectionAccess,
-    enabled: frontendPermissions.canEditSections,
-    dataUpdatedAt: contentUpdatedAt,
-    isFetching: isFetchingContent,
-  });
 
   // Execution lifecycle transitions (complete/return, publish, archive, restore,
   // assign version, re-run external publish) — shared controller also used by

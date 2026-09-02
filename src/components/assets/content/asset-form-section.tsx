@@ -10,13 +10,9 @@ import type { HuemulQuestionInputValue } from "@/huemul/components/huemul-questi
 import { handleApiError } from "@/lib/error-utils";
 import { isSectionPermissionDeniedError } from "@/lib/section-permission-errors";
 import { cn } from "@/lib/utils";
-import { logger } from "@/lib/logger";
-import { updateReviewStatus, updateSectionFormValues } from "@/services/section_execution";
+import { updateSectionFormValues } from "@/services/section_execution";
 import { uploadMedia } from "@/services/media";
 import type { FormFieldValue, FormValuesSectionPayload } from "@/types/sections/core";
-import type { ReviewStatus } from "@/types/section-execution";
-import type { ContentSection } from "@/types/assets";
-import { computeSectionStats } from "@/components/workflow/workflow-section-stats";
 import { isMediaToken } from "@/lib/plate-media-utils";
 import { AlertTriangle, Check, FileX, Info, Loader2, X } from "lucide-react";
 import {
@@ -52,21 +48,6 @@ interface AssetFormSectionProps {
   isEditing: boolean;
   /** El padre sale del modo edición (tras el flush final de "Dejar de editar"). */
   onExitEditing: () => void;
-  /** Estado actual de revisión — evita repetir el PATCH si ya está en 'finished'. */
-  reviewStatus?: ReviewStatus | null;
-  /**
-   * Flags de SECCIÓN (no de campo) del último /content conocido — can_edit (permiso por
-   * sección), is_visible/can_answer (depends_on propio de la sección). `flushDirtyFields`
-   * los necesita para replicar el corte de `computeSectionStats` (workflow-section-stats.ts)
-   * al decidir 'finished' vs 'editing': sin ellos, una sección inactiva/sin permiso podría
-   * marcarse 'finished' solo porque sus preguntas (todas inactivas) no suman a
-   * `missingRequired`. Si el padre no los tiene a mano, se omiten y el corte no aplica acá
-   * — la reconciliación contra `advance_blockers` (useReconcileFormReviewStatus) sigue
-   * siendo la red de seguridad.
-   */
-  sectionFlags?: Pick<ContentSection, "can_edit" | "is_visible" | "can_answer">;
-  /** Notifica al padre que review_status pasó a 'finished' tras el flush final. */
-  onReviewStatusChange?: (status: ReviewStatus) => void;
   /**
    * Refresca el contenido del asset tras guardar. Cuando el autoguardado o el flush
    * final trae la respuesta del PATCH /form_values, se pasa el payload (agrupado por
@@ -117,9 +98,6 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   canInteract,
   isEditing,
   onExitEditing,
-  reviewStatus,
-  sectionFlags,
-  onReviewStatusChange,
   onUpdate,
   onSavingChange,
 }, ref) {
@@ -246,25 +224,6 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   const uploadingCountRef = useRef(uploadingFields.size);
   uploadingCountRef.current = uploadingFields.size;
 
-  // Último review_status conocido (confirmado por el backend o por la prop del padre) —
-  // evita reenviar un PATCH /review_status redundante. La prop `reviewStatus` llega
-  // desfasada respecto al PATCH optimista (el padre la propaga un render después), así
-  // que se sincroniza acá solo cuando cambia de verdad; `syncReviewStatus` (más abajo)
-  // actualiza este ref de inmediato tras un PATCH exitoso, sin esperar el siguiente render.
-  const reviewStatusRef = useRef<ReviewStatus | null>(reviewStatus ?? null);
-  useEffect(() => {
-    reviewStatusRef.current = reviewStatus ?? null;
-  }, [reviewStatus]);
-  const reviewStatusInFlightRef = useRef(false);
-  // Último target que ESTE componente confirmó con éxito — a diferencia de
-  // reviewStatusRef (que la prop puede resetear con un valor stale si un /content en
-  // vuelo se resuelve antes que nuestro propio PATCH, ver bug de PATCHes duplicados),
-  // esto no se pisa desde afuera. Es la deduplicación real.
-  const lastSentTargetRef = useRef<ReviewStatus | null>(null);
-  // Si llega un target distinto mientras hay un PATCH en vuelo, se guarda acá y se
-  // reintenta al terminar — en vez de descartarlo en silencio.
-  const pendingTargetRef = useRef<ReviewStatus | null>(null);
-
   // ids con un PATCH ya en vuelo — evita reenviar el mismo campo si el blur y el timer de
   // commit (widgets atómicos) caen casi al mismo tiempo.
   const inFlightIdsRef = useRef<Set<string>>(new Set());
@@ -273,52 +232,6 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
 
   const COMMIT_DELAY_MS = 400;
   const IDLE_AUTOSAVE_MS = 10_000;
-
-  // Alinea review_status con el resultado del autoguardado ('finished' sin obligatorios
-  // pendientes, 'editing' si vuelve a faltar alguno) y con el guardado final del botón
-  // (opts.notifyErrors). Deduplica contra lastSentTargetRef ANTES que contra
-  // reviewStatusRef: la prop puede resetearse a un valor stale si un /content en vuelo
-  // se resuelve antes que este propio PATCH (ver bug de 3 PATCH por sección), y
-  // lastSentTargetRef no se pisa desde afuera. Si ya hay un PATCH en vuelo, el target
-  // nuevo se guarda en pendingTargetRef y se reintenta al terminar, en vez de
-  // descartarse — cubre completar y borrar el mismo campo muy rápido.
-  const syncReviewStatus = useCallback(
-    (target: ReviewStatus, opts?: { notifyErrors?: boolean }): Promise<void> => {
-      const known = reviewStatusRef.current ?? "editing";
-      if (target === known || target === lastSentTargetRef.current) return Promise.resolve();
-      if (reviewStatusInFlightRef.current) {
-        pendingTargetRef.current = target;
-        return Promise.resolve();
-      }
-      reviewStatusInFlightRef.current = true;
-      return updateReviewStatus(sectionExecutionId, target, organizationId)
-        .then(() => {
-          reviewStatusRef.current = target;
-          lastSentTargetRef.current = target;
-          onReviewStatusChange?.(target);
-        })
-        .catch((error) => {
-          if (opts?.notifyErrors) {
-            handleApiError(error, { fallbackMessage: t("form.fill.reviewStatusUpdateFailed") });
-          } else {
-            // Efecto secundario silencioso del autoguardado, no una acción explícita del
-            // usuario: no tapa la pantalla con un toast. Se reintenta en el próximo
-            // autoguardado o en la reconciliación contra advance_blockers.
-            logger.warn("[AssetFormSection] No se pudo sincronizar review_status", error);
-          }
-          invalidateContentOnPermissionDenied(error);
-        })
-        .finally(() => {
-          reviewStatusInFlightRef.current = false;
-          const next = pendingTargetRef.current;
-          if (next !== null) {
-            pendingTargetRef.current = null;
-            syncReviewStatus(next);
-          }
-        });
-    },
-    [sectionExecutionId, organizationId, onReviewStatusChange, invalidateContentOnPermissionDenied, t],
-  );
 
   // Auto-guarda cualquier campo respondible que haya cambiado desde el último guardado — no
   // solo los "disparadores" de depends_on — para que el valor quede persistido sin depender
@@ -385,31 +298,10 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
           }, 1500);
         });
 
-        // review_status sigue el estado real de los obligatorios de ESTA sección tras el
-        // guardado. Se usa el payload (form_fields con is_visible/can_answer recalculados
-        // por el backend), no sortedFields (snapshot previo a este PATCH) — único árbitro
-        // de qué campos siguen vigentes tras dependencias condicionales. Si el backend no
-        // trajo esta sección en la respuesta, no se toca acá (queda para la reconciliación
-        // contra advance_blockers al próximo /content).
-        //
-        // onUpdate (dispara applyFormValuesPatch, que puede invalidar /content) se llama
-        // DESPUÉS de que el PATCH /review_status resuelva: si el refetch de /content sale
-        // antes de que este PATCH se persista, vuelve con el review_status viejo y pisa el
-        // parche optimista — la raíz del bug de PATCHes duplicados/estado desalineado.
-        const freshFields = payload?.find((s) => s.section_execution_id === sectionExecutionId)?.form_fields;
-        if (freshFields) {
-          // Se mezclan los flags de sección conocidos por el padre (can_edit/is_visible/
-          // can_answer) — sin ellos, computeSectionStats no puede aplicar el corte de
-          // "sección inactiva o sin permiso" y podría marcar 'finished' una sección cuyos
-          // obligatorios están todos inactivos. Ver doc de `sectionFlags` arriba.
-          const { missingRequired } = computeSectionStats({
-            ...sectionFlags,
-            form_fields: freshFields,
-          } as ContentSection);
-          syncReviewStatus(missingRequired === 0 ? "finished" : "editing").finally(() => onUpdate?.(payload));
-        } else {
-          onUpdate?.(payload);
-        }
+        // answers_status de esta sección se recalcula en el propio parche optimista
+        // (applyFormValuesPatch → patch-document-content.ts) a partir del payload, y el
+        // backend lo confirma en el próximo /content — acá no hay nada más que decidir.
+        onUpdate?.(payload);
       })
       .catch((error) => {
         // Best-effort: si falla, se reintenta en el próximo flush o al guardar con el botón.
@@ -424,7 +316,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
           return next;
         });
       });
-  }, [onUpdate, organizationId, sectionExecutionId, sectionFlags, sortedFields, t, invalidateContentOnPermissionDenied, syncReviewStatus]);
+  }, [onUpdate, organizationId, sectionExecutionId, sortedFields, t, invalidateContentOnPermissionDenied]);
 
   const clearAutosaveTimers = useCallback(() => {
     if (commitTimeoutRef.current) clearTimeout(commitTimeoutRef.current);
@@ -537,16 +429,8 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   // de lo que pudiera seguir pendiente (por ej. si el usuario sale justo después de tipear,
   // sin llegar a disparar un blur). Antes de salir, bloquea si queda algún obligatorio sin
   // responder o algún valor con error de formato/rango — al ser obligatorio debe
-  // contestarse sí o sí. Si todo pasa, marca review_status='finished' (estado puramente
-  // visual): el usuario terminó de responder, sea desde assets ("Dejar de editar") o desde
-  // el wizard de workflow ("Siguiente"/"Finalizar"), ambos disparan este mismo handler.
-  const finishAndExit = async () => {
-    // syncReviewStatus dedupe: si el autoguardado ya dejó la sección en 'finished'
-    // (lastSentTargetRef/reviewStatusRef), esto no repite el PATCH.
-    await syncReviewStatus("finished", { notifyErrors: true });
-    onExitEditing();
-  };
-
+  // contestarse sí o sí. answers_status lo recalcula el backend en el próximo /content
+  // (o el parche optimista de onUpdate); acá ya no hay nada que sincronizar.
   const handleDoneEditing = async () => {
     clearAutosaveTimers();
 
@@ -583,7 +467,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
       (f) => isFieldAnswerable(f) && !valuesEqual(answers[f.id], lastSavedAnswersRef.current[f.id]),
     );
     if (changed.length === 0) {
-      await finishAndExit();
+      onExitEditing();
       return;
     }
 
@@ -600,12 +484,6 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     } finally {
       setIsSaving(false);
     }
-    // Ya se validó arriba que no queda ningún obligatorio pendiente: el target siempre
-    // es 'finished' acá. syncReviewStatus antes de onUpdate — mismo motivo que en
-    // flushDirtyFields: onUpdate puede disparar un refetch de /content, y si sale antes
-    // de que este PATCH se persista, vuelve con el review_status viejo y pisa el parche
-    // optimista (raíz del bug de PATCHes duplicados/estado desalineado).
-    await syncReviewStatus("finished", { notifyErrors: true });
     onUpdate?.(payload!);
     onExitEditing();
   };
