@@ -32,6 +32,7 @@ import { useDiscussions } from "@/hooks/useDiscussions";
 import { LifecycleHistorySheet } from "@/components/assets/content/lifecycle-history-sheet";
 import { AssetDiagramsSheet } from "@/components/assets/content/asset-diagrams-sheet";
 import { AssetsRelatedDocuments } from "@/components/assets/content/assets-related-documents";
+import { AssetsRelatedDocumentsBlock } from "@/components/assets/content/assets-related-documents-block";
 
 import {
   DropdownMenu,
@@ -2827,7 +2828,7 @@ export function AssetContent({
         {/* Content Section - Now with ScrollArea and scroll restoration */}
         <div className="flex-1 bg-white min-w-0 overflow-hidden px-1">
           <ScrollArea className="h-full max-w-full">
-            <div 
+            <div
               ref={scrollRestoration.viewportRef}
               className={`${isViewMode ? 'pt-2 md:pt-3 pb-4 md:pb-5' : 'py-4 md:py-5'} px-4 md:px-6 contain-[inline-size]`}
             >
@@ -3306,6 +3307,20 @@ export function AssetContent({
                           ) : (
                             // Legacy format: single string content
                             <Markdown>{documentContent.content}</Markdown>
+                          )}
+                          {/* Sección al final del contenido: se muestra siempre que la
+                              versión visible tenga documentos relacionados (lector y edición),
+                              scrolleando junto con el resto — NO fija al pie del panel. */}
+                          {canListExecutionRelationships && (
+                            <AssetsRelatedDocumentsBlock
+                              organizationId={selectedOrganizationId}
+                              executionId={relatedExecutionId}
+                              currentDocumentId={selectedFile?.id}
+                              isViewMode={isViewMode}
+                              canListAssetTypes={can('listAssetTypes')}
+                              canLinkAssets={can('openDiagramsCanvas')}
+                              canDeleteRelationship={can('deleteExecutionRelationship')}
+                            />
                           )}
                         </div>
                         </DocumentDataProvider>
