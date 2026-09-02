@@ -1,7 +1,7 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, CheckCircle2, Edit3, ListChecks, RefreshCw } from "lucide-react"
+import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, CheckCircle2, Clock, Edit3, ListChecks, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label"
 import { AssetFormSection, type AssetFormSectionHandle } from "@/components/assets/content/asset-form-section"
 import { WorkflowAssetEditSheet } from "@/components/workflow/workflow-asset-edit-sheet"
 import { WorkflowSectionsSummary } from "@/components/workflow/workflow-sections-summary"
+import { WorkflowFinishedCard } from "@/components/workflow/workflow-finished-card"
+import { WorkflowStatusCard } from "@/components/workflow/workflow-status-card"
 import { HuemulAnswersStatusBadge } from "@/huemul/components/huemul-answers-status-badge"
 import { HuemulLifecycleStageBadge } from "@/huemul/components/huemul-lifecycle-stage-badge"
 import { HuemulLifecycleActions } from "@/huemul/components/huemul-lifecycle-actions"
@@ -19,6 +21,7 @@ import { useOrganization } from "@/contexts/organization-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { lifecycleAllows, lifecycleStageAllowsEditing } from "@/hooks/useDocumentAccess"
 import { READ_ONLY_NOTICE_STATES } from "@/lib/lifecycle-access"
+import { resolveWorkflowFinishOutcome, type WorkflowFinishOutcome } from "@/lib/workflow-finish-outcome"
 import { workflowQueryKeys } from "@/hooks/useWorkflows"
 import { useLifecycleActions } from "@/hooks/useLifecycleActions"
 import type { AssetContentResponse, ContentSection } from "@/types/assets"
@@ -58,6 +61,31 @@ interface WorkflowDetailPanelProps {
   showAssetEdit?: boolean
   /** Oculta el badge y las acciones de ciclo de vida. Default true. */
   showLifecycle?: boolean
+  /**
+   * Muestra el botón "Continuar más tarde" junto a las acciones de ciclo de
+   * vida (solo mientras la etapa admite respuestas, ver `canAnswerForm`).
+   * Puramente visual: no dispara guardado ni transición — el autoguardado ya
+   * persiste todo. Solo lo pasa la vista fullscreen compartida.
+   */
+  onContinueLater?: () => void
+  /**
+   * "Iniciar otro activo" en la tarjeta terminal (ver `finishOutcome` más
+   * abajo — se muestra en el mismo sitio que el resumen de secciones/bloque
+   * de "paso vacío" cuando el estado del documento no le deja al usuario
+   * nada más por hacer). La navegación la resuelve la página (arma la URL del
+   * link de template); ausente cuando la página no pudo resolver ningún
+   * origen (ver `onDocumentOrigin`). Solo la pasa la vista fullscreen.
+   */
+  onStartAnother?: () => void
+  /**
+   * Notifica el origen real del documento (`document_type_id` + `template_id`,
+   * de `/content`) en cuanto está disponible — no depende de cómo se llegó a
+   * esta vista (template redirigido con `dt`/`tpl` en la URL, o un link de
+   * ejecución directa que nunca los tuvo, ver `buildExecutionShareUrl`). La
+   * página lo usa para resolver `onStartAnother` con datos confiables incluso
+   * cuando entró por ese segundo camino. Solo la pasa la vista fullscreen.
+   */
+  onDocumentOrigin?: (documentTypeId: string, templateId: string) => void
 }
 
 /**
@@ -78,6 +106,9 @@ export function WorkflowDetailPanel({
   showClose = true,
   showAssetEdit = true,
   showLifecycle = true,
+  onContinueLater,
+  onStartAnother,
+  onDocumentOrigin,
 }: WorkflowDetailPanelProps) {
   const isFullscreen = variant === "fullscreen"
   const { t } = useTranslation(["workflow", "sections", "assets"])
@@ -234,6 +265,17 @@ export function WorkflowDetailPanel({
 
   const canAnswerSection = currentSection ? canAnswerSpecificSection(currentSection) : canAnswerForm
 
+  // Al menos una sección del wizard es respondible AHORA por este usuario. Lo
+  // consume `finishOutcome` (ver más abajo) para distinguir "tengo permiso de
+  // rol para editar en general" de "hay algo puntual que pueda responder ya" —
+  // sin esto, el hand-off entre dos grupos secuenciales de la MISMA etapa
+  // `edit` (el que ya completó su grupo pero la etapa/estado del documento no
+  // cambia) se leía como "sigue pudiendo responder".
+  const hasAnswerableSection = React.useMemo(
+    () => formSections.some((s) => canAnswerSpecificSection(s)),
+    [formSections, canAnswerSpecificSection],
+  )
+
   // Motivo del aviso de solo lectura: distingue "no tenés permiso/rol", "esta etapa ya
   // no admite respuestas", "esta sección está inactiva según las respuestas dadas" y
   // "esta sección es de solo lectura en esta etapa" — evita que el aviso de permiso
@@ -297,6 +339,68 @@ export function WorkflowDetailPanel({
     },
   })
 
+  // Nombre del workflow para la tarjeta terminal (ver `finishOutcome` abajo):
+  // el nombre del TEMPLATE, no el del documento — `data.template_name` viene
+  // de /content, con fallback al template de origen (link de template) y al
+  // nombre del documento como último recurso.
+  const workflowName = data?.template_name ?? template?.name ?? documentName ?? ""
+
+  // Notifica el origen REAL del documento en cuanto /content lo trae — a
+  // diferencia de los query params `dt`/`tpl` que arma `anchorCreatedDocument`,
+  // esto funciona también cuando se entró por un link de EJECUCIÓN directa
+  // (buildExecutionShareUrl), que nunca los tuvo: el documento igual sabe de
+  // qué template salió. Sin este aviso, "Iniciar otro activo" quedaba sin
+  // datos y nunca se ofrecía por ese camino.
+  React.useEffect(() => {
+    const documentTypeId = data?.document_type?.id
+    const templateId = data?.template_id
+    if (!documentTypeId || !templateId) return
+    onDocumentOrigin?.(documentTypeId, templateId)
+  }, [data?.document_type?.id, data?.template_id, onDocumentOrigin])
+
+  // Outcome terminal DECLARATIVO (ver src/lib/workflow-finish-outcome.ts): se
+  // recalcula en cada render a partir del estado actual del documento, no solo
+  // tras el onSuccess de una mutación — cubre tanto "acabo de completar mi
+  // parte en esta sesión" como "abrí el link cuando el documento YA estaba en
+  // este estado" (p. ej. otra persona con el mismo rol ya completó el grupo).
+  // Solo aplica en fullscreen: en el panel de /workflow el usuario sigue
+  // dentro de la app, no hay pestaña que cerrar. Cuando da un outcome, se
+  // renderiza `WorkflowFinishedCard` EN EL LUGAR del bloque "paso vacío"/
+  // resumen de secciones (ver más abajo) — no como pantalla aparte.
+  const finishOutcome = React.useMemo<WorkflowFinishOutcome | null>(() => {
+    if (!isFullscreen || !documentId || needsNameStep) return null
+    if (isLoading || sectionAccess.isLoading || !!error) return null
+    return resolveWorkflowFinishOutcome({
+      status: data?.lifecycle_status,
+      permissions: data?.lifecycle_permissions,
+      canTransition: canUpdateAssetContent,
+      finalLifecycleStage: lifecycle.finalLifecycleStage,
+      hasAnswerableSection,
+    })
+  }, [
+    isFullscreen,
+    documentId,
+    needsNameStep,
+    isLoading,
+    error,
+    sectionAccess.isLoading,
+    data?.lifecycle_status,
+    data?.lifecycle_permissions,
+    canUpdateAssetContent,
+    lifecycle.finalLifecycleStage,
+    hasAnswerableSection,
+  ])
+
+  // "Ver mis respuestas" pide volver al resumen sin que la tarjeta se pierda
+  // para siempre: se resetea a `false` cada vez que `finishOutcome` CAMBIA de
+  // valor (nueva transición, p.ej. otra persona avanza el documento), para que
+  // la tarjeta pueda reaparecer — mientras el outcome no cambie, el usuario
+  // se queda viendo el resumen tanto tiempo como quiera.
+  const [viewingAnswersAfterFinish, setViewingAnswersAfterFinish] = React.useState(false)
+  React.useEffect(() => {
+    setViewingAnswersAfterFinish(false)
+  }, [finishOutcome])
+
   // AssetFormSection ya validó (required/formato) y guardó antes de llamar esto.
   // Solo se invoca mientras se está respondiendo un paso (step !== null). En el
   // último paso, si el usuario puede avanzar el ciclo de vida, "Finalizar" no
@@ -334,15 +438,46 @@ export function WorkflowDetailPanel({
   const canAdvanceEmptyStep =
     lifecycle.canTransition && (!!lifecycle.status?.can_advance || lifecycle.isBlockedByRequiredAnswers)
 
+  // Texto y acción del bloque "sin secciones para este usuario" (arriba): se
+  // extraen para reutilizar el mismo shell visual que las tarjetas terminales
+  // en fullscreen (WorkflowStatusCard) sin duplicar la selección de texto. En
+  // el panel de /workflow (no fullscreen) siguen renderizándose en el bloque
+  // plano de siempre, sin envolver en Card — ver el branch de abajo.
+  const emptyStepTitleKey = lifecycle.isBlockedByRequiredAnswers
+    ? "wizard.emptyStep.blockedTitle"
+    : canAdvanceEmptyStep
+      ? "wizard.emptyStep.advanceTitle"
+      : "wizard.emptyStep.waitingTitle"
+  const emptyStepDescriptionKey = lifecycle.isBlockedByRequiredAnswers
+    ? "wizard.emptyStep.blockedDescription"
+    : canAdvanceEmptyStep
+      ? "wizard.emptyStep.advanceDescription"
+      : "wizard.emptyStep.waitingDescription"
+  const emptyStepButtonConfig = canAdvanceEmptyStep
+    ? {
+        label: lifecycle.completeLabel,
+        tooltip: lifecycle.isBlockedByRequiredAnswers ? lifecycle.advanceBlockersTooltip : lifecycle.completeTooltip,
+        loading: lifecycle.checkMutation.isPending,
+        disabled: lifecycle.isBlockedByRequiredAnswers,
+        onClick: () => {
+          finishAfterCompleteRef.current = true
+          lifecycle.setIsCheckDialogOpen(true)
+        },
+      }
+    : null
+
   // Último paso del wizard bloqueado por respuestas obligatorias pendientes (en
   // esta sección u otra): el botón "Finalizar" se deshabilita con tooltip en vez
   // de degradar a un simple cierre — evita completar en falso mientras el
   // backend seguiría rechazando con 409.
   const isBlockedLastStep = isLastStep && lifecycle.canTransition && lifecycle.isBlockedByRequiredAnswers
 
-  // La fila de ciclo de vida solo existe en el panel de /workflow. Cuando está,
-  // el badge de etapa sube bajo el título y la sección actual baja a esa fila;
-  // en el link compartido (showLifecycle=false) la sección se queda arriba.
+  // `showLifecycle` es `true` por default en ambos usos (panel de /workflow y
+  // link compartido, ver ia context/fullscreen-share-route-guide.md §4: el
+  // ciclo de vida completo queda habilitado también en fullscreen, filtrado
+  // por los mismos permisos). Cuando la fila existe, el badge de etapa sube
+  // bajo el título y la sección actual baja a esa fila; solo se oculta si
+  // algún llamador futuro pasa `showLifecycle={false}` explícitamente.
   const showLifecycleRow = showLifecycle && !!data?.lifecycle_status && !needsNameStep
 
   return (
@@ -422,12 +557,26 @@ export function WorkflowDetailPanel({
           ) : (
             <div />
           )}
-          <HuemulLifecycleActions
-            controller={lifecycle}
-            variant="row"
-            showRerunExternalPublish
-            hideComplete={willAdvanceOnFinish || (step !== null && !canAnswerSection)}
-          />
+          <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+            {onContinueLater && canAnswerForm && hasAnswerableSection && (
+              <HuemulButton
+                variant="outline"
+                size="sm"
+                icon={Clock}
+                iconPosition="left"
+                iconClassName="h-3.5 w-3.5"
+                label={t("fill.continueLater")}
+                className="h-7 px-2.5 text-xs font-medium"
+                onClick={onContinueLater}
+              />
+            )}
+            <HuemulLifecycleActions
+              controller={lifecycle}
+              variant="row"
+              showRerunExternalPublish
+              hideComplete={willAdvanceOnFinish || (step !== null && !canAnswerSection)}
+            />
+          </div>
         </div>
       )}
 
@@ -493,40 +642,47 @@ export function WorkflowDetailPanel({
             <AlertCircle className="h-4 w-4 shrink-0" />
             {t("panel.loadError")}
           </div>
+        ) : finishOutcome && !viewingAnswersAfterFinish ? (
+          <WorkflowFinishedCard
+            outcome={finishOutcome}
+            workflowName={workflowName}
+            // Sin ninguna sección visible ahora mismo (backend no expone nada a
+            // este rol en este grupo/etapa, ni siquiera lo que ya respondió), no
+            // hay resumen al que volver — se oculta el botón en vez de caer en el
+            // bloque de "paso vacío" (waitingTitle), que confundiría al mostrar
+            // un mensaje que no aplica a alguien que ya completó su parte.
+            onViewAnswers={
+              formSections.length > 0
+                ? () => {
+                    setViewingAnswersAfterFinish(true)
+                    setStep(null)
+                  }
+                : undefined
+            }
+            onStartAnother={onStartAnother}
+          />
         ) : formSections.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-8 text-center">
-            <CheckCircle2 className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm font-medium text-foreground">
-              {lifecycle.isBlockedByRequiredAnswers
-                ? t("wizard.emptyStep.blockedTitle")
-                : canAdvanceEmptyStep
-                  ? t("wizard.emptyStep.advanceTitle")
-                  : t("wizard.emptyStep.waitingTitle")}
-            </p>
-            <p className="max-w-sm text-xs text-muted-foreground">
-              {lifecycle.isBlockedByRequiredAnswers
-                ? t("wizard.emptyStep.blockedDescription")
-                : canAdvanceEmptyStep
-                  ? t("wizard.emptyStep.advanceDescription")
-                  : t("wizard.emptyStep.waitingDescription")}
-            </p>
-            {canAdvanceEmptyStep && (
-              <HuemulButton
-                size="sm"
-                icon={Check}
-                iconPosition="left"
-                label={lifecycle.completeLabel}
-                tooltip={lifecycle.isBlockedByRequiredAnswers ? lifecycle.advanceBlockersTooltip : lifecycle.completeTooltip}
-                loading={lifecycle.checkMutation.isPending}
-                disabled={lifecycle.isBlockedByRequiredAnswers}
-                onClick={() => {
-                  finishAfterCompleteRef.current = true
-                  lifecycle.setIsCheckDialogOpen(true)
-                }}
-                className="mt-2"
-              />
-            )}
-          </div>
+          isFullscreen ? (
+            <WorkflowStatusCard
+              icon={CheckCircle2}
+              title={t(emptyStepTitleKey)}
+              description={t(emptyStepDescriptionKey)}
+              actions={
+                emptyStepButtonConfig && (
+                  <HuemulButton size="sm" icon={Check} iconPosition="left" className="w-full" {...emptyStepButtonConfig} />
+                )
+              }
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-2 py-8 text-center">
+              <CheckCircle2 className="h-8 w-8 text-muted-foreground" />
+              <p className="text-sm font-medium text-foreground">{t(emptyStepTitleKey)}</p>
+              <p className="max-w-sm text-xs text-muted-foreground">{t(emptyStepDescriptionKey)}</p>
+              {emptyStepButtonConfig && (
+                <HuemulButton size="sm" icon={Check} iconPosition="left" className="mt-2" {...emptyStepButtonConfig} />
+              )}
+            </div>
+          )
         ) : step === null || !currentSection ? (
           <WorkflowSectionsSummary sections={formSections} onGoToSection={setStep} canGoToSection={canAnswerSpecificSection} />
         ) : (
@@ -547,7 +703,13 @@ export function WorkflowDetailPanel({
         </div>
       </div>
 
-      {!needsNameStep && documentId && !isLoading && !error && formSections.length > 0 && step !== null && (
+      {!needsNameStep &&
+        documentId &&
+        !isLoading &&
+        !error &&
+        formSections.length > 0 &&
+        step !== null &&
+        !(finishOutcome && !viewingAnswersAfterFinish) && (
         <div
           className={cn(
             "flex flex-wrap items-center justify-between gap-2 border-t p-4 shrink-0",

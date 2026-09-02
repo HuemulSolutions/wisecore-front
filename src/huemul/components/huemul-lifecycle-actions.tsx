@@ -80,7 +80,7 @@ export function HuemulLifecycleActions({
           iconPosition="left"
           iconClassName={iconClassName}
           // green-600 es el hue de "published" en lib/lifecycle-colors.ts — si ese hue cambia, actualizar acá también.
-          className={`${sizeClass} bg-green-600 text-white hover:bg-green-700 ${isCompact ? "" : "rounded-md"} hover:cursor-pointer`}
+          className={`${sizeClass} bg-green-600 text-white hover:bg-green-700 hover:text-white ${isCompact ? "" : "rounded-md"} hover:cursor-pointer`}
           loading={controller.advanceMutation.isPending}
           tooltip={t("lifecycle.tooltipPublish")}
           onClick={() => controller.setIsPublishDialogOpen(true)}

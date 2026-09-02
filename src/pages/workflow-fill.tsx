@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useParams } from "react-router-dom"
+import { useParams, useSearchParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { Loader2, RotateCcw, AlertCircle } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
@@ -10,8 +10,9 @@ import { usePageAccess } from "@/hooks/usePageAccess"
 import { useWorkflowTemplates, useCreateTemplateExpress } from "@/hooks/useWorkflowTemplates"
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { HuemulButton } from "@/huemul/components/huemul-button"
-import { WorkflowDetailPanel } from "@/components/workflow"
-import { WORKFLOW_SHARE_EXECUTION_PATH } from "@/lib/workflow-share-url"
+import { WorkflowDetailPanel, WorkflowSavedLaterCard } from "@/components/workflow"
+import { cn } from "@/lib/utils"
+import { WORKFLOW_SHARE_EXECUTION_PATH, WORKFLOW_SHARE_TEMPLATE_PATH } from "@/lib/workflow-share-url"
 import type { WorkflowTemplateItem } from "@/types/templates"
 import type { WorkflowRowRef } from "@/types/workflow"
 
@@ -24,9 +25,16 @@ type ShareMode = "template" | "execution"
  * con los mismos providers — ver app-layout.tsx.
  *
  * Reutiliza WorkflowDetailPanel completo (wizard, resumen de secciones, badge y
- * acciones de ciclo de vida según permiso) — no hay pantalla terminal propia: al
- * terminar el último paso el panel vuelve solo al resumen de secciones con el
- * documento en su nuevo estado, igual que la columna derecha de /workflow.
+ * acciones de ciclo de vida según permiso): al terminar el último paso el panel
+ * vuelve solo al resumen de secciones con el documento en su nuevo estado, igual
+ * que la columna derecha de /workflow. Cuando el estado del documento no le deja
+ * al usuario nada más por hacer, el propio panel muestra ahí mismo (dentro de su
+ * área de contenido, no como pantalla aparte) la tarjeta terminal
+ * `WorkflowFinishedCard` — ver ia context/fullscreen-share-route-guide.md §4. Esta
+ * página resuelve la navegación de "Iniciar otro activo" (`onStartAnother`) y
+ * recibe del panel el origen real del documento (`onDocumentOrigin`) para que
+ * también funcione en un link de ejecución directa, que nunca trae `dt`/`tpl`
+ * en la URL.
  *
  * Dos modos según la ruta (ver workflow-share-url.ts):
  * - "template" (:documentTypeId/:templateId): cada persona que abre el link crea
@@ -45,6 +53,7 @@ export default function WorkflowFillPage() {
     documentId?: string
     executionId?: string
   }>()
+  const [searchParams] = useSearchParams()
   const navigate = useOrgNavigate()
   const { selectedOrganizationId, organizationToken } = useOrganization()
   const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess("workflow")
@@ -59,7 +68,37 @@ export default function WorkflowFillPage() {
   // reintentar (mismo template): sin este contador en sus deps, "Reintentar"
   // limpiaría el error pero nunca volvería a llamar al mutate.
   const [retryToken, setRetryToken] = useState(0)
+  // Estado del botón "Continuar más tarde" (ver workflow-detail-panel.tsx
+  // onContinueLater): puramente visual, no dispara ningún guardado. El panel
+  // se oculta con `hidden` en vez de desmontarse para que "Seguir completando"
+  // vuelva exactamente al mismo paso del wizard.
+  const [savedForLater, setSavedForLater] = useState(false)
+  // Origen REAL del documento (document_type_id + template_id), notificado por
+  // el panel en cuanto /content los trae (ver onDocumentOrigin en
+  // workflow-detail-panel.tsx) — a diferencia de los params/query params de
+  // abajo, funciona también en un link de EJECUCIÓN directa
+  // (buildExecutionShareUrl), que nunca tiene `dt`/`tpl`. Identidad estable del
+  // callback: evita reevaluar el efecto del panel en cada render de esta página.
+  const [resolvedOrigin, setResolvedOrigin] = useState<{ documentTypeId: string; templateId: string } | null>(null)
+  const handleDocumentOrigin = useCallback((documentTypeId: string, templateId: string) => {
+    setResolvedOrigin((prev) =>
+      prev?.documentTypeId === documentTypeId && prev?.templateId === templateId
+        ? prev
+        : { documentTypeId, templateId },
+    )
+  }, [])
   const autoStartedRef = useRef(false)
+
+  // Se resetea al cambiar de documento/template en esta misma página (p.ej. al
+  // volver del link de template original tras "Iniciar otro activo", ver
+  // handleStartAnother más abajo) — sin esto autoStartedRef seguiría en `true`
+  // de la iteración anterior y el auto-arranque del nuevo express nunca dispararía.
+  useEffect(() => {
+    autoStartedRef.current = false
+    setSavedForLater(false)
+    setResolvedOrigin(null)
+    setAutoCreateError(false)
+  }, [params.templateId, params.documentId])
 
   // Igual que canCreateExpress en pages/workflow.tsx: crear un express exige
   // asset:c. template:l|r solo habilita resolver el nombre/require_name_on_express
@@ -101,13 +140,34 @@ export default function WorkflowFillPage() {
 
   // Ancla el documento recién creado en la URL: reemplaza la ruta de template por
   // la de ejecución (sin executionId, ver App.tsx) para que un refresh posterior
-  // ya no pase por ninguna lógica de creación.
+  // ya no pase por ninguna lógica de creación. Los IDs del template de origen
+  // viajan como query params (sobreviven al refresh) para que "Iniciar otro
+  // activo" (ver handleStartAnother) sepa a qué template volver.
   const anchorCreatedDocument = useCallback(
-    (documentId: string) => {
-      navigate(`/${WORKFLOW_SHARE_EXECUTION_PATH}/${documentId}`, { replace: true })
+    (documentId: string, documentTypeId: string, templateId: string) => {
+      navigate(`/${WORKFLOW_SHARE_EXECUTION_PATH}/${documentId}?dt=${documentTypeId}&tpl=${templateId}`, {
+        replace: true,
+      })
     },
     [navigate],
   )
+
+  // Origen del template, en orden de confianza: 1) el real (resolvedOrigin, una
+  // vez que /content respondió — cubre TAMBIÉN el link de ejecución directa),
+  // 2) los params de la ruta (recién llegado por el link de template), 3) los
+  // query params que dejó anchorCreatedDocument (ya redirigido, /content
+  // todavía no respondió). Sin ninguno de los tres no hay a dónde volver y
+  // "Iniciar otro activo" no se muestra — solo puede pasar mientras /content
+  // sigue cargando.
+  const originDocumentTypeId =
+    resolvedOrigin?.documentTypeId ?? params.documentTypeId ?? searchParams.get("dt") ?? undefined
+  const originTemplateId = resolvedOrigin?.templateId ?? params.templateId ?? searchParams.get("tpl") ?? undefined
+  const canStartAnother = !!originDocumentTypeId && !!originTemplateId
+
+  const handleStartAnother = useCallback(() => {
+    if (!originDocumentTypeId || !originTemplateId) return
+    navigate(`/${WORKFLOW_SHARE_TEMPLATE_PATH}/${originDocumentTypeId}/${originTemplateId}`)
+  }, [navigate, originDocumentTypeId, originTemplateId])
 
   // Arranque automático: mismo criterio que el onStart de las tarjetas en
   // pages/workflow.tsx — si el template no exige nombre, se crea de una.
@@ -118,7 +178,7 @@ export default function WorkflowFillPage() {
     autoStartedRef.current = true
     createExpress
       .mutateAsync({ documentTypeId: template.document_type_id, templateId: template.id, body: { name: "" } })
-      .then((result) => anchorCreatedDocument(result.id))
+      .then((result) => anchorCreatedDocument(result.id, template.document_type_id, template.id))
       .catch(() => {
         autoStartedRef.current = false
         setAutoCreateError(true)
@@ -131,7 +191,7 @@ export default function WorkflowFillPage() {
       setAutoCreateError(false)
       createExpress
         .mutateAsync({ documentTypeId: template.document_type_id, templateId: template.id, body: { name, description } })
-        .then((result) => anchorCreatedDocument(result.id))
+        .then((result) => anchorCreatedDocument(result.id, template.document_type_id, template.id))
         .catch(() => setAutoCreateError(true))
     },
     [template, canCreateExpress, createExpress, anchorCreatedDocument],
@@ -212,15 +272,32 @@ export default function WorkflowFillPage() {
   }
 
   return (
-    <WorkflowDetailPanel
-      variant="fullscreen"
-      showClose={false}
-      showAssetEdit={false}
-      row={row}
-      template={mode === "template" ? (template ?? undefined) : undefined}
-      isCreating={createExpress.isPending}
-      onSubmitName={handleSubmitName}
-      onClose={() => {}}
-    />
+    <>
+      {/* `hidden`, no desmontado: "Seguir completando" debe volver exactamente
+          al mismo paso del wizard, sin perder el formulario en memoria. La
+          tarjeta terminal (cuando no queda nada más por hacer) la muestra el
+          propio panel en su área de contenido — no necesita este toggle. */}
+      <div className={cn("h-full", savedForLater && "hidden")}>
+        <WorkflowDetailPanel
+          variant="fullscreen"
+          showClose={false}
+          showAssetEdit={false}
+          row={row}
+          template={mode === "template" ? (template ?? undefined) : undefined}
+          isCreating={createExpress.isPending}
+          onSubmitName={handleSubmitName}
+          onClose={() => {}}
+          onContinueLater={() => setSavedForLater(true)}
+          onStartAnother={canStartAnother ? handleStartAnother : undefined}
+          onDocumentOrigin={handleDocumentOrigin}
+        />
+      </div>
+      {savedForLater && (
+        <WorkflowSavedLaterCard
+          onKeepGoing={() => setSavedForLater(false)}
+          onStartAnother={canStartAnother ? handleStartAnother : undefined}
+        />
+      )}
+    </>
   )
 }
