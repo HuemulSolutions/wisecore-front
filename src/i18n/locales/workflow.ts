@@ -200,6 +200,18 @@ const translations = {
     savedNeedMore: { en: "Need anything else?", es: "¿Necesitas algo más?" },
     savedKeepGoing: { en: "Keep completing", es: "Seguir completando" },
     savedStartAnother: { en: "Start another asset", es: "Iniciar otro activo" },
+    finished: {
+      answersSentTitle: { en: "Answers for {{name}} submitted", es: "Respuestas de {{name}} enviadas" },
+      sentToApprovalTitle: { en: "{{name}} sent for approval", es: "{{name}} enviado a aprobación" },
+      approvedTitle: { en: "{{name}} approved", es: "{{name}} aprobado" },
+      publishedTitle: { en: "{{name}} published", es: "{{name}} publicado" },
+      description: { en: "You can close this tab now.", es: "Ya puedes cerrar esta pestaña." },
+      publishedDescription: {
+        en: "The data was submitted and the process has finished. You can close this tab now.",
+        es: "Los datos fueron enviados y el proceso ha finalizado. Ya puedes cerrar esta pestaña.",
+      },
+      viewAnswers: { en: "View my answers", es: "Ver mis respuestas" },
+    },
   },
 }
 
