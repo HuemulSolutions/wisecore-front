@@ -12,21 +12,19 @@ const REVIEW_STATUS_HUE: Record<ReviewStatus, Parameters<typeof toneColor>[0]> =
 
 interface HuemulReviewStatusBadgeProps {
   status?: ReviewStatus | null
-  /** Secciones tipo 'form' usan labels propios (No respondido/Respondido) — el resto usa Editando/Revisando/Finalizado. */
-  sectionType?: string | null
   className?: string
 }
 
-/** Pill de solo lectura del review_status de una sección, con color por estado y label traducido. */
-export function HuemulReviewStatusBadge({ status, sectionType, className }: HuemulReviewStatusBadgeProps) {
+/**
+ * Pill de solo lectura del review_status de una sección NO form (Editando/Revisando/
+ * Finalizado). Las secciones form usan HuemulAnswersStatusBadge (answers_status).
+ */
+export function HuemulReviewStatusBadge({ status, className }: HuemulReviewStatusBadgeProps) {
   const { t } = useTranslation("assets")
   // Sección sin estado aún (recién creada) equivale a 'editing' — nunca queda sin badge.
   const resolvedStatus: ReviewStatus = status ?? "editing"
 
-  const label =
-    sectionType === "form"
-      ? t(resolvedStatus === "finished" ? "section.reviewStatusFormAnswered" : "section.reviewStatusFormNotAnswered")
-      : t(`section.reviewStatus${resolvedStatus.charAt(0).toUpperCase()}${resolvedStatus.slice(1)}`)
+  const label = t(`section.reviewStatus${resolvedStatus.charAt(0).toUpperCase()}${resolvedStatus.slice(1)}`)
 
   return (
     <span

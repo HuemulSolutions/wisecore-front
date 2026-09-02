@@ -1,6 +1,6 @@
 import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitCompare, History, Eye, XCircle, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { memo, useState, useEffect, useRef, useCallback } from 'react';
+import { memo, useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import SectionPlateEditor from '@/components/plate-editor/section-plate-editor';
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ import { logger } from '@/lib/logger';
 import { useTranslation } from 'react-i18next';
 import { AssetFormSection, type AssetFormSectionHandle } from '@/components/assets/content/asset-form-section';
 import { AssetFormSectionReader } from '@/components/assets/content/asset-form-section-reader';
-import { applyReviewStatusPatch } from '@/components/assets/content/utils/patch-document-content';
+import { HuemulAnswersStatusBadge } from '@/huemul/components/huemul-answers-status-badge';
 import { QUESTION_TYPE, formatFieldValueForCopy, isFieldAnswerable, isFieldVisible } from '@/components/sections/question-type-meta';
 import type { SectionExecutionProps } from '@/types/assets';
 export type { SectionExecutionProps } from '@/types/assets';
@@ -112,22 +112,6 @@ function SectionExecutionInner({
     useEffect(() => {
         setReviewStatus((sectionExecution.review_status as ReviewStatus) ?? null);
     }, [sectionExecution.review_status]);
-
-    // AssetFormSection ya confirmó el PATCH /review_status con el backend antes de llamar
-    // esto — acá solo se refleja. A diferencia del panel de workflow (que vive en un
-    // useQuery propio), esta pantalla parcheaba SOLO el estado local (setReviewStatus),
-    // dejando el caché de ['document-content', documentId] con el valor viejo. Si la
-    // sección se desmonta/remonta (cambiar de sección y volver, dentro del staleTime de
-    // 30s) sin un refetch real de por medio, se re-siembra desde ese caché stale y la
-    // sección recién completada vuelve a verse "Pendiente" — mismo síntoma que motivó
-    // el parche en workflow-detail-panel.tsx (ver applyReviewStatusPatch).
-    const handleFormReviewStatusChange = useCallback(
-        (status: ReviewStatus) => {
-            setReviewStatus(status);
-            if (documentId) applyReviewStatusPatch(queryClient, documentId, sectionExecution.id, status);
-        },
-        [documentId, queryClient, sectionExecution.id],
-    );
 
     // Derived: whether there's a completed suggestion ready to review (from server props)
     const hasPendingSuggestion =
@@ -523,30 +507,29 @@ function SectionExecutionInner({
                             </div>
                         )}
 
-                        {/* Review Status Selector - inline with section info */}
+                        {/* Review Status - inline with section info. Form: badge de solo lectura
+                            (answers_status, calculado por el backend). No-form: selector manual. */}
                         {!isEditing && (
-                            <HuemulField
-                                type="select"
-                                label=""
-                                value={reviewStatus ?? ''}
-                                onChange={(v) => handleReviewStatusChange(v as ReviewStatus)}
-                                disabled={isUpdatingReviewStatus || !canEditSections}
-                                placeholder={t('section.reviewStatusPlaceholder')}
-                                options={sectionType === 'form'
-                                    ? [
-                                        { value: 'editing', label: t('section.reviewStatusFormNotAnswered'), color: '#f59e0b' },
-                                        { value: 'finished', label: t('section.reviewStatusFormAnswered'), color: '#22c55e' },
-                                    ]
-                                    : [
+                            sectionType === 'form' ? (
+                                <HuemulAnswersStatusBadge status={sectionExecution.answers_status} />
+                            ) : (
+                                <HuemulField
+                                    type="select"
+                                    label=""
+                                    value={reviewStatus ?? ''}
+                                    onChange={(v) => handleReviewStatusChange(v as ReviewStatus)}
+                                    disabled={isUpdatingReviewStatus || !canEditSections}
+                                    placeholder={t('section.reviewStatusPlaceholder')}
+                                    options={[
                                         { value: 'editing', label: t('section.reviewStatusEditing'), color: '#3b82f6' },
                                         { value: 'reviewing', label: t('section.reviewStatusReviewing'), color: '#f59e0b' },
                                         { value: 'finished', label: t('section.reviewStatusFinished'), color: '#22c55e' },
-                                    ]
-                                }
-                                className="w-auto"
-                                selectSize="xs"
-                                inputClassName="w-auto py-[3px] px-2 text-[10px] font-medium border-gray-200 bg-gray-50/80 shadow-none hover:bg-gray-100 hover:cursor-pointer [&_svg]:h-3 [&_svg]:w-3 [&_svg]:opacity-50"
-                            />
+                                    ]}
+                                    className="w-auto"
+                                    selectSize="xs"
+                                    inputClassName="w-auto py-[3px] px-2 text-[10px] font-medium border-gray-200 bg-gray-50/80 shadow-none hover:bg-gray-100 hover:cursor-pointer [&_svg]:h-3 [&_svg]:w-3 [&_svg]:opacity-50"
+                                />
+                            )
                         )}
                     </div>
 
@@ -914,7 +897,7 @@ function SectionExecutionInner({
                 !readyToEdit ? (
                     /* Reader mode: numbered/collapsible summary card instead of the flat answer stack */
                     <AssetFormSectionReader
-                        section={{ form_fields: sectionExecution.form_fields, review_status: reviewStatus }}
+                        section={{ form_fields: sectionExecution.form_fields, answers_status: sectionExecution.answers_status }}
                         sectionName={sectionName}
                         sectionIndex={sectionIndex ?? 0}
                         canAnswer={canAnswerInReader}
@@ -924,12 +907,6 @@ function SectionExecutionInner({
                         onDoneAnswering={() => formSectionRef.current?.exit()}
                     >
                         {isAnsweringInReader && (
-                            // Sin `sectionFlags`: a diferencia de workflow-detail-panel.tsx, acá
-                            // `sectionExecution` (SectionExecutionProps) no trae can_edit/is_visible/
-                            // can_answer de sección — can_edit en particular nunca lo manda /content,
-                            // se resuelve aparte contra sectionAccess (ver comentario de canEditSections
-                            // más abajo). computeSectionStats no aplica ese corte acá; la reconciliación
-                            // contra advance_blockers sigue cubriendo el caso.
                             <AssetFormSection
                                 ref={formSectionRef}
                                 sectionExecutionId={sectionExecution.id}
@@ -940,8 +917,6 @@ function SectionExecutionInner({
                                 canInteract={canEditSections}
                                 isEditing
                                 onExitEditing={() => setIsAnsweringInReader(false)}
-                                reviewStatus={reviewStatus}
-                                onReviewStatusChange={handleFormReviewStatusChange}
                                 onUpdate={onUpdate}
                                 onSavingChange={setIsFormSaving}
                             />
@@ -960,8 +935,6 @@ function SectionExecutionInner({
                             canInteract={readyToEdit && canEditSections && sectionCanAnswer}
                             isEditing={isEditing}
                             onExitEditing={handleCancelEdit}
-                            reviewStatus={reviewStatus}
-                            onReviewStatusChange={handleFormReviewStatusChange}
                             onUpdate={onUpdate}
                             onSavingChange={setIsFormSaving}
                         />
