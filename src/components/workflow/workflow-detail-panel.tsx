@@ -558,7 +558,10 @@ export function WorkflowDetailPanel({
             <div />
           )}
           <div className="flex items-center gap-1.5 flex-wrap shrink-0">
-            {onContinueLater && canAnswerForm && hasAnswerableSection && (
+            {/* Sin depender de canAnswerForm/hasAnswerableSection: debe verse en
+                cualquier etapa del ciclo de vida y aunque no quede nada por
+                responder (aprobador, hand-off, revisión, publicado, etc.). */}
+            {onContinueLater && (
               <HuemulButton
                 variant="outline"
                 size="sm"
