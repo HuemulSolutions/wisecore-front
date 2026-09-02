@@ -1,7 +1,7 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, CheckCircle2, Edit3, ListChecks, RefreshCw } from "lucide-react"
+import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, CheckCircle2, Clock, Edit3, ListChecks, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Input } from "@/components/ui/input"
@@ -58,6 +58,13 @@ interface WorkflowDetailPanelProps {
   showAssetEdit?: boolean
   /** Oculta el badge y las acciones de ciclo de vida. Default true. */
   showLifecycle?: boolean
+  /**
+   * Muestra el botón "Continuar más tarde" junto a las acciones de ciclo de
+   * vida (solo mientras la etapa admite respuestas, ver `canAnswerForm`).
+   * Puramente visual: no dispara guardado ni transición — el autoguardado ya
+   * persiste todo. Solo lo pasa la vista fullscreen compartida.
+   */
+  onContinueLater?: () => void
 }
 
 /**
@@ -78,6 +85,7 @@ export function WorkflowDetailPanel({
   showClose = true,
   showAssetEdit = true,
   showLifecycle = true,
+  onContinueLater,
 }: WorkflowDetailPanelProps) {
   const isFullscreen = variant === "fullscreen"
   const { t } = useTranslation(["workflow", "sections", "assets"])
@@ -422,12 +430,26 @@ export function WorkflowDetailPanel({
           ) : (
             <div />
           )}
-          <HuemulLifecycleActions
-            controller={lifecycle}
-            variant="row"
-            showRerunExternalPublish
-            hideComplete={willAdvanceOnFinish || (step !== null && !canAnswerSection)}
-          />
+          <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+            {onContinueLater && canAnswerForm && (
+              <HuemulButton
+                variant="outline"
+                size="sm"
+                icon={Clock}
+                iconPosition="left"
+                iconClassName="h-3.5 w-3.5"
+                label={t("fill.continueLater")}
+                className="h-7 px-2.5 text-xs font-medium"
+                onClick={onContinueLater}
+              />
+            )}
+            <HuemulLifecycleActions
+              controller={lifecycle}
+              variant="row"
+              showRerunExternalPublish
+              hideComplete={willAdvanceOnFinish || (step !== null && !canAnswerSection)}
+            />
+          </div>
         </div>
       )}
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useParams } from "react-router-dom"
+import { useParams, useSearchParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { Loader2, RotateCcw, AlertCircle } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
@@ -10,8 +10,9 @@ import { usePageAccess } from "@/hooks/usePageAccess"
 import { useWorkflowTemplates, useCreateTemplateExpress } from "@/hooks/useWorkflowTemplates"
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { HuemulButton } from "@/huemul/components/huemul-button"
-import { WorkflowDetailPanel } from "@/components/workflow"
-import { WORKFLOW_SHARE_EXECUTION_PATH } from "@/lib/workflow-share-url"
+import { WorkflowDetailPanel, WorkflowSavedLaterCard } from "@/components/workflow"
+import { cn } from "@/lib/utils"
+import { WORKFLOW_SHARE_EXECUTION_PATH, WORKFLOW_SHARE_TEMPLATE_PATH } from "@/lib/workflow-share-url"
 import type { WorkflowTemplateItem } from "@/types/templates"
 import type { WorkflowRowRef } from "@/types/workflow"
 
@@ -45,6 +46,7 @@ export default function WorkflowFillPage() {
     documentId?: string
     executionId?: string
   }>()
+  const [searchParams] = useSearchParams()
   const navigate = useOrgNavigate()
   const { selectedOrganizationId, organizationToken } = useOrganization()
   const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess("workflow")
@@ -59,7 +61,22 @@ export default function WorkflowFillPage() {
   // reintentar (mismo template): sin este contador en sus deps, "Reintentar"
   // limpiaría el error pero nunca volvería a llamar al mutate.
   const [retryToken, setRetryToken] = useState(0)
+  // Estado del botón "Continuar más tarde" (ver workflow-detail-panel.tsx
+  // onContinueLater): puramente visual, no dispara ningún guardado. El panel
+  // se oculta con `hidden` en vez de desmontarse para que "Seguir completando"
+  // vuelva exactamente al mismo paso del wizard.
+  const [savedForLater, setSavedForLater] = useState(false)
   const autoStartedRef = useRef(false)
+
+  // Se resetea al cambiar de documento/template en esta misma página (p.ej. al
+  // volver del link de template original tras "Iniciar otro activo", ver
+  // handleStartAnother más abajo) — sin esto autoStartedRef seguiría en `true`
+  // de la iteración anterior y el auto-arranque del nuevo express nunca dispararía.
+  useEffect(() => {
+    autoStartedRef.current = false
+    setSavedForLater(false)
+    setAutoCreateError(false)
+  }, [params.templateId, params.documentId])
 
   // Igual que canCreateExpress en pages/workflow.tsx: crear un express exige
   // asset:c. template:l|r solo habilita resolver el nombre/require_name_on_express
@@ -101,13 +118,30 @@ export default function WorkflowFillPage() {
 
   // Ancla el documento recién creado en la URL: reemplaza la ruta de template por
   // la de ejecución (sin executionId, ver App.tsx) para que un refresh posterior
-  // ya no pase por ninguna lógica de creación.
+  // ya no pase por ninguna lógica de creación. Los IDs del template de origen
+  // viajan como query params (sobreviven al refresh) para que "Iniciar otro
+  // activo" (ver handleStartAnother) sepa a qué template volver.
   const anchorCreatedDocument = useCallback(
-    (documentId: string) => {
-      navigate(`/${WORKFLOW_SHARE_EXECUTION_PATH}/${documentId}`, { replace: true })
+    (documentId: string, documentTypeId: string, templateId: string) => {
+      navigate(`/${WORKFLOW_SHARE_EXECUTION_PATH}/${documentId}?dt=${documentTypeId}&tpl=${templateId}`, {
+        replace: true,
+      })
     },
     [navigate],
   )
+
+  // Origen del template: de los params de la ruta (recién llegado por el link de
+  // template) o de los query params que dejó anchorCreatedDocument (ya redirigido
+  // a la ruta de ejecución). Sin ninguno de los dos (link de ejecución compartido
+  // directo) no hay a dónde volver y "Iniciar otro activo" no se muestra.
+  const originDocumentTypeId = params.documentTypeId ?? searchParams.get("dt") ?? undefined
+  const originTemplateId = params.templateId ?? searchParams.get("tpl") ?? undefined
+  const canStartAnother = !!originDocumentTypeId && !!originTemplateId
+
+  const handleStartAnother = useCallback(() => {
+    if (!originDocumentTypeId || !originTemplateId) return
+    navigate(`/${WORKFLOW_SHARE_TEMPLATE_PATH}/${originDocumentTypeId}/${originTemplateId}`)
+  }, [navigate, originDocumentTypeId, originTemplateId])
 
   // Arranque automático: mismo criterio que el onStart de las tarjetas en
   // pages/workflow.tsx — si el template no exige nombre, se crea de una.
@@ -118,7 +152,7 @@ export default function WorkflowFillPage() {
     autoStartedRef.current = true
     createExpress
       .mutateAsync({ documentTypeId: template.document_type_id, templateId: template.id, body: { name: "" } })
-      .then((result) => anchorCreatedDocument(result.id))
+      .then((result) => anchorCreatedDocument(result.id, template.document_type_id, template.id))
       .catch(() => {
         autoStartedRef.current = false
         setAutoCreateError(true)
@@ -131,7 +165,7 @@ export default function WorkflowFillPage() {
       setAutoCreateError(false)
       createExpress
         .mutateAsync({ documentTypeId: template.document_type_id, templateId: template.id, body: { name, description } })
-        .then((result) => anchorCreatedDocument(result.id))
+        .then((result) => anchorCreatedDocument(result.id, template.document_type_id, template.id))
         .catch(() => setAutoCreateError(true))
     },
     [template, canCreateExpress, createExpress, anchorCreatedDocument],
@@ -212,15 +246,28 @@ export default function WorkflowFillPage() {
   }
 
   return (
-    <WorkflowDetailPanel
-      variant="fullscreen"
-      showClose={false}
-      showAssetEdit={false}
-      row={row}
-      template={mode === "template" ? (template ?? undefined) : undefined}
-      isCreating={createExpress.isPending}
-      onSubmitName={handleSubmitName}
-      onClose={() => {}}
-    />
+    <>
+      {/* `hidden`, no desmontado: "Seguir completando" debe volver exactamente
+          al mismo paso del wizard, sin perder el formulario en memoria. */}
+      <div className={cn("h-full", savedForLater && "hidden")}>
+        <WorkflowDetailPanel
+          variant="fullscreen"
+          showClose={false}
+          showAssetEdit={false}
+          row={row}
+          template={mode === "template" ? (template ?? undefined) : undefined}
+          isCreating={createExpress.isPending}
+          onSubmitName={handleSubmitName}
+          onClose={() => {}}
+          onContinueLater={() => setSavedForLater(true)}
+        />
+      </div>
+      {savedForLater && (
+        <WorkflowSavedLaterCard
+          onKeepGoing={() => setSavedForLater(false)}
+          onStartAnother={canStartAnother ? handleStartAnother : undefined}
+        />
+      )}
+    </>
   )
 }

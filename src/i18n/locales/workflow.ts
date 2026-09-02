@@ -191,6 +191,15 @@ const translations = {
       en: "Something went wrong creating this asset.",
       es: "Ocurrió un error al crear este activo.",
     },
+    continueLater: { en: "Continue later", es: "Continuar más tarde" },
+    savedTitle: { en: "Answers saved", es: "Respuestas guardadas" },
+    savedDescription: {
+      en: "You can keep completing this asset later from WiseCore. You can close this tab now.",
+      es: "Puedes continuar completando este activo más tarde desde WiseCore. Ya puedes cerrar esta pestaña.",
+    },
+    savedNeedMore: { en: "Need anything else?", es: "¿Necesitas algo más?" },
+    savedKeepGoing: { en: "Keep completing", es: "Seguir completando" },
+    savedStartAnother: { en: "Start another asset", es: "Iniciar otro activo" },
   },
 }
 
