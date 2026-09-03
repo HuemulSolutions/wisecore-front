@@ -132,6 +132,8 @@ export interface AssetFileTreeProps {
    * HuemulFileTreeProps.canDropNode.
    */
   canDropNode?: (node: FileNode) => boolean
+  /** Ver la nota en HuemulFileTreeProps.onExpandedFoldersChange. */
+  onExpandedFoldersChange?: (folderIds: string[]) => void
 }
 
 export interface FileTreeRef extends HuemulFileTreeRef {}

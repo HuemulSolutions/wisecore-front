@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils"
 import { logger } from "@/lib/logger"
 import { useNavKnowledge } from "@/contexts/nav-knowledge-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
+import { useTreeExpansionStorage } from "@/hooks/useTreeExpansionStorage"
 import { handleFolderActionError, isRootGroupFolderNode, buildFocusedTree } from "@/components/layout/nav-knowledge-utils"
 
 // Las áreas (subcarpetas de Grupal) se distinguen visualmente de una carpeta común.
@@ -224,6 +225,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
   // `enabled` — ver punto 3 del checklist en ia context/rbac-audit-guide.md.
   const canListLibrary = can('listAssets') || can('listFolders')
   const { guardedAction } = useOptionalEditingGuard()
+  const { expandedIdsRef, saveExpandedIds } = useTreeExpansionStorage(selectedOrganizationId)
 
   /**
    * Qué nodos puede arrastrar el usuario. Mismo predicado que el item de kebab
@@ -385,13 +387,17 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
         // Consumo único — no debe reusarse en refrescos posteriores no
         // relacionados, ni siquiera si esta carga falla.
         if (isRoot && pendingFocusAssetIdRef.current) pendingFocusAssetIdRef.current = null
-        // Tracks whether the focused-tree branch actually ran. Starts optimistic
-        // and gets demoted to false if the focus asset turns out to be invalid
-        // (stale id, deleted asset, or leftover from another organization).
-        let focusedRootLoad = isRoot && !!focusAssetId
+        // Carpetas que el usuario dejó expandidas (persistidas por org) — solo
+        // aplica al root load, igual que el foco.
+        const expandedFolderIds = isRoot ? expandedIdsRef.current : []
+        // Tracks whether the enriched-tree branch actually ran (foco y/o
+        // expandidas). Starts optimistic and gets demoted to false if el
+        // backend rechaza el pedido (asset/ids inválidos, combinación no
+        // soportada) — ver el catch de abajo.
+        let enrichedRootLoad = isRoot && (!!focusAssetId || expandedFolderIds.length > 0)
 
         let content: LibraryContent
-        if (focusedRootLoad) {
+        if (enrichedRootLoad) {
           try {
             content = await getLibraryContent(
               selectedOrganizationId,
@@ -400,23 +406,26 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
               rootPageSizeRef.current,
               undefined,
               undefined,
-              focusAssetId!,
+              focusAssetId ?? undefined,
+              { expandedFolderIds },
             )
-          } catch (focusError) {
-            if (!ApiError.isApiError(focusError) || focusError.statusCode !== 404) {
-              throw focusError
+          } catch (enrichedError) {
+            if (!ApiError.isApiError(enrichedError) ||
+              (enrichedError.statusCode !== 404 && enrichedError.statusCode !== 400)) {
+              throw enrichedError
             }
-            // The focused asset doesn't exist / isn't reachable in this org
-            // (e.g. leftover id from a previous org, or a deleted document).
-            // That's a focus failure, not a folder-load failure — fall back to
-            // a normal root load instead of emptying the whole tree.
+            // 404: el asset enfocado no existe / no es alcanzable en esta org
+            // (id viejo de otra org, documento borrado). 400: el backend
+            // rechazó la combinación (p. ej. INVALID_FOLDER_EXPANDED_IDS_LIMIT).
+            // En ambos casos es una falla del enriquecimiento, no de la carga
+            // de la carpeta — cae a una carga root plana en vez de vaciar el árbol.
             content = await getLibraryContent(
               selectedOrganizationId,
               undefined,
               rootPageRef.current,
               rootPageSizeRef.current,
             )
-            focusedRootLoad = false
+            enrichedRootLoad = false
           }
         } else if (isRoot) {
           content = await getLibraryContent(
@@ -464,7 +473,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
         // Track parent folder for each node so we can show "Move to Root" only for non-root nodes
         setNodeParentIds((prev) => {
           const newMap = new Map(prev)
-          if (focusedRootLoad) {
+          if (enrichedRootLoad) {
             content.folders.forEach((f) => newMap.set(f.id, f.parent_folder_id))
             content.assets.forEach((a) => newMap.set(a.id, a.folder_id))
           } else {
@@ -474,7 +483,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
           return newMap
         })
 
-        if (focusedRootLoad) {
+        if (enrichedRootLoad) {
           return buildFocusedTree(content)
         }
 
@@ -871,7 +880,13 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
           // un solo control por contenedor.
           showRefreshButton={false}
           alwaysShowMenuActions={true}
-          preserveExpandedOnRefresh={!activeAssetId}
+          // La carga root ahora siempre trae la expansión resuelta por el
+          // backend (foco + expanded_folder_ids persistidas), así que su
+          // respuesta es autoritativa — evita el camino de N requests
+          // (una por carpeta expandida) que preserveExpandedOnRefresh={true}
+          // dispararía en cada refresh.
+          preserveExpandedOnRefresh={false}
+          onExpandedFoldersChange={saveExpandedIds}
           renderLeafIcon={(node) => {
             const fileNode = node as FileNode
             const color = fileNode.document_type?.color

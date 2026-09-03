@@ -64,6 +64,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       preserveExpandedOnRefresh = true,
       canDragNode,
       canDropNode,
+      onExpandedFoldersChange,
     },
     ref,
   ) => {
@@ -149,6 +150,11 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       [isNodeExpandable, folderType],
     )
 
+    // Ref para no forzar a los consumidores a memoizar el callback ni a
+    // meterlo como dependencia de este efecto.
+    const onExpandedFoldersChangeRef = useRef(onExpandedFoldersChange)
+    onExpandedFoldersChangeRef.current = onExpandedFoldersChange
+
     useEffect(() => {
       const getExpandedIds = (nodeList: HuemulTreeNode[]): string[] => {
         const expanded: string[] = []
@@ -162,8 +168,15 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         }
         return expanded
       }
-      setExpandedFolders(new Set(getExpandedIds(nodes)))
-    }, [nodes, isExpandable])
+      const expandedIds = getExpandedIds(nodes)
+      setExpandedFolders(new Set(expandedIds))
+      // Antes de isInitialized, nodes es [] — emitir acá pisaría con un set
+      // vacío cualquier estado persistido antes de que la carga inicial lo
+      // restaure.
+      if (isInitialized) {
+        onExpandedFoldersChangeRef.current?.(expandedIds)
+      }
+    }, [nodes, isExpandable, isInitialized])
 
     // Clear per-node loading indicator when activeNodeId changes to match
     useEffect(() => {

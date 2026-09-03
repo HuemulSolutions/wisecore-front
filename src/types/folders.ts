@@ -79,4 +79,11 @@ export interface GetLibraryContentOptions {
   includeExecutions?: boolean;
   /** Modo lote: ignora folderId/search/filters/focusAssetId. Incompatible con ellos (400 del backend). */
   assetIds?: string[];
+  /**
+   * Carpetas a resolver ya expandidas en la misma respuesta (unión con
+   * focusAssetId, sus ancestros incluidos). Solo aplica al root load — máx.
+   * 200 ids, el backend responde 400 (INVALID_FOLDER_EXPANDED_IDS_LIMIT) si
+   * se excede. Incompatible con search/filters/assetIds.
+   */
+  expandedFolderIds?: string[];
 }

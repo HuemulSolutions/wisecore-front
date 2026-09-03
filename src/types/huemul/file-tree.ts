@@ -77,6 +77,15 @@ export interface HuemulFileTreeProps {
    * perderían el drop en silencio — misma nota que `canDragNode`.
    */
   canDropNode?: (node: HuemulTreeNode) => boolean
+  /**
+   * Se dispara cada vez que cambia el set de carpetas expandidas (expandir,
+   * colapsar, o una carga que trae expansión ya resuelta desde el backend),
+   * con la lista completa de ids vigente. No se emite antes de la carga
+   * inicial (`isInitialized`) para no pisar un estado persistido con un set
+   * vacío antes de restaurarlo. El componente es agnóstico de storage — solo
+   * avisa; quien lo use decide cómo (o si) persistir el valor.
+   */
+  onExpandedFoldersChange?: (folderIds: string[]) => void
 }
 
 export interface HuemulFileTreeRef {
