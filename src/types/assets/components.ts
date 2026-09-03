@@ -127,6 +127,11 @@ export interface AssetFileTreeProps {
    * Default: todos. Ver la nota en HuemulFileTreeProps.canDragNode.
    */
   canDragNode?: (node: FileNode) => boolean
+  /**
+   * Qué carpetas pueden RECIBIR un drop (destino). Ver la nota en
+   * HuemulFileTreeProps.canDropNode.
+   */
+  canDropNode?: (node: FileNode) => boolean
 }
 
 export interface FileTreeRef extends HuemulFileTreeRef {}

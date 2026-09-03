@@ -68,6 +68,15 @@ export interface HuemulFileTreeProps {
    * ia context/rbac-audit-guide.md, punto 8 (gestos sin botón).
    */
   canDragNode?: (node: HuemulTreeNode) => boolean
+  /**
+   * Qué carpetas pueden RECIBIR un drop (destino). Distinto de `canDragNode`,
+   * que decide qué nodo se puede tomar como origen.
+   * Default: toda carpeta no deshabilitada acepta drop.
+   *
+   * NO bajar el default a `false`: los call-sites que no pasan esta prop
+   * perderían el drop en silencio — misma nota que `canDragNode`.
+   */
+  canDropNode?: (node: HuemulTreeNode) => boolean
 }
 
 export interface HuemulFileTreeRef {

@@ -53,6 +53,7 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
       renderNodeSuffix,
       preserveExpandedOnRefresh,
       canDragNode,
+      canDropNode,
     },
     ref,
   ) => {
@@ -152,6 +153,7 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
         renderNodeSuffix={renderNodeSuffix ? (node) => renderNodeSuffix(node as FileNode) : undefined}
         preserveExpandedOnRefresh={preserveExpandedOnRefresh}
         canDragNode={canDragNode ? (node) => canDragNode(node as FileNode) : undefined}
+        canDropNode={canDropNode ? (node) => canDropNode(node as FileNode) : undefined}
         isSectionHeader={(node) => {
           const fileNode = node as FileNode
           return !!fileNode.isSystem || !!fileNode.isRootGroup

@@ -241,6 +241,17 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
     return canUpdate('asset') || node.access_levels?.includes('edit') || false
   }, [canUpdate])
 
+  /**
+   * Qué carpeta puede RECIBIR un drop. Distinto de canDragNode (que decide
+   * qué nodo se puede arrastrar): Grupal y Forms no admiten contenido
+   * directo — misma regla que las acciones de crear del menú (ver `show` de
+   * `menuActions` más abajo).
+   */
+  const canDropNode = useCallback((node: FileNode) => {
+    if (node.type !== "folder") return false
+    return node.folder_type !== 'grupal' && node.folder_type !== 'forms'
+  }, [])
+
   // Refs so handleLoadChildren callback stays stable while always reading latest values
   const rootPageRef = React.useRef(rootPage)
   rootPageRef.current = rootPage
@@ -848,6 +859,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
           onMoveFolder={handleMoveFolder}
           onMoveFile={handleMoveFile}
           canDragNode={canDragNode}
+          canDropNode={canDropNode}
           onDelete={handleDelete}
           activeNodeId={activeAssetId}
           menuActions={menuActions}
