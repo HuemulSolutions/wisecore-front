@@ -325,6 +325,7 @@ export function TemplatesSidebar({
                 minHeight="0"
                 activeNodeId={selectedTemplateId}
                 menuActions={menuActions}
+                alwaysShowMenuActions
                 onFileClick={(node) => {
                   const tpl = templatesRef.current.find((tItem) => tItem.id === node.id);
                   if (tpl) onTemplateSelect(tpl);
