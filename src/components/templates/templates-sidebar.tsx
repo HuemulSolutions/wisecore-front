@@ -58,6 +58,8 @@ export function TemplatesSidebar({
   canDelete,
   canExport,
   canImport,
+  hasNext,
+  onLoadMore,
 }: TemplatesSidebarProps) {
   const { t } = useTranslation(['templates', 'common']);
   const [localSearch, setLocalSearch] = useState(searchValue);
@@ -348,6 +350,19 @@ export function TemplatesSidebar({
                   loading: t('common:loading'),
                 }}
               />
+            )}
+
+            {hasNext && !error && !(isLoading && templates.length === 0) && (
+              <div className="flex justify-center pt-2 pb-1">
+                <HuemulButton
+                  label={isLoading ? t('common:loading') : t('common:loadMore')}
+                  variant="ghost"
+                  size="sm"
+                  loading={isLoading}
+                  onClick={onLoadMore}
+                  className="text-xs text-primary hover:text-primary/80 hover:cursor-pointer"
+                />
+              </div>
             )}
           </div>
         </ScrollArea>
