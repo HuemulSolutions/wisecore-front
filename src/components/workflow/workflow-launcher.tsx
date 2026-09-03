@@ -22,9 +22,6 @@ interface WorkflowLauncherProps {
   startingTemplateId: string | null
 }
 
-// Tarjetas-chip que caben en la banda: el riel recorta con una máscara de fade.
-const RAIL_VISIBLE_COUNT = 6
-
 /**
  * Lanzador de workflows disponibles, en dos capas: `WorkflowLauncherBar`
  * (barra de chips siempre visible) y `WorkflowLauncherPanel` (catálogo
@@ -33,6 +30,8 @@ const RAIL_VISIBLE_COUNT = 6
  * Ambas capas se pintan desde una única query: búsqueda (al presionar Enter) y
  * paginación son server-side. Si el panel avanza de página, el riel muestra las
  * primeras tarjetas de esa página — caso marginal con 100 items por página.
+ * Cuántas tarjetas entran en la banda lo decide el propio riel según su ancho
+ * medido (`useElementWidth` en `WorkflowLauncherBar`), no este componente.
  */
 export function WorkflowLauncher({ canCreate, onStart, onShare, startingTemplateId }: WorkflowLauncherProps) {
   const { selectedOrganizationId, organizationToken } = useOrganization()
@@ -66,7 +65,7 @@ export function WorkflowLauncher({ canCreate, onStart, onShare, startingTemplate
 
       <PopoverAnchor asChild>
         <WorkflowLauncherBar
-          items={items.slice(0, RAIL_VISIBLE_COUNT)}
+          items={items}
           total={templatesQuery.data?.total}
           isEmpty={!templatesQuery.isLoading && !templatesQuery.error && items.length === 0}
           isLoading={templatesQuery.isLoading}

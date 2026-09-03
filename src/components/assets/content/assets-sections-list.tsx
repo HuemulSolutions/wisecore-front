@@ -180,6 +180,7 @@ function AssetsSectionsListInner({
                 index={index}
                 isLastSection={index === content.length - 1}
                 isMobile={isMobile}
+                previousSectionName={section.section_name}
               />
             )}
           </SectionIndexContext.Provider>

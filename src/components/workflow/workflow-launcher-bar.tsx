@@ -1,9 +1,10 @@
-import { forwardRef, useEffect, useRef, useState } from "react"
+import { forwardRef, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router-dom"
-import { ChevronRight, Loader2, MoreVertical, RefreshCw, Search, Share2 } from "lucide-react"
+import { ChevronRight, MoreVertical, RefreshCw, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useOrgPath } from "@/hooks/useOrgRouter"
+import { useElementWidth } from "@/hooks/useElementWidth"
 import { PopoverTrigger } from "@/components/ui/popover"
 import { HuemulSearchClearButton } from "@/huemul/components/huemul-search-clear-button"
 import {
@@ -12,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { DEFAULT_TEMPLATE_COLOR, TemplateCardShell, TemplateShareButton, TemplateStartButton } from "./workflow-template-card"
 import type { WorkflowTemplateItem } from "@/types/templates"
 
 interface WorkflowLauncherBarProps {
@@ -48,6 +50,14 @@ const MICROLABEL_CLASSNAME = "select-none text-[11px] font-bold uppercase tracki
 const ROOT_CLASSNAME =
   "flex shrink-0 flex-col gap-2.25 border-t border-border/60 border-b border-border bg-muted/40 px-4.5 pt-2.75 pb-3.25 shadow-[0_2px_4px_rgba(15,23,42,0.04)]"
 
+// Ancho fijo de cada tarjeta-chip (`w-60`) — todas iguales, sin importar el
+// largo del título. Con el gap del riel (`gap-2`) se calcula cuántas caben.
+const RAIL_CARD_WIDTH_PX = 240
+const RAIL_CARD_GAP_PX = 8
+// Antes de la primera medición del ResizeObserver (width === 0): evita que el
+// riel se vea vacío en el primer render.
+const RAIL_FALLBACK_COUNT = 6
+
 export const WorkflowLauncherBar = forwardRef<HTMLDivElement, WorkflowLauncherBarProps>(
   function WorkflowLauncherBar(
     {
@@ -75,6 +85,16 @@ export const WorkflowLauncherBar = forwardRef<HTMLDivElement, WorkflowLauncherBa
     const { t } = useTranslation("workflow")
     const buildOrgPath = useOrgPath()
 
+    // Cuántas tarjetas de ancho fijo caben en el riel según su ancho medido.
+    // `+ 1`: deja entrar la tarjeta que la máscara de fade corta a la mitad,
+    // que es la señal visual de que hay más templates.
+    const { ref: railRef, width: railWidth } = useElementWidth<HTMLDivElement>()
+    const visibleCount =
+      railWidth > 0
+        ? Math.max(1, Math.floor((railWidth + RAIL_CARD_GAP_PX) / (RAIL_CARD_WIDTH_PX + RAIL_CARD_GAP_PX)) + 1)
+        : RAIL_FALLBACK_COUNT
+    const visibleItems = useMemo(() => items.slice(0, visibleCount), [items, visibleCount])
+
     // Roving tabindex sobre el riel de chips: el `role="toolbar"` declarado
     // exige que las flechas muevan el foco entre chips (contrato ARIA de
     // toolbar); dentro del chip activo, `Tab` alcanza también "Compartir"
@@ -83,15 +103,15 @@ export const WorkflowLauncherBar = forwardRef<HTMLDivElement, WorkflowLauncherBa
     const startRefs = useRef<Array<HTMLButtonElement | null>>([])
 
     useEffect(() => {
-      setActiveChipIndex((prev) => Math.min(prev, Math.max(items.length - 1, 0)))
-    }, [items.length])
+      setActiveChipIndex((prev) => Math.min(prev, Math.max(visibleItems.length - 1, 0)))
+    }, [visibleItems.length])
 
     const handleRailKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-      if (items.length === 0) return
+      if (visibleItems.length === 0) return
       let nextIndex = activeChipIndex
       if (e.key === "ArrowRight") {
         e.preventDefault()
-        nextIndex = Math.min(activeChipIndex + 1, items.length - 1)
+        nextIndex = Math.min(activeChipIndex + 1, visibleItems.length - 1)
       } else if (e.key === "ArrowLeft") {
         e.preventDefault()
         nextIndex = Math.max(activeChipIndex - 1, 0)
@@ -100,7 +120,7 @@ export const WorkflowLauncherBar = forwardRef<HTMLDivElement, WorkflowLauncherBa
         nextIndex = 0
       } else if (e.key === "End") {
         e.preventDefault()
-        nextIndex = items.length - 1
+        nextIndex = visibleItems.length - 1
       } else {
         return
       }
@@ -187,7 +207,7 @@ export const WorkflowLauncherBar = forwardRef<HTMLDivElement, WorkflowLauncherBa
                 <button
                   type="button"
                   aria-label={t("launcher.hide")}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground/60 hover:cursor-pointer hover:bg-muted hover:text-foreground transition-colors"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:cursor-pointer hover:bg-accent hover:text-foreground"
                 >
                   <MoreVertical className="size-4" />
                 </button>
@@ -203,6 +223,7 @@ export const WorkflowLauncherBar = forwardRef<HTMLDivElement, WorkflowLauncherBa
 
         {/* Línea 2 — riel de tarjetas-chip */}
         <div
+          ref={railRef}
           className="flex h-10 min-w-0 items-center gap-2 overflow-hidden"
           style={{
             maskImage: "linear-gradient(to right, #000 0, #000 calc(100% - 48px), transparent 100%)",
@@ -213,8 +234,8 @@ export const WorkflowLauncherBar = forwardRef<HTMLDivElement, WorkflowLauncherBa
           onKeyDown={handleRailKeyDown}
         >
           {isLoading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <span key={i} className="h-10 w-42.5 shrink-0 animate-pulse rounded-[11px] bg-muted" />
+            Array.from({ length: visibleCount }).map((_, i) => (
+              <span key={i} className="h-10 w-60 shrink-0 animate-pulse rounded-[11px] bg-muted" />
             ))
           ) : error ? (
             <span className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-[11px] border border-destructive/30 bg-destructive/10 px-3 text-[12.5px] font-medium text-destructive">
@@ -241,55 +262,38 @@ export const WorkflowLauncherBar = forwardRef<HTMLDivElement, WorkflowLauncherBa
               </Link>
             </div>
           ) : (
-            items.map((item, i) => {
+            visibleItems.map((item, i) => {
               const isStarting = startingTemplateId === item.id
               const title = item.relation_name || item.name
               return (
-                <div
+                <TemplateCardShell
                   // El mismo template se repite por relación: el id solo no
                   // identifica el chip.
                   key={`${item.id}-${item.document_type_id}-${item.relation_name ?? ""}`}
-                  className="flex h-10 shrink-0 items-center gap-2 rounded-[11px] border border-border bg-card py-0 pr-2 pl-2.5 shadow-[0_1px_1px_rgba(15,23,42,0.03)]"
+                  color={item.document_type_color || DEFAULT_TEMPLATE_COLOR}
+                  className="h-10 w-60 shrink-0 items-center gap-2 pr-2"
                 >
-                  <span
-                    className="size-2 shrink-0 rounded-[2px]"
-                    style={{ backgroundColor: item.document_type_color || "#CBD5E1" }}
-                  />
-                  <span className="max-w-30.5 truncate text-[13px] font-semibold text-foreground" title={title}>
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-foreground" title={title}>
                     {title}
                   </span>
-                  <button
-                    type="button"
+                  <TemplateShareButton
+                    label={t("launcher.shareTemplate", { name: title })}
+                    onClick={() => onShare(item)}
                     tabIndex={i === activeChipIndex ? 0 : -1}
                     onFocus={() => setActiveChipIndex(i)}
-                    onClick={() => onShare(item)}
-                    aria-label={t("launcher.shareTemplate", { name: title })}
-                    className="flex size-5.5 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:cursor-pointer hover:bg-muted transition-colors"
-                  >
-                    <Share2 className="size-3" />
-                  </button>
-                  <button
-                    ref={(el) => {
+                  />
+                  <TemplateStartButton
+                    label={t("launcher.start")}
+                    ariaLabel={`${t("launcher.start")} ${title}`}
+                    isStarting={isStarting}
+                    onClick={() => onStart(item)}
+                    buttonRef={(el) => {
                       startRefs.current[i] = el
                     }}
-                    type="button"
                     tabIndex={i === activeChipIndex ? 0 : -1}
-                    disabled={isStarting}
                     onFocus={() => setActiveChipIndex(i)}
-                    onClick={() => onStart(item)}
-                    aria-label={`${t("launcher.start")} ${title}`}
-                    className="flex h-7 shrink-0 items-center gap-0.5 rounded-lg bg-accent px-2.25 text-[12.5px] font-semibold text-accent-foreground transition-colors hover:cursor-pointer disabled:cursor-default disabled:opacity-70"
-                  >
-                    {isStarting ? (
-                      <Loader2 className="size-3 animate-spin" />
-                    ) : (
-                      <>
-                        {t("launcher.start")}
-                        <ChevronRight className="size-3" />
-                      </>
-                    )}
-                  </button>
-                </div>
+                  />
+                </TemplateCardShell>
               )
             })
           )}

@@ -738,6 +738,33 @@ function FileInputField({
   );
 }
 
+// ── Shared date/time picker guard ──────────────────────────────────────────
+// Radix closes the popover by having the day/time button steal focus from the
+// input on pointerdown — in Chrome/Edge that fires the input's blur *before*
+// the click that actually applies the selection (pointerdown → blur → click).
+// Without a guard, `handleBlur` reacts to that blur as if the user left the
+// field empty, autosaving "" out from under the click that was about to fill
+// it in — and the resulting re-render can shift the popover just enough that
+// the mouseup/click never lands, leaving it stuck open with an empty input.
+// `pickingRef` marks the window between a pointerdown inside the popover
+// content and its matching pointerup, so `handleBlur` can tell "focus left
+// because of a pick in progress" apart from "the user tabbed/clicked away
+// with nothing chosen".
+function usePickerGuard() {
+  const pickingRef = React.useRef(false);
+
+  const onContentPointerDownCapture = React.useCallback(() => {
+    pickingRef.current = true;
+    const onPointerUp = () => {
+      pickingRef.current = false;
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+    window.addEventListener("pointerup", onPointerUp);
+  }, []);
+
+  return { pickingRef, onContentPointerDownCapture };
+}
+
 // ── Date Field ────────────────────────────────────────────────────────────
 
 function DateInputField({
@@ -765,6 +792,7 @@ function DateInputField({
   const selected = strValue ? parseISO(strValue) : undefined;
 
   const anchorRef = React.useRef<HTMLDivElement>(null);
+  const { pickingRef, onContentPointerDownCapture } = usePickerGuard();
   const [open, setOpen] = React.useState(false);
   const [month, setMonth] = React.useState<Date | undefined>(selected);
   const [text, setText] = React.useState(
@@ -793,8 +821,12 @@ function DateInputField({
   };
 
   const handleBlur = () => {
+    if (pickingRef.current) return;
     if (!text.trim()) {
-      onChange?.("");
+      // Solo emite "" si había un valor previo — un blur en un campo ya vacío
+      // (p.ej. el que dispara el mousedown sobre un día del calendario) no debe
+      // autoguardar nada.
+      if (strValue) onChange?.("");
       return;
     }
     const parsed = parse(text, pattern, new Date(), { locale });
@@ -823,7 +855,7 @@ function DateInputField({
             autoComplete="off"
             aria-invalid={!!error || undefined}
             onChange={(e) => handleTextChange(e.target.value)}
-            onFocus={() => setOpen(true)}
+            onPointerDown={() => setOpen(true)}
             onBlur={handleBlur}
             onKeyDown={(e) => {
               if (e.key === "ArrowDown") {
@@ -852,6 +884,11 @@ function DateInputField({
         alignOffset={0}
         sideOffset={10}
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          anchorRef.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+        }}
+        onPointerDownCapture={onContentPointerDownCapture}
         onInteractOutside={(e) => {
           if (anchorRef.current?.contains(e.target as Node)) e.preventDefault();
         }}
@@ -1006,6 +1043,7 @@ function TimeInputField({
   const { t } = useTranslation('common');
   const strValue = String(value ?? "");
   const anchorRef = React.useRef<HTMLDivElement>(null);
+  const { pickingRef, onContentPointerDownCapture } = usePickerGuard();
   const [open, setOpen] = React.useState(false);
   const [text, setText] = React.useState(strValue);
 
@@ -1025,8 +1063,9 @@ function TimeInputField({
   };
 
   const handleBlur = () => {
+    if (pickingRef.current) return;
     if (!text.trim()) {
-      onChange?.("");
+      if (strValue) onChange?.("");
       return;
     }
     if (TIME_RE.test(text)) {
@@ -1055,7 +1094,7 @@ function TimeInputField({
             autoComplete="off"
             aria-invalid={!!error || undefined}
             onChange={(e) => handleTextChange(e.target.value)}
-            onFocus={() => setOpen(true)}
+            onPointerDown={() => setOpen(true)}
             onBlur={handleBlur}
             onKeyDown={(e) => {
               if (e.key === "ArrowDown") {
@@ -1084,6 +1123,11 @@ function TimeInputField({
         alignOffset={0}
         sideOffset={10}
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          anchorRef.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+        }}
+        onPointerDownCapture={onContentPointerDownCapture}
         onInteractOutside={(e) => {
           if (anchorRef.current?.contains(e.target as Node)) e.preventDefault();
         }}
@@ -1134,6 +1178,7 @@ function DateTimeInputField({
   const hasValidValue = !!selected && isValid(selected);
 
   const anchorRef = React.useRef<HTMLDivElement>(null);
+  const { pickingRef, onContentPointerDownCapture } = usePickerGuard();
   const [open, setOpen] = React.useState(false);
   const [month, setMonth] = React.useState<Date | undefined>(
     hasValidValue ? selected : undefined,
@@ -1166,8 +1211,9 @@ function DateTimeInputField({
   };
 
   const handleBlur = () => {
+    if (pickingRef.current) return;
     if (!text.trim()) {
-      onChange?.("");
+      if (strValue) onChange?.("");
       return;
     }
     const parsed = parse(text, pattern, new Date(), { locale });
@@ -1199,7 +1245,7 @@ function DateTimeInputField({
             autoComplete="off"
             aria-invalid={!!error || undefined}
             onChange={(e) => handleTextChange(e.target.value)}
-            onFocus={() => setOpen(true)}
+            onPointerDown={() => setOpen(true)}
             onBlur={handleBlur}
             onKeyDown={(e) => {
               if (e.key === "ArrowDown") {
@@ -1228,6 +1274,11 @@ function DateTimeInputField({
         alignOffset={0}
         sideOffset={10}
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          anchorRef.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+        }}
+        onPointerDownCapture={onContentPointerDownCapture}
         onInteractOutside={(e) => {
           if (anchorRef.current?.contains(e.target as Node)) e.preventDefault();
         }}
@@ -1311,6 +1362,7 @@ function DateRangeField({
   const selectedTo = valueTo ? parseISO(valueTo) : undefined;
 
   const anchorRef = React.useRef<HTMLDivElement>(null);
+  const { pickingRef, onContentPointerDownCapture } = usePickerGuard();
   const [month, setMonth] = React.useState<Date | undefined>(
     selectedSingle ?? selectedFrom,
   );
@@ -1356,8 +1408,9 @@ function DateRangeField({
   };
 
   const handleSingleBlur = () => {
+    if (pickingRef.current) return;
     if (!text.trim()) {
-      onDateChange?.('');
+      if (dateValue) onDateChange?.('');
       return;
     }
     const parsed = parse(text, pattern, new Date(), { locale });
@@ -1387,6 +1440,7 @@ function DateRangeField({
   };
 
   const handleRangeBlur = (which: 'from' | 'to') => {
+    if (pickingRef.current) return;
     const value = which === 'from' ? textFrom : textTo;
     const selected = which === 'from' ? selectedFrom : selectedTo;
     const setTxt = which === 'from' ? setTextFrom : setTextTo;
@@ -1424,7 +1478,7 @@ function DateRangeField({
               autoComplete="off"
               aria-invalid={!!error || undefined}
               onChange={(e) => handleSingleChange(e.target.value)}
-              onFocus={() => setOpen(true)}
+              onPointerDown={() => setOpen(true)}
               onBlur={handleSingleBlur}
               onKeyDown={(e) => {
                 if (e.key === "ArrowDown") {
@@ -1477,7 +1531,7 @@ function DateRangeField({
                 autoComplete="off"
                 aria-invalid={!!error || undefined}
                 onChange={(e) => handleRangeChange('from', e.target.value)}
-                onFocus={() => setOpen(true)}
+                onPointerDown={() => setOpen(true)}
                 onBlur={() => handleRangeBlur('from')}
                 onKeyDown={(e) => {
                   if (e.key === "ArrowDown") {
@@ -1514,7 +1568,7 @@ function DateRangeField({
                 autoComplete="off"
                 aria-invalid={!!error || undefined}
                 onChange={(e) => handleRangeChange('to', e.target.value)}
-                onFocus={() => setOpen(true)}
+                onPointerDown={() => setOpen(true)}
                 onBlur={() => handleRangeBlur('to')}
                 onKeyDown={(e) => {
                   if (e.key === "ArrowDown") {
@@ -1533,6 +1587,11 @@ function DateRangeField({
         alignOffset={0}
         sideOffset={10}
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          anchorRef.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+        }}
+        onPointerDownCapture={onContentPointerDownCapture}
         onInteractOutside={(e) => {
           if (anchorRef.current?.contains(e.target as Node)) e.preventDefault();
         }}

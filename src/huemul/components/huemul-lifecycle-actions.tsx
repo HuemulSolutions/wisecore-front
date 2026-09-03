@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next"
 import { Undo2, Check, Globe, Archive, RotateCcw, RefreshCw } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
-import { isRestorableLifecycleState } from "@/lib/lifecycle-access"
+import { resolveLifecycleActionsVisibility } from "@/lib/lifecycle-access"
 import type { HuemulLifecycleActionsProps } from "@/types/lifecycle"
 
 /**
@@ -23,29 +23,30 @@ export function HuemulLifecycleActions({
   const { t } = useTranslation(["assets", "common"])
   const { status, permissions, canTransition } = controller
 
-  if (!status) return null
-  // Cruce lifecycle × RBAC: sin `asset:u` ninguna transición se ofrece, aunque
-  // el grant del documento (o `status.can_advance`, que viene del backend y no
-  // del objeto de permisos) diga que sí. Ver ia context/rbac-audit-guide.md.
-  if (!canTransition) return null
+  // Reglas centralizadas en lib/lifecycle-access.ts: el panel de workflow las
+  // consulta antes de renderizar para decidir si su fila de ciclo de vida
+  // quedaría vacía. Incluye el gate RBAC (`canTransition`, `asset:u`).
+  const { canReturn, canComplete, canPublish, canArchive, canRestore, canRerunExternalPublish, hasAny } =
+    resolveLifecycleActionsVisibility({
+      status,
+      permissions,
+      canTransition,
+      finalLifecycleStage: controller.finalLifecycleStage,
+      isBlockedByRequiredAnswers: controller.isBlockedByRequiredAnswers,
+      showRerunExternalPublish,
+      hideComplete,
+    })
+
+  if (!hasAny) return null
 
   const isCompact = variant === "compact"
   const iconClassName = isCompact ? "h-3 w-3" : "h-3.5 w-3.5"
   const buttonVariant = isCompact ? "outline" : "ghost"
   const sizeClass = isCompact ? "h-6 text-xs px-2" : "h-7 px-2.5 text-xs font-medium transition-colors"
 
-  // Con etapa final distinta de "publish" (campo `final_lifecycle_stage` del
-  // tipo de activo) el documento nunca llega a publicarse: al aprobar, la
-  // ejecución se archiva directo.
-  const canPublish =
-    permissions?.publish && status.state === "approved" && controller.finalLifecycleStage === "publish"
-  const canArchive = permissions?.archive && (status.state === "approved" || status.state === "published")
-  const canRestore = permissions?.archive && isRestorableLifecycleState(status.state)
-  const canRerunExternalPublish = showRerunExternalPublish && permissions?.publish && status.state === "published"
-
   return (
     <div className={`flex items-center gap-1.5 flex-wrap ${isCompact ? "" : "shrink-0"} ${className ?? ""}`}>
-      {status.can_rollback && (
+      {canReturn && (
         <HuemulButton
           variant={buttonVariant}
           icon={Undo2}
@@ -56,7 +57,7 @@ export function HuemulLifecycleActions({
           onClick={() => controller.setIsRejectDialogOpen(true)}
         />
       )}
-      {(status.can_advance || controller.isBlockedByRequiredAnswers) && !hideComplete && (
+      {canComplete && (
         <HuemulButton
           variant={isCompact ? "default" : "ghost"}
           size="sm"
@@ -80,7 +81,7 @@ export function HuemulLifecycleActions({
           iconPosition="left"
           iconClassName={iconClassName}
           // green-600 es el hue de "published" en lib/lifecycle-colors.ts — si ese hue cambia, actualizar acá también.
-          className={`${sizeClass} bg-green-600 text-white hover:bg-green-700 ${isCompact ? "" : "rounded-md"} hover:cursor-pointer`}
+          className={`${sizeClass} bg-green-600 text-white hover:bg-green-700 hover:text-white ${isCompact ? "" : "rounded-md"} hover:cursor-pointer`}
           loading={controller.advanceMutation.isPending}
           tooltip={t("lifecycle.tooltipPublish")}
           onClick={() => controller.setIsPublishDialogOpen(true)}
