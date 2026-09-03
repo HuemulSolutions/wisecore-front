@@ -543,7 +543,6 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
           ? t('knowledge.rootFolder')
           : (folderNames.get(parentFolderId) ?? parentFolderId)
         toast.success(t('knowledge.folderMovedSuccess', { destination }))
-        fileTreeRef.current?.refresh()
       } catch (error) {
         handleFolderActionError(error, t, t('knowledge.folderMoveError'))
       }
@@ -563,7 +562,6 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
           ? t('knowledge.rootFolder')
           : (folderNames.get(folderId) ?? folderId)
         toast.success(t('knowledge.documentMovedSuccess', { destination }))
-        fileTreeRef.current?.refresh()
       } catch (error) {
         handleFolderActionError(error, t, t('knowledge.documentMoveError'))
       }
@@ -688,6 +686,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
       icon: <FolderUp className="h-4 w-4" />,
       onClick: async (nodeId) => {
         await handleMoveFolder(nodeId, null)
+        fileTreeRef.current?.refresh()
       },
       show: (node) => {
         if (node.type !== "folder") return false
@@ -724,6 +723,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
       icon: <FolderUp className="h-4 w-4" />,
       onClick: async (nodeId) => {
         await handleMoveFile(nodeId, null)
+        fileTreeRef.current?.refresh()
       },
       show: (node) => {
         if (node.type !== "document") return false
