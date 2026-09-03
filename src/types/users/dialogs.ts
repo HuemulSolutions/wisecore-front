@@ -40,10 +40,10 @@ export interface RootAdminDialogProps {
   canManage: boolean
 }
 
-export interface CreateUserDialogProps {
+export interface CreateUserSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess?: () => void
+  onSuccess?: (user: User) => void
   addToOrganization?: boolean
   canCreate: boolean
 }

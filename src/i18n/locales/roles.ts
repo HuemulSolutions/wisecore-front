@@ -75,6 +75,7 @@ const translations = {
     errorLoading: { en: "Failed to load users", es: "Error al cargar los usuarios" },
     errorDescription: { en: "There was an error loading the users data. Please try again.", es: "Ocurrió un error al cargar los datos de usuarios. Por favor, inténtalo de nuevo." },
     searchPlaceholder: { en: "Search users...", es: "Buscar usuarios..." },
+    createUserButton: { en: "Create User", es: "Crear Usuario" },
   },
   assignRoles: {
     title: { en: "Assign Roles", es: "Asignar Roles" },

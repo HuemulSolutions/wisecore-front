@@ -1,6 +1,6 @@
 import EditUserSheet from "@/components/users/users-edit-sheet"
 import UserOrganizationsDialog from "@/components/users/users-organizations-dialog"
-import CreateUserDialog from "@/components/users/users-create-dialog"
+import CreateUserSheet from "@/components/users/users-create-sheet"
 import AssignRolesSheet from "@/components/roles/roles-assign-sheet"
 import UserDeleteDialog from "@/components/users/users-delete-dialog"
 import RootAdminDialog from "@/components/users/users-root-admin-dialog"
@@ -44,7 +44,7 @@ export default function UserPageDialogs({
         canManage={canManageOrganizations}
       />
 
-      <CreateUserDialog
+      <CreateUserSheet
         open={state.showCreateDialog}
         onOpenChange={(open) => !open && onUpdateState({ showCreateDialog: false })}
         onSuccess={onUsersUpdated}

@@ -2,6 +2,8 @@ import { useState, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { useOrganization } from "@/contexts/organization-context"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
+import CreateUserSheet from "@/components/users/users-create-sheet"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
@@ -12,8 +14,9 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Users, RefreshCw, UserCheck, ChevronLeft, ChevronRight } from "lucide-react"
+import { Search, Users, RefreshCw, UserCheck, UserPlus, ChevronLeft, ChevronRight } from "lucide-react"
 import { useRoleWithAllUsers, useRoleMutations, rbacQueryKeys } from "@/hooks/useRbac"
+import type { User } from '@/types/users'
 import type { AssignRoleToUsersDialogProps } from '@/types/roles'
 export type { AssignRoleToUsersDialogProps } from '@/types/roles'
 
@@ -31,8 +34,11 @@ export default function AssignRoleToUsersDialog({
   const [, setHasInitialized] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
+  const [showCreateUserSheet, setShowCreateUserSheet] = useState(false)
   const queryClient = useQueryClient()
   const { selectedOrganizationId } = useOrganization()
+  const { canCreate } = useUserPermissions()
+  const canCreateUser = canCreate('user')
 
   // Fetch role with all users when sheet is open y hay permiso de asignar
   const { data: roleUsersResponse, isLoading, error, refetch } = useRoleWithAllUsers(role?.id || '', open && !!role && canAssign, page, pageSize, searchQuery || undefined)
@@ -48,6 +54,7 @@ export default function AssignRoleToUsersDialog({
       setSearchQuery("")
       setHasInitialized(false)
       setPage(1)
+      setShowCreateUserSheet(false)
     }
   }, [open, role?.id])
 
@@ -103,6 +110,14 @@ export default function AssignRoleToUsersDialog({
     }
   }
 
+  const handleUserCreated = (newUser: User) => {
+    setSelectedUsers(prev => prev.includes(newUser.id) ? prev : [...prev, newUser.id])
+    setSearchInput("")
+    setSearchQuery("")
+    setPage(1)
+    refetch()
+  }
+
   const handleRefresh = async () => {
     if (role) {
       await refetch()
@@ -122,6 +137,7 @@ export default function AssignRoleToUsersDialog({
   if (!role || !canAssign) return null
 
   return (
+    <>
     <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
@@ -153,6 +169,16 @@ export default function AssignRoleToUsersDialog({
           </div>
 
           <div className="flex items-center gap-2">
+            {canCreateUser && (
+              <HuemulButton
+                variant="outline"
+                size="sm"
+                icon={UserPlus}
+                label={t('roles:assignToUsers.createUserButton')}
+                onClick={() => setShowCreateUserSheet(true)}
+                className="h-8 px-2 text-xs hover:cursor-pointer shrink-0"
+              />
+            )}
             <div className="flex-1" onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 setSearchQuery(searchInput)
@@ -333,5 +359,13 @@ export default function AssignRoleToUsersDialog({
         </div>
       </div>
     </HuemulSheet>
+
+    <CreateUserSheet
+      open={showCreateUserSheet}
+      onOpenChange={setShowCreateUserSheet}
+      canCreate={canCreateUser}
+      onSuccess={handleUserCreated}
+    />
+    </>
   )
 }
