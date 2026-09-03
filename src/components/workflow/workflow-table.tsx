@@ -62,7 +62,13 @@ export function WorkflowTable({
     {
       key: "documentName",
       label: t("columns.documentName"),
-      render: (item) => cell(item, <span className="truncate">{item.document_name}</span>),
+      render: (item) =>
+        cell(
+          item,
+          <span className="block max-w-sm truncate" title={item.document_name}>
+            {item.document_name}
+          </span>,
+        ),
     },
     {
       key: "template",
