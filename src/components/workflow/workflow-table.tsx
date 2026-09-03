@@ -97,11 +97,6 @@ export function WorkflowTable({
       render: (item) => cell(item, <WorkflowProgressBar percentage={item.progress_percentage} />),
     },
     {
-      key: "currentStep",
-      label: t("columns.currentStep"),
-      render: (item) => cell(item, <span>{item.current_step?.section_name ?? "—"}</span>),
-    },
-    {
       key: "lastModified",
       label: t("columns.lastModified"),
       render: (item) => cell(item, <span className="text-sm text-muted-foreground">{formatRelativeTime(item.last_modified_at)}</span>),
