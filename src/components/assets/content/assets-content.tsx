@@ -1705,12 +1705,15 @@ export function AssetContent({
 
   // Discussions badge count — same query key as each section's DiscussionSync,
   // so this dedupes against the editor's own fetch instead of adding one.
-  const { discussions: allDiscussions } = useDiscussions(
-    canListDiscussions ? selectedFile?.id : undefined
+  // Filtered client-side to the version currently on screen.
+  const { discussionsForExecution: discussionsForBadge } = useDiscussions(
+    canListDiscussions ? selectedFile?.id : undefined,
+    undefined,
+    effectiveSelectedExecutionId ?? undefined
   );
   const openDiscussionsCount = useMemo(
-    () => allDiscussions.filter((d) => !d.isResolved).length,
-    [allDiscussions]
+    () => discussionsForBadge.filter((d) => !d.isResolved).length,
+    [discussionsForBadge]
   );
 
   // Navigate from the discussions panel to the thread's section and activate it.
@@ -3810,6 +3813,7 @@ export function AssetContent({
           open={isDiscussionsSheetOpen}
           onOpenChange={setIsDiscussionsSheetOpen}
           documentId={selectedFile.id}
+          executionId={effectiveSelectedExecutionId}
           sections={Array.isArray(documentContent?.content) ? (documentContent.content as ContentSection[]) : []}
           onFocusDiscussion={handleFocusDiscussion}
         />

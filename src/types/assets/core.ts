@@ -229,6 +229,7 @@ export interface LatestDiscussionComment {
 export interface LatestDiscussion {
   id: string;
   document_id: string;
+  execution_id: string | null;
   section_execution_id: string | null;
   organization_id: string;
   document_content: string;
