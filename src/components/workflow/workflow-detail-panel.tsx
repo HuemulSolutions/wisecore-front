@@ -20,7 +20,7 @@ import { getDocumentContent } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { lifecycleAllows, lifecycleStageAllowsEditing } from "@/hooks/useDocumentAccess"
-import { READ_ONLY_NOTICE_STATES } from "@/lib/lifecycle-access"
+import { READ_ONLY_NOTICE_STATES, resolveLifecycleActionsVisibility } from "@/lib/lifecycle-access"
 import { resolveWorkflowFinishOutcome, type WorkflowFinishOutcome } from "@/lib/workflow-finish-outcome"
 import { workflowQueryKeys } from "@/hooks/useWorkflows"
 import { useLifecycleActions } from "@/hooks/useLifecycleActions"
@@ -63,7 +63,9 @@ interface WorkflowDetailPanelProps {
   showLifecycle?: boolean
   /**
    * Muestra el botón "Continuar más tarde" junto a las acciones de ciclo de
-   * vida (solo mientras la etapa admite respuestas, ver `canAnswerForm`).
+   * vida, en cualquier etapa del ciclo de vida en la que al usuario le quede
+   * algo por hacer (responder, avanzar o publicar) — se oculta solo cuando
+   * `finishOutcome` dice que ya no queda nada (ver más abajo).
    * Puramente visual: no dispara guardado ni transición — el autoguardado ya
    * persiste todo. Solo lo pasa la vista fullscreen compartida.
    */
@@ -472,13 +474,42 @@ export function WorkflowDetailPanel({
   // backend seguiría rechazando con 409.
   const isBlockedLastStep = isLastStep && lifecycle.canTransition && lifecycle.isBlockedByRequiredAnswers
 
+  // Al usuario no le queda nada por hacer con este documento (ver `finishOutcome`).
+  // No depende de `viewingAnswersAfterFinish`: mirar las respuestas ya enviadas no
+  // devuelve nada por hacer, así que la barra sigue oculta también ahí.
+  const isFinished = finishOutcome !== null
+
+  // El wizard ya ofrece "Finalizar" (o el paso no es respondible por este
+  // usuario): no duplicar el botón "Completar" en la barra.
+  const hideComplete = willAdvanceOnFinish || (step !== null && !canAnswerSection)
+
+  // Misma tabla de verdad que usa HuemulLifecycleActions para pintarse: se
+  // consulta acá para saber si la fila quedaría vacía antes de renderizarla.
+  const lifecycleActions = resolveLifecycleActionsVisibility({
+    status: data?.lifecycle_status,
+    permissions: data?.lifecycle_permissions,
+    canTransition: canUpdateAssetContent,
+    finalLifecycleStage: lifecycle.finalLifecycleStage,
+    isBlockedByRequiredAnswers: lifecycle.isBlockedByRequiredAnswers,
+    showRerunExternalPublish: true,
+    hideComplete,
+  })
+
   // `showLifecycle` es `true` por default en ambos usos (panel de /workflow y
   // link compartido, ver ia context/fullscreen-share-route-guide.md §4: el
   // ciclo de vida completo queda habilitado también en fullscreen, filtrado
   // por los mismos permisos). Cuando la fila existe, el badge de etapa sube
   // bajo el título y la sección actual baja a esa fila; solo se oculta si
-  // algún llamador futuro pasa `showLifecycle={false}` explícitamente.
-  const showLifecycleRow = showLifecycle && !!data?.lifecycle_status && !needsNameStep
+  // algún llamador futuro pasa `showLifecycle={false}` explícitamente, o si
+  // el usuario ya terminó y no le queda ninguna acción de ciclo de vida (la
+  // fila sería una franja vacía sobre la tarjeta terminal).
+  const showLifecycleRow =
+    showLifecycle && !!data?.lifecycle_status && !needsNameStep && (!isFinished || lifecycleActions.hasAny)
+
+  // La etapa/grupo activo del documento es información de quien SIGUE en el
+  // flujo: a quien ya cerró su parte (hand-off a otro grupo de la misma etapa,
+  // típicamente) le mostraba una etapa ajena en la que no participa.
+  const showStageBadge = showLifecycleRow && !isFinished
 
   return (
     <div className="flex h-full flex-col">
@@ -491,12 +522,15 @@ export function WorkflowDetailPanel({
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">{documentName}</p>
           {internalCode && <p className="truncate text-xs font-mono text-muted-foreground">{internalCode}</p>}
-          {showLifecycleRow && data?.lifecycle_status ? (
+          {showStageBadge && data?.lifecycle_status ? (
             <div className="mt-1 flex items-center gap-1.5">
               <span className="shrink-0 text-xs text-muted-foreground">{t("panel.stageLabel")}</span>
               <HuemulLifecycleStageBadge status={data.lifecycle_status} />
             </div>
           ) : (
+            // `!showLifecycleRow`: si la fila existe, la sección se muestra ahí
+            // (aunque el badge de etapa esté oculto) — no en los dos sitios.
+            !showLifecycleRow &&
             currentSection?.section_name && (
               <div className="flex items-center gap-1.5">
                 <span className="shrink-0 text-xs text-muted-foreground">{t("panel.sectionLabel")}</span>
@@ -559,9 +593,11 @@ export function WorkflowDetailPanel({
           )}
           <div className="flex items-center gap-1.5 flex-wrap shrink-0">
             {/* Sin depender de canAnswerForm/hasAnswerableSection: debe verse en
-                cualquier etapa del ciclo de vida y aunque no quede nada por
-                responder (aprobador, hand-off, revisión, publicado, etc.). */}
-            {onContinueLater && (
+                cualquier etapa del ciclo de vida aunque no quede nada por
+                responder pero sí por hacer (aprobador, revisión, publicación).
+                `!isFinished` es el corte correcto: quien ya envió sus respuestas
+                y no participa en la etapa siguiente no tiene nada que continuar. */}
+            {onContinueLater && !isFinished && (
               <HuemulButton
                 variant="outline"
                 size="sm"
@@ -577,7 +613,7 @@ export function WorkflowDetailPanel({
               controller={lifecycle}
               variant="row"
               showRerunExternalPublish
-              hideComplete={willAdvanceOnFinish || (step !== null && !canAnswerSection)}
+              hideComplete={hideComplete}
             />
           </div>
         </div>

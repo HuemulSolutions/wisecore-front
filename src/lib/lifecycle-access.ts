@@ -1,4 +1,5 @@
 import type { LifecycleAccessType, LifecycleInheritedRole, LifecycleStep } from "@/types/lifecycle"
+import type { LifecyclePermissions, LifecycleStatus } from "@/types/assets"
 import type { FinalLifecycleStage } from "@/types/document-types"
 
 /**
@@ -226,6 +227,78 @@ export const RESTORABLE_LIFECYCLE_STATES: ReadonlySet<string> = new Set([
 
 export function isRestorableLifecycleState(state: string | undefined): boolean {
   return !!state && RESTORABLE_LIFECYCLE_STATES.has(state)
+}
+
+// ─── Visibilidad de las acciones de ciclo de vida ────────────────────────────
+
+/** Qué botones ofrece `HuemulLifecycleActions` para un documento y usuario dados. */
+export interface LifecycleActionsVisibility {
+  canReturn: boolean
+  canComplete: boolean
+  canPublish: boolean
+  canArchive: boolean
+  canRestore: boolean
+  canRerunExternalPublish: boolean
+  /** Ninguna acción disponible: el contenedor no se pinta (ver `HuemulLifecycleActions`). */
+  hasAny: boolean
+}
+
+/**
+ * Única tabla de verdad de qué transiciones se ofrecen. Puro (sin `t` ni React),
+ * mismo criterio que `resolveWorkflowFinishOutcome`: además de alimentar el
+ * render de `HuemulLifecycleActions`, deja que una superficie pregunte ANTES de
+ * renderizar si le va a quedar algo en la barra — el panel de workflow oculta
+ * toda la fila de ciclo de vida cuando el usuario ya no tiene nada por hacer y
+ * tampoco queda ninguna acción.
+ *
+ * Cruce lifecycle × RBAC: sin `asset:u` (`canTransition`) ninguna transición se
+ * ofrece, aunque el grant del documento —o `status.can_advance`, que viene del
+ * backend y no del objeto de permisos— diga que sí. Ver ia context/rbac-audit-guide.md.
+ */
+export function resolveLifecycleActionsVisibility(input: {
+  status?: LifecycleStatus | null
+  permissions?: LifecyclePermissions | null
+  canTransition: boolean
+  finalLifecycleStage: FinalLifecycleStage
+  /** `useLifecycleActions.isBlockedByRequiredAnswers`: el botón se muestra deshabilitado, no se oculta. */
+  isBlockedByRequiredAnswers?: boolean
+  showRerunExternalPublish?: boolean
+  hideComplete?: boolean
+}): LifecycleActionsVisibility {
+  const { status, permissions, canTransition, finalLifecycleStage } = input
+
+  if (!status || !canTransition) {
+    return {
+      canReturn: false,
+      canComplete: false,
+      canPublish: false,
+      canArchive: false,
+      canRestore: false,
+      canRerunExternalPublish: false,
+      hasAny: false,
+    }
+  }
+
+  const canReturn = !!status.can_rollback
+  const canComplete = (!!status.can_advance || !!input.isBlockedByRequiredAnswers) && !input.hideComplete
+  // Con etapa final distinta de "publish" (campo `final_lifecycle_stage` del
+  // tipo de activo) el documento nunca llega a publicarse: al aprobar, la
+  // ejecución se archiva directo.
+  const canPublish = !!permissions?.publish && status.state === "approved" && finalLifecycleStage === "publish"
+  const canArchive = !!permissions?.archive && (status.state === "approved" || status.state === "published")
+  const canRestore = !!permissions?.archive && isRestorableLifecycleState(status.state)
+  const canRerunExternalPublish =
+    !!input.showRerunExternalPublish && !!permissions?.publish && status.state === "published"
+
+  return {
+    canReturn,
+    canComplete,
+    canPublish,
+    canArchive,
+    canRestore,
+    canRerunExternalPublish,
+    hasAny: canReturn || canComplete || canPublish || canArchive || canRestore || canRerunExternalPublish,
+  }
 }
 
 // ─── Semántica de access_type ────────────────────────────────────────────────
