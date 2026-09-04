@@ -166,6 +166,11 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       const getExpandedIds = (nodeList: HuemulTreeNode[]): string[] => {
         const expanded: string[] = []
         for (const node of nodeList) {
+          // Una carpeta colapsada oculta su subárbol: reportar lo que hay adentro
+          // haría que el backend reexpandiera esta misma carpeta por la vía de los
+          // ancestros (ver expanded_folder_ids en
+          // respuestas/backend-arbol-expansion-persistente.md).
+          if (isExpandableRef.current(node) && !node.isExpanded) continue
           if (node.isExpanded && isExpandableRef.current(node)) {
             expanded.push(node.id)
           }

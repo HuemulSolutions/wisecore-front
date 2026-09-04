@@ -63,7 +63,13 @@ export interface UseUserPreferenceResult<T> {
   remove: () => void
   /** El GET inicial ya resolvió (con o sin valor). */
   isServerLoaded: boolean
-  /** El servidor trajo un valor distinto del que había en el caché local al montar. */
+  /**
+   * El servidor trajo un valor distinto del que había en el caché local al
+   * montar — señal one-shot de la hidratación inicial (caso cross-device: otro
+   * navegador cambió el valor). Nunca vuelve a moverse por un `setValue` local
+   * posterior, o un consumidor que reaccione a esto (ej. refrescar el árbol)
+   * entraría en un ciclo guardar → reaccionar → guardar.
+   */
   serverDiffered: boolean
 }
 
@@ -104,9 +110,21 @@ export function useUserPreference<T>({
   const orgKeyToken = `${organizationId ?? 'none'}:${key}`
   const seedRef = useRef<{ orgKey: string; value: T } | null>(null)
   const lastWrittenAtRef = useRef(-1)
+  // `serverDiffered` es one-shot: se decide una sola vez, en la primera
+  // resolución del GET por combinación (org, key), y no vuelve a recalcularse
+  // por escrituras locales posteriores (`hydratedTokenRef` marca si ya se
+  // decidió para el `orgKeyToken` vigente).
+  const hydratedTokenRef = useRef<string | null>(null)
+  const serverDifferedRef = useRef(false)
+  // Escritura debounced en vuelo — declarado acá (antes del useQuery) porque
+  // `queryFn` lo necesita para no dejar que un refetch en background pise un
+  // valor que el usuario acaba de cambiar pero todavía no llegó al servidor.
+  const pendingWriteRef = useRef<{ organizationId: string; value: T } | null>(null)
   if (seedRef.current?.orgKey !== orgKeyToken) {
     seedRef.current = { orgKey: orgKeyToken, value: readLocal(organizationId, key, parse) ?? defaultValue }
     lastWrittenAtRef.current = -1
+    hydratedTokenRef.current = null
+    serverDifferedRef.current = false
   }
 
   const query = useQuery<T>({
@@ -116,7 +134,13 @@ export function useUserPreference<T>({
       const parsed = server ? parse(server.value) : null
       // null del servidor = clave nunca guardada, no un valor vacío: conserva
       // lo que ya hay en caché (la semilla local) en vez de reemplazarlo.
-      return parsed ?? queryClient.getQueryData<T>(queryKey) ?? seedRef.current!.value
+      const resolved = parsed ?? queryClient.getQueryData<T>(queryKey) ?? seedRef.current!.value
+      // Hay un `setValue` debounced sin confirmar en el servidor todavía: un
+      // refetch en background (staleTime) no debe reinstalar el valor viejo
+      // por encima de lo que el usuario acaba de guardar.
+      const pending = pendingWriteRef.current
+      if (pending && pending.organizationId === organizationId) return pending.value
+      return resolved
     },
     initialData: () => seedRef.current!.value,
     initialDataUpdatedAt: 0,
@@ -133,7 +157,11 @@ export function useUserPreference<T>({
   const valueRef = useRef(value)
   valueRef.current = value
 
-  const serverDiffered = query.isFetched && JSON.stringify(query.data) !== JSON.stringify(seedRef.current!.value)
+  if (query.isFetched && hydratedTokenRef.current !== orgKeyToken) {
+    hydratedTokenRef.current = orgKeyToken
+    serverDifferedRef.current = JSON.stringify(query.data) !== JSON.stringify(seedRef.current!.value)
+  }
+  const serverDiffered = serverDifferedRef.current
 
   const skipNextWriteRef = useRef(false)
 
@@ -152,7 +180,6 @@ export function useUserPreference<T>({
   }, [query.dataUpdatedAt])
 
   const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const pendingWriteRef = useRef<{ organizationId: string; value: T } | null>(null)
 
   const flushPendingWrite = useCallback(() => {
     if (pendingTimerRef.current) {

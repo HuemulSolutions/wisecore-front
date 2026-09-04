@@ -349,6 +349,14 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
   const activeAssetIdRef = useRef(activeAssetId)
   activeAssetIdRef.current = activeAssetId
 
+  // El foco automático (revelar la cadena de carpetas del asset abierto, como
+  // VS Code revela el archivo activo) solo debe aplicar a la primera carga
+  // root del montaje — refrescos posteriores no deben reexpandir esa cadena
+  // por encima de lo que el usuario haya colapsado. Se resetea al cambiar de
+  // organización porque este componente no se remonta ahí (solo FileTree, por
+  // su `key`).
+  const didInitialRootLoadRef = useRef(false)
+
   // Refresh file tree only when organization actually changes (not on mount)
   React.useEffect(() => {
     // If previousOrgId is null, this is the initial mount - skip refresh
@@ -361,14 +369,18 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
     // Only refresh if organization actually changed
     if (selectedOrganizationId && selectedOrganizationId !== previousOrgId.current) {
       previousOrgId.current = selectedOrganizationId
+      didInitialRootLoadRef.current = false
       fileTreeRef.current?.refresh()
     }
   }, [selectedOrganizationId, fileTreeRef])
 
   // El root load ya usó expandedIdsRef en su valor de caché local (síncrono);
-  // si el servidor trae un set distinto (otro dispositivo/navegador), refrescar
-  // una vez para que el root load siguiente lo recoja. Sin esto, la expansión
-  // cross-device solo se vería recién en la próxima recarga manual.
+  // si el servidor trae un set distinto al del caché local AL MONTAR (otro
+  // dispositivo/navegador cambió la expansión mientras tanto), refrescar una
+  // vez para que el root load siguiente lo recoja. `serverDiffered` es
+  // one-shot de esa hidratación inicial (ver useUserPreference.ts) — nunca se
+  // vuelve a activar por un guardado local propio, así que este efecto no
+  // dispara un refresh en cada toggle del usuario.
   React.useEffect(() => {
     if (serverDiffered) fileTreeRef.current?.refresh()
   }, [serverDiffered, fileTreeRef])
@@ -391,7 +403,16 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
 
       try {
         const isRoot = folderId === null
-        const focusAssetId = isRoot ? (pendingFocusAssetIdRef.current ?? activeAssetIdRef.current) : null
+        // El asset activo de la URL solo enfoca la PRIMERA carga root del
+        // montaje (revela su cadena de carpetas, como VS Code revela el
+        // archivo activo). Un `pendingFocusAssetIdRef` explícito (reveal desde
+        // un sheet, asset recién creado) sigue funcionando en cualquier carga.
+        // Sin este corte, cada refresh reexpandiría la cadena del asset
+        // abierto por encima de lo que el usuario haya colapsado.
+        const focusAssetId = isRoot
+          ? (pendingFocusAssetIdRef.current ?? (didInitialRootLoadRef.current ? null : activeAssetIdRef.current))
+          : null
+        if (isRoot) didInitialRootLoadRef.current = true
         // Consumo único — no debe reusarse en refrescos posteriores no
         // relacionados, ni siquiera si esta carga falla.
         if (isRoot && pendingFocusAssetIdRef.current) pendingFocusAssetIdRef.current = null
