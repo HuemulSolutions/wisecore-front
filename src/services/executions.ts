@@ -5,7 +5,7 @@ import { toDateParam } from "@/lib/date-params";
 import { ApiError } from "@/types/api-error";
 import type { ExecutionsResponse, GetExecutionsParams, RollbackTarget, RollbackStep, RollbackTargetsResponse, ExecutionVersionSuggestion, ExecutionVersionSuggestionResponse, ExecutionSectionsStatusResponse } from "@/types/execution";
 import type { AvailableDocxTemplate, AvailableDocxTemplatesResponse } from "@/types/docx-templates";
-import type { CompleteLifecycleStepResponse } from "@/types/lifecycle";
+import type { AdvanceLifecycleResponse, CompleteLifecycleStepResponse } from "@/types/lifecycle";
 
 export type { RollbackTarget, RollbackStep, RollbackTargetsResponse, ExecutionVersionSuggestion };
 
@@ -461,7 +461,7 @@ export async function advanceExecutionLifecycle(
         publish_step_id?: string
         run_external_publish?: boolean
     },
-) {
+): Promise<AdvanceLifecycleResponse> {
     const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/advance`, {
         comment: options?.comment || '',
         ...(options?.skip_published && { skip_published: true }),

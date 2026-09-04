@@ -81,8 +81,7 @@ import { TableOfContents } from "@/components/assets/content/assets-table-of-con
 import { toast } from "sonner";
 import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
-import { useExecutionRelationships } from "@/hooks/useExecutionRelationships";
-import { useDocumentTypes } from "@/hooks/useDocumentTypes";
+import { useDataTableSources } from "@/hooks/useDataTables";
 import { AssetsSectionsList } from "./assets-sections-list";
 import { formatApiDateTime, cn } from "@/lib/utils";
 import { CustomWordExportDialog } from "@/components/assets/dialogs/assets-export-custom.word-dialog";
@@ -1304,20 +1303,13 @@ export function AssetContent({
   // Unified executions source: prefer documentContent (always fresh after refetch) over separate query
   const allExecutions = documentContent?.executions || documentExecutions;
 
-  // Relaciones + catálogo de tipos para el nodo `data_table` (fuente "related_documents") y para
-  // AssetsRelatedDocuments más abajo — misma query key en ambos casos, comparten caché.
+  // Usado por AssetsRelatedDocumentsBlock más abajo (su propia query de relaciones).
   const relatedExecutionId = selectedExecutionId || documentContent?.execution_id;
-  const { data: relationshipsData } = useExecutionRelationships(
-    selectedOrganizationId || '',
-    relatedExecutionId || '',
-    { enabled: canListExecutionRelationships && !!relatedExecutionId, direction: 'all', includeSubrelationships: false },
-  );
-  const { data: documentTypesResponse } = useDocumentTypes({ enabled: can('listAssetTypes') });
-  const documentTypeNames = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const type of documentTypesResponse?.data ?? []) map.set(type.id, type.name);
-    return map;
-  }, [documentTypesResponse]);
+
+  // Prefetch del catálogo del nodo `data_table` (cache infinita, ver useDataTableSources) — así
+  // el slash command (transforms.ts, síncrono, fuera de React) lo encuentra ya en cache al
+  // insertar una tabla nueva.
+  useDataTableSources(selectedOrganizationId || undefined);
 
   // Check if there's any execution in process - optimized with memoization
   const hasExecutionInProcess = useMemo(() => {
@@ -3248,7 +3240,11 @@ export function AssetContent({
                         <MediaUrlProvider freshUrls={mediaUrlsData?.media_urls ?? null}>
                         <MentionRefsProvider assetIds={mentionAssetIds} organizationId={selectedOrganizationId ?? undefined}>
                         <RoleRefsProvider enabled={hasRoleReferences}>
-                        <DocumentDataProvider documentContent={documentContent} executions={allExecutions} relationships={relationshipsData?.data} documentTypeNames={documentTypeNames} isLoaded>
+                        <DocumentDataProvider
+                          documentId={selectedFile?.id}
+                          organizationId={selectedOrganizationId}
+                          executionId={selectedExecutionId || documentContent?.execution_id || null}
+                        >
                         <div className={`prose prose-gray prose-sm md:prose-base max-w-full${isViewMode ? ' [&>*+*]:mt-0' : ''}`}>
                           {/* Template instructions callout - shown once at the top */}
                           {documentContent.template_instructions?.trim() && (

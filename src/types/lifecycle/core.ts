@@ -293,11 +293,23 @@ export interface ExternalPublishRun {
   finished_at: string | null
 }
 
+/** Resumen del refresco automático de tablas de datos (`data_table` con `refresh_on_approval:
+ * true`) — solo viene si el documento tiene al menos una tabla marcada así. Nunca condiciona
+ * el éxito de la transición: el refresco puede fallar entero y la aprobación/publicación se
+ * completa igual. Ver `respuestas/spec-data-table-backend.md` §4. */
+export interface DataTablesRefreshedSummary {
+  refreshed: number
+  failed: number
+  /** Tablas con `refresh_on_approval` pero sin `node_id` — no se pudieron ubicar de forma estable. */
+  skipped: number
+}
+
 export interface AdvanceLifecycleResponse {
   execution_id: string
   previous_state: string
   new_state: string
   external_publish: ExternalPublishRun | null
+  data_tables_refreshed?: DataTablesRefreshedSummary
 }
 
 // ─── External Review Actions ──────────────────────────────────────────────────
@@ -396,4 +408,5 @@ export interface CompleteLifecycleStepResponse {
   auto_advanced: boolean
   new_state: string
   external_review?: CompleteLifecycleStepExternalReview
+  data_tables_refreshed?: DataTablesRefreshedSummary
 }

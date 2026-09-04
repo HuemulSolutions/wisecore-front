@@ -1,9 +1,11 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
 import { ApiError, handleApiError } from "@/lib/error-utils"
 import { withRefresh } from "@/lib/query-utils"
 import { logger } from "@/lib/logger"
+import { dataTableQueryKeys } from "@/hooks/useDataTables"
 import { parseMissingRequiredCustomFieldsDetail } from "@/lib/custom-field-required-utils"
 import { getAdvanceBlockers, parseAdvanceBlockersDetail } from "@/lib/advance-blockers-utils"
 import { completeActionLabelKey, completeActionTooltipKey } from "@/lib/lifecycle-labels"
@@ -27,6 +29,11 @@ import type {
   PendingVersionLifecycleAction,
 } from "@/types/lifecycle"
 import type { AdvanceBlocker } from "@/types/assets"
+import type {
+  DataTablesRefreshedSummary,
+  CompleteLifecycleStepResponse,
+  AdvanceLifecycleResponse,
+} from "@/types/lifecycle"
 
 const VERSION_REQUIRED_CODE = "VERSION_REQUIRED_FOR_APPROVAL"
 const REQUIRED_CUSTOM_FIELDS_CODE = "CUSTOM_FIELD_DOCUMENT_REQUIRED_VALUE_MISSING"
@@ -153,6 +160,29 @@ export function useLifecycleActions({
     return true
   }
 
+  // El backend recalcula solo el snapshot de las tablas `data_table` marcadas
+  // `refresh_on_approval: true` al completar el step que aprueba, y al pasar
+  // approved -> published (ver respuestas/spec-data-table-backend.md §4). El
+  // refresco nunca condiciona el éxito de la transición — acá solo se avisa e
+  // invalida el cache de /resolve para que la próxima vez que se pinte el
+  // documento traiga los snapshots nuevos. `skipped` (tablas sin `node_id`) no
+  // se le muestra al usuario: es ruido de nodos legacy, solo se loguea.
+  const notifyDataTablesRefreshed = (summary?: DataTablesRefreshedSummary) => {
+    if (!summary) return
+    if (summary.refreshed > 0) {
+      toast.info(t("lifecycle.dataTablesRefreshed", { count: summary.refreshed }))
+      if (documentId) {
+        queryClient.invalidateQueries({ queryKey: dataTableQueryKeys.resolveDocument(documentId) })
+      }
+    }
+    if (summary.failed > 0) {
+      toast.warning(t("lifecycle.dataTablesRefreshFailed", { count: summary.failed }))
+    }
+    if (summary.skipped > 0) {
+      logger.warn("[lifecycle] data tables skipped on refresh (sin node_id)", { skipped: summary.skipped })
+    }
+  }
+
   const checkMutation = useMutation({
     mutationFn: withRefresh(
       async (options?: { comment?: string; run_external_review?: boolean }) => {
@@ -165,9 +195,10 @@ export function useLifecycleActions({
       queryClient,
       refreshKeys,
     ),
-    onSuccess: () => {
+    onSuccess: (data: CompleteLifecycleStepResponse) => {
       setIsCheckDialogOpen(false)
       queryClient.invalidateQueries({ queryKey: executionLifecycleQueryKeys.eventsBase() })
+      notifyDataTablesRefreshed(data?.data_tables_refreshed)
       onAfterComplete?.()
     },
     meta: { successMessage: t("lifecycle.successComplete") },
@@ -224,10 +255,11 @@ export function useLifecycleActions({
       queryClient,
       refreshKeys,
     ),
-    onSuccess: () => {
+    onSuccess: (data: AdvanceLifecycleResponse) => {
       setIsPublishDialogOpen(false)
       setIsArchiveDialogOpen(false)
       queryClient.invalidateQueries({ queryKey: executionLifecycleQueryKeys.eventsBase() })
+      notifyDataTablesRefreshed(data?.data_tables_refreshed)
     },
     meta: { successMessage: t("lifecycle.successAdvance") },
     onError: (
