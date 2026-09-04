@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { useAllExecutions } from '@/hooks/useAllExecutions';
 import { useQueryClient } from '@tanstack/react-query';
+import { useMyWorkApproved } from '@/hooks/useMyWorkApproved';
 import { advanceExecutionLifecycle } from '@/services/executions';
 import { HomeWorkGroupCard, type HomeWorkGroupAccent } from './home-work-group-card';
 import { HomeApprovedRow } from './home-approved-row';
 import { HomeEmptyState } from './home-empty-state';
-import type { Execution } from '@/types/execution';
-import type { HomeWorkGroupCount, HomeWorkGroupRow as HomeWorkGroupRowData } from '@/types/home';
+import type { HomeWorkGroupRow as HomeWorkGroupRowData } from '@/types/home';
 
 const APPROVED_ACCENT: HomeWorkGroupAccent = {
   headerBg: 'bg-[#f6fdfa]',
@@ -17,35 +16,7 @@ const APPROVED_ACCENT: HomeWorkGroupAccent = {
   pillBg: 'bg-[#d9f5e8]',
 };
 
-/** Cuántas filas se traen por debajo (acotado) para aproximar un conteo sin `total` en la respuesta (spec Punto 2). */
-const BOUNDED_PAGE_SIZE = 50;
 const VISIBLE_ROWS = 3;
-
-function toWorkGroupRow(execution: Execution): HomeWorkGroupRowData {
-  const versionLabel =
-    execution.version_major !== null && execution.version_minor !== null && execution.version_patch !== null
-      ? `v${execution.version_major}.${execution.version_minor}.${execution.version_patch}`
-      : execution.name;
-  return {
-    id: execution.id,
-    documentId: execution.document_id,
-    documentName: execution.document_name,
-    versionLabel,
-    ownerName: execution.created_by_user_name,
-    lifecycleState: execution.lifecycle_state,
-    temporalDate: execution.estimated_publication_date ?? execution.updated_at,
-    temporalKind: execution.estimated_publication_date ? 'estimatedPublicationDate' : 'sinceUpdated',
-  };
-}
-
-export interface HomeMyWorkTabSummary {
-  count: HomeWorkGroupCount | null;
-  isEmpty: boolean;
-  /** Cuántas de las filas ya traídas publican dentro de 7 días — `null` si el conteo del grupo es indeterminado (no se puede afirmar "M vencen esta semana" sobre un total que no se conoce del todo). */
-  dueSoonCount: number | null;
-}
-
-const DUE_SOON_DAYS = 7;
 
 export interface HomeMyWorkTabProps {
   organizationId: string;
@@ -54,7 +25,6 @@ export interface HomeMyWorkTabProps {
   /** `firstTime` mientras el checklist de onboarding no esté completo; `noPending` si la organización ya opera pero el usuario no tiene nada propio. Decide `home.tsx`, que es quien conoce el estado del checklist. */
   emptyVariant: 'firstTime' | 'noPending';
   onViewApprovedInAllAssets: () => void;
-  onSummaryChange: (summary: HomeMyWorkTabSummary) => void;
 }
 
 /**
@@ -71,7 +41,6 @@ export function HomeMyWorkTab({
   canTransitionAsset,
   emptyVariant,
   onViewApprovedInAllAssets,
-  onSummaryChange,
 }: HomeMyWorkTabProps) {
   const { t } = useTranslation('home');
   const queryClient = useQueryClient();
@@ -79,36 +48,13 @@ export function HomeMyWorkTab({
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
   const [bulkState, setBulkState] = useState<{ done: number; total: number } | null>(null);
 
-  const { data, isLoading, isFetching, error, refetch } = useAllExecutions(organizationId, {
-    enabled: canListExecutions && !!organizationId,
-    owner_scope: 'me',
-    lifecycle_state: 'approved',
-    pageSize: BOUNDED_PAGE_SIZE,
-    sort: 'estimated_publication_date_asc',
-  });
-
-  const allRows = (data?.data ?? []).map(toWorkGroupRow);
-  const visibleRows = allRows.slice(0, VISIBLE_ROWS);
-  const hasNext = data?.has_next ?? false;
-  // Conteo interino (nunca exacto si `hasNext`) — ver spec Punto 2, `HomeWorkGroupCount`.
-  const count: HomeWorkGroupCount | null = data ? { exact: !hasNext, value: allRows.length } : null;
-  const isEmpty = !isLoading && !error && allRows.length === 0;
-
-  // Solo se afirma "M vencen esta semana" cuando el conteo del grupo es
-  // exacto — sobre un "50+" indeterminado no se puede asegurar cuántas de
-  // las que no se llegaron a traer vencen esta semana.
-  const dueSoonCount = count?.exact
-    ? allRows.filter((r) => {
-        if (r.temporalKind !== 'estimatedPublicationDate' || !r.temporalDate) return false;
-        const days = (new Date(r.temporalDate).getTime() - Date.now()) / 86_400_000;
-        return days >= 0 && days <= DUE_SOON_DAYS;
-      }).length
-    : null;
-
-  useEffect(() => {
-    onSummaryChange({ count, isEmpty, dueSoonCount });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [count?.exact, count?.value, isEmpty, dueSoonCount]);
+  // Misma fuente que consume `home.tsx` para decidir `isFirstTimeState` y
+  // pintar el header — mismos parámetros de `useAllExecutions` por debajo,
+  // así que comparten `queryKey`/cache y no se duplica ninguna request.
+  const { rows: allRows, visibleRows, hasNext, count, isEmpty, isLoading, isFetching, error, refetch } = useMyWorkApproved(
+    organizationId,
+    canListExecutions && !!organizationId,
+  );
 
   // Limpia el fade-out de una fila en cuanto el refetch (disparado por
   // `extraRefreshKeys` de `useLifecycleActions` al publicar) la saca de
@@ -198,7 +144,7 @@ export function HomeMyWorkTab({
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed((c) => !c)}
         rows={visibleRows}
-        isLoading={isLoading || (isFetching && !data)}
+        isLoading={isLoading || (isFetching && allRows.length === 0)}
         error={error}
         onRetry={() => refetch()}
         footer={footer}

@@ -5,7 +5,7 @@ export { HomeAllAssetsTab } from './home-all-assets-tab';
 export type { HomeAllAssetsTabProps } from './home-all-assets-tab';
 export { HomeTeamActivityTab } from './home-team-activity-tab';
 export { HomeMyWorkTab } from './home-my-work-tab';
-export type { HomeMyWorkTabSummary } from './home-my-work-tab';
+export { HomeSkeleton } from './home-skeleton';
 export { HomeRail } from './home-rail';
 export { HomeOverviewCard } from './home-overview-card';
 export type { HomeOverviewRow } from './home-overview-card';

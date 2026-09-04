@@ -5,7 +5,6 @@ import { format } from 'date-fns';
 import { useOrgNavigate } from '@/hooks/useOrgRouter';
 import { HuemulPageLayout } from '@/huemul/components/huemul-page-layout';
 import { DEFAULT_PAGE_SIZE } from '@/huemul/constants';
-import { PageSkeleton } from '@/components/ui/page-skeleton';
 import { HuemulFilterPanel } from '@/huemul/components/huemul-filter-panel';
 import { HuemulCustomFieldFilter } from '@/huemul/components/huemul-custom-field-filter';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
@@ -19,6 +18,7 @@ import { useDocumentStatistics } from '@/hooks/useDocumentStatistics';
 import { useUnreadNotificationsCount } from '@/hooks/useUnreadNotificationsCount';
 import { useOnboardingChecklist } from '@/hooks/useOnboardingChecklist';
 import { useRecentAssets } from '@/hooks/useRecentAssets';
+import { useMyWorkApproved } from '@/hooks/useMyWorkApproved';
 import { NotificationsSheet } from '@/components/notifications/notifications-sheet';
 import { useOrganization } from '@/contexts/organization-context';
 import { useAuth } from '@/contexts/auth-context';
@@ -39,8 +39,8 @@ import {
   HomeMyWorkTab,
   HomeRail,
   HomeGettingStartedCard,
+  HomeSkeleton,
   type HomeOverviewRow,
-  type HomeMyWorkTabSummary,
 } from '@/components/home';
 
 type HomeTabKey = 'mine' | 'all' | 'team';
@@ -48,7 +48,7 @@ type HomeTabKey = 'mine' | 'all' | 'team';
 export default function Home() {
   const { t } = useTranslation('home');
   const { t: tAssets } = useTranslation('assets');
-  const { selectedOrganizationId, organizationToken } = useOrganization();
+  const { selectedOrganizationId, organizationToken, isLoading: isLoadingOrganization } = useOrganization();
   const { user } = useAuth();
   const navigate = useOrgNavigate();
   const queryClient = useQueryClient();
@@ -56,6 +56,11 @@ export default function Home() {
   // panel se gatea a sí mismo. Ver ia context/rbac-audit-guide.md.
   const { can, isLoading: isLoadingPermissions } = usePageAccess('home');
   const orgId = selectedOrganizationId ?? '';
+  // `isLoadingOrganization` cubre la restauración async desde localStorage
+  // (`organization-context.ts`) — sin esto, el primer render con `orgId=''`
+  // deja las queries deshabilitadas y eso se lee como "vacío", forzando por
+  // un instante el diseño de primera vez incluso en una org con datos.
+  const orgReady = !isLoadingOrganization && !!orgId && !!organizationToken;
 
   const canListExecutions = can('listExecutions');
   const canCreateAsset = can('createAsset');
@@ -111,9 +116,14 @@ export default function Home() {
   // ── "Continuar donde quedaste" ──
   const { recentAssets } = useRecentAssets(selectedOrganizationId, user?.id);
 
-  // ── Resumen que reporta la pestaña "Mi trabajo" (único grupo real hoy) ──
-  const [myWorkSummary, setMyWorkSummary] = useState<HomeMyWorkTabSummary>({ count: null, isEmpty: false, dueSoonCount: null });
-  const isFirstTimeState = !onboarding.allDone && myWorkSummary.isEmpty && !onboarding.isLoading;
+  // ── "Mi trabajo" (único grupo real hoy) — misma fuente que consume
+  // `HomeMyWorkTab`, así que padre e hijo nunca se desincronizan ni duplican
+  // la request (comparten `queryKey`). Ver `useMyWorkApproved`.
+  const myWork = useMyWorkApproved(orgId, orgReady && canListExecutions);
+  const isFirstTimeState = !onboarding.allDone && myWork.isEmpty;
+  // Único gate de carga: hasta que esto resuelva, se pinta `HomeSkeleton` —
+  // evita que la primera pintura elija el diseño equivocado y luego salte.
+  const isHomeReady = !isLoadingPermissions && orgReady && !onboarding.isLoading && !myWork.isResolving;
 
   const fetchDocumentTypes = useCallback(async ({ search: s }: FetchOptionsParams): Promise<FetchOptionsResult> => {
     const res = await getDocumentTypes({ search: s || undefined });
@@ -379,9 +389,11 @@ export default function Home() {
   );
 
   // Nunca un 403 de página completa: /home es el destino de todo rebote, así
-  // que se degrada panel por panel y siempre queda algo alcanzable.
-  if (isLoadingPermissions) {
-    return <PageSkeleton />;
+  // que se degrada panel por panel y siempre queda algo alcanzable. El gate
+  // de abajo es distinto: no es permisos, es "todavía no sé qué diseño
+  // pintar" (ver `isHomeReady`).
+  if (!isHomeReady) {
+    return <HomeSkeleton />;
   }
 
   const header = (
@@ -391,8 +403,8 @@ export default function Home() {
       onboardingStepsCount={onboarding.steps.length}
       userName={user?.name ?? ''}
       formattedDate={formattedDate}
-      pendingCount={myWorkSummary.count}
-      dueSoonCount={myWorkSummary.dueSoonCount}
+      pendingCount={myWork.count}
+      dueSoonCount={myWork.dueSoonCount}
       isRefreshing={isFetching || statsFetching}
       onRefresh={handleRefresh}
       canUpload={canCreateAsset}
@@ -408,10 +420,7 @@ export default function Home() {
   // Primera vez (checklist incompleto + "Mi trabajo" vacío, ver
   // `isFirstTimeState` más arriba): una sola columna, sin tabs ni rail — el
   // checklist va en el flujo principal, no en el rail (spec §5.1/§5.3, y
-  // coincide con el mock de referencia). `HomeMyWorkTab` se sigue montando
-  // igual (mismo componente, mismo `emptyVariant="firstTime"`) porque es la
-  // única fuente de `onSummaryChange`: cortar ese mount rompería la señal
-  // que decide `isFirstTimeState`. Su estado vacío interno ya pinta el
+  // coincide con el mock de referencia). Su estado vacío interno ya pinta el
   // placeholder de §5.2 sin duplicar nada acá.
   const mainContent = isFirstTimeState ? (
     <div className="flex flex-col gap-3.5 p-4 md:p-6">
@@ -428,14 +437,13 @@ export default function Home() {
         canTransitionAsset={can('transitionAsset')}
         emptyVariant="firstTime"
         onViewApprovedInAllAssets={() => setActiveTab('all')}
-        onSummaryChange={setMyWorkSummary}
       />
     </div>
   ) : (
     <div className="flex h-full min-h-0 gap-5 p-4 md:p-6">
       <div className="flex min-w-0 flex-1 flex-col gap-3.5 overflow-hidden">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as HomeTabKey)} className="flex min-h-0 flex-1 flex-col gap-3.5">
-          <HomeTabsList myWorkCount={myWorkSummary.count} showAllAssetsTab={canListExecutions} />
+          <HomeTabsList myWorkCount={myWork.count} showAllAssetsTab={canListExecutions} />
           <TabsContent value="mine" className="min-h-0 flex-1 overflow-y-auto">
             <HomeMyWorkTab
               organizationId={orgId}
@@ -443,7 +451,6 @@ export default function Home() {
               canTransitionAsset={can('transitionAsset')}
               emptyVariant={onboarding.allDone ? 'noPending' : 'firstTime'}
               onViewApprovedInAllAssets={() => jumpToAllAssets({ ownerValue: '__me__', lifecycleState: 'approved' }, { ownerValue: t('filters.ownerMe') })}
-              onSummaryChange={setMyWorkSummary}
             />
           </TabsContent>
           <TabsContent value="all" className="min-h-0 flex-1 overflow-hidden">
@@ -482,7 +489,7 @@ export default function Home() {
       </div>
       <HomeRail
         isFirstTime={isFirstTimeState}
-        showGettingStarted={!onboarding.allDone}
+        showGettingStarted={!onboarding.isLoading && !onboarding.allDone}
         onboarding={onboarding}
         onOnboardingStepAction={handleOnboardingStepAction}
         recentAssets={recentAssets}
