@@ -1351,7 +1351,7 @@ function RelationshipsCanvasFlow({
   const handleLoadExecRelCanvasOnlyRef = useRef<((nodeId: string, allowedRelIds?: Set<string>) => void) | null>(null)
 
   const doLoadExecutionRelationships = useCallback(
-    async (nodeId: string, executionId: string) => {
+    async (nodeId: string, executionId: string, filterDocumentTypeId?: string) => {
       if (!canListExecRelationships) return
       const orgId = organizationIdRef.current
 
@@ -1369,11 +1369,20 @@ function RelationshipsCanvasFlow({
       })
       if (!relData?.data?.length) return
 
+      // "Expandir por tipo": nos quedamos solo con las relaciones directas del anchor cuyo OTRO
+      // lado (no el anchor) sea del tipo elegido — las demás ni suman nodos ni edges nuevos.
+      const otherSide = (rel: ExecutionRelationshipSubitem) =>
+        rel.source_execution.id === executionId ? rel.target_execution : rel.source_execution
+      const directRels = filterDocumentTypeId
+        ? relData.data.filter((rel) => otherSide(rel).document_type_id === filterDocumentTypeId)
+        : relData.data
+      if (!directRels.length) return
+
       // Flatten top-level + all sub-relationships (relationship_source / relationship_target)
       // into a single deduplicated map — used only to draw edges between nodes that end up on
       // the canvas (e.g. siblings), never to decide which nodes get created.
       const allRelsMap = new Map<string, ExecutionRelationshipSubitem>()
-      for (const item of relData.data) {
+      for (const item of directRels) {
         if (!allRelsMap.has(item.id)) allRelsMap.set(item.id, item)
         for (const sub of item.relationship_source) {
           if (!allRelsMap.has(sub.id)) allRelsMap.set(sub.id, sub)
@@ -1444,9 +1453,9 @@ function RelationshipsCanvasFlow({
         currentNodes.find((n) => (n.data as AssetTypeNodeData).executionId === execId)?.id ??
         newNodes.find((n) => (n.data as AssetTypeNodeData).executionId === execId)?.id
 
-      // "Children" are only the anchor's direct relationships (relData.data, before flattening).
+      // "Children" are only the anchor's direct relationships (directRels, before flattening).
       // Sub-relationships describe siblings/grandchildren and must never spawn nodes.
-      for (const rel of relData.data) {
+      for (const rel of directRels) {
         ensureNode(rel.source_execution.document_id, rel.source_execution.id, rel.source_execution.name, rel.source_execution.document_name, rel.source_execution.document_type_id, rel.source_execution.document_type_color ?? '')
         ensureNode(rel.target_execution.document_id, rel.target_execution.id, rel.target_execution.name, rel.target_execution.document_name, rel.target_execution.document_type_id, rel.target_execution.document_type_color ?? '')
       }
@@ -1533,6 +1542,21 @@ function RelationshipsCanvasFlow({
       if (!nodeData) return
       if (nodeData.executionId) {
         doLoadExecutionRelationships(nodeId, nodeData.executionId)
+      } else {
+        toast.warning(t("nodePanel.versionRequiredFor", { names: nodeData.name }))
+      }
+    },
+    [getNodes, doLoadExecutionRelationships, t],
+  )
+
+  // "Expandir por tipo": misma carga que arriba, pero solo agrega el tipo de activo relacionado elegido.
+  const handleLoadExecutionRelationshipsForType = useCallback(
+    (nodeId: string, documentTypeId: string) => {
+      const node = getNodes().find((n) => n.id === nodeId)
+      const nodeData = node?.data as AssetTypeNodeData | undefined
+      if (!nodeData) return
+      if (nodeData.executionId) {
+        doLoadExecutionRelationships(nodeId, nodeData.executionId, documentTypeId)
       } else {
         toast.warning(t("nodePanel.versionRequiredFor", { names: nodeData.name }))
       }
@@ -2235,6 +2259,9 @@ function RelationshipsCanvasFlow({
               }
               nodeActions={nodeActions}
               onOpenAsset={mode === 'execution' && nodeData.assetId ? () => handleOpenAsset(nodeData.assetId!, nodeData.executionId) : undefined}
+              documentTypeId={mode === 'execution' ? nodeData.documentTypeId : undefined}
+              documentTypes={documentTypes}
+              onLoadRelationshipsForType={mode === 'execution' && canListExecRelationships ? handleLoadExecutionRelationshipsForType : undefined}
               onLoadRelationships={nodeData.onLoadRelationships && (mode === 'execution' ? canListExecRelationships : canListRelationships) ? (mode === 'execution' ? handleLoadExecutionRelationships : handleLoadRelationships) : undefined}
               onLoadRelationshipsCanvasOnly={nodeData.onLoadRelationships && (mode === 'execution' ? canListExecRelationships : canListRelationships) ? (mode === 'execution' ? handleLoadExecRelCanvasOnly : handleLoadRelationshipsCanvasOnly) : undefined}
               onClose={() => setSelectedNodeId(null)}
