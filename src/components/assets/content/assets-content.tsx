@@ -22,6 +22,8 @@ import { AssetVersionCompareSheet } from "@/components/assets/content/asset-vers
 import { AssetsInfoSheet } from "@/components/assets/content/assets-info-sheet";
 import AssetLifecycleSheet from "@/components/assets/dialogs/assets-lifecycle-sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/contexts/auth-context";
+import { useRecentAssets } from "@/hooks/useRecentAssets";
 import { DocumentAccessControl } from "@/components/assets/content/assets-access-control";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulExpandableText } from "@/huemul/components/huemul-expandable-text";
@@ -931,6 +933,22 @@ export function AssetContent({
     // TODO: la key no incluye selectedOrganizationId (preexistente, ver
     // "ia context/rbac-audit-guide.md"). No se toca en este cambio.
   });
+
+  // "Continuar donde quedaste" (rail del Home) — se registra acá, no en
+  // useAssetNavigation, porque ahí `selectedFile.name` es un placeholder tipo
+  // "Document 9a1c2e3d..." hasta que este contenido resuelve; acá ya se tiene
+  // el nombre real del documento.
+  const { user: currentUser } = useAuth();
+  const { recordRecentAsset } = useRecentAssets(selectedOrganizationId, currentUser?.id);
+  useEffect(() => {
+    if (!documentContent) return;
+    recordRecentAsset({
+      id: documentContent.document_id,
+      name: documentContent.document_name,
+      lifecycleState: documentContent.lifecycle_status?.state,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentContent?.document_id, documentContent?.document_name, documentContent?.lifecycle_status?.state]);
 
   // Handle add section at specific position.
   // useCallback: se pasa como prop a AssetsSectionsList (memoizado) — sin esto

@@ -3,6 +3,7 @@
     morning: { en: "Good morning, {{name}}", es: "Buenos días, {{name}}" },
     afternoon: { en: "Good afternoon, {{name}}", es: "Buenas tardes, {{name}}" },
     evening: { en: "Good evening, {{name}}", es: "Buenas noches, {{name}}" },
+    welcome: { en: "Welcome, {{name}}", es: "Bienvenido, {{name}}" },
     unreadNotifications: {
       en: "{{count}} unread notifications",
       es: "{{count}} notificaciones sin leer",
@@ -11,12 +12,155 @@
 
   actions: {
     uploadDocument: { en: "Upload Asset", es: "Subir Activo" },
-    pendingReviews: { en: "Pending Reviews", es: "Revisiones Pendientes" },
     createAsset: { en: "Create Asset", es: "Crear Activo" },
-    pendingReviewsTitle: { en: "Pending Reviews", es: "Revisiones Pendientes" },
-    pendingReviewsDescription: {
-      en: "Assets with pending AI suggestions awaiting review.",
-      es: "Activos con sugerencias de IA pendientes de revisión.",
+  },
+
+  // Subtítulo del saludo, armado en JSX a partir de fragmentos (mismo patrón
+  // que ya usaba este archivo para "fecha · notificaciones sin leer") — no hay
+  // Trans/i18nKey en el repo, así que el número en negrita se envuelve en un
+  // <span> propio en vez de embeber markup en la traducción.
+  subtitle: {
+    pendingPrefix: { en: "You have", es: "Tienes" },
+    // "N cosas por hacer" — cuenta interina, ver homeWorkGroupCounts.ts.
+    pendingSuffix: { en: "things to do", es: "cosas por hacer" },
+    // Se usa cuando el conteo del grupo real es indeterminado (has_next=true,
+    // spec Punto 2 pendiente) — no se fuerza un número que no se puede probar.
+    pendingUnknown: { en: "You have pending work", es: "Tienes trabajo pendiente" },
+    dueSoonSuffix: { en: "due this week", es: "vencen esta semana" },
+  },
+
+  tabs: {
+    myWork: { en: "My work", es: "Mi trabajo" },
+    allAssets: { en: "All assets", es: "Todos los activos" },
+    teamActivity: { en: "Team activity", es: "Actividad del equipo" },
+  },
+
+  workGroups: {
+    approved: {
+      title: { en: "Approved, ready to publish", es: "Aprobados, listos para publicar" },
+      meta: { en: "Sorted by publication date", es: "Ordenado por fecha de publicación" },
+      empty: { en: "No assets waiting to publish", es: "Sin activos pendientes de publicar" },
+      actionPublish: { en: "Publish", es: "Publicar" },
+      bulkPublish: { en: "Publish all {{count}}", es: "Publicar los {{count}}" },
+      bulkPublishing: { en: "Publishing {{done}} of {{total}}…", es: "Publicando {{done}} de {{total}}…" },
+      bulkPublishSuccess: { en: "{{count}} assets published", es: "{{count}} activos publicados" },
+      bulkPublishPartial: {
+        en: "{{done}} of {{total}} published — some failed, retry them individually",
+        es: "{{done}} de {{total}} publicados — algunos fallaron, reintentalos individualmente",
+      },
+    },
+    // Los 3 grupos de abajo quedan sin query real (enabled: false en
+    // home-my-work-tab.tsx) hasta que backend entregue el spec — las
+    // traducciones ya están listas para cuando se activen.
+    review: {
+      title: { en: "Awaiting your review", es: "Esperando tu revisión" },
+      meta: { en: "Sorted by time waiting", es: "Ordenado por antigüedad" },
+      actionSecondary: { en: "Return", es: "Devolver" },
+      actionPrimary: { en: "Review", es: "Revisar" },
+    },
+    approval: {
+      title: { en: "Awaiting your approval", es: "Esperan tu aprobación" },
+      meta: { en: "Sorted by publication date", es: "Ordenado por fecha de publicación" },
+      actionSecondary: { en: "Reject", es: "Rechazar" },
+      actionPrimary: { en: "Approve", es: "Aprobar" },
+    },
+    mentions: {
+      title: { en: "Comments mentioning you", es: "Comentarios que te mencionan" },
+      meta: { en: "Sorted by recency", es: "Ordenado por recencia" },
+      actionPrimary: { en: "Reply", es: "Responder" },
+    },
+    common: {
+      viewRemaining: { en: "View {{count}} more", es: "Ver las {{count}} restantes" },
+      viewAll: { en: "View all", es: "Ver todas" },
+      countApprox: { en: "{{count}}+", es: "{{count}}+" },
+      collapse: { en: "Collapse", es: "Colapsar" },
+      expand: { en: "Expand", es: "Expandir" },
+      errorTitle: { en: "We couldn't load this group", es: "No pudimos cargar este grupo" },
+      updatedAgo: { en: "updated {{time}}", es: "hace {{time}}" },
+      publishesOn: { en: "publishes on {{date}}", es: "publica el {{date}}" },
+      undoUnavailable: {
+        en: "Done. This action can't be undone yet.",
+        es: "Listo. Esta acción todavía no se puede deshacer.",
+      },
+    },
+  },
+
+  rail: {
+    overview: {
+      title: { en: "Overview", es: "Panorama" },
+      scopeOrganization: { en: "Organization", es: "Organización" },
+    },
+    continue: {
+      title: { en: "Continue where you left off", es: "Continuar donde quedaste" },
+    },
+    gettingStarted: {
+      title: { en: "Getting started", es: "Puesta en marcha" },
+      // Sin estimación de tiempo fija: configurar credenciales de un
+      // proveedor de LLM/embeddings no entra en un cálculo de minutos
+      // confiable como sí lo hacían los otros pasos.
+      stepCount: { en: "{{done}} of {{total}}", es: "{{done}} de {{total}}" },
+      subtitle: {
+        en: "{{count}} steps and your organization is operational. This card disappears once completed.",
+        es: "{{count}} pasos y tu organización queda operativa. Esta tarjeta desaparece al completarlos.",
+      },
+      dismissBanner: { en: "Getting started · {{done}} of {{total}} · Continue", es: "Puesta en marcha · {{done}} de {{total}} · Continuar" },
+      steps: {
+        defaultLlm: {
+          title: { en: "Set up your default LLM", es: "Configura tu LLM predeterminado" },
+          description: {
+            en: "The AI model that generation and assistance features will use",
+            es: "El modelo de IA que van a usar las funcionalidades de generación y asistencia",
+          },
+          action: { en: "Configure", es: "Configurar" },
+        },
+        embeddingProvider: {
+          title: { en: "Set up your embedding provider", es: "Configura el proveedor de embeddings" },
+          description: {
+            en: "Needed for semantic search and similarity-based AI features",
+            es: "Necesario para la búsqueda semántica y las funcionalidades de IA que dependen de similitud",
+          },
+          action: { en: "Configure", es: "Configurar" },
+        },
+        assetType: {
+          title: { en: "Define your first asset type", es: "Define tu primer tipo de activo" },
+          description: {
+            en: "The fields and lifecycle your documents will follow",
+            es: "Los campos y el ciclo de vida que van a seguir tus documentos",
+          },
+          action: { en: "Define", es: "Definir" },
+        },
+        firstAsset: {
+          title: { en: "Create or upload your first asset", es: "Crea o sube tu primer activo" },
+          description: {
+            en: "Start from a template or import an existing file",
+            es: "Empieza desde una plantilla o importa un archivo existente",
+          },
+          action: { en: "Create", es: "Crear" },
+        },
+        inviteTeam: {
+          title: { en: "Invite your team", es: "Invita a tu equipo" },
+          description: {
+            en: "Assign review and approval roles so the flow works",
+            es: "Asigna roles de revisión y aprobación para que el flujo funcione",
+          },
+          action: { en: "Invite", es: "Invitar" },
+        },
+      },
+    },
+  },
+
+  emptyState: {
+    firstTime: {
+      title: { en: "Your pending work will show up here", es: "Aquí verás tu trabajo pendiente" },
+      description: {
+        en: "Reviews, approvals and comments appear in this list as soon as your team starts moving assets.",
+        es: "Revisiones, aprobaciones y comentarios aparecen en esta lista en cuanto tu equipo empiece a mover activos.",
+      },
+    },
+    noPending: {
+      title: { en: "Nothing pending", es: "No tienes nada pendiente" },
+      description: { en: "Explore the organization's assets", es: "Explora los activos de la organización" },
+      cta: { en: "View all assets", es: "Ver todos los activos" },
     },
   },
 
