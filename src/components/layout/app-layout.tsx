@@ -35,10 +35,12 @@ import { WisyToggle } from "@/components/layout/global-panel-toggle"
 import { LlmConfigBanner } from "@/components/layout/llm-config-banner"
 import { EditingGuardProvider, useOptionalEditingGuard } from "@/contexts/editing-guard-context"
 import EditUserSheet from "@/components/users/users-edit-sheet"
+import { PreferencesSheet } from "@/components/preferences/preferences-sheet"
 import { SubscriptionsSheet } from "@/components/subscriptions/subscriptions-sheet"
 import { NotificationsSheet } from "@/components/notifications/notifications-sheet"
 import { TokensSheet } from "@/components/tokens/tokens-sheet"
 import { useUnreadNotificationsCount } from "@/hooks/useUnreadNotificationsCount"
+import { useLanguagePreference } from "@/hooks/useLanguagePreference"
 import { cn } from "@/lib/utils"
 import { logger } from "@/lib/logger"
 import {
@@ -199,7 +201,12 @@ export default function AppLayout() {
   const { isLoading: permissionsLoading, refreshPermissions } = useUserPermissions()
   const { user, logout } = useAuth()
   const queryClient = useQueryClient()
+  // Montado acá (no solo dentro de PreferencesSheet) para que un idioma
+  // guardado en otro dispositivo aplique apenas resuelve el GET, sin
+  // depender de que el usuario abra el sheet.
+  useLanguagePreference()
   const [profileDialogOpen, setProfileDialogOpen] = useState(false)
+  const [preferencesSheetOpen, setPreferencesSheetOpen] = useState(false)
   const [subscriptionsSheetOpen, setSubscriptionsSheetOpen] = useState(false)
   const [notificationsSheetOpen, setNotificationsSheetOpen] = useState(false)
   const [tokensSheetOpen, setTokensSheetOpen] = useState(false)
@@ -397,6 +404,12 @@ export default function AppLayout() {
   const handleUpdateProfile = () => {
     setTimeout(() => {
       setProfileDialogOpen(true)
+    }, 0)
+  }
+
+  const handleOpenPreferences = () => {
+    setTimeout(() => {
+      setPreferencesSheetOpen(true)
     }, 0)
   }
 
@@ -686,6 +699,7 @@ export default function AppLayout() {
                   canListNotifications={canListNotifications}
                   unreadNotificationsCount={unreadNotificationsCount}
                   onUpdateProfile={handleUpdateProfile}
+                  onOpenPreferences={handleOpenPreferences}
                   onOpenNotifications={handleOpenNotifications}
                   onOpenSubscriptions={handleOpenSubscriptions}
                   onSignOut={handleSignOut}
@@ -714,6 +728,14 @@ export default function AppLayout() {
             canSave={true}
           />
         )}
+
+        {/* Preferences sheet — funciona sin organización seleccionada (degrada
+            a localStorage solo), a diferencia de Subscriptions/Notifications
+            abajo. */}
+        <PreferencesSheet
+          open={preferencesSheetOpen}
+          onOpenChange={setPreferencesSheetOpen}
+        />
 
         {/* Subscriptions sheet */}
         {organizationToken && selectedOrganizationId && (
