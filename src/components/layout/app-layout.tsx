@@ -545,14 +545,15 @@ export default function AppLayout() {
     queryClient.invalidateQueries()
   }, [queryClient, selectedOrganizationId])
 
-  // Vista compartida de workflow a pantalla completa (ver
-  // ia context/fullscreen-share-route-guide.md): mismos providers que el resto
-  // de la app (Chatbot/GlobalPanel/Tooltip/EditingGuard/NavKnowledge, de los
-  // que depende AssetFormSection), pero SIN header/nav/LlmConfigBanner/
-  // GlobalPanelOutlet — quien abre el link no debe ver ni tocar el resto de
-  // la organización. Todos los efectos de arriba (OrgSync, returnUrl, etc.)
-  // siguen corriendo igual: solo cambia lo que se renderiza.
-  const isBareRoute = /^\/workflow\/share\//.test(stripOrgPrefix(location.pathname))
+  // Vistas a pantalla completa (ver ia context/fullscreen-share-route-guide.md):
+  // link compartido de workflow (workflow/share/*) y vista dedicada de un asset
+  // (asset/full/*). Mismos providers que el resto de la app (Chatbot/GlobalPanel/
+  // Tooltip/EditingGuard/NavKnowledge, de los que depende AssetFormSection), pero
+  // SIN header/nav/LlmConfigBanner/GlobalPanelOutlet — quien entra no debe ver ni
+  // tocar el resto de la organización. Todos los efectos de arriba (OrgSync,
+  // returnUrl, etc.) siguen corriendo igual: solo cambia lo que se renderiza. Un
+  // caso de uso nuevo suma su propio prefijo al regex — no dupliques el bloque `if`.
+  const isBareRoute = /^\/(workflow\/share|asset\/full)\//.test(stripOrgPrefix(location.pathname))
   if (isBareRoute) {
     return (
       <ChatbotProvider resetKey={selectedOrganizationId ?? 'no-org'}>

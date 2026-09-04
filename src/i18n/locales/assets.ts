@@ -679,6 +679,8 @@ const translations = {
     showSidebar: { en: "Show sidebar", es: "Mostrar barra lateral" },
     readerMode: { en: "Reader mode", es: "Modo lectura" },
     editorMode: { en: "Editor mode", es: "Modo editor" },
+    openFullscreen: { en: "Full screen", es: "Pantalla completa" },
+    exitFullscreen: { en: "Exit full screen", es: "Salir de pantalla completa" },
     cannotExecuteInProgress: { en: "Cannot execute while another execution is in process", es: "No se puede ejecutar mientras otra ejecución está en proceso" },
     executeNewVersion: { en: "Execute New Version", es: "Ejecutar Nueva Versión" },
     switchVersion: { en: "Switch Version", es: "Cambiar Versión" },

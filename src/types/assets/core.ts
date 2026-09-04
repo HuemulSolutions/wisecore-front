@@ -496,6 +496,17 @@ export interface LibraryContentProps {
   onToggleSidebar?: () => void;
   isSidebarOpen?: boolean;
   onPreserveScroll?: () => void;
+  /**
+   * "panel": columna derecha de /asset (default). "fullscreen": vista dedicada
+   * sin header/nav (ver ia context/fullscreen-share-route-guide.md), montada por
+   * pages/asset-fullscreen.tsx. Ensancha el contenido y cambia el botón
+   * Maximize/Minimize del header.
+   */
+  variant?: "panel" | "fullscreen";
+  /** Abre la vista fullscreen del asset actual. Solo lo pasa /asset. */
+  onOpenFullscreen?: () => void;
+  /** Vuelve de fullscreen a /asset. Solo lo pasa la página fullscreen. */
+  onExitFullscreen?: () => void;
 }
 
 // ========================================

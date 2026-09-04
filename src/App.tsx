@@ -18,6 +18,7 @@ const SearchPage = lazy(() => import("./pages/search"));
 const Organizations = lazy(() => import("./pages/organizations"));
 // import Library from "./pages/library"; // Hidden - library functionality disabled
 const Assets = lazy(() => import("./pages/assets"));
+const AssetFullscreenPage = lazy(() => import("./pages/asset-fullscreen"));
 const ModelsPage = lazy(() => import("./pages/models"));
 const AuthTypes = lazy(() => import("./pages/auth-types"));
 const UsersPage = lazy(() => import("./pages/users"));
@@ -89,6 +90,15 @@ export default function App() {
             <Route path="asset/*" element={
               <PermissionProtectedRoute permissions={[...RBAC_PAGES.asset.routePermissions]}>
                 <Assets />
+              </PermissionProtectedRoute>
+            } />
+            {/* Vista de un asset a pantalla completa (ver ia context/fullscreen-share-route-guide.md).
+                `path` va como string literal a propósito (no template literal), para que un eventual
+                validador de rutas por AST siga reconociéndola. Dos segmentos estáticos + uno dinámico
+                le ganan en especificidad al splat "asset/*" de arriba. */}
+            <Route path="asset/full/:assetId" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.asset.routePermissions]}>
+                <AssetFullscreenPage />
               </PermissionProtectedRoute>
             } />
             <Route path="models" element={

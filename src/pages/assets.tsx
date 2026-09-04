@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useOrgNavigate } from "@/hooks/useOrgRouter";
 import { AssetContent } from "@/components/assets";
 import { AssetEmptyContent } from "@/components/assets/content/assets-empty-content";
 import { EmptyState } from "@/components/assets/empty-state";
@@ -24,6 +25,7 @@ import { usePageAccess } from "@/hooks/usePageAccess";
  */
 function AssetsContent() {
   const queryClient = useQueryClient();
+  const navigate = useOrgNavigate();
   const { selectedOrganizationId, organizationToken } = useOrganization();
   const refreshFileTree = useNavKnowledgeRefresh();
   const { isOpen: isWisyOpen } = useGlobalPanel();
@@ -58,6 +60,15 @@ function AssetsContent() {
     queryClient.invalidateQueries({ queryKey: ['library', selectedOrganizationId] });
     refreshFileTree();
   };
+
+  // Abre el asset actual en la vista dedicada de pantalla completa (ver
+  // ia context/fullscreen-share-route-guide.md y pages/asset-fullscreen.tsx).
+  const handleOpenFullscreen = useCallback(() => {
+    if (!selectedFile) return;
+    navigate(
+      `/asset/full/${selectedFile.id}${selectedExecutionId ? `?execution=${selectedExecutionId}` : ''}`,
+    );
+  }, [navigate, selectedFile, selectedExecutionId]);
 
   // Loading de permisos
   if (isLoadingPermissions) {
@@ -126,6 +137,7 @@ function AssetsContent() {
                     isSidebarOpen={false}
                     onToggleSidebar={() => {}}
                     onPreserveScroll={preserveScroll}
+                    onOpenFullscreen={handleOpenFullscreen}
                   />
                 ) : (
                   <AssetEmptyContent
