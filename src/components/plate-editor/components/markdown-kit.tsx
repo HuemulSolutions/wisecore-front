@@ -68,10 +68,11 @@ export const MarkdownKit = [
         // por `ensureDataTableSnapshots` al guardar (ver section-plate-editor.tsx), no los
         // datos en vivo — la serialización corre fuera de React, sin acceso al caché.
         // Envuelta como `html` crudo, igual que MERMAID_KEY, para que remark no escape
-        // las barras `|` de la tabla GFM.
+        // las barras `|` de la tabla GFM ni los comentarios `<!-- data_table:{node_id} -->`
+        // que delimitan el bloque para el refresco automático del backend.
         [DATA_TABLE_KEY]: {
           serialize: (slateNode: DataTableElement) => {
-            const markdown = buildGfmTableMarkdown(slateNode.title, slateNode.snapshot);
+            const markdown = buildGfmTableMarkdown(slateNode);
             return markdown ? ({ type: 'html', value: markdown } as any) : ({ type: 'text', value: '' } as any);
           },
         },
