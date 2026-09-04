@@ -150,16 +150,23 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       [isNodeExpandable, folderType],
     )
 
-    // Ref para no forzar a los consumidores a memoizar el callback ni a
-    // meterlo como dependencia de este efecto.
+    // Refs para no forzar a los consumidores a memoizar el callback ni a
+    // meterlo como dependencia de este efecto — `isNodeExpandable` típicamente
+    // llega como flecha inline (nav-knowledge.tsx, assets-file-tree.tsx), así
+    // que `isExpandable` cambia de identidad en cada render del padre. Si
+    // quedara en el dep array de abajo, el efecto correría en cada render y
+    // `setExpandedFolders(new Set(...))` (siempre una referencia nueva) nunca
+    // dejaría que React hiciera bail-out → "Maximum update depth exceeded".
     const onExpandedFoldersChangeRef = useRef(onExpandedFoldersChange)
     onExpandedFoldersChangeRef.current = onExpandedFoldersChange
+    const isExpandableRef = useRef(isExpandable)
+    isExpandableRef.current = isExpandable
 
     useEffect(() => {
       const getExpandedIds = (nodeList: HuemulTreeNode[]): string[] => {
         const expanded: string[] = []
         for (const node of nodeList) {
-          if (node.isExpanded && isExpandable(node)) {
+          if (node.isExpanded && isExpandableRef.current(node)) {
             expanded.push(node.id)
           }
           if (node.children) {
@@ -169,14 +176,22 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         return expanded
       }
       const expandedIds = getExpandedIds(nodes)
-      setExpandedFolders(new Set(expandedIds))
+      // Comparación de contenido, no solo de referencia: si `nodes` cambió
+      // pero el set de carpetas expandidas es el mismo, no generar un `Set`
+      // nuevo — evita un render de más y, sobre todo, evita retroalimentar el
+      // loop de arriba si algún día `isExpandableRef` volviera a colarse en
+      // las deps.
+      setExpandedFolders((prev) => {
+        if (prev.size === expandedIds.length && expandedIds.every((id) => prev.has(id))) return prev
+        return new Set(expandedIds)
+      })
       // Antes de isInitialized, nodes es [] — emitir acá pisaría con un set
       // vacío cualquier estado persistido antes de que la carga inicial lo
       // restaure.
       if (isInitialized) {
         onExpandedFoldersChangeRef.current?.(expandedIds)
       }
-    }, [nodes, isExpandable, isInitialized])
+    }, [nodes, isInitialized])
 
     // Clear per-node loading indicator when activeNodeId changes to match
     useEffect(() => {

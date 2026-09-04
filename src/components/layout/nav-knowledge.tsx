@@ -225,7 +225,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
   // `enabled` — ver punto 3 del checklist en ia context/rbac-audit-guide.md.
   const canListLibrary = can('listAssets') || can('listFolders')
   const { guardedAction } = useOptionalEditingGuard()
-  const { expandedIdsRef, saveExpandedIds } = useTreeExpansionStorage(selectedOrganizationId)
+  const { expandedIdsRef, saveExpandedIds, serverDiffered } = useTreeExpansionStorage(selectedOrganizationId)
 
   /**
    * Qué nodos puede arrastrar el usuario. Mismo predicado que el item de kebab
@@ -364,6 +364,14 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
       fileTreeRef.current?.refresh()
     }
   }, [selectedOrganizationId, fileTreeRef])
+
+  // El root load ya usó expandedIdsRef en su valor de caché local (síncrono);
+  // si el servidor trae un set distinto (otro dispositivo/navegador), refrescar
+  // una vez para que el root load siguiente lo recoja. Sin esto, la expansión
+  // cross-device solo se vería recién en la próxima recarga manual.
+  React.useEffect(() => {
+    if (serverDiffered) fileTreeRef.current?.refresh()
+  }, [serverDiffered, fileTreeRef])
 
   // Refresh root-level items when pagination changes
   const isFirstPaginationRender = React.useRef(true)
