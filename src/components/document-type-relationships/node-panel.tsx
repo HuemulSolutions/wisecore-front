@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { X, Network, Loader2, AlertCircle } from "lucide-react"
+import { X, Network, Loader2, AlertCircle, Maximize2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { CanvasNodeAction } from "@/types/document-type-relationships"
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId"
@@ -29,6 +29,8 @@ interface NodePanelProps {
   nodeActions?: CanvasNodeAction[]
   onLoadRelationships?: (id: string) => Promise<void> | void
   onLoadRelationshipsCanvasOnly?: (id: string) => Promise<void> | void
+  /** Modo execution con assetId real: abre el asset en pantalla completa (nueva pestaña). */
+  onOpenAsset?: () => void
   onClose: () => void
   // Execution mode
   mode?: "document-type" | "execution"
@@ -47,6 +49,7 @@ export function NodePanel({
   nodeActions,
   onLoadRelationships,
   onLoadRelationshipsCanvasOnly,
+  onOpenAsset,
   onClose,
   mode,
   executionId,
@@ -178,12 +181,29 @@ export function NodePanel({
         )}
 
         {/* Actions — hidden entirely in read-only view when there's nothing to show */}
-        {(onLoadRelationships || onLoadRelationshipsCanvasOnly || (nodeActions && nodeActions.length > 0)) && (
+        {(onOpenAsset || onLoadRelationships || onLoadRelationshipsCanvasOnly || (nodeActions && nodeActions.length > 0)) && (
         <div className="space-y-2">
           <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
             {t("nodePanel.actions")}
           </p>
           <div className="flex flex-col gap-1">
+            {/* Open the asset behind this node in the dedicated fullscreen view (new tab) */}
+            {onOpenAsset && (
+              <button
+                onClick={onOpenAsset}
+                className={cn(
+                  "flex items-start gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground",
+                  "hover:bg-accent hover:text-foreground hover:cursor-pointer transition-colors",
+                )}
+              >
+                <Maximize2 className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span className="text-xs font-medium">{t("nodePanel.openAsset")}</span>
+              </button>
+            )}
+            {onOpenAsset && (onLoadRelationships || onLoadRelationshipsCanvasOnly) && (
+              <div className="border-t my-1" />
+            )}
+
             {/* Load relationships (recursively expands the canvas with related nodes) */}
             {onLoadRelationships && (
               <button

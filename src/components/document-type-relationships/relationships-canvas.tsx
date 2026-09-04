@@ -86,7 +86,7 @@ import {
 } from "@/lib/diagram-utils"
 import { useSaveDiagramGraph } from "@/hooks/useDiagrams"
 import { useDiagramDirtyState } from "@/hooks/useDiagramDirtyState"
-import { useOrgNavigate } from "@/hooks/useOrgRouter"
+import { useOrgNavigate, useOrgPath } from "@/hooks/useOrgRouter"
 import { handleApiError } from "@/lib/error-utils"
 
 const NODE_TYPES = {
@@ -295,6 +295,14 @@ function RelationshipsCanvasFlow({
 }: RelationshipsCanvasProps) {
   const { t } = useTranslation("document-type-relationships")
   const navigate = useOrgNavigate()
+  const buildPath = useOrgPath()
+  // Abre el asset detrás de un nodo "assetType" en su vista de pantalla completa (ver
+  // ia context/fullscreen-share-route-guide.md), en una pestaña nueva para no arriesgar
+  // cambios sin guardar del canvas del diagrama.
+  const handleOpenAsset = useCallback((assetId: string, executionId?: string) => {
+    const query = executionId ? `?execution=${executionId}` : ''
+    window.open(buildPath(`/asset/full/${assetId}${query}`), "_blank", "noopener,noreferrer")
+  }, [buildPath])
   const { screenToFlowPosition, getNodes, getEdges, fitView } = useReactFlow()
   const queryClient = useQueryClient()
   // Ancho MEDIDO del contenedor del flow (no del viewport): ya descuenta el panel
@@ -2226,6 +2234,7 @@ function RelationshipsCanvasFlow({
                   : undefined
               }
               nodeActions={nodeActions}
+              onOpenAsset={mode === 'execution' && nodeData.assetId ? () => handleOpenAsset(nodeData.assetId!, nodeData.executionId) : undefined}
               onLoadRelationships={nodeData.onLoadRelationships && (mode === 'execution' ? canListExecRelationships : canListRelationships) ? (mode === 'execution' ? handleLoadExecutionRelationships : handleLoadRelationships) : undefined}
               onLoadRelationshipsCanvasOnly={nodeData.onLoadRelationships && (mode === 'execution' ? canListExecRelationships : canListRelationships) ? (mode === 'execution' ? handleLoadExecRelCanvasOnly : handleLoadRelationshipsCanvasOnly) : undefined}
               onClose={() => setSelectedNodeId(null)}

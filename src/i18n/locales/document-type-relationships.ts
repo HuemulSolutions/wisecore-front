@@ -204,6 +204,7 @@ const translations = {
   nodePanel: {
     assetType: { en: "Asset Type", es: "Tipo de Activo" },
     actions: { en: "Actions", es: "Acciones" },
+    openAsset: { en: "Open Asset", es: "Abrir Activo" },
     loadRelationships: { en: "Expand Relationships and Child Nodes", es: "Expandir relaciones y todos sus nodos hijos" },
     loadRelationshipsDescription: {
       en: "Adds the node's direct children to the canvas, along with their connections to nodes already there",
