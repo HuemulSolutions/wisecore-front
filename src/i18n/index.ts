@@ -42,6 +42,7 @@ import errorDetails from './locales/error-details'
 import tokenUsage from './locales/token-usage'
 import tokens from './locales/tokens'
 import tags from './locales/tags'
+import preferences from './locales/preferences'
 import { logger } from '@/lib/logger'
 
 // Each module defines translations per-key: { myKey: { en: "...", es: "..." } }
@@ -104,9 +105,23 @@ const modules = {
   'token-usage': tokenUsage,
   tokens,
   tags,
+  preferences,
 } as const
 
-const supportedLanguages = ['en', 'es'] as const
+export const supportedLanguages = ['en', 'es'] as const
+
+/**
+ * Normaliza un código de idioma crudo (`i18n.language`/`i18n.resolvedLanguage`,
+ * típicamente con región — `es-ES`, `es-419`, `en-US`) al idioma soportado más
+ * cercano, con fallback a `'en'`. Única fuente de verdad: reusar esto en vez
+ * de comparar contra `supportedLanguages` a mano (bug real: comparar el
+ * código crudo sin quitar la región siempre falla el `includes` y cae al
+ * fallback — ver `useLanguagePreference.ts`).
+ */
+export function resolveSupportedLanguage(lng?: string): (typeof supportedLanguages)[number] {
+  const base = (lng ?? 'en').split('-')[0] as (typeof supportedLanguages)[number]
+  return supportedLanguages.includes(base) ? base : 'en'
+}
 
 const resources = Object.fromEntries(
   supportedLanguages.map((lang) => [
@@ -127,7 +142,11 @@ i18n
     resources,
     fallbackLng: 'en',
     detection: {
-      order: ['navigator', 'htmlTag', 'path', 'subdomain'],
+      // 'localStorage' primero: si el usuario eligió un idioma explícito
+      // (useLanguagePreference, src/hooks/useLanguagePreference.ts) debe
+      // ganarle a la detección del navegador en el próximo arranque, incluso
+      // antes de que resuelva el GET al servidor.
+      order: ['localStorage', 'navigator', 'htmlTag', 'path', 'subdomain'],
       caches: ['localStorage'],
     },
     interpolation: {
@@ -148,8 +167,7 @@ i18n
 // actualizar ese subárbol — se ejecuta a nivel de módulo (antes de
 // createRoot en main.tsx) para llegar antes del primer paint.
 function syncDocumentLang(lng?: string) {
-  const base = (lng ?? 'en').split('-')[0] as (typeof supportedLanguages)[number]
-  const resolved = supportedLanguages.includes(base) ? base : 'en'
+  const resolved = resolveSupportedLanguage(lng)
   const html = document.documentElement
   html.lang = resolved
   html.setAttribute('translate', 'no')

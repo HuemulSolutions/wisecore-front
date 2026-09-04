@@ -3,7 +3,7 @@ const translations = {
     title: { en: "Execute Version", es: "Ejecutar Versión" },
     description: {
       en: "Configure and execute this asset to generate content based on its sections.",
-      es: "Configura y ejecuta este activo para generar contenido basado en sus secciones.",
+      es: "Configurar y ejecutar este activo para generar contenido basado en sus secciones.",
     },
   },
   button: {
@@ -39,7 +39,7 @@ const translations = {
     defaultBadge: { en: "Default", es: "Predeterminado" },
     noModelDesc: {
       en: "Please select a language model to proceed with the execution.",
-      es: "Por favor selecciona un modelo de lenguaje para continuar con la ejecución.",
+      es: "Seleccionar un modelo de lenguaje para continuar con la ejecución.",
     },
   },
   instructions: {
@@ -47,7 +47,7 @@ const translations = {
     optional: { en: "(Optional)", es: "(Opcional)" },
     placeholder: {
       en: "Enter any specific instructions for this execution. For example: 'Focus on technical details' or 'Keep it concise and professional'...",
-      es: "Ingresa instrucciones específicas para esta ejecución. Por ejemplo: 'Enfócate en detalles técnicos' o 'Mantén un tono conciso y profesional'...",
+      es: "Ingresar instrucciones específicas para esta ejecución. Por ejemplo: 'Enfocar en detalles técnicos' o 'Mantener un tono conciso y profesional'...",
     },
     description: {
       en: "These instructions will guide the AI during content generation.",
@@ -65,38 +65,38 @@ const translations = {
     title: { en: "Failed to Execute a New Version", es: "Error al Ejecutar una Nueva Versión" },
     description: {
       en: "There was an error executing the asset. Please check your configuration and try again.",
-      es: "Ocurrió un error al ejecutar el activo. Por favor verifica tu configuración e inténtalo de nuevo.",
+      es: "Ocurrió un error al ejecutar el activo. Verificar la configuración y reintentar.",
     },
   },
   noSections: {
     title: { en: "No Sections Available", es: "Sin Secciones Disponibles" },
     description: {
       en: "This asset needs sections before it can be executed. Add some sections to get started with content generation.",
-      es: "Este activo necesita secciones antes de poder ejecutarse. Agrega secciones para comenzar a generar contenido.",
+      es: "Este activo necesita secciones antes de poder ejecutarse. Agregar secciones para comenzar a generar contenido.",
     },
   },
   toast: {
     success: { en: "Asset execution started successfully", es: "Ejecución del activo iniciada exitosamente" },
     noDocumentId: { en: "Asset ID not available", es: "ID del activo no disponible" },
-    noModel: { en: "Please select a language model", es: "Por favor selecciona un modelo de lenguaje" },
-    noSection: { en: "Please select a section", es: "Por favor selecciona una sección" },
+    noModel: { en: "Please select a language model", es: "Seleccionar un modelo de lenguaje" },
+    noSection: { en: "Please select a section", es: "Seleccionar una sección" },
     noExecution: {
       en: "Please select an existing execution to modify",
-      es: "Por favor selecciona una ejecución existente para modificar",
+      es: "Seleccionar una ejecución existente para modificar",
     },
     importSuccess: { en: "Asset imported successfully!", es: "¡Activo importado exitosamente!" },
-    generationFailed: { en: "Asset generation failed. Please try again.", es: "La generación del activo falló. Por favor inténtalo de nuevo." },
+    generationFailed: { en: "Asset generation failed. Please try again.", es: "La generación del activo falló. Reintentar." },
     missingDependency: {
       en: "Can't generate: a section this one depends on has no content yet. Generate or fill in that section first.",
-      es: "No se puede generar: una sección de la que depende aún no tiene contenido. Genera o completa esa sección primero.",
+      es: "No se puede generar: una sección de la que depende aún no tiene contenido. Generar o completar esa sección primero.",
     },
     importFailed: {
       en: "Asset import failed. Please try again.",
-      es: "La importación del activo falló. Por favor inténtalo de nuevo.",
+      es: "La importación del activo falló. Reintentar.",
     },
     pollingError: {
       en: "Error checking execution status. Please refresh the page.",
-      es: "Error al verificar el estado de la ejecución. Por favor actualiza la página.",
+      es: "Error al verificar el estado de la ejecución. Actualizar la página.",
     },
   },
   banner: {
@@ -115,11 +115,11 @@ const translations = {
     description: {
       importing: {
         en: "Your asset is being imported and processed. This may take a moment.",
-        es: "Tu activo está siendo importado y procesado. Esto puede tardar un momento.",
+        es: "El activo está siendo importado y procesado. Esto puede tardar un momento.",
       },
       importFailed: {
         en: "There was an error importing your asset. Please try again.",
-        es: "Hubo un error al importar tu activo. Por favor inténtalo de nuevo.",
+        es: "Hubo un error al importar el activo. Reintentar.",
       },
       running: {
         en: "Content is being generated. This may take a few minutes.",
@@ -127,7 +127,7 @@ const translations = {
       },
       approving: {
         en: "Execution is being approved. Please wait...",
-        es: "La ejecución está siendo aprobada. Por favor espera...",
+        es: "La ejecución está siendo aprobada. Esperar...",
       },
       pending: {
         en: "Waiting in queue to start generation...",
@@ -135,7 +135,7 @@ const translations = {
       },
       queued: {
         en: "Your execution is queued and will start soon.",
-        es: "Tu ejecución está en cola y comenzará pronto.",
+        es: "La ejecución está en cola y comenzará pronto.",
       },
       completed: {
         en: "Generation completed successfully!",
@@ -143,11 +143,11 @@ const translations = {
       },
       failed: {
         en: "There was an error generating your asset. Please try again.",
-        es: "Hubo un error al generar tu activo. Por favor inténtalo de nuevo.",
+        es: "Hubo un error al generar el activo. Reintentar.",
       },
       missingDependency: {
         en: "Generation stopped because one of the sections it depends on has no content yet. Generate or fill in that section and try again.",
-        es: "La generación se detuvo porque una de las secciones de las que depende aún no tiene contenido. Genera o completa esa sección y vuelve a intentar.",
+        es: "La generación se detuvo porque una de las secciones de las que depende aún no tiene contenido. Generar o completar esa sección y reintentar.",
       },
       cancelled: {
         en: "Generation was cancelled.",
@@ -159,7 +159,7 @@ const translations = {
       },
       default: {
         en: "Processing your request...",
-        es: "Procesando tu solicitud...",
+        es: "Procesando la solicitud...",
       },
     },
     documentPrefix: { en: "Asset is {{status}}", es: "El activo se está {{status}}" },
@@ -178,10 +178,10 @@ const translations = {
     progress: { en: "{{done}} of {{total}} sections", es: "{{done}} de {{total}} secciones" },
     currentSection: { en: "Working on “{{section}}”…", es: "Trabajando en «{{section}}»…" },
     description: {
-      failed: { en: "There was an error regenerating the content. Please try again.", es: "Hubo un error al regenerar el contenido. Por favor intenta de nuevo." },
+      failed: { en: "There was an error regenerating the content. Please try again.", es: "Hubo un error al regenerar el contenido. Reintentar." },
       missingDependency: {
         en: "One of the sections in this run couldn't be generated because a dependency has no content yet. Generate or fill in that section and try again.",
-        es: "Una de las secciones de esta corrida no se pudo generar porque una dependencia aún no tiene contenido. Genera o completa esa sección y vuelve a intentar.",
+        es: "Una de las secciones de esta corrida no se pudo generar porque una dependencia aún no tiene contenido. Generar o completar esa sección y reintentar.",
       },
     },
     refreshStatus: { en: "Refresh status", es: "Actualizar estado" },
@@ -216,7 +216,7 @@ const translations = {
       failed: { en: "Generation encountered an error.", es: "La generación encontró un error." },
       missingDependency: {
         en: "Generation stopped because one of the sections it depends on has no content yet. Generate or fill in that section and try again.",
-        es: "La generación se detuvo porque una de las secciones de las que depende aún no tiene contenido. Genera o completa esa sección y vuelve a intentar.",
+        es: "La generación se detuvo porque una de las secciones de las que depende aún no tiene contenido. Generar o completar esa sección y reintentar.",
       },
       cancelled: { en: "Generation was cancelled.", es: "La generación fue cancelada." },
       paused: { en: "Generation is paused.", es: "La generación está pausada." },
@@ -225,18 +225,18 @@ const translations = {
   aiSuggestion: {
     status: {
       pending: { en: "AI suggestion pending...", es: "Sugerencia de IA pendiente..." },
-      processing: { en: "AI is processing your request...", es: "La IA está procesando tu solicitud..." },
+      processing: { en: "AI is processing your request...", es: "La IA está procesando la solicitud..." },
       completed: { en: "AI suggestion ready", es: "Sugerencia de IA lista" },
       failed: { en: "AI suggestion failed", es: "La sugerencia de IA falló" },
     },
     description: {
-      pending: { en: "Your request is queued and will be processed shortly.", es: "Tu solicitud está en cola y será procesada en breve." },
-      processing: { en: "The AI is working on your edit. This may take a few seconds.", es: "La IA está trabajando en tu edición. Esto puede tardar unos segundos." },
-      completed: { en: "The suggestion has been applied as a preview. Review and save to keep it.", es: "La sugerencia se aplicó como vista previa. Revisa y guarda para conservarla." },
-      failed: { en: "Something went wrong generating the suggestion. Please try again.", es: "Algo salió mal al generar la sugerencia. Intenta de nuevo." },
+      pending: { en: "Your request is queued and will be processed shortly.", es: "La solicitud está en cola y será procesada en breve." },
+      processing: { en: "The AI is working on your edit. This may take a few seconds.", es: "La IA está trabajando en la edición. Esto puede tardar unos segundos." },
+      completed: { en: "The suggestion has been applied as a preview. Review and save to keep it.", es: "La sugerencia se aplicó como vista previa. Revisar y guardar para conservarla." },
+      failed: { en: "Something went wrong generating the suggestion. Please try again.", es: "Algo salió mal al generar la sugerencia. Reintentar." },
     },
     completed: {
-      readyToReview: { en: "Click to compare and apply the suggested changes.", es: "Haz clic para comparar y aplicar los cambios sugeridos." },
+      readyToReview: { en: "Click to compare and apply the suggested changes.", es: "Hacer clic para comparar y aplicar los cambios sugeridos." },
       viewSuggestion: { en: "View Suggestion", es: "Ver sugerencia" },
     },
     refresh: { en: "Refresh status", es: "Actualizar estado" },

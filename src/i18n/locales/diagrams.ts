@@ -3,7 +3,7 @@ const translations = {
     title: { en: "Diagrams", es: "Diagramas" },
     subtitle: {
       en: "Drag assets from the knowledge tree onto the canvas to build a diagram",
-      es: "Arrastra activos del árbol de conocimiento al canvas para construir un diagrama",
+      es: "Arrastrar activos del árbol de conocimiento al canvas para construir un diagrama",
     },
     searchPlaceholder: { en: "Search diagrams...", es: "Buscar diagramas..." },
   },
@@ -27,7 +27,7 @@ const translations = {
     title: { en: "Delete Diagram", es: "Eliminar Diagrama" },
     description: {
       en: "Are you sure you want to delete this diagram? This action cannot be undone.",
-      es: "¿Estás seguro de que deseas eliminar este diagrama? Esta acción no se puede deshacer.",
+      es: "¿Eliminar este diagrama? Esta acción no se puede deshacer.",
     },
     nameLabel: { en: "Name", es: "Nombre" },
   },
@@ -53,12 +53,12 @@ const translations = {
   emptyState: {
     accessDeniedDescription: {
       en: "You don't have permission to view diagrams.",
-      es: "No tienes permiso para ver diagramas.",
+      es: "No hay permiso para ver diagramas.",
     },
     errorLoadingTitle: { en: "Error Loading Diagrams", es: "Error al Cargar Diagramas" },
     errorLoadingDescription: {
       en: "An error occurred while loading diagrams. Please try again.",
-      es: "Ocurrió un error al cargar los diagramas. Inténtalo de nuevo.",
+      es: "Ocurrió un error al cargar los diagramas. Reintentar.",
     },
   },
   contentEmptyState: {
@@ -70,12 +70,12 @@ const translations = {
     emptyTitle: { en: "No diagrams yet", es: "Aún no hay diagramas" },
     emptyDescription: {
       en: "Diagrams created for your executions will appear here.",
-      es: "Los diagramas creados para tus ejecuciones aparecerán aquí.",
+      es: "Los diagramas creados para las ejecuciones aparecerán aquí.",
     },
     noResultsTitle: { en: "No results found", es: "No se encontraron resultados" },
     noResultsDescription: {
       en: "No diagrams match your search. Try clearing the filters.",
-      es: "Ningún diagrama coincide con tu búsqueda. Intenta limpiar los filtros.",
+      es: "Ningún diagrama coincide con la búsqueda. Limpiar los filtros.",
     },
   },
 }

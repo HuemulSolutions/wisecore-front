@@ -3,7 +3,7 @@ const translations = {
     title: { en: "Share \"{{name}}\"", es: "Compartir \"{{name}}\"" },
     description: {
       en: "Choose which roles can view or administer this folder.",
-      es: "Elige qué roles pueden ver o administrar esta carpeta.",
+      es: "Elegir qué roles pueden ver o administrar esta carpeta.",
     },
     view: { en: "View", es: "Ver" },
     viewDescription: {
@@ -18,16 +18,16 @@ const translations = {
     grantSection: { en: "Grant access to a role", es: "Otorgar acceso a un rol" },
     grantSectionDescription: {
       en: "Pick a role and the access levels it should have on this folder.",
-      es: "Elige un rol y los niveles de acceso que debería tener sobre esta carpeta.",
+      es: "Elegir un rol y los niveles de acceso que debería tener sobre esta carpeta.",
     },
-    selectRolePlaceholder: { en: "Select a role...", es: "Selecciona un rol..." },
+    selectRolePlaceholder: { en: "Select a role...", es: "Seleccionar un rol..." },
     addButton: { en: "Add", es: "Agregar" },
     editButton: { en: "Edit access levels", es: "Editar niveles de acceso" },
     grantedSection: { en: "Roles with access", es: "Roles con acceso" },
     searchPlaceholder: { en: "Search roles...", es: "Buscar roles..." },
     noRolesFound: { en: "No roles found", es: "No se encontraron roles" },
     noRolesAvailable: { en: "No roles have access to this folder yet", es: "Todavía ningún rol tiene acceso a esta carpeta" },
-    adjustSearch: { en: "Try adjusting your search", es: "Intenta ajustar tu búsqueda" },
+    adjustSearch: { en: "Try adjusting your search", es: "Ajustar la búsqueda" },
     removeTitle: { en: "Revoke access", es: "Revocar acceso" },
     removeDescription: {
       en: "Remove all access that \"{{roleName}}\" has to \"{{folderName}}\"?",

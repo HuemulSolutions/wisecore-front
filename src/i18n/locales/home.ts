@@ -36,7 +36,7 @@
     allOwners: { en: "All owners", es: "Todos los propietarios" },
     ownerAll: { en: "All", es: "Todos" },
     ownerMe: { en: "Me", es: "Yo" },
-    ownerMeDescription: { en: "Assets you own", es: "Activos de tu autoría" },
+    ownerMeDescription: { en: "Assets you own", es: "Activos propios" },
     ownerScopeLabel: { en: "Quick filters", es: "Filtros rápidos" },
     ownerUsersLabel: { en: "Specific user", es: "Usuario específico" },
     ownerSpecific: { en: "Specific user", es: "Usuario específico" },
@@ -66,7 +66,7 @@
 
   kpis: {
     owned: {
-      label: { en: "Assets you own", es: "Activos de tu autoría" },
+      label: { en: "Assets you own", es: "Activos propios" },
     },
     draft: {
       label: { en: "In elaboration", es: "En elaboración" },
@@ -115,7 +115,7 @@
     },
     empty: {
       title: { en: "No executions found", es: "No se encontraron ejecuciones" },
-      description: { en: "Create an asset and run a version to see it here.", es: "Crea un activo y genera una versión para verla aquí." },
+      description: { en: "Create an asset and run a version to see it here.", es: "Crear un activo y generar una versión para verla aquí." },
     },
     resultsCount: { en: "{{count}} assets found", es: "{{count}} activos encontrados" },
     actions: {

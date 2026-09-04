@@ -3,7 +3,7 @@ const translations = {
     title: { en: "Asset Type Relationships", es: "Relaciones de Tipos de Activo" },
     subtitle: {
       en: "Drag asset types from the left panel onto the canvas to build relationships",
-      es: "Arrastra tipos de activo del panel izquierdo al canvas para crear relaciones",
+      es: "Arrastrar tipos de activo del panel izquierdo al canvas para crear relaciones",
     },
     searchPlaceholder: {
       en: "Search asset types...",
@@ -61,21 +61,21 @@ const translations = {
   canvas: {
     empty: {
       en: "Drag asset types here to start building relationships",
-      es: "Arrastra tipos de activo aquí para comenzar a crear relaciones",
+      es: "Arrastrar tipos de activo aquí para comenzar a crear relaciones",
     },
     connectHint: {
       en: "Connect two asset type nodes to create a relationship",
-      es: "Conecta dos nodos de tipos de activo para crear una relación",
+      es: "Conectar dos nodos de tipos de activo para crear una relación",
     },
     // Modo `execution` (/diagrams): la fuente de arrastre es el árbol de
     // conocimiento, no la paleta de tipos de activo.
     emptyExecution: {
       en: "Drag assets here to start building a diagram",
-      es: "Arrastra activos aquí para comenzar a construir un diagrama",
+      es: "Arrastrar activos aquí para comenzar a construir un diagrama",
     },
     connectHintExecution: {
       en: "Connect two asset nodes to create a relationship",
-      es: "Conecta dos nodos de activo para crear una relación",
+      es: "Conectar dos nodos de activo para crear una relación",
     },
     clearAll: { en: "Clear canvas", es: "Limpiar canvas" },
     clearConfirm: {
@@ -116,17 +116,13 @@ const translations = {
       },
       loadConfirmLabel: { en: "Load anyway", es: "Cargar de todos modos" },
     },
-    roleAlreadyInCanvas: {
-      en: "That role is already on the canvas.",
-      es: "Ese rol ya está en el canvas.",
-    },
     roleEdgeExecutionOnly: {
       en: "Diagram connections are only available while editing a diagram",
       es: "Las conexiones del diagrama solo están disponibles al editar un diagrama",
     },
     roleEdgeNoPermission: {
       en: "You don't have permission to edit this diagram's connections.",
-      es: "No tienes permiso para editar las conexiones de este diagrama.",
+      es: "No hay permiso para editar las conexiones de este diagrama.",
     },
     roleEdgeInvalidEndpoint: {
       en: "Both ends need to be ready first — pick a version for the asset or a role for the node.",
@@ -136,15 +132,19 @@ const translations = {
       en: "A node can't connect to itself yet",
       es: "Un nodo aún no puede conectarse consigo mismo",
     },
+    reconnectEndpointsLocked: {
+      en: "You can only move this end to a different side of the same node",
+      es: "Este extremo solo puede moverse a otro lado del mismo nodo",
+    },
     saveDetailsRequired: {
       en: "Add at least one asset version, role, gateway or event node before saving",
-      es: "Agrega al menos una versión de activo, un rol, una compuerta o un evento antes de guardar",
+      es: "Agregar al menos una versión de activo, un rol, una compuerta o un evento antes de guardar",
     },
   },
   loadDiagramSheet: {
     title: { en: "Load Diagram", es: "Cargar Diagrama" },
     diagramLabel: { en: "Diagram", es: "Diagrama" },
-    diagramPlaceholder: { en: "Search a diagram by name", es: "Busca un diagrama por nombre" },
+    diagramPlaceholder: { en: "Search a diagram by name", es: "Buscar un diagrama por nombre" },
     load: { en: "Load Diagram", es: "Cargar Diagrama" },
     notFound: { en: "Diagram not found.", es: "Diagrama no encontrado." },
     loadingError: { en: "Failed to load the diagram.", es: "Error al cargar el diagrama." },
@@ -157,7 +157,7 @@ const translations = {
     namePlaceholder: { en: "e.g. Main content map", es: "ej. Mapa de contenido principal" },
     descriptionLabel: { en: "Description", es: "Descripción" },
     mainExecutionLabel: { en: "Main execution", es: "Ejecución principal" },
-    mainExecutionPlaceholder: { en: "Select a version placed on the canvas", es: "Selecciona una versión ubicada en el lienzo" },
+    mainExecutionPlaceholder: { en: "Select a version placed on the canvas", es: "Seleccionar una versión ubicada en el lienzo" },
     save: { en: "Save Diagram", es: "Guardar Diagrama" },
     update: { en: "Save changes", es: "Guardar cambios" },
     editMetadata: { en: "Save details", es: "Guardar datos" },
@@ -177,7 +177,7 @@ const translations = {
     actions: { en: "Actions", es: "Acciones" },
     empty: {
       en: "No relationships yet. Connect nodes on the canvas or use the selector above.",
-      es: "Sin relaciones aún. Conecta nodos en el canvas o usa el selector de arriba.",
+      es: "Sin relaciones aún. Conectar nodos en el canvas o usar el selector de arriba.",
     },
     edit: { en: "Edit", es: "Editar" },
     attributes: { en: "Attributes", es: "Atributos" },
@@ -218,11 +218,11 @@ const translations = {
     version: { en: "Version", es: "Versión" },
     versionRequired: {
       en: "Select a version to enable connections",
-      es: "Selecciona una versión para habilitar conexiones",
+      es: "Seleccionar una versión para habilitar conexiones",
     },
     versionRequiredFor: {
       en: "Select a version for: {{names}}",
-      es: "Selecciona una versión para: {{names}}",
+      es: "Seleccionar una versión para: {{names}}",
     },
     versionAlreadyInCanvas: {
       en: "That version is already on the canvas.",
@@ -266,7 +266,7 @@ const translations = {
     },
     manualHint: {
       en: "No relationship type is configured between these asset types — create a manual relationship.",
-      es: "No hay un tipo de relación configurado entre estos tipos de activo: crea una relación manual.",
+      es: "No hay un tipo de relación configurado entre estos tipos de activo: crear una relación manual.",
     },
     manualName: { en: "Relationship name", es: "Nombre de la relación" },
     addAttribute: { en: "Add attribute", es: "Agregar atributo" },
@@ -283,7 +283,7 @@ const translations = {
     },
     noCreatePermission: {
       en: "You don't have permission to create relationships.",
-      es: "No tienes permiso para crear relaciones.",
+      es: "No hay permiso para crear relaciones.",
     },
   },
   attributes: {
@@ -331,7 +331,7 @@ const translations = {
     title: { en: "Delete Relationship", es: "Eliminar Relación" },
     description: {
       en: "Are you sure you want to delete the relationship \"{{name}}\"? This action cannot be undone.",
-      es: "¿Estás seguro de que deseas eliminar la relación \"{{name}}\"? Esta acción no se puede deshacer.",
+      es: "¿Eliminar la relación \"{{name}}\"? Esta acción no se puede deshacer.",
     },
     confirmLabel: { en: "Delete", es: "Eliminar" },
     success: {
@@ -359,7 +359,7 @@ const translations = {
     title: { en: "Delete Attribute", es: "Eliminar Atributo" },
     description: {
       en: "Are you sure you want to delete the attribute \"{{name}}\"? This action cannot be undone.",
-      es: "¿Estás seguro de que deseas eliminar el atributo \"{{name}}\"? Esta acción no se puede deshacer.",
+      es: "¿Eliminar el atributo \"{{name}}\"? Esta acción no se puede deshacer.",
     },
     confirmLabel: { en: "Delete", es: "Eliminar" },
     success: {
@@ -379,7 +379,7 @@ const translations = {
     },
     errorDescription: {
       en: "An error occurred. Please try again.",
-      es: "Ocurrió un error. Por favor, inténtalo de nuevo.",
+      es: "Ocurrió un error. Reintentar.",
     },
   },
 }

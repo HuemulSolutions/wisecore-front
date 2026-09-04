@@ -14,18 +14,18 @@ const translations = {
     empty: { en: "No external systems found", es: "No se encontraron sistemas externos" },
     emptyDescription: {
       en: "Get started by adding your first external system.",
-      es: "Comienza agregando tu primer sistema externo.",
+      es: "Agregar el primer sistema externo para comenzar.",
     },
     emptySearchDescription: {
       en: "No systems match your search. Try a different term.",
-      es: "Ningún sistema coincide con tu búsqueda. Prueba otro término.",
+      es: "Ningún sistema coincide con la búsqueda. Probar otro término.",
     },
     loading: { en: "Loading systems...", es: "Cargando sistemas..." },
   },
   detail: {
     placeholder: {
       en: "Select a system to view its details",
-      es: "Selecciona un sistema para ver sus detalles",
+      es: "Seleccionar un sistema para ver sus detalles",
     },
     baseUrl: { en: "Base URL", es: "URL Base" },
     createdAt: { en: "Created At", es: "Creado el" },
@@ -39,16 +39,16 @@ const translations = {
   },
   emptyState: {
     empty: { en: "No external systems yet", es: "No hay sistemas externos aún" },
-    noResults: { en: "No systems match your search", es: "Ningún sistema coincide con tu búsqueda" },
+    noResults: { en: "No systems match your search", es: "Ningún sistema coincide con la búsqueda" },
   },
   errorState: {
     failedToLoad: { en: "Failed to load external systems", es: "Error al cargar los sistemas externos" },
-    errorDescription: { en: "An error occurred while loading systems. Please try again.", es: "Ocurrió un error al cargar los sistemas. Por favor, inténtalo de nuevo." },
+    errorDescription: { en: "An error occurred while loading systems. Please try again.", es: "Ocurrió un error al cargar los sistemas. Reintentar." },
   },
   accessDenied: {
     description: {
       en: "You don't have permission to access External Systems.",
-      es: "No tienes permiso para acceder a los Sistemas Externos.",
+      es: "No hay permiso para acceder a los Sistemas Externos.",
     },
   },
   actions: {
@@ -66,7 +66,7 @@ const translations = {
     title: { en: "Add External System", es: "Agregar Sistema Externo" },
     description: {
       en: "Enter the details to connect a new external system.",
-      es: "Ingresa los detalles para conectar un nuevo sistema externo.",
+      es: "Ingresar los detalles para conectar un nuevo sistema externo.",
     },
     submitLabel: { en: "Add System", es: "Agregar Sistema" },
     success: { en: "System added successfully", es: "Sistema agregado correctamente" },
@@ -76,7 +76,7 @@ const translations = {
     title: { en: "Edit External System", es: "Editar Sistema Externo" },
     description: {
       en: "Update the external system details.",
-      es: "Actualiza los detalles del sistema externo.",
+      es: "Actualizar los detalles del sistema externo.",
     },
     submitLabel: { en: "Save Changes", es: "Guardar Cambios" },
     success: { en: "System updated successfully", es: "Sistema actualizado correctamente" },
@@ -86,7 +86,7 @@ const translations = {
     title: { en: "Delete External System", es: "Eliminar Sistema Externo" },
     description: {
       en: "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
-      es: "¿Estás seguro de que deseas eliminar \"{{name}}\"? Esta acción no se puede deshacer.",
+      es: "¿Eliminar \"{{name}}\"? Esta acción no se puede deshacer.",
     },
     success: { en: "System deleted successfully", es: "Sistema eliminado correctamente" },
     errorFailed: { en: "Failed to delete system", es: "Error al eliminar el sistema" },

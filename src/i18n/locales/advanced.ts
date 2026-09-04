@@ -11,35 +11,35 @@ const translations = {
     title: { en: "Advanced Tools", es: "Herramientas avanzadas" },
     description: {
       en: "This section gives you access to powerful tools for managing and processing your organization's assets at scale.",
-      es: "Esta sección te da acceso a herramientas potentes para gestionar y procesar los activos de tu organización a gran escala.",
+      es: "Esta sección da acceso a herramientas potentes para gestionar y procesar los activos de la organización a gran escala.",
     },
     availableOptions: { en: "Available options", es: "Opciones disponibles" },
     massExecution: {
       title: { en: "Mass Execution", es: "Ejecución masiva" },
       description: {
         en: "Run AI-powered executions or edits across multiple assets at once. Select a template, configure the section and edit type, and apply changes in bulk.",
-        es: "Ejecuta acciones de IA o ediciones sobre múltiples activos a la vez. Selecciona un template, configura la sección y el tipo de edición, y aplica los cambios en masa.",
+        es: "Ejecutar acciones de IA o ediciones sobre múltiples activos a la vez. Seleccionar un template, configurar la sección y el tipo de edición, y aplicar los cambios en masa.",
       },
     },
     changeHistory: {
       title: { en: "Pending Changes", es: "Cambios pendientes" },
       description: {
         en: "Review pending changes across your assets, including AI-generated content and manual edits awaiting approval.",
-        es: "Revisa los cambios pendientes en tus activos, incluyendo contenido generado por IA y ediciones manuales que esperan aprobación.",
+        es: "Revisar los cambios pendientes en los activos, incluyendo contenido generado por IA y ediciones manuales que esperan aprobación.",
       },
     },
     excelExport: {
       title: { en: "Excel Export", es: "Exportación Excel" },
       description: {
         en: "Export data from multiple assets to Excel at once. Select a template, choose the sections to include, and download the result.",
-        es: "Exporta datos de múltiples activos a Excel a la vez. Selecciona un template, elige las secciones a incluir y descarga el resultado.",
+        es: "Exportar datos de múltiples activos a Excel a la vez. Seleccionar un template, elegir las secciones a incluir y descargar el resultado.",
       },
     },
     wordExport: {
       title: { en: "Word Export", es: "Exportación Word" },
       description: {
         en: "Export multiple assets as Word documents in a ZIP file. Optionally upload a DOCX template to customize the output.",
-        es: "Exporta múltiples activos como documentos Word en un archivo ZIP. Opcionalmente sube un template DOCX para personalizar el resultado.",
+        es: "Exportar múltiples activos como documentos Word en un archivo ZIP. Opcionalmente subir un template DOCX para personalizar el resultado.",
       },
     },
   },
@@ -76,7 +76,7 @@ const translations = {
     instructionsRequired: { en: "AI instructions", es: "Instrucciones para la IA" },
     instructionsPlaceholder: {
       en: "Enter specific instructions for this execution...",
-      es: "Ingresa instrucciones específicas para esta ejecución...",
+      es: "Ingresar instrucciones específicas para esta ejecución...",
     },
     executeSuccess: { en: "Mass execution started successfully", es: "Ejecución masiva iniciada exitosamente" },
     executeError: { en: "Failed to start mass execution", es: "Error al iniciar la ejecución masiva" },
@@ -126,7 +126,7 @@ const translations = {
     selected: { en: "selected", es: "seleccionados" },
     available: { en: "assets available", es: "activos disponibles" },
     noAssets: { en: "No assets found for this template", es: "No se encontraron activos para este template" },
-    selectTemplateFirst: { en: "Select a template to see available assets", es: "Selecciona un template para ver los activos disponibles" },
+    selectTemplateFirst: { en: "Select a template to see available assets", es: "Seleccionar un template para ver los activos disponibles" },
     versions: { en: "versions", es: "versiones" },
     hideVersions: { en: "- hide", es: "- ocultar" },
     uncategorized: { en: "Uncategorized", es: "Sin carpeta" },
@@ -138,7 +138,7 @@ const translations = {
     title: { en: "Change History", es: "Historial de cambios" },
     subtitle: {
       en: "Select an asset to view its changes",
-      es: "Selecciona un activo para ver sus cambios",
+      es: "Seleccionar un activo para ver sus cambios",
     },
     searchPlaceholder: { en: "Search asset...", es: "Buscar activo..." },
     filterPending: {
@@ -166,7 +166,7 @@ const translations = {
     },
     noResults: {
       en: "No assets match your search",
-      es: "No se encontraron activos con tu búsqueda",
+      es: "No se encontraron activos con la búsqueda",
     },
     page: { en: "Page {{page}}", es: "Página {{page}}" },
     openAsset: { en: "Open asset", es: "Abrir activo" },
@@ -200,14 +200,14 @@ const translations = {
     sourceAsset: { en: "Asset template", es: "Template del activo" },
     sourceAssetDescription: { en: "Each asset uses its own DOCX template.", es: "Cada activo usa su propia plantilla DOCX." },
     sourceTemplate: { en: "Template's DOCX", es: "DOCX de la plantilla" },
-    sourceTemplateDescription: { en: "Use a DOCX template from the selected template.", es: "Usa una plantilla DOCX de la plantilla seleccionada." },
-    selectTemplateFirst: { en: "Select a template first to see its DOCX templates.", es: "Selecciona un template primero para ver sus plantillas DOCX." },
+    sourceTemplateDescription: { en: "Use a DOCX template from the selected template.", es: "Usar una plantilla DOCX de la plantilla seleccionada." },
+    selectTemplateFirst: { en: "Select a template first to see its DOCX templates.", es: "Seleccionar un template primero para ver sus plantillas DOCX." },
     loadingDocxTemplates: { en: "Loading DOCX templates...", es: "Cargando plantillas DOCX..." },
     noDocxTemplates: { en: "No DOCX templates found for this template.", es: "No se encontraron plantillas DOCX para este template." },
     selectDocxTemplate: { en: "Select a DOCX template...", es: "Seleccionar una plantilla DOCX..." },
     searchDocxTemplates: { en: "Search templates...", es: "Buscar plantillas..." },
-    noDocxResults: { en: "No templates match your search", es: "No hay plantillas que coincidan con tu búsqueda" },
-    orUploadFile: { en: "or upload a file", es: "o sube un archivo" },
+    noDocxResults: { en: "No templates match your search", es: "No hay plantillas que coincidan con la búsqueda" },
+    orUploadFile: { en: "or upload a file", es: "o subir un archivo" },
     uploadDocxTemplate: { en: "Upload .docx template", es: "Subir template .docx" },
     exportSuccess: { en: "Word export started successfully", es: "Exportación Word iniciada exitosamente" },
     exportError: { en: "Failed to export to Word", es: "Error al exportar a Word" },
