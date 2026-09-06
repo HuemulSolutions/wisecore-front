@@ -50,6 +50,9 @@ export interface LibraryContentFolder {
   is_expanded: boolean;
   folder_type?: LibraryContentFolderType | null;
   access_levels?: string[];
+  /** Si la carpeta admite grants de rol (POST /role-folder). Lo calcula backend con la misma
+   *  regla que valida el POST — no reimplementar por folder_type en el cliente. */
+  is_grantable?: boolean;
 }
 
 export interface LibraryContent {

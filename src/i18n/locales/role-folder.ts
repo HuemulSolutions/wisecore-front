@@ -34,6 +34,42 @@ const translations = {
       es: "¿Quitar todo el acceso que \"{{roleName}}\" tiene sobre \"{{folderName}}\"?",
     },
     removeButton: { en: "Revoke", es: "Revocar" },
+    inheritance: {
+      banner: {
+        en: "This folder currently inherits permissions from \"{{folderName}}\". Granting the first permission here will stop that inheritance: only the roles listed here will have access.",
+        es: "Esta carpeta hereda hoy los permisos de \"{{folderName}}\". Otorgar el primer acceso propio hará que deje de heredar: solo los roles listados aquí tendrán acceso.",
+      },
+      bannerGeneric: {
+        en: "This folder currently inherits permissions from the folder that contains it. Granting the first permission here will stop that inheritance: only the roles listed here will have access.",
+        es: "Esta carpeta hereda hoy los permisos de la carpeta que la contiene. Otorgar el primer acceso propio hará que deje de heredar: solo los roles listados aquí tendrán acceso.",
+      },
+      firstGrantTitle: { en: "Stop inheriting permissions", es: "Cortar la herencia de permisos" },
+      firstGrantDescription: {
+        en: "This folder has no permissions of its own yet — it inherits them from \"{{folderName}}\". Granting access to \"{{roleName}}\" will stop that inheritance: any role that could see this folder only because of \"{{folderName}}\" will lose access unless it's also granted here.",
+        es: "Esta carpeta todavía no tiene permisos propios: hereda los de \"{{folderName}}\". Otorgar acceso a \"{{roleName}}\" hará que deje de heredar: cualquier rol que veía esta carpeta solo por \"{{folderName}}\" perderá el acceso salvo que también se le otorgue aquí.",
+      },
+      firstGrantDescriptionGeneric: {
+        en: "This folder has no permissions of its own yet — it inherits them from the folder that contains it. Granting access to \"{{roleName}}\" will stop that inheritance: any role that could see this folder only through inheritance will lose access unless it's also granted here.",
+        es: "Esta carpeta todavía no tiene permisos propios: hereda los de la carpeta que la contiene. Otorgar acceso a \"{{roleName}}\" hará que deje de heredar: cualquier rol que veía esta carpeta solo por herencia perderá el acceso salvo que también se le otorgue aquí.",
+      },
+      firstGrantConfirm: { en: "Grant and stop inheriting", es: "Otorgar y cortar herencia" },
+      revokeLastWarning: {
+        en: "This is the last permission of its own on this folder: removing it will make the folder inherit permissions from \"{{folderName}}\" again.",
+        es: "Es el último acceso propio de esta carpeta: al quitarlo, la carpeta volverá a heredar los permisos de \"{{folderName}}\".",
+      },
+      revokeLastWarningGeneric: {
+        en: "This is the last permission of its own on this folder: removing it will make the folder inherit permissions again.",
+        es: "Es el último acceso propio de esta carpeta: al quitarlo, la carpeta volverá a heredar los permisos.",
+      },
+      inheritedEmpty: {
+        en: "No role has its own access here yet — it currently inherits permissions from \"{{folderName}}\".",
+        es: "Todavía ningún rol tiene acceso propio; hoy hereda los permisos de \"{{folderName}}\".",
+      },
+      inheritedEmptyGeneric: {
+        en: "No role has its own access here yet — it currently inherits permissions from the folder that contains it.",
+        es: "Todavía ningún rol tiene acceso propio; hoy hereda los permisos de la carpeta que la contiene.",
+      },
+    },
   },
   createSuccess: { en: "Access granted", es: "Acceso otorgado" },
   updateSuccess: { en: "Access updated", es: "Acceso actualizado" },

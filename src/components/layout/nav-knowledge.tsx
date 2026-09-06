@@ -284,6 +284,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
               type: 'folder',
               children: [],
               isExpanded: true,
+              is_grantable: folder.is_grantable,
             })
           })
 
@@ -525,6 +526,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
           folder_type: item.folder_type,
           isRootGroup: isRoot && isRootGroupFolderNode(item.folder_type, item.parent_folder_id),
           access_levels: item.access_levels,
+          is_grantable: item.is_grantable,
         }))
 
         const assetNodes: FileNode[] = (content.assets ?? []).map((item) => ({
@@ -705,11 +707,15 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
       onClick: async (nodeId) => {
         handleShareFolder({ id: nodeId, name: folderNames.get(nodeId) || "" })
       },
-      // Compartir accesos por rol aplica a Global/Forms/Área y a carpetas grupales custom de raíz.
+      // Compartir accesos por rol: el backend marca qué carpetas admiten grants (is_grantable),
+      // con la misma regla que valida POST /role-folder. El fallback por folder_type cubre
+      // superficies/deploys que todavía no devuelvan el flag — mismo alcance que antes.
       show: (node) =>
         node.type === "folder" &&
-        (node.folder_type === 'global' || node.folder_type === 'forms' || node.folder_type === 'area' || !!node.isRootGroup) &&
-        canAccessRoleFolders,
+        canAccessRoleFolders &&
+        (node.is_grantable ??
+          (node.folder_type === 'global' || node.folder_type === 'forms' ||
+            node.folder_type === 'area' || !!node.isRootGroup)),
       variant: "default",
     },
     {

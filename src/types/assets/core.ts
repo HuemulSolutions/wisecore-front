@@ -74,6 +74,8 @@ export interface FileNode {
   folder_type?: LibraryContentFolderType | null;
   /** True for custom group folders created directly at the real root (folder_type: null, no parent). */
   isRootGroup?: boolean;
+  /** Espejo de LibraryContentFolder.is_grantable — viene del backend, no se deriva. */
+  is_grantable?: boolean;
 }
 
 /**
