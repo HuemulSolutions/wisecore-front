@@ -4,6 +4,7 @@ import type {
   ExternalFunctionalityClass,
   ExternalFunctionalityObjective,
 } from '@/types/external-functionalities'
+import type { FieldDependencyCondition } from '@/types/sections/core'
 
 export interface LifecycleStepType {
   value: string;
@@ -102,6 +103,18 @@ export interface LifecycleStep {
    * Ausente/`false` en steps que no son `view`.
    */
   view_inherited_for_all_roles?: boolean;
+  /**
+   * Condición que determina si este step aplica a una ejecución concreta —
+   * mismo formato y motor de evaluación que `Section`/`TemplateSection`/
+   * `SectionForm` (ver "ia context/dependencias-condicionales-formularios-guide.md").
+   * `field_id` referencia una `SectionForm.field_id` (pregunta de formulario),
+   * NO otro `LifecycleStep`. `null`/`[]`/ausente = el step siempre aplica
+   * (retrocompatible). Sin `show_when_inactive`: a diferencia de una sección,
+   * un step inaplicable simplemente desaparece de la secuencia — no hay
+   * variante "visible pero deshabilitado". Evaluado exclusivamente por el
+   * backend; el front nunca lo evalúa, solo lo lee/escribe como config.
+   */
+  depends_on?: FieldDependencyCondition[] | null;
 }
 
 export interface LifecycleStepsResponse {
@@ -128,6 +141,8 @@ export interface UpdateLifecycleStepData {
   role_ids?: string[];
   /** Replaces the step's full access_rules list — same semantics as role_ids. */
   access_rules?: CreateAccessRuleData[];
+  /** Replaces the step's condition. `null`/`[]` clears it (step always applies). */
+  depends_on?: FieldDependencyCondition[] | null;
 }
 
 export interface SlaUnit {
@@ -156,6 +171,7 @@ export interface CreateLifecycleStepData {
   sla_unit?: string | null;
   role_ids?: string[];
   access_rules?: CreateAccessRuleData[];
+  depends_on?: FieldDependencyCondition[] | null;
 }
 
 export interface LifecycleStepResponse {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -127,6 +127,7 @@ function EditStepCard({
   isExpanded,
   isEditing,
   isDirty,
+  hasCondition,
   onToggleExpand,
   onStartEdit,
   onCancelEdit,
@@ -200,6 +201,15 @@ function EditStepCard({
             card.mode === "automatic" ? t("lifecycle.modeAutomatic") : t("lifecycle.modeManual")
           }
         />
+
+        {hasCondition && (
+          <span
+            title={t("lifecycle.conditions.badgeTooltip")}
+            className="inline-flex h-5 shrink-0 items-center rounded-full bg-[#f3f0ff] px-2 text-[11px] font-medium text-[#6d5ae0]"
+          >
+            {t("lifecycle.conditions.badge")}
+          </span>
+        )}
 
         {isEditing ? (
           <>
@@ -641,6 +651,16 @@ export function EditStepContent({
   const serverSteps = data?.data?.steps
   const hydrationBlocked = isDirty
 
+  // Badge "Condicional" de la tarjeta: refleja el estado del SERVIDOR (no el
+  // staging local de `card`) porque la condición se guarda aparte e
+  // instantánea (`LifecycleStepConditions`) — ver ia context/dependencias-
+  // condicionales-formularios-guide.md §3.4.
+  const stepHasCondition = useMemo(() => {
+    const map = new Map<string, boolean>()
+    ;(serverSteps ?? []).forEach((s) => map.set(s.id, (s.depends_on?.length ?? 0) > 0))
+    return map
+  }, [serverSteps])
+
   useEffect(() => {
     if (!serverSteps || hydrationBlocked) return
     const nextCards = [...serverSteps]
@@ -775,33 +795,52 @@ export function EditStepContent({
       ? localSteps.map((c) => c.id)
       : localSteps.filter((c) => dirtyIds.has(c.id)).map((c) => c.id)
 
-    for (const id of idsToSave) {
-      const currentCard = localSteps.find((c) => c.id === id)
-      if (!currentCard) continue
-      const cardIndex = localSteps.findIndex((c) => c.id === id)
-      const isAutomatic = currentCard.mode === "automatic"
-      await updateStep.mutateAsync({
-        stepId: currentCard.id,
-        data: {
-          name: currentCard.name || undefined,
-          order: cardIndex + 1,
-          mode: currentCard.mode,
-          sla_value: !isAutomatic && currentCard.hasSla
-            ? Number(currentCard.slaValue) || null
-            : null,
-          sla_unit: !isAutomatic && currentCard.hasSla
-            ? currentCard.slaUnit || null
-            : null,
-          // `access_type` + `role_ids` los arma `buildAccessPayload`: fuera de
-          // `custom`/`custom_owner` la clave `role_ids` no puede viajar, el backend
-          // la rechaza con 422 incluso vacía.
-          ...buildAccessPayload({
-            accessType: isAutomatic ? "owner" : currentCard.accessType,
-            roleIds: isAutomatic ? [] : currentCard.roleIds,
-          }),
-          access_rules: currentCard.accessRules,
-        },
+    // Un fallo a mitad de camino no debe dejar las tarjetas YA guardadas
+    // marcadas como sucias igual que las que no llegaron — se trackea acá para
+    // poder reintentar solo lo pendiente.
+    const savedIds = new Set<string>()
+    try {
+      for (const id of idsToSave) {
+        const currentCard = localSteps.find((c) => c.id === id)
+        if (!currentCard) continue
+        const cardIndex = localSteps.findIndex((c) => c.id === id)
+        const isAutomatic = currentCard.mode === "automatic"
+        await updateStep.mutateAsync({
+          stepId: currentCard.id,
+          data: {
+            name: currentCard.name || undefined,
+            order: cardIndex + 1,
+            mode: currentCard.mode,
+            sla_value: !isAutomatic && currentCard.hasSla
+              ? Number(currentCard.slaValue) || null
+              : null,
+            sla_unit: !isAutomatic && currentCard.hasSla
+              ? currentCard.slaUnit || null
+              : null,
+            // `access_type` + `role_ids` los arma `buildAccessPayload`: fuera de
+            // `custom`/`custom_owner` la clave `role_ids` no puede viajar, el backend
+            // la rechaza con 422 incluso vacía.
+            ...buildAccessPayload({
+              accessType: isAutomatic ? "owner" : currentCard.accessType,
+              roleIds: isAutomatic ? [] : currentCard.roleIds,
+            }),
+            access_rules: currentCard.accessRules,
+          },
+        })
+        savedIds.add(id)
+      }
+    } catch (error) {
+      // `orderDirty` queda igual: si el reorden no terminó de aplicarse, la
+      // próxima vez vuelve a reenviar todas las tarjetas (comportamiento
+      // idempotente). El contenido de las que sí se guardaron no vuelve a
+      // marcarse sucio.
+      setDirtyIds((prev) => {
+        const next = new Set(prev)
+        savedIds.forEach((id) => next.delete(id))
+        return next
       })
+      handleApiError(error, { fallbackMessage: t("lifecycle.saveError") })
+      return
     }
 
     setDirtyIds(new Set())
@@ -885,6 +924,7 @@ export function EditStepContent({
                   isExpanded={expandedIds.has(card.id)}
                   isEditing={editingId === card.id}
                   isDirty={dirtyIds.has(card.id)}
+                  hasCondition={stepHasCondition.get(card.id) ?? false}
                   onToggleExpand={() => handleToggleExpand(card.id)}
                   onStartEdit={() => handleStartEdit(card.id)}
                   onCancelEdit={handleCancelEdit}
