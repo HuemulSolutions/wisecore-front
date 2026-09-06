@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Edit, Trash2, X } from "lucide-react"
+import { Trash2, X } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -12,7 +12,7 @@ import { HuemulPanelSaveBar } from "@/huemul/components/huemul-panel-save-bar"
 import { useRolesMap } from "@/contexts/role-refs-context"
 import { UsersDetailProfileTab } from "./users-detail-profile-tab"
 import { UsersDetailRolesTab } from "./users-detail-roles-tab"
-import type { User, UserDetailTab } from "@/types/users"
+import type { User, UserDetailTab, UserProfileFormApi } from "@/types/users"
 import type { UserRolesStagingApi } from "@/types/users/roles-staging"
 import type { useUserMutations } from "@/hooks/useUsers"
 
@@ -32,10 +32,11 @@ export interface UserDetailPanelProps {
   activeTab: UserDetailTab
   onTabChange: (tab: UserDetailTab) => void
   onClose: () => void
-  onEditUser: () => void
   onDeleteUser: () => void
   onOpenCreateRoleSheet: (initialName: string) => void
   userMutations: ReturnType<typeof useUserMutations>
+  /** Form plano del tab Perfil — instanciado en la página (`users.tsx`), espejo de `detailsForm` en `RoleDetailPanel`. */
+  profileForm: UserProfileFormApi
   canUpdate: boolean
   canDelete: boolean
   canManageRootAdmin: boolean
@@ -63,10 +64,10 @@ export function UserDetailPanel({
   activeTab,
   onTabChange,
   onClose,
-  onEditUser,
   onDeleteUser,
   onOpenCreateRoleSheet,
   userMutations,
+  profileForm,
   canUpdate,
   canDelete,
   canManageRootAdmin,
@@ -83,24 +84,25 @@ export function UserDetailPanel({
   const pendingActionRef = useRef<(() => void) | null>(null)
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Solo las 3 acciones que efectivamente sacan al usuario de un staging
-  // pendiente (cambiar de tab, cerrar el panel, cambiar de fila — esto
-  // último vía onRegisterGuard) pasan por el guard. Editar/eliminar/admin
-  // root abren un overlay que no toca el staging de roles: no tiene sentido
-  // pedir descartar roles para abrir el sheet de edición de datos.
+  // Cambiar de tab, cerrar el panel o cambiar de fila (esto último vía
+  // onRegisterGuard) pasan por el guard si hay staging de roles o cambios de
+  // perfil sin guardar — espejo de `RoleDetailPanel`. Eliminar/admin root
+  // mutan al instante y no entran acá.
+  const isDirty = staging.isDirty || profileForm.isDirty
+
   const attemptNavigate = useCallback((proceed: () => void) => {
-    if (!staging.isDirty) {
+    if (!isDirty) {
       proceed()
       return
     }
     pendingActionRef.current = proceed
     setDiscardGuardOpen(true)
-  }, [staging.isDirty])
+  }, [isDirty])
 
   useEffect(() => {
-    onRegisterGuard?.({ isDirty: staging.isDirty, attemptNavigate })
+    onRegisterGuard?.({ isDirty, attemptNavigate })
     return () => onRegisterGuard?.(null)
-  }, [staging.isDirty, attemptNavigate, onRegisterGuard])
+  }, [isDirty, attemptNavigate, onRegisterGuard])
 
   // La banda "N roles asignados... Deshacer" se retira sola tras un rato.
   useEffect(() => {
@@ -128,6 +130,7 @@ export function UserDetailPanel({
 
   const activeRolesCount = staging.stagedRoles.filter((r) => r.status !== "removed").length
   const showRolesSaveBar = activeTab === "roles" && canAssignRoles && (staging.isDirty || staging.isSaving)
+  const showProfileSaveBar = activeTab === "profile" && canUpdate && (profileForm.isDirty || profileForm.isSaving)
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-[#fbfcfe]">
@@ -181,6 +184,7 @@ export function UserDetailPanel({
           <TabsContent value="profile" className="m-0 h-full">
             <UsersDetailProfileTab
               user={user}
+              form={profileForm}
               userMutations={userMutations}
               canUpdate={canUpdate}
               canManageRootAdmin={canManageRootAdmin}
@@ -199,27 +203,16 @@ export function UserDetailPanel({
         </div>
       </Tabs>
 
-      {(canUpdate || canDelete) && !showRolesSaveBar && (
+      {canDelete && !showRolesSaveBar && !showProfileSaveBar && (
         <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border p-4">
-          {canDelete ? (
-            <HuemulButton
-              variant="ghost"
-              size="sm"
-              icon={Trash2}
-              label={t("users:actions.deleteUser")}
-              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={onDeleteUser}
-            />
-          ) : <span />}
-          {canUpdate && (
-            <HuemulButton
-              variant="outline"
-              size="sm"
-              icon={Edit}
-              label={t("users:actions.editUser")}
-              onClick={onEditUser}
-            />
-          )}
+          <HuemulButton
+            variant="ghost"
+            size="sm"
+            icon={Trash2}
+            label={t("users:actions.deleteUser")}
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={onDeleteUser}
+          />
         </div>
       )}
 
@@ -263,6 +256,20 @@ export function UserDetailPanel({
         </div>
       )}
 
+      {showProfileSaveBar && (
+        <div className="shrink-0 px-4 pb-4">
+          <HuemulPanelSaveBar
+            isDirty={profileForm.isDirty}
+            canSave={profileForm.canSave}
+            isSaving={profileForm.isSaving}
+            saveLabel={t("detail.saveChanges")}
+            discardLabel={t("detail.discardChanges")}
+            onSave={() => void profileForm.save()}
+            onDiscard={() => profileForm.discard()}
+          />
+        </div>
+      )}
+
       <HuemulAlertDialog
         open={discardGuardOpen}
         onOpenChange={setDiscardGuardOpen}
@@ -270,12 +277,15 @@ export function UserDetailPanel({
         description={
           staging.createdCount > 0
             ? t("detail.discardDescriptionWithCreated")
-            : t("detail.discardDescription")
+            : activeTab === "profile"
+              ? t("detail.discardDescriptionProfile")
+              : t("detail.discardDescription")
         }
         actionLabel={t("detail.discardChanges")}
         actionVariant="destructive"
         onAction={async () => {
           staging.discard()
+          profileForm.discard()
           pendingActionRef.current?.()
           pendingActionRef.current = null
         }}

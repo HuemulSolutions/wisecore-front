@@ -157,6 +157,10 @@ const translations = {
       en: "The roles you added or removed will be lost. Roles created in this session will stay in Roles, unassigned.",
       es: "Se perderán los roles que agregaste o quitaste. Los roles creados en esta sesión quedan en Roles, sin asignar.",
     },
+    discardDescriptionProfile: {
+      en: "Your profile changes will be lost.",
+      es: "Se perderán los cambios de perfil.",
+    },
     saved: { en: "{{count}} roles assigned to {{name}}.", es: "{{count}} roles asignados a {{name}}." },
     savedKeepsCreated: { en: "Roles created stay in Roles even if undone.", es: "Los roles creados se mantienen en Roles aunque se deshaga." },
     picker: {

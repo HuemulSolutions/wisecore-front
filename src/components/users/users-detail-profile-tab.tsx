@@ -7,12 +7,14 @@ import { AlertTriangle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
+import UserFormFields from "./users-form-fields"
 import { formatDate, getStatusColor } from "./users-table"
-import type { User } from "@/types/users"
+import type { User, UserProfileFormApi } from "@/types/users"
 import type { useUserMutations } from "@/hooks/useUsers"
 
 export interface UsersDetailProfileTabProps {
   user: User
+  form: UserProfileFormApi
   userMutations: ReturnType<typeof useUserMutations>
   canUpdate: boolean
   canManageRootAdmin: boolean
@@ -33,12 +35,16 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 /**
- * Tab "Perfil": datos de solo lectura + acciones que no ameritan salir del
- * panel (aprobar/rechazar, admin root inline). Editar/Eliminar viven en el
- * footer de `UserDetailPanel` — ver plan de implementación.
+ * Tab "Perfil": nombre/apellido/email(ro)/cumpleaños/foto editables inline
+ * (con `HuemulPanelSaveBar` en `UserDetailPanel`) — reemplaza a
+ * `EditUserSheet` en /users, mismo patrón que `RolesDetailDetailsTab`. Status
+ * y fecha de activación quedan de solo lectura (no forman parte de
+ * `UpdateUserData`). Aprobar/rechazar y el switch de admin root son acciones
+ * inmediatas, separadas del formulario por un divisor.
  */
 export function UsersDetailProfileTab({
   user,
+  form,
   userMutations,
   canUpdate,
   canManageRootAdmin,
@@ -50,11 +56,35 @@ export function UsersDetailProfileTab({
 
   return (
     <div className="flex flex-col gap-5 p-4">
+      {canUpdate ? (
+        <UserFormFields
+          name={form.name}
+          lastName={form.lastName}
+          email={form.email}
+          birthDay={form.birthDay}
+          birthMonth={form.birthMonth}
+          onNameChange={form.setName}
+          onLastNameChange={form.setLastName}
+          onEmailChange={() => {}}
+          onBirthDayChange={form.setBirthDay}
+          onBirthMonthChange={form.setBirthMonth}
+          onFileChange={form.onFileChange}
+          includeBirthday
+          includePhoto
+          disabled={form.isSaving}
+          errors={form.errors}
+          emailReadOnly
+        />
+      ) : (
+        <div className="grid grid-cols-2 gap-x-4 gap-y-5">
+          <Field label={t("users:form.firstName")} value={user.name} />
+          <Field label={t("users:form.lastName")} value={user.last_name} />
+          <Field label={t("common:email")} value={user.email} />
+          <Field label={t("users:columns.birthday")} value={birthday} />
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-x-4 gap-y-5">
-        <Field label={t("users:form.firstName")} value={user.name} />
-        <Field label={t("users:form.lastName")} value={user.last_name} />
-        <Field label={t("common:email")} value={user.email} />
-        <Field label={t("users:columns.birthday")} value={birthday} />
         <Field
           label={t("common:status")}
           value={

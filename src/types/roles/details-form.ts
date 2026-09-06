@@ -16,6 +16,8 @@ export interface RoleDetailsFormApi {
   setDescription: (v: string) => void
   setIsPosition: (v: boolean) => void
   setParentRoleId: (v: string | null) => void
+  /** Gate adicional para `HuemulPanelSaveBar` — `isDirty` sin nombre/descripción vacíos. */
+  canSave: boolean
   isDirty: boolean
   isSaving: boolean
   save: () => Promise<void>

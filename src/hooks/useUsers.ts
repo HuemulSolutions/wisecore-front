@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import { getUsers, getUserById, approveUser, rejectUser, deleteUser, updateUser, createUser, getUserOrganizations, updateUserRootAdmin } from "@/services/users"
 import type { UpdateUserData } from "@/types/users"
 
@@ -56,6 +57,7 @@ export function useUserOrganizations(userId?: string) {
 // Hook for user mutations
 export function useUserMutations(additionalInvalidateKeys: QueryKey[] = []) {
   const queryClient = useQueryClient()
+  const { t } = useTranslation('users')
   const invalidateAdditional = () => {
     additionalInvalidateKeys.forEach((queryKey) => {
       queryClient.invalidateQueries({ queryKey })
@@ -90,9 +92,9 @@ export function useUserMutations(additionalInvalidateKeys: QueryKey[] = []) {
   })
 
   const updateUserMutation = useMutation({
-    mutationFn: ({ userId, data }: { userId: string; data: UpdateUserData }) => 
+    mutationFn: ({ userId, data }: { userId: string; data: UpdateUserData }) =>
       updateUser(userId, data),
-    meta: { successMessage: 'User updated successfully' },
+    meta: { successMessage: t('users:toast.userUpdated') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       invalidateAdditional()

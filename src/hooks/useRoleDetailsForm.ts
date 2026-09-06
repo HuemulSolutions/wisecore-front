@@ -52,6 +52,8 @@ export function useRoleDetailsForm(role: Role | null, canUpdate: boolean): RoleD
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, isDirty])
 
+  const canSave = isDirty && values.name.trim().length > 0 && values.description.trim().length > 0
+
   const positionRoleOptions = (rolesResponse?.data ?? [])
     .filter((r) => r.is_position && r.id !== role?.id)
     .map((r) => ({ id: r.id, name: r.name }))
@@ -62,7 +64,7 @@ export function useRoleDetailsForm(role: Role | null, canUpdate: boolean): RoleD
 
   const saveRef = useRef<() => Promise<void>>(async () => {})
   saveRef.current = async () => {
-    if (!role || !canUpdate || !isDirty) return
+    if (!role || !canUpdate || !canSave) return
     const { name, description, isPosition, parentRoleId } = values
     const initialParentRoleId = baselineRef.current.parentRoleId
     const clearedParent = !isPosition || parentRoleId === null
@@ -93,6 +95,7 @@ export function useRoleDetailsForm(role: Role | null, canUpdate: boolean): RoleD
     setDescription: (v) => setValues((prev) => ({ ...prev, description: v })),
     setIsPosition: (v) => setValues((prev) => ({ ...prev, isPosition: v, parentRoleId: v ? prev.parentRoleId : null })),
     setParentRoleId: (v) => setValues((prev) => ({ ...prev, parentRoleId: v })),
+    canSave,
     isDirty,
     isSaving: updateRole.isPending,
     save,

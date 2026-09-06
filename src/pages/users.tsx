@@ -10,6 +10,7 @@ import { usePageAccess } from "@/hooks/usePageAccess"
 import { type User, type UsersResponse, type UserListState, type UserDialogsState, type UserDetailTab } from "@/types/users"
 import { useUsers, useUserById, useUserMutations, userQueryKeys } from "@/hooks/useUsers"
 import { useUserRolesStaging } from "@/hooks/useUserRolesStaging"
+import { useUserProfileForm } from "@/hooks/useUserProfileForm"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
@@ -112,6 +113,10 @@ export default function UsersPage() {
     canAssignRoles,
     expectedAssignedCount: selectedUser?.roles?.length,
   })
+
+  // Form del tab Perfil: vive en la página (no en el panel), espejo de
+  // `detailsForm` en roles.tsx — así el estado sucio sobrevive al cambio de tab.
+  const profileForm = useUserProfileForm(selectedUser, canUpdateUser, userMutations)
 
   // Guard de descarte: registrado por el panel (ver
   // ia context/sheet-footer-batch-save-guide.md), consultado acá antes de
@@ -295,10 +300,10 @@ export default function UsersPage() {
                 activeTab={detailTab}
                 onTabChange={handleTabChange}
                 onClose={handleClosePanel}
-                onEditUser={() => updateState({ editingUser: selectedUser })}
                 onDeleteUser={() => updateState({ deletingUser: selectedUser })}
                 onOpenCreateRoleSheet={handleOpenCreateRoleSheet}
                 userMutations={userMutations}
+                profileForm={profileForm}
                 canUpdate={canUpdateUser}
                 canDelete={canDeleteUser}
                 canManageRootAdmin={isRootAdmin}

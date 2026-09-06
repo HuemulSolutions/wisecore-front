@@ -291,6 +291,7 @@ export function RoleDetailPanel({
         <div className="shrink-0 px-4 pb-4">
           <HuemulPanelSaveBar
             isDirty={detailsForm.isDirty}
+            canSave={detailsForm.canSave}
             isSaving={detailsForm.isSaving}
             saveLabel={t("detail.saveChanges")}
             discardLabel={t("detail.discardChanges")}

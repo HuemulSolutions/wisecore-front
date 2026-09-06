@@ -65,6 +65,9 @@ export interface UpdateUserData {
   last_name?: string
   email?: string
   birthdate?: string | null
+  birth_day?: number
+  birth_month?: number
+  photo_file?: string
   notify_daily_digest?: boolean
 }
 
