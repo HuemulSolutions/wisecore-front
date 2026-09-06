@@ -57,6 +57,7 @@ export async function listDiscussions(
 ): Promise<PaginatedDiscussionsResponse> {
   const searchParams = new URLSearchParams();
   if (params.document_id) searchParams.set("document_id", params.document_id);
+  if (params.execution_id) searchParams.set("execution_id", params.execution_id);
   if (params.section_execution_id) searchParams.set("section_execution_id", params.section_execution_id);
   if (params.include_comments) searchParams.set("include_comments", "true");
   if (params.page) searchParams.set("page", String(params.page));

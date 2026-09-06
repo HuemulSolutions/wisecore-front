@@ -43,6 +43,7 @@ export function useAllExecutions(organizationId: string, options: UseAllExecutio
     document_type_id,
     sort,
     custom_field_filter,
+    pending_my_action,
   } = options
 
   const params = {
@@ -72,6 +73,7 @@ export function useAllExecutions(organizationId: string, options: UseAllExecutio
     document_type_id,
     sort,
     custom_field_filter,
+    pending_my_action,
   }
 
   return useQuery({
@@ -104,6 +106,7 @@ export function useAllExecutions(organizationId: string, options: UseAllExecutio
         document_type_id,
         sort,
         custom_field_filter,
+        pending_my_action,
       }),
     enabled: enabled && !!organizationId,
     placeholderData: (prev) => prev,

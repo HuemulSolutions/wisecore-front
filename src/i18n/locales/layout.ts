@@ -12,6 +12,7 @@ const translations = {
     applicationVersion: { en: "Application Version", es: "Versión de la Aplicación" },
     settingsMenuSrOnly: { en: "Settings menu", es: "Menú de configuración" },
     updateProfile: { en: "Update Profile", es: "Actualizar Perfil" },
+    preferences: { en: "Preferences", es: "Preferencias" },
     notifications: { en: "Notifications", es: "Notificaciones" },
     mySubscriptions: { en: "My Subscriptions", es: "Mis Suscripciones" },
     signOut: { en: "Sign out", es: "Cerrar sesión" },
@@ -63,7 +64,7 @@ const translations = {
     },
     folderDeleteError: {
       en: "Failed to delete folder. Please try again.",
-      es: "Error al eliminar la carpeta. Inténtalo de nuevo.",
+      es: "Error al eliminar la carpeta. Reintentar.",
     },
     documentDeletedSuccess: {
       en: "Asset \"{{name}}\" deleted successfully",
@@ -71,17 +72,17 @@ const translations = {
     },
     documentDeleteError: {
       en: "Failed to delete asset. Please try again.",
-      es: "Error al eliminar el activo. Inténtalo de nuevo.",
+      es: "Error al eliminar el activo. Reintentar.",
     },
     folderMovedSuccess: { en: "Folder moved to \"{{destination}}\"", es: "Carpeta movida a \"{{destination}}\"" },
     folderMoveError: {
       en: "Failed to move folder. Please try again.",
-      es: "Error al mover la carpeta. Inténtalo de nuevo.",
+      es: "Error al mover la carpeta. Reintentar.",
     },
     documentMovedSuccess: { en: "Asset moved to \"{{destination}}\"", es: "Activo movido a \"{{destination}}\"" },
     documentMoveError: {
       en: "Failed to move asset. Please try again.",
-      es: "Error al mover el activo. Inténtalo de nuevo.",
+      es: "Error al mover el activo. Reintentar.",
     },
     moveToRoot: { en: "Move to Root", es: "Mover al Raíz" },
     rootFolder: { en: "Root", es: "Raíz" },
@@ -90,11 +91,11 @@ const translations = {
     errors: {
       folderNotAccessible: {
         en: "You don't have access to this folder",
-        es: "No tienes acceso a esta carpeta",
+        es: "No hay acceso a esta carpeta",
       },
       folderLoadError: {
         en: "Failed to load folder content. Please try again.",
-        es: "Error al cargar el contenido de la carpeta. Inténtalo de nuevo.",
+        es: "Error al cargar el contenido de la carpeta. Reintentar.",
       },
       folderNotDeletable: {
         en: "This folder can't be deleted",
@@ -110,7 +111,7 @@ const translations = {
       },
       folderAdministerRequired: {
         en: "You need administer access to this folder",
-        es: "Necesitas acceso de administrador sobre esta carpeta",
+        es: "Se requiere acceso de administrador sobre esta carpeta",
       },
       orgAdminRequired: {
         en: "Only an organization admin can do this",
@@ -118,7 +119,7 @@ const translations = {
       },
       manageGroupsRequired: {
         en: "You need the 'manage groups' permission to do this",
-        es: "Necesitas el permiso de 'administrar grupos' para hacer esto",
+        es: "Se requiere el permiso de 'administrar grupos' para hacer esto",
       },
       folderNotGrantable: {
         en: "Access can't be granted on this folder",
@@ -133,7 +134,7 @@ const translations = {
     },
     llmNotWorking: {
       en: "Default LLM is configured but not working. Please check your LLM settings.",
-      es: "El LLM predeterminado está configurado pero no funciona. Por favor, revisa la configuración.",
+      es: "El LLM predeterminado está configurado pero no funciona. Revisar la configuración.",
     },
     embeddingNotConfigured: {
       en: "Embedding provider is not configured. Semantic search and AI features may not work.",
@@ -141,7 +142,7 @@ const translations = {
     },
     embeddingNotWorking: {
       en: "Embedding provider is configured but not working. Please check your embedding settings.",
-      es: "El proveedor de embeddings está configurado pero no funciona. Por favor, revisa la configuración.",
+      es: "El proveedor de embeddings está configurado pero no funciona. Revisar la configuración.",
     },
     configure: { en: "Configure", es: "Configurar" },
     dismiss: { en: "Dismiss", es: "Cerrar" },

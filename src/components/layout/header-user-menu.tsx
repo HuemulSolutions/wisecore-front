@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next"
-import { User, BellRing, Bell, LogOut } from "lucide-react"
+import { User, SlidersHorizontal, BellRing, Bell, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -23,6 +23,7 @@ interface HeaderUserMenuProps {
   canListNotifications: boolean
   unreadNotificationsCount: number
   onUpdateProfile: () => void
+  onOpenPreferences: () => void
   onOpenNotifications: () => void
   onOpenSubscriptions: () => void
   onSignOut: () => void
@@ -46,6 +47,7 @@ export function HeaderUserMenu({
   canListNotifications,
   unreadNotificationsCount,
   onUpdateProfile,
+  onOpenPreferences,
   onOpenNotifications,
   onOpenSubscriptions,
   onSignOut,
@@ -80,6 +82,10 @@ export function HeaderUserMenu({
         <DropdownMenuItem className="hover:cursor-pointer" onSelect={onUpdateProfile}>
           <User className="h-4 w-4 mr-2" />
           {t("header.updateProfile")}
+        </DropdownMenuItem>
+        <DropdownMenuItem className="hover:cursor-pointer" onSelect={onOpenPreferences}>
+          <SlidersHorizontal className="h-4 w-4 mr-2" />
+          {t("header.preferences")}
         </DropdownMenuItem>
         {organizationToken && canListNotifications && (
           <DropdownMenuItem className="hover:cursor-pointer" onSelect={onOpenNotifications}>

@@ -124,6 +124,8 @@ export interface TemplatesSidebarProps {
   canDelete: boolean;
   canExport: boolean;
   canImport: boolean;
+  hasNext?: boolean;
+  onLoadMore?: () => void;
 }
 
 export interface PaginationConfig {

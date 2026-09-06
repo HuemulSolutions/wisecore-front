@@ -135,6 +135,9 @@ function HuemulTableInner<T>(
     expandedKeys,
     onExpandedChange,
     folders,
+    variant = "default",
+    onRowClick,
+    activeKey,
   }: HuemulTableProps<T>,
   ref: React.ForwardedRef<HuemulTableHandle>,
 ) {
@@ -471,6 +474,195 @@ function HuemulTableInner<T>(
     }
     return [...(actions ?? []), moveToFolderAction]
   }, [actions, folders, t])
+
+  // ── Variant "detailed" ─────────────────────────────────────────────────
+  // Grid CSS con estilo cerrado (checkbox custom, fila resaltada por `activeKey`,
+  // paginador a juego). No soporta `folders`/`resizable`/`sort`/`actions`/expand —
+  // pensado para listados simples seleccionables y paginados (ver `UserTable`).
+  if (variant === "detailed") {
+    const checkboxClass = "size-[15px] rounded-[4px] border-[1.5px] border-[#cbd5e1] bg-white data-[state=checked]:bg-[#2563eb] data-[state=checked]:border-[#2563eb] data-[state=checked]:text-white"
+    const gridTemplateColumns = [
+      selectable ? "44px" : null,
+      ...columns.map((c) => c.width ?? "minmax(0,1fr)"),
+      hasActions ? "56px" : null,
+    ]
+      .filter(Boolean)
+      .join(" ")
+    const isEmpty = !isLoading && data.length === 0
+
+    // Menú de acciones por fila — subconjunto simple (sin sub-`items` ni modo `inline`)
+    // de lo que ya soporta la variante "default", ver huemul-table.tsx más abajo.
+    const renderActionsCell = (item: T) => {
+      const visibleActions = actions?.filter((a) => !a.show || a.show(item)) ?? []
+      if (visibleActions.length === 0) return <div className="py-3 px-3" />
+      return (
+        <div className="flex items-center justify-end py-3 px-3" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <HuemulButton
+                variant="ghost"
+                size="sm"
+                icon={MoreVertical}
+                aria-label={t("actions")}
+                className="h-7 w-7 p-0 hover:bg-muted"
+              />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-40">
+              {visibleActions.map((action, idx, arr) => {
+                const ActionIcon = action.icon
+                const disabled = action.disabled?.(item) ?? false
+                return (
+                  <React.Fragment key={action.key}>
+                    <DropdownMenuItem
+                      disabled={disabled}
+                      onSelect={() => setTimeout(() => action.onClick(item), 0)}
+                      className={cn(
+                        "hover:cursor-pointer",
+                        action.destructive && "text-destructive focus:text-destructive",
+                        action.className
+                      )}
+                    >
+                      <ActionIcon className="mr-2 h-4 w-4" />
+                      {action.label}
+                    </DropdownMenuItem>
+                    {action.separator && idx < arr.length - 1 && <DropdownMenuSeparator />}
+                  </React.Fragment>
+                )
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )
+    }
+
+    return (
+      <div className={cn("flex flex-1 min-h-0 flex-col overflow-hidden bg-white", className)}>
+        <div
+          className="grid border-b border-[#e5eaf0] bg-[#f7f9fb]"
+          style={{ gridTemplateColumns }}
+        >
+          {selectable && (
+            <div className="flex items-center py-2.5 pr-3 pl-4.5">
+              <Checkbox
+                checked={headerCheckState}
+                onCheckedChange={toggleAllVisible}
+                aria-label={t("selectAll")}
+                disabled={visibleKeys.length === 0}
+                className={checkboxClass}
+              />
+            </div>
+          )}
+          {columns.map((col) => (
+            <div
+              key={col.key}
+              className={cn(
+                "py-2.5 px-3 text-[11px] font-semibold tracking-[0.06em] text-[#64748b] uppercase whitespace-nowrap",
+                !selectable && col === columns[0] && "pl-4.5",
+                col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"
+              )}
+            >
+              {col.label}
+            </div>
+          ))}
+          {hasActions && (
+            <div className="py-2.5 px-3 text-right text-[11px] font-semibold tracking-[0.06em] text-[#64748b] uppercase whitespace-nowrap">
+              {t("actions")}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-1 min-h-0 flex-col overflow-auto">
+          {isLoading
+            ? Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="grid items-center border-b border-[#f1f4f8]" style={{ gridTemplateColumns }}>
+                  {selectable && (
+                    <div className="py-3 pr-3 pl-4.5">
+                      <Skeleton className="h-4 w-4 rounded" />
+                    </div>
+                  )}
+                  {columns.map((col) => (
+                    <div key={col.key} className="py-3 px-3">
+                      <Skeleton className="h-4 w-full max-w-32" />
+                    </div>
+                  ))}
+                  {hasActions && (
+                    <div className="flex justify-end py-3 px-3">
+                      <Skeleton className="h-7 w-7 rounded" />
+                    </div>
+                  )}
+                </div>
+              ))
+            : isEmpty && emptyState
+            ? (() => {
+                const EmptyIcon = emptyState.icon ?? Inbox
+                return (
+                  <div className="flex flex-col items-center justify-center py-14 px-6 text-center">
+                    <EmptyIcon className="mb-3 w-10 h-10 text-muted-foreground" />
+                    <p className="text-sm font-medium text-foreground">{emptyState.title}</p>
+                    {emptyState.description && (
+                      <p className="mt-1 text-xs text-muted-foreground">{emptyState.description}</p>
+                    )}
+                  </div>
+                )
+              })()
+            : data.map((item) => {
+                const key = getRowKey(item)
+                const isActive = activeKey != null && key === activeKey
+                return (
+                  <div
+                    key={key}
+                    className={cn(
+                      "grid items-center border-b border-[#f1f4f8] cursor-pointer",
+                      isActive ? "bg-[#f4f7fd] shadow-[inset_3px_0_0_#2563eb]" : "bg-white hover:bg-[#f7f9fc]"
+                    )}
+                    style={{ gridTemplateColumns }}
+                    onClick={() => onRowClick?.(item)}
+                  >
+                    {selectable && (
+                      <div className="py-3 pr-3 pl-4.5" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selected.has(key)}
+                          onCheckedChange={() => toggleRow(key)}
+                          aria-label={t("select")}
+                          className={checkboxClass}
+                        />
+                      </div>
+                    )}
+                    {columns.map((col) => (
+                      <div
+                        key={col.key}
+                        className={cn(
+                          "py-3 px-3 text-sm",
+                          !selectable && col === columns[0] && "pl-4.5",
+                          col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"
+                        )}
+                      >
+                        {col.render(item)}
+                      </div>
+                    ))}
+                    {hasActions && renderActionsCell(item)}
+                  </div>
+                )
+              })}
+          {!isLoading && !isEmpty && <div className="flex-1 bg-[#fcfdfe]" />}
+        </div>
+
+        {pagination && (
+          <HuemulPagination
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            totalItems={pagination.totalItems}
+            hasNext={pagination.hasNext}
+            hasPrevious={pagination.hasPrevious}
+            onPageChange={pagination.onPageChange}
+            onPageSizeChange={pagination.onPageSizeChange}
+            pageSizeOptions={pagination.pageSizeOptions}
+            variant="detailed"
+          />
+        )}
+      </div>
+    )
+  }
 
   // ── Error state ──────────────────────────────────────────────────────────
   if (error) {

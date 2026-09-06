@@ -192,6 +192,7 @@ function optimisticStepPatch(data: UpdateLifecycleStepData) {
     if (data.valid_to !== undefined) next.valid_to = data.valid_to
     if (data.sla_value !== undefined) next.sla_value = data.sla_value
     if (data.sla_unit !== undefined) next.sla_unit = data.sla_unit
+    if (data.depends_on !== undefined) next.depends_on = data.depends_on
     if (data.role_ids !== undefined) {
       // `role_ids` es reemplazo total. Se conservan los `role_name` ya conocidos
       // para no perder la etiqueta de los chips; los nuevos quedan sin nombre

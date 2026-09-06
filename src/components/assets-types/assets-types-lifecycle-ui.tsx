@@ -7,7 +7,6 @@ import type { LucideIcon } from "lucide-react"
 
 import { Switch } from "@/components/ui/switch"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { cn } from "@/lib/utils"
 import type { AccessRuleType, AccessRuleTypeOption } from "@/types/lifecycle"
@@ -202,15 +201,13 @@ export function PanelStatePill({ label }: { label: string }) {
   )
 }
 
-/** Badge de cambios sin guardar («• Editado»). */
-export function PanelDirtyBadge({ label }: { label: string }) {
-  return (
-    <span className="inline-flex h-5 shrink-0 items-center gap-1 rounded-full bg-[#fef6e7] px-2 text-[11px] font-medium text-[#b45309]">
-      <span className="size-1.5 rounded-full bg-[#f59e0b]" />
-      {label}
-    </span>
-  )
-}
+/**
+ * Movido a `@/huemul/components/huemul-panel-save-bar` (era el único bloque
+ * genuinamente reutilizable de este archivo — ver su docstring de arriba).
+ * Reexportado acá con el nombre original para no tocar los 3 consumidores
+ * existentes de este módulo.
+ */
+export { HuemulPanelDirtyBadge as PanelDirtyBadge } from "@/huemul/components/huemul-panel-save-bar"
 
 // ─── Icon button ──────────────────────────────────────────────────────────────
 
@@ -564,68 +561,7 @@ export function PanelBadge({
  * `PanelSaveBar` vive dentro del contenido de cada tab/panel, en el mismo
  * sitio donde vive su estado `isDirty`.
  */
-export function PanelSaveBar({
-  isDirty,
-  canSave = isDirty,
-  isSaving,
-  dirtyLabel,
-  hintLabel,
-  saveLabel,
-  discardLabel,
-  onSave,
-  onDiscard,
-  className,
-}: {
-  isDirty: boolean
-  /** Gate adicional de validación (ej. nombre requerido). Por defecto, igual a `isDirty`. */
-  canSave?: boolean
-  isSaving?: boolean
-  /** Resumen de lo pendiente, p. ej. «1 plantilla con cambios». Solo se muestra si `isDirty`. */
-  dirtyLabel?: string
-  /**
-   * Texto muted opcional junto al resumen — siempre visible, sin depender de
-   * `isDirty` (p. ej. «Los permisos por sección ya están guardados», «Los
-   * grupos se guardan juntos»).
-   */
-  hintLabel?: string
-  saveLabel: string
-  discardLabel: string
-  onSave: () => void
-  onDiscard: () => void
-  className?: string
-}) {
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-between gap-3 border-t border-[#e9edf2] bg-white pt-3",
-        className,
-      )}
-    >
-      <div className="flex min-w-0 items-center gap-2">
-        {isDirty && dirtyLabel && <PanelDirtyBadge label={dirtyLabel} />}
-        {hintLabel && (
-          <span className="truncate text-[11px] text-[#94a3b8]">{hintLabel}</span>
-        )}
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <HuemulButton
-          variant="ghost"
-          size="sm"
-          label={discardLabel}
-          disabled={!isDirty || isSaving}
-          onClick={onDiscard}
-        />
-        <HuemulButton
-          size="sm"
-          label={saveLabel}
-          loading={isSaving}
-          disabled={!canSave}
-          onClick={onSave}
-        />
-      </div>
-    </div>
-  )
-}
+export { HuemulPanelSaveBar as PanelSaveBar } from "@/huemul/components/huemul-panel-save-bar"
 
 // ─── Tarjeta colapsable con subtítulo ─────────────────────────────────────────
 

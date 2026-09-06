@@ -8,10 +8,10 @@ const translations = {
     title: { en: "Wisecore AI", es: "Wisecore AI" },
   },
   welcome: {
-    message: { en: "Hi! How can I assist you today?", es: "¡Hola! ¿En qué puedo ayudarte hoy?" },
+    message: { en: "Hi! How can I assist you today?", es: "¡Hola! ¿Cómo puedo ayudar hoy?" },
   },
   input: {
-    placeholder: { en: "Write your message...", es: "Escribe tu mensaje..." },
+    placeholder: { en: "Write your message...", es: "Escribir un mensaje..." },
   },
   model: {
     selectModel: { en: "Select model", es: "Seleccionar modelo" },

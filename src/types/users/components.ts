@@ -1,6 +1,5 @@
-import type { User, UserPageState } from './core'
+import type { User, UserDialogsState, UserDetailTab } from './core'
 import type { HuemulTablePagination } from '@/types/huemul'
-import type { UseMutationResult } from '@tanstack/react-query'
 import type { useUserMutations } from '@/hooks/useUsers'
 
 export interface UserContentEmptyStateProps {
@@ -32,9 +31,13 @@ export interface UserFormFieldsProps {
 }
 
 export interface UserPageDialogsProps {
-  state: UserPageState
-  onCloseDialog: (dialog: keyof UserPageState) => void
-  onUpdateState: (updates: Partial<UserPageState>) => void
+  // `UserDialogsState`, no `UserPageState`: este contenedor solo lee/cierra
+  // diálogos, nunca el master-detail. Estructuralmente compatible con
+  // `UserPageState` (users.tsx) y con `GlobalAdminUserPageState`
+  // (global-admin-users-section.tsx), que ya no comparten el mismo padre.
+  state: UserDialogsState
+  onCloseDialog: (dialog: keyof UserDialogsState) => void
+  onUpdateState: (updates: Partial<UserDialogsState>) => void
   userMutations: ReturnType<typeof useUserMutations>
   onUsersUpdated?: () => void
   createUserAddToOrganization?: boolean
@@ -43,11 +46,12 @@ export interface UserPageDialogsProps {
    * muta, y ninguno tenía gate propio. Los consumidores las resuelven con su
    * propio eje — `/users` con `usePageAccess('users')`, `/global-admin` con su
    * único `canManage` root-admin-only.
+   * `canAssignRoles` ya no vive acá: `AssignRolesSheet` se eliminó, el panel de
+   * detalle de `/users` resuelve la asignación con su propio staging.
    */
   canCreate: boolean
   canUpdate: boolean
   canDelete: boolean
-  canAssignRoles: boolean
   /** PATCH /users/{id}/root-admin: flag de sistema, eje isRootAdmin. */
   canManageRootAdmin: boolean
   /** POST/DELETE /organizations/{id}/users: solo alcanzable desde /global-admin. */
@@ -67,8 +71,6 @@ export interface UserPageHeaderProps {
   hasError?: boolean
   searchTerm: string
   onSearchChange: (value: string) => void
-  filterStatus: string
-  onStatusFilterChange: (value: string) => void
   canCreate?: boolean
 }
 
@@ -77,26 +79,23 @@ export interface UserTableProps {
   selectedUsers: Set<string>
   onUserSelection: (userId: string) => void
   onSelectAll: () => void
-  onEditUser: (user: User) => void
-  onAssignRoles: (user: User) => void
-  onDeleteUser: (user: User) => void
-  onManageRootAdmin: (user: User) => void
-  onMakeOrganizationAdmin?: (user: User) => void
   /**
-   * Eje del flag de sistema `is_root_admin` (PATCH /users/{id}/root-admin).
-   * No es un bypass de RBAC: solo decide si se ofrece esa acción de fila.
+   * Abre el panel de detalle de este usuario. `tab` fuerza la pestaña (ej. el
+   * chip de rol abre directo en 'roles'); sin `tab`, el panel conserva la
+   * última pestaña activa. Reemplaza a las acciones de fila de la versión
+   * anterior (editar/asignar roles/eliminar/root admin): esas viven ahora
+   * dentro del panel (tab Perfil / tab Roles).
    */
-  canManageRootAdmin?: boolean
-  userMutations: {
-    approveUser: UseMutationResult<any, any, string, unknown>
-    rejectUser: UseMutationResult<any, any, string, unknown>
-    deleteUser: UseMutationResult<any, any, string, unknown>
-  }
+  onSelectUser: (user: User, tab?: UserDetailTab) => void
+  /** Fila resaltada como activa (vía `getRowClassName`, no `selectedKeys`). */
+  selectedUserId?: string | null
+  /**
+   * Habilita el cruce con `useRolesMap` para pintar el punto de color de los
+   * chips de rol (`UserRole` no trae `color`). Sin permiso, los chips caen al
+   * color de fallback de `roleRowSwatch` — no se ocultan.
+   */
+  canListRoles?: boolean
   pagination?: HuemulTablePagination
-  canUpdate?: boolean
-  canDelete?: boolean
-  /** Asignar roles muta vía `rbac:u`, no `user:u`: eje propio. */
-  canAssignRoles?: boolean
   isLoading?: boolean
   isFetching?: boolean
 }

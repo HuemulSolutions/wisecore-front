@@ -12,7 +12,7 @@ const translations = {
     ownerScope: { en: "Owner", es: "Propietario" },
     allOwners: { en: "All owners", es: "Todos los propietarios" },
     ownerMe: { en: "Me", es: "Yo" },
-    ownerMeDescription: { en: "Assets you own", es: "Activos de tu autoría" },
+    ownerMeDescription: { en: "Assets you own", es: "Activos propios" },
     ownerScopeLabel: { en: "Quick filters", es: "Filtros rápidos" },
     ownerUsersLabel: { en: "Specific user", es: "Usuario específico" },
     template: { en: "Workflow template", es: "Template de workflow" },
@@ -38,12 +38,12 @@ const translations = {
     lastModified: { en: "Last modified", es: "Última modificación" },
   },
   emptyState: {
-    empty: { en: "You don't have any assets in progress yet", es: "Aún no tienes activos en curso" },
-    emptyDescription: { en: "Start a workflow to see it here", es: "Inicia un workflow para verlo aquí" },
+    empty: { en: "You don't have any assets in progress yet", es: "Aún no hay activos en curso" },
+    emptyDescription: { en: "Start a workflow to see it here", es: "Iniciar un workflow para verlo aquí" },
     noResults: { en: "No assets found", es: "No se encontraron activos" },
     noResultsDescription: {
       en: "No assets in progress match your search",
-      es: "No hay activos en curso que coincidan con tu búsqueda",
+      es: "No hay activos en curso que coincidan con la búsqueda",
     },
   },
   actions: {
@@ -53,12 +53,12 @@ const translations = {
     title: { en: "Delete workflow item", es: "Eliminar elemento de workflow" },
     description: {
       en: "Are you sure you want to delete \"{{name}}\"? This deletes the asset and all its answers. This action cannot be undone.",
-      es: "¿Seguro que deseas eliminar \"{{name}}\"? Esto elimina el activo y todas sus respuestas. Esta acción no se puede deshacer.",
+      es: "¿Eliminar \"{{name}}\"? Esto elimina el activo y todas sus respuestas. Esta acción no se puede deshacer.",
     },
     success: { en: "Workflow item deleted", es: "Elemento de workflow eliminado" },
   },
   panel: {
-    noSelection: { en: "Select a row to view its form fields", es: "Selecciona una fila para ver los campos del formulario" },
+    noSelection: { en: "Select a row to view its form fields", es: "Seleccionar una fila para ver los campos del formulario" },
     noCurrentStep: { en: "This item has no current step", es: "Este elemento no tiene un paso actual" },
     sectionNotFound: { en: "Section not found in the asset content", es: "No se encontró la sección en el contenido del activo" },
     loadError: { en: "Failed to load the form fields", es: "Error al cargar los campos del formulario" },
@@ -69,7 +69,7 @@ const translations = {
   launcher: {
     label: { en: "START", es: "INICIAR" },
     title: { en: "START WORKFLOW", es: "INICIAR WORKFLOW" },
-    available: { en: "{{count}} available for your role", es: "{{count}} disponibles para tu rol" },
+    available: { en: "{{count}} available for your role", es: "{{count}} disponibles para el rol" },
     searchPlaceholder: { en: "Search workflow...", es: "Buscar workflow…" },
     noMatches: { en: "No workflow matches \"{{query}}\"", es: "Ningún workflow coincide con «{{query}}»" },
     empty: { en: "No workflows published yet", es: "Aún no hay workflows publicados" },
@@ -102,11 +102,11 @@ const translations = {
   },
   expressSheet: {
     welcomeTitle: { en: "General information", es: "Datos generales" },
-    welcomeDescription: { en: "Assign a name to this asset to easily identify it later.", es: "Asigna un nombre a este activo para identificarlo fácilmente más adelante." },
+    welcomeDescription: { en: "Assign a name to this asset to easily identify it later.", es: "Asignar un nombre a este activo para identificarlo fácilmente más adelante." },
     name: { en: "Name", es: "Nombre" },
     namePlaceholder: { en: "e.g. Ergonomic chairs purchase", es: "Ej: Compra de sillas ergonómicas" },
     description: { en: "Description", es: "Descripción" },
-    descriptionPlaceholder: { en: "Add a description about this asset", es: "Agrega una descripción sobre este activo" },
+    descriptionPlaceholder: { en: "Add a description about this asset", es: "Agregar una descripción sobre este activo" },
     success: { en: "Asset created successfully", es: "Activo creado correctamente" },
   },
   wizard: {
@@ -116,7 +116,7 @@ const translations = {
       advanceTitle: { en: "Nothing to complete here", es: "Nada que completar aquí" },
       advanceDescription: {
         en: "There are no pending forms for you at this step. You can move the workflow forward.",
-        es: "No hay formularios pendientes para ti en este paso. Puedes avanzar el flujo.",
+        es: "No hay formularios pendientes en este paso. El flujo puede avanzar.",
       },
       waitingTitle: {
         en: "This section is pending on another role",
@@ -124,7 +124,7 @@ const translations = {
       },
       waitingDescription: {
         en: "This section hasn't been completed by the person with edit permission. You can't move forward until it's completed.",
-        es: "La sección no ha sido completada por quien tiene permiso de edición. No puedes avanzar hasta que se complete.",
+        es: "La sección no ha sido completada por quien tiene permiso de edición. No es posible avanzar hasta que se complete.",
       },
       blockedTitle: {
         en: "There are pending required answers",
@@ -146,7 +146,7 @@ const translations = {
     },
   },
   share: {
-    dialogTitle: { en: "Share this workflow with your team", es: "Comparte este workflow con tu equipo" },
+    dialogTitle: { en: "Share this workflow with your team", es: "Compartir este workflow con el equipo" },
     templateDescription: {
       en: "People with access to the organization will be able to independently complete a copy of \"{{name}}\".",
       es: "Las personas con acceso a la organización podrán completar de forma independiente una copia de \"{{name}}\".",
@@ -163,7 +163,7 @@ const translations = {
   fill: {
     readOnlyNotice: {
       en: "You don't have permission to answer this form — you can only view it.",
-      es: "No tienes permiso para responder este formulario — solo puedes verlo.",
+      es: "No hay permiso para responder este formulario — solo puede verse.",
     },
     readOnlyStateNotice: {
       en: "This asset is {{state}}, fields can't be edited.",
@@ -175,17 +175,17 @@ const translations = {
     },
     readOnlySectionNotice: {
       en: "This section is read-only at this stage — you can view it but not answer it.",
-      es: "Esta sección es de solo lectura en esta etapa — puedes verla pero no responderla.",
+      es: "Esta sección es de solo lectura en esta etapa — puede verse pero no responderse.",
     },
     readOnlyInactiveSectionNotice: {
       en: "This section is inactive based on your answers — you can view it but not answer it.",
-      es: "Esta sección está inactiva según tus respuestas — puedes verla pero no responderla.",
+      es: "Esta sección está inactiva según las respuestas dadas — puede verse pero no responderse.",
     },
     notFound: { en: "This link is invalid or incomplete", es: "Este link no es válido o está incompleto" },
     templateFallbackName: { en: "Workflow", es: "Workflow" },
     noCreatePermission: {
       en: "You don't have permission to create an asset from this link.",
-      es: "No tienes permiso para crear un activo desde este link.",
+      es: "No hay permiso para crear un activo desde este link.",
     },
     createError: {
       en: "Something went wrong creating this asset.",
@@ -195,9 +195,9 @@ const translations = {
     savedTitle: { en: "Answers saved", es: "Respuestas guardadas" },
     savedDescription: {
       en: "You can keep completing this asset later from WiseCore. You can close this tab now.",
-      es: "Puedes continuar completando este activo más tarde desde WiseCore. Ya puedes cerrar esta pestaña.",
+      es: "Este activo puede completarse más tarde desde WiseCore. Ya es posible cerrar esta pestaña.",
     },
-    savedNeedMore: { en: "Need anything else?", es: "¿Necesitas algo más?" },
+    savedNeedMore: { en: "Need anything else?", es: "¿Algo más?" },
     savedKeepGoing: { en: "Keep completing", es: "Seguir completando" },
     savedStartAnother: { en: "Start another asset", es: "Iniciar otro activo" },
     finished: {
@@ -205,10 +205,10 @@ const translations = {
       sentToApprovalTitle: { en: "{{name}} sent for approval", es: "{{name}} enviado a aprobación" },
       approvedTitle: { en: "{{name}} approved", es: "{{name}} aprobado" },
       publishedTitle: { en: "{{name}} published", es: "{{name}} publicado" },
-      description: { en: "You can close this tab now.", es: "Ya puedes cerrar esta pestaña." },
+      description: { en: "You can close this tab now.", es: "Ya es posible cerrar esta pestaña." },
       publishedDescription: {
         en: "The data was submitted and the process has finished. You can close this tab now.",
-        es: "Los datos fueron enviados y el proceso ha finalizado. Ya puedes cerrar esta pestaña.",
+        es: "Los datos fueron enviados y el proceso ha finalizado. Ya es posible cerrar esta pestaña.",
       },
       viewAnswers: { en: "View my answers", es: "Ver mis respuestas" },
     },

@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Plus, Trash2 } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { HuemulCheckboxGroup } from "@/huemul/components/huemul-checkbox-group";
@@ -24,6 +24,16 @@ interface SectionFormFieldDependencyEditorProps {
   emptyFieldsMessage?: string;
   showWhenInactiveLabel?: string;
   showWhenInactiveHint?: string;
+  // Oculta el switch de show_when_inactive y su hint. Necesario para reusar este
+  // editor donde ese concepto no existe (ej. depends_on de LifecycleStep: un step
+  // inaplicable desaparece de la secuencia, no hay variante "visible pero
+  // deshabilitado" — ver assets-types-lifecycle-step-conditions.tsx).
+  hideShowWhenInactive?: boolean;
+  // Aviso opcional por campo target, mostrado como description/warning en vez del
+  // tipo de pregunta en el picker de field_id (ej. "Falta en: Plantilla DAP" cuando
+  // el campo no existe en todas las plantillas vinculadas al document_type — ver
+  // useDocumentTypeDependencyFields).
+  fieldWarningFor?: (field: SectionFormField) => string | undefined;
 }
 
 const NUMERIC_OPERATORS: FieldDependencyOperator[] = ["eq", "neq", "gt", "gte", "lt", "lte", "is_empty", "is_not_empty"];
@@ -52,6 +62,8 @@ export function SectionFormFieldDependencyEditor({
   emptyFieldsMessage,
   showWhenInactiveLabel,
   showWhenInactiveHint,
+  hideShowWhenInactive,
+  fieldWarningFor,
 }: SectionFormFieldDependencyEditorProps) {
   const { t } = useTranslation("sections");
   const switchId = instanceId ?? ownFieldId;
@@ -228,12 +240,15 @@ export function SectionFormFieldDependencyEditor({
                       const operator = newOperators.includes(condition.operator) ? condition.operator : newOperators[0];
                       updateCondition(index, { field_id: fieldId, operator, value: undefined });
                     }}
-                    options={availableFields.map((f) => ({
-                      value: f.field_id,
-                      label: f.field_name || f.field_id,
-                      description: questionTypeLabel(f.question_type, t),
-                      icon: questionTypeIcon(f.question_type),
-                    }))}
+                    options={availableFields.map((f) => {
+                      const warning = fieldWarningFor?.(f)
+                      return {
+                        value: f.field_id,
+                        label: f.field_name || f.field_id,
+                        description: warning ?? questionTypeLabel(f.question_type, t),
+                        icon: warning ? AlertTriangle : questionTypeIcon(f.question_type),
+                      }
+                    })}
                     placeholder={t("form.formFields.dependency.targetFieldPlaceholder")}
                     disabled={disabled}
                   />
@@ -281,7 +296,7 @@ export function SectionFormFieldDependencyEditor({
         {t("form.formFields.dependency.addCondition")}
       </HuemulButton>
 
-      {conditions.length > 0 && (
+      {conditions.length > 0 && !hideShowWhenInactive && (
         <div className="flex items-center gap-2 border-t border-gray-100 pt-2">
           <Switch
             id={`show-when-inactive-${switchId}`}
@@ -294,7 +309,7 @@ export function SectionFormFieldDependencyEditor({
           </Label>
         </div>
       )}
-      {conditions.length > 0 && (
+      {conditions.length > 0 && !hideShowWhenInactive && (
         <p className="text-xs text-gray-400">
           {showWhenInactiveHint ?? t("form.formFields.dependency.showWhenInactiveHint")}
         </p>

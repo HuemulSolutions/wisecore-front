@@ -143,6 +143,13 @@ export interface EditStepCardProps {
   isEditing: boolean
   /** Tiene cambios locales sin persistir («• Editado»). */
   isDirty: boolean
+  /**
+   * El step tiene una condición (`depends_on`) configurada — se refleja el
+   * estado del SERVIDOR, no del staging local de la tarjeta: la condición se
+   * guarda independiente e instantánea (`LifecycleStepConditions`), así que
+   * usar `card` acá desincronizaría el badge de lo que en verdad está persistido.
+   */
+  hasCondition?: boolean
   onToggleExpand: () => void
   onStartEdit: () => void
   onCancelEdit: () => void
@@ -198,6 +205,8 @@ export interface LifecycleStepPanelProps {
   stageType: string
   /** Cantidad de grupos (steps) de esta etapa, para el badge de la sección. */
   groupCount: number
+  /** Grupos de esta etapa con una condición configurada — badge del tab «Condiciones». */
+  conditionCount?: number
   onClose: () => void
   onRegisterEditor?: (api: LifecycleEditorApi | null) => void
   organizationId?: string

@@ -1,17 +1,19 @@
 import EditUserSheet from "@/components/users/users-edit-sheet"
 import UserOrganizationsDialog from "@/components/users/users-organizations-dialog"
-import CreateUserDialog from "@/components/users/users-create-dialog"
-import AssignRolesSheet from "@/components/roles/roles-assign-sheet"
+import CreateUserSheet from "@/components/users/users-create-sheet"
 import UserDeleteDialog from "@/components/users/users-delete-dialog"
 import RootAdminDialog from "@/components/users/users-root-admin-dialog"
-import { logger } from "@/lib/logger"
 import type { UserPageDialogsProps } from '@/types/users'
 export type { UserPageDialogsProps } from '@/types/users'
 
 /**
- * Contenedor sin lógica de permisos propia: cada consumidor resuelve los seis
+ * Contenedor sin lógica de permisos propia: cada consumidor resuelve los cinco
  * ejes con el suyo (`/users` vía usePageAccess('users'), `/global-admin` vía su
  * único `canManage` root-admin-only) y acá solo se propagan.
+ *
+ * La asignación de roles ya no vive acá: `AssignRolesSheet` se eliminó, el
+ * panel de detalle de `/users` (`UserDetailPanel` + `useUserRolesStaging`)
+ * absorbe esa función con su propio staging.
  */
 export default function UserPageDialogs({
   state,
@@ -23,7 +25,6 @@ export default function UserPageDialogs({
   canCreate,
   canUpdate,
   canDelete,
-  canAssignRoles,
   canManageRootAdmin,
   canManageOrganizations
 }: UserPageDialogsProps) {
@@ -44,22 +45,12 @@ export default function UserPageDialogs({
         canManage={canManageOrganizations}
       />
 
-      <CreateUserDialog
+      <CreateUserSheet
         open={state.showCreateDialog}
         onOpenChange={(open) => !open && onUpdateState({ showCreateDialog: false })}
         onSuccess={onUsersUpdated}
         addToOrganization={createUserAddToOrganization}
         canCreate={canCreate}
-      />
-
-      <AssignRolesSheet
-        user={state.assigningRoleUser}
-        open={!!state.assigningRoleUser}
-        onOpenChange={(open) => !open && onCloseDialog('assigningRoleUser')}
-        onSuccess={() => {
-          logger.log('Roles assigned successfully, users list will be refreshed')
-        }}
-        canAssign={canAssignRoles}
       />
 
       <UserDeleteDialog

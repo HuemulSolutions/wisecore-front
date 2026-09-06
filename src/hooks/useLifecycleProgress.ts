@@ -58,6 +58,18 @@ const EMPTY_PROGRESS: LifecycleProgress = {
  * permisos — hoy ese endpoint solo se consume en pantallas admin),
  * `isAvailable` es `false` y el caller debe omitir el stepper/panel sin
  * avisar ni bloquear la confirmación.
+ *
+ * GAP CONOCIDO: `LifecycleStep.depends_on` (ver
+ * "ia context/dependencias-condicionales-formularios-guide.md" §3.4) hace que
+ * un step no aplique a una ejecución concreta, pero este hook no lo sabe —
+ * `useAllLifecycleSteps` trae la CONFIGURACIÓN del tipo de activo, no qué
+ * steps aplican a esta ejecución puntual, y `lifecycle_status` no expone esa
+ * lista (front nunca evalúa `depends_on`, ver la guía). Consecuencia: si el
+ * step actual (o uno de la fase actual) tiene una condición que no se cumple,
+ * `currentPhase.total`/`completed` lo sigue contando y `nextStep` puede
+ * anunciar un step que el backend jamás va a poner como `current_step_id`.
+ * No hay mitigación cliente correcta — requiere que el backend exponga los
+ * steps aplicables de la ejecución en `lifecycle_status` (pedido pendiente).
  */
 export function useLifecycleProgress({
   documentTypeId,

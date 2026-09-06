@@ -10,7 +10,6 @@ import { useTag } from "@/hooks/useTags";
 import { TemplateContent } from "@/components/templates/templates-content";
 import { TemplatesSidebar } from "@/components/templates/templates-sidebar";
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
-import { HuemulPagination } from "@/huemul/components/huemul-pagination";
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
 import { HuemulTagChip } from "@/huemul/components/huemul-tag-chip";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
@@ -94,6 +93,7 @@ export default function Templates() {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(100);
+  const [accumulatedTemplates, setAccumulatedTemplates] = useState<TemplateItem[]>([]);
   const hasRestoredRef = useRef(false);
 
   const clearTagFilter = () => {
@@ -103,6 +103,7 @@ export default function Templates() {
       return next;
     });
     setPage(1);
+    setAccumulatedTemplates([]);
   };
 
   // Query para listar templates - solo si tiene permisos
@@ -113,7 +114,30 @@ export default function Templates() {
     retry: false,
   });
 
-  const templates = templatesData?.data || [];
+  // El árbol navega con scroll + "cargar más" en vez de paginación por footer:
+  // acumulamos páginas localmente (reemplazando en la página 1, agregando y
+  // deduplicando en las siguientes), igual que conversation-list.tsx.
+  useEffect(() => {
+    if (!templatesData) return;
+
+    if (page === 1) {
+      setAccumulatedTemplates(templatesData.data);
+    } else {
+      setAccumulatedTemplates((prev) => {
+        const existingIds = new Set(prev.map((t) => t.id));
+        const newItems = templatesData.data.filter((t) => !existingIds.has(t.id));
+        return [...prev, ...newItems];
+      });
+    }
+  }, [templatesData, page]);
+
+  const templates = accumulatedTemplates;
+
+  const handleLoadMore = () => {
+    if (templatesData?.has_next && !isFetching) {
+      setPage((prev) => prev + 1);
+    }
+  };
 
   // Manejar selección de template
   const handleTemplateSelect = (template: TemplateItem) => {
@@ -140,6 +164,7 @@ export default function Templates() {
     setSelectedTemplate(null);
     hasRestoredRef.current = false;
     setPage(1);
+    setAccumulatedTemplates([]);
   }, [selectedOrganizationId]);
 
   // Loading de permisos
@@ -172,30 +197,25 @@ export default function Templates() {
                 navigate('/templates', { replace: true });
               }}
               organizationId={selectedOrganizationId}
-              onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId, searchTerm, page, pageSize, tagId] })}
-              onSearch={(term) => { setSearchTerm(term); setPage(1); }}
+              onRefresh={() => {
+                setPage(1);
+                setAccumulatedTemplates([]);
+                queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId, searchTerm, page, pageSize, tagId] });
+              }}
+              onSearch={(term) => { setSearchTerm(term); setPage(1); setAccumulatedTemplates([]); }}
               searchValue={searchTerm}
               canCreate={canCreateTemplate}
               canUpdate={canUpdateTemplate}
               canDelete={canDeleteTemplate}
               canExport={canExportTemplate}
               canImport={canImportTemplate}
+              hasNext={templatesData?.has_next ?? false}
+              onLoadMore={handleLoadMore}
             />
           ),
           defaultSize: 15,
           minSize: 15,
           maxSize: 30,
-          footer: {
-            content: (
-              <HuemulPagination
-                page={templatesData?.page ?? page}
-                pageSize={templatesData?.page_size ?? pageSize}
-                hasNext={templatesData?.has_next ?? false}
-                hasPrevious={(templatesData?.page ?? page) > 1}
-                onPageChange={setPage}
-              />
-            ),
-          },
         },
         {
           content: (

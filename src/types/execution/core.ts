@@ -1,3 +1,6 @@
+import type { LifecycleStepSummary } from '@/types/execution-lifecycle'
+import type { LifecyclePermissions } from '@/types/assets'
+
 // El backend emite más valores que los que este tipo declaraba originalmente
 // (solo 5); el polling de ejecución y de aprobación maneja al menos estos.
 // Ver src/lib/execution-status.ts para los sets de terminales de éxito/fallo.
@@ -42,6 +45,12 @@ export interface Execution {
   document_name: string
   status: ExecutionStatus
   lifecycle_state: ExecutionLifecycleState
+  /** Timestamp de entrada al `lifecycle_state` actual (se resetea en cada transición advance/reject). Backfill impreciso para ejecuciones viejas (se rellenó con `updated_at` al migrar), exacto de acá en adelante. */
+  lifecycle_state_since?: string | null
+  /** Paso del ciclo de vida vigente para el estado actual. Null cuando no hay `document_type_id` o el estado no tiene steps configurables (ej. published, archived). Mismo shape que `WorkflowItem.current_lifecycle_step`. */
+  current_lifecycle_step?: LifecycleStepSummary | null
+  /** Mismo shape que `AssetContentResponse.data.lifecycle_permissions` — el front deriva los botones con `resolveLifecycleActionsVisibility`, no con una lista de acciones ya resuelta (decisión de backend, ver respuestas/spec-home-mi-trabajo-backend.md §4). Sin `lifecycle_status` (can_advance/can_rollback/advance_blockers) todavía no alcanza para pintar botones inline por fila. */
+  lifecycle_permissions?: LifecyclePermissions
   status_message: string | null
   user_instruction: string | null
   input_tokens: number
@@ -82,10 +91,15 @@ export interface ExecutionsResponse {
   page: number
   page_size: number
   has_next: boolean
+  /** Conteo exacto de filas que matchean los filtros, antes de paginar. `null` cuando se envía `query` (el buscador semántico/keyword no calcula un total exacto barato) — no leer ese `null` como `0`. */
+  total?: number | null
   timestamp?: string
 }
 
 export type ExecutionSearchType = 'semantic' | 'title' | 'code' | 'content'
+
+/** Alcance de "asignado a mí": autorizado a actuar en el step de lifecycle correspondiente al estado actual (review→in_review, approve→in_approval). No combinable con `query` (400 PENDING_MY_ACTION_WITH_SEARCH_NOT_SUPPORTED). */
+export type ExecutionPendingMyAction = 'review' | 'approve' | 'any'
 
 export interface GetExecutionsParams {
   page?: number
@@ -114,6 +128,8 @@ export interface GetExecutionsParams {
   document_type_id?: string | null
   sort?: string | null
   custom_field_filter?: string[]
+  /** No combinable con `query`/`search_type` — ver `ExecutionPendingMyAction`. */
+  pending_my_action?: ExecutionPendingMyAction | null
 }
 
 export interface RollbackTarget {

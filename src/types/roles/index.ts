@@ -1,25 +1,9 @@
 import type { Role } from '@/services/rbac'
 import type { Permission, PermissionWithStatus } from '@/services/rbac'
 import type { HuemulTablePagination } from '@/huemul/components/huemul-table'
-import type { User } from '@/types/users'
 
-export interface AssignRolesSheetProps {
-  user: User | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess?: () => void
-  /** rbac:u — sin default: cada call-site debe resolverlo explícitamente. */
-  canAssign: boolean
-}
-
-export interface AssignRoleToUsersDialogProps {
-  role: Role | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess?: () => void
-  /** rbac:u — sin default: secure-by-default. */
-  canAssign: boolean
-}
+/** Pestaña activa del panel de detalle de un rol (espejo de `UserDetailTab`). */
+export type RoleDetailTab = 'details' | 'permissions' | 'users' | 'hierarchy'
 
 export interface CloneRoleDialogProps {
   open: boolean
@@ -45,6 +29,12 @@ export interface CreateRoleSheetProps {
    * (p. ej. la matriz de permisos por rol, que lo agrega como fila).
    */
   onCreated?: (role: Role) => void
+  /**
+   * Prellena el nombre al abrir (ej. desde el popover "Agregar rol" de
+   * /users, vía "Con permisos" — ver ia context/inline-create-entity-in-sheet-guide.md).
+   * Cambio aditivo: sin esta prop el sheet se comporta igual que antes.
+   */
+  initialName?: string
 }
 
 export interface DeleteRoleDialogProps {
@@ -54,14 +44,6 @@ export interface DeleteRoleDialogProps {
   onConfirm: () => Promise<void>
   /** rbac:d — sin default: secure-by-default. */
   canDelete: boolean
-}
-
-export interface EditRoleSheetProps {
-  role: Role | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  /** rbac:u — sin default: secure-by-default. */
-  canUpdate: boolean
 }
 
 export interface RoleFormFieldsProps {
@@ -114,17 +96,17 @@ export interface RolesTableProps {
   roles: Role[]
   isTableLoading?: boolean
   isTableFetching?: boolean
-  onAssignToUsers: (role: Role) => void
-  onEditRole: (role: Role) => void
-  onDeleteRole: (role: Role) => void
-  onCloneRole: (role: Role) => void
+  /**
+   * Abre el panel de detalle de este rol. `tab` fuerza la pestaña (ej. la
+   * columna Usuarios abre directo en 'users'). Reemplaza a la acción de fila
+   * "Asignar a usuarios": esa función vive ahora en el tab Usuarios del panel.
+   */
+  onSelectRole: (role: Role, tab?: RoleDetailTab) => void
+  /** Fila resaltada como activa (vía `getRowClassName`, no `selectedKeys`). */
+  selectedRoleId?: string | null
+  /** Catálogo completo de roles (`useRolesMap`), para el nombre del rol padre en la columna Jerarquía. */
+  rolesById?: Record<string, Role>
   pagination?: HuemulTablePagination
-  /** rbac:u — habilita "Asignar a usuarios" y "Editar permisos". Sin default. */
-  canUpdate: boolean
-  /** rbac:d — habilita "Eliminar". Sin default. */
-  canDelete: boolean
-  /** rbac:c — habilita "Clonar" (crea un rol nuevo). Sin default. */
-  canClone: boolean
   selectedIds?: Set<string>
   onSelectionChange?: (next: Set<string>) => void
 }

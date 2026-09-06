@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge"
 import { RefreshCw, Plus } from "lucide-react"
 import { HuemulButton } from "./huemul-button"
 import { HuemulField } from "./huemul-field"
@@ -73,41 +72,57 @@ export function PageHeader({
     searchConfig?.onKeyDown?.(e)
   }
 
+  // Las badges dejan de renderizarse como pills: se integran como texto en la
+  // línea de subtítulo (junto a `subtitle`, si viene) para liberar espacio
+  // horizontal en el bloque de acciones, que ahora comparte una sola fila con
+  // el buscador.
+  const badgeText = badges
+    .map((badge) => {
+      const value = hasError && badge.value !== "..." ? 0 : badge.value
+      return badge.label ? `${badge.label}: ${value}` : String(value)
+    })
+    .join(" · ")
+  const subtitleLine = [subtitle, badgeText].filter(Boolean).join(" · ")
+
   return (
     <div className={cn("space-y-4 mb-6", className)}>
-      {/* Header Row */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      {/* Single row: title block left, controls right (wraps to column on mobile) */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
         {/* Title Section */}
-        {/* Con subtítulo el bloque se alinea al tope: el icono acompaña al título,
-            no al centro de las dos líneas. */}
-        <div className={cn("flex gap-2", subtitle ? "items-start" : "items-center")}>
-          <Icon className={cn("w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0", subtitle && "mt-1")} />
+        <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary/10 shrink-0">
+            <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+          </div>
           <div className="flex flex-col">
             <h1 className="text-lg sm:text-xl font-semibold text-foreground">{title}</h1>
-            {subtitle && (
-              <p className="text-xs text-muted-foreground">{subtitle}</p>
+            {subtitleLine && (
+              <p className="text-xs text-muted-foreground">{subtitleLine}</p>
             )}
           </div>
         </div>
 
-        {/* Actions Section */}
-        <div className="flex items-center gap-2">
-          {/* Badges (stat, no botón) */}
-          {badges.map((badge, index) => (
-            <Badge
-              key={index}
-              variant={badge.variant || "secondary"}
-              className="text-xs px-2 py-1 font-medium tabular-nums"
-            >
-              {badge.label && `${badge.label}: `}{hasError && badge.value !== "..." ? 0 : badge.value}
-            </Badge>
-          ))}
+        {/* Controls Section: filters/children, search, refresh, actions, primary */}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {children}
 
-          {/* Separador entre el bloque de info (badges) y el bloque de acciones */}
-          {badges.length > 0 &&
-            ((showRefresh && onRefresh) || additionalActions.length > 0 || !!primaryAction) && (
-              <div className="h-5 w-px bg-border mx-1" aria-hidden />
-            )}
+          {searchConfig && (
+            <div className="w-full sm:w-64" onKeyDown={handleSearchKeyDown}>
+              <HuemulField
+                label=""
+                placeholder={searchConfig.placeholder}
+                value={inputValue}
+                onChange={(value) => {
+                  const next = String(value)
+                  setInputValue(next)
+                  // When cleared, fire immediately so results reset
+                  if (next === "") {
+                    searchConfig.onChange("")
+                  }
+                }}
+                inputClassName="h-8 text-xs bg-white"
+              />
+            </div>
+          )}
 
           {/* Refresh Button */}
           {showRefresh && onRefresh && (
@@ -167,34 +182,8 @@ export function PageHeader({
               )}
             </>
           )}
-
-          {/* Custom Children */}
-          {!searchConfig && children}
         </div>
       </div>
-
-      {/* Search Row */}
-      {searchConfig && (
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          <div className="flex-1 w-full" onKeyDown={handleSearchKeyDown}>
-            <HuemulField
-              label=""
-              placeholder={searchConfig.placeholder}
-              value={inputValue}
-              onChange={(value) => {
-                const next = String(value)
-                setInputValue(next)
-                // When cleared, fire immediately so results reset
-                if (next === "") {
-                  searchConfig.onChange("")
-                }
-              }}
-              inputClassName="h-8 text-xs bg-white"
-            />
-          </div>
-          {children}
-        </div>
-      )}
     </div>
   )
 }

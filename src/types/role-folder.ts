@@ -36,6 +36,11 @@ export interface RoleFolderByFolder {
   access_level: RoleFolderAccessLevel
 }
 
+export interface RoleFolderGoverningFolder {
+  id: string
+  name: string
+}
+
 export interface RoleFolderByFolderResponse {
   data: RoleFolderByFolder[]
   transaction_id: string
@@ -43,6 +48,10 @@ export interface RoleFolderByFolderResponse {
   page_size: number
   has_next: boolean
   timestamp: string
+  /** Ancestro más cercano (incluida ella misma) con overrides propios. Si has_own_overrides
+   *  es false, es la carpeta de la que se hereda; si es true, es la carpeta consultada. */
+  governing_folder?: RoleFolderGoverningFolder | null
+  has_own_overrides?: boolean
 }
 
 export interface GetRoleFolderListParams {

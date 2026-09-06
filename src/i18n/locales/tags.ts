@@ -48,17 +48,17 @@ const translations = {
     title: { en: "Edit tag", es: "Editar etiqueta" },
   },
   deleteDialog: {
-    title: { en: "Are you sure?", es: "¿Estás seguro?" },
+    title: { en: "Are you sure?", es: "¿Confirmar la acción?" },
     description: { en: "This action cannot be undone. This will permanently delete the tag \"{{name}}\" and remove it from every object it's assigned to.", es: "Esta acción no se puede deshacer. Esto eliminará permanentemente la etiqueta \"{{name}}\" y la quitará de todos los objetos donde esté asignada." },
   },
   emptyState: {
     empty: { en: "No tags found", es: "No se encontraron etiquetas" },
-    emptyDescription: { en: "Create your first tag to start organizing assets, templates and asset types.", es: "Creá tu primera etiqueta para empezar a organizar activos, plantillas y tipos de activo." },
-    noResults: { en: "No tags found matching your search", es: "No se encontraron etiquetas que coincidan con tu búsqueda" },
+    emptyDescription: { en: "Create your first tag to start organizing assets, templates and asset types.", es: "Crear la primera etiqueta para empezar a organizar activos, plantillas y tipos de activo." },
+    noResults: { en: "No tags found matching your search", es: "No se encontraron etiquetas que coincidan con la búsqueda" },
   },
   errorState: {
     failedToLoad: { en: "Failed to load tags", es: "Error al cargar las etiquetas" },
-    errorDescription: { en: "There was an error loading the data. Please try again.", es: "Hubo un error al cargar los datos. Por favor, intenta de nuevo." },
+    errorDescription: { en: "There was an error loading the data. Please try again.", es: "Hubo un error al cargar los datos. Reintentar." },
   },
   picker: {
     addTag: { en: "Add tag", es: "Añadir etiqueta" },
@@ -67,7 +67,7 @@ const translations = {
     noResultsCannotCreate: { en: "No matching tags. This picker only lists existing tags.", es: "Sin etiquetas coincidentes. Este selector solo lista etiquetas existentes." },
     createAndAssign: { en: "Create \"{{name}}\" and assign", es: "Crear \"{{name}}\" y asignar" },
     duplicateName: { en: "A tag with that name already exists.", es: "Ya existe una etiqueta con ese nombre." },
-    selectExisting: { en: "Select the existing tag from the list above.", es: "Seleccioná la etiqueta existente de la lista de arriba." },
+    selectExisting: { en: "Select the existing tag from the list above.", es: "Seleccionar la etiqueta existente de la lista de arriba." },
     applyingTo: { en: "Applying to {{count}} objects", es: "Aplicando a {{count}} objetos" },
     partialHint: { en: "\"–\" means only some of the selected objects have this tag.", es: "\"–\" significa que solo algunos de los objetos seleccionados tienen esta etiqueta." },
     allLabel: { en: "all", es: "todas" },

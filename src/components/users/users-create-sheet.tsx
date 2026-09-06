@@ -1,19 +1,19 @@
 import { useState, useEffect } from "react"
 import { useTranslation } from 'react-i18next'
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { UserPlus } from "lucide-react"
 import { useUserMutations } from "@/hooks/useUsers"
 import UserFormFields from "@/components/users/users-form-fields"
-import type { CreateUserDialogProps } from '@/types/users';
-export type { CreateUserDialogProps } from '@/types/users';
+import type { CreateUserSheetProps } from '@/types/users';
+export type { CreateUserSheetProps } from '@/types/users';
 
-export default function CreateUserDialog({
+export default function CreateUserSheet({
   open,
   onOpenChange,
   onSuccess,
   addToOrganization,
   canCreate
-}: CreateUserDialogProps) {
+}: CreateUserSheetProps) {
   const [formData, setFormData] = useState({
     name: '',
     last_name: '',
@@ -28,7 +28,7 @@ export default function CreateUserDialog({
   const { createUser } = useUserMutations()
   const { t } = useTranslation(['users'])
 
-  // Reset form when dialog opens
+  // Reset form when sheet opens
   useEffect(() => {
     if (open) {
       setFormData({
@@ -101,7 +101,7 @@ export default function CreateUserDialog({
 
     await new Promise<void>((resolve, reject) => {
       createUser.mutate(submissionData, {
-        onSuccess: () => { onSuccess?.(); resolve() },
+        onSuccess: (newUser) => { onSuccess?.(newUser); resolve() },
         onError: (e) => reject(e)
       })
     })
@@ -110,14 +110,13 @@ export default function CreateUserDialog({
   if (!canCreate) return null
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
       title={t('users:create.title')}
       description={t('users:create.description')}
       icon={UserPlus}
       maxWidth="sm:max-w-lg"
-      maxHeight="max-h-[90vh]"
       saveAction={{
         label: t('users:create.button'),
         onClick: handleSave,
@@ -143,6 +142,6 @@ export default function CreateUserDialog({
           errors={errors}
         />
       </div>
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }

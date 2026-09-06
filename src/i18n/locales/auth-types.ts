@@ -15,11 +15,11 @@ const translations = {
   },
   saml2: {
     clientId: { en: "Client ID", es: "Client ID" },
-    clientIdPlaceholder: { en: "Enter client ID", es: "Ingrese el Client ID" },
+    clientIdPlaceholder: { en: "Enter client ID", es: "Ingresar el Client ID" },
     tenantId: { en: "Tenant ID", es: "Tenant ID" },
-    tenantIdPlaceholder: { en: "Enter tenant ID", es: "Ingrese el Tenant ID" },
+    tenantIdPlaceholder: { en: "Enter tenant ID", es: "Ingresar el Tenant ID" },
     url: { en: "URL", es: "URL" },
-    urlPlaceholder: { en: "Enter URL", es: "Ingrese la URL" },
+    urlPlaceholder: { en: "Enter URL", es: "Ingresar la URL" },
   },
   actions: {
     editAuthType: { en: "Edit Auth Type", es: "Editar Tipo de Autenticación" },
@@ -31,25 +31,25 @@ const translations = {
   },
   createDialog: {
     title: { en: "Create Authentication Type", es: "Crear Tipo de Autenticación" },
-    namePlaceholder: { en: "Enter authentication type name", es: "Ingrese el nombre del tipo de autenticación" },
-    typePlaceholder: { en: "Select authentication type", es: "Seleccione el tipo de autenticación" },
+    namePlaceholder: { en: "Enter authentication type name", es: "Ingresar el nombre del tipo de autenticación" },
+    typePlaceholder: { en: "Select authentication type", es: "Seleccionar el tipo de autenticación" },
   },
   editDialog: {
     title: { en: "Edit Authentication Type", es: "Editar Tipo de Autenticación" },
-    namePlaceholder: { en: "Enter authentication type name", es: "Ingrese el nombre del tipo de autenticación" },
-    typePlaceholder: { en: "Select authentication type", es: "Seleccione el tipo de autenticación" },
+    namePlaceholder: { en: "Enter authentication type name", es: "Ingresar el nombre del tipo de autenticación" },
+    typePlaceholder: { en: "Select authentication type", es: "Seleccionar el tipo de autenticación" },
   },
   deleteDialog: {
-    title: { en: "Are you sure?", es: "¿Estás seguro?" },
+    title: { en: "Are you sure?", es: "¿Confirmar la acción?" },
     description: { en: "This action cannot be undone. This will permanently delete the authentication type \"{{name}}\".", es: "Esta acción no se puede deshacer. Esto eliminará permanentemente el tipo de autenticación \"{{name}}\"." },
   },
   emptyState: {
-    noResults: { en: "No authentication types found matching your search", es: "No se encontraron tipos de autenticación que coincidan con tu búsqueda" },
+    noResults: { en: "No authentication types found matching your search", es: "No se encontraron tipos de autenticación que coincidan con la búsqueda" },
     empty: { en: "No authentication types found", es: "No se encontraron tipos de autenticación" },
   },
   errorState: {
     failedToLoad: { en: "Failed to load authentication types", es: "Error al cargar los tipos de autenticación" },
-    errorDescription: { en: "There was an error loading the data. Please try again.", es: "Hubo un error al cargar los datos. Por favor, intenta de nuevo." },
+    errorDescription: { en: "There was an error loading the data. Please try again.", es: "Hubo un error al cargar los datos. Reintentar." },
   },
 }
 

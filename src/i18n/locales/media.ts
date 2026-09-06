@@ -6,7 +6,7 @@ const translations = {
   loadError: { en: "Failed to load media", es: "Error al cargar la media" },
   noOrganization: {
     en: "Select an organization to view media",
-    es: "Selecciona una organización para ver la media",
+    es: "Seleccionar una organización para ver la media",
   },
   emptyTitle: { en: "No media found", es: "No se encontró media" },
   emptyDescription: {
@@ -15,11 +15,11 @@ const translations = {
   },
   emptySelectParentTitle: {
     en: "Select an entity",
-    es: "Selecciona una entidad",
+    es: "Seleccionar una entidad",
   },
   emptySelectParentDescription: {
     en: "Choose a parent entity to view its media files.",
-    es: "Elige una entidad para ver sus archivos de media.",
+    es: "Elegir una entidad para ver sus archivos de media.",
   },
   filters: {
     title: { en: "Filters", es: "Filtros" },
@@ -59,7 +59,7 @@ const translations = {
     },
     emptyDescription: {
       en: "Upload a file to attach it to this template.",
-      es: "Sube un archivo para adjuntarlo a esta plantilla.",
+      es: "Subir un archivo para adjuntarlo a esta plantilla.",
     },
   },
   detail: {
@@ -102,7 +102,7 @@ const translations = {
   upload: {
     title: { en: "Upload Media", es: "Subir Media" },
     submit: { en: "Upload", es: "Subir" },
-    dropzone: { en: "Click to select a file", es: "Haz clic para seleccionar un archivo" },
+    dropzone: { en: "Click to select a file", es: "Hacer clic para seleccionar un archivo" },
     dropzoneHint: { en: "Any file type supported", es: "Se admite cualquier tipo de archivo" },
     changeFile: { en: "Change file", es: "Cambiar archivo" },
     name: { en: "Name (optional)", es: "Nombre (opcional)" },
@@ -134,7 +134,7 @@ const translations = {
     modelAuto: { en: "Automatic", es: "Automático" },
     modelHelp: {
       en: "Choose which configured model generates the image.",
-      es: "Elige qué modelo configurado genera la imagen.",
+      es: "Elegir qué modelo configurado genera la imagen.",
     },
     modelEmpty: {
       en: "No models with image generation are configured.",
@@ -164,10 +164,10 @@ const translations = {
     generating: { en: "Generating image…", es: "Generando imagen…" },
     generatingHint: {
       en: "This can take up to a minute. Keep this panel open.",
-      es: "Puede tardar hasta un minuto. Mantén este panel abierto.",
+      es: "Puede tardar hasta un minuto. Mantener este panel abierto.",
     },
     elapsed: { en: "{{seconds}}s elapsed", es: "{{seconds}}s transcurridos" },
-    emptyPreview: { en: "Your image will appear here", es: "Tu imagen aparecerá aquí" },
+    emptyPreview: { en: "Your image will appear here", es: "La imagen aparecerá aquí" },
     emptyHint: {
       en: "You'll be able to download it or ask for another version without leaving the panel.",
       es: "Podrás descargarla o pedir otra versión sin salir del panel.",
@@ -211,7 +211,7 @@ const translations = {
       },
       versionForbidden: {
         en: "You don't have permission to add a new version to this media.",
-        es: "No tienes permiso para agregar una nueva versión a esta media.",
+        es: "No hay permiso para agregar una nueva versión a esta media.",
       },
     },
   },

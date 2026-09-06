@@ -59,7 +59,6 @@ type MatrixRow =
   | { kind: "owner" }
   | { kind: "sectionRoles" }
   | { kind: "role"; role: Role }
-  | { kind: "add" }
   | { kind: "sectionRules" }
   | { kind: "rule"; ruleType: AccessRuleType }
 
@@ -448,7 +447,6 @@ export function AssetTypeLifecycleMatrix({
       { kind: "owner" },
       { kind: "sectionRoles" },
       ...listedRoles.map((role) => ({ kind: "role" as const, role })),
-      { kind: "add" },
       { kind: "sectionRules" },
       ...(rulesExpanded
         ? ACCESS_RULE_ROWS.map((ruleType) => ({ kind: "rule" as const, ruleType }))
@@ -534,7 +532,6 @@ export function AssetTypeLifecycleMatrix({
             {ruleTypeLabel(row.ruleType)}
           </span>
         )
-      case "add":
       case "sectionRoles":
       case "sectionRules":
         return null
@@ -690,72 +687,16 @@ export function AssetTypeLifecycleMatrix({
           />
         )
       }
-      case "add":
       case "sectionRoles":
       case "sectionRules":
         return null
     }
   }
 
-  // Filas «cells» editables tal cual; las tres filas especiales (añadir rol,
-  // separador de sección y cabecera colapsable de reglas) pasan a bandas a
-  // ancho completo — `add` desaparece del todo si el usuario no puede gestionar.
+  // Filas «cells» editables tal cual; las dos filas especiales (separador de
+  // sección y cabecera colapsable de reglas) pasan a bandas a ancho completo.
+  // «Agregar rol» ya no es una fila — vive como popover en el toolbar de arriba.
   const matrixRows: HuemulMatrixRow<MatrixRow>[] = rows.flatMap((row): HuemulMatrixRow<MatrixRow>[] => {
-    if (row.kind === "add") {
-      if (!canManage) return []
-      return [
-        {
-          kind: "band",
-          key: rowKey(row),
-          className: "bg-white",
-          contentClassName: "px-3 py-3",
-          content: (
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              {isAddingRole ? (
-                <HuemulField
-                  type="combobox"
-                  label=""
-                  name="matrix-add-role"
-                  value=""
-                  placeholder={t("lifecycle.matrix.addRolePlaceholder")}
-                  options={availableRolesToAdd.map((r) => ({ value: r.id, label: r.name }))}
-                  onChange={(roleId) => {
-                    if (roleId) setLocalExtraRoleIds((prev) => [...prev, String(roleId)])
-                    setIsAddingRole(false)
-                  }}
-                  className="flex-1"
-                />
-              ) : (
-                <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsAddingRole(true)}
-                    className="inline-flex h-7.5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-dashed border-[#bfd3fb] px-3 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
-                  >
-                    <Plus className="size-3.5" />
-                    {t("lifecycle.matrix.addRole")}
-                  </button>
-                  {canCreateRole && (
-                    <button
-                      type="button"
-                      onClick={() => setIsCreatingRole(true)}
-                      className="inline-flex h-7.5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-dashed border-[#e2e8f0] px-3 text-[12.5px] font-medium text-[#64748b] transition-colors hover:cursor-pointer hover:bg-[#f7f9fb]"
-                    >
-                      <Plus className="size-3.5" />
-                      {t("lifecycle.matrix.createRole")}
-                    </button>
-                  )}
-                </div>
-              )}
-              <span className="shrink-0 text-[11px] text-[#94a3b8]">
-                {t("lifecycle.matrix.instantSaveHint")}
-              </span>
-            </div>
-          ),
-        },
-      ]
-    }
-
     if (row.kind === "sectionRoles") {
       return [
         {
@@ -831,6 +772,50 @@ export function AssetTypeLifecycleMatrix({
         actions={
           <>
             <span className="text-[11px] text-[#94a3b8]">{t("lifecycle.matrix.autosaveBadge")}</span>
+            {/* Antes vivía como banda al fondo de la tabla — con muchos roles
+                había que scrollear hasta el final para encontrarla. */}
+            {canManage && (
+              <Popover open={isAddingRole} onOpenChange={setIsAddingRole}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex h-7.5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-dashed border-[#bfd3fb] px-3 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
+                  >
+                    <Plus className="size-3.5" />
+                    {t("lifecycle.matrix.addRole")}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-3" align="end">
+                  <div className="flex flex-col gap-2">
+                    <HuemulField
+                      type="combobox"
+                      label=""
+                      name="matrix-add-role"
+                      value=""
+                      placeholder={t("lifecycle.matrix.addRolePlaceholder")}
+                      options={availableRolesToAdd.map((r) => ({ value: r.id, label: r.name }))}
+                      onChange={(roleId) => {
+                        if (roleId) setLocalExtraRoleIds((prev) => [...prev, String(roleId)])
+                        setIsAddingRole(false)
+                      }}
+                    />
+                    {canCreateRole && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingRole(false)
+                          setIsCreatingRole(true)
+                        }}
+                        className="inline-flex h-7.5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-dashed border-[#e2e8f0] px-3 text-[12.5px] font-medium text-[#64748b] transition-colors hover:cursor-pointer hover:bg-[#f7f9fb]"
+                      >
+                        <Plus className="size-3.5" />
+                        {t("lifecycle.matrix.createRole")}
+                      </button>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
             <HuemulButton
               variant="ghost"
               size="icon"

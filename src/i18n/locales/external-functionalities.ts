@@ -4,12 +4,12 @@ const translations = {
   empty: { en: "No functionalities yet", es: "No hay funcionalidades aún" },
   emptyDescription: {
     en: "Add the first functionality to this system.",
-    es: "Agrega la primera funcionalidad a este sistema.",
+    es: "Agregar la primera funcionalidad a este sistema.",
   },
   detail: {
     placeholder: {
       en: "Select a functionality to view its details",
-      es: "Selecciona una funcionalidad para ver sus detalles",
+      es: "Seleccionar una funcionalidad para ver sus detalles",
     },
     description: { en: "Description", es: "Descripción" },
     partialUrl: { en: "Partial URL", es: "URL Parcial" },
@@ -44,7 +44,7 @@ const translations = {
     namePlaceholder: { en: "e.g. Get Users", es: "ej. Obtener Usuarios" },
     descriptionPlaceholder: {
       en: "Describe what this functionality does...",
-      es: "Describe qué hace esta funcionalidad...",
+      es: "Describir qué hace esta funcionalidad...",
     },
     partialUrlPlaceholder: { en: "/endpoint-path", es: "/ruta-endpoint" },
     storageUrlPlaceholder: { en: "Storage URL (optional)", es: "URL de almacenamiento (opcional)" },
@@ -75,7 +75,7 @@ const translations = {
     title: { en: "Delete Functionality", es: "Eliminar Funcionalidad" },
     description: {
       en: "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
-      es: "¿Estás seguro de que deseas eliminar \"{{name}}\"? Esta acción no se puede deshacer.",
+      es: "¿Eliminar \"{{name}}\"? Esta acción no se puede deshacer.",
     },
   },
   objective: {
@@ -155,12 +155,12 @@ const translations = {
   },
   publishActions: {
     selectDocumentType: { en: "Asset Type", es: "Tipo de activo" },
-    selectDocumentTypePlaceholder: { en: "Select an asset type", es: "Selecciona un tipo de activo" },
+    selectDocumentTypePlaceholder: { en: "Select an asset type", es: "Seleccionar un tipo de activo" },
     selectStep: { en: "Publish Step", es: "Paso de publicación" },
-    selectStepPlaceholder: { en: "Select a step", es: "Selecciona un paso" },
+    selectStepPlaceholder: { en: "Select a step", es: "Seleccionar un paso" },
     noStepSelected: {
       en: "Select an asset type and a publish step to view its actions",
-      es: "Selecciona un tipo de activo y un paso para ver sus acciones",
+      es: "Seleccionar un tipo de activo y un paso para ver sus acciones",
     },
     addAction: { en: "Add action", es: "Agregar acción" },
     editAction: { en: "Edit action", es: "Editar acción" },
@@ -172,7 +172,7 @@ const translations = {
     empty: { en: "No actions configured", es: "Sin acciones configuradas" },
     emptyDescription: {
       en: "Add a functionality to run when this step is reached",
-      es: "Agrega una funcionalidad para que se ejecute al publicar en este paso",
+      es: "Agregar una funcionalidad para que se ejecute al publicar en este paso",
     },
     executionOrder: { en: "Order", es: "Orden" },
     functionality: { en: "Functionality", es: "Funcionalidad" },

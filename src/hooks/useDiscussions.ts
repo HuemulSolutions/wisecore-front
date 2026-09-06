@@ -97,12 +97,17 @@ function mapApiDiscussionToPlate(
     userId: d.created_by ?? '',
     documentContent: d.document_content,
     sectionExecutionId: d.section_execution_id,
+    executionId: d.execution_id,
   };
 }
 
 // ── Main Hook ───────────────────────────────────────────────────────────
 
-export function useDiscussions(documentId: string | undefined, sectionExecutionId?: string) {
+export function useDiscussions(
+  documentId: string | undefined,
+  sectionExecutionId?: string,
+  executionId?: string,
+) {
   const { user } = useAuth();
   const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
@@ -167,6 +172,15 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
     return discussionsResponse.data.map(mapApiDiscussionToPlate);
   }, [discussionsResponse?.data]);
 
+  // ── Same list, filtered to the given execution (client-side — the fetch
+  // above stays shared across sections and the sheet). Threads without an
+  // execution_id (created before this field existed) stay visible when no
+  // executionId filter is given. ──────────────────────────────────────
+  const discussionsForExecution: TDiscussion[] = useMemo(() => {
+    if (!executionId) return discussions;
+    return discussions.filter((d) => d.executionId === executionId);
+  }, [discussions, executionId]);
+
   // ── Invalidation helper ─────────────────────────────────────────────
   const invalidate = useCallback(() => {
     if (documentId) {
@@ -188,9 +202,33 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
       const discussion = await createDiscussionWithComment(
         {
           document_id: documentId!,
-          section_execution_id: sectionExecutionId!,
+          // section_execution_id is enough — the backend derives execution_id
+          // from it. Falls back to execution_id only when there is no section
+          // (e.g. a whole-document thread created without a Plate editor).
+          ...(sectionExecutionId
+            ? { section_execution_id: sectionExecutionId }
+            : { execution_id: executionId }),
           document_content: params.documentContent,
           content_rich: serializeRichContent(params.firstCommentRich),
+          is_public: params.isPublic,
+        },
+        selectedOrganizationId!,
+      );
+      return discussion.id;
+    },
+    onSuccess: () => invalidate(),
+    meta: { successMessage: i18n.t('assets:content.discussions.createdToast') },
+  });
+
+  // Comentario general sobre la ejecución completa (sin section_execution_id).
+  const createExecutionDiscussionMutation = useMutation({
+    mutationFn: async (params: { contentRich: Value; isPublic: boolean }) => {
+      const discussion = await createDiscussionWithComment(
+        {
+          document_id: documentId!,
+          execution_id: executionId,
+          document_content: '',
+          content_rich: serializeRichContent(params.contentRich),
           is_public: params.isPublic,
         },
         selectedOrganizationId!,
@@ -302,14 +340,19 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedOrganizationId, documentId, sectionExecutionId],
+    [selectedOrganizationId, documentId, sectionExecutionId, executionId],
   );
 
   return {
     discussions,
+    discussionsForExecution,
     usersMap,
     currentUserId: user?.id ?? '',
     callbacks,
+    createExecutionDiscussion: createExecutionDiscussionMutation.mutateAsync,
+    isCreatingExecutionDiscussion: createExecutionDiscussionMutation.isPending,
+    addComment: addCommentMutation.mutateAsync,
+    isAddingComment: addCommentMutation.isPending,
     resolveDiscussion: resolveDiscussionMutation.mutateAsync,
     isResolvingDiscussion: resolveDiscussionMutation.isPending,
     unresolveDiscussion: unresolveDiscussionMutation.mutateAsync,

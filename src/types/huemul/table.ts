@@ -145,4 +145,16 @@ export interface HuemulTableProps<T> {
   onExpandedChange?: (keys: Set<string>) => void
   /** Agrupa `data` en carpetas de un nivel, con drag & drop nativo. Opt-in: sin esta prop la tabla se comporta como hoy. */
   folders?: HuemulTableFolders<T>
+  /**
+   * `"default"` (implícito) es la tabla HTML actual. `"detailed"` renderiza un grid CSS
+   * con estilo cerrado (checkbox custom, filas resaltadas por `activeKey`, paginador a
+   * juego) pensado para listados simples seleccionables y paginados — no soporta
+   * `folders`, `resizable` ni `sort`. Sí soporta `actions`: se renderiza como una
+   * columna final con un menú desplegable simple (sin sub-`items` ni modo `inline`).
+   */
+  variant?: "default" | "detailed"
+  /** Solo `variant="detailed"`: click nativo de fila (fuera de la celda de checkbox). */
+  onRowClick?: (item: T) => void
+  /** Solo `variant="detailed"`: key (según `getRowKey`) de la fila resaltada como "abierta" en un panel lateral. Independiente de `selectedKeys`. */
+  activeKey?: string | null
 }
