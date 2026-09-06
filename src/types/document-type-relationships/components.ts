@@ -21,6 +21,11 @@ export interface PendingConnection {
   // pre-selected execution ids (from node panel version selector)
   sourceExecutionId?: string
   targetExecutionId?: string
+  // handle ids ("top"/"right"/"bottom"/"left") dragged from on the connecting node —
+  // carried through the create dialog so the resulting edge can be anchored instead
+  // of floating. Undefined/null → floating, same as today.
+  sourceHandle?: string | null
+  targetHandle?: string | null
 }
 
 export interface CanvasNodeAction {
@@ -63,6 +68,13 @@ export interface InitialCanvasRoleNode {
   // Only set when migrating a legacy role stashed in `texts` (carries its old
   // font_color forward) — a first-class role detail has no color of its own.
   color?: string
+  // The backend detail's real `id` — same purpose as `InitialCanvasFlowNode.detailId`
+  // below: a diagram can hold more than one node for the same role, so `role.id`
+  // alone can't tell them apart. Optional because a legacy role still stashed in
+  // `texts` has no detail of its own yet (gains one on the next save), and because
+  // the backend doesn't echo it on relationship endpoints yet either — see
+  // `DiagramRoleEndpoint.detail_id`.
+  detailId?: string
 }
 
 // A gateway/start_event/end_event node to seed the canvas with — no backing
@@ -138,6 +150,10 @@ export interface PendingRoleEdge {
   targetLabel: string
   sourceColor?: string
   targetColor?: string
+  // handle ids dragged from/to — see PendingConnection above for why this travels
+  // through the pending step instead of being read straight from onConnect.
+  sourceHandle?: string | null
+  targetHandle?: string | null
 }
 
 export interface RelationshipsCanvasProps {

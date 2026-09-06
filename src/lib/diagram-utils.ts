@@ -9,6 +9,7 @@ import type {
   DiagramDetailInput,
   DiagramRelationshipInput,
   DiagramTextInput,
+  DiagramHandleSide,
 } from "@/types/diagrams"
 import type {
   InitialCanvasNode,
@@ -124,7 +125,7 @@ export function buildInitialCanvasGraph(diagram: Diagram): {
     const position = d.position as { x?: number; y?: number }
     const pos = { x: Number(position?.x ?? 0), y: Number(position?.y ?? 0) }
     if (isRoleDetail(d)) {
-      return { nodeType: "role", role: { id: d.role_id, name: d.role_name }, position: pos }
+      return { nodeType: "role", role: { id: d.role_id, name: d.role_name }, detailId: d.id, position: pos }
     }
     if (isFlowDetail(d)) {
       return { nodeType: "flow", flowType: d.node_type, detailId: d.id, label: d.label ?? "", position: pos }
@@ -208,9 +209,11 @@ export function buildInitialCanvasElements(diagram: Diagram): InitialCanvasEleme
 
 export type DetailEndpoint =
   | { kind: "execution"; executionId: string }
-  | { kind: "role"; roleId: string }
   // `key` is the canvas node's own id — already unique within the canvas, which is
-  // exactly the uniqueness the backend requires within one request.
+  // exactly the uniqueness the backend requires within one request. A role can be
+  // dropped onto the canvas more than once, so `roleId` alone can't identify which
+  // node an edge belongs to — same reason the flow variant below carries a `key`.
+  | { kind: "role"; roleId: string; key: string }
   | { kind: "flow"; key: string; flowType: DiagramFlowNodeType }
 
 /**
@@ -229,13 +232,25 @@ export function detailEndpointOf(node: CanvasNode): DetailEndpoint | null {
   }
   if (node.type === "role") {
     const d = node.data as CanvasElementNodeData
-    if (d.role?.id) return { kind: "role", roleId: d.role.id }
+    if (d.role?.id) return { kind: "role", roleId: d.role.id, key: node.id }
     return null
   }
   if (isFlowCanvasType(node.type)) {
     return { kind: "flow", key: node.id, flowType: FLOW_NODE_TYPE_BY_CANVAS[node.type] }
   }
   return null
+}
+
+const VALID_HANDLE_SIDES = new Set<string>(["top", "right", "bottom", "left"])
+
+/**
+ * A react-flow edge's `sourceHandle`/`targetHandle` is a free string — only the 4
+ * ids the canvas' own nodes declare (see asset-type-node.tsx et al.) are valid handle
+ * sides for the backend, which 422s on anything else. Guards the boundary instead of
+ * trusting whatever happens to be on the edge (e.g. a legacy/foreign id).
+ */
+function handleSideOf(v: string | null | undefined): DiagramHandleSide | null {
+  return v && VALID_HANDLE_SIDES.has(v) ? (v as DiagramHandleSide) : null
 }
 
 /**
@@ -265,29 +280,16 @@ export function buildDiagramGraphPayload(
     }
   })
 
+  // No dedup — same role can be dropped onto the canvas more than once (e.g. the same
+  // responsible acting at two different points of the flow). `key` is the canvas node
+  // id itself, exactly like the flow variant below, so relationships can reference the
+  // exact node before it has a real backend id.
   const roleNodes = nodes.filter((n) => n.type === "role" && (n.data as CanvasElementNodeData).role?.id) as Node<CanvasElementNodeData>[]
 
-  // Defensive dedup: two role nodes for the same role_id survive UI validation only
-  // via a legacy diagram or a race — keep the first, remap the discarded node's canvas
-  // id to the survivor's below so its edges aren't dropped as "endpoint not in details".
-  // Never applied at seed time (§ buildInitialCanvasGraph never dedups on read).
-  const seenRoleIds = new Map<string, string>() // role_id -> survivor canvas node id
-  const roleNodeRemap = new Map<string, string>() // discarded canvas node id -> survivor canvas node id
-  const dedupedRoleNodes: Node<CanvasElementNodeData>[] = []
-  for (const n of roleNodes) {
-    const roleId = n.data.role!.id
-    const survivorId = seenRoleIds.get(roleId)
-    if (survivorId) {
-      roleNodeRemap.set(n.id, survivorId)
-      continue
-    }
-    seenRoleIds.set(roleId, n.id)
-    dedupedRoleNodes.push(n)
-  }
-
-  const roleDetails: DiagramDetailInput[] = dedupedRoleNodes.map((n) => ({
+  const roleDetails: DiagramDetailInput[] = roleNodes.map((n) => ({
     node_type: "role",
     role_id: n.data.role!.id,
+    key: n.id,
     position: {
       x: n.position.x,
       y: n.position.y,
@@ -296,10 +298,9 @@ export function buildDiagramGraphPayload(
     },
   }))
 
-  // Gateway/start_event/end_event nodes — no dedup (unlike roles): two distinct
-  // diamonds are legitimate, there's no business id to collide on. `key` is the
-  // canvas node id itself so relationships below can reference it before it has a
-  // real backend id.
+  // Gateway/start_event/end_event nodes — same story, no business id to collide on.
+  // `key` is the canvas node id itself so relationships below can reference it before
+  // it has a real backend id.
   const flowNodes = nodes.filter((n): n is Node<CanvasElementNodeData> => isFlowCanvasType(n.type))
   const flowDetails: DiagramDetailInput[] = flowNodes.map((n) => {
     const nodeType = n.type as FlowCanvasNodeType
@@ -327,21 +328,19 @@ export function buildDiagramGraphPayload(
     const d = n.data as AssetTypeNodeData
     endpointByNodeId.set(n.id, { kind: "execution", executionId: d.executionId as string })
   }
-  for (const n of dedupedRoleNodes) {
-    endpointByNodeId.set(n.id, { kind: "role", roleId: n.data.role!.id })
+  for (const n of roleNodes) {
+    endpointByNodeId.set(n.id, { kind: "role", roleId: n.data.role!.id, key: n.id })
   }
   for (const n of flowNodes) {
     endpointByNodeId.set(n.id, { kind: "flow", key: n.id, flowType: FLOW_NODE_TYPE_BY_CANVAS[n.type as FlowCanvasNodeType] })
-  }
-  for (const [discardedId, survivorId] of roleNodeRemap) {
-    const survivorEndpoint = endpointByNodeId.get(survivorId)
-    if (survivorEndpoint) endpointByNodeId.set(discardedId, survivorEndpoint)
   }
 
   // Relationships — classified by edgeKind, with a prefix fallback for edges still
   // in memory from before this field existed. `undefined` is discarded, never assumed
   // to be 'direct'.
-  const execRelIds = new Set<string>()
+  // First edge for a given relationship id wins (mirrors the previous Set's dedup) —
+  // keyed on the id, value carries the handles to emit for it.
+  const execRels = new Map<string, { source_handle: DiagramHandleSide | null; target_handle: DiagramHandleSide | null }>()
   const directRelMap = new Map<string, DiagramRelationshipInput>()
 
   for (const e of edges) {
@@ -354,7 +353,9 @@ export function buildDiagramGraphPayload(
       const tgtEp = endpointByNodeId.get(e.target)
       if (srcEp?.kind !== "execution" || tgtEp?.kind !== "execution") continue
       const relId = edgeData?.relationshipId
-      if (relId) execRelIds.add(relId)
+      if (relId && !execRels.has(relId)) {
+        execRels.set(relId, { source_handle: handleSideOf(e.sourceHandle), target_handle: handleSideOf(e.targetHandle) })
+      }
       continue
     }
 
@@ -372,14 +373,16 @@ export function buildDiagramGraphPayload(
       const name = edgeData?.name || null
       const relationshipType = (edgeData?.relationshipType as string | undefined) || null
       const dedupPartOf = (ep: DetailEndpoint) =>
-        ep.kind === "role" ? `role:${ep.roleId}` : ep.kind === "execution" ? `exec:${ep.executionId}` : `flow:${ep.key}`
+        ep.kind === "execution" ? `exec:${ep.executionId}` : `${ep.kind}:${ep.key}`
       // Dedup key includes name+type on purpose: two parallel edges with different
       // labels are legitimate, two identical ones collapse (otherwise every save adds
       // another row).
       const dedupKey = `${dedupPartOf(srcEp)}->${dedupPartOf(tgtEp)}::${name ?? ""}::${relationshipType ?? ""}`
       if (directRelMap.has(dedupKey)) continue
       const endpointFields = (ep: DetailEndpoint, side: "source" | "target") => {
-        if (ep.kind === "role") return side === "source" ? { source_role_id: ep.roleId } : { target_role_id: ep.roleId }
+        // Role now resolves by `key` too (see DetailEndpoint above) — `role_id` alone
+        // can't tell apart two nodes for the same role. The role_id itself still
+        // travels on the detail (`roleDetails` above), just not on the relationship.
         if (ep.kind === "execution") return side === "source" ? { source_execution_id: ep.executionId } : { target_execution_id: ep.executionId }
         return side === "source" ? { source_key: ep.key } : { target_key: ep.key }
       }
@@ -388,6 +391,8 @@ export function buildDiagramGraphPayload(
         ...endpointFields(tgtEp, "target"),
         relationship_type: relationshipType,
         name,
+        source_handle: handleSideOf(e.sourceHandle),
+        target_handle: handleSideOf(e.targetHandle),
       } as DiagramRelationshipInput)
       continue
     }
@@ -396,7 +401,7 @@ export function buildDiagramGraphPayload(
   }
 
   const relationships: DiagramRelationshipInput[] = [
-    ...Array.from(execRelIds).map((id) => ({ execution_relationship_id: id })),
+    ...Array.from(execRels.entries()).map(([id, handles]) => ({ execution_relationship_id: id, ...handles })),
     ...Array.from(directRelMap.values()),
   ]
 
@@ -481,7 +486,7 @@ export function buildCanvasSignature(
     .map((e) => {
       const d = e.data
       const kind = d?.edgeKind ?? (e.id.startsWith(EXEC_EDGE_ID_PREFIX) ? "execution-relationship" : "")
-      return `${kind}:${e.source}>${e.target}:${d?.relationshipId ?? ""}:${d?.name ?? ""}:${d?.relationshipType ?? ""}`
+      return `${kind}:${e.source}>${e.target}:${d?.relationshipId ?? ""}:${d?.name ?? ""}:${d?.relationshipType ?? ""}:${e.sourceHandle ?? ""}>${e.targetHandle ?? ""}`
     })
     .sort()
 

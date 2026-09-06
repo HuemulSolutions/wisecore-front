@@ -1,7 +1,7 @@
 const translations = {
   page: {
     title: { en: "Search", es: "Búsqueda" },
-    searchPlaceholder: { en: "Enter your search query...", es: "Ingresa tu consulta de búsqueda..." },
+    searchPlaceholder: { en: "Enter your search query...", es: "Ingresar la consulta de búsqueda..." },
     typesSemantic: { en: "Semantic", es: "Semántica" },
     typesTitle: { en: "Title", es: "Título" },
     typesCode: { en: "Code", es: "Código" },
@@ -28,7 +28,7 @@ const translations = {
     ownerScopeLabel: { en: "Quick filters", es: "Filtros rápidos" },
     ownerUsersLabel: { en: "Specific user", es: "Usuario específico" },
     ownerMe: { en: "Me", es: "Yo" },
-    ownerMeDescription: { en: "Assets you own", es: "Activos de tu autoría" },
+    ownerMeDescription: { en: "Assets you own", es: "Activos propios" },
     unresolvedComments: { en: "Unresolved comments", es: "Comentarios sin resolver" },
     pendingAiSuggestion: { en: "Pending AI suggestion", es: "Sugerencia IA pendiente" },
     expirationDate: { en: "Expiration Date", es: "Fecha de expiración" },
@@ -41,23 +41,23 @@ const translations = {
   },
   errors: {
     performSearch: { en: "Error performing search", es: "Error al realizar la búsqueda" },
-    tryAgain: { en: "Please try again.", es: "Por favor, inténtalo de nuevo." },
+    tryAgain: { en: "Please try again.", es: "Reintentar." },
     retry: { en: "Retry", es: "Reintentar" },
   },
   empty: {
     noResultsTitle: { en: "No results found", es: "Sin resultados" },
     noResultsDescription: {
       en: "Try adjusting your search query or using different keywords.",
-      es: "Intenta ajustar tu búsqueda o usa palabras clave diferentes.",
+      es: "Ajustar la búsqueda o usar palabras clave diferentes.",
     },
-    initialTitle: { en: "Start searching", es: "Comienza tu búsqueda" },
+    initialTitle: { en: "Start searching", es: "Iniciar una búsqueda" },
     initialDescription: {
       en: "Enter a query or apply filters to see results.",
-      es: "Ingresa una consulta o aplica filtros para ver resultados.",
+      es: "Ingresar una consulta o aplicar filtros para ver resultados.",
     },
   },
   skeleton: {
-    searching: { en: "Searching through your assets...", es: "Buscando en tus activos..." },
+    searching: { en: "Searching through your assets...", es: "Buscando en los activos..." },
   },
   document: {
     badge: { en: "Asset", es: "Activo" },

@@ -19,6 +19,18 @@ export type {
     GetLibraryContentOptions,
 };
 
+// Dedupe de pedidos GET concurrentes idénticos (misma org + misma URL). Cubre
+// el caso de un componente que dispara la misma carga inicial dos veces casi
+// en simultáneo (p. ej. el doble-invoke de efectos de montaje que React
+// StrictMode hace en desarrollo) sin pegarle dos veces al backend. La org va
+// en la clave porque viaja por header (X-Org-Id), no por query string — sin
+// esto, dos pedidos concurrentes a la misma URL para orgs distintas (ej. en
+// medio de un cambio de organización) podrían colapsar mal.
+const inFlightLibraryContentRequests = new Map<string, Promise<LibraryContent>>();
+
+// Tope del backend para expanded_folder_ids (400 INVALID_FOLDER_EXPANDED_IDS_LIMIT si se excede).
+const MAX_EXPANDED_FOLDER_IDS = 200;
+
 export async function getLibraryContent(
     organizationId: string,
     folderId?: string,
@@ -43,6 +55,11 @@ export async function getLibraryContent(
         params.set('page_size', String(pageSize));
         if (search) params.set('search', search);
         if (focusAssetId) params.set('focus_asset_id', focusAssetId);
+        const expandedFolderIds = Array.from(new Set((options?.expandedFolderIds ?? [])
+            .map((id) => id.trim())
+            .filter((id) => id.length > 0)))
+            .slice(0, MAX_EXPANDED_FOLDER_IDS);
+        if (expandedFolderIds.length > 0) params.set('expanded_folder_ids', expandedFolderIds.join(','));
         if (filters) {
             if (filters.has_pending_ai_suggestion != null) params.set('has_pending_ai_suggestion', String(filters.has_pending_ai_suggestion));
             if (filters.lifecycle_state != null) params.set('lifecycle_state', filters.lifecycle_state);
@@ -59,16 +76,30 @@ export async function getLibraryContent(
     if (options?.includeExecutions) params.set('include_executions', 'true');
 
     const url = `${backendUrl}/folder/${folderPath}/get_content?${params.toString()}`;
-    const response = await httpClient.get(url, {
-        headers: {
-            'X-Org-Id': organizationId,
-        },
-    });
-    const raw = await response.json();
-    return {
-        ...(raw.data as Omit<LibraryContent, 'has_next'>),
-        has_next: raw.has_next ?? false,
-    };
+
+    const dedupeKey = `${organizationId}::${url}`;
+    const existing = inFlightLibraryContentRequests.get(dedupeKey);
+    if (existing) return existing;
+
+    const request = (async () => {
+        const response = await httpClient.get(url, {
+            headers: {
+                'X-Org-Id': organizationId,
+            },
+        });
+        const raw = await response.json();
+        return {
+            ...(raw.data as Omit<LibraryContent, 'has_next'>),
+            has_next: raw.has_next ?? false,
+        };
+    })();
+
+    inFlightLibraryContentRequests.set(dedupeKey, request);
+    try {
+        return await request;
+    } finally {
+        inFlightLibraryContentRequests.delete(dedupeKey);
+    }
 }
 
 /**

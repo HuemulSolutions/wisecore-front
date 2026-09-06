@@ -10,6 +10,7 @@ export interface Discussion {
   document_id: string;
   document_content: string;
   is_resolved: boolean;
+  execution_id: string | null;
   section_execution_id: string | null;
   organization_id: string;
   resolved_by: string | null;
@@ -46,12 +47,15 @@ export interface DiscussionWithComments extends Discussion {
 
 export interface CreateDiscussionRequest {
   document_id: string;
+  execution_id?: string;
+  section_execution_id?: string;
   document_content: string;
 }
 
 export interface CreateDiscussionWithCommentRequest {
   document_id: string;
-  section_execution_id: string;
+  execution_id?: string;
+  section_execution_id?: string;
   document_content: string;
   content_rich: string;
   is_public?: boolean;
@@ -74,6 +78,7 @@ export interface UpdateDiscussionCommentRequest {
 
 export interface DiscussionListParams {
   document_id?: string;
+  execution_id?: string;
   section_execution_id?: string;
   include_comments?: boolean;
   page?: number;

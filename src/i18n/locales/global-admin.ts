@@ -1,6 +1,6 @@
 const translations = {
   title: { en: "Global Admin Settings", es: "Configuración de Administración Global" },
-  description: { en: "Manage organizations and users across all organizations.", es: "Gestiona organizaciones y usuarios en todas las organizaciones." },
+  description: { en: "Manage organizations and users across all organizations.", es: "Gestionar organizaciones y usuarios en todas las organizaciones." },
   tabs: {
     organizations: { en: "Organizations", es: "Organizaciones" },
     users: { en: "Organization Users", es: "Usuarios de Organizaciones" },
@@ -8,7 +8,7 @@ const translations = {
   accessDenied: {
     description: {
       en: "You don't have permission to access Global Admin Settings.",
-      es: "No tienes permisos para acceder a la Configuración de Administración Global.",
+      es: "No hay permisos para acceder a la Configuración de Administración Global.",
     },
   },
   toast: {

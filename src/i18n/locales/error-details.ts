@@ -3,7 +3,7 @@ const translations = {
   title: { en: "Error details", es: "Detalles del error" },
   description: {
     en: "Technical information you can share when reporting this issue.",
-    es: "Información técnica que puedes compartir al reportar este problema.",
+    es: "Información técnica que puede compartirse al reportar este problema.",
   },
   copyReport: { en: "Copy report", es: "Copiar reporte" },
   copied: { en: "Copied!", es: "¡Copiado!" },

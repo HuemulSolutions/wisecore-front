@@ -5,7 +5,7 @@ import { toDateParam } from "@/lib/date-params";
 import { ApiError } from "@/types/api-error";
 import type { ExecutionsResponse, GetExecutionsParams, RollbackTarget, RollbackStep, RollbackTargetsResponse, ExecutionVersionSuggestion, ExecutionVersionSuggestionResponse, ExecutionSectionsStatusResponse } from "@/types/execution";
 import type { AvailableDocxTemplate, AvailableDocxTemplatesResponse } from "@/types/docx-templates";
-import type { CompleteLifecycleStepResponse } from "@/types/lifecycle";
+import type { AdvanceLifecycleResponse, CompleteLifecycleStepResponse } from "@/types/lifecycle";
 
 export type { RollbackTarget, RollbackStep, RollbackTargetsResponse, ExecutionVersionSuggestion };
 
@@ -40,13 +40,22 @@ export async function getAllExecutions(
     document_type_id,
     sort,
     custom_field_filter,
+    pending_my_action,
   } = params
   const qs = new URLSearchParams({
     page: page.toString(),
     page_size: page_size.toString(),
   })
-  if (query?.trim()) qs.set('query', query.trim())
-  if (search_type) qs.set('search_type', search_type)
+  // `pending_my_action` no es combinable con búsqueda de texto libre — el
+  // backend responde 400 PENDING_MY_ACTION_WITH_SEARCH_NOT_SUPPORTED si se
+  // envían ambos. El filtro de alcance gana: se omite `query`/`search_type`
+  // en vez de dejar que el request falle.
+  if (pending_my_action) {
+    qs.set('pending_my_action', pending_my_action)
+  } else {
+    if (query?.trim()) qs.set('query', query.trim())
+    if (search_type) qs.set('search_type', search_type)
+  }
   if (created_by) qs.set('created_by', created_by)
   if (has_pending_ai_suggestion != null) qs.set('has_pending_ai_suggestion', has_pending_ai_suggestion.toString())
   if (lifecycle_state) qs.set('lifecycle_state', lifecycle_state)
@@ -461,7 +470,7 @@ export async function advanceExecutionLifecycle(
         publish_step_id?: string
         run_external_publish?: boolean
     },
-) {
+): Promise<AdvanceLifecycleResponse> {
     const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/advance`, {
         comment: options?.comment || '',
         ...(options?.skip_published && { skip_published: true }),

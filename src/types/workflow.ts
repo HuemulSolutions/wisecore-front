@@ -1,5 +1,5 @@
 import type { ExecutionLifecycleState } from "@/types/execution"
-import type { LifecycleStepKind } from "@/types/execution-lifecycle"
+import type { LifecycleStepSummary } from "@/types/execution-lifecycle"
 
 export type { ExecutionLifecycleState }
 
@@ -9,13 +9,9 @@ export interface WorkflowCurrentStep {
 }
 
 /** Paso del ciclo de vida pendiente para el `lifecycle_state` actual. No
- * confundir con `WorkflowCurrentStep`, que es la sección en edición. */
-export interface WorkflowLifecycleStep {
-  step_id: string
-  step_type: LifecycleStepKind
-  /** Null si el step no tiene nombre configurado (el backend arma un respaldo tipo "Edit - 2"). */
-  step_name: string | null
-}
+ * confundir con `WorkflowCurrentStep`, que es la sección en edición. Alias de
+ * `LifecycleStepSummary` — mismo shape que ahora también usa `Execution`. */
+export type WorkflowLifecycleStep = LifecycleStepSummary
 
 export interface WorkflowItem {
   document_id: string

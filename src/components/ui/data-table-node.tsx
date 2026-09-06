@@ -23,6 +23,7 @@ import { Separator } from '@/components/ui/separator';
 import { DataTableConfigSheet } from '@/components/ui/data-table-config-sheet';
 import { DataTableNodeBody } from '@/components/ui/data-table-node-grid';
 import { useResolvedDataTable } from '@/contexts/document-data-context';
+import { dataTableQueryKeys } from '@/hooks/useDataTables';
 import type { DataTableConfig, DataTableElement } from '@/types/data-table-node';
 
 export function DataTableElementNode(props: PlateElementProps<DataTableElement>) {
@@ -46,12 +47,7 @@ export function DataTableElementNode(props: PlateElementProps<DataTableElement>)
   }, [editor, element]);
 
   const handleRefresh = React.useCallback(() => {
-    // Estas cuatro queries alimentan el `DocumentDataProvider` que monta assets-content.tsx —
-    // invalidarlas por prefijo re-resuelve la tabla con los datos más recientes del backend.
-    void queryClient.invalidateQueries({ queryKey: ['document-content'] });
-    void queryClient.invalidateQueries({ queryKey: ['executions'] });
-    void queryClient.invalidateQueries({ queryKey: ['execution-relationships'] });
-    void queryClient.invalidateQueries({ queryKey: ['document-types'] });
+    void queryClient.invalidateQueries({ queryKey: dataTableQueryKeys.resolveBase() });
   }, [queryClient]);
 
   const handleConfirmConfig = React.useCallback(

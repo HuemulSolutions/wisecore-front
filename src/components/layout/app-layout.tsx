@@ -35,10 +35,12 @@ import { WisyToggle } from "@/components/layout/global-panel-toggle"
 import { LlmConfigBanner } from "@/components/layout/llm-config-banner"
 import { EditingGuardProvider, useOptionalEditingGuard } from "@/contexts/editing-guard-context"
 import EditUserSheet from "@/components/users/users-edit-sheet"
+import { PreferencesSheet } from "@/components/preferences/preferences-sheet"
 import { SubscriptionsSheet } from "@/components/subscriptions/subscriptions-sheet"
 import { NotificationsSheet } from "@/components/notifications/notifications-sheet"
 import { TokensSheet } from "@/components/tokens/tokens-sheet"
 import { useUnreadNotificationsCount } from "@/hooks/useUnreadNotificationsCount"
+import { useLanguagePreference } from "@/hooks/useLanguagePreference"
 import { cn } from "@/lib/utils"
 import { logger } from "@/lib/logger"
 import {
@@ -199,7 +201,12 @@ export default function AppLayout() {
   const { isLoading: permissionsLoading, refreshPermissions } = useUserPermissions()
   const { user, logout } = useAuth()
   const queryClient = useQueryClient()
+  // Montado acá (no solo dentro de PreferencesSheet) para que un idioma
+  // guardado en otro dispositivo aplique apenas resuelve el GET, sin
+  // depender de que el usuario abra el sheet.
+  useLanguagePreference()
   const [profileDialogOpen, setProfileDialogOpen] = useState(false)
+  const [preferencesSheetOpen, setPreferencesSheetOpen] = useState(false)
   const [subscriptionsSheetOpen, setSubscriptionsSheetOpen] = useState(false)
   const [notificationsSheetOpen, setNotificationsSheetOpen] = useState(false)
   const [tokensSheetOpen, setTokensSheetOpen] = useState(false)
@@ -400,6 +407,12 @@ export default function AppLayout() {
     }, 0)
   }
 
+  const handleOpenPreferences = () => {
+    setTimeout(() => {
+      setPreferencesSheetOpen(true)
+    }, 0)
+  }
+
   const handleOpenSubscriptions = () => {
     setTimeout(() => {
       setSubscriptionsSheetOpen(true)
@@ -532,14 +545,15 @@ export default function AppLayout() {
     queryClient.invalidateQueries()
   }, [queryClient, selectedOrganizationId])
 
-  // Vista compartida de workflow a pantalla completa (ver
-  // ia context/fullscreen-share-route-guide.md): mismos providers que el resto
-  // de la app (Chatbot/GlobalPanel/Tooltip/EditingGuard/NavKnowledge, de los
-  // que depende AssetFormSection), pero SIN header/nav/LlmConfigBanner/
-  // GlobalPanelOutlet — quien abre el link no debe ver ni tocar el resto de
-  // la organización. Todos los efectos de arriba (OrgSync, returnUrl, etc.)
-  // siguen corriendo igual: solo cambia lo que se renderiza.
-  const isBareRoute = /^\/workflow\/share\//.test(stripOrgPrefix(location.pathname))
+  // Vistas a pantalla completa (ver ia context/fullscreen-share-route-guide.md):
+  // link compartido de workflow (workflow/share/*) y vista dedicada de un asset
+  // (asset/full/*). Mismos providers que el resto de la app (Chatbot/GlobalPanel/
+  // Tooltip/EditingGuard/NavKnowledge, de los que depende AssetFormSection), pero
+  // SIN header/nav/LlmConfigBanner/GlobalPanelOutlet — quien entra no debe ver ni
+  // tocar el resto de la organización. Todos los efectos de arriba (OrgSync,
+  // returnUrl, etc.) siguen corriendo igual: solo cambia lo que se renderiza. Un
+  // caso de uso nuevo suma su propio prefijo al regex — no dupliques el bloque `if`.
+  const isBareRoute = /^\/(workflow\/share|asset\/full)\//.test(stripOrgPrefix(location.pathname))
   if (isBareRoute) {
     return (
       <ChatbotProvider resetKey={selectedOrganizationId ?? 'no-org'}>
@@ -686,6 +700,7 @@ export default function AppLayout() {
                   canListNotifications={canListNotifications}
                   unreadNotificationsCount={unreadNotificationsCount}
                   onUpdateProfile={handleUpdateProfile}
+                  onOpenPreferences={handleOpenPreferences}
                   onOpenNotifications={handleOpenNotifications}
                   onOpenSubscriptions={handleOpenSubscriptions}
                   onSignOut={handleSignOut}
@@ -714,6 +729,14 @@ export default function AppLayout() {
             canSave={true}
           />
         )}
+
+        {/* Preferences sheet — funciona sin organización seleccionada (degrada
+            a localStorage solo), a diferencia de Subscriptions/Notifications
+            abajo. */}
+        <PreferencesSheet
+          open={preferencesSheetOpen}
+          onOpenChange={setPreferencesSheetOpen}
+        />
 
         {/* Subscriptions sheet */}
         {organizationToken && selectedOrganizationId && (

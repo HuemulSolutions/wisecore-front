@@ -90,7 +90,7 @@ console.error = function(...args) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <Toaster richColors />
+      <Toaster richColors closeButton />
       <ErrorDetailsDialog />
       <AppErrorBoundary>
         <BrowserRouter>

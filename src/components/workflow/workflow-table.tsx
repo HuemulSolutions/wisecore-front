@@ -57,17 +57,35 @@ export function WorkflowTable({
     {
       key: "internalCode",
       label: t("columns.internalCode"),
-      render: (item) => cell(item, <span className="font-mono text-xs">{item.internal_code}</span>),
+      render: (item) =>
+        cell(
+          item,
+          <span className="block max-w-35 truncate font-mono text-xs" title={item.internal_code}>
+            {item.internal_code}
+          </span>,
+        ),
     },
     {
       key: "documentName",
       label: t("columns.documentName"),
-      render: (item) => cell(item, <span className="truncate">{item.document_name}</span>),
+      render: (item) =>
+        cell(
+          item,
+          <span className="block max-w-sm truncate" title={item.document_name}>
+            {item.document_name}
+          </span>,
+        ),
     },
     {
       key: "template",
       label: t("columns.template"),
-      render: (item) => cell(item, <span>{item.template_name}</span>),
+      render: (item) =>
+        cell(
+          item,
+          <span className="block max-w-sm truncate" title={item.template_name}>
+            {item.template_name}
+          </span>,
+        ),
     },
     {
       key: "lifecycleState",
@@ -79,7 +97,7 @@ export function WorkflowTable({
             <HuemulLifecycleBadge state={item.lifecycle_state} />
             {item.current_lifecycle_step && (
               <span
-                className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${lifecycleStageColor(item.current_lifecycle_step.step_type)}`}
+                className={`inline-flex max-w-50 items-center truncate px-1.5 py-0.5 rounded-full text-xs font-medium ${lifecycleStageColor(item.current_lifecycle_step.step_type)}`}
                 title={t("columns.lifecycleStepTooltip")}
               >
                 {item.current_lifecycle_step.step_name ??
@@ -95,11 +113,6 @@ export function WorkflowTable({
       key: "progress",
       label: t("columns.progress"),
       render: (item) => cell(item, <WorkflowProgressBar percentage={item.progress_percentage} />),
-    },
-    {
-      key: "currentStep",
-      label: t("columns.currentStep"),
-      render: (item) => cell(item, <span>{item.current_step?.section_name ?? "—"}</span>),
     },
     {
       key: "lastModified",

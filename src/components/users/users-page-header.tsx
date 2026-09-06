@@ -1,20 +1,17 @@
 import { Users, Plus } from "lucide-react"
 import { useTranslation } from 'react-i18next'
 import { PageHeader } from "@/huemul/components/huemul-page-header"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { UserPageHeaderProps } from '@/types/users';
 export type { UserPageHeaderProps } from '@/types/users';
 
-export default function UserPageHeader({ 
-  userCount, 
-  onCreateUser, 
-  onRefresh, 
-  isLoading, 
+export default function UserPageHeader({
+  userCount,
+  onCreateUser,
+  onRefresh,
+  isLoading,
   hasError,
   searchTerm,
   onSearchChange,
-  filterStatus,
-  onStatusFilterChange,
   canCreate = false
 }: UserPageHeaderProps) {
   const { t } = useTranslation(['users', 'common'])
@@ -44,18 +41,6 @@ export default function UserPageHeader({
         onChange: onSearchChange,
         triggerOnEnter: true,
       }}
-    >
-      <Select value={filterStatus} onValueChange={onStatusFilterChange}>
-        <SelectTrigger className="w-full md:w-36 h-8 hover:cursor-pointer text-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">{t('users:header.filterAllStatus')}</SelectItem>
-          <SelectItem value="active">{t('common:active')}</SelectItem>
-          <SelectItem value="inactive">{t('common:inactive')}</SelectItem>
-          <SelectItem value="pending">{t('common:pending')}</SelectItem>
-        </SelectContent>
-      </Select>
-    </PageHeader>
+    />
   )
 }

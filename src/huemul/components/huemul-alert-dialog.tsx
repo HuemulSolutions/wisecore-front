@@ -124,7 +124,7 @@ export function HuemulAlertDialog({
             {actionState === "idle" && ActionIcon && (
               <ActionIcon className="size-4" />
             )}
-            {actionState === "success" ? "Done" : actionLabel}
+            {actionState === "success" ? t("done") : actionLabel}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -69,18 +69,32 @@ export const RBAC_PAGES = {
       // GET /execution/ — mismo permiso que `listExecutions` de `advanced` y
       // de `diagrams`: mismo endpoint, mismo recurso.
       listExecutions: ["section_execution:l", "section_execution:r"],
-      readStatistics: ["asset:l", "asset:r"], // GET /documents/statistics (KPIs)
-      listAssets: ["asset:l", "asset:r"], // GET /documents/ (panel de reseñas pendientes)
+      readStatistics: ["asset:l", "asset:r"], // GET /documents/statistics (KPIs, checklist de onboarding paso 4)
+      listAssets: ["asset:l", "asset:r"], // ChangeHistoryPanel (pestaña "Actividad del equipo")
       // La acción de fila abre /asset/{id}, cuyo guard exige asset:r|l — sin
       // esto la acción existe pero aterriza en un rebote del guard de ruta.
       openAsset: ["asset:r", "asset:l"],
       createAsset: "asset:c", // crear asset + importar desde archivo
       // Los filtros son superficie RBAC: cada combobox asíncrono pega a su
       // propio endpoint y sin permiso se come un 403 mudo al abrirse.
-      listAssetTypes: ["asset_type:l", "asset_type:r"], // filtro documentTypeId
-      listUsers: ["user:l", "user:r"], // filtro ownerValue + nombres del panel de reseñas
+      listAssetTypes: ["asset_type:l", "asset_type:r"], // filtro documentTypeId, checklist de onboarding paso 3
+      listUsers: ["user:l", "user:r"], // filtro ownerValue + nombres de ChangeHistoryPanel + checklist de onboarding paso 5
       listCustomFields: ["custom_fields:l", "custom_fields:r"], // filtro customFieldFilter
       listNotifications: ["notification:l", "notification:r"],
+      // Botón "Publicar" en línea del grupo "Aprobados, listos para publicar"
+      // (pestaña "Mi trabajo") — mismo permiso que usa `useLifecycleActions`
+      // en assets-content.tsx (rbac.canTransition, ver useDocumentAccess.ts).
+      transitionAsset: "asset:u",
+      // Sheets inline del checklist de onboarding (pasos 3 y 5), para
+      // resolverlos sin salir de /home — mismos permisos que ya usan
+      // `createAssetType`/`createUser` en las páginas /asset-types y /users.
+      createAssetType: "asset_type:c",
+      createUser: "user:c",
+      // Pasos 1-2 del checklist (LLM predeterminado, proveedor de
+      // embeddings) — mismo set que RBAC_PAGES.models.routePermissions (no
+      // se puede referenciar directo: ese objeto todavía no terminó de
+      // inicializarse en este punto del literal).
+      listModels: ["llm:l", "llm:r", "llm_provider:l", "llm_provider:r"],
     },
   },
   templates: {
@@ -306,9 +320,22 @@ export const RBAC_PAGES = {
       // tres formas de mutar un usuario ya existente.
       updateUser: "user:u",
       deleteUser: "user:d",
-      // POST /user_roles/{roleId}/bulk_users — mismo endpoint y mismo permiso
-      // que RBAC_PAGES.roles.features.assignRoleToUsers.
+      // POST /user_roles/bulk_role_assign/{userId} — mismo permiso que
+      // RBAC_PAGES.roles.features.assignRoleToUsers (endpoint corregido: no
+      // es /user_roles/{roleId}/bulk_users, ese es el de asignar usuarios A
+      // un rol desde /roles, dirección inversa).
       assignRoles: "rbac:u",
+      // Catálogo del popover "Agregar rol" del panel de detalle + colores de
+      // los chips de rol de la tabla (useRolesMap). Mismo permiso y mismo
+      // endpoint que RBAC_PAGES.roles.features.listRoles.
+      listRoles: ["rbac:l", "rbac:r"],
+      // Vías "Rápido" y "Con permisos" del popover "Agregar rol".
+      createRole: "rbac:c",
+      // Vía "Clonar" del popover "Agregar rol".
+      cloneRole: "rbac:c",
+      // GET /rbac/permissions — catálogo que alimenta CreateRoleSheet cuando
+      // se abre desde el popover (vía "Con permisos").
+      listPermissionCatalog: ["rbac:l", "rbac:r"],
     },
   },
   roles: {
@@ -334,6 +361,11 @@ export const RBAC_PAGES = {
       exportRoles: ["rbac:l", "rbac:r"],
       // on_conflict=overwrite pisa roles existentes: exige crear y actualizar.
       importRoles: { all: ["rbac:c", "rbac:u"] },
+      // Tab "Usuarios" del panel de detalle del rol (espejo de /users).
+      listUsers: ["user:l", "user:r"],
+      // Botón "Crear usuario" inline desde el popover "Agregar usuario" del
+      // panel del rol (mismo patrón que createUser en RBAC_PAGES.users).
+      createUser: "user:c",
     },
   },
   "asset-types": {

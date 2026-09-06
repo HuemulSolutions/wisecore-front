@@ -5,12 +5,12 @@ const translations = {
     title: { en: "Asset Dependencies", es: "Dependencias del Activo" },
     description: {
       en: "Configure asset dependencies and relationships with other assets.",
-      es: "Configura las dependencias y relaciones del activo con otros recursos.",
+      es: "Configurar las dependencias y relaciones del activo con otros recursos.",
     },
     documentLabel: { en: "Asset: {{name}}", es: "Activo: {{name}}" },
     documentDescription: {
       en: "Link this asset with other assets, templates, or external resources to create relationships and shared context.",
-      es: "Vincula este activo con otros activos, plantillas o recursos externos para crear relaciones y contexto compartido.",
+      es: "Vincular este activo con otros activos, plantillas o recursos externos para crear relaciones y contexto compartido.",
     },
   },
   // dependency-panel.tsx
@@ -23,7 +23,7 @@ const translations = {
     empty: { en: "This asset has no dependencies yet", es: "Este activo aún no tiene dependencias" },
     emptyHint: {
       en: "Link it to other assets to create relationships and shared context.",
-      es: "Vincúlalo con otros activos para crear relaciones y contexto compartido.",
+      es: "Vincularlo con otros activos para crear relaciones y contexto compartido.",
     },
     sectionLabel: { en: "Section: {{name}}", es: "Sección: {{name}}" },
     adding: { en: "Adding dependency...", es: "Agregando dependencia..." },
@@ -32,7 +32,7 @@ const translations = {
     title: { en: "Add dependency", es: "Agregar dependencia" },
     description: {
       en: "Search or browse the library to pick the asset this one depends on.",
-      es: "Busca o navega la biblioteca para elegir el activo del que depende este.",
+      es: "Buscar o navegar la biblioteca para elegir el activo del que depende este.",
     },
     alreadyDependency: { en: "Already a dependency of this asset", es: "Ya es una dependencia de este activo" },
     selfAsset: { en: "This is the current asset", es: "Es el activo actual" },
@@ -57,7 +57,7 @@ const translations = {
     title: { en: "Remove Dependency", es: "Eliminar Dependencia" },
     description: {
       en: "Are you sure you want to remove this dependency? This action cannot be undone and may affect asset relationships.",
-      es: "¿Estás seguro de que deseas eliminar esta dependencia? Esta acción no se puede deshacer y puede afectar las relaciones del activo.",
+      es: "¿Eliminar esta dependencia? Esta acción no se puede deshacer y puede afectar las relaciones del activo.",
     },
     removeButton: { en: "Remove", es: "Eliminar" },
   },
@@ -81,7 +81,7 @@ const translations = {
     },
     specificNoPermission: {
       en: "You don't have permission to list this asset's versions",
-      es: "No tienes permiso para listar las versiones de este activo",
+      es: "No hay permiso para listar las versiones de este activo",
     },
     badge: {
       published: { en: "Published", es: "Publicada" },
@@ -104,13 +104,13 @@ const translations = {
     empty: { en: "This template has no dependencies yet", es: "Esta plantilla aún no tiene dependencias" },
     emptyHint: {
       en: "Link it to assets to create relationships and shared context for assets created from it.",
-      es: "Vincúlala con activos para crear relaciones y contexto compartido para los activos creados desde ella.",
+      es: "Vincularla con activos para crear relaciones y contexto compartido para los activos creados desde ella.",
     },
     picker: {
       title: { en: "Add dependency", es: "Agregar dependencia" },
       description: {
         en: "Search or browse the library to pick the asset this template's assets depend on.",
-        es: "Busca o navega la biblioteca para elegir el activo del que dependerán los activos de esta plantilla.",
+        es: "Buscar o navegar la biblioteca para elegir el activo del que dependerán los activos de esta plantilla.",
       },
       alreadyDependency: { en: "Already a dependency of this template", es: "Ya es una dependencia de esta plantilla" },
     },
@@ -118,7 +118,7 @@ const translations = {
       title: { en: "Remove dependency", es: "Eliminar dependencia" },
       description: {
         en: "Are you sure you want to remove this dependency? This action cannot be undone. It won't affect assets already created from this template.",
-        es: "¿Estás seguro de que deseas eliminar esta dependencia? Esta acción no se puede deshacer. No afecta a los activos ya creados desde esta plantilla.",
+        es: "¿Eliminar esta dependencia? Esta acción no se puede deshacer. No afecta a los activos ya creados desde esta plantilla.",
       },
     },
     toast: {
@@ -132,7 +132,7 @@ const translations = {
     editTitle: { en: "Change dependency version", es: "Cambiar versión de la dependencia" },
     documentLabel: { en: "Asset: {{name}}", es: "Activo: {{name}}" },
     executionLabel: { en: "Version", es: "Versión" },
-    executionPlaceholder: { en: "Select a version...", es: "Selecciona una versión..." },
+    executionPlaceholder: { en: "Select a version...", es: "Seleccionar una versión..." },
     executionEmpty: { en: "This asset has no versions yet", es: "Este activo aún no tiene versiones" },
     confirmCreate: { en: "Add", es: "Agregar" },
     confirmEdit: { en: "Save", es: "Guardar" },

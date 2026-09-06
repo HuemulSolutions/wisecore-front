@@ -3,7 +3,7 @@ const translations = {
     title: { en: "My Subscriptions", es: "Mis Suscripciones" },
     description: {
       en: "Assets and executions you are watching or have marked as favorite.",
-      es: "Activos y versiones que estás siguiendo o marcaste como favorito.",
+      es: "Activos y versiones seguidos o marcados como favorito.",
     },
     addItem: { en: "Add Subscription", es: "Agregar Suscripción" },
   },
@@ -11,14 +11,14 @@ const translations = {
     title: { en: "No subscriptions yet", es: "Sin suscripciones aún" },
     description: {
       en: "You are not watching any asset or execution.",
-      es: "No estás siguiendo ningún activo o versión.",
+      es: "No hay activos ni versiones en seguimiento.",
     },
   },
   errorState: {
     failedToLoad: { en: "Failed to load subscriptions", es: "Error al cargar las suscripciones" },
     errorDescription: {
       en: "An error occurred while loading your subscriptions. Please try again.",
-      es: "Ocurrió un error al cargar tus suscripciones. Por favor, inténtalo de nuevo.",
+      es: "Ocurrió un error al cargar las suscripciones. Reintentar.",
     },
   },
   columns: {
@@ -81,7 +81,7 @@ const translations = {
     title: { en: "Delete Subscription", es: "Eliminar Suscripción" },
     description: {
       en: "Are you sure you want to delete this subscription for \"{{name}}\"? This action cannot be undone.",
-      es: "¿Estás seguro de que deseas eliminar esta suscripción para \"{{name}}\"? Esta acción no se puede deshacer.",
+      es: "¿Eliminar esta suscripción para \"{{name}}\"? Esta acción no se puede deshacer.",
     },
     confirmLabel: { en: "Delete", es: "Eliminar" },
   },
