@@ -1957,8 +1957,7 @@ export function HuemulField({
             autoFocus={autoFocus}
             autoComplete="off"
             aria-invalid={baseInvalid || undefined}
-            className={cn("resize-none overflow-y-auto", inputClassName)}
-            style={{ fieldSizing: "fixed" }}
+            className={cn("resize-none overflow-y-auto field-sizing-fixed", inputClassName)}
           />
         );
 
