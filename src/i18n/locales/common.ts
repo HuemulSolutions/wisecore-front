@@ -107,6 +107,9 @@ const translations = {
     page: { en: "Page", es: "Página" },
     of: { en: "of", es: "de" },
     items: { en: "items", es: "elementos" },
+    noResults: { en: "No results", es: "Sin resultados" },
+    showing: { en: "Showing", es: "Mostrando" },
+    perPage: { en: "Per page", es: "Por página" },
   },
   relativeTime: {
     justNow: { en: "Just now", es: "Ahora mismo" },

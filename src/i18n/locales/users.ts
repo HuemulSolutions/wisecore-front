@@ -119,6 +119,61 @@ const translations = {
   toast: {
     userUpdated: { en: "User updated successfully", es: "Usuario actualizado exitosamente" },
   },
+  detail: {
+    tabProfile: { en: "Profile", es: "Perfil" },
+    tabRoles: { en: "Roles", es: "Roles" },
+    close: { en: "Close", es: "Cerrar" },
+    activatedLabel: { en: "Active since", es: "Activo desde" },
+    rootAdminSection: { en: "Root Administrator Access", es: "Acceso de Administrador Raíz" },
+    createRoleButton: { en: "Create role", es: "Crear rol" },
+    addRole: { en: "Add role", es: "Agregar rol" },
+    removeRole: { en: "Remove role", es: "Quitar rol" },
+    undoRemove: { en: "Undo", es: "Deshacer" },
+    positionBadge: { en: "Position", es: "Cargo" },
+    permissionCount: { en: "{{count}} perm", es: "{{count}} perm" },
+    status: {
+      added: { en: "to add", es: "por agregar" },
+      created: { en: "new", es: "nuevo" },
+      removed: { en: "to remove", es: "por quitar" },
+    },
+    rolesEmpty: {
+      en: "This user has no roles assigned. Without a role they can't see any module.",
+      es: "Este usuario no tiene roles. Sin rol no ve ningún módulo.",
+    },
+    errorLoadingRoles: { en: "Error loading roles", es: "Error al cargar los roles" },
+    hierarchyTitle: { en: "Position and hierarchy", es: "Cargo y jerarquía" },
+    reportsTo: { en: "Reports to {{name}}", es: "Reporta a {{name}}" },
+    noParent: { en: "No manager defined", es: "Sin jefe definido" },
+    pendingAdded: { en: "{{count}} roles to add", es: "{{count}} roles por agregar" },
+    pendingRemoved: { en: "{{count}} roles to remove", es: "{{count}} roles por quitar" },
+    saveChanges: { en: "Save changes", es: "Guardar cambios" },
+    discardChanges: { en: "Discard", es: "Descartar" },
+    discardTitle: { en: "Discard pending changes?", es: "¿Descartar cambios pendientes?" },
+    discardDescription: {
+      en: "The roles you added or removed will be lost.",
+      es: "Se perderán los roles que agregaste o quitaste.",
+    },
+    discardDescriptionWithCreated: {
+      en: "The roles you added or removed will be lost. Roles created in this session will stay in Roles, unassigned.",
+      es: "Se perderán los roles que agregaste o quitaste. Los roles creados en esta sesión quedan en Roles, sin asignar.",
+    },
+    saved: { en: "{{count}} roles assigned to {{name}}.", es: "{{count}} roles asignados a {{name}}." },
+    savedKeepsCreated: { en: "Roles created stay in Roles even if undone.", es: "Los roles creados se mantienen en Roles aunque se deshaga." },
+    picker: {
+      searchPlaceholder: { en: "Search role or type a new one…", es: "Buscar rol o escribir uno nuevo…" },
+      noResults: { en: "No role matches \"{{query}}\".", es: "Ningún rol coincide con «{{query}}»." },
+      noResultsEmpty: { en: "No roles yet.", es: "Todavía no hay roles." },
+      loadMore: { en: "Load more", es: "Cargar más" },
+    },
+  },
+  bulk: {
+    selected: { en: "{{count}} users selected", es: "{{count}} usuarios seleccionados" },
+    addRole: { en: "Assign a role to all", es: "Asignar un rol a todos" },
+    removeRole: { en: "Remove a role", es: "Quitar un rol" },
+    clear: { en: "Deselect", es: "Deseleccionar" },
+    applied: { en: "{{ok}} of {{total}} applied", es: "{{ok}} de {{total}} aplicados" },
+    appliedPartial: { en: "Only {{ok}} of {{total}} applied", es: "Solo se aplicaron {{ok}} de {{total}}" },
+  },
 }
 
 export default translations

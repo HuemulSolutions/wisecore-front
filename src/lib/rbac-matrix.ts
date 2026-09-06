@@ -320,9 +320,22 @@ export const RBAC_PAGES = {
       // tres formas de mutar un usuario ya existente.
       updateUser: "user:u",
       deleteUser: "user:d",
-      // POST /user_roles/{roleId}/bulk_users — mismo endpoint y mismo permiso
-      // que RBAC_PAGES.roles.features.assignRoleToUsers.
+      // POST /user_roles/bulk_role_assign/{userId} — mismo permiso que
+      // RBAC_PAGES.roles.features.assignRoleToUsers (endpoint corregido: no
+      // es /user_roles/{roleId}/bulk_users, ese es el de asignar usuarios A
+      // un rol desde /roles, dirección inversa).
       assignRoles: "rbac:u",
+      // Catálogo del popover "Agregar rol" del panel de detalle + colores de
+      // los chips de rol de la tabla (useRolesMap). Mismo permiso y mismo
+      // endpoint que RBAC_PAGES.roles.features.listRoles.
+      listRoles: ["rbac:l", "rbac:r"],
+      // Vías "Rápido" y "Con permisos" del popover "Agregar rol".
+      createRole: "rbac:c",
+      // Vía "Clonar" del popover "Agregar rol".
+      cloneRole: "rbac:c",
+      // GET /rbac/permissions — catálogo que alimenta CreateRoleSheet cuando
+      // se abre desde el popover (vía "Con permisos").
+      listPermissionCatalog: ["rbac:l", "rbac:r"],
     },
   },
   roles: {
@@ -348,6 +361,11 @@ export const RBAC_PAGES = {
       exportRoles: ["rbac:l", "rbac:r"],
       // on_conflict=overwrite pisa roles existentes: exige crear y actualizar.
       importRoles: { all: ["rbac:c", "rbac:u"] },
+      // Tab "Usuarios" del panel de detalle del rol (espejo de /users).
+      listUsers: ["user:l", "user:r"],
+      // Botón "Crear usuario" inline desde el popover "Agregar usuario" del
+      // panel del rol (mismo patrón que createUser en RBAC_PAGES.users).
+      createUser: "user:c",
     },
   },
   "asset-types": {

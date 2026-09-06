@@ -1,16 +1,19 @@
-"use client"
+  "use client"
 
-import { useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from "react-router-dom"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { usePageAccess } from "@/hooks/usePageAccess"
-import { type User, type UsersResponse } from "@/types/users"
-import { useUsers, useUserMutations, userQueryKeys } from "@/hooks/useUsers"
+import { type User, type UsersResponse, type UserListState, type UserDialogsState, type UserDetailTab } from "@/types/users"
+import { useUsers, useUserById, useUserMutations, userQueryKeys } from "@/hooks/useUsers"
+import { useUserRolesStaging } from "@/hooks/useUserRolesStaging"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
+import CreateRoleSheet from "@/components/roles/roles-create-sheet"
 
 // Components
 import {
@@ -20,24 +23,33 @@ import {
   UserPageEmptyState,
   UserPageDialogs,
   UserContentEmptyState,
-  type UserPageState
+  UserDetailPanel,
+  UsersBulkActionsBar,
+  type UserDetailPanelGuardApi,
 } from "@/components/users"
 
 export default function UsersPage() {
-  const [state, setState] = useState<UserPageState>({
+  const [state, setState] = useState<UserListState>({
     searchTerm: "",
-    filterStatus: "all",
     selectedUsers: new Set(),
     editingUser: null,
     organizationUser: null,
     showCreateDialog: false,
-    assigningRoleUser: null,
     deletingUser: null,
     rootAdminUser: null
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [createRoleSheetOpen, setCreateRoleSheetOpen] = useState(false)
+  const [createRoleInitialName, setCreateRoleInitialName] = useState("")
+
+  // El usuario/tab seleccionados viven en la URL (?user=<id>&tab=roles), no en
+  // un useState espejo: así el panel es linkeable y sobrevive al refresh. Ver
+  // precedente src/pages/assets-types.tsx:86-93.
+  const selectedUserId = searchParams.get('user')
+  const detailTab: UserDetailTab = searchParams.get('tab') === 'roles' ? 'roles' : 'profile'
 
   // Get permissions and organization context
   const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('users')
@@ -54,6 +66,8 @@ export default function UsersPage() {
   const canUpdateUser = can('updateUser')
   const canDeleteUser = can('deleteUser')
   const canAssignRoles = can('assignRoles')
+  const canListRoles = can('listRoles')
+  const canCreateRole = can('createRole')
 
   // Fetch users and mutations - solo si tiene permisos de listar
   const { data: usersResponse, isLoading, isFetching, isError, refetch } = useUsers(
@@ -77,6 +91,36 @@ export default function UsersPage() {
     hasData: !!usersResponse,
   })
 
+  const filteredUsers = usersResponse?.data || []
+
+  // Deep-link: el usuario de la URL puede no estar en la página actual de la
+  // tabla (otra página, otro filtro de búsqueda) — fallback a useUserById.
+  const selectedUserFromPage = filteredUsers.find((u) => u.id === selectedUserId) ?? null
+  const needsFallbackFetch = !!selectedUserId && !selectedUserFromPage
+  const { data: fallbackUser } = useUserById(
+    needsFallbackFetch ? selectedUserId : null,
+    needsFallbackFetch && canListUsers,
+  )
+  const selectedUser = selectedUserFromPage ?? fallbackUser ?? null
+
+  // Staging de roles del usuario seleccionado: vive acá (no dentro del panel)
+  // para que `CreateRoleSheet` (sibling, vía "Con permisos" del popover)
+  // pueda agregar el rol recién creado sin pasar por el panel — ver
+  // ia context/inline-create-entity-in-sheet-guide.md.
+  const staging = useUserRolesStaging(selectedUser?.id ?? null, {
+    enabled: canListRoles && !!selectedUser,
+    canAssignRoles,
+    expectedAssignedCount: selectedUser?.roles?.length,
+  })
+
+  // Guard de descarte: registrado por el panel (ver
+  // ia context/sheet-footer-batch-save-guide.md), consultado acá antes de
+  // cambiar de fila.
+  const guardRef = useRef<UserDetailPanelGuardApi | null>(null)
+  const onRegisterGuard = useCallback((api: UserDetailPanelGuardApi | null) => {
+    guardRef.current = api
+  }, [])
+
   // Loading state for permissions
   if (isLoadingPermissions) {
     return <UserPageSkeleton />
@@ -97,17 +141,12 @@ export default function UsersPage() {
     return <UserPageSkeleton />
   }
 
-  const users = usersResponse?.data || []
-  const filteredUsers = state.filterStatus === "all"
-    ? users
-    : users.filter((user: User) => user.status === state.filterStatus)
-
   // State update helpers
-  const updateState = (updates: Partial<UserPageState>) => {
+  const updateState = (updates: Partial<UserListState>) => {
     setState(prev => ({ ...prev, ...updates }))
   }
 
-  const closeDialog = (dialog: keyof UserPageState) => {
+  const closeDialog = (dialog: keyof UserDialogsState) => {
     setState(prev => ({ ...prev, [dialog]: null }))
   }
 
@@ -135,33 +174,46 @@ export default function UsersPage() {
     updateState({ selectedUsers: newSelection })
   }
 
-  // User action handlers with lazy data loading
-  const handleEditUser = async (user: User) => {
-    // Data for editing is usually already available from the user object
-    updateState({ editingUser: user })
-  }
-
-  const handleAssignRoles = async (user: User) => {
-    // Set the user and let the dialog/sheet component handle roles fetching
-    updateState({ assigningRoleUser: user })
-  }
-
-  const handleDeleteUser = async (user: User) => {
-    // No additional data needed for delete confirmation
-    updateState({ deletingUser: user })
-  }
-
-  const handleManageRootAdmin = async (user: User) => {
-    // Set the user and let the dialog handle the admin status
-    updateState({ rootAdminUser: user })
-  }
-
   const handleSelectAll = () => {
     if (state.selectedUsers.size === filteredUsers.length) {
       updateState({ selectedUsers: new Set() })
     } else {
       updateState({ selectedUsers: new Set(filteredUsers.map((user: User) => user.id)) })
     }
+  }
+
+  // Navegación del panel de detalle: siempre a través de la URL.
+  const navigateToUser = (userId: string | null, tab: UserDetailTab = 'profile') => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (userId) {
+        next.set('user', userId)
+        next.set('tab', tab)
+      } else {
+        next.delete('user')
+        next.delete('tab')
+      }
+      return next
+    }, { replace: true })
+  }
+
+  const handleSelectUser = (user: User, tab?: UserDetailTab) => {
+    const targetTab = tab ?? (user.id === selectedUserId ? detailTab : 'profile')
+    const proceed = () => navigateToUser(user.id, targetTab)
+    if (guardRef.current) guardRef.current.attemptNavigate(proceed)
+    else proceed()
+  }
+
+  const handleClosePanel = () => navigateToUser(null)
+
+  const handleTabChange = (tab: UserDetailTab) => {
+    if (!selectedUserId) return
+    navigateToUser(selectedUserId, tab)
+  }
+
+  const handleOpenCreateRoleSheet = (initialName: string) => {
+    setCreateRoleInitialName(initialName)
+    setCreateRoleSheetOpen(true)
   }
 
   return (
@@ -179,8 +231,6 @@ export default function UsersPage() {
               updateState({ searchTerm: value })
               setPage(1)
             }}
-            filterStatus={state.filterStatus}
-            onStatusFilterChange={(value) => updateState({ filterStatus: value })}
             canCreate={canCreateUser}
           />
         }
@@ -188,13 +238,13 @@ export default function UsersPage() {
         columns={[
           {
             content: isError ? (
-              <UserContentEmptyState 
-                type="error" 
-                message={t('users:emptyState.errorLoading')} 
+              <UserContentEmptyState
+                type="error"
+                message={t('users:emptyState.errorLoading')}
                 onRetry={handleRefresh}
               />
             ) : !isTableLoading && !isTableFetching && filteredUsers.length === 0 ? (
-              <UserContentEmptyState 
+              <UserContentEmptyState
                 type="empty"
               />
             ) : (
@@ -203,15 +253,9 @@ export default function UsersPage() {
                 selectedUsers={state.selectedUsers}
                 onUserSelection={handleUserSelection}
                 onSelectAll={handleSelectAll}
-                onEditUser={handleEditUser}
-                onAssignRoles={handleAssignRoles}
-                onDeleteUser={handleDeleteUser}
-                onManageRootAdmin={handleManageRootAdmin}
-                canManageRootAdmin={isRootAdmin}
-                userMutations={userMutations}
-                canUpdate={canUpdateUser}
-                canDelete={canDeleteUser}
-                canAssignRoles={canAssignRoles}
+                onSelectUser={handleSelectUser}
+                selectedUserId={selectedUserId}
+                canListRoles={canListRoles}
                 isLoading={isTableLoading}
                 isFetching={isTableFetching}
                 pagination={{
@@ -228,7 +272,48 @@ export default function UsersPage() {
                 }}
               />
             ),
-            className: "p-4 md:p-6 pt-0 md:pt-0",
+            className: "flex flex-col",
+            minSize: 45,
+            footer: {
+              content: (
+                <UsersBulkActionsBar
+                  selectedUsers={filteredUsers.filter((u) => state.selectedUsers.has(u.id))}
+                  onClear={() => updateState({ selectedUsers: new Set() })}
+                  canAssignRoles={canAssignRoles}
+                  canListRoles={canListRoles}
+                  disabled={staging.isDirty}
+                />
+              ),
+              show: state.selectedUsers.size > 0,
+              className: "px-4 pb-4 md:px-6 md:pb-6",
+            },
+          },
+          {
+            content: selectedUser ? (
+              <UserDetailPanel
+                user={selectedUser}
+                activeTab={detailTab}
+                onTabChange={handleTabChange}
+                onClose={handleClosePanel}
+                onEditUser={() => updateState({ editingUser: selectedUser })}
+                onDeleteUser={() => updateState({ deletingUser: selectedUser })}
+                onOpenCreateRoleSheet={handleOpenCreateRoleSheet}
+                userMutations={userMutations}
+                canUpdate={canUpdateUser}
+                canDelete={canDeleteUser}
+                canManageRootAdmin={isRootAdmin}
+                canAssignRoles={canAssignRoles}
+                canListRoles={canListRoles}
+                canCreateRole={canCreateRole}
+                onRegisterGuard={onRegisterGuard}
+                staging={staging}
+              />
+            ) : null,
+            show: !!selectedUserId,
+            defaultSize: 32,
+            minSize: 24,
+            maxSize: 45,
+            className: "border-l border-border",
           },
         ]}
       />
@@ -242,11 +327,24 @@ export default function UsersPage() {
         canCreate={canCreateUser}
         canUpdate={canUpdateUser}
         canDelete={canDeleteUser}
-        canAssignRoles={canAssignRoles}
         canManageRootAdmin={isRootAdmin}
         // Asignar/quitar organizaciones es cross-org y solo se ofrece desde
         // /global-admin (root-admin-only): esta pantalla no tiene el trigger.
         canManageOrganizations={false}
+      />
+
+      {/* Sibling del layout — nunca anidado en el panel ni en el popover, ver
+          ia context/inline-create-entity-in-sheet-guide.md. Al crearse, el rol
+          entra al staging del usuario seleccionado como "por crear". */}
+      <CreateRoleSheet
+        open={createRoleSheetOpen}
+        onOpenChange={setCreateRoleSheetOpen}
+        canCreate={canCreateRole}
+        initialName={createRoleInitialName}
+        onCreated={(role) => {
+          staging.add(role, { created: true })
+          setCreateRoleSheetOpen(false)
+        }}
       />
     </>
   )

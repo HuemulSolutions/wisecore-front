@@ -8,7 +8,7 @@ import type { Role } from '@/types/rbac';
 import type { RoleReferenceElement } from '@/types/reference';
 
 /** page_size grande para traer TODOS los roles de una vez — mismo truco ya usado
- * en roles-create-sheet.tsx/roles-edit-sheet.tsx para resolver el combobox de rol padre. */
+ * en roles-create-sheet.tsx/useRoleDetailsForm.ts para resolver el combobox de rol padre. */
 const ALL_ROLES_PAGE_SIZE = 1000;
 
 /**

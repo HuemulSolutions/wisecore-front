@@ -21,11 +21,21 @@ import {
   UserPageEmptyState,
   UserPageDialogs,
   UserContentEmptyState,
-  type UserPageState,
+  type UserListState,
+  type UserDialogsState,
   formatDate,
   getStatusColor,
 } from "@/components/users"
 import type { GlobalUsersResponse } from "@/types/global-admin/components"
+
+// Esta sección mantiene su propio filtro de estado (client-side, sobre
+// `getGlobalUsers`) independiente del de `users.tsx`, que ya no lo tiene.
+// Extiende `UserListState` (tabla + diálogos), no `UserPageState`: esta
+// sección no adopta el layout master-detail, así que no carga
+// `selectedUserId`/`detailTab`, que no usa.
+interface GlobalAdminUserPageState extends UserListState {
+  filterStatus: string
+}
 
 interface GlobalAdminUsersSectionProps {
   /**
@@ -40,14 +50,13 @@ interface GlobalAdminUsersSectionProps {
 
 export function GlobalAdminUsersSection({ canManage }: GlobalAdminUsersSectionProps) {
   const { t } = useTranslation(['users', 'global-admin', 'common'])
-  const [state, setState] = useState<UserPageState>({
+  const [state, setState] = useState<GlobalAdminUserPageState>({
     searchTerm: "",
     filterStatus: "all",
     selectedUsers: new Set(),
     editingUser: null,
     organizationUser: null,
     showCreateDialog: false,
-    assigningRoleUser: null,
     deletingUser: null,
     rootAdminUser: null
   })
@@ -92,11 +101,11 @@ export function GlobalAdminUsersSection({ canManage }: GlobalAdminUsersSectionPr
     ? users
     : users.filter((user: User) => user.status === state.filterStatus)
 
-  const updateState = (updates: Partial<UserPageState>) => {
+  const updateState = (updates: Partial<GlobalAdminUserPageState>) => {
     setState(prev => ({ ...prev, ...updates }))
   }
 
-  const closeDialog = (dialog: keyof UserPageState) => {
+  const closeDialog = (dialog: keyof UserDialogsState) => {
     setState(prev => ({ ...prev, [dialog]: null }))
   }
 
@@ -335,7 +344,6 @@ export function GlobalAdminUsersSection({ canManage }: GlobalAdminUsersSectionPr
         canCreate={canManage}
         canUpdate={canManage}
         canDelete={canManage}
-        canAssignRoles={canManage}
         canManageRootAdmin={canManage}
         canManageOrganizations={canManage}
       />

@@ -77,21 +77,42 @@ export interface CreateUserData {
   photo_file?: string
 }
 
-export interface UserPageState {
-  searchTerm: string
-  filterStatus: string
-  selectedUsers: Set<string>
+/** Pestaña activa del panel de detalle del usuario. Sin 'activity': no existe
+ *  endpoint de auditoría de asignaciones en el backend (ver
+ *  respuestas/backend-panel-usuarios-roles.md). */
+export type UserDetailTab = 'profile' | 'roles'
+
+/**
+ * Solo los diálogos/sheets que `UserPageDialogs` monta. Separado de
+ * `UserPageState` para que un consumidor sin master-detail (`/global-admin`,
+ * ver `GlobalAdminUserPageState`) no cargue `selectedUserId`/`detailTab`, que
+ * no usa. `assigningRoleUser` no vive acá: el sheet de asignación
+ * (`roles-assign-sheet.tsx`) se eliminó, el panel de detalle absorbe esa
+ * función con su propio staging (`useUserRolesStaging`).
+ */
+export interface UserDialogsState {
   editingUser: User | null
   organizationUser: User | null
   showCreateDialog: boolean
-  assigningRoleUser: User | null
   deletingUser: User | null
   rootAdminUser: User | null
 }
 
+/** Estado de tabla + diálogos, sin el master-detail. Lo que reusa `/global-admin`. */
+export interface UserListState extends UserDialogsState {
+  searchTerm: string
+  selectedUsers: Set<string>
+}
+
+export interface UserPageState extends UserListState {
+  /** Fila activa del layout master-detail. `null` = panel cerrado. */
+  selectedUserId: string | null
+  detailTab: UserDetailTab
+}
+
 export interface UserPageActions {
   updateState: (updates: Partial<UserPageState>) => void
-  closeDialog: (dialog: keyof UserPageState) => void
+  closeDialog: (dialog: keyof UserDialogsState) => void
   handleUserSelection: (userId: string) => void
   handleSelectAll: () => void
 }
