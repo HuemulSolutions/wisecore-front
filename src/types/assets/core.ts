@@ -716,8 +716,14 @@ export interface PendingChangesResponse {
   has_next: boolean;
 }
 
+/** `scope` de `GET /documents/statistics`. `team` es alias exacto de `organization` hoy (no existe concepto de equipo en backend) — mismos 8 contadores, sin los 5 adicionales. Default (sin mandar el parámetro): `organization`. */
+export type DocumentStatisticsScope = 'me' | 'team' | 'organization';
+
 /**
- * Conteo de activos por categoría del dashboard
+ * Conteo de activos por categoría del dashboard. Los 8 primeros campos son
+ * org-wide y no cambian de valor según `scope`. Los 5 campos `pending_my_*`,
+ * `approved_owned_by_me_count`, `my_mentions_count` y `due_this_week_count`
+ * solo llegan con `scope=me`, relativos al usuario autenticado.
  */
 export interface DocumentStatistics {
   owned_count: number;
@@ -728,6 +734,16 @@ export interface DocumentStatistics {
   published_count: number;
   expiring_soon_count: number;
   unresolved_comments_count: number;
+  /** Ejecuciones que el usuario puede revisar ahora mismo — mismo predicado que `GET /execution/?pending_my_action=review`. */
+  pending_my_review_count?: number;
+  /** Ídem para aprobación (`pending_my_action=approve`). */
+  pending_my_approval_count?: number;
+  /** Ejecuciones `approved` cuyo documento es del usuario (`Document.created_by`). */
+  approved_owned_by_me_count?: number;
+  /** Placeholder fijo en `0` — depende de menciones a usuarios en comentarios, que todavía no existen. No renderizar como "0 menciones reales". */
+  my_mentions_count?: number;
+  /** Ejecuciones propias (dueño o con acción de review/approve pendiente) cuya `expiration_date` o `estimated_publication_date` cae dentro de los próximos 7 días. */
+  due_this_week_count?: number;
 }
 
 /**

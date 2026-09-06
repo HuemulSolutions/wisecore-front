@@ -1,4 +1,4 @@
-import type { ExecutionLifecycleState, ExecutionSearchType } from './core'
+import type { ExecutionLifecycleState, ExecutionPendingMyAction, ExecutionSearchType } from './core'
 
 export interface UseAllExecutionsOptions {
   enabled?: boolean
@@ -28,6 +28,8 @@ export interface UseAllExecutionsOptions {
   document_type_id?: string | null
   sort?: string | null
   custom_field_filter?: string[]
+  /** No combinable con `query`/`search_type` — ver `ExecutionPendingMyAction`. */
+  pending_my_action?: ExecutionPendingMyAction | null
 }
 
 export interface ExecutionPollingData {

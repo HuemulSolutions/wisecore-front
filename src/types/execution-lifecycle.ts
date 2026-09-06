@@ -1,6 +1,19 @@
 export type ExecutionEventType = 'auto_advanced' | 'advanced' | 'step_completed' | 'rejected'
 export type LifecycleStepKind = 'edit' | 'review' | 'approve'
 
+/**
+ * Step actual del lifecycle, tal como lo proyectan `GET /workflows/`
+ * (`WorkflowItem.current_lifecycle_step`) y ahora también `GET /execution/` /
+ * `GET /execution/{id}` (`Execution.current_lifecycle_step`) — mismo shape,
+ * reusado en vez de declararlo dos veces (ver `types/workflow.ts`).
+ */
+export interface LifecycleStepSummary {
+  step_id: string
+  step_type: LifecycleStepKind
+  /** Null si el step no tiene nombre configurado (el backend arma un respaldo tipo "Edit - 2"). */
+  step_name: string | null
+}
+
 // Main entity — must match backend response shape exactly
 export interface ExecutionEvent {
   id: string

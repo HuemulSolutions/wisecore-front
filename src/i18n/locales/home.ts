@@ -41,26 +41,23 @@
       meta: { en: "Sorted by publication date", es: "Ordenado por fecha de publicación" },
       empty: { en: "No assets waiting to publish", es: "Sin activos pendientes de publicar" },
       actionPublish: { en: "Publish", es: "Publicar" },
-      bulkPublish: { en: "Publish all {{count}}", es: "Publicar los {{count}}" },
-      bulkPublishing: { en: "Publishing {{done}} of {{total}}…", es: "Publicando {{done}} de {{total}}…" },
-      bulkPublishSuccess: { en: "{{count}} assets published", es: "{{count}} activos publicados" },
-      bulkPublishPartial: {
-        en: "{{done}} of {{total}} published — some failed, retry them individually",
-        es: "{{done}} de {{total}} publicados — algunos fallaron, reintentalos individualmente",
-      },
     },
-    // Los 3 grupos de abajo quedan sin query real (enabled: false en
-    // home-my-work-tab.tsx) hasta que backend entregue el spec — las
-    // traducciones ya están listas para cuando se activen.
     review: {
       title: { en: "Awaiting your review", es: "Esperando tu revisión" },
       meta: { en: "Sorted by time waiting", es: "Ordenado por antigüedad" },
+      empty: { en: "Nothing waiting for your review", es: "Nada esperando tu revisión" },
+      // Sin botones inline todavía — backend entregó `lifecycle_permissions`
+      // por fila pero no `lifecycle_status` (can_advance/can_rollback/
+      // advance_blockers), que es lo que hace falta para decidir qué botón
+      // pintar. Claves listas para cuando se resuelva (ver
+      // respuestas/spec-home-lifecycle-status-por-fila.md).
       actionSecondary: { en: "Return", es: "Devolver" },
       actionPrimary: { en: "Review", es: "Revisar" },
     },
     approval: {
       title: { en: "Awaiting your approval", es: "Esperan tu aprobación" },
-      meta: { en: "Sorted by publication date", es: "Ordenado por fecha de publicación" },
+      meta: { en: "Sorted by time waiting", es: "Ordenado por antigüedad" },
+      empty: { en: "Nothing waiting for your approval", es: "Nada esperando tu aprobación" },
       actionSecondary: { en: "Reject", es: "Rechazar" },
       actionPrimary: { en: "Approve", es: "Aprobar" },
     },
@@ -77,6 +74,9 @@
       expand: { en: "Expand", es: "Expandir" },
       errorTitle: { en: "We couldn't load this group", es: "No pudimos cargar este grupo" },
       updatedAgo: { en: "updated {{time}}", es: "hace {{time}}" },
+      // `lifecycle_state_since` — entrada al estado actual, distinto de
+      // `updatedAgo` (última edición de contenido). Ver spec Punto 6.
+      pendingSince: { en: "waiting {{time}}", es: "esperando hace {{time}}" },
       publishesOn: { en: "publishes on {{date}}", es: "publica el {{date}}" },
       undoUnavailable: {
         en: "Done. This action can't be undone yet.",
@@ -89,6 +89,7 @@
     overview: {
       title: { en: "Overview", es: "Panorama" },
       scopeOrganization: { en: "Organization", es: "Organización" },
+      scopeMine: { en: "Just mine", es: "Solo lo mío" },
     },
     continue: {
       title: { en: "Continue where you left off", es: "Continuar donde quedaste" },
@@ -176,6 +177,11 @@
     searchTypeContent: { en: "Content", es: "Contenido" },
     lifecycleState: { en: "Lifecycle", es: "Ciclo de Vida" },
     allLifecycleStates: { en: "All states", es: "Todos los estados" },
+    pendingMyAction: { en: "Pending my action", es: "Pendientes de mi acción" },
+    allPendingMyAction: { en: "All", es: "Todas" },
+    pendingMyActionReview: { en: "Awaiting my review", es: "Esperando mi revisión" },
+    pendingMyActionApprove: { en: "Awaiting my approval", es: "Esperando mi aprobación" },
+    pendingMyActionAny: { en: "Awaiting my review or approval", es: "Esperando mi revisión o aprobación" },
     ownerScope: { en: "Owner", es: "Propietario" },
     allOwners: { en: "All owners", es: "Todos los propietarios" },
     ownerAll: { en: "All", es: "Todos" },
@@ -232,6 +238,16 @@
     },
     unresolvedComments: {
       label: { en: "With unresolved comments", es: "Con comentarios sin resolver" },
+    },
+    // Bloque "Solo lo mío" — `scope=me` de `GET /documents/statistics`.
+    pendingMyReview: {
+      label: { en: "Awaiting your review", es: "Esperan tu revisión" },
+    },
+    pendingMyApproval: {
+      label: { en: "Awaiting your approval", es: "Esperan tu aprobación" },
+    },
+    approvedOwnedByMe: {
+      label: { en: "Approved, yours", es: "Aprobados tuyos" },
     },
   },
 

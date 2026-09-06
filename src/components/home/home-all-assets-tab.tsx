@@ -29,6 +29,8 @@ export interface HomeAllAssetsTabProps {
   filtersOpen: boolean;
   onFiltersOpenChange: (open: boolean) => void;
   data: Execution[];
+  /** Conteo exacto de filas que matchean los filtros actuales. `null`/`undefined` cuando hay búsqueda de texto libre (`query`) activa — el backend no calcula un total exacto barato en ese caso; se omite el número en vez de mostrar `0` o el largo de la página. */
+  total?: number | null;
   hasNext?: boolean;
   isLoading: boolean;
   isFetching: boolean;
@@ -64,6 +66,7 @@ export function HomeAllAssetsTab({
   filtersOpen,
   onFiltersOpenChange,
   data,
+  total,
   hasNext,
   isLoading,
   isFetching,
@@ -228,7 +231,9 @@ export function HomeAllAssetsTab({
               <HuemulFilterButton count={activeCount} open={filtersOpen} onToggle={() => onFiltersOpenChange(!filtersOpen)} />
               <HuemulFilterInline filters={filterDefs} values={values} onChange={onFilterChange} onSelectedLabel={onSelectedLabel} />
             </div>
-            {!isLoading && <p className="shrink-0 text-sm text-muted-foreground">{t('executionsTable.resultsCount', { count: data.length })}</p>}
+            {!isLoading && total != null && (
+              <p className="shrink-0 text-sm text-muted-foreground">{t('executionsTable.resultsCount', { count: total })}</p>
+            )}
           </div>
           <HuemulFilterChips chips={chips} onRemove={onChipRemove} onClearAll={onClearAll} />
         </>

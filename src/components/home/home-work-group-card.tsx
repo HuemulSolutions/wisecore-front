@@ -31,14 +31,13 @@ export interface HomeWorkGroupCardProps {
   footer?: { label: string; onClick: () => void };
   /** Grupo en 0 pero otros grupos sí tienen datos — colapsa a una línea con check verde. */
   emptyCollapsedLabel?: string;
-  bulkAction?: { label: string; onClick: () => void; loading?: boolean };
 }
 
 /**
- * Card de grupo de la pestaña "Mi trabajo" — genérica y reusable por los 4
- * grupos (`respuestas/spec-home-mi-trabajo-backend.md`): hoy solo "Aprobados"
- * se monta con datos reales, los otros 3 quedan listos para activarse
- * agregando su query sin tocar este componente.
+ * Card de grupo de la pestaña "Mi trabajo" — genérica y reusable por los 3
+ * grupos con datos reales ("Esperando tu revisión", "Esperan tu aprobación",
+ * "Aprobados, listos para publicar"; ver `useMyWork`). El cuarto grupo del
+ * diseño ("Comentarios que te mencionan") sigue sin backend y no se monta.
  */
 export function HomeWorkGroupCard({
   accent,
@@ -54,7 +53,6 @@ export function HomeWorkGroupCard({
   onRetry,
   footer,
   emptyCollapsedLabel,
-  bulkAction,
 }: HomeWorkGroupCardProps) {
   const { t } = useTranslation('home');
 
@@ -90,16 +88,6 @@ export function HomeWorkGroupCard({
           </button>
         </CollapsibleTrigger>
         <div className="flex shrink-0 items-center gap-2">
-          {bulkAction && (
-            <HuemulButton
-              variant="outline"
-              size="sm"
-              className={cn('h-[26px] border-current', accent.accentText)}
-              label={bulkAction.label}
-              loading={bulkAction.loading}
-              onClick={bulkAction.onClick}
-            />
-          )}
           {meta && !isLoading && <span className="text-[12px] text-[#94a3b8]">{meta}</span>}
         </div>
       </div>

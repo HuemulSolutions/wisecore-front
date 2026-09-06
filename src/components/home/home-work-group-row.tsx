@@ -29,10 +29,19 @@ export function HomeWorkGroupRow({ row, onOpen, actions, isExiting, commentExcer
     if (row.temporalKind === 'estimatedPublicationDate') {
       return { text: t('workGroups.common.publishesOn', { date: formatAbsoluteDate(row.temporalDate) }), overdue: false };
     }
-    // 'sinceUpdated' — aproximación documentada: no hay `lifecycle_state_since`
-    // en el backend todavía (spec Punto 6), así que esto se mueve con
-    // cualquier edición del documento, no solo con la transición de estado.
     const days = (Date.now() - new Date(row.temporalDate).getTime()) / 86_400_000;
+    if (row.temporalKind === 'sinceLifecycleState') {
+      // Entrada al `lifecycle_state` actual — exacto de acá en adelante (ver
+      // spec Punto 6). El resalte de "detenido hace N días" ahora sí refleja
+      // tiempo en el estado, no la última edición de contenido.
+      return {
+        text: t('workGroups.common.pendingSince', { time: formatRelativeTime(row.temporalDate) }),
+        overdue: days > OVERDUE_DAYS_THRESHOLD,
+      };
+    }
+    // 'sinceUpdated' — fallback si `lifecycle_state_since` viniera ausente:
+    // impreciso a propósito, se mueve con cualquier edición del documento, no
+    // solo con la transición de estado.
     return {
       text: t('workGroups.common.updatedAgo', { time: formatRelativeTime(row.temporalDate) }),
       overdue: days > OVERDUE_DAYS_THRESHOLD,
@@ -50,10 +59,10 @@ export function HomeWorkGroupRow({ row, onOpen, actions, isExiting, commentExcer
       <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left hover:cursor-pointer">
         <p className="truncate text-[13.5px] font-medium">{row.documentName}</p>
         <p className="truncate text-[12px] text-[#64748b]">
-          {[row.versionLabel, row.ownerName].filter(Boolean).join(' · ')}
+          {[row.versionLabel, row.ownerName, row.stepName].filter(Boolean).join(' · ')}
           {temporalText && (
             <>
-              {(row.versionLabel || row.ownerName) && ' · '}
+              {(row.versionLabel || row.ownerName || row.stepName) && ' · '}
               <span className={temporalText.overdue ? 'font-semibold text-[#b45309]' : undefined}>{temporalText.text}</span>
             </>
           )}

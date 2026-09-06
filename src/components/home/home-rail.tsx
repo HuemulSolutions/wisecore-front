@@ -18,6 +18,8 @@ export interface HomeRailProps {
   showOverview: boolean;
   overviewRows: HomeOverviewRow[];
   overviewLoading: boolean;
+  /** Los 3 contadores personales del bloque "Solo lo mío" — ver `HomeOverviewCard`. */
+  overviewPersonalRows?: HomeOverviewRow[];
 }
 
 /** Rail derecho (306px) — orquesta las 3 cards según el estado de la página. */
@@ -30,6 +32,7 @@ export function HomeRail({
   showOverview,
   overviewRows,
   overviewLoading,
+  overviewPersonalRows,
 }: HomeRailProps) {
   return (
     <div className="flex w-[306px] shrink-0 flex-col gap-3.5">
@@ -43,7 +46,9 @@ export function HomeRail({
         />
       )}
       {!isFirstTime && <HomeContinueCard recentAssets={recentAssets} />}
-      {!isFirstTime && showOverview && <HomeOverviewCard rows={overviewRows} isLoading={overviewLoading} />}
+      {!isFirstTime && showOverview && (
+        <HomeOverviewCard rows={overviewRows} isLoading={overviewLoading} personalRows={overviewPersonalRows} />
+      )}
     </div>
   );
 }
