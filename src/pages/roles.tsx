@@ -278,36 +278,32 @@ export default function Roles() {
             className: "flex flex-col",
             minSize: 45,
           },
-          {
-            content: selectedRole ? (
-              <RoleDetailPanel
-                role={selectedRole}
-                activeTab={detailTab}
-                onTabChange={handleTabChange}
-                onClose={handleClosePanel}
-                onDeleteRole={() => openDialog.delete(selectedRole)}
-                onCloneRole={() => openDialog.clone(selectedRole)}
-                staging={staging}
-                permsStaging={permsStaging}
-                detailsForm={detailsForm}
-                rolesById={rolesById}
-                canUpdate={canUpdate}
-                canDelete={canDelete}
-                canClone={canClone}
-                canAssignUsers={canAssignRoleToUsers}
-                canListUsers={canListUsers}
-                canCreateUser={canCreateUser}
-                onOpenCreateUserSheet={() => setCreateUserSheetOpen(true)}
-                onRegisterGuard={onRegisterGuard}
-              />
-            ) : null,
-            show: !!selectedRoleId,
-            defaultSize: 32,
-            minSize: 24,
-            maxSize: 45,
-            className: "border-l border-border",
-          },
         ]}
+      />
+
+      {/* El detalle del rol seleccionado se muestra en un HuemulSheet (no
+          como columna del layout) — se mantiene montado con `open`
+          controlado por la URL para que la animación de cierre corra. */}
+      <RoleDetailPanel
+        open={!!selectedRoleId}
+        role={selectedRole}
+        activeTab={detailTab}
+        onTabChange={handleTabChange}
+        onClose={handleClosePanel}
+        onDeleteRole={() => selectedRole && openDialog.delete(selectedRole)}
+        onCloneRole={() => selectedRole && openDialog.clone(selectedRole)}
+        staging={staging}
+        permsStaging={permsStaging}
+        detailsForm={detailsForm}
+        rolesById={rolesById}
+        canUpdate={canUpdate}
+        canDelete={canDelete}
+        canClone={canClone}
+        canAssignUsers={canAssignRoleToUsers}
+        canListUsers={canListUsers}
+        canCreateUser={canCreateUser}
+        onOpenCreateUserSheet={() => setCreateUserSheetOpen(true)}
+        onRegisterGuard={onRegisterGuard}
       />
 
       {/* Dialogs and Sheets */}

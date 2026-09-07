@@ -293,34 +293,30 @@ export default function UsersPage() {
               className: "px-4 pb-4 md:px-6 md:pb-6",
             },
           },
-          {
-            content: selectedUser ? (
-              <UserDetailPanel
-                user={selectedUser}
-                activeTab={detailTab}
-                onTabChange={handleTabChange}
-                onClose={handleClosePanel}
-                onDeleteUser={() => updateState({ deletingUser: selectedUser })}
-                onOpenCreateRoleSheet={handleOpenCreateRoleSheet}
-                userMutations={userMutations}
-                profileForm={profileForm}
-                canUpdate={canUpdateUser}
-                canDelete={canDeleteUser}
-                canManageRootAdmin={isRootAdmin}
-                canAssignRoles={canAssignRoles}
-                canListRoles={canListRoles}
-                canCreateRole={canCreateRole}
-                onRegisterGuard={onRegisterGuard}
-                staging={staging}
-              />
-            ) : null,
-            show: !!selectedUserId,
-            defaultSize: 32,
-            minSize: 24,
-            maxSize: 45,
-            className: "border-l border-border",
-          },
         ]}
+      />
+
+      {/* El detalle del usuario seleccionado se muestra en un HuemulSheet
+          (no como columna del layout) — se mantiene montado con `open`
+          controlado por la URL para que la animación de cierre corra. */}
+      <UserDetailPanel
+        open={!!selectedUserId}
+        user={selectedUser}
+        activeTab={detailTab}
+        onTabChange={handleTabChange}
+        onClose={handleClosePanel}
+        onDeleteUser={() => updateState({ deletingUser: selectedUser })}
+        onOpenCreateRoleSheet={handleOpenCreateRoleSheet}
+        userMutations={userMutations}
+        profileForm={profileForm}
+        canUpdate={canUpdateUser}
+        canDelete={canDeleteUser}
+        canManageRootAdmin={isRootAdmin}
+        canAssignRoles={canAssignRoles}
+        canListRoles={canListRoles}
+        canCreateRole={canCreateRole}
+        onRegisterGuard={onRegisterGuard}
+        staging={staging}
       />
 
       {/* Dialogs and Sheets */}

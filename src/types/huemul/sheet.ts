@@ -46,6 +46,25 @@ export interface HuemulSheetProps {
   bodyClassName?: string;
   headerExtra?: ReactNode;
   footerLeft?: ReactNode;
+  /**
+   * Reemplaza todo el bloque visual `icon + title + description` del header
+   * por contenido a medida (ej. avatar con imagen, badges). `title` sigue
+   * siendo obligatorio: se renderiza igual pero visualmente oculto
+   * (`sr-only`), porque Radix exige un `Dialog.Title` en el árbol. Cuando se
+   * pasa, `icon`/`eyebrow`/`description` se ignoran. La fila de acciones del
+   * header (`extraActions` con `position: "header"`, `saveAction` en header,
+   * `headerExtra`) no se ve afectada.
+   */
+  headerContent?: ReactNode;
+  /**
+   * Reemplaza todo el footer (cancelar, `saveAction`, `extraActions`,
+   * `footerLeft`) por contenido a medida, sin el wrapper sticky/borde/padding
+   * por defecto — el contenido controla su propio layout. Útil cuando el
+   * footer no es una sola acción sino varios bloques condicionales
+   * apilados. Cuando se pasa, `showFooter`/`saveAction`/`extraActions`/
+   * `footerLeft`/`cancelLabel` se ignoran.
+   */
+  footerContent?: ReactNode;
   onOpenAutoFocus?: (event: Event) => void;
   children: ReactNode;
 }
