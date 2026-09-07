@@ -261,6 +261,8 @@ export function AddCustomFieldSheet({
         default_value: {
           allowed_types: newConfig.allowed_types ?? [],
           max_size_mb: newConfig.max_size_mb ?? 10,
+          min_files: newConfig.min_files ?? 0,
+          max_files: newConfig.max_files ?? 1,
         },
       }
     }
@@ -488,6 +490,11 @@ export function AddCustomFieldSheet({
                     options={(selectedCustomField?.default_value as CustomFieldOption[] | null) ?? []}
                     minValue={selectedCustomField?.min_value}
                     maxValue={selectedCustomField?.max_value}
+                    allowedTypes={
+                      selectedCustomField?.question_type === QUESTION_TYPE.fileUpload
+                        ? (selectedCustomField?.default_value as { allowed_types?: string[] } | null)?.allowed_types
+                        : undefined
+                    }
                     error={formErrors.value}
                     disabled={isUploadingImage}
                     isUploadingImage={isUploadingImage}

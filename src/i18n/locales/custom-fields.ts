@@ -98,6 +98,7 @@ const translations = {
     questionTypeRequired: { en: "Field type is required", es: "El tipo de campo es requerido" },
     minMaxInvalid: { en: "Minimum value must be less than or equal to the maximum", es: "El valor mínimo debe ser menor o igual al máximo" },
     allowedTypesLabel: { en: "Allowed file types", es: "Tipos de archivo permitidos" },
+    multiFileUploadPendingBackend: { en: "Uploading more than one file is not yet available here", es: "La subida de más de un archivo todavía no está disponible acá" },
     preview: {
       unnamedLabel: { en: "Field preview", es: "Vista previa del campo" },
     },

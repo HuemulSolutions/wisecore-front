@@ -1,12 +1,18 @@
 import type { FormFieldValue } from "@/types/sections/core";
-import { NUMERIC_DATA_TYPES, QUESTION_TYPE, hasAnswer } from "./question-type-meta";
+import { NUMERIC_DATA_TYPES, QUESTION_TYPE, hasAnswer, readFieldConfig } from "./question-type-meta";
 
 // Validación (cliente) del VALOR de una respuesta contra los constraints del campo
 // (min_value/max_value/entero/formato email). Corre en el runtime de llenado del
 // formulario (asset-form-section.tsx), justo antes de autoguardar — no confundir con
 // validate-form-field-dependencies.ts, que valida la config de depends_on en el builder.
 // required se maneja aparte (bloquea salir de edición, no el autosave de este campo).
-export type FormFieldValueErrorKey = "invalidEmail" | "invalidInteger" | "valueTooSmall" | "valueTooBig";
+export type FormFieldValueErrorKey =
+  | "invalidEmail"
+  | "invalidInteger"
+  | "valueTooSmall"
+  | "valueTooBig"
+  | "tooFewFiles"
+  | "tooManyFiles";
 
 export interface FormFieldValueError {
   key: FormFieldValueErrorKey;
@@ -47,6 +53,18 @@ export function validateFormFieldValue(field: FormFieldValue, value: unknown): F
 
   if (questionType === QUESTION_TYPE.email && typeof value === "string" && !EMAIL_RE.test(value)) {
     return { key: "invalidEmail" };
+  }
+
+  // carga_de_archivos con más de un archivo (max_files > 1): value es un array de tokens.
+  // Un solo archivo (comportamiento histórico) no tiene mínimo/máximo de cantidad.
+  if (questionType === QUESTION_TYPE.fileUpload && Array.isArray(value)) {
+    const { min_files, max_files } = readFieldConfig(field);
+    if (typeof min_files === "number" && value.length < min_files) {
+      return { key: "tooFewFiles", params: { min: min_files } };
+    }
+    if (typeof max_files === "number" && value.length > max_files) {
+      return { key: "tooManyFiles", params: { max: max_files } };
+    }
   }
 
   return null;

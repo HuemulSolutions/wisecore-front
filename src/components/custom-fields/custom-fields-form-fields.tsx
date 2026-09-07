@@ -287,7 +287,7 @@ export default function CustomFieldFormFields({
         />
       )}
 
-      {/* Carga de archivos: tipos permitidos + tamaño máximo. */}
+      {/* Carga de archivos: tipos permitidos + tamaño máximo + cantidad de archivos. */}
       {questionType === QUESTION_TYPE.fileUpload && (
         <div className="space-y-2">
           <p className="text-sm font-medium">{t('form.allowedTypesLabel')}</p>
@@ -323,6 +323,35 @@ export default function CustomFieldFormFields({
             options={[1, 5, 10, 25, 50].map((n) => ({ value: String(n), label: `${n} MB` }))}
             disabled={disabled}
           />
+          <div className="grid grid-cols-2 gap-3">
+            <HuemulField
+              type="number"
+              label={t('sections:form.formFields.minFiles')}
+              value={config.min_files ?? 0}
+              onChange={(v) => {
+                const n = v === '' ? 0 : Math.max(0, Number(v))
+                onConfigChange({ min_files: n, max_files: Math.max(config.max_files ?? 1, n, 1) })
+              }}
+              disabled={disabled}
+            />
+            <HuemulField
+              type="number"
+              label={t('sections:form.formFields.maxFiles')}
+              value={config.max_files ?? 1}
+              onChange={(v) => {
+                const n = v === '' ? 1 : Math.max(1, Number(v))
+                onConfigChange({ max_files: n, min_files: Math.min(config.min_files ?? 0, n) })
+              }}
+              disabled={disabled}
+            />
+          </div>
+          {(config.max_files ?? 1) > 1 && (
+            <p className="text-xs text-muted-foreground">
+              {t('sections:form.formFields.filesHint', { max: config.max_files })}
+              {' — '}
+              {t('form.multiFileUploadPendingBackend')}
+            </p>
+          )}
         </div>
       )}
 

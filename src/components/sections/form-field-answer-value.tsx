@@ -11,6 +11,7 @@ import {
   SINGLE_SELECT_QUESTION_TYPES,
   hasAnswer,
   normalizeSelectionValue,
+  readFieldConfig,
   readFieldOptions,
   resolveOptionLabels,
 } from "@/components/sections/question-type-meta";
@@ -29,13 +30,16 @@ interface FormFieldAnswerValueProps {
   /** Valor a mostrar. Si se omite, usa field.value (snapshot del backend). AssetFormSection
    *  pasa answers[field.id], que puede tener ediciones aún no persistidas. */
   value?: unknown;
-  filePreview?: FormFieldFilePreview;
+  /** Metadatos de archivo(s) subido(s) en la sesión actual, en el mismo orden que el
+   *  array de tokens de `value`/`field.value` cuando el campo permite varios archivos
+   *  (`max_files > 1`). Para un solo archivo, sigue siendo un array de 0 o 1 elemento. */
+  filePreviews?: FormFieldFilePreview[];
 }
 
 // Render de solo lectura de la respuesta de un form field, según su question_type.
 // Extraído de asset-form-section.tsx para reutilizarse también en paneles de consulta
 // (ej. respuestas de secciones anteriores del wizard) sin depender de su estado local.
-export function FormFieldAnswerValue({ field, value, filePreview }: FormFieldAnswerValueProps) {
+export function FormFieldAnswerValue({ field, value, filePreviews }: FormFieldAnswerValueProps) {
   const { t } = useTranslation("sections");
 
   // El valor puede venir crudo del caché (field.value): normalizar selects igual que
@@ -89,24 +93,72 @@ export function FormFieldAnswerValue({ field, value, filePreview }: FormFieldAns
   }
 
   if (field.question_type === QUESTION_TYPE.fileUpload) {
-    if (!filePreview && isMediaToken(resolved)) {
+    // Un solo archivo (max_files <= 1, comportamiento histórico): resolved es un string
+    // escalar. Varios archivos (max_files > 1): resolved es un array de tokens/URLs, en el
+    // mismo orden que filePreviews.
+    const entries = Array.isArray(resolved) ? resolved : [resolved];
+    const rows = entries.map((entry, i) => {
+      const preview = filePreviews?.[i];
+      if (!preview && isMediaToken(entry)) return { broken: true as const };
+      const meta = preview ?? (typeof entry === "string" && entry.startsWith("http") ? { url: entry } : null);
+      return meta ? { broken: false as const, meta } : null;
+    }).filter((row): row is NonNullable<typeof row> => row !== null);
+
+    if (rows.length === 0) {
+      return <span className="text-sm italic text-gray-400">{t("form.fill.noAnswer")}</span>;
+    }
+
+    // Varios archivos (max_files > 1): grilla de miniaturas compactas en vez de una
+    // columna de imágenes grandes (ver asset-form-section.tsx, mismo criterio en edición).
+    const isMulti = (readFieldConfig(field).max_files ?? 1) > 1;
+
+    if (isMulti) {
       return (
-        <span className="flex items-center gap-1.5 text-sm italic text-gray-400">
-          <FileX className="h-3.5 w-3.5" />
-          {t("form.fill.fileUnavailable")}
-        </span>
+        <div className="flex flex-wrap gap-2">
+          {rows.map((row, i) =>
+            row.broken ? (
+              <div key={i} className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded border border-gray-200 bg-gray-50 p-1 text-center">
+                <FileX className="h-4 w-4 text-gray-400" />
+                <span className="text-[10px] italic leading-tight text-gray-400">
+                  {t("form.fill.fileUnavailable")}
+                </span>
+              </div>
+            ) : (
+              <HuemulFilePreview
+                key={i}
+                url={row.meta.url}
+                fileName={row.meta.name}
+                contentType={row.meta.contentType}
+                alt={field.field_name}
+                downloadLabel={t("form.fill.fileDownload")}
+                size="sm"
+              />
+            ),
+          )}
+        </div>
       );
     }
-    const meta = filePreview ?? (typeof resolved === "string" && resolved.startsWith("http") ? { url: resolved } : null);
-    if (!meta) return <span className="text-sm italic text-gray-400">{t("form.fill.noAnswer")}</span>;
+
     return (
-      <HuemulFilePreview
-        url={meta.url}
-        fileName={meta.name}
-        contentType={meta.contentType}
-        alt={field.field_name}
-        downloadLabel={t("form.fill.fileDownload")}
-      />
+      <div className="space-y-1.5">
+        {rows.map((row, i) =>
+          row.broken ? (
+            <span key={i} className="flex items-center gap-1.5 text-sm italic text-gray-400">
+              <FileX className="h-3.5 w-3.5" />
+              {t("form.fill.fileUnavailable")}
+            </span>
+          ) : (
+            <HuemulFilePreview
+              key={i}
+              url={row.meta.url}
+              fileName={row.meta.name}
+              contentType={row.meta.contentType}
+              alt={field.field_name}
+              downloadLabel={t("form.fill.fileDownload")}
+            />
+          ),
+        )}
+      </div>
     );
   }
 

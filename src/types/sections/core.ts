@@ -119,6 +119,8 @@ export interface FormFieldConfig {
   // carga_de_archivos
   allowed_types?: string[];
   max_size_mb?: number;
+  min_files?: number;
+  max_files?: number;
 }
 
 export interface SortableSectionItem extends SectionDependencyConfig {

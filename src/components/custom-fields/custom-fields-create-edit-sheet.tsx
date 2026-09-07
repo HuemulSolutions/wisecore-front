@@ -152,8 +152,8 @@ export function CreateEditCustomFieldSheet({
 
   // Config específica por question_type — mismo modelo de datos que los form fields de sección:
   // numérico → min/max; escala lineal → min/max + etiquetas en default_value; calificación →
-  // estrellas en max_value; carga de archivos → allowed_types/max_size_mb en default_value;
-  // lista → opciones en default_value (ya existía).
+  // estrellas en max_value; carga de archivos → allowed_types/max_size_mb/min_files/max_files
+  // en default_value; lista → opciones en default_value (ya existía).
   const getTypeSpecificPayload = () => {
     if (dataType === 'list') {
       return { default_value: formData.options }
@@ -173,6 +173,8 @@ export function CreateEditCustomFieldSheet({
         default_value: {
           allowed_types: formData.config.allowed_types ?? [],
           max_size_mb: formData.config.max_size_mb ?? 10,
+          min_files: formData.config.min_files ?? 0,
+          max_files: formData.config.max_files ?? 1,
         },
       }
     }

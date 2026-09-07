@@ -75,6 +75,9 @@ export function CustomFieldValueSheet({
   const scaleLabels = effectiveQuestionType === QUESTION_TYPE.linearScale
     ? (customFieldDetail?.default_value as { min_label?: string; max_label?: string } | null)
     : null
+  const allowedTypes = effectiveQuestionType === QUESTION_TYPE.fileUpload
+    ? (customFieldDetail?.default_value as { allowed_types?: string[] } | null)?.allowed_types
+    : undefined
 
   const getValueForDataType = (entity: CustomFieldValueEntity): string | string[] => {
     const dataType = entity.data_type
@@ -345,6 +348,7 @@ export function CustomFieldValueSheet({
                 maxValue={effectiveMaxValue}
                 minLabel={scaleLabels?.min_label}
                 maxLabel={scaleLabels?.max_label}
+                allowedTypes={allowedTypes}
                 error={formErrors.value}
                 isUploadingImage={isUploadingImage}
                 imageUploadDescription={imageUploadDescription}

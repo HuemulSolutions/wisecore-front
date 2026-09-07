@@ -48,6 +48,9 @@ interface HuemulFilePreviewProps {
   alt?: string;
   downloadLabel: string;
   className?: string;
+  /** "md" (default): imagen grande (max-h-48), para un solo archivo. "sm": miniatura
+   *  cuadrada recortada, para grillas de varios archivos (ver max_files > 1). */
+  size?: "md" | "sm";
 }
 
 // Preview de un archivo ya subido (campo carga_de_archivos / custom field imagen):
@@ -55,7 +58,7 @@ interface HuemulFilePreviewProps {
 // otro caso. La decisión se toma por el archivo real (content_type/extensión), nunca
 // por field.data_type — ese siempre vale "image" para carga_de_archivos en el
 // catálogo de question_types, sin relación con el archivo que subió el usuario.
-export function HuemulFilePreview({ url, fileName, contentType, alt, downloadLabel, className }: HuemulFilePreviewProps) {
+export function HuemulFilePreview({ url, fileName, contentType, alt, downloadLabel, className, size = "md" }: HuemulFilePreviewProps) {
   const [imgFailed, setImgFailed] = useState(false);
   const inferred = fileName || contentType ? { name: fileName ?? "", extension: "" } : inferFromUrl(url);
   const name = fileName || inferred.name;
@@ -68,7 +71,10 @@ export function HuemulFilePreview({ url, fileName, contentType, alt, downloadLab
           src={url}
           alt={alt}
           onError={() => setImgFailed(true)}
-          className="max-h-48 rounded border border-gray-200 object-contain"
+          className={cn(
+            "rounded border border-gray-200",
+            size === "sm" ? "h-20 w-20 object-cover" : "max-h-48 object-contain",
+          )}
         />
       </a>
     );
@@ -80,13 +86,14 @@ export function HuemulFilePreview({ url, fileName, contentType, alt, downloadLab
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        "inline-flex max-w-full items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50",
+        "inline-flex max-w-full items-center gap-2 rounded-md border border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+        size === "sm" ? "max-w-28 px-2 py-1.5 text-xs" : "px-3 py-2 text-sm",
         className,
       )}
     >
-      <MediaIcon contentType={resolvedContentType} className="size-4" />
+      <MediaIcon contentType={resolvedContentType} className={size === "sm" ? "size-3.5 shrink-0" : "size-4 shrink-0"} />
       <span className="truncate">{name || downloadLabel}</span>
-      <Download className="size-3.5 shrink-0 text-gray-400" />
+      {size !== "sm" && <Download className="size-3.5 shrink-0 text-gray-400" />}
     </a>
   );
 }

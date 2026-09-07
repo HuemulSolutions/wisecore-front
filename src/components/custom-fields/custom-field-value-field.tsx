@@ -78,17 +78,22 @@ export function CustomFieldValueField({
   maxValue,
   minLabel,
   maxLabel,
+  allowedTypes,
 }: CustomFieldValueFieldProps) {
   const { t } = useTranslation("custom-fields")
 
   // Carga de imagen: flujo de upload propio (blob por custom field) — no delega a
   // HuemulQuestionInput, que no maneja archivos (ver comentario en ese componente).
   if (dataType === "image") {
+    // Respeta los tipos configurados en el custom field (carga_de_archivos); si no hay
+    // configuración (custom fields creados antes de esta opción), cae al catálogo fijo.
+    const validExtensions = allowedTypes?.length ? allowedTypes : VALID_IMAGE_EXTENSIONS
+    const accept = validExtensions.map((ext) => `.${ext}`).join(",")
     return (
       <HuemulField
         type="file"
         label={label}
-        accept=".png,.jpg,.jpeg,.gif,.bmp"
+        accept={accept}
         disabled={disabled || isUploadingImage}
         description={!isUploadingImage ? imageUploadDescription : undefined}
         error={error}
@@ -96,7 +101,7 @@ export function CustomFieldValueField({
           const file = files?.[0]
           if (!file) return
           const ext = file.name.split(".").pop()?.toLowerCase() ?? ""
-          if (!VALID_IMAGE_EXTENSIONS.includes(ext)) {
+          if (!validExtensions.includes(ext)) {
             onImageValidationError?.(t("addDialog.invalidImageType"))
             return
           }

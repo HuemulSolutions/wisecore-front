@@ -245,6 +245,8 @@ export function SectionQuestionTypeFields({
           : [...allowedTypes, type];
         patchConfig({ allowed_types: next });
       };
+      const minFiles = cfg.min_files ?? 0;
+      const maxFiles = cfg.max_files ?? 1;
       return (
         <div className="space-y-3">
           <QuestionTypePreview questionType={qt} />
@@ -279,6 +281,35 @@ export function SectionQuestionTypeFields({
             disabled={isPending}
             className="max-w-40"
           />
+          <div className="space-y-1">
+            <div className="grid grid-cols-2 gap-3">
+              <HuemulField
+                type="number"
+                label={t("form.formFields.minFiles")}
+                value={minFiles}
+                onChange={(v) => {
+                  const n = v === "" ? 0 : Math.max(0, Number(v));
+                  patchConfig({ min_files: n, max_files: Math.max(maxFiles, n, 1) });
+                }}
+                disabled={isPending}
+              />
+              <HuemulField
+                type="number"
+                label={t("form.formFields.maxFiles")}
+                value={maxFiles}
+                onChange={(v) => {
+                  const n = v === "" ? 1 : Math.max(1, Number(v));
+                  patchConfig({ max_files: n, min_files: Math.min(minFiles, n) });
+                }}
+                disabled={isPending}
+              />
+            </div>
+            {maxFiles > 1 && (
+              <p className="text-xs text-muted-foreground">
+                {t("form.formFields.filesHint", { max: maxFiles })}
+              </p>
+            )}
+          </div>
         </div>
       );
     }

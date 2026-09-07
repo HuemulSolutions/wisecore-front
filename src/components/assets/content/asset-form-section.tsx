@@ -31,7 +31,7 @@ import {
   readFieldOptions,
 } from "@/components/sections/question-type-meta";
 import { SectionFieldSeparator } from "@/components/sections/section-field-separator";
-import { FormFieldAnswerValue } from "@/components/sections/form-field-answer-value";
+import { FormFieldAnswerValue, type FormFieldFilePreview } from "@/components/sections/form-field-answer-value";
 import { validateFormFieldValue } from "@/components/sections/validate-form-field-value";
 
 interface AssetFormSectionProps {
@@ -137,7 +137,9 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   // placeholder {{MEDIA:id}} guardado como respuesta no es una URL). name/contentType
   // vienen del archivo real elegido por el usuario, no de field.data_type — ese último
   // siempre es "image" para carga_de_archivos en el catálogo de question_types.
-  const [filePreviews, setFilePreviews] = useState<Record<string, { url: string; name: string; contentType: string }>>({});
+  // Un archivo (max_files <= 1): array de 0 o 1 elemento. Varios archivos (max_files > 1):
+  // un elemento por token, en el mismo orden que el array `value` guardado.
+  const [filePreviews, setFilePreviews] = useState<Record<string, FormFieldFilePreview[]>>({});
   // ids de campos con un auto-guardado en curso — pinta el loader junto al campo respectivo
   // (en vez de un spinner global en una barra) mientras se espera la respuesta del PATCH.
   const [savingFieldIds, setSavingFieldIds] = useState<Set<string>>(new Set());
@@ -406,22 +408,22 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     }
   };
 
-  // Metadatos a mostrar para un campo de archivo: la subida nueva (filePreviews, con
-  // nombre/mime reales) o solo la URL original del backend (recarga de página — el
-  // backend únicamente resuelve el token a una URL firmada, sin metadatos del archivo).
-  const fileDisplayMeta = (field: FormFieldValue): { url: string; name?: string; contentType?: string } | null => {
-    const preview = filePreviews[field.id];
-    if (preview) return preview;
-    const v = answers[field.id];
-    if (typeof v === "string" && v.startsWith("http")) return { url: v };
-    return null;
-  };
-
-  // El backend deja el placeholder {{MEDIA:...}} sin resolver cuando el media fue borrado
-  // o el usuario no tiene acceso (en vez de fallar todo /content). No confundir con una subida
-  // recién hecha en este mismo render: esa siempre tiene un filePreview en paralelo.
-  const isBrokenFileField = (field: FormFieldValue): boolean =>
-    !filePreviews[field.id] && isMediaToken(answers[field.id]);
+  // Construye, para un campo de archivo, una fila por token/URL guardado: la subida nueva
+  // (filePreviews, con nombre/mime reales) o solo la URL original del backend (recarga de
+  // página — el backend únicamente resuelve el token a una URL firmada, sin metadatos), o
+  // "roto" cuando el backend dejó el placeholder {{MEDIA:...}} sin resolver (media borrado
+  // o sin acceso) y no hay preview en paralelo de una subida de esta sesión.
+  const buildFileRows = (
+    entries: unknown[],
+    previews: FormFieldFilePreview[] | undefined,
+  ): Array<{ broken: boolean; meta: FormFieldFilePreview | null }> =>
+    entries.map((entry, i) => {
+      const preview = previews?.[i];
+      if (preview) return { broken: false, meta: preview };
+      if (isMediaToken(entry)) return { broken: true, meta: null };
+      if (typeof entry === "string" && entry.startsWith("http")) return { broken: false, meta: { url: entry } };
+      return { broken: false, meta: null };
+    });
 
   // Sale del modo edición. La mayoría de los valores ya quedan persistidos por el
   // auto-guardado (al blur de un campo de texto, al cambiar un widget atómico, o por la red
@@ -516,30 +518,44 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
         const fileCfg = readFieldConfig(field);
         const accept = fileCfg.allowed_types?.map((ext) => `.${ext}`).join(", ");
         const isUploading = uploadingFields.has(field.id);
+        const maxFiles = fileCfg.max_files && fileCfg.max_files > 1 ? fileCfg.max_files : 1;
+        const isMulti = maxFiles > 1;
+        const existingTokens: unknown[] = isMulti && Array.isArray(value) ? value : value ? [value] : [];
 
         const handleFileChange = async (files: FileList | null) => {
           if (!files || files.length === 0) return;
-          const file = files[0];
+          const incoming = Array.from(files);
 
-          if (fileCfg.allowed_types?.length) {
-            const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-            if (!fileCfg.allowed_types.includes(ext)) {
-              setFieldErrors((prev) => ({
-                ...prev,
-                [field.id]: t("form.fill.fileTypeNotAllowed", { types: fileCfg.allowed_types!.join(", ") }),
-              }));
-              return;
-            }
+          // Single-file: elegir un nuevo archivo siempre reemplaza al anterior (no suma).
+          // Multi-file: se agrega a lo ya subido, respetando el máximo configurado.
+          if (isMulti && existingTokens.length + incoming.length > maxFiles) {
+            setFieldErrors((prev) => ({
+              ...prev,
+              [field.id]: t("form.fill.tooManyFilesSelected", { max: maxFiles }),
+            }));
+            return;
           }
 
-          if (fileCfg.max_size_mb) {
-            const sizeMb = file.size / (1024 * 1024);
-            if (sizeMb > fileCfg.max_size_mb) {
-              setFieldErrors((prev) => ({
-                ...prev,
-                [field.id]: t("form.fill.fileTooLarge", { max: fileCfg.max_size_mb }),
-              }));
-              return;
+          for (const file of incoming) {
+            if (fileCfg.allowed_types?.length) {
+              const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+              if (!fileCfg.allowed_types.includes(ext)) {
+                setFieldErrors((prev) => ({
+                  ...prev,
+                  [field.id]: t("form.fill.fileTypeNotAllowed", { types: fileCfg.allowed_types!.join(", ") }),
+                }));
+                return;
+              }
+            }
+            if (fileCfg.max_size_mb) {
+              const sizeMb = file.size / (1024 * 1024);
+              if (sizeMb > fileCfg.max_size_mb) {
+                setFieldErrors((prev) => ({
+                  ...prev,
+                  [field.id]: t("form.fill.fileTooLarge", { max: fileCfg.max_size_mb }),
+                }));
+                return;
+              }
             }
           }
 
@@ -547,20 +563,33 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
           setUploadingFields((prev) => new Set([...prev, field.id]));
 
           try {
-            const media = await uploadMedia(organizationId!, {
-              file,
-              level: "document",
-              parent_id: documentId,
-            });
-            setAnswer(field.id, `{{MEDIA:${media.id}}}`, { commit: true });
-            setFilePreviews((prev) => ({
-              ...prev,
-              [field.id]: {
-                url: media.current_version?.download_url ?? "",
-                name: file.name,
-                contentType: media.current_version?.content_type ?? file.type,
-              },
-            }));
+            const uploaded: Array<{ token: string; preview: FormFieldFilePreview }> = [];
+            for (const file of incoming) {
+              const media = await uploadMedia(organizationId!, {
+                file,
+                level: "document",
+                parent_id: documentId,
+              });
+              uploaded.push({
+                token: `{{MEDIA:${media.id}}}`,
+                preview: {
+                  url: media.current_version?.download_url ?? "",
+                  name: file.name,
+                  contentType: media.current_version?.content_type ?? file.type,
+                },
+              });
+            }
+
+            if (isMulti) {
+              setAnswer(field.id, [...existingTokens, ...uploaded.map((u) => u.token)], { commit: true });
+              setFilePreviews((prev) => ({
+                ...prev,
+                [field.id]: [...(prev[field.id] ?? []), ...uploaded.map((u) => u.preview)],
+              }));
+            } else {
+              setAnswer(field.id, uploaded[0].token, { commit: true });
+              setFilePreviews((prev) => ({ ...prev, [field.id]: [uploaded[0].preview] }));
+            }
           } catch {
             setFieldErrors((prev) => ({ ...prev, [field.id]: t("form.fill.fileUploadError") }));
           } finally {
@@ -568,33 +597,97 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
           }
         };
 
-        const currentMeta = fileDisplayMeta(field);
-        const isBroken = isBrokenFileField(field);
+        const handleRemoveFile = (index: number) => {
+          const tokens = [...existingTokens];
+          tokens.splice(index, 1);
+          setAnswer(field.id, isMulti ? tokens : (tokens[0] ?? null), { commit: true });
+          setFilePreviews((prev) => {
+            const list = [...(prev[field.id] ?? [])];
+            list.splice(index, 1);
+            return { ...prev, [field.id]: list };
+          });
+        };
 
+        const rows = buildFileRows(existingTokens, filePreviews[field.id]);
+        // Single-file (comportamiento histórico): el input de reemplazo siempre está
+        // visible. Multi-file: se oculta al llegar al máximo — hay que quitar uno primero.
+        const canAddMore = !isMulti || existingTokens.length < maxFiles;
+
+        // Varios archivos: grilla de miniaturas compactas con la "x" de quitar superpuesta
+        // en la esquina (evita que N fotos apilen el campo verticalmente, ver captura del
+        // usuario). Un solo archivo: layout histórico sin cambios (imagen grande, "x" al costado).
         return (
-          <div className="space-y-1.5">
-            {isBroken ? (
-              <p className="flex items-center gap-1.5 text-sm italic text-gray-400">
-                <FileX className="h-3.5 w-3.5" />
-                {t("form.fill.fileUnavailable")}
-              </p>
-            ) : currentMeta && (
-              <HuemulFilePreview
-                url={currentMeta.url}
-                fileName={currentMeta.name}
-                contentType={currentMeta.contentType}
-                alt={field.field_name}
-                downloadLabel={t("form.fill.fileDownload")}
+          <div className={isMulti ? "space-y-2" : "space-y-1.5"}>
+            <div className={isMulti ? "flex flex-wrap gap-2" : "space-y-1.5"}>
+              {rows.map((row, i) =>
+                isMulti ? (
+                  <div key={i} className="relative">
+                    {row.broken ? (
+                      <div className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded border border-gray-200 bg-gray-50 p-1 text-center">
+                        <FileX className="h-4 w-4 text-gray-400" />
+                        <span className="text-[10px] italic leading-tight text-gray-400">
+                          {t("form.fill.fileUnavailable")}
+                        </span>
+                      </div>
+                    ) : row.meta && (
+                      <HuemulFilePreview
+                        url={row.meta.url}
+                        fileName={row.meta.name}
+                        contentType={row.meta.contentType}
+                        alt={field.field_name}
+                        downloadLabel={t("form.fill.fileDownload")}
+                        size="sm"
+                      />
+                    )}
+                    {!disabled && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(i)}
+                        aria-label={t("form.fill.fileRemove")}
+                        className="absolute -top-1.5 -right-1.5 rounded-full border border-gray-200 bg-white p-0.5 text-gray-400 shadow-sm hover:text-gray-700"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      {row.broken ? (
+                        <p className="flex items-center gap-1.5 text-sm italic text-gray-400">
+                          <FileX className="h-3.5 w-3.5" />
+                          {t("form.fill.fileUnavailable")}
+                        </p>
+                      ) : row.meta && (
+                        <HuemulFilePreview
+                          url={row.meta.url}
+                          fileName={row.meta.name}
+                          contentType={row.meta.contentType}
+                          alt={field.field_name}
+                          downloadLabel={t("form.fill.fileDownload")}
+                        />
+                      )}
+                    </div>
+                  </div>
+                ),
+              )}
+            </div>
+            {canAddMore && (
+              <HuemulField
+                type="file"
+                label=""
+                accept={accept}
+                multiple={isMulti}
+                disabled={isUploading || disabled}
+                onFileChange={handleFileChange}
+                error={error}
               />
             )}
-            <HuemulField
-              type="file"
-              label=""
-              accept={accept}
-              disabled={isUploading || disabled}
-              onFileChange={handleFileChange}
-              error={error}
-            />
+            {isMulti && (
+              <p className="text-xs text-gray-400">
+                {t("form.fill.filesCount", { count: existingTokens.length, max: maxFiles })}
+              </p>
+            )}
             {isUploading && (
               <p className="flex items-center gap-1.5 text-xs text-gray-400">
                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -607,7 +700,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
 
       case CUSTOM_FIELD_QUESTION_TYPE:
         // Solo lectura: el valor se gestiona en los custom fields del documento
-        return <FormFieldAnswerValue field={field} value={value} filePreview={filePreviews[field.id]} />;
+        return <FormFieldAnswerValue field={field} value={value} filePreviews={filePreviews[field.id]} />;
 
       default:
         return (
@@ -709,7 +802,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
                 ? renderInput(field)
                 : editing && isFieldVisible(field) && field.question_type !== CUSTOM_FIELD_QUESTION_TYPE
                   ? renderInput(field, { disabled: true })
-                  : <FormFieldAnswerValue field={field} value={answers[field.id]} filePreview={filePreviews[field.id]} />}
+                  : <FormFieldAnswerValue field={field} value={answers[field.id]} filePreviews={filePreviews[field.id]} />}
               {isTriggerField && (
                 <p className="flex items-center gap-1 text-xs text-gray-400">
                   <Info className="h-3 w-3 shrink-0" />

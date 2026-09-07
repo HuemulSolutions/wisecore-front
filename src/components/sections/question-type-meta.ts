@@ -291,9 +291,13 @@ export function formatFieldValueForCopy(field: FormFieldValue, t: TFunction): st
   }
 
   if (field.question_type === QUESTION_TYPE.fileUpload) {
-    if (isMediaToken(value)) return t("sections:form.fill.fileUnavailable");
-    if (typeof value === "string" && value.startsWith("http")) return value;
-    return t("sections:form.fill.noAnswer");
+    const entries = Array.isArray(value) ? value : [value];
+    const formatted = entries.map((entry) => {
+      if (isMediaToken(entry)) return t("sections:form.fill.fileUnavailable");
+      if (typeof entry === "string" && entry.startsWith("http")) return entry;
+      return null;
+    }).filter((v): v is string => v !== null);
+    return formatted.length > 0 ? formatted.join(", ") : t("sections:form.fill.noAnswer");
   }
 
   if (field.question_type === CUSTOM_FIELD_QUESTION_TYPE) {

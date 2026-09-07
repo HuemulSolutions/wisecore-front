@@ -60,6 +60,9 @@ export interface CustomFieldValueFieldProps {
   maxValue?: unknown
   minLabel?: string
   maxLabel?: string
+  /** Extensiones configuradas en el custom field (carga_de_archivos/image). Sin esto,
+   *  cae al catálogo fijo de imágenes (custom fields ya existentes sin `allowed_types`). */
+  allowedTypes?: string[]
 }
 
 export interface CustomFieldInfoCardProps {
