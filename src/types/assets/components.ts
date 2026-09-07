@@ -200,4 +200,11 @@ export interface SectionExecutionProps {
   canGenerate?: boolean
   /** Motivo ya traducido, para el tooltip. Solo relevante si canGenerate === false. */
   cannotGenerateReason?: string
+  /**
+   * Reporta el `isCollapsed` de ESTA sección hacia AssetContent, para que el botón "colapsar/
+   * expandir todas" del toolbar refleje el estado real (no sólo la última señal que emitió).
+   * `undefined` = la sección se desmontó (eliminada, oculta por permiso/depends_on, o filtrada
+   * por contenido vacío en lector) — se excluye del cómputo agregado.
+   */
+  onCollapsedChange?: (sectionExecutionId: string, collapsed: boolean | undefined) => void
 }

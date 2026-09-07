@@ -5,7 +5,8 @@ import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell, Sparkles, MessageSquareText, BookOpen, Maximize2, Minimize2 } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell, Sparkles, MessageSquareText, BookOpen, Maximize2, Minimize2, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { SectionCollapseContext, type CollapseAllSignal } from "@/contexts/section-collapse-context";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
   ResizableHandle,
@@ -648,6 +649,36 @@ export function AssetContent({
   // Tracks which document has had its initial mode set, so re-fetches don't override the user's choice
   const hasSetInitialModeRef = useRef<string | null>(null);
 
+  // Señal de "colapsar/expandir todas las secciones" (botón del toolbar, ver más abajo). El
+  // estado de colapso de cada sección vive en assets-section.tsx — acá sólo se emite el evento
+  // (ver section-collapse-context.ts sobre por qué no se levanta un Set<id> hasta acá).
+  const [collapseAllSignal, setCollapseAllSignal] = useState<CollapseAllSignal | null>(null);
+
+  // Estado REAL de colapso, agregado desde cada sección vía onCollapsedChange (ver
+  // assets-section.tsx) — a diferencia de collapseAllSignal (la última señal que ESTE botón
+  // emitió), refleja colapsos hechos a mano (botón individual o clickeando el cuerpo en lector).
+  // No se pasa como prop a AssetsSectionsList (memoizada): actualizarlo no re-renderiza las N
+  // secciones, sólo el botón del toolbar que lo lee.
+  const [collapsedSections, setCollapsedSections] = useState<Map<string, boolean>>(() => new Map());
+  const handleSectionCollapsedChange = useCallback((sectionId: string, collapsed: boolean | undefined) => {
+    setCollapsedSections((prev) => {
+      const next = new Map(prev);
+      if (collapsed === undefined) next.delete(sectionId);
+      else next.set(sectionId, collapsed);
+      return next;
+    });
+  }, []);
+  // "Todas colapsadas" sólo si hay al menos una sección registrada y ninguna quedó expandida.
+  const areAllSectionsCollapsed = collapsedSections.size > 0 &&
+    Array.from(collapsedSections.values()).every(Boolean);
+
+  const handleToggleCollapseAll = () => {
+    // Antes: `!(prev?.collapsed ?? false)` — dependía de la última señal propia, no del estado
+    // real. Si el usuario ya había colapsado todo a mano, el botón seguía "listo para colapsar"
+    // y un click volvía a emitir collapsed:true (no-op) en vez de expandir.
+    setCollapseAllSignal((prev) => ({ collapsed: !areAllSectionsCollapsed, version: (prev?.version ?? 0) + 1 }));
+  };
+
   // ============================================================================
   // STATE - EXPORT
   // ============================================================================
@@ -667,14 +698,9 @@ export function AssetContent({
   const [isRefreshingCustomFields, setIsRefreshingCustomFields] = useState(false);
   const [customFieldsPage, setCustomFieldsPage] = useState(1);
 
-  // Restore scroll position after mode toggle causes layout shifts (sections/separators appear or disappear)
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      scrollRestoration.restoreScrollPosition();
-    }, 50);
-    return () => clearTimeout(timeoutId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isViewMode]);
+  // Restore scroll position after mode toggle causes layout shifts (sections/separators appear or
+  // disappear). Movido después de `deferredViewChrome` (más abajo) y colgado de esa dependencia en
+  // vez de `isViewMode` directo — ver comentario junto a esa declaración.
 
   // Clear created template when component unmounts or selectedFile changes
   useEffect(() => {
@@ -1464,6 +1490,49 @@ export function AssetContent({
   // Non-edit stages always stay in reader mode, so editor actions are never shown.
   const showEditorActions = canSwitchToEditorMode && !isViewMode;
 
+  // Todo el chrome que depende del modo (toolbar strip, botón de editar título, paddings, bloque
+  // de documentos relacionados y la lista de secciones) cuelga de ESTE valor diferido, no de
+  // `isViewMode` directo. Dos motivos, en este orden:
+  //   1. Atomicidad: si una parte del chrome lee el valor inmediato y otra el diferido, cambian
+  //      en commits distintos de React y se ve un estado mixto — p.ej. el toolbar de editor
+  //      (Secciones/Dependencias/Contexto) ya puesto mientras las secciones siguen en lector.
+  //   2. Rendimiento: React pinta el botón del toggle en su nuevo estado antes de armar el árbol
+  //      pesado de N secciones, en vez de bloquear el frame hasta terminarlo.
+  // Un solo objeto (no dos useDeferredValue sueltos) para que ambos flags viajen siempre
+  // coherentes y la identidad de la prop no rompa el memo de AssetsSectionsList.
+  // Único consumidor que se queda con el valor inmediato: ViewModeToggle (feedback del click).
+  const viewChromeFlags = useMemo(
+    () => ({ isViewMode, showEditorActions }),
+    [isViewMode, showEditorActions],
+  );
+  const deferredViewChrome = useDeferredValue(viewChromeFlags);
+
+  // El ícono del botón "colapsar/expandir todas" (`areAllSectionsCollapsed`, más abajo) sigue
+  // leyendo `collapseAllSignal` inmediato — feedback del click. El Provider de contexto recibe
+  // la versión diferida: un cambio de valor de contexto re-renderiza TODOS los consumidores
+  // (cada SectionExecution, bypaseando React.memo) en el mismo commit que lo dispara: sin
+  // diferir, el ícono no pinta hasta que terminan de re-renderizarse las N secciones — mismo
+  // síntoma que el toggle Lector/Editor antes de diferir `viewChromeFlags`.
+  const deferredCollapseSignal = useDeferredValue(collapseAllSignal);
+
+  // Cualquier transición del árbol de secciones en curso (cambio de modo O colapsar/expandir
+  // todas) — gatea la atenuación compartida del contenedor de contenido, más abajo.
+  const isModeSwitching = deferredViewChrome !== viewChromeFlags;
+  const isCollapseSwitching = deferredCollapseSignal !== collapseAllSignal;
+  const isSectionsTreeSwitching = isModeSwitching || isCollapseSwitching;
+
+  // Restore scroll position after mode toggle causes layout shifts (sections/separators appear or
+  // disappear). Colgado de `deferredViewChrome` (no de `isViewMode` directo): ese es el valor que
+  // efectivamente gobierna el chrome que se re-arma — restaurar contra `isViewMode` corría un tick
+  // antes de que ese layout diferido terminara de asentarse.
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      scrollRestoration.restoreScrollPosition();
+    }, 50);
+    return () => clearTimeout(timeoutId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deferredViewChrome]);
+
   // Versión efectivamente en pantalla: la elegida a mano, o si el usuario
   // nunca eligió, la que el backend devolvió como actual. Sin este fallback,
   // ninguno de los dos banners de abajo se muestra hasta la primera selección manual.
@@ -2206,7 +2275,7 @@ export function AssetContent({
                         <span className="text-sm font-medium text-gray-900">
                           {documentContent?.document_name || selectedFile.name}
                         </span>
-                        {showEditorActions && (
+                        {deferredViewChrome.showEditorActions && (
                           <HuemulButton
                             requiredAccess="edit"
                             checkGlobalPermissions={true}
@@ -2765,8 +2834,10 @@ export function AssetContent({
               </div>
             )}
 
-            {/* Action Buttons Section - editor mode only */}
-            {!isViewMode && (isLoadingContent && !documentContent ? (
+            {/* Action Buttons Section - editor mode only. Cuelga de `deferredViewChrome` (no de
+                `isViewMode` directo) para que aparezca/desaparezca en el mismo commit que la
+                lista de secciones — ver comentario junto a la declaración de `deferredViewChrome`. */}
+            {!deferredViewChrome.isViewMode && (isLoadingContent && !documentContent ? (
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
                   <Skeleton className="h-7 w-10 rounded-md" />
@@ -2797,7 +2868,7 @@ export function AssetContent({
                     executionInfo={selectedExecutionInfo}
                     lifecyclePermissions={lifecyclePermissions}
                     stage={documentContent?.lifecycle_status?.stage}
-                    showTrigger={frontendPermissions.canEditSections && !isViewMode}
+                    showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
                   />
                 )}
 
@@ -2810,7 +2881,7 @@ export function AssetContent({
                     documentName={documentContent?.document_name}
                     lifecyclePermissions={lifecyclePermissions}
                     stage={documentContent?.lifecycle_status?.stage}
-                    showTrigger={frontendPermissions.canEditSections && !isViewMode}
+                    showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
                   />
                 )}
 
@@ -2822,7 +2893,7 @@ export function AssetContent({
                     documentName={documentContent?.document_name}
                     lifecyclePermissions={lifecyclePermissions}
                     stage={documentContent?.lifecycle_status?.stage}
-                    showTrigger={frontendPermissions.canEditSections && !isViewMode}
+                    showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
                   />
                 )}
               </div>
@@ -2839,6 +2910,20 @@ export function AssetContent({
                   className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors hover:cursor-pointer"
                   tooltip={t('content.refreshContent')}
                 />
+
+                {/* Collapse/expand all sections - only applies to the new (array) content format */}
+                {selectedFile.type === 'document' && Array.isArray(documentContent?.content) &&
+                 (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
+                  <HuemulButton
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleToggleCollapseAll}
+                    icon={areAllSectionsCollapsed ? ChevronsUpDown : ChevronsDownUp}
+                    iconClassName="h-3.5 w-3.5"
+                    label={areAllSectionsCollapsed ? t('common:expand') : t('common:collapse')}
+                    className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors hover:cursor-pointer"
+                  />
+                )}
 
                 {/* TOC Toggle button - desktop only */}
                 {selectedFile.type === 'document' && documentContent?.content &&
@@ -2871,9 +2956,21 @@ export function AssetContent({
           <ScrollArea className="h-full max-w-full">
             <div
               ref={scrollRestoration.viewportRef}
+              aria-busy={isSectionsTreeSwitching}
               className={cn(
-                isViewMode ? 'pt-2 md:pt-3 pb-4 md:pb-5' : 'py-4 md:py-5',
+                deferredViewChrome.isViewMode ? 'pt-2 md:pt-3 pb-4 md:pb-5' : 'py-4 md:py-5',
                 'px-4 md:px-6 contain-[inline-size]',
+                // Señal de "árbol de secciones cambiando" (modo Lector/Editor o colapsar/expandir
+                // todas) con retardo: si el commit diferido llega antes de los 100ms (el caso
+                // normal tras el fix de remount del Plate) el usuario no llega a ver ninguna
+                // atenuación. Las clases de transición viven en cada rama, no en la base, para
+                // que la vuelta a normal sea instantánea (duration-0) y nunca se lea como un
+                // segundo parpadeo. pointer-events-none evita clicks sobre controles que están
+                // por desaparecer (toolbar/separadores del modo anterior).
+                isSectionsTreeSwitching
+                  ? 'opacity-55 pointer-events-none transition-opacity duration-150 delay-100'
+                  : 'opacity-100 transition-opacity duration-0',
+                'motion-reduce:transition-none',
                 // En fullscreen el panel de la izquierda (árbol) y el header global ya
                 // no compiten por ancho — sin este tope el texto queda incómodo de leer.
                 isFullscreen && 'mx-auto w-full max-w-4xl',
@@ -3297,7 +3394,7 @@ export function AssetContent({
                           organizationId={selectedOrganizationId}
                           executionId={selectedExecutionId || documentContent?.execution_id || null}
                         >
-                        <div className={`prose prose-gray prose-sm md:prose-base max-w-full${isViewMode ? ' [&>*+*]:mt-0' : ''}`}>
+                        <div className={`prose prose-gray prose-sm md:prose-base max-w-full${deferredViewChrome.isViewMode ? ' [&>*+*]:mt-0' : ''}`}>
                           {/* Template instructions callout - shown once at the top */}
                           {documentContent.template_instructions?.trim() && (
                             <div className="not-prose mb-4">
@@ -3331,30 +3428,33 @@ export function AssetContent({
                             // campo al formato legado (string) en la rama `else` de
                             // abajo — angostar una expresión distinta (deferredContent)
                             // no angosta esta.
-                            <AssetsSectionsList
-                              content={deferredContent ?? documentContent.content}
-                              sectionEmptiness={sectionEmptiness}
-                              isViewMode={isViewMode}
-                              showEditorActions={showEditorActions}
-                              canEditSections={frontendPermissions.canEditSections}
-                              isMobile={isMobile}
-                              sectionAccess={sectionAccess}
-                              documentId={selectedFile?.id}
-                              currentExecutionId={currentExecutionId}
-                              currentExecutionMode={currentExecutionMode}
-                              selectedExecutionId={selectedExecutionId}
-                              selectedExecutionStatus={selectedExecutionInfo?.status}
-                              isSectionInScope={executionRun.isSectionInScope}
-                              getDisplaySectionStatus={getDisplaySectionStatus}
-                              canGenerate={canGenerate}
-                              cannotGenerateReason={cannotGenerateReason}
-                              onSectionUpdate={handleSectionUpdate}
-                              onAddSectionAtPosition={handleAddSectionAtPosition}
-                              onExecutionStartForSection={handleSectionExecutionStart}
-                              onOpenExecuteSheetForSection={handleCreateExecutionFromSection}
-                              onCreateSectionFromSelectionForSection={handleCreateSectionFromSelection}
-                              onCopyLink={handleCopySectionLink}
-                            />
+                            <SectionCollapseContext.Provider value={deferredCollapseSignal}>
+                              <AssetsSectionsList
+                                content={deferredContent ?? documentContent.content}
+                                sectionEmptiness={sectionEmptiness}
+                                isViewMode={deferredViewChrome.isViewMode}
+                                showEditorActions={deferredViewChrome.showEditorActions}
+                                canEditSections={frontendPermissions.canEditSections}
+                                isMobile={isMobile}
+                                sectionAccess={sectionAccess}
+                                documentId={selectedFile?.id}
+                                currentExecutionId={currentExecutionId}
+                                currentExecutionMode={currentExecutionMode}
+                                selectedExecutionId={selectedExecutionId}
+                                selectedExecutionStatus={selectedExecutionInfo?.status}
+                                isSectionInScope={executionRun.isSectionInScope}
+                                getDisplaySectionStatus={getDisplaySectionStatus}
+                                canGenerate={canGenerate}
+                                cannotGenerateReason={cannotGenerateReason}
+                                onSectionUpdate={handleSectionUpdate}
+                                onAddSectionAtPosition={handleAddSectionAtPosition}
+                                onExecutionStartForSection={handleSectionExecutionStart}
+                                onOpenExecuteSheetForSection={handleCreateExecutionFromSection}
+                                onCreateSectionFromSelectionForSection={handleCreateSectionFromSelection}
+                                onCopyLink={handleCopySectionLink}
+                                onSectionCollapsedChange={handleSectionCollapsedChange}
+                              />
+                            </SectionCollapseContext.Provider>
                           ) : (
                             // Legacy format: single string content
                             <Markdown>{documentContent.content}</Markdown>
@@ -3367,7 +3467,7 @@ export function AssetContent({
                               organizationId={selectedOrganizationId}
                               executionId={relatedExecutionId}
                               currentDocumentId={selectedFile?.id}
-                              isViewMode={isViewMode}
+                              isViewMode={deferredViewChrome.isViewMode}
                               canListAssetTypes={can('listAssetTypes')}
                               canLinkAssets={can('openDiagramsCanvas')}
                               canDeleteRelationship={can('deleteExecutionRelationship')}
