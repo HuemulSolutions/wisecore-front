@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useOrganization } from "@/contexts/organization-context"
 import { getRoles, createRole, getPermissions, getRolePermissions, getUserRoles, getUserAllRoles, assignRolesToUser, updateRole, deleteRole, getRoleWithAllUsers, assignUsersToRole, cloneRole } from "@/services/rbac"
+import { userQueryKeys } from "@/hooks/useUsers"
 import type { UpdateRoleData } from "@/types/rbac"
 
 // Query keys. Cada key lleva el orgId activo justo después del segmento
@@ -22,6 +23,15 @@ export const rbacQueryKeys = {
     [...rbacQueryKeys.all, 'userAllRoles', orgId ?? 'none', userId, page ?? 1, pageSize ?? 100, search ?? ''] as const,
   roleWithAllUsers: (orgId: string | null | undefined, roleId: string, page?: number, pageSize?: number, search?: string) =>
     [...rbacQueryKeys.all, 'roleWithAllUsers', orgId ?? 'none', roleId, page ?? 1, pageSize ?? 100, search ?? ''] as const,
+  // Prefijos SIN page/pageSize/search, para invalidar todas las combinaciones
+  // de paginación/búsqueda de un usuario o rol de una sola vez. `invalidateQueries`
+  // matchea por prefijo — una key con page/pageSize/search fijos (como las de
+  // arriba) solo invalida esa combinación exacta y deja estancado el panel si
+  // el usuario estaba en otra página o con otro término de búsqueda.
+  userAllRolesBase: (orgId: string | null | undefined, userId: string) =>
+    [...rbacQueryKeys.all, 'userAllRoles', orgId ?? 'none', userId] as const,
+  roleWithAllUsersBase: (orgId: string | null | undefined, roleId: string) =>
+    [...rbacQueryKeys.all, 'roleWithAllUsers', orgId ?? 'none', roleId] as const,
 }
 
 // Hook for fetching roles
@@ -138,6 +148,13 @@ export function useRoleMutations() {
     meta: { successMessage: 'Roles assigned successfully' },
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: rbacQueryKeys.userRoles(selectedOrganizationId, userId) })
+      // Prefijo (sin page/pageSize/search): cubre al panel sin importar en qué
+      // página/búsqueda estaba parado (ver nota en userAllRolesBase arriba).
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.userAllRolesBase(selectedOrganizationId, userId) })
+      // `users_count` de cada rol y la columna Roles de la tabla de usuarios
+      // (GET /user_roles/users_with_roles) también cambian con esta mutación.
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles(selectedOrganizationId) })
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
     },
   })
 
@@ -146,8 +163,9 @@ export function useRoleMutations() {
       assignUsersToRole(roleId, userIds),
     meta: { successMessage: 'Users assigned successfully' },
     onSuccess: (_, { roleId }) => {
-      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roleWithAllUsers(selectedOrganizationId, roleId) })
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roleWithAllUsersBase(selectedOrganizationId, roleId) })
       queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles(selectedOrganizationId) })
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
     },
   })
 

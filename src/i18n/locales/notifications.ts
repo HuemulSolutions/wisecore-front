@@ -3,7 +3,7 @@ const translations = {
     title: { en: "Notifications", es: "Notificaciones" },
     description: {
       en: "All your notifications across assets",
-      es: "Todas tus notificaciones de los distintos activos",
+      es: "Todas las notificaciones de los distintos activos",
     },
   },
   filterAll: { en: "All", es: "Todas" },

@@ -8,8 +8,8 @@ export interface HuemulPaginationProps {
   onPageSizeChange?: (size: number) => void
   pageSizeOptions?: number[]
   className?: string
-  /** `card` (default) mantiene fondo/borde/sombra propios; `bare` los quita para embeberla en un footer propio. */
-  variant?: "card" | "bare"
+  /** `card` (default) mantiene fondo/borde/sombra propios; `bare` los quita para embeberla en un footer propio; `detailed` usa el estilo cerrado (ver `ia context`). */
+  variant?: "card" | "bare" | "detailed"
   /** Posición del label de rango ("1–8 de 13"). Default `end`. */
   labelPosition?: "start" | "end"
   /** Muestra los botones de primera/última página. Default `true`. */

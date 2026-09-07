@@ -11,8 +11,9 @@ import type { SectionPlateEditorRef, SectionPlateEditorProps } from '@/types/sec
 export type { SectionPlateEditorRef, SectionPlateEditorProps } from '@/types/section-plate-editor';
 import { normalizePlateMediaForSave } from '@/lib/plate-media-utils';
 import { ensureMermaidSnapshots } from '@/lib/plate-mermaid-utils';
-import { ensureDataTableSnapshots } from '@/lib/plate-data-table-utils';
-import { useDataTableSnapshotResolver } from '@/contexts/document-data-context';
+import { ensureDataTableSnapshots, normalizeDataTableNodesInTree } from '@/lib/plate-data-table-utils';
+import { useDataTableBatchResolver } from '@/contexts/document-data-context';
+import { labelForColumnId } from '@/lib/data-table-catalog-labels';
 import { uploadMedia } from '@/services/media';
 
 /**
@@ -107,7 +108,7 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
   mediaUploadTarget,
 }, ref) {
   const editorRef = useRef<PlateRichEditorRef>(null);
-  const resolveDataTableSnapshot = useDataTableSnapshotResolver();
+  const resolveDataTableBatch = useDataTableBatchResolver();
   const [dirty, setDirty] = useState(false);
   const [isPreparingSave, setIsPreparingSave] = useState(false);
   const prevContentRef = useRef<string>(content);
@@ -195,8 +196,17 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
       const { value: mermaidValue } = await runEnsureMermaidSnapshots();
       // Freeze the resolved rows of every `data_table` node into its `snapshot` — the
       // Markdown serialize rule (markdown-kit.tsx) reads only that frozen snapshot, never
-      // live data, so Word/Markdown exports must get today's data at save time.
-      const { value: plateValue } = await ensureDataTableSnapshots(mermaidValue, resolveDataTableSnapshot);
+      // live data, so Word/Markdown exports must get today's data at save time. A batch
+      // resolve failure never blocks the save (see ensureDataTableSnapshots) — it just keeps
+      // the previous snapshot and reports it via `failed`.
+      const { value: plateValue, failed: dataTableFailed } = await ensureDataTableSnapshots(
+        mermaidValue,
+        resolveDataTableBatch,
+        (columnId) => labelForColumnId(tEditor, columnId),
+      );
+      if (dataTableFailed > 0) {
+        toast.warning(tEditor('dataTable.snapshotFailed', { count: dataTableFailed }));
+      }
       editorRef.current?.resetValue(plateValue as Value);
       const md = editorRef.current?.getMarkdown() ?? content;
       // Rewrite url/previewUrl back to {{MEDIA:<uuid>}} for every media node before
@@ -209,7 +219,7 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
     } finally {
       setIsPreparingSave(false);
     }
-  }, [dirty, isSaving, isPreparingSave, sectionId, content, onSave, runEnsureMermaidSnapshots, resolveDataTableSnapshot]);
+  }, [dirty, isSaving, isPreparingSave, sectionId, content, onSave, runEnsureMermaidSnapshots, resolveDataTableBatch, tEditor]);
 
   const handleCancel = useCallback(() => {
     if (isSaving) return;
@@ -276,12 +286,17 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
         toolbarTopOffset={toolbarTopOffset}
         organizationId={organizationId}
         onAfterDiscussionMutation={onAutoSavePlateContent ? () => {
-          // Read current editor state and persist plate_content silently
-          // so comment marks survive a page refresh.
-          const md = editorRef.current?.getMarkdown() ?? content;
+          // Read current editor state and persist plate_content silently so comment marks
+          // survive a page refresh. Also backfills `node_id` on any `data_table` node that
+          // doesn't have one yet (sync, no network, no snapshot recompute) — a document that
+          // only ever autosaves and never goes through the manual "Guardar" (handleSave)
+          // would otherwise never get the anchor its Markdown markers/refresh need.
           const plateValue = editorRef.current?.getValue();
           if (plateValue) {
-            const normalized = normalizePlateMediaForSave(plateValue);
+            const normalizedDataTables = normalizeDataTableNodesInTree(plateValue) as Value;
+            editorRef.current?.resetValue(normalizedDataTables);
+            const md = editorRef.current?.getMarkdown() ?? content;
+            const normalized = normalizePlateMediaForSave(normalizedDataTables);
             onAutoSavePlateContent(sectionId, md, normalized.map((n) => JSON.stringify(n)));
           }
         } : undefined}

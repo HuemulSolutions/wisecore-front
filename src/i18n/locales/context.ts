@@ -10,7 +10,7 @@ const translations = {
   noContexts: { en: "No contexts configured", es: "Sin contextos configurados" },
   noContextsDescription: {
     en: "Add context to provide additional information and variables for asset execution.",
-    es: "Agrega contexto para proporcionar información adicional y variables para la ejecución del activo.",
+    es: "Agregar contexto para proporcionar información adicional y variables para la ejecución del activo.",
   },
   noContentAvailable: { en: "No content available", es: "Sin contenido disponible" },
   badgeText: { en: "Text", es: "Texto" },
@@ -27,41 +27,41 @@ const translations = {
     title: { en: "Add Text Context", es: "Agregar Contexto de Texto" },
     description: {
       en: "Enter a name and content for the text context.",
-      es: "Ingresa un nombre y contenido para el contexto de texto.",
+      es: "Ingresar un nombre y contenido para el contexto de texto.",
     },
     tabText: { en: "Text Context", es: "Contexto de Texto" },
     tabDocument: { en: "Asset Context", es: "Contexto de Activo" },
     addTextButton: { en: "Add Text Context", es: "Agregar Contexto de Texto" },
     addDocumentButton: { en: "Add Asset Context", es: "Agregar Contexto de Activo" },
     contextName: { en: "Context Name", es: "Nombre del Contexto" },
-    contextNamePlaceholder: { en: "Enter context name", es: "Ingresa el nombre del contexto" },
+    contextNamePlaceholder: { en: "Enter context name", es: "Ingresar el nombre del contexto" },
     contextContent: { en: "Context Content", es: "Contenido del Contexto" },
-    contextContentPlaceholder: { en: "Enter context content", es: "Ingresa el contenido del contexto" },
+    contextContentPlaceholder: { en: "Enter context content", es: "Ingresar el contenido del contexto" },
     selectDocument: { en: "Select Asset", es: "Seleccionar Activo" },
     toastTextAdded: { en: "Text context added successfully", es: "Contexto de texto agregado exitosamente" },
     toastDocumentAdded: { en: "Asset context added successfully", es: "Contexto de activo agregado exitosamente" },
-    validationFillFields: { en: "Please fill in all fields", es: "Por favor completa todos los campos" },
-    validationSelectFile: { en: "Please select a file", es: "Por favor selecciona un archivo" },
+    validationFillFields: { en: "Please fill in all fields", es: "Completar todos los campos" },
+    validationSelectFile: { en: "Please select a file", es: "Seleccionar un archivo" },
   },
   // context-edit-dialog.tsx
   editDialog: {
     title: { en: "Edit Context", es: "Editar Contexto" },
     description: {
       en: "Update the name and content of this context.",
-      es: "Actualiza el nombre y el contenido de este contexto.",
+      es: "Actualizar el nombre y el contenido de este contexto.",
     },
     saveChanges: { en: "Save Changes", es: "Guardar Cambios" },
     contextName: { en: "Context Name", es: "Nombre del Contexto" },
-    contextNamePlaceholder: { en: "Enter context name", es: "Ingresa el nombre del contexto" },
+    contextNamePlaceholder: { en: "Enter context name", es: "Ingresar el nombre del contexto" },
     contextContent: { en: "Context Content", es: "Contenido del Contexto" },
-    contextContentPlaceholder: { en: "Enter context content", es: "Ingresa el contenido del contexto" },
+    contextContentPlaceholder: { en: "Enter context content", es: "Ingresar el contenido del contexto" },
   },
   // context-delete-dialog.tsx
   deleteDialog: {
     title: { en: "Delete Context", es: "Eliminar Contexto" },
     description: {
       en: "Are you sure you want to delete this context? This action cannot be undone and may affect asset execution.",
-      es: "¿Estás seguro de que deseas eliminar este contexto? Esta acción no se puede deshacer y puede afectar la ejecución del activo.",
+      es: "¿Eliminar este contexto? Esta acción no se puede deshacer y puede afectar la ejecución del activo.",
     },
   },
   // context-content.tsx
@@ -84,7 +84,7 @@ const translations = {
     empty: { en: "No context configured", es: "Sin contextos configurados" },
     emptyHint: {
       en: "Add context to provide additional information for assets created from this template.",
-      es: "Agrega contexto para proporcionar información adicional a los activos creados desde esta plantilla.",
+      es: "Agregar contexto para proporcionar información adicional a los activos creados desde esta plantilla.",
     },
     editTitle: { en: "Edit context", es: "Editar contexto" },
     deleteTitle: { en: "Delete context", es: "Eliminar contexto" },
@@ -92,7 +92,7 @@ const translations = {
       title: { en: "Add context", es: "Agregar contexto" },
       description: {
         en: "Enter a name and content for the context.",
-        es: "Ingresa un nombre y contenido para el contexto.",
+        es: "Ingresar un nombre y contenido para el contexto.",
       },
       submit: { en: "Add", es: "Agregar" },
     },
@@ -100,7 +100,7 @@ const translations = {
       title: { en: "Edit context", es: "Editar contexto" },
       description: {
         en: "Update the name and content of this context.",
-        es: "Actualiza el nombre y el contenido de este contexto.",
+        es: "Actualizar el nombre y el contenido de este contexto.",
       },
       submit: { en: "Save changes", es: "Guardar cambios" },
     },
@@ -108,14 +108,14 @@ const translations = {
       title: { en: "Delete context", es: "Eliminar contexto" },
       description: {
         en: "Are you sure you want to delete this context? This action cannot be undone. It won't affect assets already created from this template.",
-        es: "¿Estás seguro de que deseas eliminar este contexto? Esta acción no se puede deshacer. No afecta a los activos ya creados desde esta plantilla.",
+        es: "¿Eliminar este contexto? Esta acción no se puede deshacer. No afecta a los activos ya creados desde esta plantilla.",
       },
     },
     fields: {
       name: { en: "Context name", es: "Nombre del contexto" },
-      namePlaceholder: { en: "Enter context name", es: "Ingresa el nombre del contexto" },
+      namePlaceholder: { en: "Enter context name", es: "Ingresar el nombre del contexto" },
       content: { en: "Context content", es: "Contenido del contexto" },
-      contentPlaceholder: { en: "Enter context content", es: "Ingresa el contenido del contexto" },
+      contentPlaceholder: { en: "Enter context content", es: "Ingresar el contenido del contexto" },
     },
     toast: {
       created: { en: "Context added successfully", es: "Contexto agregado exitosamente" },
@@ -130,12 +130,12 @@ const translations = {
     title: { en: "Asset Context", es: "Contexto del Activo" },
     description: {
       en: "Configure asset context, variables, and execution environment.",
-      es: "Configura el contexto del activo, variables y entorno de ejecución.",
+      es: "Configurar el contexto del activo, variables y entorno de ejecución.",
     },
     documentLabel: { en: "Asset: {{name}}", es: "Activo: {{name}}" },
     documentDescription: {
       en: "Set up context variables, user permissions, and environmental settings that influence asset execution and content generation.",
-      es: "Configura variables de contexto, permisos de usuario y ajustes del entorno que influyen en la ejecución y generación de contenido del activo.",
+      es: "Configurar variables de contexto, permisos de usuario y ajustes del entorno que influyen en la ejecución y generación de contenido del activo.",
     },
   },
 }

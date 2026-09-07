@@ -16,6 +16,9 @@ export type TDiscussion = {
   /** section_execution_id of the section this thread belongs to. Absent on
    * discussions optimistically created before the backend round-trip. */
   sectionExecutionId?: string | null;
+  /** execution_id this thread belongs to. Set on both section-scoped and
+   * document-scoped (whole execution) threads. */
+  executionId?: string | null;
 };
 
 export type TDiscussionUser = {

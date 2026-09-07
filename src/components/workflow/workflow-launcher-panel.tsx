@@ -95,7 +95,7 @@ function TemplateRow({
       </div>
       {(templateName || item.document_type_name) && (
         <p className="flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
-          {templateName && <span className="truncate">{templateName}</span>}
+          {templateName && <HighlightedText text={templateName} term={query} className="truncate" />}
           {templateName && item.document_type_name && <span aria-hidden="true">·</span>}
           {item.document_type_name && <span className="truncate">{item.document_type_name}</span>}
         </p>

@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 
 import { DataTableConfigSheet } from '@/components/ui/data-table-config-sheet';
 import { DATA_TABLE_KEY } from '@/lib/plate-data-table-utils';
+import { newDataTableNodeId } from '@/lib/data-table-node-utils';
 import type { DataTableConfig } from '@/types/data-table-node';
 
 import { ToolbarButton } from './toolbar';
@@ -25,7 +26,7 @@ export function DataTableToolbarButton(props: React.ComponentProps<typeof Toolba
   const handleConfirm = React.useCallback(
     (config: DataTableConfig) => {
       editor.tf.insertNodes(
-        { type: DATA_TABLE_KEY, scope: { kind: 'current' }, ...config, children: [{ text: '' }] },
+        { type: DATA_TABLE_KEY, node_id: newDataTableNodeId(), scope: { kind: 'current' }, ...config, children: [{ text: '' }] },
         { select: true },
       );
       editor.tf.focus();

@@ -50,6 +50,9 @@ export interface LibraryContentFolder {
   is_expanded: boolean;
   folder_type?: LibraryContentFolderType | null;
   access_levels?: string[];
+  /** Si la carpeta admite grants de rol (POST /role-folder). Lo calcula backend con la misma
+   *  regla que valida el POST — no reimplementar por folder_type en el cliente. */
+  is_grantable?: boolean;
 }
 
 export interface LibraryContent {
@@ -79,4 +82,11 @@ export interface GetLibraryContentOptions {
   includeExecutions?: boolean;
   /** Modo lote: ignora folderId/search/filters/focusAssetId. Incompatible con ellos (400 del backend). */
   assetIds?: string[];
+  /**
+   * Carpetas a resolver ya expandidas en la misma respuesta (unión con
+   * focusAssetId, sus ancestros incluidos). Solo aplica al root load — máx.
+   * 200 ids, el backend responde 400 (INVALID_FOLDER_EXPANDED_IDS_LIMIT) si
+   * se excede. Incompatible con search/filters/assetIds.
+   */
+  expandedFolderIds?: string[];
 }

@@ -53,6 +53,7 @@ export function buildFocusedTree(content: LibraryContent): FileNode[] {
       folder_type: f.folder_type,
       isRootGroup: isRootGroupFolderNode(f.folder_type, f.parent_folder_id),
       access_levels: f.access_levels,
+      is_grantable: f.is_grantable,
     })
   }
 

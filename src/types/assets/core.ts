@@ -74,6 +74,8 @@ export interface FileNode {
   folder_type?: LibraryContentFolderType | null;
   /** True for custom group folders created directly at the real root (folder_type: null, no parent). */
   isRootGroup?: boolean;
+  /** Espejo de LibraryContentFolder.is_grantable — viene del backend, no se deriva. */
+  is_grantable?: boolean;
 }
 
 /**
@@ -229,6 +231,7 @@ export interface LatestDiscussionComment {
 export interface LatestDiscussion {
   id: string;
   document_id: string;
+  execution_id: string | null;
   section_execution_id: string | null;
   organization_id: string;
   document_content: string;
@@ -495,6 +498,17 @@ export interface LibraryContentProps {
   onToggleSidebar?: () => void;
   isSidebarOpen?: boolean;
   onPreserveScroll?: () => void;
+  /**
+   * "panel": columna derecha de /asset (default). "fullscreen": vista dedicada
+   * sin header/nav (ver ia context/fullscreen-share-route-guide.md), montada por
+   * pages/asset-fullscreen.tsx. Ensancha el contenido y cambia el botón
+   * Maximize/Minimize del header.
+   */
+  variant?: "panel" | "fullscreen";
+  /** Abre la vista fullscreen del asset actual. Solo lo pasa /asset. */
+  onOpenFullscreen?: () => void;
+  /** Vuelve de fullscreen a /asset. Solo lo pasa la página fullscreen. */
+  onExitFullscreen?: () => void;
 }
 
 // ========================================
@@ -704,8 +718,14 @@ export interface PendingChangesResponse {
   has_next: boolean;
 }
 
+/** `scope` de `GET /documents/statistics`. `team` es alias exacto de `organization` hoy (no existe concepto de equipo en backend) — mismos 8 contadores, sin los 5 adicionales. Default (sin mandar el parámetro): `organization`. */
+export type DocumentStatisticsScope = 'me' | 'team' | 'organization';
+
 /**
- * Conteo de activos por categoría del dashboard
+ * Conteo de activos por categoría del dashboard. Los 8 primeros campos son
+ * org-wide y no cambian de valor según `scope`. Los 5 campos `pending_my_*`,
+ * `approved_owned_by_me_count`, `my_mentions_count` y `due_this_week_count`
+ * solo llegan con `scope=me`, relativos al usuario autenticado.
  */
 export interface DocumentStatistics {
   owned_count: number;
@@ -716,6 +736,16 @@ export interface DocumentStatistics {
   published_count: number;
   expiring_soon_count: number;
   unresolved_comments_count: number;
+  /** Ejecuciones que el usuario puede revisar ahora mismo — mismo predicado que `GET /execution/?pending_my_action=review`. */
+  pending_my_review_count?: number;
+  /** Ídem para aprobación (`pending_my_action=approve`). */
+  pending_my_approval_count?: number;
+  /** Ejecuciones `approved` cuyo documento es del usuario (`Document.created_by`). */
+  approved_owned_by_me_count?: number;
+  /** Placeholder fijo en `0` — depende de menciones a usuarios en comentarios, que todavía no existen. No renderizar como "0 menciones reales". */
+  my_mentions_count?: number;
+  /** Ejecuciones propias (dueño o con acción de review/approve pendiente) cuya `expiration_date` o `estimated_publication_date` cae dentro de los próximos 7 días. */
+  due_this_week_count?: number;
 }
 
 /**

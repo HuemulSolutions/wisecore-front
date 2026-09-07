@@ -57,6 +57,21 @@ function getNodeCenter(node: InternalNode) {
   }
 }
 
+/** Canvas coordinates of a specific handle box, given its position side. */
+function handleBoxCoords(
+  node: InternalNode,
+  handle: { x: number; y: number; width: number; height: number },
+  position: Position,
+): [number, number] {
+  let ox = handle.width / 2
+  let oy = handle.height / 2
+  if (position === Position.Left) ox = 0
+  if (position === Position.Right) ox = handle.width
+  if (position === Position.Top) oy = 0
+  if (position === Position.Bottom) oy = handle.height
+  return [node.internals.positionAbsolute.x + handle.x + ox, node.internals.positionAbsolute.y + handle.y + oy]
+}
+
 /**
  * Given a node and the center of the other node, find which handle position
  * is closest (Top/Right/Bottom/Left) and return its canvas coordinates.
@@ -83,17 +98,8 @@ function getFloatingHandleParams(
   const handle = node.internals.handleBounds?.source?.find((h) => h.position === position)
 
   if (handle) {
-    let ox = handle.width / 2
-    let oy = handle.height / 2
-    if (position === Position.Left) ox = 0
-    if (position === Position.Right) ox = handle.width
-    if (position === Position.Top) oy = 0
-    if (position === Position.Bottom) oy = handle.height
-    return [
-      node.internals.positionAbsolute.x + handle.x + ox,
-      node.internals.positionAbsolute.y + handle.y + oy,
-      position,
-    ]
+    const [x, y] = handleBoxCoords(node, handle, position)
+    return [x, y, position]
   }
 
   // Fallback: use node center edge
@@ -108,11 +114,31 @@ function getFloatingHandleParams(
   return [...fallbacks[position], position]
 }
 
-function getEdgeParams(source: InternalNode, target: InternalNode) {
+/**
+ * Coordinates of a specific handle by id (e.g. the diagram's saved
+ * `source_handle`/`target_handle`) — anchored, not recalculated per render. `null`
+ * when the node has no such handle (not yet measured, or an unknown id), so the
+ * caller can fall back to floating.
+ */
+function getAnchoredHandleParams(node: InternalNode, handleId: string): [number, number, Position] | null {
+  const handle = node.internals.handleBounds?.source?.find((h) => h.id === handleId)
+  if (!handle) return null
+  const [x, y] = handleBoxCoords(node, handle, handle.position)
+  return [x, y, handle.position]
+}
+
+function getEdgeParams(
+  source: InternalNode,
+  target: InternalNode,
+  sourceHandleId?: string | null,
+  targetHandleId?: string | null,
+) {
   const targetCenter = getNodeCenter(target)
   const sourceCenter = getNodeCenter(source)
-  const [sx, sy, sourcePos] = getFloatingHandleParams(source, targetCenter)
-  const [tx, ty, targetPos] = getFloatingHandleParams(target, sourceCenter)
+  const [sx, sy, sourcePos] =
+    (sourceHandleId && getAnchoredHandleParams(source, sourceHandleId)) || getFloatingHandleParams(source, targetCenter)
+  const [tx, ty, targetPos] =
+    (targetHandleId && getAnchoredHandleParams(target, targetHandleId)) || getFloatingHandleParams(target, sourceCenter)
   return { sx, sy, tx, ty, sourcePos, targetPos }
 }
 
@@ -160,6 +186,8 @@ export function RelationshipEdge({
   selected,
   data,
   markerEnd,
+  sourceHandleId,
+  targetHandleId,
 }: EdgeProps<RelationshipEdgeType>) {
   const { t } = useTranslation("document-type-relationships")
   const sourceNode = useInternalNode(source)
@@ -182,7 +210,7 @@ export function RelationshipEdge({
     const loopIndex = Math.round(Math.abs(offset) / 14)
     ;[edgePath, labelX, labelY] = getSelfLoopPath(sourceNode, loopIndex)
   } else {
-    const { sx, sy, tx, ty, sourcePos, targetPos } = getEdgeParams(sourceNode, targetNode)
+    const { sx, sy, tx, ty, sourcePos, targetPos } = getEdgeParams(sourceNode, targetNode, sourceHandleId, targetHandleId)
 
     // Vary curvature to separate parallel edges; offset units come from parallelOffset()
     const curvature = 0.25 + (offset / 14) * 0.35

@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Search, Share2, Plus, Trash2, Edit2, Check, X, Eye, ShieldCheck } from "lucide-react"
+import { Search, Share2, Plus, Trash2, Edit2, Check, X, Eye, ShieldCheck, Info, RefreshCw } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useRoles } from "@/hooks/useRbac"
@@ -19,7 +19,7 @@ import {
   useRoleFolderPermissionsByFolder,
   useRoleFolderMutations,
 } from "@/hooks/useRoleFolder"
-import type { RoleFolderAccessLevel } from "@/types/role-folder"
+import type { RoleFolderAccessLevel, CreateRoleFolderRequest } from "@/types/role-folder"
 
 const ACCESS_LEVEL_ICON: Record<RoleFolderAccessLevel, typeof Eye> = {
   view: Eye,
@@ -44,13 +44,24 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
   const [newLevels, setNewLevels] = useState<Set<RoleFolderAccessLevel>>(new Set())
   const [roleToRevoke, setRoleToRevoke] = useState<{ id: string; name: string } | null>(null)
   const [editingGrant, setEditingGrant] = useState<{ roleId: string; levels: Set<RoleFolderAccessLevel> } | null>(null)
+  const [pendingFirstGrant, setPendingFirstGrant] = useState<{ body: CreateRoleFolderRequest; roleName: string } | null>(null)
 
-  const { data: rolesData, isLoading: isLoadingRoles } = useRoles(open, 1, 1000)
+  const {
+    data: rolesData,
+    isLoading: isLoadingRoles,
+    isFetching: isFetchingRoles,
+    refetch: refetchRoles,
+  } = useRoles(open, 1, 1000)
   const { data: accessLevelsData, isLoading: isLoadingAccessLevels } = useRoleFolderAccessLevels(
     selectedOrganizationId || "",
     open && !!selectedOrganizationId,
   )
-  const { data: grantsData, isLoading: isLoadingGrants } = useRoleFolderPermissionsByFolder(
+  const {
+    data: grantsData,
+    isLoading: isLoadingGrants,
+    isFetching: isFetchingGrants,
+    refetch: refetchGrants,
+  } = useRoleFolderPermissionsByFolder(
     selectedOrganizationId || "",
     folder?.id || "",
     { enabled: open && !!selectedOrganizationId && !!folder },
@@ -60,6 +71,11 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
   const isLoading = isLoadingRoles || isLoadingAccessLevels || isLoadingGrants
   const roles = rolesData?.data || []
   const accessLevels = accessLevelsData?.data || []
+
+  const handleRefresh = () => {
+    void refetchGrants()
+    void refetchRoles()
+  }
 
   // role_id -> niveles ya otorgados, agrupando las filas (una por nivel) que devuelve el backend.
   const grantsByRole = new Map<string, Set<RoleFolderAccessLevel>>()
@@ -71,6 +87,13 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
 
   const grantedRoles = roles.filter((role) => grantsByRole.has(role.id))
   const availableRoles = roles.filter((role) => !grantsByRole.has(role.id))
+
+  const governingFolder = grantsData?.governing_folder ?? null
+  // has_own_overrides es redundante con data.length > 0 (mismo criterio en backend);
+  // el fallback cubre un deploy que todavía no lo devuelva.
+  const hasOwnOverrides = grantsData?.has_own_overrides ?? (grantsData?.data.length ?? 0) > 0
+  const isInheriting = !hasOwnOverrides
+  const governingName = governingFolder && governingFolder.id !== folder?.id ? governingFolder.name : null
 
   const filteredGrantedRoles = grantedRoles.filter((role) =>
     role.name.toLowerCase().includes(searchRole.toLowerCase())
@@ -85,17 +108,28 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
     })
   }
 
+  const submitGrant = (body: CreateRoleFolderRequest) => {
+    createRoleFolder.mutate(body, {
+      onSuccess: () => {
+        setSelectedRoleId("")
+        setNewLevels(new Set())
+      },
+    })
+  }
+
   const handleAddRole = () => {
     if (!folder || !selectedRoleId || newLevels.size === 0) return
-    createRoleFolder.mutate(
-      { role_id: selectedRoleId, folder_id: folder.id, access_levels: [...newLevels] },
-      {
-        onSuccess: () => {
-          setSelectedRoleId("")
-          setNewLevels(new Set())
-        },
-      },
-    )
+    const body: CreateRoleFolderRequest = {
+      role_id: selectedRoleId,
+      folder_id: folder.id,
+      access_levels: [...newLevels],
+    }
+    if (isInheriting) {
+      const roleName = roles.find((r) => r.id === selectedRoleId)?.name || ""
+      setPendingFirstGrant({ body, roleName })
+      return
+    }
+    submitGrant(body)
   }
 
   const startEditingGrant = (roleId: string) => {
@@ -153,6 +187,17 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
           </div>
         ) : (
           <div className="space-y-6">
+            {isInheriting && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                <p className="text-xs">
+                  {governingName
+                    ? t('role-folder:permissionsDialog.inheritance.banner', { folderName: governingName })
+                    : t('role-folder:permissionsDialog.inheritance.bannerGeneric')}
+                </p>
+              </div>
+            )}
+
             {availableRoles.length > 0 && canCreateRoleFolder && (
               <div className="border rounded-lg p-4 bg-muted/20 space-y-4">
                 <div>
@@ -191,7 +236,18 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
             )}
 
             <div className="space-y-3">
-              <div className="text-sm font-medium">{t('role-folder:permissionsDialog.grantedSection')}</div>
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-medium">{t('role-folder:permissionsDialog.grantedSection')}</div>
+                <HuemulButton
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  icon={RefreshCw}
+                  tooltip={t('common:refresh')}
+                  loading={isFetchingGrants || isFetchingRoles}
+                  onClick={handleRefresh}
+                />
+              </div>
 
               {grantedRoles.length > 0 && (
                 <div className="relative">
@@ -209,7 +265,11 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
                 <div className="text-center py-8">
                   <Share2 className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
                   <p className="text-muted-foreground text-sm">
-                    {t('role-folder:permissionsDialog.noRolesAvailable')}
+                    {isInheriting
+                      ? (governingName
+                        ? t('role-folder:permissionsDialog.inheritance.inheritedEmpty', { folderName: governingName })
+                        : t('role-folder:permissionsDialog.inheritance.inheritedEmptyGeneric'))
+                      : t('role-folder:permissionsDialog.noRolesAvailable')}
                   </p>
                 </div>
               ) : filteredGrantedRoles.length === 0 ? (
@@ -318,6 +378,15 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
           roleName: roleToRevoke?.name,
           folderName: folder.name,
         })}
+        alert={
+          hasOwnOverrides && grantedRoles.length === 1
+            ? {
+              description: governingName
+                ? t('role-folder:permissionsDialog.inheritance.revokeLastWarning', { folderName: governingName })
+                : t('role-folder:permissionsDialog.inheritance.revokeLastWarningGeneric'),
+            }
+            : undefined
+        }
         actionLabel={t('role-folder:permissionsDialog.removeButton')}
         onAction={async () => {
           if (!roleToRevoke) return
@@ -326,6 +395,38 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
               { roleId: roleToRevoke.id, folderId: folder.id },
               { onSuccess: () => resolve(), onError: (e) => reject(e) },
             )
+          })
+        }}
+      />
+
+      <HuemulAlertDialog
+        open={!!pendingFirstGrant}
+        onOpenChange={(open) => !open && setPendingFirstGrant(null)}
+        title={t('role-folder:permissionsDialog.inheritance.firstGrantTitle')}
+        description={
+          governingName
+            ? t('role-folder:permissionsDialog.inheritance.firstGrantDescription', {
+              roleName: pendingFirstGrant?.roleName,
+              folderName: governingName,
+            })
+            : t('role-folder:permissionsDialog.inheritance.firstGrantDescriptionGeneric', {
+              roleName: pendingFirstGrant?.roleName,
+            })
+        }
+        actionLabel={t('role-folder:permissionsDialog.inheritance.firstGrantConfirm')}
+        actionVariant="default"
+        onAction={async () => {
+          if (!pendingFirstGrant) return
+          const body = pendingFirstGrant.body
+          await new Promise<void>((resolve, reject) => {
+            createRoleFolder.mutate(body, {
+              onSuccess: () => {
+                setSelectedRoleId("")
+                setNewLevels(new Set())
+                resolve()
+              },
+              onError: (e) => reject(e),
+            })
           })
         }}
       />

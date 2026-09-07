@@ -2,7 +2,7 @@ import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { downloadBlobResponse } from "@/lib/blob-download";
 import { logger } from "@/lib/logger";
-import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, ImportDocumentFromUrlParams, ImportDocumentAsyncResponse, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics, DocumentStatisticsResponse, DocumentMediaUrls, DocumentMediaUrlsResponse, DocumentSectionAccessItem, AssetContentResponse } from "@/types/assets";
+import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, ImportDocumentFromUrlParams, ImportDocumentAsyncResponse, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics, DocumentStatisticsResponse, DocumentStatisticsScope, DocumentMediaUrls, DocumentMediaUrlsResponse, DocumentSectionAccessItem, AssetContentResponse } from "@/types/assets";
 
 export type { ImportDocumentFromFileParams, ImportDocumentFromUrlParams, ImportDocumentAsyncResponse, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics };
 
@@ -41,8 +41,13 @@ export async function getDocumentById(documentId: string, organizationId: string
 
 export async function getDocumentStatistics(
   organizationId: string,
+  scope?: DocumentStatisticsScope,
 ): Promise<DocumentStatistics> {
-  const response = await httpClient.get(`${backendUrl}/documents/statistics`, {
+  // Sin `scope`, comportamiento actual sin cambios (`organization`). `team` es
+  // alias exacto de `organization` hoy — no existe concepto de equipo en
+  // backend, ver `DocumentStatisticsScope`.
+  const url = scope ? `${backendUrl}/documents/statistics?scope=${scope}` : `${backendUrl}/documents/statistics`;
+  const response = await httpClient.get(url, {
     headers: {
       'X-Org-Id': organizationId,
     },

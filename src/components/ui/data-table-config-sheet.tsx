@@ -3,38 +3,37 @@
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronUp, RefreshCw, Table2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, RefreshCw, Table2, Undo2, X } from 'lucide-react';
 
+import { useOrganization } from '@/contexts/organization-context';
 import { HuemulSheet } from '@/huemul/components/huemul-sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DATA_TABLE_SOURCES, getDataTableSource, type DataTableFieldDef } from '@/lib/data-table-sources';
+import { useDataTableSources, dataTableQueryKeys } from '@/hooks/useDataTables';
+import {
+  labelForSource,
+  labelForField,
+  labelForFilter,
+  labelForFilterOption,
+  hintForFilter,
+} from '@/lib/data-table-catalog-labels';
 import { DATA_TABLE_KEY } from '@/lib/plate-data-table-utils';
+import { normalizeDataTableNode, type AnyDataTableElement } from '@/lib/data-table-node-utils';
 import { DataTableNodeBody } from '@/components/ui/data-table-node-grid';
-import { useResolvedDataTable } from '@/contexts/document-data-context';
-import type { DataTableConfig, DataTableElement, DataTableSourceId } from '@/types/data-table-node';
-import type { ExecutionLifecycleState } from '@/types/execution';
-
-const LIFECYCLE_STATES: ExecutionLifecycleState[] = [
-  'draft',
-  'in_review',
-  'in_approval',
-  'approved',
-  'published',
-  'archived',
-  'finalized',
-];
-
-const RELATIONSHIP_DIRECTIONS: ('source' | 'target')[] = ['source', 'target'];
+import { useDataTablePreview } from '@/contexts/document-data-context';
+import type { DataTableColumnSpec, DataTableFieldDef, DataTableSourceDef } from '@/types/data-table-resolve';
+import type { DataTableConfig, DataTableElement } from '@/types/data-table-node';
 
 export interface DataTableConfigSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Config de partida — presente al reconfigurar un nodo existente, ausente al insertar uno nuevo. */
-  initial?: DataTableConfig | null;
+  /** Config de partida — presente al reconfigurar un nodo existente, ausente al insertar uno nuevo.
+   * Se normaliza al abrir (`normalizeDataTableNode`) para aceptar tanto el shape nuevo como
+   * nodos legacy (`columns: string[]`, `filters` camelCase). */
+  initial?: DataTableElement | DataTableConfig | null;
   onConfirm: (config: DataTableConfig) => void;
 }
 
@@ -46,45 +45,63 @@ function parseLimit(raw: string): number | null {
 
 /**
  * Sheet único para insertar o reconfigurar un nodo `data_table` — mismo componente en ambos
- * casos (ver `data-table-toolbar-button.tsx` y `data-table-node.tsx`). Reemplaza al dialog
- * angosto original: dos columnas, config a la izquierda y previsualización en vivo a la derecha,
- * armada con el mismo `DataTableNodeBody` que pinta el nodo ya insertado.
+ * casos (ver `data-table-toolbar-button.tsx` y `data-table-node.tsx`). Dos columnas: config a
+ * la izquierda y previsualización en vivo a la derecha (armada con el mismo `DataTableNodeBody`
+ * que pinta el nodo ya insertado, vía `useDataTablePreview` — una query propia debounceada que
+ * no se une al batch del resto del documento).
+ *
+ * El catálogo (fuentes/columnas/filtros) viene de `/data-table/sources` — nada hardcodeado acá.
  */
 export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }: DataTableConfigSheetProps) {
   const { t } = useTranslation(['editor', 'assets']);
   const queryClient = useQueryClient();
+  const { selectedOrganizationId } = useOrganization();
+  const sourcesQuery = useDataTableSources(selectedOrganizationId || undefined);
+  const sources = React.useMemo(() => sourcesQuery.data ?? [], [sourcesQuery.data]);
 
-  const [source, setSource] = React.useState<DataTableSourceId>(initial?.source ?? 'document_versions');
-  const [columns, setColumns] = React.useState<string[]>(initial?.columns ?? []);
-  const [lifecycleStates, setLifecycleStates] = React.useState<ExecutionLifecycleState[]>(
-    initial?.filters?.lifecycleStates ?? [],
+  const normalizedInitial = React.useMemo(
+    () => (initial ? normalizeDataTableNode(initial as AnyDataTableElement) : null),
+    [initial],
   );
-  const [relationshipDirections, setRelationshipDirections] = React.useState<('source' | 'target')[]>(
-    initial?.filters?.relationshipDirections ?? [],
-  );
-  const [limit, setLimit] = React.useState<string>(initial?.limit ? String(initial.limit) : '');
-  const [title, setTitle] = React.useState<string>(initial?.title ?? '');
 
-  // Reset del formulario a lo que trae el nodo (o los defaults de la fuente) cada vez que se abre.
+  const getSourceDef = React.useCallback(
+    (id: string): DataTableSourceDef | undefined => sources.find((s) => s.id === id),
+    [sources],
+  );
+
+  const [source, setSource] = React.useState<string>(normalizedInitial?.source || 'document_versions');
+  const [columns, setColumns] = React.useState<DataTableColumnSpec[]>(normalizedInitial?.columns ?? []);
+  const [filters, setFilters] = React.useState<Record<string, string[]>>(normalizedInitial?.filters ?? {});
+  const [limit, setLimit] = React.useState<string>(normalizedInitial?.limit ? String(normalizedInitial.limit) : '');
+  const [title, setTitle] = React.useState<string>(normalizedInitial?.title ?? '');
+  const [refreshOnApproval, setRefreshOnApproval] = React.useState<boolean>(
+    normalizedInitial?.refresh_on_approval ?? false,
+  );
+
+  // Reset del formulario a lo que trae el nodo (normalizado) cada vez que se abre.
   React.useEffect(() => {
     if (!open) return;
-    const nextSource = initial?.source ?? 'document_versions';
+    const nextSource = normalizedInitial?.source || 'document_versions';
     setSource(nextSource);
-    setColumns(initial?.columns ?? getDataTableSource(nextSource)?.defaultColumns ?? []);
-    setLifecycleStates(initial?.filters?.lifecycleStates ?? []);
-    setRelationshipDirections(initial?.filters?.relationshipDirections ?? []);
-    setLimit(initial?.limit ? String(initial.limit) : '');
-    setTitle(initial?.title ?? '');
-  }, [open, initial]);
+    setColumns(
+      normalizedInitial?.columns.length
+        ? normalizedInitial.columns
+        : (getSourceDef(nextSource)?.default_columns ?? []).map((id) => ({ id })),
+    );
+    setFilters(normalizedInitial?.filters ?? {});
+    setLimit(normalizedInitial?.limit ? String(normalizedInitial.limit) : '');
+    setTitle(normalizedInitial?.title ?? '');
+    setRefreshOnApproval(normalizedInitial?.refresh_on_approval ?? false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, normalizedInitial]);
 
-  const sourceDef = getDataTableSource(source);
-  const filterKinds = sourceDef?.filterKinds ?? [];
+  const sourceDef = getSourceDef(source);
+  const filterDefs = (sourceDef?.filters ?? []).filter((f) => f.kind === 'multi_enum');
 
-  const handleSourceChange = (next: DataTableSourceId) => {
+  const handleSourceChange = (next: string) => {
     setSource(next);
-    setColumns(getDataTableSource(next)?.defaultColumns ?? []);
-    setLifecycleStates([]);
-    setRelationshipDirections([]);
+    setColumns((getSourceDef(next)?.default_columns ?? []).map((id) => ({ id })));
+    setFilters({});
   };
 
   const moveColumn = (index: number, offset: -1 | 1) => {
@@ -98,30 +115,28 @@ export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }:
   };
 
   const removeColumn = (id: string) => {
-    setColumns((prev) => prev.filter((c) => c !== id));
+    setColumns((prev) => prev.filter((c) => c.id !== id));
   };
 
   const addColumn = (id: string) => {
-    setColumns((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    setColumns((prev) => (prev.some((c) => c.id === id) ? prev : [...prev, { id }]));
   };
 
-  const toggleLifecycleState = (state: ExecutionLifecycleState, checked: boolean) => {
-    setLifecycleStates((prev) => (checked ? [...prev, state] : prev.filter((s) => s !== state)));
+  const renameColumn = (id: string, label: string) => {
+    setColumns((prev) => prev.map((c) => (c.id === id ? { ...c, label: label.trim() || undefined } : c)));
   };
 
-  const toggleRelationshipDirection = (direction: 'source' | 'target', checked: boolean) => {
-    setRelationshipDirections((prev) => (checked ? [...prev, direction] : prev.filter((d) => d !== direction)));
+  const toggleFilterValue = (filterId: string, value: string, checked: boolean) => {
+    setFilters((prev) => {
+      const current = new Set(prev[filterId] ?? []);
+      if (checked) current.add(value);
+      else current.delete(value);
+      const next = { ...prev };
+      if (current.size) next[filterId] = [...current];
+      else delete next[filterId];
+      return next;
+    });
   };
-
-  const draftFilters = React.useMemo(() => {
-    const filters: DataTableConfig['filters'] = {};
-    if (filterKinds.includes('lifecycleStates') && lifecycleStates.length) filters.lifecycleStates = lifecycleStates;
-    if (filterKinds.includes('relationshipDirections') && relationshipDirections.length) {
-      filters.relationshipDirections = relationshipDirections;
-    }
-    return Object.keys(filters).length ? filters : null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterKinds.join('|'), lifecycleStates, relationshipDirections]);
 
   const parsedLimit = React.useMemo(() => parseLimit(limit), [limit]);
 
@@ -131,20 +146,18 @@ export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }:
       scope: { kind: 'current' },
       source,
       columns,
-      filters: draftFilters,
+      filters,
       limit: parsedLimit,
       title: title.trim() || null,
+      refresh_on_approval: refreshOnApproval,
       children: [{ text: '' }],
     }),
-    [source, columns, draftFilters, parsedLimit, title],
+    [source, columns, filters, parsedLimit, title, refreshOnApproval],
   );
-  const resolved = useResolvedDataTable(draftElement);
+  const resolved = useDataTablePreview(draftElement);
 
   const handleRefreshPreview = React.useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ['document-content'] });
-    void queryClient.invalidateQueries({ queryKey: ['executions'] });
-    void queryClient.invalidateQueries({ queryKey: ['execution-relationships'] });
-    void queryClient.invalidateQueries({ queryKey: ['document-types'] });
+    void queryClient.invalidateQueries({ queryKey: dataTableQueryKeys.previewBase() });
   }, [queryClient]);
 
   const handleConfirm = React.useCallback(() => {
@@ -152,14 +165,27 @@ export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }:
     onConfirm({
       source,
       columns,
-      filters: draftFilters,
+      filters,
       limit: parsedLimit,
       title: title.trim() || null,
+      refresh_on_approval: refreshOnApproval,
     });
-  }, [sourceDef, columns, source, draftFilters, parsedLimit, title, onConfirm]);
+  }, [sourceDef, columns, source, filters, parsedLimit, title, refreshOnApproval, onConfirm]);
 
-  const chosenFields = columns.map((id) => ({ id, field: sourceDef?.fields.find((f) => f.id === id) ?? null }));
-  const availableFields = (sourceDef?.fields ?? []).filter((f: DataTableFieldDef) => !columns.includes(f.id));
+  const orphanColumnIds = React.useMemo(() => {
+    const ids = new Set(resolved.omittedColumns);
+    for (const col of columns) {
+      if (!sourceDef?.fields.some((f) => f.id === col.id)) ids.add(col.id);
+    }
+    return ids;
+  }, [columns, sourceDef, resolved.omittedColumns]);
+
+  const chosenFields = columns.map((col) => ({
+    col,
+    field: sourceDef?.fields.find((f) => f.id === col.id) ?? null,
+    isOrphan: orphanColumnIds.has(col.id),
+  }));
+  const availableFields = (sourceDef?.fields ?? []).filter((f: DataTableFieldDef) => !columns.some((c) => c.id === f.id));
 
   return (
     <HuemulSheet
@@ -193,14 +219,14 @@ export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }:
 
         <div className="flex flex-col gap-1.5">
           <Label>{t('dataTable.sheet.sourceLabel')}</Label>
-          <Select value={source} onValueChange={(v) => handleSourceChange(v as DataTableSourceId)}>
+          <Select value={source} onValueChange={handleSourceChange} disabled={sourcesQuery.isPending}>
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {DATA_TABLE_SOURCES.map((s) => (
+              {sources.map((s) => (
                 <SelectItem key={s.id} value={s.id}>
-                  {t(s.labelKey)}
+                  {labelForSource(t, s)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -215,11 +241,29 @@ export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }:
                 {chosenFields.length === 0 && (
                   <p className="px-1 py-1 text-xs text-muted-foreground">{t('dataTable.sheet.columnsRequired')}</p>
                 )}
-                {chosenFields.map(({ id, field }, index) => (
-                  <div key={id} className="flex items-center gap-1 rounded px-1 py-1 text-sm hover:bg-accent/40">
-                    <span className={`flex-1 truncate ${field ? '' : 'italic text-muted-foreground'}`}>
-                      {field ? t(field.labelKey) : id}
-                    </span>
+                {chosenFields.map(({ col, field, isOrphan }, index) => (
+                  <div key={col.id} className="flex items-center gap-1 rounded px-1 py-1 text-sm hover:bg-accent/40">
+                    <Input
+                      value={col.label ?? ''}
+                      onChange={(e) => renameColumn(col.id, e.target.value)}
+                      placeholder={field ? labelForField(t, field) : col.id}
+                      disabled={isOrphan}
+                      title={isOrphan ? t('dataTable.sheet.orphanColumn') : t('dataTable.sheet.renamePlaceholder')}
+                      className={`h-7 flex-1 border-0 bg-transparent px-1 shadow-none focus-visible:ring-1 ${
+                        isOrphan ? 'italic text-muted-foreground' : ''
+                      }`}
+                    />
+                    {col.label && !isOrphan && (
+                      <HuemulButton
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        icon={Undo2}
+                        iconClassName="h-3.5 w-3.5"
+                        tooltip={t('dataTable.sheet.resetColumnLabel')}
+                        onClick={() => renameColumn(col.id, '')}
+                      />
+                    )}
                     <HuemulButton
                       variant="ghost"
                       size="icon"
@@ -247,7 +291,7 @@ export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }:
                       icon={X}
                       iconClassName="h-3.5 w-3.5"
                       tooltip={t('dataTable.sheet.removeColumn')}
-                      onClick={() => removeColumn(id)}
+                      onClick={() => removeColumn(col.id)}
                     />
                   </div>
                 ))}
@@ -261,7 +305,7 @@ export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }:
                   {availableFields.map((field) => (
                     <label key={field.id} className="flex items-center gap-2 text-sm hover:cursor-pointer">
                       <Checkbox checked={false} onCheckedChange={() => addColumn(field.id)} />
-                      {t(field.labelKey)}
+                      {labelForField(t, field)}
                     </label>
                   ))}
                 </div>
@@ -270,53 +314,55 @@ export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }:
           </div>
         )}
 
-        {filterKinds.includes('lifecycleStates') && (
-          <div className="flex flex-col gap-1.5">
-            <Label>{t('dataTable.sheet.lifecycleFilterLabel')}</Label>
+        {filterDefs.map((filterDef) => (
+          <div key={filterDef.id} className="flex flex-col gap-1.5">
+            <Label>{labelForFilter(t, filterDef)}</Label>
             <div className="flex flex-wrap gap-x-3 gap-y-2 rounded-md border p-2.5">
-              {LIFECYCLE_STATES.map((state) => (
-                <label key={state} className="flex items-center gap-1.5 text-sm hover:cursor-pointer">
+              {(filterDef.options ?? []).map((option) => (
+                <label key={option.value} className="flex items-center gap-1.5 text-sm hover:cursor-pointer">
                   <Checkbox
-                    checked={lifecycleStates.includes(state)}
-                    onCheckedChange={(checked) => toggleLifecycleState(state, checked === true)}
+                    checked={(filters[filterDef.id] ?? []).includes(option.value)}
+                    onCheckedChange={(checked) => toggleFilterValue(filterDef.id, option.value, checked === true)}
                   />
-                  {t(`assets:lifecycle.stateLabels.${state}`, { defaultValue: state })}
+                  {labelForFilterOption(t, filterDef.id, option)}
                 </label>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">{t('dataTable.sheet.lifecycleFilterHint')}</p>
+            {hintForFilter(t, filterDef) && (
+              <p className="text-xs text-muted-foreground">{hintForFilter(t, filterDef)}</p>
+            )}
           </div>
-        )}
+        ))}
 
-        {filterKinds.includes('relationshipDirections') && (
+        {sourceDef?.supports_limit && (
           <div className="flex flex-col gap-1.5">
-            <Label>{t('dataTable.sheet.directionFilterLabel')}</Label>
-            <div className="flex flex-wrap gap-x-3 gap-y-2 rounded-md border p-2.5">
-              {RELATIONSHIP_DIRECTIONS.map((direction) => (
-                <label key={direction} className="flex items-center gap-1.5 text-sm hover:cursor-pointer">
-                  <Checkbox
-                    checked={relationshipDirections.includes(direction)}
-                    onCheckedChange={(checked) => toggleRelationshipDirection(direction, checked === true)}
-                  />
-                  {t(direction === 'source' ? 'dataTable.values.directionOutgoing' : 'dataTable.values.directionIncoming')}
-                </label>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">{t('dataTable.sheet.directionFilterHint')}</p>
+            <Label htmlFor="data-table-limit">{t('dataTable.sheet.limitLabel')}</Label>
+            <Input
+              id="data-table-limit"
+              type="number"
+              min={1}
+              value={limit}
+              onChange={(e) => setLimit(e.target.value)}
+              placeholder={t('dataTable.sheet.limitPlaceholder')}
+              className="max-w-32"
+            />
           </div>
         )}
 
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="data-table-limit">{t('dataTable.sheet.limitLabel')}</Label>
-          <Input
-            id="data-table-limit"
-            type="number"
-            min={1}
-            value={limit}
-            onChange={(e) => setLimit(e.target.value)}
-            placeholder={t('dataTable.sheet.limitPlaceholder')}
-            className="max-w-32"
-          />
+          <label className="flex items-start gap-2 text-sm hover:cursor-pointer">
+            <Checkbox
+              checked={refreshOnApproval}
+              onCheckedChange={(checked) => setRefreshOnApproval(checked === true)}
+              className="mt-0.5"
+            />
+            <span>
+              {t('dataTable.sheet.refreshOnApproval')}
+              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                {t('dataTable.sheet.refreshOnApprovalHint')}
+              </span>
+            </span>
+          </label>
         </div>
       </aside>
 
@@ -334,9 +380,6 @@ export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }:
           />
         </div>
         <DataTableNodeBody resolved={resolved} title={title.trim() || null} />
-        {resolved.isLoading && resolved.rows.length === 0 && (
-          <p className="text-xs text-muted-foreground">{t('dataTable.preview.noContext')}</p>
-        )}
       </section>
     </HuemulSheet>
   );

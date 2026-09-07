@@ -52,7 +52,7 @@ const translations = {
   },
   emptyState: {
     title: { en: "No usage in this period", es: "Sin consumo en este período" },
-    description: { en: "Try a wider date range or a different filter.", es: "Prueba un rango de fechas más amplio o un filtro distinto." },
+    description: { en: "Try a wider date range or a different filter.", es: "Probar un rango de fechas más amplio o un filtro distinto." },
   },
   errorState: {
     title: { en: "Couldn't load usage data", es: "No se pudieron cargar los datos de uso" },

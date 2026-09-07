@@ -8,7 +8,7 @@ import RoleFormFields from "./roles-form-fields"
 import type { CreateRoleSheetProps } from '@/types/roles'
 export type { CreateRoleSheetProps } from '@/types/roles'
 
-export default function CreateRoleSheet({ open, onOpenChange, canCreate, onCreated }: CreateRoleSheetProps) {
+export default function CreateRoleSheet({ open, onOpenChange, canCreate, onCreated, initialName }: CreateRoleSheetProps) {
   const { t } = useTranslation(['roles', 'common'])
   const [formData, setFormData] = useState({
     name: '',
@@ -30,13 +30,14 @@ export default function CreateRoleSheet({ open, onOpenChange, canCreate, onCreat
   useEffect(() => {
     if (open) {
       setFormData({
-        name: '',
+        name: initialName ?? '',
         description: '',
       })
       setPermissions([])
       setIsPosition(false)
       setParentRoleId(null)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   if (!canCreate) return null

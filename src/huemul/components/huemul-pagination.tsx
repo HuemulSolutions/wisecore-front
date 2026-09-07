@@ -62,6 +62,104 @@ export function HuemulPagination({
   const isFirstPage = page === 1
   const isLastPage = totalPages !== undefined ? page >= totalPages : hasNext === false
 
+  // ── Variant "detailed" ─────────────────────────────────────────────────
+  // Estilo cerrado (grid de usuarios): botones de página por cada `pageSizeOptions`,
+  // números colapsados vía `buildPageRange` cuando se conoce `totalItems`, y
+  // degradación a solo Anterior/Siguiente cuando no (ver `UsersResponse`, que no trae
+  // total — el caso real que motivó esta rama).
+  if (variant === "detailed") {
+    const navBtnClass = (disabled: boolean) =>
+      cn(
+        "flex h-7 w-7 items-center justify-center rounded-[7px] border transition-colors hover:cursor-pointer disabled:cursor-not-allowed",
+        disabled
+          ? "border-[#dfe4ec] bg-[#f7f9fb] text-[#c3ccd8]"
+          : "border-[#dfe4ec] bg-white text-[#475569] hover:border-[#93b4f5]"
+      )
+
+    return (
+      <div className={cn("flex flex-wrap items-center gap-2.5 border-t border-[#e5eaf0] bg-white px-4.5 py-2.5", className)}>
+        {totalItems === 0 ? (
+          <span className="text-[12.5px] text-[#64748b]">{t("pagination.noResults")}</span>
+        ) : rangeLabel ? (
+          <span className="whitespace-nowrap text-[12.5px] tabular-nums text-[#64748b]">
+            {t("pagination.showing")} {rangeLabel}
+          </span>
+        ) : null}
+
+        <div className="flex-1" />
+
+        {onPageSizeChange && (
+          <>
+            <div className="flex items-center gap-1.5">
+              <span className="whitespace-nowrap text-xs text-[#94a3b8]">{t("pagination.perPage")}</span>
+              {pageSizeOptions.map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => onPageSizeChange(size)}
+                  className={cn(
+                    "h-7 min-w-[30px] rounded-[7px] border px-[7px] text-[12.5px] font-medium transition-colors hover:cursor-pointer",
+                    size === pageSize
+                      ? "border-[#bfd3fb] bg-[#eef4ff] text-[#1d4ed8]"
+                      : "border-[#dfe4ec] bg-white text-[#64748b] hover:border-[#93b4f5]"
+                  )}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+            <div className="h-4.5 w-px bg-[#e5eaf0]" />
+          </>
+        )}
+
+        <div className="flex items-center gap-[5px]">
+          <button
+            type="button"
+            aria-label="Previous page"
+            onClick={() => onPageChange(page - 1)}
+            disabled={isFirstPage || hasPrevious === false}
+            className={navBtnClass(isFirstPage || hasPrevious === false)}
+          >
+            <ChevronLeft className="h-[13px] w-[13px]" />
+          </button>
+
+          {pageRange?.map((p, i) =>
+            p === "…" ? (
+              <span key={`e${i}`} className="flex h-7 min-w-[28px] items-center justify-center text-[12.5px] text-[#94a3b8] select-none">
+                …
+              </span>
+            ) : (
+              <button
+                key={p}
+                type="button"
+                onClick={() => p !== page && onPageChange(p)}
+                aria-current={p === page ? "page" : undefined}
+                className={cn(
+                  "h-7 min-w-[28px] rounded-[7px] border px-[7px] text-[12.5px] transition-colors",
+                  p === page
+                    ? "border-[#2563eb] bg-[#2563eb] font-semibold text-white pointer-events-none"
+                    : "border-[#dfe4ec] bg-white font-medium text-[#475569] hover:cursor-pointer hover:border-[#93b4f5]"
+                )}
+              >
+                {p}
+              </button>
+            )
+          )}
+
+          <button
+            type="button"
+            aria-label="Next page"
+            onClick={() => onPageChange(page + 1)}
+            disabled={isLastPage}
+            className={navBtnClass(isLastPage)}
+          >
+            <ChevronRight className="h-[13px] w-[13px]" />
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   // ── Nav icon button ────────────────────────────────────────────────────
 
   function NavBtn({

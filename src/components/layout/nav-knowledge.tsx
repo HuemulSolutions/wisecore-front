@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils"
 import { logger } from "@/lib/logger"
 import { useNavKnowledge } from "@/contexts/nav-knowledge-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
+import { useTreeExpansionStorage } from "@/hooks/useTreeExpansionStorage"
 import { handleFolderActionError, isRootGroupFolderNode, buildFocusedTree } from "@/components/layout/nav-knowledge-utils"
 
 // Las áreas (subcarpetas de Grupal) se distinguen visualmente de una carpeta común.
@@ -224,6 +225,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
   // `enabled` — ver punto 3 del checklist en ia context/rbac-audit-guide.md.
   const canListLibrary = can('listAssets') || can('listFolders')
   const { guardedAction } = useOptionalEditingGuard()
+  const { expandedIdsRef, saveExpandedIds, serverDiffered } = useTreeExpansionStorage(selectedOrganizationId)
 
   /**
    * Qué nodos puede arrastrar el usuario. Mismo predicado que el item de kebab
@@ -240,6 +242,17 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
     }
     return canUpdate('asset') || node.access_levels?.includes('edit') || false
   }, [canUpdate])
+
+  /**
+   * Qué carpeta puede RECIBIR un drop. Distinto de canDragNode (que decide
+   * qué nodo se puede arrastrar): Grupal y Forms no admiten contenido
+   * directo — misma regla que las acciones de crear del menú (ver `show` de
+   * `menuActions` más abajo).
+   */
+  const canDropNode = useCallback((node: FileNode) => {
+    if (node.type !== "folder") return false
+    return node.folder_type !== 'grupal' && node.folder_type !== 'forms'
+  }, [])
 
   // Refs so handleLoadChildren callback stays stable while always reading latest values
   const rootPageRef = React.useRef(rootPage)
@@ -271,6 +284,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
               type: 'folder',
               children: [],
               isExpanded: true,
+              is_grantable: folder.is_grantable,
             })
           })
 
@@ -336,6 +350,14 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
   const activeAssetIdRef = useRef(activeAssetId)
   activeAssetIdRef.current = activeAssetId
 
+  // El foco automático (revelar la cadena de carpetas del asset abierto, como
+  // VS Code revela el archivo activo) solo debe aplicar a la primera carga
+  // root del montaje — refrescos posteriores no deben reexpandir esa cadena
+  // por encima de lo que el usuario haya colapsado. Se resetea al cambiar de
+  // organización porque este componente no se remonta ahí (solo FileTree, por
+  // su `key`).
+  const didInitialRootLoadRef = useRef(false)
+
   // Refresh file tree only when organization actually changes (not on mount)
   React.useEffect(() => {
     // If previousOrgId is null, this is the initial mount - skip refresh
@@ -348,9 +370,21 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
     // Only refresh if organization actually changed
     if (selectedOrganizationId && selectedOrganizationId !== previousOrgId.current) {
       previousOrgId.current = selectedOrganizationId
+      didInitialRootLoadRef.current = false
       fileTreeRef.current?.refresh()
     }
   }, [selectedOrganizationId, fileTreeRef])
+
+  // El root load ya usó expandedIdsRef en su valor de caché local (síncrono);
+  // si el servidor trae un set distinto al del caché local AL MONTAR (otro
+  // dispositivo/navegador cambió la expansión mientras tanto), refrescar una
+  // vez para que el root load siguiente lo recoja. `serverDiffered` es
+  // one-shot de esa hidratación inicial (ver useUserPreference.ts) — nunca se
+  // vuelve a activar por un guardado local propio, así que este efecto no
+  // dispara un refresh en cada toggle del usuario.
+  React.useEffect(() => {
+    if (serverDiffered) fileTreeRef.current?.refresh()
+  }, [serverDiffered, fileTreeRef])
 
   // Refresh root-level items when pagination changes
   const isFirstPaginationRender = React.useRef(true)
@@ -370,17 +404,30 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
 
       try {
         const isRoot = folderId === null
-        const focusAssetId = isRoot ? (pendingFocusAssetIdRef.current ?? activeAssetIdRef.current) : null
+        // El asset activo de la URL solo enfoca la PRIMERA carga root del
+        // montaje (revela su cadena de carpetas, como VS Code revela el
+        // archivo activo). Un `pendingFocusAssetIdRef` explícito (reveal desde
+        // un sheet, asset recién creado) sigue funcionando en cualquier carga.
+        // Sin este corte, cada refresh reexpandiría la cadena del asset
+        // abierto por encima de lo que el usuario haya colapsado.
+        const focusAssetId = isRoot
+          ? (pendingFocusAssetIdRef.current ?? (didInitialRootLoadRef.current ? null : activeAssetIdRef.current))
+          : null
+        if (isRoot) didInitialRootLoadRef.current = true
         // Consumo único — no debe reusarse en refrescos posteriores no
         // relacionados, ni siquiera si esta carga falla.
         if (isRoot && pendingFocusAssetIdRef.current) pendingFocusAssetIdRef.current = null
-        // Tracks whether the focused-tree branch actually ran. Starts optimistic
-        // and gets demoted to false if the focus asset turns out to be invalid
-        // (stale id, deleted asset, or leftover from another organization).
-        let focusedRootLoad = isRoot && !!focusAssetId
+        // Carpetas que el usuario dejó expandidas (persistidas por org) — solo
+        // aplica al root load, igual que el foco.
+        const expandedFolderIds = isRoot ? expandedIdsRef.current : []
+        // Tracks whether the enriched-tree branch actually ran (foco y/o
+        // expandidas). Starts optimistic and gets demoted to false if el
+        // backend rechaza el pedido (asset/ids inválidos, combinación no
+        // soportada) — ver el catch de abajo.
+        let enrichedRootLoad = isRoot && (!!focusAssetId || expandedFolderIds.length > 0)
 
         let content: LibraryContent
-        if (focusedRootLoad) {
+        if (enrichedRootLoad) {
           try {
             content = await getLibraryContent(
               selectedOrganizationId,
@@ -389,23 +436,26 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
               rootPageSizeRef.current,
               undefined,
               undefined,
-              focusAssetId!,
+              focusAssetId ?? undefined,
+              { expandedFolderIds },
             )
-          } catch (focusError) {
-            if (!ApiError.isApiError(focusError) || focusError.statusCode !== 404) {
-              throw focusError
+          } catch (enrichedError) {
+            if (!ApiError.isApiError(enrichedError) ||
+              (enrichedError.statusCode !== 404 && enrichedError.statusCode !== 400)) {
+              throw enrichedError
             }
-            // The focused asset doesn't exist / isn't reachable in this org
-            // (e.g. leftover id from a previous org, or a deleted document).
-            // That's a focus failure, not a folder-load failure — fall back to
-            // a normal root load instead of emptying the whole tree.
+            // 404: el asset enfocado no existe / no es alcanzable en esta org
+            // (id viejo de otra org, documento borrado). 400: el backend
+            // rechazó la combinación (p. ej. INVALID_FOLDER_EXPANDED_IDS_LIMIT).
+            // En ambos casos es una falla del enriquecimiento, no de la carga
+            // de la carpeta — cae a una carga root plana en vez de vaciar el árbol.
             content = await getLibraryContent(
               selectedOrganizationId,
               undefined,
               rootPageRef.current,
               rootPageSizeRef.current,
             )
-            focusedRootLoad = false
+            enrichedRootLoad = false
           }
         } else if (isRoot) {
           content = await getLibraryContent(
@@ -453,7 +503,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
         // Track parent folder for each node so we can show "Move to Root" only for non-root nodes
         setNodeParentIds((prev) => {
           const newMap = new Map(prev)
-          if (focusedRootLoad) {
+          if (enrichedRootLoad) {
             content.folders.forEach((f) => newMap.set(f.id, f.parent_folder_id))
             content.assets.forEach((a) => newMap.set(a.id, a.folder_id))
           } else {
@@ -463,7 +513,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
           return newMap
         })
 
-        if (focusedRootLoad) {
+        if (enrichedRootLoad) {
           return buildFocusedTree(content)
         }
 
@@ -476,6 +526,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
           folder_type: item.folder_type,
           isRootGroup: isRoot && isRootGroupFolderNode(item.folder_type, item.parent_folder_id),
           access_levels: item.access_levels,
+          is_grantable: item.is_grantable,
         }))
 
         const assetNodes: FileNode[] = (content.assets ?? []).map((item) => ({
@@ -543,7 +594,6 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
           ? t('knowledge.rootFolder')
           : (folderNames.get(parentFolderId) ?? parentFolderId)
         toast.success(t('knowledge.folderMovedSuccess', { destination }))
-        fileTreeRef.current?.refresh()
       } catch (error) {
         handleFolderActionError(error, t, t('knowledge.folderMoveError'))
       }
@@ -563,7 +613,6 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
           ? t('knowledge.rootFolder')
           : (folderNames.get(folderId) ?? folderId)
         toast.success(t('knowledge.documentMovedSuccess', { destination }))
-        fileTreeRef.current?.refresh()
       } catch (error) {
         handleFolderActionError(error, t, t('knowledge.documentMoveError'))
       }
@@ -658,11 +707,15 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
       onClick: async (nodeId) => {
         handleShareFolder({ id: nodeId, name: folderNames.get(nodeId) || "" })
       },
-      // Compartir accesos por rol aplica a Global/Forms/Área y a carpetas grupales custom de raíz.
+      // Compartir accesos por rol: el backend marca qué carpetas admiten grants (is_grantable),
+      // con la misma regla que valida POST /role-folder. El fallback por folder_type cubre
+      // superficies/deploys que todavía no devuelvan el flag — mismo alcance que antes.
       show: (node) =>
         node.type === "folder" &&
-        (node.folder_type === 'global' || node.folder_type === 'forms' || node.folder_type === 'area' || !!node.isRootGroup) &&
-        canAccessRoleFolders,
+        canAccessRoleFolders &&
+        (node.is_grantable ??
+          (node.folder_type === 'global' || node.folder_type === 'forms' ||
+            node.folder_type === 'area' || !!node.isRootGroup)),
       variant: "default",
     },
     {
@@ -688,6 +741,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
       icon: <FolderUp className="h-4 w-4" />,
       onClick: async (nodeId) => {
         await handleMoveFolder(nodeId, null)
+        fileTreeRef.current?.refresh()
       },
       show: (node) => {
         if (node.type !== "folder") return false
@@ -724,6 +778,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
       icon: <FolderUp className="h-4 w-4" />,
       onClick: async (nodeId) => {
         await handleMoveFile(nodeId, null)
+        fileTreeRef.current?.refresh()
       },
       show: (node) => {
         if (node.type !== "document") return false
@@ -848,6 +903,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
           onMoveFolder={handleMoveFolder}
           onMoveFile={handleMoveFile}
           canDragNode={canDragNode}
+          canDropNode={canDropNode}
           onDelete={handleDelete}
           activeNodeId={activeAssetId}
           menuActions={menuActions}
@@ -859,7 +915,13 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
           // un solo control por contenedor.
           showRefreshButton={false}
           alwaysShowMenuActions={true}
-          preserveExpandedOnRefresh={!activeAssetId}
+          // La carga root ahora siempre trae la expansión resuelta por el
+          // backend (foco + expanded_folder_ids persistidas), así que su
+          // respuesta es autoritativa — evita el camino de N requests
+          // (una por carpeta expandida) que preserveExpandedOnRefresh={true}
+          // dispararía en cada refresh.
+          preserveExpandedOnRefresh={false}
+          onExpandedFoldersChange={saveExpandedIds}
           renderLeafIcon={(node) => {
             const fileNode = node as FileNode
             const color = fileNode.document_type?.color

@@ -63,6 +63,8 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       isSectionHeader,
       preserveExpandedOnRefresh = true,
       canDragNode,
+      canDropNode,
+      onExpandedFoldersChange,
     },
     ref,
   ) => {
@@ -89,7 +91,12 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
     } | null>(null)
     const [newNodeName, setNewNodeName] = useState("")
     const [draggedNode, setDraggedNode] = useState<string | null>(null)
-    const [dragOverNode, setDragOverNode] = useState<string | null>(null)
+    // `null` = ningún destino activo; `{ kind: "root" }` = zona raíz (fuera de
+    // toda carpeta); `{ kind: "node"; id }` = subárbol de esa carpeta. Antes
+    // era un simple `string | null` que no distinguía "sin target" de "raíz",
+    // lo que hacía que el contenedor entero se pintara mientras el cursor
+    // pasaba sobre contenido indentado sin carpeta propia bajo el puntero.
+    const [dropTarget, setDropTarget] = useState<{ kind: "node"; id: string } | { kind: "root" } | null>(null)
     const containerRef = useRef<HTMLDivElement>(null)
     const dragClientYRef = useRef<number>(0)
     const autoScrollFrameRef = useRef<number | null>(null)
@@ -143,11 +150,28 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       [isNodeExpandable, folderType],
     )
 
+    // Refs para no forzar a los consumidores a memoizar el callback ni a
+    // meterlo como dependencia de este efecto — `isNodeExpandable` típicamente
+    // llega como flecha inline (nav-knowledge.tsx, assets-file-tree.tsx), así
+    // que `isExpandable` cambia de identidad en cada render del padre. Si
+    // quedara en el dep array de abajo, el efecto correría en cada render y
+    // `setExpandedFolders(new Set(...))` (siempre una referencia nueva) nunca
+    // dejaría que React hiciera bail-out → "Maximum update depth exceeded".
+    const onExpandedFoldersChangeRef = useRef(onExpandedFoldersChange)
+    onExpandedFoldersChangeRef.current = onExpandedFoldersChange
+    const isExpandableRef = useRef(isExpandable)
+    isExpandableRef.current = isExpandable
+
     useEffect(() => {
       const getExpandedIds = (nodeList: HuemulTreeNode[]): string[] => {
         const expanded: string[] = []
         for (const node of nodeList) {
-          if (node.isExpanded && isExpandable(node)) {
+          // Una carpeta colapsada oculta su subárbol: reportar lo que hay adentro
+          // haría que el backend reexpandiera esta misma carpeta por la vía de los
+          // ancestros (ver expanded_folder_ids en
+          // respuestas/backend-arbol-expansion-persistente.md).
+          if (isExpandableRef.current(node) && !node.isExpanded) continue
+          if (node.isExpanded && isExpandableRef.current(node)) {
             expanded.push(node.id)
           }
           if (node.children) {
@@ -156,8 +180,23 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         }
         return expanded
       }
-      setExpandedFolders(new Set(getExpandedIds(nodes)))
-    }, [nodes, isExpandable])
+      const expandedIds = getExpandedIds(nodes)
+      // Comparación de contenido, no solo de referencia: si `nodes` cambió
+      // pero el set de carpetas expandidas es el mismo, no generar un `Set`
+      // nuevo — evita un render de más y, sobre todo, evita retroalimentar el
+      // loop de arriba si algún día `isExpandableRef` volviera a colarse en
+      // las deps.
+      setExpandedFolders((prev) => {
+        if (prev.size === expandedIds.length && expandedIds.every((id) => prev.has(id))) return prev
+        return new Set(expandedIds)
+      })
+      // Antes de isInitialized, nodes es [] — emitir acá pisaría con un set
+      // vacío cualquier estado persistido antes de que la carga inicial lo
+      // restaure.
+      if (isInitialized) {
+        onExpandedFoldersChangeRef.current?.(expandedIds)
+      }
+    }, [nodes, isInitialized])
 
     // Clear per-node loading indicator when activeNodeId changes to match
     useEffect(() => {
@@ -275,6 +314,19 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         return false
       },
       [findNode],
+    )
+
+    // Un nodo carpeta acepta drop si: es del tipo carpeta, no está deshabilitado,
+    // no es el propio nodo arrastrado, no es descendiente suyo (evita ciclos) y
+    // pasa canDropNode (si el consumidor la define).
+    const isDropAllowed = useCallback(
+      (node: HuemulTreeNode) => {
+        if (node.type !== folderType || node.disabled || !draggedNode) return false
+        if (draggedNode === node.id) return false
+        if (isDescendant(draggedNode, node.id, nodes)) return false
+        return canDropNode ? canDropNode(node) : true
+      },
+      [folderType, draggedNode, nodes, isDescendant, canDropNode],
     )
 
     const handleToggle = async (node: HuemulTreeNode) => {
@@ -409,28 +461,48 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       startAutoScroll()
     }
 
-    const handleDragOver = (e: React.DragEvent, nodeId: string | null, nodeType?: string) => {
-      e.preventDefault()
-      e.stopPropagation()
+    // Zona de drop de una carpeta: fila + hijos + franja de indentación (ver
+    // dónde se engancha en el wrapper del nodo, más abajo). Una hoja no tiene
+    // handler propio — el evento burbujea hasta encontrar el ancestro carpeta
+    // más cercano bajo el cursor, que es quien lo captura primero.
+    const handleFolderDragOver = (e: React.DragEvent, node: HuemulTreeNode) => {
       dragClientYRef.current = e.clientY
-      if (nodeType !== folderType) return
-      setDragOverNode(nodeId)
-      e.dataTransfer.dropEffect = "move"
-    }
-
-    const handleDragLeave = (e: React.DragEvent) => {
-      e.preventDefault()
-      setDragOverNode(null)
-    }
-
-    const handleDrop = async (e: React.DragEvent, targetId: string | null) => {
+      if (!isDropAllowed(node)) {
+        // Carpeta inválida como destino: se frena acá (no delega al ancestro)
+        // para que el usuario vea "acá no" en vez de que el highlight salte a
+        // un padre inesperado.
+        e.preventDefault()
+        e.stopPropagation()
+        e.dataTransfer.dropEffect = "none"
+        setDropTarget(null)
+        return
+      }
       e.preventDefault()
       e.stopPropagation()
-      setDragOverNode(null)
-      stopAutoScroll()
+      e.dataTransfer.dropEffect = "move"
+      setDropTarget((prev) => (prev?.kind === "node" && prev.id === node.id ? prev : { kind: "node", id: node.id }))
+    }
 
-      if (!draggedNode || draggedNode === targetId) { setDraggedNode(null); return }
-      if (targetId && isDescendant(draggedNode, targetId, nodes)) { setDraggedNode(null); return }
+    const handleRootDragOver = (e: React.DragEvent) => {
+      dragClientYRef.current = e.clientY
+      if (!draggedNode) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = "move"
+      setDropTarget((prev) => (prev?.kind === "root" ? prev : { kind: "root" }))
+    }
+
+    // Único listener de dragleave, en el contenedor raíz: limpia el target solo
+    // cuando el cursor sale de verdad del árbol (no al cruzar entre nodos hijos).
+    const handleContainerDragLeave = (e: React.DragEvent) => {
+      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+        setDropTarget(null)
+      }
+    }
+
+    const commitDrop = async (targetId: string | null) => {
+      setDropTarget(null)
+      stopAutoScroll()
+      if (!draggedNode) return
 
       setIsLoading(true)
       try {
@@ -453,6 +525,19 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       } finally {
         setDraggedNode(null)
       }
+    }
+
+    const handleFolderDrop = async (e: React.DragEvent, node: HuemulTreeNode) => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (!isDropAllowed(node)) { setDropTarget(null); return }
+      await commitDrop(node.id)
+    }
+
+    const handleRootDrop = async (e: React.DragEvent) => {
+      e.preventDefault()
+      if (!draggedNode) return
+      await commitDrop(null)
     }
 
     const handleDialogSuccess = async () => {
@@ -560,7 +645,9 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       const isExpanded = node.isExpanded
       const isCreating = creatingNode?.parentId === node.id
       const isDragging = draggedNode === node.id
-      const isDragOver = dragOverNode === node.id
+      // Solo una carpeta puede ser destino: cubre su propia fila y todo su
+      // subárbol (hijos + franja de indentación), no solo la fila del nombre.
+      const isDropTarget = isFolder && dropTarget?.kind === "node" && dropTarget.id === node.id
       const isActive = activeNodeId === node.id
       const isNodeLoading = loadingNodeId === node.id || cascadeLoadingIds.has(node.id)
       const isSelectable = canSelectNode(node)
@@ -576,7 +663,18 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         hasCustomMenuActions
 
       return (
-        <div key={node.id} className={cn("relative min-w-0", level > 0 && "ml-4")}>
+        <div
+          key={node.id}
+          className={cn(
+            "relative min-w-0 rounded-md transition-colors",
+            level > 0 && "ml-4",
+            // Zona de drop del subárbol completo: fila + hijos + franja de
+            // indentación quedan dentro de esta misma caja.
+            isDropTarget && "bg-primary/5 ring-1 ring-inset ring-primary/40",
+          )}
+          onDragOver={isFolder && !node.disabled ? (e) => handleFolderDragOver(e, node) : undefined}
+          onDrop={isFolder && !node.disabled ? (e) => handleFolderDrop(e, node) : undefined}
+        >
           {level > 0 && (
             <div
               className="absolute left-0 top-0 bottom-0 w-px bg-border"
@@ -596,7 +694,9 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
               isSection ? "h-8" : "py-0.5",
               node.disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-accent hover:cursor-pointer",
               isDragging && "opacity-50",
-              isDragOver && isFolder && "bg-primary/10 border-2 border-primary border-dashed",
+              // Dentro de la caja ya resaltada del subárbol, la propia fila de la
+              // carpeta destino marca el punto exacto donde caería el drop.
+              isDropTarget && "bg-primary/10 text-primary",
               isActive && "bg-accent font-medium",
               isSelected && "bg-primary/5",
               isNodeLoading && "bg-accent/50",
@@ -605,12 +705,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
             style={{ paddingLeft: `${level * 12 + 6}px` }}
             draggable={!cascadeSelection && !node.disabled && !isSection && (canDragNode?.(node) ?? true)}
             onDragStart={(e) => handleDragStart(e, node.id, node)}
-            onDragEnd={() => { setDraggedNode(null); setDragOverNode(null); stopAutoScroll() }}
-            onDragOver={(e) =>
-              isFolder && !node.disabled ? handleDragOver(e, node.id, node.type) : e.preventDefault()
-            }
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => (isFolder && !node.disabled ? handleDrop(e, node.id) : e.preventDefault())}
+            onDragEnd={() => { setDraggedNode(null); setDropTarget(null); stopAutoScroll() }}
           >
             {selectionEnabled && isSelectable && (
               <Checkbox
@@ -815,12 +910,15 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
             "relative w-full rounded-lg transition-colors overflow-hidden",
             showBorder && "border bg-card",
             !showBorder && "bg-transparent",
-            dragOverNode === null && draggedNode && "bg-primary/10 border-primary border-dashed",
+            // Zona raíz: solo se enciende cuando el cursor está de verdad sobre
+            // espacio sin carpeta debajo (los wrappers de carpeta ya frenan la
+            // propagación del evento con stopPropagation).
+            dropTarget?.kind === "root" && "ring-1 ring-inset ring-primary/40 bg-primary/3",
           )}
           style={{ minHeight }}
-          onDragOver={(e) => { dragClientYRef.current = e.clientY; handleDragOver(e, null) }}
-          onDragLeave={handleDragLeave}
-          onDrop={(e) => handleDrop(e, null)}
+          onDragOver={handleRootDragOver}
+          onDragLeave={handleContainerDragLeave}
+          onDrop={handleRootDrop}
         >
           {isLoading && (
             <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-50 rounded-lg">

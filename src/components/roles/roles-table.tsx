@@ -1,8 +1,9 @@
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
-import { Shield, UserPlus, Trash2, Copy } from "lucide-react"
+import { Shield, Users, ChevronRight } from "lucide-react"
 import { type Role } from "@/services/rbac"
-import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
+import { HuemulTable, type HuemulTableColumn } from "@/huemul/components/huemul-table"
+import { roleRowSwatch } from "@/lib/reference-colors"
 import type { RolesTableProps } from '@/types/roles'
 export type { RolesTableProps } from '@/types/roles'
 
@@ -10,117 +11,107 @@ export function RolesTable({
   roles,
   isTableLoading = false,
   isTableFetching = false,
-  onAssignToUsers,
-  onEditRole,
-  onDeleteRole,
-  onCloneRole,
+  onSelectRole,
+  selectedRoleId,
+  rolesById = {},
   pagination,
-  canUpdate,
-  canDelete,
-  canClone,
   selectedIds,
   onSelectionChange
 }: RolesTableProps) {
   const { t } = useTranslation(['roles', 'common'])
-  // Define columns
+
   const columns: HuemulTableColumn<Role>[] = [
     {
       key: "name",
       label: t('columns.roleName'),
-      render: (role) => (
-        <div className="flex flex-col gap-0">
-          <div className="flex items-center gap-1">
-            <Shield className="w-2 h-2 text-primary shrink-0" />
-            <span className="text-xs font-medium text-foreground leading-tight">{role.name}</span>
-          </div>
-          {role.description && (
-            <span className="text-[10px] text-muted-foreground leading-tight hidden sm:block">
-              {role.description}
-            </span>
-          )}
-        </div>
-      )
-    },
-    {
-      key: "permissions",
-      label: t('columns.permissions'),
       render: (role) => {
-        const permissionCount = role.permission_num || role.permissions?.length || 0
-        const visiblePermissions = role.permissions?.slice(0, 1) || []
-        const remainingPermissions = Math.max(0, (role.permissions?.length || 0) - 1)
-
+        const swatch = roleRowSwatch(role.color)
         return (
-          <div className="flex flex-wrap gap-0.5">
-            <Badge className="text-[10px] px-1.5 py-0 h-5" variant="outline">
-              {permissionCount}
-            </Badge>
-            {visiblePermissions.map((permission) => (
-              <Badge key={permission.id} variant="outline" className="text-[10px] px-1.5 py-0 h-5 hidden sm:inline-flex">
-                {permission.name.split(':')[0]}
-              </Badge>
-            ))}
-            {remainingPermissions > 0 && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 hidden sm:inline-flex">
-                +{remainingPermissions}
-              </Badge>
+          <div className="flex flex-col gap-0">
+            <div className="flex items-center gap-1.5">
+              <span className="size-1.75 shrink-0 rounded-full" style={{ backgroundColor: swatch.color }} />
+              <span className="text-xs font-medium text-foreground leading-tight">{role.name}</span>
+            </div>
+            {role.description && (
+              <span className="text-[10px] text-muted-foreground leading-tight hidden sm:block">
+                {role.description}
+              </span>
             )}
           </div>
         )
       }
     },
     {
-      key: "created",
-      label: t('common:created'),
-      hideOnMobile: true,
+      key: "permissions",
+      label: t('columns.permissions'),
+      render: (role) => {
+        const permissionCount = role.permission_num || role.permissions?.length || 0
+        return (
+          <Badge className="text-[10px] px-1.5 py-0 h-5" variant="outline">
+            {permissionCount}
+          </Badge>
+        )
+      }
+    },
+    {
+      key: "users",
+      label: t('columns.users'),
       render: (role) => (
-        <span className="text-xs text-foreground">
-          {new Date(role.created_at).toLocaleDateString('es-ES', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-          })}
-        </span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onSelectRole(role, 'users')
+          }}
+          className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:cursor-pointer hover:text-primary hover:underline"
+        >
+          <Users className="size-3" />
+          {role.users_count ?? 0}
+        </button>
       )
-    }
-  ]
-
-  // Cada acción se gatea con el permiso exacto que dispara, no con un único
-  // "canManage" (ver ia context/rbac-audit-guide.md, 14ª pasada).
-  const actions: HuemulTableAction<Role>[] = [
-    ...(canUpdate ? [{
-      key: "assign",
-      label: t('actions.assignToUsers'),
-      icon: UserPlus,
-      onClick: onAssignToUsers,
-    }] : []),
-    ...(canUpdate ? [{
-      key: "edit",
-      label: t('actions.managePermissions'),
-      icon: Shield,
-      onClick: onEditRole,
-      separator: true
-    }] : []),
-    ...(canClone ? [{
-      key: "clone",
-      label: t('actions.cloneRole'),
-      icon: Copy,
-      onClick: onCloneRole,
-    }] : []),
-    ...(canDelete ? [{
-      key: "delete",
-      label: t('actions.deleteRole'),
-      icon: Trash2,
-      onClick: onDeleteRole,
-      destructive: true
-    }] : []),
+    },
+    {
+      key: "hierarchy",
+      label: t('columns.hierarchy'),
+      hideOnMobile: true,
+      render: (role) => {
+        if (!role.is_position) return <span className="text-xs text-muted-foreground">—</span>
+        const parentName = role.parent_role_id ? rolesById[role.parent_role_id]?.name : null
+        return (
+          <div
+            className="flex flex-col gap-0.5"
+            onClick={(e) => {
+              e.stopPropagation()
+              onSelectRole(role, 'hierarchy')
+            }}
+          >
+            <Badge variant="outline" className="w-fit text-[10px] px-1.5 py-0 h-5">
+              {t('detail.positionBadge')}
+            </Badge>
+            {parentName && (
+              <span className="text-[10px] text-muted-foreground">↳ {parentName}</span>
+            )}
+          </div>
+        )
+      }
+    },
+    {
+      key: "chevron",
+      label: "",
+      align: "right",
+      width: "40px",
+      render: () => <ChevronRight className="ml-auto size-[15px] text-[#b6c0cd]" />
+    },
   ]
 
   return (
     <HuemulTable
+      variant="detailed"
       data={roles}
       columns={columns}
-      actions={actions}
       getRowKey={(role) => role.id}
+      onRowClick={(role) => onSelectRole(role)}
+      activeKey={selectedRoleId}
       emptyState={{
         icon: Shield,
         title: t('emptyState.noRolesFound'),

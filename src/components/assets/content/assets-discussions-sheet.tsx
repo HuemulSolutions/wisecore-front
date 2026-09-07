@@ -46,10 +46,13 @@ import type {
 } from '@/components/plate-editor/components/discussion-kit';
 import type { ContentSection } from '@/types/assets';
 
+import { AssetsDiscussionComposer } from './assets-discussion-composer';
+
 export interface AssetsDiscussionsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   documentId: string;
+  executionId: string | null;
   sections: ContentSection[];
   onFocusDiscussion: (
     discussionId: string,
@@ -60,6 +63,7 @@ export interface AssetsDiscussionsSheetProps {
 interface DiscussionRow {
   discussion: TDiscussion;
   sectionName: string;
+  isDocumentScope: boolean;
   isResolved: boolean;
   createdAt: Date;
   snippet: string;
@@ -87,26 +91,36 @@ export function AssetsDiscussionsSheet({
   open,
   onOpenChange,
   documentId,
+  executionId,
   sections,
   onFocusDiscussion,
 }: AssetsDiscussionsSheetProps) {
-  const { t } = useTranslation(['assets', 'common']);
-  const { canList, canUpdate, canDelete } = useUserPermissions();
+  const { t } = useTranslation(['assets', 'common', 'editor']);
+  const { canList, canCreate, canUpdate, canDelete } = useUserPermissions();
   const canListDiscussions = canList('discussion');
+  const canCreateDiscussions = canCreate('discussion');
   const canUpdateDiscussions = canUpdate('discussion');
   const canDeleteDiscussions = canDelete('discussion');
 
   const {
-    discussions,
+    discussionsForExecution: discussions,
     usersMap,
     currentUserId,
     isLoading,
     isFetching,
     refetch,
+    createExecutionDiscussion,
+    isCreatingExecutionDiscussion,
+    addComment,
+    isAddingComment,
     resolveDiscussion,
     unresolveDiscussion,
     deleteDiscussion,
-  } = useDiscussions(canListDiscussions ? documentId : undefined);
+  } = useDiscussions(
+    canListDiscussions ? documentId : undefined,
+    undefined,
+    executionId ?? undefined,
+  );
 
   const [search, setSearch] = React.useState('');
   const debouncedSearch = useDebounce(search, 200);
@@ -162,10 +176,11 @@ export function AssetsDiscussionsSheet({
           .slice(1)
           .map((comment) => ({ comment, text: commentPlainText(comment.contentRich) }));
         const snippet = discussion.documentContent ?? '';
-        const sectionName = discussion.sectionExecutionId
-          ? sectionNameByExecutionId.get(discussion.sectionExecutionId) ??
-            t('content.discussions.unknownSection')
-          : t('content.discussions.unknownSection');
+        const isDocumentScope = !discussion.sectionExecutionId;
+        const sectionName = isDocumentScope
+          ? t('content.discussions.documentScope')
+          : sectionNameByExecutionId.get(discussion.sectionExecutionId!) ??
+            t('content.discussions.unknownSection');
         const hasPrivate = discussion.comments.some((c) => c.isPublic === false);
         const authorIds = Array.from(
           new Set(discussion.comments.map((c) => c.userId).filter(Boolean))
@@ -179,6 +194,7 @@ export function AssetsDiscussionsSheet({
         return {
           discussion,
           sectionName,
+          isDocumentScope,
           isResolved: discussion.isResolved,
           createdAt: discussion.createdAt,
           snippet,
@@ -237,12 +253,23 @@ export function AssetsDiscussionsSheet({
     setSelectedAuthors(new Set());
   };
 
+  const toggleExpanded = (discussionId: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(discussionId)) next.delete(discussionId);
+      else next.add(discussionId);
+      return next;
+    });
+  };
+
   const renderItem = (row: DiscussionRow, muted = false) => {
     const borderColor = row.isResolved
       ? 'border-l-slate-300'
-      : row.hasPrivate
-        ? 'border-l-amber-700'
-        : 'border-l-blue-600';
+      : row.isDocumentScope
+        ? 'border-l-violet-500'
+        : row.hasPrivate
+          ? 'border-l-amber-700'
+          : 'border-l-blue-600';
     const authorInfo = row.firstComment ? usersMap[row.firstComment.userId] : undefined;
     const showMenu = canManage(row.discussion) || canRemove(row.discussion);
     const menuOpen = openRowMenuId === row.discussion.id;
@@ -259,11 +286,22 @@ export function AssetsDiscussionsSheet({
       >
         <button
           type="button"
-          onClick={() => onFocusDiscussion(row.discussion.id, row.discussion.sectionExecutionId)}
+          onClick={() =>
+            row.isDocumentScope
+              ? toggleExpanded(row.discussion.id)
+              : onFocusDiscussion(row.discussion.id, row.discussion.sectionExecutionId)
+          }
           className="w-full p-3 pr-9 text-left"
         >
           <div className="mb-1 flex items-center justify-between gap-2">
-            <span className="min-w-0 truncate text-[11.5px] text-slate-400">{row.sectionName}</span>
+            <span
+              className={cn(
+                'min-w-0 truncate text-[11.5px]',
+                row.isDocumentScope ? 'font-medium text-violet-600' : 'text-slate-400'
+              )}
+            >
+              {row.sectionName}
+            </span>
             {row.hasPrivate && (
               <Badge
                 variant="outline"
@@ -308,55 +346,68 @@ export function AssetsDiscussionsSheet({
           )}
         </button>
 
-        {row.replyCount > 0 && (
+        {(row.replyCount > 0 || row.isDocumentScope) && (
           <div className="border-[#eef2f7] border-t px-3 pt-2 pb-3 pl-10.5">
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                setExpandedIds((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(row.discussion.id)) next.delete(row.discussion.id);
-                  else next.add(row.discussion.id);
-                  return next;
-                });
+                toggleExpanded(row.discussion.id);
               }}
               className="font-medium text-[11.5px] text-blue-600 hover:underline"
             >
               {isExpanded
                 ? t('content.discussions.hideReplies')
-                : t('content.discussions.replies', { count: row.replyCount })}
+                : row.replyCount > 0
+                  ? t('content.discussions.replies', { count: row.replyCount })
+                  : t('editor:discussion.openThread')}
             </button>
 
             {isExpanded && (
-              <div className="mt-2 max-h-64 space-y-2 overflow-y-auto border-blue-100 border-l-2 pl-2.5">
-                {row.replies.map(({ comment, text }) => {
-                  const replyAuthor = usersMap[comment.userId];
-                  return (
-                    <div key={comment.id} className="flex gap-2">
-                      <Avatar className="size-5 shrink-0">
-                        <AvatarImage alt={replyAuthor?.name} src={replyAuthor?.avatarUrl} />
-                        <AvatarFallback className="text-[9px]">
-                          {replyAuthor?.name?.[0]}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-[12.5px] text-slate-900">
-                            {replyAuthor?.name}
-                          </span>
-                          <span className="text-[10.5px] text-slate-400">
-                            {formatCommentDate(comment.createdAt)}
-                          </span>
+              <>
+                {row.replies.length > 0 && (
+                  <div className="mt-2 max-h-64 space-y-2 overflow-y-auto border-blue-100 border-l-2 pl-2.5">
+                    {row.replies.map(({ comment, text }) => {
+                      const replyAuthor = usersMap[comment.userId];
+                      return (
+                        <div key={comment.id} className="flex gap-2">
+                          <Avatar className="size-5 shrink-0">
+                            <AvatarImage alt={replyAuthor?.name} src={replyAuthor?.avatarUrl} />
+                            <AvatarFallback className="text-[9px]">
+                              {replyAuthor?.name?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-[12.5px] text-slate-900">
+                                {replyAuthor?.name}
+                              </span>
+                              <span className="text-[10.5px] text-slate-400">
+                                {formatCommentDate(comment.createdAt)}
+                              </span>
+                            </div>
+                            <p className="text-[12.5px] text-slate-700 leading-[1.45]">
+                              <HighlightedText text={text} term={debouncedSearch} />
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-[12.5px] text-slate-700 leading-[1.45]">
-                          <HighlightedText text={text} term={debouncedSearch} />
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {row.isDocumentScope && canCreateDiscussions && (
+                  <AssetsDiscussionComposer
+                    className="mt-2"
+                    currentUser={usersMap[currentUserId]}
+                    placeholder={t('editor:discussion.replyPlaceholder')}
+                    isSubmitting={isAddingComment}
+                    onSubmit={(contentRich, isPublic) =>
+                      addComment({ discussionId: row.discussion.id, contentRich, isPublic })
+                    }
+                  />
+                )}
+              </>
             )}
           </div>
         )}
@@ -441,6 +492,19 @@ export function AssetsDiscussionsSheet({
         <HuemulAccessDenied variant="inline" />
       ) : (
         <div className="-mx-6 flex h-full flex-col">
+          {canCreateDiscussions && executionId && (
+            <div className="border-gray-100 border-b px-6 py-3">
+              <AssetsDiscussionComposer
+                currentUser={usersMap[currentUserId]}
+                placeholder={t('content.discussions.newCommentPlaceholder')}
+                isSubmitting={isCreatingExecutionDiscussion}
+                onSubmit={(contentRich, isPublic) =>
+                  createExecutionDiscussion({ contentRich, isPublic })
+                }
+              />
+            </div>
+          )}
+
           <div className="space-y-2.5 border-gray-100 border-b px-6 pb-3">
             <div className="relative">
               <Search className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-2.5 size-3.5 text-slate-400" />

@@ -137,6 +137,9 @@ export function AssetTypeLifecyclePanel({
   const groupCount = activeStageType
     ? allSteps.filter((s) => s.type === activeStageType).length
     : 0
+  const conditionCount = activeStageType
+    ? allSteps.filter((s) => s.type === activeStageType && (s.depends_on?.length ?? 0) > 0).length
+    : 0
 
   const save = useCallback(async () => {
     if (!editor) return
@@ -196,6 +199,7 @@ export function AssetTypeLifecyclePanel({
               documentTypeId={documentTypeId}
               stageType={activeStageType}
               groupCount={groupCount}
+              conditionCount={conditionCount}
               onClose={handleClosePanel}
               onRegisterEditor={handleRegisterEditor}
               organizationId={organizationId}

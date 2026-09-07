@@ -1,9 +1,11 @@
-import { Badge } from "@/components/ui/badge"
+import { ChevronRight, Users } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useTranslation } from 'react-i18next'
 import i18n from "@/i18n"
-import { Trash2, Check, X, Edit, Shield, Users, Building, UserPlus, ShieldCheck } from "lucide-react"
 import { type User } from "@/types/users"
-import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
+import { HuemulTable, type HuemulTableColumn } from "@/huemul/components/huemul-table"
+import { useRolesMap } from "@/contexts/role-refs-context"
+import { roleRowSwatch } from "@/lib/reference-colors"
 import type { UserTableProps } from '@/types/users'
 export type { UserTableProps } from '@/types/users'
 
@@ -18,7 +20,7 @@ export const formatDate = (dateString: string) => {
 
 export const formatBirthday = (birthDay: number | null, birthMonth: number | null) => {
   if (!birthDay || !birthMonth) return 'N/A'
-  
+
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   return `${months[birthMonth - 1]} ${birthDay}`
 }
@@ -26,7 +28,7 @@ export const formatBirthday = (birthDay: number | null, birthMonth: number | nul
 export const getStatusColor = (status: string) => {
   switch (status) {
     case 'active':
-      return 'bg-green-100/80 text-green-700 border-green-200'
+      return 'bg-[#eefbf1] text-[#15803d] border-[#cdefd7]'
     case 'inactive':
       return 'bg-red-100/80 text-red-700 border-red-200'
     case 'pending':
@@ -36,210 +38,138 @@ export const getStatusColor = (status: string) => {
   }
 }
 
-export const translateStatus = (status: string) => {
-  switch (status) {
-    case 'active':
-      return 'Activo'
-    case 'inactive':
-      return 'Inactivo'
-    case 'pending':
-      return 'Pendiente'
-    default:
-      return status
-  }
+function getInitials(user: User) {
+  return `${user.name?.[0] ?? ""}${user.last_name?.[0] ?? ""}`.toUpperCase()
 }
 
 export default function UserTable({
   users,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  selectedUsers: _selectedUsers,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onUserSelection: _onUserSelection,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onSelectAll: _onSelectAll,
-  onEditUser,
-  onAssignRoles,
-  onDeleteUser,
-  onManageRootAdmin,
-  onMakeOrganizationAdmin,
-  canManageRootAdmin = false,
-  userMutations,
+  selectedUsers,
+  onUserSelection,
+  onSelectAll,
+  onSelectUser,
+  selectedUserId,
+  canListRoles = false,
   pagination,
-  canUpdate = false,
-  canDelete = false,
-  canAssignRoles = false,
   isLoading = false,
   isFetching = false
 }: UserTableProps) {
   const { t } = useTranslation(['users', 'common'])
+  const { byId: rolesById } = useRolesMap(canListRoles)
 
-  // Define columns
   const columns: HuemulTableColumn<User>[] = [
     {
       key: "name",
       label: t('common:name'),
+      width: "minmax(0,1.15fr)",
       render: (user) => (
-        <div className="flex flex-col gap-0">
-          <span className="text-xs font-medium text-foreground leading-tight">
-            {user.name} {user.last_name}
-          </span>
-          {user.activated_at && (
-            <span className="text-[10px] text-muted-foreground leading-tight">
-              Activated: {formatDate(user.activated_at)}
+        <div className="flex items-center gap-2.5">
+          <Avatar>
+            {user.photo_url && <AvatarImage src={user.photo_url} alt={user.name} />}
+            <AvatarFallback className="bg-[#475569] text-xs font-semibold text-white">{getInitials(user)}</AvatarFallback>
+          </Avatar>
+          <div className="flex min-w-0 flex-col gap-0">
+            <span className="truncate text-[13.5px] font-semibold leading-tight text-[#0f172a]">
+              {user.name} {user.last_name}
             </span>
-          )}
+            <span className="truncate text-xs leading-tight text-[#7c8798]">
+              {user.email}
+            </span>
+          </div>
         </div>
       )
     },
     {
-      key: "email",
-      label: t('common:email'),
-      render: (user) => (
-        <span className="text-xs text-blue-600 font-medium">{user.email}</span>
-      )
-    },
-    {
-      key: "birthday",
-      label: t('users:columns.birthday'),
-      render: (user) => {
-        if (!user.birth_day || !user.birth_month) return <span className="text-xs text-foreground">N/A</span>
-        const monthKeys = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
-        const monthName = t(`users:form.months.${monthKeys[user.birth_month - 1]}`)
-        return <span className="text-xs text-foreground">{monthName} {user.birth_day}</span>
-      }
-    },
-    {
       key: "roles",
       label: t('users:columns.roles'),
+      width: "minmax(0,1.25fr)",
       render: (user) => {
-        if (user.roles && user.roles.length > 0) {
-          return (
-            <div className="flex flex-wrap gap-0.5">
-              {user.is_root_admin && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-                  <Shield className="w-2 h-2 mr-0.5" />
-                  Admin
-                </Badge>
-              )}
-              {user.roles.slice(0, user.is_root_admin ? 1 : 1).map((role) => (
-                <Badge key={role.id} className="text-[10px] px-1.5 py-0 h-5" variant="outline">
-                  <Shield className="w-2 h-2 mr-0.5" />
-                  {role.name}
-                </Badge>
-              ))}
-              {user.roles.length > (user.is_root_admin ? 1 : 1) && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-                  +{user.roles.length - (user.is_root_admin ? 1 : 1)}
-                </Badge>
-              )}
-            </div>
-          )
-        } else if (user.is_root_admin) {
-          return (
-            <div className="flex flex-wrap gap-0.5">
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-                <Shield className="w-2 h-2 mr-0.5" />
-                Admin
-              </Badge>
-            </div>
-          )
+        if (!user.roles || user.roles.length === 0) {
+          return <span className="text-xs italic text-[#9aa6b5]">{t('users:columns.noRoles')}</span>
         }
-        return <span className="text-[10px] text-muted-foreground">{t('users:columns.noRoles')}</span>
+        const visible = user.roles.slice(0, 2)
+        const remaining = user.roles.length - visible.length
+        return (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {visible.map((role) => {
+              const swatch = roleRowSwatch(rolesById[role.id]?.color)
+              return (
+                <button
+                  key={role.id}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onSelectUser(user, 'roles')
+                  }}
+                  className="flex items-center gap-1.5 rounded-full border border-[#e3e9f1] bg-white px-2.5 py-0.5 text-[11.5px] font-medium text-[#475569] hover:cursor-pointer hover:border-primary/40"
+                >
+                  <span className="size-1.75 shrink-0 rounded-full" style={{ backgroundColor: swatch.color }} />
+                  <span className="max-w-32 truncate">{role.name}</span>
+                </button>
+              )
+            })}
+            {remaining > 0 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onSelectUser(user, 'roles')
+                }}
+                className="rounded-full border border-[#e3e9f1] bg-white px-2 py-0.5 text-[11.5px] font-medium text-[#475569] hover:cursor-pointer hover:border-primary/40"
+              >
+                +{remaining}
+              </button>
+            )}
+          </div>
+        )
       }
     },
     {
       key: "status",
       label: t('common:status'),
+      width: "104px",
       render: (user) => (
-        <Badge className={`text-[10px] px-1.5 py-0 h-5 ${getStatusColor(user.status)}`}>
+        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${getStatusColor(user.status)}`}>
           {t(`common:${user.status}`, { defaultValue: user.status })}
-        </Badge>
+        </span>
       )
     },
     {
-      key: "created",
-      label: t('common:created'),
-      render: (user) => (
-        <span className="text-xs text-foreground">{formatDate(user.created_at)}</span>
-      )
-    }
-  ]
-
-  // Define actions - note: conditional actions using show property
-  const actions: HuemulTableAction<User>[] = [
-    {
-      key: "approve",
-      label: t('users:actions.approveUser'),
-      icon: Check,
-      // Aprobar/rechazar mutan directo desde el menú, sin diálogo de por medio:
-      // el early-return acá es su única defensa en profundidad.
-      onClick: (user) => {
-        if (!canUpdate) return
-        userMutations.approveUser.mutate(user.id)
-      },
-      show: (user) => user.status === 'pending' && canUpdate,
-      className: "text-green-600"
-    },
-    {
-      key: "reject",
-      label: t('users:actions.rejectUser'),
-      icon: X,
-      onClick: (user) => {
-        if (!canUpdate) return
-        userMutations.rejectUser.mutate(user.id)
-      },
-      show: (user) => user.status === 'pending' && canUpdate,
-      separator: true,
-      destructive: true
-    },
-    {
-      key: "assign-roles",
-      label: t('users:actions.assignRoles'),
-      icon: UserPlus,
-      onClick: onAssignRoles,
-      // El sheet muta POST /user_roles/{roleId}/bulk_users, gateado con rbac:u:
-      // mostrarlo con user:u abría un sheet que se renderiza en null.
-      show: () => canAssignRoles
-    },
-    {
-      key: "manage-root-admin",
-      label: t('users:actions.manageRootAdmin'),
-      icon: ShieldCheck,
-      onClick: onManageRootAdmin,
-      show: () => canManageRootAdmin
-    },
-    {
-      key: "make-org-admin",
-      label: t('users:actions.makeOrgAdmin'),
-      icon: Building,
-      onClick: (user) => onMakeOrganizationAdmin?.(user),
-      show: () => canManageRootAdmin && !!onMakeOrganizationAdmin,
-      separator: true
-    },
-    {
-      key: "edit",
-      label: t('users:actions.editUser'),
-      icon: Edit,
-      onClick: onEditUser,
-      show: () => canUpdate,
-      separator: true
-    },
-    {
-      key: "delete",
-      label: t('users:actions.deleteUser'),
-      icon: Trash2,
-      onClick: onDeleteUser,
-      show: () => canDelete,
-      destructive: true
+      key: "chevron",
+      label: "",
+      align: "right",
+      width: "40px",
+      render: () => <ChevronRight className="ml-auto size-[15px] text-[#b6c0cd]" />
     }
   ]
 
   return (
     <HuemulTable
+      variant="detailed"
       data={users}
       columns={columns}
-      actions={actions}
       getRowKey={(user) => user.id}
+      selectable
+      selectedKeys={selectedUsers}
+      onSelectionChange={(keys) => {
+        // `onSelectionChange` entrega el Set completo; el estado de la página
+        // sigue expresado como toggle por id (`onUserSelection`) + "seleccionar
+        // todos" (`onSelectAll`), así que se traduce acá sin duplicar lógica.
+        if (keys.size === users.length) {
+          if (selectedUsers.size !== users.length) onSelectAll()
+          return
+        }
+        if (keys.size === 0 && selectedUsers.size === users.length) {
+          onSelectAll()
+          return
+        }
+        const added = [...keys].find((id) => !selectedUsers.has(id))
+        const removed = [...selectedUsers].find((id) => !keys.has(id))
+        if (added) onUserSelection(added)
+        else if (removed) onUserSelection(removed)
+      }}
+      onRowClick={(user) => onSelectUser(user)}
+      activeKey={selectedUserId ?? null}
       emptyState={{
         icon: Users,
         title: t('users:emptyState.title'),

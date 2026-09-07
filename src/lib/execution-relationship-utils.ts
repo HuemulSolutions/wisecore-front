@@ -1,7 +1,6 @@
 /**
  * Helpers puros compartidos por todo lo que muestra `ExecutionRelationshipWithDetails` —
- * el panel lateral (`assets-related-documents.tsx`) y la fuente `related_documents` del nodo
- * Plate `data_table` (`data-table-sources.ts`).
+ * el panel lateral (`assets-related-documents.tsx`) y el panel de `assets-related-documents-block.tsx`.
  */
 import type {
   ExecutionRelationshipInlineExecution,

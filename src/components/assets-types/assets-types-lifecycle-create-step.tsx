@@ -11,6 +11,7 @@ import {
 import { useRoles } from "@/hooks/useRbac"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { deriveAccessType, stepRoleIds, buildAccessPayload, pipelineIndex } from "@/lib/lifecycle-access"
+import { handleApiError } from "@/lib/error-utils"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   AccessRulesEditor,
@@ -130,16 +131,24 @@ export function CreateStepContent({
 
   saveRef.current = async () => {
     if (!canManage || !step || !isDirty) return
-    await updateStep.mutateAsync({
-      stepId: step.id,
-      data: {
-        // `access_type` + `role_ids` los arma `buildAccessPayload`: fuera de
-        // `custom`/`custom_owner` la clave `role_ids` no puede viajar, el backend
-        // la rechaza con 422 incluso vacía.
-        ...buildAccessPayload({ accessType, roleIds }),
-        access_rules: accessRules,
-      },
-    })
+    try {
+      await updateStep.mutateAsync({
+        stepId: step.id,
+        data: {
+          // `access_type` + `role_ids` los arma `buildAccessPayload`: fuera de
+          // `custom`/`custom_owner` la clave `role_ids` no puede viajar, el backend
+          // la rechaza con 422 incluso vacía.
+          ...buildAccessPayload({ accessType, roleIds }),
+          access_rules: accessRules,
+        },
+      })
+    } catch (error) {
+      // Sin este catch el fallo quedaba como promise rejection no manejada:
+      // sin toast, sin log, y el estado local seguía "dirty" pero sin forma de
+      // que el usuario supiera que el guardado no llegó a aplicarse.
+      handleApiError(error, { fallbackMessage: t("lifecycle.saveError") })
+      return
+    }
     setIsDirty(false)
     toast.success(t("lifecycle.savedSuccess"))
   }

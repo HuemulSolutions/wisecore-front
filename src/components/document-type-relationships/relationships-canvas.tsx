@@ -19,6 +19,7 @@ import {
   type Edge,
   type OnConnect,
   type OnConnectEnd,
+  type OnReconnect,
   BackgroundVariant,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
@@ -85,7 +86,7 @@ import {
 } from "@/lib/diagram-utils"
 import { useSaveDiagramGraph } from "@/hooks/useDiagrams"
 import { useDiagramDirtyState } from "@/hooks/useDiagramDirtyState"
-import { useOrgNavigate } from "@/hooks/useOrgRouter"
+import { useOrgNavigate, useOrgPath } from "@/hooks/useOrgRouter"
 import { handleApiError } from "@/lib/error-utils"
 
 const NODE_TYPES = {
@@ -294,6 +295,14 @@ function RelationshipsCanvasFlow({
 }: RelationshipsCanvasProps) {
   const { t } = useTranslation("document-type-relationships")
   const navigate = useOrgNavigate()
+  const buildPath = useOrgPath()
+  // Abre el asset detrás de un nodo "assetType" en su vista de pantalla completa (ver
+  // ia context/fullscreen-share-route-guide.md), en una pestaña nueva para no arriesgar
+  // cambios sin guardar del canvas del diagrama.
+  const handleOpenAsset = useCallback((assetId: string, executionId?: string) => {
+    const query = executionId ? `?execution=${executionId}` : ''
+    window.open(buildPath(`/asset/full/${assetId}${query}`), "_blank", "noopener,noreferrer")
+  }, [buildPath])
   const { screenToFlowPosition, getNodes, getEdges, fitView } = useReactFlow()
   const queryClient = useQueryClient()
   // Ancho MEDIDO del contenedor del flow (no del viewport): ya descuenta el panel
@@ -1071,6 +1080,8 @@ function RelationshipsCanvasFlow({
         targetLabel: nodeLabel(tgtNode),
         sourceColor: nodeColor(srcNode),
         targetColor: nodeColor(tgtNode),
+        sourceHandle: params.sourceHandle,
+        targetHandle: params.targetHandle,
       }
       if (involvesRole) {
         // A role is involved — keep asking for a name/type up front, unchanged.
@@ -1114,6 +1125,8 @@ function RelationshipsCanvasFlow({
         targetColor: tgtData?.color,
         sourceExecutionId: srcData.executionId,
         targetExecutionId: tgtData.executionId,
+        sourceHandle: params.sourceHandle,
+        targetHandle: params.targetHandle,
       })
     } else {
       if (!canCreateRelationship) {
@@ -1143,6 +1156,25 @@ function RelationshipsCanvasFlow({
     },
     [mode, canCreate, canCreateExecRelationship, getNodes, screenToFlowPosition, t],
   )
+
+  // ─── Drag an edge's endpoint to a different handle of the SAME node → re-anchor it ──
+  // Only the handle side changes here — moving an endpoint to a different node would
+  // mean mutating (or recreating) the execution_relationship/direct edge behind it,
+  // which is out of scope for a drag gesture. `edgesReconnectable` below already
+  // requires diagram-write permission, so no extra permission check here.
+  const onReconnect: OnReconnect = useCallback((oldEdge, newConnection) => {
+    if (newConnection.source !== oldEdge.source || newConnection.target !== oldEdge.target) {
+      toast.info(t("canvas.reconnectEndpointsLocked"))
+      return
+    }
+    setEdges((eds) =>
+      eds.map((e) =>
+        e.id === oldEdge.id
+          ? { ...e, sourceHandle: newConnection.sourceHandle, targetHandle: newConnection.targetHandle }
+          : e,
+      ),
+    )
+  }, [setEdges, t])
 
   // ─── New asset created from the empty-canvas drop → place node + open relationship dialog ──
   const handleNewAssetCreated = useCallback(
@@ -1233,6 +1265,8 @@ function RelationshipsCanvasFlow({
             id: `rel-${cfg.id}`,
             source: conn.sourceId,
             target: conn.targetId,
+            sourceHandle: conn.sourceHandle,
+            targetHandle: conn.targetHandle,
             type: "relationship",
             data: {
               relationshipId: cfg.id,
@@ -1281,6 +1315,8 @@ function RelationshipsCanvasFlow({
             id: `${EXEC_EDGE_ID_PREFIX}${relationship.id}`,
             source: conn.sourceId,
             target: conn.targetId,
+            sourceHandle: conn.sourceHandle,
+            targetHandle: conn.targetHandle,
             type: "relationship",
             data: {
               relationshipId: relationship.id,
@@ -1315,7 +1351,7 @@ function RelationshipsCanvasFlow({
   const handleLoadExecRelCanvasOnlyRef = useRef<((nodeId: string, allowedRelIds?: Set<string>) => void) | null>(null)
 
   const doLoadExecutionRelationships = useCallback(
-    async (nodeId: string, executionId: string) => {
+    async (nodeId: string, executionId: string, filterDocumentTypeId?: string) => {
       if (!canListExecRelationships) return
       const orgId = organizationIdRef.current
 
@@ -1333,11 +1369,20 @@ function RelationshipsCanvasFlow({
       })
       if (!relData?.data?.length) return
 
+      // "Expandir por tipo": nos quedamos solo con las relaciones directas del anchor cuyo OTRO
+      // lado (no el anchor) sea del tipo elegido — las demás ni suman nodos ni edges nuevos.
+      const otherSide = (rel: ExecutionRelationshipSubitem) =>
+        rel.source_execution.id === executionId ? rel.target_execution : rel.source_execution
+      const directRels = filterDocumentTypeId
+        ? relData.data.filter((rel) => otherSide(rel).document_type_id === filterDocumentTypeId)
+        : relData.data
+      if (!directRels.length) return
+
       // Flatten top-level + all sub-relationships (relationship_source / relationship_target)
       // into a single deduplicated map — used only to draw edges between nodes that end up on
       // the canvas (e.g. siblings), never to decide which nodes get created.
       const allRelsMap = new Map<string, ExecutionRelationshipSubitem>()
-      for (const item of relData.data) {
+      for (const item of directRels) {
         if (!allRelsMap.has(item.id)) allRelsMap.set(item.id, item)
         for (const sub of item.relationship_source) {
           if (!allRelsMap.has(sub.id)) allRelsMap.set(sub.id, sub)
@@ -1408,9 +1453,9 @@ function RelationshipsCanvasFlow({
         currentNodes.find((n) => (n.data as AssetTypeNodeData).executionId === execId)?.id ??
         newNodes.find((n) => (n.data as AssetTypeNodeData).executionId === execId)?.id
 
-      // "Children" are only the anchor's direct relationships (relData.data, before flattening).
+      // "Children" are only the anchor's direct relationships (directRels, before flattening).
       // Sub-relationships describe siblings/grandchildren and must never spawn nodes.
-      for (const rel of relData.data) {
+      for (const rel of directRels) {
         ensureNode(rel.source_execution.document_id, rel.source_execution.id, rel.source_execution.name, rel.source_execution.document_name, rel.source_execution.document_type_id, rel.source_execution.document_type_color ?? '')
         ensureNode(rel.target_execution.document_id, rel.target_execution.id, rel.target_execution.name, rel.target_execution.document_name, rel.target_execution.document_type_id, rel.target_execution.document_type_color ?? '')
       }
@@ -1497,6 +1542,21 @@ function RelationshipsCanvasFlow({
       if (!nodeData) return
       if (nodeData.executionId) {
         doLoadExecutionRelationships(nodeId, nodeData.executionId)
+      } else {
+        toast.warning(t("nodePanel.versionRequiredFor", { names: nodeData.name }))
+      }
+    },
+    [getNodes, doLoadExecutionRelationships, t],
+  )
+
+  // "Expandir por tipo": misma carga que arriba, pero solo agrega el tipo de activo relacionado elegido.
+  const handleLoadExecutionRelationshipsForType = useCallback(
+    (nodeId: string, documentTypeId: string) => {
+      const node = getNodes().find((n) => n.id === nodeId)
+      const nodeData = node?.data as AssetTypeNodeData | undefined
+      if (!nodeData) return
+      if (nodeData.executionId) {
+        doLoadExecutionRelationships(nodeId, nodeData.executionId, documentTypeId)
       } else {
         toast.warning(t("nodePanel.versionRequiredFor", { names: nodeData.name }))
       }
@@ -1676,6 +1736,8 @@ function RelationshipsCanvasFlow({
           id: edgeId,
           source: pending.sourceId,
           target: pending.targetId,
+          sourceHandle: pending.sourceHandle,
+          targetHandle: pending.targetHandle,
           type: "relationship",
           data: {
             relationshipId: edgeId,
@@ -1710,17 +1772,27 @@ function RelationshipsCanvasFlow({
       if (!relationships?.length) return
 
       const execToNodeId = new Map<string, string>()
+      // A role can be dropped onto the canvas more than once, so `role_id` alone can't
+      // tell which node an edge belongs to — same problem as flow below.
+      // `roleDetailToNodeId` (keyed by `detail_id`) is the precise resolution once the
+      // backend echoes it on the relationship endpoint; `roleToNodeId` is a first-wins
+      // fallback for when it doesn't (older backend, or a legacy role with no detail
+      // yet) — first because that's the order `details` comes back in, so it's at
+      // least deterministic instead of last-write-wins.
       const roleToNodeId = new Map<string, string>()
+      const roleDetailToNodeId = new Map<string, string>()
       // Keyed by `detail_id` — the only identity a gateway/start_event/end_event
       // endpoint carries (two of them are otherwise indistinguishable).
       const flowToNodeId = new Map<string, string>()
       for (const { canvasNodeId, seed } of seeded) {
-        if (seed.nodeType === 'role') roleToNodeId.set(seed.role.id, canvasNodeId)
-        else if (seed.nodeType === 'flow') flowToNodeId.set(seed.detailId, canvasNodeId)
+        if (seed.nodeType === 'role') {
+          if (!roleToNodeId.has(seed.role.id)) roleToNodeId.set(seed.role.id, canvasNodeId)
+          if (seed.detailId) roleDetailToNodeId.set(seed.detailId, canvasNodeId)
+        } else if (seed.nodeType === 'flow') flowToNodeId.set(seed.detailId, canvasNodeId)
         else execToNodeId.set(seed.executionId, canvasNodeId)
       }
       const resolve = (ep: DiagramRelationshipEndpoint): string | undefined => {
-        if (ep.node_type === 'role') return roleToNodeId.get(ep.role_id)
+        if (ep.node_type === 'role') return (ep.detail_id && roleDetailToNodeId.get(ep.detail_id)) ?? roleToNodeId.get(ep.role_id)
         if (ep.node_type === 'execution') return execToNodeId.get(ep.execution_id)
         return flowToNodeId.get(ep.detail_id)
       }
@@ -1750,6 +1822,8 @@ function RelationshipsCanvasFlow({
             id: edgeId,
             source: src,
             target: tgt,
+            sourceHandle: rel.source_handle ?? undefined,
+            targetHandle: rel.target_handle ?? undefined,
             type: 'relationship',
             data: {
               relationshipId: rel.execution_relationship_id,
@@ -1793,6 +1867,8 @@ function RelationshipsCanvasFlow({
             id: edgeId,
             source: src,
             target: tgt,
+            sourceHandle: rel.source_handle ?? undefined,
+            targetHandle: rel.target_handle ?? undefined,
             type: 'relationship',
             data: {
               relationshipId: edgeId,
@@ -2076,6 +2152,7 @@ function RelationshipsCanvasFlow({
           onEdgesChange={onEdgesChange}
           onConnect={readOnly ? undefined : onConnect}
           onConnectEnd={readOnly ? undefined : onConnectEnd}
+          onReconnect={readOnly ? undefined : onReconnect}
           onEdgeClick={onEdgeClick}
           onNodeClick={onNodeClick}
           onDrop={readOnly ? undefined : handleDrop}
@@ -2086,6 +2163,12 @@ function RelationshipsCanvasFlow({
           elevateNodesOnSelect={false}
           nodesDraggable={!readOnly}
           nodesConnectable={!readOnly}
+          // Reanclar cambia solo el diagrama (no la execution_relationship/relación de
+          // negocio detrás del edge), así que el permiso correcto es el de escritura
+          // del diagrama — mismo criterio que la rama de rol de `deleteKeyCode` abajo.
+          // En modo document-type nada de esto se persiste en un Diagram.
+          edgesReconnectable={!readOnly && mode === 'execution' && canWriteDiagramGraph}
+          reconnectRadius={12}
           fitView
           proOptions={{ hideAttribution: true }}
           // El borrado por tecla es una mutación sin botón: exige el permiso de
@@ -2175,6 +2258,10 @@ function RelationshipsCanvasFlow({
                   : undefined
               }
               nodeActions={nodeActions}
+              onOpenAsset={mode === 'execution' && nodeData.assetId ? () => handleOpenAsset(nodeData.assetId!, nodeData.executionId) : undefined}
+              documentTypeId={mode === 'execution' ? nodeData.documentTypeId : undefined}
+              documentTypes={documentTypes}
+              onLoadRelationshipsForType={mode === 'execution' && canListExecRelationships ? handleLoadExecutionRelationshipsForType : undefined}
               onLoadRelationships={nodeData.onLoadRelationships && (mode === 'execution' ? canListExecRelationships : canListRelationships) ? (mode === 'execution' ? handleLoadExecutionRelationships : handleLoadRelationships) : undefined}
               onLoadRelationshipsCanvasOnly={nodeData.onLoadRelationships && (mode === 'execution' ? canListExecRelationships : canListRelationships) ? (mode === 'execution' ? handleLoadExecRelCanvasOnly : handleLoadRelationshipsCanvasOnly) : undefined}
               onClose={() => setSelectedNodeId(null)}
@@ -2287,16 +2374,9 @@ function RelationshipsCanvasFlow({
             if ("nodeId" in pendingRolePick) {
               handleUpdateElementRole(pendingRolePick.nodeId, role)
             } else {
-              // A role can only appear once as a free-standing node — same pattern
-              // as nodePanel.versionAlreadyInCanvas for asset versions.
-              const alreadyInCanvas = getNodes().some(
-                (n) => n.type === "role" && (n.data as CanvasElementNodeData).role?.id === id,
-              )
-              if (alreadyInCanvas) {
-                toast.warning(t("canvas.roleAlreadyInCanvas"))
-                setPendingRolePick(null)
-                return
-              }
+              // A role node can be dropped onto the canvas more than once — the same
+              // responsible acting at different points of the flow. Each drop is a
+              // distinct node (own `key`/`detailId`, see diagram-utils.ts).
               createElementNode("role", pendingRolePick.position, role.name, undefined, undefined, undefined, role)
             }
             setPendingRolePick(null)

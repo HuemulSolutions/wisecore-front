@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell, Sparkles, MessageSquareText, BookOpen } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell, Sparkles, MessageSquareText, BookOpen, Maximize2, Minimize2 } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
   ResizableHandle,
@@ -22,6 +22,8 @@ import { AssetVersionCompareSheet } from "@/components/assets/content/asset-vers
 import { AssetsInfoSheet } from "@/components/assets/content/assets-info-sheet";
 import AssetLifecycleSheet from "@/components/assets/dialogs/assets-lifecycle-sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/contexts/auth-context";
+import { useRecentAssets } from "@/hooks/useRecentAssets";
 import { DocumentAccessControl } from "@/components/assets/content/assets-access-control";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulExpandableText } from "@/huemul/components/huemul-expandable-text";
@@ -81,8 +83,7 @@ import { TableOfContents } from "@/components/assets/content/assets-table-of-con
 import { toast } from "sonner";
 import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
-import { useExecutionRelationships } from "@/hooks/useExecutionRelationships";
-import { useDocumentTypes } from "@/hooks/useDocumentTypes";
+import { useDataTableSources } from "@/hooks/useDataTables";
 import { AssetsSectionsList } from "./assets-sections-list";
 import { formatApiDateTime, cn } from "@/lib/utils";
 import { CustomWordExportDialog } from "@/components/assets/dialogs/assets-export-custom.word-dialog";
@@ -159,18 +160,26 @@ function isSectionContentEmpty(section: ContentSection): boolean {
  * Main component for displaying and managing document/template content.
  * Handles content rendering, version management, executions, and user interactions.
  */
-export function AssetContent({ 
-  selectedFile, 
-  selectedExecutionId, 
-  setSelectedExecutionId, 
+export function AssetContent({
+  selectedFile,
+  selectedExecutionId,
+  setSelectedExecutionId,
   selectedSectionId,
   setSelectedSectionId,
   setSelectedFile,
   onRefresh,
   currentFolderId,
   onToggleSidebar,
-  onPreserveScroll
+  onPreserveScroll,
+  variant = "panel",
+  onOpenFullscreen,
+  onExitFullscreen,
 }: LibraryContentProps) {
+  // "panel": columna derecha de /asset (default). "fullscreen": vista dedicada sin
+  // header/nav/árbol (pages/asset-fullscreen.tsx) — ver
+  // ia context/fullscreen-share-route-guide.md. Mismo componente, mismas acciones;
+  // solo cambia el ancho del contenido y el botón Maximize/Minimize del header.
+  const isFullscreen = variant === "fullscreen";
   // ============================================================================
   // HOOKS AND CONTEXT
   // ============================================================================
@@ -933,6 +942,22 @@ export function AssetContent({
     // "ia context/rbac-audit-guide.md"). No se toca en este cambio.
   });
 
+  // "Continuar donde quedaste" (rail del Home) — se registra acá, no en
+  // useAssetNavigation, porque ahí `selectedFile.name` es un placeholder tipo
+  // "Document 9a1c2e3d..." hasta que este contenido resuelve; acá ya se tiene
+  // el nombre real del documento.
+  const { user: currentUser } = useAuth();
+  const { recordRecentAsset } = useRecentAssets(selectedOrganizationId, currentUser?.id);
+  useEffect(() => {
+    if (!documentContent) return;
+    recordRecentAsset({
+      id: documentContent.document_id,
+      name: documentContent.document_name,
+      lifecycleState: documentContent.lifecycle_status?.state,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentContent?.document_id, documentContent?.document_name, documentContent?.lifecycle_status?.state]);
+
   // Handle add section at specific position.
   // useCallback: se pasa como prop a AssetsSectionsList (memoizado) — sin esto
   // tendría una referencia nueva en cada render de AssetContent, anulando ese memo.
@@ -1304,20 +1329,13 @@ export function AssetContent({
   // Unified executions source: prefer documentContent (always fresh after refetch) over separate query
   const allExecutions = documentContent?.executions || documentExecutions;
 
-  // Relaciones + catálogo de tipos para el nodo `data_table` (fuente "related_documents") y para
-  // AssetsRelatedDocuments más abajo — misma query key en ambos casos, comparten caché.
+  // Usado por AssetsRelatedDocumentsBlock más abajo (su propia query de relaciones).
   const relatedExecutionId = selectedExecutionId || documentContent?.execution_id;
-  const { data: relationshipsData } = useExecutionRelationships(
-    selectedOrganizationId || '',
-    relatedExecutionId || '',
-    { enabled: canListExecutionRelationships && !!relatedExecutionId, direction: 'all', includeSubrelationships: false },
-  );
-  const { data: documentTypesResponse } = useDocumentTypes({ enabled: can('listAssetTypes') });
-  const documentTypeNames = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const type of documentTypesResponse?.data ?? []) map.set(type.id, type.name);
-    return map;
-  }, [documentTypesResponse]);
+
+  // Prefetch del catálogo del nodo `data_table` (cache infinita, ver useDataTableSources) — así
+  // el slash command (transforms.ts, síncrono, fuera de React) lo encuentra ya en cache al
+  // insertar una tabla nueva.
+  useDataTableSources(selectedOrganizationId || undefined);
 
   // Check if there's any execution in process - optimized with memoization
   const hasExecutionInProcess = useMemo(() => {
@@ -1705,12 +1723,15 @@ export function AssetContent({
 
   // Discussions badge count — same query key as each section's DiscussionSync,
   // so this dedupes against the editor's own fetch instead of adding one.
-  const { discussions: allDiscussions } = useDiscussions(
-    canListDiscussions ? selectedFile?.id : undefined
+  // Filtered client-side to the version currently on screen.
+  const { discussionsForExecution: discussionsForBadge } = useDiscussions(
+    canListDiscussions ? selectedFile?.id : undefined,
+    undefined,
+    effectiveSelectedExecutionId ?? undefined
   );
   const openDiscussionsCount = useMemo(
-    () => allDiscussions.filter((d) => !d.isResolved).length,
-    [allDiscussions]
+    () => discussionsForBadge.filter((d) => !d.isResolved).length,
+    [discussionsForBadge]
   );
 
   // Navigate from the discussions panel to the thread's section and activate it.
@@ -2153,15 +2174,19 @@ export function AssetContent({
           <div className="bg-white border-b border-gray-200 shadow-sm py-2 px-4 z-(--z-page-header) shrink-0 min-h-20" data-mobile-header>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <HuemulButton
-                  onClick={onToggleSidebar}
-                  variant="ghost"
-                  size="sm"
-                  icon={FolderTree}
-                  iconClassName="h-5 w-5"
-                  className="h-8 w-8 p-0 hover:bg-gray-100"
-                  tooltip={t('content.showFileTree')}
-                />
+                {/* Sin árbol en fullscreen (pages/asset-fullscreen.tsx no lo monta):
+                    el toggle no tendría a dónde apuntar. */}
+                {!isFullscreen && (
+                  <HuemulButton
+                    onClick={onToggleSidebar}
+                    variant="ghost"
+                    size="sm"
+                    icon={FolderTree}
+                    iconClassName="h-5 w-5"
+                    className="h-8 w-8 p-0 hover:bg-gray-100"
+                    tooltip={t('content.showFileTree')}
+                  />
+                )}
                 {isLoadingContent && !documentContent ? (
                   <div className="flex flex-col gap-1.5 flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -2639,6 +2664,8 @@ export function AssetContent({
                             onToggleToc={() => setIsTocSidebarOpen((prev) => !prev)}
                             onOpenInfo={() => setIsInfoSheetOpen(true)}
                             onOpenLifecycleHistory={() => setIsLifecycleHistorySheetOpen(true)}
+                            isFullscreen={isFullscreen}
+                            onOpenFullscreen={isFullscreen ? onExitFullscreen : onOpenFullscreen}
                             canAccessDiagrams={canAccessDiagrams}
                             onOpenDiagrams={() => setIsDiagramsSheetOpen(true)}
                             onOpenPermissions={() => setIsPermissionsSheetOpen(true)}
@@ -2667,6 +2694,20 @@ export function AssetContent({
                             isViewMode={isViewMode}
                             onSwitchToReader={() => { preserveScrollPosition(); setIsViewMode(true); }}
                             onSwitchToEditor={() => { preserveScrollPosition(); setIsViewMode(false); }}
+                          />
+                        )}
+                        {/* Botón de pantalla completa, siempre visible (no gateado por
+                            isViewOnly): es el único camino de entrada cuando el dropdown
+                            de arriba no se renderiza — ver ia context/fullscreen-share-route-guide.md */}
+                        {(onOpenFullscreen || onExitFullscreen) && (
+                          <HuemulButton
+                            size="sm"
+                            variant="ghost"
+                            icon={isFullscreen ? Minimize2 : Maximize2}
+                            iconClassName="h-4 w-4"
+                            className="h-7 w-7 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                            tooltip={isFullscreen ? t('content.exitFullscreen') : t('content.openFullscreen')}
+                            onClick={isFullscreen ? onExitFullscreen : onOpenFullscreen}
                           />
                         )}
                       </div>
@@ -2830,7 +2871,13 @@ export function AssetContent({
           <ScrollArea className="h-full max-w-full">
             <div
               ref={scrollRestoration.viewportRef}
-              className={`${isViewMode ? 'pt-2 md:pt-3 pb-4 md:pb-5' : 'py-4 md:py-5'} px-4 md:px-6 contain-[inline-size]`}
+              className={cn(
+                isViewMode ? 'pt-2 md:pt-3 pb-4 md:pb-5' : 'py-4 md:py-5',
+                'px-4 md:px-6 contain-[inline-size]',
+                // En fullscreen el panel de la izquierda (árbol) y el header global ya
+                // no compiten por ancho — sin este tope el texto queda incómodo de leer.
+                isFullscreen && 'mx-auto w-full max-w-4xl',
+              )}
             >
             {selectedFile.type === 'document' ? (
               <>
@@ -3245,7 +3292,11 @@ export function AssetContent({
                         <MediaUrlProvider freshUrls={mediaUrlsData?.media_urls ?? null}>
                         <MentionRefsProvider assetIds={mentionAssetIds} organizationId={selectedOrganizationId ?? undefined}>
                         <RoleRefsProvider enabled={hasRoleReferences}>
-                        <DocumentDataProvider documentContent={documentContent} executions={allExecutions} relationships={relationshipsData?.data} documentTypeNames={documentTypeNames} isLoaded>
+                        <DocumentDataProvider
+                          documentId={selectedFile?.id}
+                          organizationId={selectedOrganizationId}
+                          executionId={selectedExecutionId || documentContent?.execution_id || null}
+                        >
                         <div className={`prose prose-gray prose-sm md:prose-base max-w-full${isViewMode ? ' [&>*+*]:mt-0' : ''}`}>
                           {/* Template instructions callout - shown once at the top */}
                           {documentContent.template_instructions?.trim() && (
@@ -3810,6 +3861,7 @@ export function AssetContent({
           open={isDiscussionsSheetOpen}
           onOpenChange={setIsDiscussionsSheetOpen}
           documentId={selectedFile.id}
+          executionId={effectiveSelectedExecutionId}
           sections={Array.isArray(documentContent?.content) ? (documentContent.content as ContentSection[]) : []}
           onFocusDiscussion={handleFocusDiscussion}
         />
