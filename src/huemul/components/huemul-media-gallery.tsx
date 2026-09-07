@@ -1,4 +1,4 @@
-import { AlertCircle, RefreshCw, Inbox, MoreVertical, Sparkles } from "lucide-react"
+import { AlertCircle, RefreshCw, Inbox, MoreVertical, Sparkles, Trash2 } from "lucide-react"
 import { formatRelativeTime } from "@/lib/format-relative-time"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
@@ -7,6 +7,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
@@ -15,15 +16,19 @@ import { isImage, MediaIcon } from "./huemul-media-icon"
 import type { Media } from "@/types/media"
 import type { ViewMode } from "./huemul-view-toggle"
 
-// ─── Menú "Regenerar con IA" ────────────────────────────────────────────────
+// ─── Menú de acciones rápidas (regenerar con IA / eliminar) ─────────────────
 
-function RegenerateMenu({
+function MediaActionsMenu({
   onRegenerate,
   regenerateLabel,
+  onDelete,
+  deleteLabel,
   triggerClassName,
 }: {
-  onRegenerate: () => void
+  onRegenerate?: () => void
   regenerateLabel?: string
+  onDelete?: () => void
+  deleteLabel?: string
   triggerClassName?: string
 }) {
   return (
@@ -31,7 +36,7 @@ function RegenerateMenu({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          aria-label={regenerateLabel}
+          aria-label={regenerateLabel ?? deleteLabel}
           onClick={(e) => e.stopPropagation()}
           className={triggerClassName}
         >
@@ -39,10 +44,19 @@ function RegenerateMenu({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-        <DropdownMenuItem onClick={onRegenerate}>
-          <Sparkles className="h-3.5 w-3.5 mr-2" />
-          {regenerateLabel}
-        </DropdownMenuItem>
+        {onRegenerate && (
+          <DropdownMenuItem onClick={onRegenerate}>
+            <Sparkles className="h-3.5 w-3.5 mr-2" />
+            {regenerateLabel}
+          </DropdownMenuItem>
+        )}
+        {onRegenerate && onDelete && <DropdownMenuSeparator />}
+        {onDelete && (
+          <DropdownMenuItem variant="destructive" onClick={onDelete}>
+            <Trash2 className="h-3.5 w-3.5 mr-2" />
+            {deleteLabel}
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -55,16 +69,21 @@ function MediaCard({
   onClick,
   onRegenerate,
   regenerateLabel,
+  onDelete,
+  deleteLabel,
 }: {
   item: Media
   onClick: () => void
   onRegenerate?: (item: Media) => void
   regenerateLabel?: string
+  onDelete?: (item: Media) => void
+  deleteLabel?: string
 }) {
   const version = item.current_version
   const name = item.name ?? version?.original_filename ?? item.id
   const contentType = version?.content_type
   const canRegenerate = onRegenerate && isImage(contentType)
+  const hasMenu = canRegenerate || onDelete
 
   return (
     <div
@@ -90,11 +109,13 @@ function MediaCard({
             v{version.version_number}
           </span>
         )}
-        {canRegenerate && (
-          <RegenerateMenu
-            onRegenerate={() => onRegenerate(item)}
+        {hasMenu && (
+          <MediaActionsMenu
+            onRegenerate={canRegenerate ? () => onRegenerate(item) : undefined}
             regenerateLabel={regenerateLabel}
-            triggerClassName="absolute top-1.5 right-1.5 rounded-md bg-black/60 p-1 text-white opacity-0 transition-opacity hover:bg-black/80 hover:cursor-pointer group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none"
+            onDelete={onDelete ? () => onDelete(item) : undefined}
+            deleteLabel={deleteLabel}
+            triggerClassName="absolute top-1.5 right-1.5 rounded-md bg-black/60 p-1 text-white transition-colors hover:bg-black/80 hover:cursor-pointer focus-visible:outline-none"
           />
         )}
       </div>
@@ -133,16 +154,21 @@ function MediaRow({
   onClick,
   onRegenerate,
   regenerateLabel,
+  onDelete,
+  deleteLabel,
 }: {
   item: Media
   onClick: () => void
   onRegenerate?: (item: Media) => void
   regenerateLabel?: string
+  onDelete?: (item: Media) => void
+  deleteLabel?: string
 }) {
   const version = item.current_version
   const name = item.name ?? version?.original_filename ?? item.id
   const contentType = version?.content_type
   const canRegenerate = onRegenerate && isImage(contentType)
+  const hasMenu = canRegenerate || onDelete
 
   return (
     <div
@@ -182,11 +208,13 @@ function MediaRow({
           {formatRelativeTime(item.created_at)}
         </span>
       )}
-      {canRegenerate && (
-        <RegenerateMenu
-          onRegenerate={() => onRegenerate(item)}
+      {hasMenu && (
+        <MediaActionsMenu
+          onRegenerate={canRegenerate ? () => onRegenerate(item) : undefined}
           regenerateLabel={regenerateLabel}
-          triggerClassName="shrink-0 rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground hover:cursor-pointer group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none"
+          onDelete={onDelete ? () => onDelete(item) : undefined}
+          deleteLabel={deleteLabel}
+          triggerClassName="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground hover:cursor-pointer focus-visible:outline-none"
         />
       )}
     </div>
@@ -210,6 +238,9 @@ export interface HuemulMediaGalleryProps {
   /** Ítem "Regenerar con IA" del menú de cada tarjeta/fila de imagen. Ausente = sin menú. */
   onRegenerate?: (item: Media) => void
   regenerateLabel?: string
+  /** Ítem "Eliminar" del menú de cada tarjeta/fila. Ausente = sin acción de eliminar. */
+  onDelete?: (item: Media) => void
+  deleteLabel?: string
 }
 
 export function HuemulMediaGallery({
@@ -226,6 +257,8 @@ export function HuemulMediaGallery({
   retryLabel = "Retry",
   onRegenerate,
   regenerateLabel,
+  onDelete,
+  deleteLabel,
 }: HuemulMediaGalleryProps) {
   if (isError) {
     return (
@@ -264,6 +297,8 @@ export function HuemulMediaGallery({
                 onClick={() => onSelect(item)}
                 onRegenerate={onRegenerate}
                 regenerateLabel={regenerateLabel}
+                onDelete={onDelete}
+                deleteLabel={deleteLabel}
               />
             ))}
       </div>
@@ -292,6 +327,8 @@ export function HuemulMediaGallery({
               onClick={() => onSelect(item)}
               onRegenerate={onRegenerate}
               regenerateLabel={regenerateLabel}
+              onDelete={onDelete}
+              deleteLabel={deleteLabel}
             />
           ))}
     </div>

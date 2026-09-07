@@ -5,10 +5,11 @@ import { Image, RefreshCw, Plus, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 
 import { useOrganization } from "@/contexts/organization-context"
-import { useMediaList, mediaQueryKeys } from "@/hooks/useMedia"
+import { useMediaList, useMediaMutations, mediaQueryKeys } from "@/hooks/useMedia"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import { HuemulPagination } from "@/huemul/components/huemul-pagination"
@@ -72,8 +73,11 @@ export default function MediaPage() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [generateOpen, setGenerateOpen] = useState(false)
   const [generateTarget, setGenerateTarget] = useState<{ mediaId: string; name: string } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Media | null>(null)
   const [pinnedMediaIds, setPinnedMediaIds] = useState<string[]>([])
   const [viewMode, setViewMode] = useMediaViewMode()
+
+  const { deleteMedia } = useMediaMutations(selectedOrganizationId ?? "")
 
   const {
     level,
@@ -256,6 +260,8 @@ export default function MediaPage() {
                       setGenerateOpen(true)
                     } : undefined}
                     regenerateLabel={t("generate.regenerateWithAI")}
+                    onDelete={canDeleteMedia ? (item) => setDeleteTarget(item) : undefined}
+                    deleteLabel={t("detail.deleteMedia")}
                     emptyTitle={needsParent ? t("emptySelectParentTitle") : t("emptyTitle")}
                     emptyDescription={needsParent ? t("emptySelectParentDescription") : t("emptyDescription")}
                     loadError={t("loadError")}
@@ -322,6 +328,21 @@ export default function MediaPage() {
         if (mediaDeleted) {
           setPinnedMediaIds((prev) => prev.filter((id) => id !== mediaId))
         }
+      }}
+    />
+
+    <HuemulAlertDialog
+      open={!!deleteTarget}
+      onOpenChange={(v) => { if (!v) setDeleteTarget(null) }}
+      title={t("detail.deleteMediaTitle")}
+      description={t("detail.deleteMediaDescription")}
+      actionLabel={t("detail.deleteMediaConfirm")}
+      onAction={async () => {
+        if (!deleteTarget) return
+        await deleteMedia.mutateAsync(deleteTarget.id)
+        toast.success(t("detail.deleteMediaSuccess"))
+        setPinnedMediaIds((prev) => prev.filter((id) => id !== deleteTarget.id))
+        setDeleteTarget(null)
       }}
     />
   </>
