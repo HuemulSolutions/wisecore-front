@@ -533,6 +533,8 @@ export function SectionSheet({
             open={isAddingSectionDialogOpen}
             onOpenChange={setIsAddingSectionDialogOpen}
             documentId={selectedFile!.id}
+            templateId={templateId || undefined}
+            executionId={selectedConfigExecutionId || undefined}
             existingSections={fullDocument?.sections || []}
             onSubmit={(values) => {
               addSectionMutation.mutate(values);

@@ -36,6 +36,8 @@ export interface AddSectionDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   documentId: string
+  templateId?: string
+  executionId?: string
   sectionInsertPosition?: number
   existingSections: Section[]
   onSubmit: (values: any) => void
