@@ -34,6 +34,7 @@ import { DiscussionFocusProvider, useDiscussionFocus } from "@/contexts/discussi
 import { useDiscussions } from "@/hooks/useDiscussions";
 import { LifecycleHistorySheet } from "@/components/assets/content/lifecycle-history-sheet";
 import { AssetDiagramsSheet } from "@/components/assets/content/asset-diagrams-sheet";
+import { MediaListSheet } from "@/components/ui/media-list-sheet";
 import { AssetsRelatedDocuments } from "@/components/assets/content/assets-related-documents";
 import { AssetsRelatedDocumentsBlock } from "@/components/assets/content/assets-related-documents-block";
 
@@ -191,6 +192,7 @@ export function AssetContent({
   const { selectedOrganizationId } = useOrganization();
   const { canCreate, canList, canAccessTemplates, canAccessAssets, canAccessDiagrams } = useUserPermissions();
   const { can } = usePageAccess('asset');
+  const { can: canMedia } = usePageAccess('media');
   const { handleCreateAsset: openCreateAssetDialog } = useNavKnowledgeActions();
   const { guardedAction } = useOptionalEditingGuard();
   const { isOpen: isGlobalPanelOpen } = useGlobalPanel();
@@ -542,6 +544,7 @@ export function AssetContent({
   const [isDiscussionsSheetOpen, setIsDiscussionsSheetOpen] = useState(false);
   const [isLifecycleHistorySheetOpen, setIsLifecycleHistorySheetOpen] = useState(false);
   const [isDiagramsSheetOpen, setIsDiagramsSheetOpen] = useState(false);
+  const [isMediaSheetOpen, setIsMediaSheetOpen] = useState(false);
 
   // Sidebar and sheets
   const [activeTab, setActiveTab] = useState<'toc' | 'custom-fields'>('toc');
@@ -2737,6 +2740,8 @@ export function AssetContent({
                             onOpenFullscreen={isFullscreen ? onExitFullscreen : onOpenFullscreen}
                             canAccessDiagrams={canAccessDiagrams}
                             onOpenDiagrams={() => setIsDiagramsSheetOpen(true)}
+                            canAccessMedia={canMedia('listMedia')}
+                            onOpenMedia={() => setIsMediaSheetOpen(true)}
                             onOpenPermissions={() => setIsPermissionsSheetOpen(true)}
                             onOpenSections={() => setIsSectionSheetOpen(true)}
                             onOpenDependencies={() => setIsDependenciesSheetOpen(true)}
@@ -3954,6 +3959,32 @@ export function AssetContent({
         organizationId={selectedOrganizationId ?? ''}
         executionId={selectedExecutionId || documentContent?.execution_id || ''}
       />
+
+      {/* Media Sheet — toda la media subida al documento o a la versión seleccionada */}
+      {(() => {
+        const mediaSheetExecutionId = selectedExecutionId || documentContent?.execution_id || '';
+        const mediaSheetLevel: 'document' | 'execution' = mediaSheetExecutionId ? 'execution' : 'document';
+        const mediaSheetParentId = mediaSheetExecutionId || (selectedFile?.id ?? '');
+        const mediaSheetParentLabel = mediaSheetExecutionId
+          ? getExecutionCompactLabel(selectedExecutionInfo)
+          : (documentContent?.document_name || selectedFile?.name);
+        return (
+          <MediaListSheet
+            open={isMediaSheetOpen}
+            onOpenChange={setIsMediaSheetOpen}
+            organizationId={selectedOrganizationId ?? ''}
+            level={mediaSheetLevel}
+            parentId={mediaSheetParentId}
+            parentLabel={mediaSheetParentLabel}
+            documentId={selectedFile?.id ?? ''}
+            documentLabel={documentContent?.document_name || selectedFile?.name}
+            allExecutions={allExecutions ?? []}
+            canCreate={canMedia('createMedia')}
+            canUpdate={canMedia('updateMedia')}
+            canDelete={canMedia('deleteMedia')}
+          />
+        );
+      })()}
 
       {/* Discussions Sheet */}
       {canListDiscussions && selectedFile && (

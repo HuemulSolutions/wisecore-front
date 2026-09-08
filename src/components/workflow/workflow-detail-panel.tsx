@@ -1,7 +1,7 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, CheckCircle2, Clock, Edit3, ListChecks, RefreshCw } from "lucide-react"
+import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, CheckCircle2, Clock, Edit3, ListChecks, RefreshCw, Paperclip } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { AssetFormSection, type AssetFormSectionHandle } from "@/components/assets/content/asset-form-section"
 import { WorkflowAssetEditSheet } from "@/components/workflow/workflow-asset-edit-sheet"
+import { MediaListSheet } from "@/components/ui/media-list-sheet"
 import { WorkflowSectionsSummary } from "@/components/workflow/workflow-sections-summary"
 import { WorkflowFinishedCard } from "@/components/workflow/workflow-finished-card"
 import { WorkflowStatusCard } from "@/components/workflow/workflow-status-card"
@@ -117,6 +118,7 @@ export function WorkflowDetailPanel({
   const { t: tCommon } = useTranslation("common")
   const { selectedOrganizationId } = useOrganization()
   const { can } = usePageAccess("workflow")
+  const { can: canMedia } = usePageAccess("media")
   const queryClient = useQueryClient()
 
   // Eje RBAC del panel (grueso, `asset:*` — mismo criterio que useAssetContentPermissions).
@@ -131,6 +133,7 @@ export function WorkflowDetailPanel({
   const [descriptionValue, setDescriptionValue] = React.useState("")
   const [isFormSaving, setIsFormSaving] = React.useState(false)
   const [isEditSheetOpen, setIsEditSheetOpen] = React.useState(false)
+  const [isMediaSheetOpen, setIsMediaSheetOpen] = React.useState(false)
   const [editedAsset, setEditedAsset] = React.useState<{ name: string; internalCode?: string } | null>(null)
   const formSectionRef = React.useRef<AssetFormSectionHandle>(null)
 
@@ -552,6 +555,16 @@ export function WorkflowDetailPanel({
               className="h-8 w-8 p-0"
             />
           )}
+          {documentId && !needsNameStep && canMedia("listMedia") && (
+            <HuemulButton
+              variant="ghost"
+              size="sm"
+              icon={Paperclip}
+              tooltip={t("panel.media")}
+              onClick={() => setIsMediaSheetOpen(true)}
+              className="h-8 w-8 p-0"
+            />
+          )}
           {documentId && !needsNameStep && showAssetEdit && canUpdateAssetContent && (
             <HuemulButton
               variant="ghost"
@@ -811,6 +824,23 @@ export function WorkflowDetailPanel({
           currentName={documentName ?? ""}
           currentInternalCode={internalCode}
           onUpdated={(newName, newInternalCode) => setEditedAsset({ name: newName, internalCode: newInternalCode })}
+        />
+      )}
+
+      {documentId && (
+        <MediaListSheet
+          open={isMediaSheetOpen}
+          onOpenChange={setIsMediaSheetOpen}
+          organizationId={selectedOrganizationId ?? ''}
+          level={executionId ? 'execution' : 'document'}
+          parentId={executionId || documentId}
+          parentLabel={documentName ?? undefined}
+          documentId={documentId}
+          documentLabel={documentName ?? undefined}
+          allExecutions={data?.executions ?? []}
+          canCreate={canMedia('createMedia')}
+          canUpdate={canMedia('updateMedia')}
+          canDelete={canMedia('deleteMedia')}
         />
       )}
 

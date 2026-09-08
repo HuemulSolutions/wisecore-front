@@ -12,6 +12,16 @@ export function isImage(contentType?: string | null): boolean {
   return !!contentType && IMAGE_TYPES.has(contentType.toLowerCase())
 }
 
+// ─── Upload gate (accepted file types when creating/versioning media) ──────────
+
+export const MEDIA_UPLOAD_EXTENSIONS = ["pdf", "docx", "xlsx", "png", "jpg", "csv", "pptx", "txt"] as const
+export const MEDIA_UPLOAD_ACCEPT = MEDIA_UPLOAD_EXTENSIONS.map((ext) => `.${ext}`).join(",")
+
+export function hasAllowedMediaExtension(filename: string): boolean {
+  const ext = filename.split(".").pop()?.toLowerCase() ?? ""
+  return (MEDIA_UPLOAD_EXTENSIONS as readonly string[]).includes(ext)
+}
+
 export function MediaIcon({ contentType, className }: { contentType?: string | null; className?: string }) {
   const cls = cn("shrink-0", className)
   if (!contentType) return <File className={cls} />

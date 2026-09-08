@@ -62,6 +62,24 @@ const translations = {
       es: "Subir un archivo para adjuntarlo a esta plantilla.",
     },
   },
+  listSheet: {
+    title: { en: "Attached files", es: "Archivos adjuntos" },
+    titleWithName: { en: "Files — {{name}}", es: "Archivos — {{name}}" },
+    description: {
+      en: "Files uploaded to this document or version.",
+      es: "Archivos subidos a este documento o versión.",
+    },
+    emptyTitle: { en: "No files attached", es: "Sin archivos adjuntos" },
+    emptyDescription: {
+      en: "No media files have been uploaded here yet.",
+      es: "Todavía no se subió media aquí.",
+    },
+    scope: {
+      trigger: { en: "Change version", es: "Cambiar versión" },
+      document: { en: "Full document", es: "Documento completo" },
+      versionsHeading: { en: "Versions", es: "Versiones" },
+    },
+  },
   detail: {
     details: { en: "Details", es: "Detalles" },
     name: { en: "Name", es: "Nombre" },
@@ -102,15 +120,15 @@ const translations = {
   upload: {
     title: { en: "Upload Media", es: "Subir Media" },
     submit: { en: "Upload", es: "Subir" },
-    dropzone: { en: "Click to select a file", es: "Hacer clic para seleccionar un archivo" },
-    dropzoneHint: { en: "Any file type supported", es: "Se admite cualquier tipo de archivo" },
+    dropzone: { en: "Drag & drop a file, or click to select", es: "Arrastrá un archivo o hacé clic para seleccionar" },
+    dropzoneHint: { en: "Allowed: PDF, DOCX, XLSX, PNG, JPG, CSV, PPTX, TXT", es: "Permitidos: PDF, DOCX, XLSX, PNG, JPG, CSV, PPTX, TXT" },
     changeFile: { en: "Change file", es: "Cambiar archivo" },
     name: { en: "Name (optional)", es: "Nombre (opcional)" },
     namePlaceholder: { en: "Leave empty to use filename", es: "Dejar vacío para usar el nombre del archivo" },
     summary: { en: "Summary (optional)", es: "Resumen (opcional)" },
     summaryPlaceholder: { en: "Brief description of the file", es: "Breve descripción del archivo" },
     success: { en: "File uploaded successfully", es: "Archivo subido correctamente" },
-    invalidImageType: { en: "Invalid image format. Allowed: {{formats}}", es: "Formato de imagen no válido. Permitidos: {{formats}}" },
+    invalidFileType: { en: "Invalid file type. Allowed: {{formats}}", es: "Tipo de archivo no válido. Permitidos: {{formats}}" },
   },
   generate: {
     button: { en: "Generate with AI", es: "Generar con IA" },

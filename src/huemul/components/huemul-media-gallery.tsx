@@ -241,6 +241,8 @@ export interface HuemulMediaGalleryProps {
   /** Ítem "Eliminar" del menú de cada tarjeta/fila. Ausente = sin acción de eliminar. */
   onDelete?: (item: Media) => void
   deleteLabel?: string
+  /** Override completo (incluyendo "grid" y el gap) de las clases de la grilla. Default = 2→6 columnas según breakpoint. */
+  gridClassName?: string
 }
 
 export function HuemulMediaGallery({
@@ -259,6 +261,7 @@ export function HuemulMediaGallery({
   regenerateLabel,
   onDelete,
   deleteLabel,
+  gridClassName,
 }: HuemulMediaGalleryProps) {
   if (isError) {
     return (
@@ -308,7 +311,7 @@ export function HuemulMediaGallery({
   return (
     <div
       className={cn(
-        "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4",
+        gridClassName ?? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4",
         isFetching && "opacity-60 pointer-events-none",
       )}
     >
