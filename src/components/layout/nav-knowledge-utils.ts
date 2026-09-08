@@ -1,5 +1,6 @@
 import { toast } from "sonner"
 import { handleApiError } from "@/lib/error-utils"
+import { buildLibraryTree } from "@/lib/library-tree"
 import type { LibraryContent, LibraryContentFolderType } from "@/types/folders"
 import type { FileNode } from "@/types/assets"
 
@@ -37,64 +38,29 @@ export function isRootGroupFolderNode(folderType: LibraryContentFolderType | nul
   return !folderType && parentFolderId === null
 }
 
+// Wrapper delgado sobre buildLibraryTree (src/lib/library-tree.ts): esta
+// función solo aporta los mappers de presentación del sidebar de conocimiento
+// (isSystem/folder_type/isRootGroup/access_levels/is_grantable). La mecánica
+// de anidado + is_expanded + hasChildren vive en el helper genérico, reusada
+// por los pickers de assets — ver ia context/arbol-biblioteca-activos-guide.md.
 export function buildFocusedTree(content: LibraryContent): FileNode[] {
-  const { folders, assets } = content
-
-  const folderMap = new Map<string, FileNode>()
-  for (const f of folders) {
-    folderMap.set(f.id, {
+  return buildLibraryTree<FileNode>(content, {
+    mapFolder: (f) => ({
       id: f.id,
       name: f.name,
       type: 'folder',
-      isExpanded: f.is_expanded,
-      hasChildren: true,
-      children: f.is_expanded ? [] : undefined,
       isSystem: f.folder_type != null && f.folder_type !== 'area',
       folder_type: f.folder_type,
       isRootGroup: isRootGroupFolderNode(f.folder_type, f.parent_folder_id),
       access_levels: f.access_levels,
       is_grantable: f.is_grantable,
-    })
-  }
-
-  for (const f of folders) {
-    if (!f.parent_folder_id) continue
-    const parent = folderMap.get(f.parent_folder_id)
-    if (parent?.isExpanded && parent.children) {
-      parent.children.push(folderMap.get(f.id)!)
-    }
-  }
-
-  // Assets de raíz, para devolverlos a nivel root
-  const rootAssetNodes: FileNode[] = []
-  for (const a of assets) {
-    const assetNode: FileNode = {
+    }),
+    mapAsset: (a) => ({
       id: a.id,
       name: a.name,
-      type: 'document' as const,
+      type: 'document',
       document_type: a.document_type,
       access_levels: a.access_levels,
-    }
-    if (!a.folder_id) {
-      rootAssetNodes.push(assetNode)
-      continue
-    }
-    const parent = folderMap.get(a.folder_id)
-    if (parent?.isExpanded && parent.children) {
-      parent.children.push(assetNode)
-    }
-  }
-
-  // Una carpeta expandida por el backend refleja lo que realmente llegó:
-  // sin esto queda hasChildren:true con children:[] y refresh() la da por cargada.
-  for (const node of folderMap.values()) {
-    if (node.children) node.hasChildren = node.children.length > 0
-  }
-
-  const rootFolderNodes = folders
-    .filter(f => f.parent_folder_id === null)
-    .map(f => folderMap.get(f.id)!)
-    .filter(Boolean)
-
-  return [...rootFolderNodes, ...rootAssetNodes]
+    }),
+  })
 }

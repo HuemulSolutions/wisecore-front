@@ -7,7 +7,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import { HuemulFileTree } from '@/huemul/components/huemul-file-tree';
 import { getLibraryContent } from '@/services/folders';
+import { useLibraryTreeExpansion } from '@/hooks/useLibraryTreeExpansion';
+import { buildLibraryTree } from '@/lib/library-tree';
 import type { HuemulTreeNode } from '@/types/huemul/tree';
+import type { LibraryContentFolder } from '@/types/folders';
 
 interface CloneToNewDocumentOptions {
   name?: string;
@@ -48,15 +51,27 @@ export function CloneToNewDocumentDialog({
     }
   }, [open]);
 
+  // Comparte la clave `tree-expanded` con el sidebar de conocimiento y el
+  // resto de pickers de biblioteca — ver ia context/arbol-biblioteca-activos-guide.md.
+  const { loadRoot, treeProps: expansionTreeProps } = useLibraryTreeExpansion({ organizationId });
+
+  const mapFolder = useCallback((folder: LibraryContentFolder): HuemulTreeNode => ({
+    id: folder.id,
+    name: folder.name,
+    type: 'folder',
+    hasChildren: true,
+  }), []);
+
   const handleLoadChildren = useCallback(async (folderId: string | null): Promise<HuemulTreeNode[]> => {
-    const content = await getLibraryContent(organizationId, folderId || undefined);
-    return content.folders.map((folder) => ({
-      id: folder.id,
-      name: folder.name,
-      type: 'folder',
-      hasChildren: true,
-    }));
-  }, [organizationId]);
+    // Sin mapAsset: este picker solo elige una carpeta destino, los assets no
+    // son seleccionables — se descartan (ver buildLibraryTree).
+    if (folderId === null) {
+      const { content } = await loadRoot();
+      return buildLibraryTree<HuemulTreeNode>(content, { parentFolderId: null, mapFolder });
+    }
+    const content = await getLibraryContent(organizationId, folderId);
+    return buildLibraryTree<HuemulTreeNode>(content, { parentFolderId: folderId, mapFolder });
+  }, [organizationId, loadRoot, mapFolder]);
 
   function handleFolderClick(node: HuemulTreeNode) {
     if (selectedFolderId === node.id) {
@@ -156,6 +171,7 @@ export function CloneToNewDocumentDialog({
             showDefaultActions={{ create: false, delete: false, share: false }}
             showBorder={true}
             minHeight="150px"
+            {...expansionTreeProps}
           />
         </div>
       </div>

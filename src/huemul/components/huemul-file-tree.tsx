@@ -65,6 +65,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       canDragNode,
       canDropNode,
       onExpandedFoldersChange,
+      isNodePersistable,
     },
     ref,
   ) => {
@@ -161,6 +162,11 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
     onExpandedFoldersChangeRef.current = onExpandedFoldersChange
     const isExpandableRef = useRef(isExpandable)
     isExpandableRef.current = isExpandable
+    // Default: todo nodo expandible es persistible. Ver la nota de la prop en
+    // types/huemul/file-tree.ts — existe para modos donde un nodo se vuelve
+    // expandible sin ser una carpeta real de la biblioteca.
+    const isPersistableRef = useRef(isNodePersistable)
+    isPersistableRef.current = isNodePersistable
 
     useEffect(() => {
       const getExpandedIds = (nodeList: HuemulTreeNode[]): string[] => {
@@ -172,13 +178,30 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
           // respuestas/backend-arbol-expansion-persistente.md).
           if (isExpandableRef.current(node) && !node.isExpanded) continue
           if (node.isExpanded && isExpandableRef.current(node)) {
-            expanded.push(node.id)
+            if (!isPersistableRef.current || isPersistableRef.current(node)) {
+              expanded.push(node.id)
+            }
           }
           if (node.children) {
             expanded.push(...getExpandedIds(node.children))
           }
         }
         return expanded
+      }
+      // Sin la poda por colapso: todo nodo persistible materializado en
+      // memoria ahora mismo, expandido o no. Le dice a quien persiste qué
+      // porción del universo total este árbol puede dar por buena, para
+      // mergear en vez de reemplazar (ver onExpandedFoldersChange en
+      // types/huemul/file-tree.ts).
+      const getKnownIds = (nodeList: HuemulTreeNode[]): string[] => {
+        const known: string[] = []
+        for (const node of nodeList) {
+          if (isExpandableRef.current(node) && (!isPersistableRef.current || isPersistableRef.current(node))) {
+            known.push(node.id)
+          }
+          if (node.children) known.push(...getKnownIds(node.children))
+        }
+        return known
       }
       const expandedIds = getExpandedIds(nodes)
       // Comparación de contenido, no solo de referencia: si `nodes` cambió
@@ -194,7 +217,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       // vacío cualquier estado persistido antes de que la carga inicial lo
       // restaure.
       if (isInitialized) {
-        onExpandedFoldersChangeRef.current?.(expandedIds)
+        onExpandedFoldersChangeRef.current?.(expandedIds, { knownIds: getKnownIds(nodes) })
       }
     }, [nodes, isInitialized])
 

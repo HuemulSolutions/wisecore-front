@@ -117,6 +117,8 @@ export interface AssetFileTreeProps {
   isNodeSelectable?: (node: FileNode) => boolean
   cascadeSelection?: boolean
   isNodeExpandable?: (node: FileNode) => boolean
+  /** Ver la nota en HuemulFileTreeProps.isNodePersistable. */
+  isNodePersistable?: (node: FileNode) => boolean
   renderNodeSuffix?: (node: FileNode) => React.ReactNode
   // Al refrescar, recargar las carpetas que el usuario expandió a mano.
   // En false, el resultado de onRefresh/onLoadChildren es autoritativo:
@@ -133,7 +135,7 @@ export interface AssetFileTreeProps {
    */
   canDropNode?: (node: FileNode) => boolean
   /** Ver la nota en HuemulFileTreeProps.onExpandedFoldersChange. */
-  onExpandedFoldersChange?: (folderIds: string[]) => void
+  onExpandedFoldersChange?: (folderIds: string[], context: { knownIds: string[] }) => void
 }
 
 export interface FileTreeRef extends HuemulFileTreeRef {}

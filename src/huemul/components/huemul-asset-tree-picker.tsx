@@ -16,6 +16,8 @@ import {
 import { getLibraryContent } from "@/services/folders"
 import { getExecutionsByDocumentId } from "@/services/executions"
 import { getExecutionDisplayLabel } from "@/components/assets/content/utils/version-utils"
+import { useLibraryTreeExpansion } from "@/hooks/useLibraryTreeExpansion"
+import { buildLibraryTree } from "@/lib/library-tree"
 import { HuemulDialog } from "./huemul-dialog"
 import { HuemulSheet } from "./huemul-sheet"
 import { HuemulFileTree } from "./huemul-file-tree"
@@ -331,6 +333,12 @@ export function HuemulAssetTreePickerDialog({
   // que expandir un documento no dispare un request extra por getExecutionsByDocumentId.
   const assetCache = useRef(new Map<string, LibraryContentAsset>())
   const disabledSet = useMemo(() => new Set(disabledIds ?? []), [disabledIds])
+  // Comparte la clave `tree-expanded` con el sidebar de conocimiento y el
+  // resto de pickers de biblioteca — "las carpetas que dejé abiertas" es una
+  // sola noción (ver ia context/arbol-biblioteca-activos-guide.md). Sin
+  // refreshOnServerDiffered ni treeRef: es un diálogo efímero, no una
+  // superficie persistente montada todo el tiempo.
+  const { loadRoot, treeProps: expansionTreeProps } = useLibraryTreeExpansion({ organizationId })
 
   const handleSelect = useCallback(
     (id: string, label: string, meta?: AssetPickerSelectMeta) => {
@@ -363,14 +371,15 @@ export function HuemulAssetTreePickerDialog({
         }))
       }
 
-      const content = await getLibraryContent(organizationId, folderId ?? undefined, 1, 1000, undefined, undefined, undefined, { includeExecutions: true })
-
-      const folderNodes: HuemulTreeNode[] = (content.folders ?? []).map((f) => {
+      // mapFolder/mapAsset alimentan kindMap/assetCache para TODO nodo que
+      // llegue en la respuesta (incluidos los de carpetas pre-expandidas por
+      // expanded_folder_ids), igual que si el usuario los hubiera expandido
+      // uno por uno a mano.
+      const mapFolder = (f: LibraryContentFolder): HuemulTreeNode => {
         kindMap.current.set(f.id, "folder")
         return { id: f.id, name: f.name, type: "folder", hasChildren: true, metadata: { kind: "folder" } }
-      })
-
-      const assetNodes: HuemulTreeNode[] = (content.assets ?? []).map((a) => {
+      }
+      const mapAsset = (a: LibraryContentAsset): HuemulTreeNode => {
         kindMap.current.set(a.id, "document")
         assetCache.current.set(a.id, a)
         if (isExecutionMode(effectiveMode)) {
@@ -391,11 +400,22 @@ export function HuemulAssetTreePickerDialog({
           disabled: disabledSet.has(a.id),
           metadata: { kind: "document", color: a.document_type?.color },
         }
-      })
+      }
 
-      return [...folderNodes, ...assetNodes]
+      if (folderId === null) {
+        // Root: la carga trae expanded_folder_ids resueltos server-side (si
+        // hay carpetas guardadas) — buildLibraryTree cuelga los hijos ya
+        // resueltos bajo cada carpeta con is_expanded:true. Sin carpetas
+        // guardadas, is_expanded llega en false para todas y el resultado es
+        // el mismo listado plano de siempre.
+        const { content } = await loadRoot({ includeExecutions: true })
+        return buildLibraryTree<HuemulTreeNode>(content, { parentFolderId: null, mapFolder, mapAsset })
+      }
+
+      const content = await getLibraryContent(organizationId, folderId, 1, 1000, undefined, undefined, undefined, { includeExecutions: true })
+      return buildLibraryTree<HuemulTreeNode>(content, { parentFolderId: folderId, mapFolder, mapAsset })
     },
-    [organizationId, effectiveMode, disabledSet],
+    [organizationId, effectiveMode, disabledSet, loadRoot],
   )
 
   const handleFileClick = useCallback(
@@ -552,6 +572,11 @@ export function HuemulAssetTreePickerDialog({
               showDefaultActions={{ create: false, delete: false, share: false }}
               showBorder={false}
               minHeight="auto"
+              {...expansionTreeProps}
+              // En modo "execution" los documentos también se expanden (para
+              // listar sus versiones) — no son carpetas reales de la
+              // biblioteca, así que no deben contaminar el set compartido.
+              isNodePersistable={(node) => node.metadata?.kind === "folder"}
               renderLeafIcon={leafIconFor}
               renderFolderIcon={(node, expanded) => {
                 const kind = (node.metadata?.kind as NodeKind) ?? "folder"

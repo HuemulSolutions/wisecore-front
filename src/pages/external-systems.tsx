@@ -12,6 +12,7 @@ import { useExternalSystems } from "@/hooks/useExternalSystems"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useDebounce } from "@/hooks/use-debounce"
 import { usePageAccess } from "@/hooks/usePageAccess"
+import { useExternalSystemsExpansionStorage } from "@/hooks/useTreeExpansionStorage"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { HuemulFileTree, type HuemulFileTreeRef } from "@/huemul/components/huemul-file-tree"
@@ -89,6 +90,11 @@ export default function ExternalSystemsPage() {
   const treeRef = useRef<HuemulFileTreeRef>(null)
   const systemsRef = useRef<Map<string, ExternalSystem>>(new Map())
   const functionalitiesRef = useRef<Map<string, { functionality: ExternalFunctionality; systemId: string }>>(new Map())
+  // Clave propia (no comparte tree-expanded con la biblioteca de activos) —
+  // ver ia context/arbol-biblioteca-activos-guide.md §5. Sin equivalente de
+  // expanded_folder_ids server-side: la restauración es client-side, acotada
+  // a un puñado de fetches en la carga root (ver MAX_EXPAND_FETCHES abajo).
+  const { expandedIdsRef, saveExpandedIds } = useExternalSystemsExpansionStorage(orgId)
 
   const systems = data?.data ?? []
   systemsRef.current = new Map(systems.map((s) => [s.id, s]))
@@ -97,18 +103,51 @@ export default function ExternalSystemsPage() {
     treeRef.current?.refresh()
   }, [data])
 
+  // Tope de sistemas a re-expandir automáticamente en la carga root — cada
+  // uno es un GET propio (Promise.all), no una carga perezosa por click.
+  const MAX_EXPAND_FETCHES = 10
+
   const handleLoadChildren = useCallback(
     async (parentId: string | null): Promise<HuemulTreeNode[]> => {
       // Root level → return external systems as folder nodes.
       // Sin permiso de listar funcionalidades, los sistemas no se anuncian como
       // expandibles: el expand dispararía un GET que el backend va a rechazar.
       if (parentId === null) {
-        return Array.from(systemsRef.current.values()).map((s) => ({
-          id: s.id,
-          name: s.name,
-          type: "external-system",
-          hasChildren: canListFunctionalities,
-        }))
+        const allSystems = Array.from(systemsRef.current.values())
+        const toExpand = canListFunctionalities
+          ? allSystems.filter((s) => expandedIdsRef.current.includes(s.id)).slice(0, MAX_EXPAND_FETCHES)
+          : []
+        const childrenBySystem = new Map<string, HuemulTreeNode[]>()
+        if (toExpand.length > 0) {
+          await Promise.all(
+            toExpand.map(async (s) => {
+              try {
+                const response = await getExternalFunctionalities(orgId, s.id, { page: 1, page_size: 200 })
+                for (const f of response.data) {
+                  functionalitiesRef.current.set(f.id, { functionality: f, systemId: s.id })
+                }
+                childrenBySystem.set(
+                  s.id,
+                  response.data.map((f) => ({ id: f.id, name: f.name, type: "external-functionality" })),
+                )
+              } catch {
+                // Un sistema que ya no se puede expandir (borrado, sin permiso)
+                // se auto-limpia: sin entrada en childrenBySystem, queda colapsado
+                // en vez de tirar abajo el resto de la carga root.
+              }
+            }),
+          )
+        }
+        return allSystems.map((s) => {
+          const children = childrenBySystem.get(s.id)
+          return {
+            id: s.id,
+            name: s.name,
+            type: "external-system",
+            hasChildren: canListFunctionalities,
+            ...(children ? { isExpanded: true, children } : {}),
+          }
+        })
       }
       if (!canListFunctionalities) return []
       // System level → fetch and return functionalities as leaf nodes
@@ -126,7 +165,7 @@ export default function ExternalSystemsPage() {
         return []
       }
     },
-    [orgId, canListFunctionalities],
+    [orgId, canListFunctionalities, expandedIdsRef],
   )
 
   const handleFileClick = useCallback((node: HuemulTreeNode) => {
@@ -425,6 +464,12 @@ export default function ExternalSystemsPage() {
                     )}
                     showBorder={false}
                     minHeight="200px"
+                    // La carga root ya trae las funcionalidades de los sistemas
+                    // guardados como expandidos (ver handleLoadChildren) — evita
+                    // el camino carpeta-por-carpeta que preserveExpandedOnRefresh
+                    // (default true) dispararía en cada refresh.
+                    preserveExpandedOnRefresh={false}
+                    onExpandedFoldersChange={saveExpandedIds}
                   />
                 </div>
               </div>
