@@ -178,7 +178,7 @@ export function HuemulSheet({
         {/* ── Header ─────────────────────────────────────────────────── */}
         <SheetHeader
           className={cn(
-            headerContent ? "p-0" : cn("px-6 pt-6 pb-4 space-y-1.5", isTile && "space-y-1 pb-3"),
+            headerContent ? "p-0" : cn("border-b px-6 pt-6 pb-4 space-y-1.5", isTile && "space-y-1 pb-3"),
           )}
         >
           {headerContent ? (

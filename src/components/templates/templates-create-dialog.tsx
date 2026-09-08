@@ -3,13 +3,20 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
-import { HuemulField } from "@/huemul/components/huemul-field";
+import { TemplateFormFields } from "@/components/templates/templates-form-fields";
 import { addTemplate } from "@/services/templates";
 import { AlertCircle, FileCode } from "lucide-react";
 import { getErrorMessage } from "@/lib/error-utils";
 import { logger } from "@/lib/logger";
-import type { CreateTemplateDialogProps } from '@/types/templates';
+import type { CreateTemplateDialogProps, TemplateFormValues } from '@/types/templates';
 export type { CreateTemplateDialogProps } from '@/types/templates';
+
+const EMPTY_VALUES: TemplateFormValues = {
+  name: "",
+  description: "",
+  instructions: "",
+  contextRequired: false,
+};
 
 export function CreateTemplateDialog({
   open,
@@ -19,19 +26,13 @@ export function CreateTemplateDialog({
 }: CreateTemplateDialogProps) {
   const { t } = useTranslation('templates');
   const queryClient = useQueryClient();
-  const [newName, setNewName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newInstructions, setNewInstructions] = useState("");
-  const [newContextRequired, setNewContextRequired] = useState(false);
+  const [values, setValues] = useState<TemplateFormValues>(EMPTY_VALUES);
   const [error, setError] = useState<string | null>(null);
 
   React.useEffect(() => {
     logger.log('🔔 [CREATE-TEMPLATE-DIALOG] Open state changed:', open);
     if (open) {
-      setNewName("");
-      setNewDescription("");
-      setNewInstructions("");
-      setNewContextRequired(false);
+      setValues(EMPTY_VALUES);
       setError(null);
     }
   }, [open]);
@@ -45,17 +46,17 @@ export function CreateTemplateDialog({
     onSuccess: (created) => {
       logger.log('✅ [CREATE-TEMPLATE-DIALOG] Template created successfully:', created);
       queryClient.invalidateQueries({ queryKey: ["templates", organizationId] });
-      
+
       // Store the callback to execute after dialog closes
       const executeCallback = () => {
         logger.log('📞 [CREATE-TEMPLATE-DIALOG] Calling onTemplateCreated callback');
         onTemplateCreated({ id: created.id, name: created.name, description: created.description });
       };
-      
+
       // Close dialog first
       logger.log('🚪 [CREATE-TEMPLATE-DIALOG] Closing dialog');
       onOpenChange(false);
-      
+
       // Wait for dialog to fully close before executing callback
       setTimeout(executeCallback, 300);
     },
@@ -66,7 +67,7 @@ export function CreateTemplateDialog({
   });
 
   const handleCreate = () => {
-    if (!newName.trim()) {
+    if (!values.name.trim()) {
       setError(t('create.errorNameRequired'));
       return;
     }
@@ -76,11 +77,11 @@ export function CreateTemplateDialog({
     }
     setError(null);
     createTemplateMutation.mutate({
-      name: newName,
-      description: newDescription,
-      instructions: newInstructions,
+      name: values.name,
+      description: values.description,
+      instructions: values.instructions,
       organization_id: organizationId,
-      context_required: newContextRequired,
+      context_required: values.contextRequired,
     });
   };
 
@@ -96,53 +97,21 @@ export function CreateTemplateDialog({
       saveAction={{
         label: t('create.submitLabel'),
         onClick: handleCreate,
-        disabled: !newName.trim() || !organizationId,
+        disabled: !values.name.trim() || !organizationId,
         loading: createTemplateMutation.isPending,
         closeOnSuccess: false,
       }}
     >
-      <div className="space-y-4 py-2">
+      <div className="space-y-5 py-2">
         {error && (
           <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
             <AlertCircle className="h-4 w-4" />
             <span className="text-sm">{error}</span>
           </div>
         )}
-        <HuemulField
-          label={t('form.templateName')}
-          type="text"
-          value={newName}
-          onChange={(v) => setNewName(String(v))}
-          placeholder={t('form.templateNamePlaceholder')}
-          required
-          disabled={createTemplateMutation.isPending}
-        />
-        <HuemulField
-          label={t('form.description')}
-          type="textarea"
-          value={newDescription}
-          onChange={(v) => setNewDescription(String(v))}
-          placeholder={t('form.descriptionPlaceholder')}
-          rows={8}
-          inputClassName="min-h-[16rem]"
-          disabled={createTemplateMutation.isPending}
-        />
-        <HuemulField
-          label={t('form.instructions')}
-          type="textarea"
-          value={newInstructions}
-          onChange={(v) => setNewInstructions(String(v))}
-          placeholder={t('form.instructionsPlaceholder')}
-          rows={8}
-          inputClassName="min-h-[16rem]"
-          disabled={createTemplateMutation.isPending}
-        />
-        <HuemulField
-          type="switch"
-          label={t('form.contextRequired')}
-          value={newContextRequired}
-          onChange={(v) => setNewContextRequired(Boolean(v))}
-          description={t('form.contextRequiredDescription')}
+        <TemplateFormFields
+          values={values}
+          onChange={(patch) => setValues((v) => ({ ...v, ...patch }))}
           disabled={createTemplateMutation.isPending}
         />
       </div>
