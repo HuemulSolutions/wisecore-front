@@ -44,6 +44,12 @@ export interface HuemulSheetProps {
   size?: HuemulSheetSize;
   className?: string;
   bodyClassName?: string;
+  /**
+   * Omite el `border-b` por defecto del header. Usar cuando el contenido del
+   * sheet ya dibuja su propio separador debajo del header (ej. tabs con
+   * `border-b` propio bajo el `TabsList`), para evitar un doble borde.
+   */
+  hideHeaderBorder?: boolean;
   headerExtra?: ReactNode;
   footerLeft?: ReactNode;
   /**

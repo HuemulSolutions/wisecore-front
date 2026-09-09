@@ -1,113 +1,51 @@
-﻿import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { Activity } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable"
 import { useAllLifecycleSteps } from "@/hooks/useLifecycle"
-import { isGroupableStepType } from "@/lib/lifecycle-access"
-import { CreateStepContent } from "./assets-types-lifecycle-create-step"
-import { EditStepContent } from "./assets-types-lifecycle-edit-step"
 import { AssetTypeLifecycleMatrix } from "./assets-types-lifecycle-matrix"
-import { LifecycleStepPanel } from "./assets-types-lifecycle-step-panel"
+import { LifecycleStepSheet } from "./assets-types-lifecycle-step-sheet"
 import type {
-  StepContentProps,
   AssetTypeLifecycleDialogProps,
-  LifecycleEditorApi,
+  LifecycleSaveApi,
   LifecycleSaveApiRef,
+  LifecycleStepSheetTarget,
 } from '@/types/assets'
 
 export type { AssetTypeLifecycleDialogProps } from '@/types/assets'
 
-// Routes to the appropriate sub-component based on stepType. Exportado para que
-// el panel lateral de la matriz de permisos por rol (`LifecycleStepPanel`) lo
-// reutilice tal cual, sin duplicar el routing por step type.
-
-export function StepContent({
-  documentTypeId,
-  stepType,
-  stepLabel,
-  onRegisterEditor,
-  organizationId,
-  addGroupSignal,
-}: StepContentProps) {
-  // Etapas con grupos: manejan su propio scroll interno (scrollean las tarjetas).
-  if (isGroupableStepType(stepType)) {
-    return (
-      <EditStepContent
-        documentTypeId={documentTypeId}
-        stepType={stepType}
-        onRegisterEditor={onRegisterEditor}
-        organizationId={organizationId}
-        addGroupSignal={addGroupSignal}
-      />
-    )
-  }
-
-  // Etapas sin grupos —`view` (y `read`, alias legado), `create`, `publish`,
-  // `archive`— comparten `CreateStepContent`: un único step por tipo con
-  // permisos simples y guardado batch.
-  //
-  // No traen contenedor de scroll propio, así que se envuelven para que
-  // scrolleen dentro del panel de altura fija en vez de depender del sheet.
-  // Mismo patrón que `EditStepContent` (assets-types-lifecycle-edit-step.tsx:844-847):
-  // el wrapper `flex h-full min-h-0 flex-col` es lo que le da a `ScrollArea` una
-  // altura definida de la que `min-h-0 flex-1` pueda partir — un `ScrollArea` con
-  // `h-full` sin ese wrapper directo quedaba resolviendo su altura contra el
-  // contenedor del panel en vez de un flex padre propio.
-  return (
-    <div className="flex h-full min-h-0 flex-col">
-      <ScrollArea className="min-h-0 flex-1" viewportClassName="pr-1">
-        <CreateStepContent
-          documentTypeId={documentTypeId}
-          stepType={stepType}
-          stepLabel={stepLabel}
-          onRegisterEditor={onRegisterEditor}
-        />
-      </ScrollArea>
-    </div>
-  )
-}
-
 interface AssetTypeLifecyclePanelProps {
   documentTypeId: string
   organizationId?: string
-  /** Solo dispara el fetch de steps/roles cuando el panel está visible. */
+  /** Solo dispara el fetch de steps/roles cuando el tab/panel está visible. */
   enabled?: boolean
-  /** Informa al contenedor si la etapa activa tiene cambios sin guardar. */
-  onDirtyChange?: (state: { isDirty: boolean; stageLabel: string }) => void
-  /** El contenedor publica aquí `save`/`isDirty`/`isSaving` para su footer. */
+  /** Informa al contenedor si el sheet de step tiene cambios sin guardar. */
+  onDirtyChange?: (state: { isDirty: boolean }) => void
+  /** El contenedor publica aquí `save`/`isDirty`/`isSaving` para su propio guard. */
   saveApiRef?: LifecycleSaveApiRef
-  /** Envuelve las acciones que descartarían cambios sin guardar. */
+  /** Envuelve las acciones que descartarían cambios sin guardar del sheet de step. */
   guardedAction: (action: () => void) => void
-  /**
-   * Monta el botón «Guardar cambios» en el header del panel de etapa. Solo para
-   * contenedores sin footer (`AssetTypeConfigSheet`); el sheet standalone de más
-   * abajo lo deja en `false` porque su footer ya trae el botón.
-   */
-  showSaveButton?: boolean
 }
 
 /**
- * Matriz de permisos por rol + panel lateral de configuración. Se monta como
- * tab dentro del sheet de configuración (`AssetTypeConfigSheet`) y también
- * dentro del `AssetTypeLifecycleDialog` que usan las páginas de relaciones.
+ * Matriz de permisos por rol + sheet mono-entidad de configuración de step.
+ * Se monta como tab dentro del sheet de configuración (`AssetTypeConfigSheet`
+ * y `asset-type-detail.tsx`) y también dentro del `AssetTypeLifecycleDialog`
+ * que usa `document-type-relationships.tsx`.
  *
  * La matriz (`AssetTypeLifecycleMatrix`) lista roles × columnas (un
- * `LifecycleStep` por columna); el selector de etapa —y el engranaje de cada
- * columna— abre el panel lateral (`LifecycleStepPanel`) con los grupos de esa
- * etapa, que reutiliza el router `StepContent` para el detalle (SLA, modo,
- * reglas de acceso).
+ * `LifecycleStep` por columna); el engranaje de cada columna, el engranaje
+ * del header de una etapa sin grupos, y el «＋» del header de una etapa
+ * agrupable abren el sheet lateral (`LifecycleStepSheet`) ya enfocado en esa
+ * entidad — nunca en una lista. La pastilla de etapa del toolbar de la
+ * matriz solo filtra columnas, no abre nada.
  *
- * Los controles del panel están siempre editables: los cambios se acumulan en
- * el contenido de la etapa y se persisten con «Guardar cambios», que vive en el
- * header del panel de etapa (`showSaveButton`) o en el footer del sheet
- * contenedor vía la API publicada en `saveApiRef`.
+ * El guardado vive enteramente en `LifecycleStepSheet` (footer nativo del
+ * `HuemulSheet`); este componente solo necesita saber si hay cambios sin
+ * guardar para bloquear la columna que se está editando (`lockedStepId`) y
+ * para que el guard de cambios sin guardar del contenedor sepa cuándo
+ * confirmar antes de cambiar de tab o cerrar.
  */
 export function AssetTypeLifecyclePanel({
   documentTypeId,
@@ -116,102 +54,85 @@ export function AssetTypeLifecyclePanel({
   onDirtyChange,
   saveApiRef,
   guardedAction,
-  showSaveButton = false,
 }: AssetTypeLifecyclePanelProps) {
-  const { t } = useTranslation("asset-types")
   const { data } = useAllLifecycleSteps(documentTypeId, enabled)
   const allSteps = data?.data?.steps ?? []
 
-  const [activeStageType, setActiveStageType] = useState<string | null>(null)
-  const [editor, setEditor] = useState<LifecycleEditorApi | null>(null)
-  const [isSaving, setIsSaving] = useState(false)
-
-  const handleRegisterEditor = useCallback((api: LifecycleEditorApi | null) => {
-    setEditor(api)
-  }, [])
+  const [filterStageType, setFilterStageType] = useState<string | null>(null)
+  const [sheetTarget, setSheetTarget] = useState<LifecycleStepSheetTarget | null>(null)
+  const [editor, setEditor] = useState<LifecycleSaveApi | null>(null)
 
   const isDirty = editor?.isDirty ?? false
-  const stageLabel = activeStageType
-    ? t(`lifecycle.stepTypes.${activeStageType}`, { defaultValue: activeStageType })
-    : ""
-  const groupCount = activeStageType
-    ? allSteps.filter((s) => s.type === activeStageType).length
-    : 0
-  const conditionCount = activeStageType
-    ? allSteps.filter((s) => s.type === activeStageType && (s.depends_on?.length ?? 0) > 0).length
-    : 0
 
-  const save = useCallback(async () => {
-    if (!editor) return
-    setIsSaving(true)
-    try {
-      await editor.save()
-    } finally {
-      setIsSaving(false)
-    }
-  }, [editor])
+  const handleRegisterEditor = useCallback((api: LifecycleSaveApi | null) => setEditor(api), [])
 
-  const discard = useCallback(() => {
-    editor?.discard()
-  }, [editor])
-
-  // Publica la API de guardado hacia el footer del contenedor.
+  // Publica la API de guardado hacia el footer del contenedor (solo la usa
+  // el dialog standalone — el tab de "Permisos por rol" no tiene footer propio).
   useEffect(() => {
     if (!saveApiRef) return
-    saveApiRef.current = { save, discard, isDirty, isSaving }
+    saveApiRef.current = editor
     return () => {
       saveApiRef.current = null
     }
-  }, [saveApiRef, save, discard, isDirty, isSaving])
+  }, [saveApiRef, editor])
 
   useEffect(() => {
-    onDirtyChange?.({ isDirty, stageLabel })
-  }, [isDirty, stageLabel, onDirtyChange])
+    onDirtyChange?.({ isDirty })
+  }, [isDirty, onDirtyChange])
 
-  const handleSelectStage = (stepType: string) => {
+  const handleConfigureStep = (step: { id: string }) => {
     guardedAction(() =>
-      setActiveStageType((prev) => (prev === stepType ? null : stepType))
+      setSheetTarget((prev) => (prev?.mode === "edit" && prev.stepId === step.id ? null : { mode: "edit", stepId: step.id })),
     )
   }
 
-  const handleClosePanel = () => {
-    guardedAction(() => setActiveStageType(null))
+  const handleConfigureStage = (stepType: string) => {
+    guardedAction(() =>
+      setSheetTarget((prev) => (prev?.mode === "stage" && prev.stageType === stepType ? null : { mode: "stage", stageType: stepType })),
+    )
   }
 
-  return (
-    <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
-      <ResizablePanel defaultSize={65} minSize={35} className="flex min-w-0 flex-col">
-        <AssetTypeLifecycleMatrix
-          documentTypeId={documentTypeId}
-          enabled={enabled}
-          activeStageType={activeStageType}
-          lockedStageType={isDirty ? activeStageType : null}
-          onSelectStage={handleSelectStage}
-        />
-      </ResizablePanel>
+  const handleCreateGroup = (stepType: string) => {
+    guardedAction(() => setSheetTarget({ mode: "create", stageType: stepType }))
+  }
 
-      {activeStageType && (
-        <>
-          <ResizableHandle className="mx-3 bg-[#e9edf2]" />
-          <ResizablePanel defaultSize={35} minSize={24} maxSize={55} className="flex min-h-0 flex-col">
-            <LifecycleStepPanel
-              key={activeStageType}
-              documentTypeId={documentTypeId}
-              stageType={activeStageType}
-              groupCount={groupCount}
-              conditionCount={conditionCount}
-              onClose={handleClosePanel}
-              onRegisterEditor={handleRegisterEditor}
-              organizationId={organizationId}
-              onSave={showSaveButton ? save : undefined}
-              onDiscard={showSaveButton ? discard : undefined}
-              isDirty={isDirty}
-              isSaving={isSaving}
-            />
-          </ResizablePanel>
-        </>
-      )}
-    </ResizablePanelGroup>
+  const handleRequestClose = () => {
+    guardedAction(() => setSheetTarget(null))
+  }
+
+  // Step real detrás del sheet abierto — en modo "edit" es directo; en modo
+  // "stage" hay que resolverlo (una etapa simple tiene un único step por
+  // tipo); en modo "create" todavía no existe, así que no hay columna que
+  // bloquear ni enfocar.
+  const targetStepId =
+    sheetTarget?.mode === "edit"
+      ? sheetTarget.stepId
+      : sheetTarget?.mode === "stage"
+        ? allSteps.find((s) => s.type === sheetTarget.stageType)?.id ?? null
+        : null
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <AssetTypeLifecycleMatrix
+        documentTypeId={documentTypeId}
+        enabled={enabled}
+        filterStageType={filterStageType}
+        onFilterStage={(type) => setFilterStageType((prev) => (prev === type ? null : type))}
+        lockedStepId={isDirty ? targetStepId : null}
+        focusedStepId={targetStepId}
+        onConfigureStep={handleConfigureStep}
+        onConfigureStage={handleConfigureStage}
+        onCreateGroup={handleCreateGroup}
+      />
+      <LifecycleStepSheet
+        documentTypeId={documentTypeId}
+        organizationId={organizationId}
+        target={sheetTarget}
+        onTargetChange={setSheetTarget}
+        onRequestClose={handleRequestClose}
+        onRegisterEditor={handleRegisterEditor}
+      />
+    </div>
   )
 }
 
@@ -223,10 +144,7 @@ export default function AssetTypeLifecycleDialog({
 }: AssetTypeLifecycleDialogProps) {
   const { t } = useTranslation(["asset-types", "common"])
 
-  const [lifecycleState, setLifecycleState] = useState<{
-    isDirty: boolean
-    stageLabel: string
-  }>({ isDirty: false, stageLabel: "" })
+  const [isDirty, setIsDirty] = useState(false)
   const saveApiRef = useRef<LifecycleSaveApiRef["current"]>(null)
 
   // Unsaved-changes guard
@@ -235,32 +153,30 @@ export default function AssetTypeLifecycleDialog({
 
   const guardedAction = useCallback(
     (action: () => void) => {
-      if (lifecycleState.isDirty) {
+      if (isDirty) {
         pendingActionRef.current = action
         setShowUnsavedAlert(true)
       } else {
         action()
       }
     },
-    [lifecycleState.isDirty]
+    [isDirty],
   )
 
   const handleGuardedOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open) {
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
         guardedAction(() => onOpenChange(false))
       } else {
         onOpenChange(true)
       }
     },
-    [guardedAction, onOpenChange]
+    [guardedAction, onOpenChange],
   )
 
   // Reset when dialog closes
   useEffect(() => {
-    if (!open) {
-      setLifecycleState({ isDirty: false, stageLabel: "" })
-    }
+    if (!open) setIsDirty(false)
   }, [open])
 
   return (
@@ -280,7 +196,7 @@ export default function AssetTypeLifecycleDialog({
           saveApiRef.current?.discard()
           pendingActionRef.current?.()
           pendingActionRef.current = null
-          setLifecycleState((prev) => ({ ...prev, isDirty: false }))
+          setIsDirty(false)
         }}
       />
       <HuemulSheet
@@ -293,21 +209,6 @@ export default function AssetTypeLifecycleDialog({
         size="wide"
         bodyClassName="flex flex-col overflow-hidden py-0 pr-0 [scrollbar-gutter:auto]"
         cancelLabel={t("common:close")}
-        footerLeft={
-          lifecycleState.isDirty ? (
-            <span className="text-[12px] text-[#64748b]">
-              {t("asset-types:lifecycle.unsavedInStage", {
-                stage: lifecycleState.stageLabel,
-              })}
-            </span>
-          ) : undefined
-        }
-        saveAction={{
-          label: t("asset-types:lifecycle.saveChanges"),
-          onClick: () => saveApiRef.current?.save(),
-          disabled: !lifecycleState.isDirty,
-          closeOnSuccess: false,
-        }}
       >
         {assetType && (
           <AssetTypeLifecyclePanel
@@ -315,7 +216,7 @@ export default function AssetTypeLifecycleDialog({
             documentTypeId={assetType.document_type_id}
             organizationId={organizationId}
             enabled={open}
-            onDirtyChange={setLifecycleState}
+            onDirtyChange={({ isDirty: nextDirty }) => setIsDirty(nextDirty)}
             saveApiRef={saveApiRef}
             guardedAction={guardedAction}
           />

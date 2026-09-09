@@ -408,6 +408,7 @@ export function AssetsNotificationsSheet({
       description={t("content.notificationsDescription")}
       icon={Bell}
       showFooter={false}
+      hideHeaderBorder
       maxWidth="sm:max-w-xl"
     >
       {!canListNotifications ? (

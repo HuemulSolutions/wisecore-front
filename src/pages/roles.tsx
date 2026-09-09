@@ -14,6 +14,7 @@ import { useRolePermissionsStaging } from "@/hooks/useRolePermissionsStaging"
 import { useRoleDetailsForm } from "@/hooks/useRoleDetailsForm"
 import { useRolesMap } from "@/contexts/role-refs-context"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
+import { useUrlTab } from "@/hooks/useUrlTab"
 import { type Role, exportRoles } from "@/services/rbac"
 import type { RoleDetailTab } from "@/types/roles"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
@@ -31,6 +32,8 @@ import {
   CloneRoleDialog,
   RolesImportSheet
 } from "@/components/roles"
+
+const ROLE_DETAIL_TABS: readonly RoleDetailTab[] = ['permissions', 'details', 'users', 'hierarchy']
 
 /**
  * Roles management page
@@ -57,10 +60,10 @@ export default function Roles() {
   // El rol/tab seleccionados viven en la URL (?role=<id>&tab=users), espejo de
   // /users — ver src/pages/users.tsx.
   const selectedRoleId = searchParams.get('role')
-  const detailTab: RoleDetailTab = (() => {
-    const tab = searchParams.get('tab')
-    return tab === 'details' || tab === 'users' || tab === 'hierarchy' ? tab : 'permissions'
-  })()
+  const { tab: detailTab, setTab: setDetailTab, applyTab } = useUrlTab({
+    tabs: ROLE_DETAIL_TABS,
+    fallback: 'permissions',
+  })
 
   // Permisos: matriz declarativa (ver ia context/rbac-audit-guide.md, 14ª pasada)
   const { isLoading: isLoadingPermissions } = useUserPermissions()
@@ -194,7 +197,7 @@ export default function Roles() {
       const next = new URLSearchParams(prev)
       if (roleId) {
         next.set('role', roleId)
-        next.set('tab', tab)
+        applyTab(next, tab)
       } else {
         next.delete('role')
         next.delete('tab')
@@ -214,7 +217,7 @@ export default function Roles() {
 
   const handleTabChange = (tab: RoleDetailTab) => {
     if (!selectedRoleId) return
-    navigateToRole(selectedRoleId, tab)
+    setDetailTab(tab)
   }
 
   // Early returns for different states

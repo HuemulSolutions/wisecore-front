@@ -6,6 +6,7 @@ import { useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import { Settings2, Copy, Trash2 } from "lucide-react"
 import { usePageAccess } from "@/hooks/usePageAccess"
+import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
 import { useAssetTypeMutations } from "@/hooks/useAssetTypes"
 import { useDocumentTypes, documentTypeQueryKeys } from "@/hooks/useDocumentTypes"
@@ -65,7 +66,6 @@ export default function AssetTypesPage() {
   const [state, setState] = useState<AssetTypePageState>({
     searchTerm: "",
     showCreateDialog: false,
-    configAssetType: null,
     deletingAssetType: null,
     cloningAssetType: null,
     viewRelationshipsAssetType: null,
@@ -97,6 +97,7 @@ export default function AssetTypesPage() {
 
   // Permisos
   const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('asset-types')
+  const navigate = useOrgNavigate()
   const queryClient = useQueryClient()
   const { selectedOrganizationId } = useOrganization()
 
@@ -179,8 +180,7 @@ export default function AssetTypesPage() {
       label: t('actions.configureAssetType'),
       icon: Settings2,
       onClick: (nodeId: string) => {
-        const node = documentTypes.find((d) => d.id === nodeId)
-        updateState({ configAssetType: toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8") })
+        navigate(`/asset-types/${nodeId}`)
       },
     }] : []),
     ...(canCloneDocumentType ? [{
@@ -348,8 +348,10 @@ export default function AssetTypesPage() {
   }
 
   // Asset type action handlers
+  // La configuración vive en su propia página, compartible por URL — ver
+  // pages/asset-type-detail.tsx.
   const handleConfigureAssetType = (assetType: AssetTypeWithRoles) => {
-    updateState({ configAssetType: assetType })
+    navigate(`/asset-types/${assetType.document_type_id}`)
   }
 
   const handleDeleteAssetType = (assetType: AssetTypeWithRoles) => {

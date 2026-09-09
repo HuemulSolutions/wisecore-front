@@ -1,11 +1,8 @@
 import { useTranslation } from "react-i18next"
-import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
-import { usePageAccess } from "@/hooks/usePageAccess"
 import CreateDocumentType from "@/components/assets-types/assets-types-create"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { CloneAssetTypeDialog } from "@/components/assets-types/assets-types-clone-dialog"
-import { AssetTypeConfigSheet } from "@/components/assets-types/assets-types-config-sheet"
 import { AssetTypeRelationshipsSheet } from "@/components/assets-types/assets-types-relationships-sheet"
 import { AssetTypeExportDialog } from "@/components/assets-types/assets-types-export-dialog"
 import { AssetTypeImportSheet } from "@/components/assets-types/assets-types-import-sheet"
@@ -25,9 +22,7 @@ export default function AssetTypePageDialogs({
   onAssetTypeCreated,
 }: AssetTypePageDialogsProps) {
   const { t } = useTranslation(['asset-types', 'common'])
-  const { selectedOrganizationId } = useOrganization()
-  const { canDelete, canCreate, canUpdate } = useUserPermissions()
-  const { can } = usePageAccess('asset-types')
+  const { canDelete, canCreate } = useUserPermissions()
   const { deleteFolder } = useDocumentTypeFolderMutations()
 
   const handleDeleteFolder = async () => {
@@ -89,22 +84,10 @@ export default function AssetTypePageDialogs({
         }}
       />
 
-      {/* Config Sheet (general + plantillas + ciclo de vida) */}
-      <AssetTypeConfigSheet
-        assetType={state.configAssetType}
-        open={!!state.configAssetType}
-        onOpenChange={(open) => {
-          if (!open) {
-            onCloseDialog('configAssetType')
-          }
-        }}
-        organizationId={selectedOrganizationId ?? ""}
-        canUpdate={canUpdate('asset_type')}
-        canManageTemplates={can('manageLinkedTemplates')}
-        canManageLifecycle={can('manageLifecycle')}
-        canViewTags={can('viewTags')}
-        canManageTags={can('manageTags')}
-      />
+      {/* La configuración (general + plantillas + ciclo de vida) ya no es un
+          sheet acá: vive en su propia página compartible
+          (pages/asset-type-detail.tsx). El sheet se conserva solo para el
+          canvas de assets-types-relationships-sheet.tsx. */}
 
       {/* Delete Asset Type Dialog */}
       <HuemulAlertDialog

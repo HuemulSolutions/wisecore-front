@@ -1,34 +1,27 @@
 // Lifecycle step component props for the asset type configuration module
-import type { HTMLAttributes, MutableRefObject } from 'react'
+import type { MutableRefObject } from 'react'
 import type { AssetTypeWithRoles } from './asset-types'
-import type { AccessRuleType, AccessRuleTypeOption } from '@/types/lifecycle'
+import type { AccessRuleType, LifecycleAccessType, LifecycleStep } from '@/types/lifecycle'
 
 // ----------------------------------------
-// Guardado batch de la etapa activa
+// Guardado batch del sheet de step
 // ----------------------------------------
 
 /**
- * Contrato que expone el contenido de una etapa (`EditStepContent` /
- * `CreateStepContent`) hacia arriba: los controles quedan siempre editables y
- * los cambios se acumulan en estado local; el footer del sheet dispara `save()`.
+ * Contrato que expone el sheet de step (`useLifecycleStepDraft`) hacia arriba:
+ * los controles quedan siempre editables y los cambios se acumulan en estado
+ * local; el footer del sheet contenedor dispara `save()`.
  */
 export interface LifecycleEditorApi {
-  /** Persiste todo lo modificado en la etapa. */
+  /** Persiste todo lo modificado del step. */
   save: () => Promise<void>
   /** Hay cambios locales sin persistir. */
   isDirty: boolean
   /**
    * Descarta los cambios locales y vuelve al último estado del backend.
-   * Necesario porque el contenedor (`assets-types-config-sheet.tsx`,
-   * `assets-types-lifecycle-dialog.tsx`) marcaba `isDirty: false` en SU estado
-   * al confirmar el descarte, sin limpiar el del editor: si la acción pendiente
-   * no lo desmonta (cambio de tab con contenido montado, cierre del panel sin
-   * cambiar de etapa), los cambios seguían vivos y el siguiente «Guardar
-   * cambios» los persistía igual.
-   *
    * Implementación esperada: limpiar los flags de sucio y dejar que el efecto
-   * de rehidratación repueble el estado local desde la cache — no recomponer a
-   * mano.
+   * de rehidratación repueble el estado local desde la cache — no recomponer
+   * a mano.
    */
   discard: () => void
 }
@@ -41,37 +34,8 @@ export interface LifecycleSaveApi extends LifecycleEditorApi {
 export type LifecycleSaveApiRef = MutableRefObject<LifecycleSaveApi | null>
 
 // ----------------------------------------
-// Create Step
-// ----------------------------------------
-
-/**
- * Contenido del panel para TODA etapa sin grupos: `view` (y su alias legado
- * `read`), `create`, `publish` y `archive` — un único `LifecycleStep` por tipo
- * con permisos simples. Las etapas agrupables (`edit`/`review`/`approve`) usan
- * `EditStepContent`.
- */
-export interface CreateStepContentProps {
-  documentTypeId: string
-  stepType: string
-  /** Título mostrado en la cabecera de la tarjeta colapsable; cae a `step.name` cuando existe. */
-  stepLabel?: string
-  /** Publica `save`/`isDirty` hacia el footer del sheet. `null` al desmontar. */
-  onRegisterEditor?: (api: LifecycleEditorApi | null) => void
-}
-
-// ----------------------------------------
 // Lifecycle Dialog
 // ----------------------------------------
-
-export interface StepContentProps {
-  documentTypeId: string
-  stepType: string
-  stepLabel: string
-  onRegisterEditor?: (api: LifecycleEditorApi | null) => void
-  organizationId?: string
-  /** Alta de grupo disparada desde el header del panel (solo etapas con grupos). */
-  addGroupSignal?: number
-}
 
 export interface AssetTypeLifecycleDialogProps {
   assetType: AssetTypeWithRoles | null
@@ -91,69 +55,55 @@ export interface AssetLifecycleSheetProps {
 }
 
 // ----------------------------------------
-// Edit Step
+// Sheet mono-entidad de step/grupo
 // ----------------------------------------
 
-export interface EditStepCardAccessRule {
+/** Regla de acceso en edición local (aún no persistida). */
+export interface LifecycleAccessRuleDraft {
   rule_type: AccessRuleType
   source_step_id: string | null
 }
 
-export interface EditStepCardData {
-  id: string
+/**
+ * A qué apunta el sheet — determina el modo: edición de un grupo existente,
+ * edición de una etapa simple de step único, o alta de un grupo nuevo. Nunca
+ * "todos los grupos de la etapa": el sheet es mono-entidad (ver
+ * `ia context` — rediseño del sheet de ciclo de vida).
+ */
+export type LifecycleStepSheetTarget =
+  | { mode: 'edit'; stepId: string }
+  | { mode: 'stage'; stageType: string }
+  | { mode: 'create'; stageType: string }
+
+/** Borrador de identidad + configuración de UN step, editable de una vez. */
+export interface LifecycleStepDraftData {
   name: string
-  mode: "manual" | "automatic"
+  mode: 'manual' | 'automatic'
   hasSla: boolean
   slaValue: string
   slaUnit: string
-  accessType: "all" | "owner" | "custom" | "custom_owner"
+  accessType: LifecycleAccessType
   ownerCanExecute: boolean
   roleIds: string[]
   roleNames: Record<string, string>
-  accessRules: EditStepCardAccessRule[]
+  accessRules: LifecycleAccessRuleDraft[]
+  /** Índice 0-based dentro de los hermanos de la etapa, ordenados por `order`. */
+  positionIndex: number
 }
 
-export interface EditStepContentProps {
+export interface UseLifecycleStepDraftOptions {
   documentTypeId: string
-  stepType: string
-  onRegisterEditor?: (api: LifecycleEditorApi | null) => void
+  target: LifecycleStepSheetTarget | null
+  enabled: boolean
   organizationId?: string
-  /** Cada incremento abre el sheet de alta de grupo (lo dispara el header del panel). */
-  addGroupSignal?: number
-}
-
-export interface EditStepCardProps {
-  card: EditStepCardData
-  stepType: string
-  slaUnitOptions: { value: string; label: string }[]
-  allRoles: { id: string; name: string }[]
-  accessRuleTypeOptions: AccessRuleTypeOption[]
-  /** Steps of this document type earlier in the pipeline than this card — candidates for step_actor_manager's source_step_id. */
-  earlierStepOptions: { value: string; label: string }[]
-  onChange: (updated: Partial<EditStepCardData>) => void
-  onDelete: () => void
-  t: (key: string, options?: Record<string, unknown>) => string
-  canDelete: boolean
-  canManage: boolean
-  dragHandleProps?: HTMLAttributes<HTMLButtonElement>
-  organizationId?: string
-  /** La tarjeta muestra el resumen (colapsada = solo cabecera). */
-  isExpanded: boolean
-  /** Controles editables — exclusivo entre tarjetas, lo gobierna `EditStepContent`. */
-  isEditing: boolean
-  /** Tiene cambios locales sin persistir («• Editado»). */
-  isDirty: boolean
-  /**
-   * El step tiene una condición (`depends_on`) configurada — se refleja el
-   * estado del SERVIDOR, no del staging local de la tarjeta: la condición se
-   * guarda independiente e instantánea (`LifecycleStepConditions`), así que
-   * usar `card` acá desincronizaría el badge de lo que en verdad está persistido.
-   */
-  hasCondition?: boolean
-  onToggleExpand: () => void
-  onStartEdit: () => void
-  onCancelEdit: () => void
-  onDoneEdit: () => void
+  /** Nombre de respaldo para un grupo nuevo sin nombre propio (`t("lifecycle.newGroupName")`). */
+  fallbackGroupName: string
+  /** Mensaje de error genérico de guardado/borrado (`t("lifecycle.saveError")`). */
+  saveErrorMessage: string
+  /** Mensaje de éxito al guardar (`t("lifecycle.savedSuccess")`). */
+  savedSuccessMessage: string
+  /** El grupo recién creado pasa el sheet a modo edición con el id real. */
+  onCreated: (stepId: string) => void
 }
 
 // ----------------------------------------
@@ -164,15 +114,20 @@ export interface AssetTypeLifecycleMatrixProps {
   documentTypeId: string
   /** Solo dispara el fetch de steps/roles cuando el tab/panel está visible. */
   enabled?: boolean
-  /** Etapa del flujo seleccionada: tinta sus columnas y abre el panel lateral. */
-  activeStageType: string | null
-  /**
-   * Etapa con cambios sin guardar en el panel: sus columnas quedan inertes para
-   * que un toggle en la matriz no pise lo que está por persistirse.
-   */
-  lockedStageType?: string | null
-  /** El usuario eligió una etapa (pastilla o engranaje de una de sus columnas). */
-  onSelectStage: (stepType: string) => void
+  /** Pastilla de etapa activa: resalta y filtra sus columnas (ya no abre el sheet). */
+  filterStageType: string | null
+  onFilterStage: (stepType: string) => void
+  /** Step con cambios sin guardar en el sheet: su columna queda inerte para
+   * que un toggle en la matriz no pise lo que está por persistirse. */
+  lockedStepId?: string | null
+  /** Step enfocado por el sheet abierto — tinta su columna y su engranaje como activos. */
+  focusedStepId?: string | null
+  /** Engranaje de una columna de grupo: abre el sheet en modo edición de ese step. */
+  onConfigureStep: (step: LifecycleStep) => void
+  /** Engranaje del header de una etapa sin grupos: abre el sheet en modo etapa simple. */
+  onConfigureStage: (stepType: string) => void
+  /** «＋» del encabezado de una etapa agrupable: abre el sheet en modo alta. */
+  onCreateGroup: (stepType: string) => void
 }
 
 // ----------------------------------------
@@ -197,28 +152,4 @@ export interface TemplateSectionConditionsProps {
   templateId: string
   /** Solo dispara el fetch cuando la vista de configuración está visible. */
   enabled?: boolean
-}
-
-export interface LifecycleStepPanelProps {
-  documentTypeId: string
-  /** Tipo de etapa configurada (`edit`, `review`, `create`…). */
-  stageType: string
-  /** Cantidad de grupos (steps) de esta etapa, para el badge de la sección. */
-  groupCount: number
-  /** Grupos de esta etapa con una condición configurada — badge del tab «Condiciones». */
-  conditionCount?: number
-  onClose: () => void
-  onRegisterEditor?: (api: LifecycleEditorApi | null) => void
-  organizationId?: string
-  /**
-   * Guarda los cambios acumulados de la etapa. Presente solo cuando el
-   * contenedor no tiene footer y el botón debe vivir en el footer propio del
-   * panel de etapa.
-   */
-  onSave?: () => void | Promise<void>
-  /** Descarta los cambios acumulados de la etapa (footer propio del panel). */
-  onDiscard?: () => void
-  /** Habilita el botón de guardar del footer. */
-  isDirty?: boolean
-  isSaving?: boolean
 }

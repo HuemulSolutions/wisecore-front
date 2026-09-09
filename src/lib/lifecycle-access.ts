@@ -55,20 +55,50 @@ export function isGroupableStepType(type: string): boolean {
   return LIFECYCLE_GROUPABLE_TYPES.has(type)
 }
 
+/**
+ * Qué controles ofrece el sheet mono-entidad de un step, por tipo. Reemplaza
+ * el enrutamiento `EditStepContent`/`CreateStepContent` (uno agrupable, otro
+ * simple) por una sola tabla explícita — evita un editor con `isGroupable &&`
+ * disperso por todo el archivo.
+ *
+ * `hasModeSelector` (no `hasMode`): el campo `mode` existe en TODOS los steps
+ * agrupables, pero el selector Manual/Automático solo se muestra en
+ * `edit`/`review` — `approve` es siempre manual, sin control visible.
+ */
+export interface LifecycleStepCapabilities {
+  /** El nombre lo pone el usuario (grupos). Etapas simples usan el nombre fijo del backend. */
+  editableName: boolean
+  hasModeSelector: boolean
+  hasSla: boolean
+  /** Selector de posición — solo tiene sentido con más de un step del mismo tipo. */
+  hasPosition: boolean
+  hasAccessRules: boolean
+  /** «El propietario puede…» — no aplica en `create` (todavía no hay propietario). */
+  hasOwnerToggle: boolean
+  canDelete: boolean
+  hasConditions: boolean
+  /** Chips de `view` heredado (`inherited_roles` / `view_inherited_for_all_roles`) — solo `view`. */
+  hasInheritedViewChips: boolean
+}
+
+export function lifecycleStepCapabilities(type: string): LifecycleStepCapabilities {
+  const groupable = isGroupableStepType(type)
+  return {
+    editableName: groupable,
+    hasModeSelector: type === "edit" || type === "review",
+    hasSla: groupable,
+    hasPosition: groupable,
+    hasAccessRules: true,
+    hasOwnerToggle: type !== "create",
+    canDelete: groupable,
+    hasConditions: groupable,
+    hasInheritedViewChips: type === "view",
+  }
+}
+
 /** Posición en el pipeline, o `-1` si el tipo no está listado. */
 export function pipelineIndex(type: string): number {
   return LIFECYCLE_PIPELINE_ORDER.indexOf(type)
-}
-
-/**
- * Tipos de step con mínimo de 1 (no se puede borrar el último) según la etapa
- * final configurada en el tipo de activo — mismo criterio que valida el
- * backend en `DELETE /lifecycle/steps/{id}`.
- */
-export function getRequiredStepTypes(finalStage: FinalLifecycleStage): ReadonlySet<string> {
-  if (finalStage === "edit") return new Set(["edit"])
-  if (finalStage === "review") return new Set(["edit", "review"])
-  return new Set(["edit", "approve"]) // approve | publish — comportamiento actual
 }
 
 /** Posición para ordenar: los tipos desconocidos van al final, no al principio. */
