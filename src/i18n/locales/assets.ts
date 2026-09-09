@@ -612,10 +612,6 @@ const translations = {
     namePlaceholder: { en: "Enter template name...", es: "Ingresar el nombre de la plantilla..." },
     descriptionPlaceholder: { en: "Describe what this template is for...", es: "Describir para qué sirve esta plantilla..." },
   },
-  deleteDocument: {
-    title: { en: "Delete Asset", es: "Eliminar Activo" },
-    description: { en: "Are you sure you want to delete \"{{name}}\"? This action cannot be undone and all associated data will be permanently deleted.", es: "¿Eliminar \"{{name}}\"? Esta acción no se puede deshacer y todos los datos asociados se eliminarán permanentemente." },
-  },
   deleteFolder: {
     title: { en: "Delete Folder", es: "Eliminar Carpeta" },
     description: { en: "Are you sure you want to delete \"{{name}}\"? The folder and its subfolders will be removed. By default, assets will be moved to the root.", es: "¿Eliminar \"{{name}}\"? La carpeta y sus subcarpetas serán eliminadas. Por defecto, los activos se moverán a la raíz." },

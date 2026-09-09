@@ -73,7 +73,7 @@ import { CreateTemplateDialog } from "@/components/templates/templates-create-di
 import { CreateTemplateFromDocumentDialog } from "@/components/assets/dialogs/assets-create-template-from-document-dialog";
 import { RenameVersionDialog } from "@/components/assets/dialogs/assets-rename-version-dialog";
 import { CloneToNewDocumentDialog } from "@/components/assets/dialogs/assets-clone-to-new-document-dialog";
-import { ContentDeleteDialog } from "@/components/assets/dialogs/assets-content-delete-dialog";
+import { DeleteDocumentDialog } from "@/components/assets/dialogs/assets-delete-dialog";
 import { CloneExecutionDialog } from "@/components/assets/dialogs/assets-clone-execution-dialog";
 import { ApproveExecutionDialog } from "@/components/assets/dialogs/assets-approve-execution-dialog";
 import { DisapproveExecutionDialog } from "@/components/assets/dialogs/assets-disapprove-execution-dialog";
@@ -2036,7 +2036,9 @@ export function AssetContent({
 
   function closeDeleteDialog() {
     setIsDeleteDialogOpen(false);
-    setDeleteType(null);
+    // Deferir la limpieza de deleteType para que el título/descripción no
+    // cambien mientras el diálogo se desvanece (animación de salida de Radix).
+    setTimeout(() => setDeleteType(null), 300);
   }
 
   const handleDeleteDialogChange = (open: boolean) => {
@@ -2141,6 +2143,7 @@ export function AssetContent({
       } catch (error) {
         logger.error('Error deleting document:', error);
         toast.error(t('mutations.documentDeleteFailed'));
+        throw error; // deja el diálogo abierto en "idle" en vez de mostrar "Listo"
       }
     }
   };
@@ -3699,7 +3702,7 @@ export function AssetContent({
       />
 
       {/* Delete Confirmation AlertDialog */}
-      <ContentDeleteDialog
+      <DeleteDocumentDialog
         open={isDeleteDialogOpen}
         onOpenChange={handleDeleteDialogChange}
         deleteType={deleteType}
