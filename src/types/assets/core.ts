@@ -332,14 +332,6 @@ export interface CreateFolderSheetProps {
   onFolderCreated?: (folder?: { id: string; name: string }) => void;
 }
 
-export interface DeleteDocumentDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  documentName: string;
-  onConfirm: () => Promise<void> | void;
-  isDeleting?: boolean;
-}
-
 export interface DeleteFolderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
