@@ -95,12 +95,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { useAssetContentPermissions } from '@/hooks/useDocumentAccess';
+import { isExternalElaborationLocked, EXTERNAL_ELABORATION_POLL_MS } from '@/lib/lifecycle-access';
+import { ExternalElaborationLockBanner } from '@/components/assets/content/external-elaboration-lock-banner';
 import {
   useDocumentSectionAccess,
   useInvalidateDocumentSectionAccess,
 } from '@/hooks/useDocumentSectionAccess';
 import { usePageAccess } from '@/hooks/usePageAccess';
-import type { ContentSection, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
+import type { ContentSection, LibraryContentProps, LifecyclePermissions, LifecycleStatus } from '@/types/assets';
 import type { FormValuesSectionPayload } from '@/types/sections/core';
 import { applyFormValuesPatch } from '@/components/assets/content/utils/patch-document-content';
 import { isSectionApplicable } from '@/components/workflow/workflow-section-stats';
@@ -964,12 +966,25 @@ export function AssetContent({
     // No self-poll. The ExecutionStatusBanner polls /execution/{id}/status and,
     // on completion, refreshes content via onExecutionComplete + query invalidation.
     // This prevents /documents/.../content being re-hit on every status tick during import.
-    refetchInterval: false,
+    // Única excepción: mientras is_locked_external_elaboration === true no hay ningún
+    // otro banner poll-eando algo que dispare el refresh — el callback del sistema
+    // externo llega en background, sin acción del usuario — así que acá sí hace
+    // falta un self-poll, mientras dure el bloqueo, para que se libere solo.
+    refetchInterval: (query) =>
+      isExternalElaborationLocked(
+        (query.state.data as { lifecycle_status?: LifecycleStatus } | undefined)?.lifecycle_status,
+      )
+        ? EXTERNAL_ELABORATION_POLL_MS
+        : false,
     refetchOnWindowFocus: false,
     staleTime: 30000, // Cache for 30 seconds
     // TODO: la key no incluye selectedOrganizationId (preexistente, ver
     // "ia context/rbac-audit-guide.md"). No se toca en este cambio.
   });
+
+  // Único punto de verdad para el bloqueo de ElaborationRun en esta pantalla —
+  // ver ia context correspondiente.
+  const isAssetLockedByExternalElaboration = isExternalElaborationLocked(documentContent?.lifecycle_status);
 
   // "Continuar donde quedaste" (rail del Home) — se registra acá, no en
   // useAssetNavigation, porque ahí `selectedFile.name` es un placeholder tipo
@@ -2420,9 +2435,10 @@ export function AssetContent({
                   executionInfo={selectedExecutionInfo}
                   lifecyclePermissions={lifecyclePermissions}
                   stage={documentContent?.lifecycle_status?.stage}
+                  isExternalElaborationLocked={isAssetLockedByExternalElaboration}
                 />
               )}
-              
+
               {frontendPermissions.canAccessSectionSheet && (
                 <DependenciesSheet
                   selectedFile={selectedFile}
@@ -2876,6 +2892,7 @@ export function AssetContent({
                     executionInfo={selectedExecutionInfo}
                     lifecyclePermissions={lifecyclePermissions}
                     stage={documentContent?.lifecycle_status?.stage}
+                    isExternalElaborationLocked={isAssetLockedByExternalElaboration}
                     showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
                   />
                 )}
@@ -2986,6 +3003,14 @@ export function AssetContent({
             >
             {selectedFile.type === 'document' ? (
               <>
+                {/* Bloqueo por ElaborationRun en curso — antes que cualquier otro banner,
+                    es el aviso más específico sobre por qué no se puede editar ahora mismo. */}
+                {isAssetLockedByExternalElaboration && (
+                  <div className="sticky top-0 z-(--z-page-sticky-elevated) mb-4">
+                    <ExternalElaborationLockBanner />
+                  </div>
+                )}
+
                 {/* Other Version Execution Banners - includes full/full-single modes */}
                 {bannerExecutions.length > 0 && (
                   <div className="sticky top-0 z-(--z-page-sticky-elevated) mb-4 space-y-2">

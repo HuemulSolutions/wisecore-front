@@ -281,6 +281,11 @@ const translations = {
     successRestore: { en: "Asset restored successfully!", es: "Activo restaurado correctamente" },
     errorRestore: { en: "Failed to restore asset. Please try again.", es: "Error al restaurar el activo. Reintentar." },
     errorLocked: { en: "This version already finished its lifecycle and can no longer be edited. Refresh to see its current state.", es: "Esta versión ya terminó su ciclo de vida y no se puede editar. Actualizar para ver su estado actual." },
+    lockedExternalElaborationNotice: {
+      title: { en: "Waiting for an external system", es: "Esperando a un sistema externo" },
+      description: { en: "This asset is temporarily read-only while an external system processes it. It will unlock automatically once that response arrives.", es: "Este activo está temporalmente en modo lectura mientras un sistema externo lo procesa. Se desbloqueará automáticamente en cuanto llegue esa respuesta." },
+    },
+    errorLockedExternalElaboration: { en: "This asset is locked while it awaits a response from an external system. It will unlock automatically once that response arrives.", es: "Este activo está bloqueado mientras espera una respuesta de un sistema externo. Se desbloqueará automáticamente en cuanto llegue esa respuesta." },
     successAdvance: { en: "Asset advanced successfully!", es: "Activo avanzado correctamente" },
     errorAdvance: { en: "Failed to advance asset. Please try again.", es: "Error al avanzar el activo. Reintentar." },
     dataTablesRefreshed: {

@@ -194,6 +194,14 @@ export interface LifecycleStatus {
   version_required: boolean;
   /** Vacío/ausente cuando no hay nada pendiente. Ausente en payloads cacheados de antes de este campo. */
   advance_blockers?: AdvanceBlocker[];
+  /**
+   * `true` mientras un ElaborationRun (pending/running/awaiting_callback) tiene tomada
+   * la execution: toda edición de contenido devuelve 409 EXECUTION_LOCKED_EXTERNAL_ELABORATION.
+   * Se libera al terminar el run, sea `completed` o `failed` — un run fallido no reintenta,
+   * el activo vuelve a ser editable aunque la elaboración no se haya aplicado.
+   * Ausente en payloads cacheados de antes de este campo — leer siempre `=== true`.
+   */
+  is_locked_external_elaboration?: boolean;
 }
 
 /**

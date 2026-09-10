@@ -21,7 +21,7 @@ import { getDocumentContent } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { lifecycleAllows, lifecycleStageAllowsEditing } from "@/hooks/useDocumentAccess"
-import { READ_ONLY_NOTICE_STATES, resolveLifecycleActionsVisibility } from "@/lib/lifecycle-access"
+import { READ_ONLY_NOTICE_STATES, resolveLifecycleActionsVisibility, isExternalElaborationLocked, EXTERNAL_ELABORATION_POLL_MS } from "@/lib/lifecycle-access"
 import { resolveWorkflowFinishOutcome, type WorkflowFinishOutcome } from "@/lib/workflow-finish-outcome"
 import { workflowQueryKeys } from "@/hooks/useWorkflows"
 import { useLifecycleActions } from "@/hooks/useLifecycleActions"
@@ -175,6 +175,13 @@ export function WorkflowDetailPanel({
     enabled: !!selectedOrganizationId && !!documentId && canReadAsset,
     staleTime: 60 * 1000,
     retry: 0,
+    // Mientras haya un ElaborationRun bloqueando la execution, el callback del sistema
+    // externo llega en background sin acción del usuario — se poll-ea para que el
+    // wizard se desbloquee solo. Ver assets-content.tsx, misma regla.
+    refetchInterval: (query) =>
+      isExternalElaborationLocked((query.state.data as AssetContentResponse["data"] | undefined)?.lifecycle_status)
+        ? EXTERNAL_ELABORATION_POLL_MS
+        : false,
   })
 
   const handleRefresh = React.useCallback(() => {
@@ -248,11 +255,15 @@ export function WorkflowDetailPanel({
   // EN ABSOLUTO?". `lifecycle_permissions.edit` es un permiso de ROL, no de etapa:
   // sin el factor de etapa, un aprobador que también es actor de un grupo de
   // elaboración veía los campos habilitados en aprobación y el PATCH no persistía.
-  // Los `undefined` degradan a "solo RBAC decide", igual que en /asset.
+  // Los `undefined` degradan a "solo RBAC decide", igual que en /asset. El cuarto
+  // factor (sin ElaborationRun bloqueando) es independiente de la etapa: el backend
+  // rechaza el PATCH con 409 EXECUTION_LOCKED_EXTERNAL_ELABORATION aunque la etapa
+  // siga siendo "edit" — ver ia context correspondiente.
   const canAnswerForm =
     canUpdateAssetContent &&
     lifecycleAllows(data?.lifecycle_permissions, "edit") &&
-    lifecycleStageAllowsEditing(data?.lifecycle_status)
+    lifecycleStageAllowsEditing(data?.lifecycle_status) &&
+    !isExternalElaborationLocked(data?.lifecycle_status)
 
   // Resuelto contra sectionAccess (GET /documents/{id}/sections), no contra
   // currentSection.can_edit (siempre undefined, /content no lo manda — ver
@@ -281,19 +292,24 @@ export function WorkflowDetailPanel({
     [formSections, canAnswerSpecificSection],
   )
 
-  // Motivo del aviso de solo lectura: distingue "no tenés permiso/rol", "esta etapa ya
-  // no admite respuestas", "esta sección está inactiva según las respuestas dadas" y
-  // "esta sección es de solo lectura en esta etapa" — evita que el aviso de permiso
-  // confunda a alguien que sí puede responder el resto del formulario.
-  const readOnlyReason: "permission" | "stage" | "sectionInactive" | "section" | null = canAnswerSection
-    ? null
-    : !canUpdateAssetContent || !lifecycleAllows(data?.lifecycle_permissions, "edit")
-      ? "permission"
-      : !lifecycleStageAllowsEditing(data?.lifecycle_status)
-        ? "stage"
-        : currentSection && !isSectionAnswerable(currentSection)
-          ? "sectionInactive"
-          : "section"
+  // Motivo del aviso de solo lectura: distingue "no tenés permiso/rol", "hay un
+  // ElaborationRun bloqueando la execution", "esta etapa ya no admite respuestas",
+  // "esta sección está inactiva según las respuestas dadas" y "esta sección es de
+  // solo lectura en esta etapa" — evita que el aviso de permiso confunda a alguien
+  // que sí puede responder el resto del formulario. externalElaboration va antes
+  // que stage/permission: es el motivo más específico y accionable para el usuario.
+  const readOnlyReason: "permission" | "externalElaboration" | "stage" | "sectionInactive" | "section" | null =
+    canAnswerSection
+      ? null
+      : isExternalElaborationLocked(data?.lifecycle_status)
+        ? "externalElaboration"
+        : !canUpdateAssetContent || !lifecycleAllows(data?.lifecycle_permissions, "edit")
+          ? "permission"
+          : !lifecycleStageAllowsEditing(data?.lifecycle_status)
+            ? "stage"
+            : currentSection && !isSectionAnswerable(currentSection)
+              ? "sectionInactive"
+              : "section"
 
   // El bloqueo por ciclo de vida viene de lifecycleStageAllowsEditing: stage distinto de
   // `edit` o estado terminal. En el caso terminal el `stage` miente (publish vs published),
@@ -636,13 +652,15 @@ export function WorkflowDetailPanel({
         <div className={cn(isFullscreen && "mx-auto w-full max-w-3xl")}>
         {!needsNameStep && documentId && !isLoading && !error && formSections.length > 0 && readOnlyReason && (
           <div className="mb-4 flex items-center rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            {readOnlyReason === "stage"
-              ? stageNotice
-              : readOnlyReason === "sectionInactive"
-                ? t("fill.readOnlyInactiveSectionNotice")
-                : readOnlyReason === "section"
-                  ? t("fill.readOnlySectionNotice")
-                  : t("fill.readOnlyNotice")}
+            {readOnlyReason === "externalElaboration"
+              ? t("fill.readOnlyExternalElaborationNotice")
+              : readOnlyReason === "stage"
+                ? stageNotice
+                : readOnlyReason === "sectionInactive"
+                  ? t("fill.readOnlyInactiveSectionNotice")
+                  : readOnlyReason === "section"
+                    ? t("fill.readOnlySectionNotice")
+                    : t("fill.readOnlyNotice")}
           </div>
         )}
         {needsNameStep ? (

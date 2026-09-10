@@ -236,6 +236,17 @@ export function isTerminalLifecycleState(state: string | undefined): boolean {
 }
 
 /**
+ * Ausente ⇒ no bloqueado (payloads viejos, o asset type sin elaboración externa
+ * configurada). Nunca comparar por truthiness — el campo puede llegar `undefined`.
+ */
+export function isExternalElaborationLocked(status?: LifecycleStatus): boolean {
+  return status?.is_locked_external_elaboration === true
+}
+
+/** Cadencia del poll de /content mientras el activo está bloqueado esperando al sistema externo. */
+export const EXTERNAL_ELABORATION_POLL_MS = 5000
+
+/**
  * Estados cuyo label de `lifecycle.stateLabels` encaja gramaticalmente embebido en
  * "Este activo está {label}" / "This asset is {label}". `draft` queda fuera a
  * propósito ("está elaboración" no es frase) — para esos se usa el aviso genérico.
