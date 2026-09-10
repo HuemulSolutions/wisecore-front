@@ -6,14 +6,14 @@ import { useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import { Settings2, Copy, Trash2 } from "lucide-react"
 import { usePageAccess } from "@/hooks/usePageAccess"
-import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
 import { useAssetTypeMutations } from "@/hooks/useAssetTypes"
 import { useDocumentTypes, documentTypeQueryKeys } from "@/hooks/useDocumentTypes"
 import { useDocumentTypeFolders, useDocumentTypeFolderMutations, documentTypeFolderQueryKeys } from "@/hooks/useDocumentTypeFolders"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useTag, tagsQueryKeys } from "@/hooks/useTags"
-import { useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { getDocumentTypeById } from "@/services/document-types"
 import { useOrganization } from "@/contexts/organization-context"
 import { HuemulTagChip } from "@/huemul/components/huemul-tag-chip"
 import type { CanvasNodeAction } from "@/types/document-type-relationships"
@@ -33,6 +33,7 @@ import {
   type AssetTypePageState
 } from "@/components/assets-types"
 import { AssetTypeSidebar, RelationshipsCanvas } from "@/components/document-type-relationships"
+import { AssetTypeConfigSheet } from "@/components/assets-types/assets-types-config-sheet"
 import { HuemulPagination } from "@/huemul/components/huemul-pagination"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
@@ -95,9 +96,27 @@ export default function AssetTypesPage() {
     setPage(1)
   }
 
+  // El tipo de activo en configuración vive en la URL (`?asset_type=<id>`), no
+  // en un useState espejo: así el sheet es linkeable y sobrevive al refresh,
+  // igual que `tag_id` arriba y que `?user=<id>` en users.tsx.
+  const selectedAssetTypeId = searchParams.get("asset_type")
+  const openAssetTypeConfig = (assetTypeId: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set("asset_type", assetTypeId)
+      return next
+    }, { replace: true })
+  }
+  const closeAssetTypeConfig = () => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete("asset_type")
+      return next
+    }, { replace: true })
+  }
+
   // Permisos
   const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('asset-types')
-  const navigate = useOrgNavigate()
   const queryClient = useQueryClient()
   const { selectedOrganizationId } = useOrganization()
 
@@ -180,7 +199,7 @@ export default function AssetTypesPage() {
       label: t('actions.configureAssetType'),
       icon: Settings2,
       onClick: (nodeId: string) => {
-        navigate(`/asset-types/${nodeId}`)
+        openAssetTypeConfig(nodeId)
       },
     }] : []),
     ...(canCloneDocumentType ? [{
@@ -209,6 +228,25 @@ export default function AssetTypesPage() {
   const folders = foldersResponse?.data ?? []
   const allTypes = typesResponse?.data ?? []
   const folderById = new Map(folders.map((f) => [f.id, f]))
+
+  // Tipo de activo en configuración (sheet, ver `selectedAssetTypeId` arriba).
+  // `allTypes` ya trae hasta 1000 tipos sin paginar, así que casi siempre lo
+  // encuentra ahí; el fallback solo entra con un link directo mientras hay un
+  // filtro de búsqueda/tag activo que lo excluye del listado — mismo patrón
+  // que `selectedUserFromPage ?? fallbackUser` en users.tsx.
+  const configuringDt = allTypes.find((dt) => dt.id === selectedAssetTypeId) ?? null
+  const needsConfigFallback = !!selectedAssetTypeId && !configuringDt
+  const { data: fallbackConfigDtResponse } = useQuery({
+    queryKey: ["document-type", selectedAssetTypeId],
+    queryFn: () => getDocumentTypeById(selectedAssetTypeId ?? ""),
+    enabled: needsConfigFallback,
+  })
+  const fallbackConfigDt = fallbackConfigDtResponse?.data
+  const configuringAssetType = configuringDt
+    ? toAssetTypeWithRoles(configuringDt)
+    : fallbackConfigDt
+      ? toMinimalAssetType(fallbackConfigDt.id, fallbackConfigDt.name, fallbackConfigDt.color)
+      : null
 
   const typesByFolder = new Map<string, DocumentType[]>()
   const rootTypes: DocumentType[] = []
@@ -348,10 +386,14 @@ export default function AssetTypesPage() {
   }
 
   // Asset type action handlers
-  // La configuración vive en su propia página, compartible por URL — ver
-  // pages/asset-type-detail.tsx.
+  // La configuración abre en el sheet ancho (ver `AssetTypeConfigSheet` más
+  // abajo): mantiene la tabla montada (scroll, carpetas expandidas, búsqueda)
+  // y anima al abrir/cerrar. El id seleccionado vive en la URL
+  // (`?asset_type=<id>`) para que siga siendo compartible/recargable — la
+  // página con URL propia (`pages/asset-type-detail.tsx`) sigue existiendo
+  // como ruta directa, pero ya no es el destino de este flujo.
   const handleConfigureAssetType = (assetType: AssetTypeWithRoles) => {
-    navigate(`/asset-types/${assetType.document_type_id}`)
+    openAssetTypeConfig(assetType.document_type_id)
   }
 
   const handleDeleteAssetType = (assetType: AssetTypeWithRoles) => {
@@ -588,6 +630,18 @@ export default function AssetTypesPage() {
         exportSelectedIds={[...selectedExportIds]}
         onExported={() => setSelectedExportIds(new Set())}
         onAssetTypeCreated={handleAssetTypeCreated}
+      />
+
+      <AssetTypeConfigSheet
+        assetType={configuringAssetType}
+        open={!!selectedAssetTypeId}
+        onOpenChange={(open) => { if (!open) closeAssetTypeConfig() }}
+        organizationId={selectedOrganizationId ?? ""}
+        canUpdate={canUpdateDocumentType}
+        canManageTemplates={canManageTemplates}
+        canManageLifecycle={canManageLifecycle}
+        canViewTags={canViewTags}
+        canManageTags={canManageTags}
       />
     </>
   )

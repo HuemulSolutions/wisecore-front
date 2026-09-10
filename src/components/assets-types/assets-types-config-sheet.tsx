@@ -34,7 +34,15 @@ export function AssetTypeConfigSheet({
 }: AssetTypeConfigSheetProps) {
   const { t } = useTranslation(["asset-types", "common"])
 
-  const documentTypeId = assetType?.document_type_id ?? ""
+  // Retiene el último valor no nulo: al cerrar, el consumidor pasa `assetType:
+  // null` de inmediato, y sin esto el contenido se vacía a mitad de la
+  // animación de salida del sheet (ver ia context/list-detail-panel-guide.md §4bis).
+  const [displayAssetType, setDisplayAssetType] = React.useState(assetType)
+  React.useEffect(() => {
+    if (assetType) setDisplayAssetType(assetType)
+  }, [assetType])
+
+  const documentTypeId = displayAssetType?.document_type_id ?? ""
 
   const [activeTab, setActiveTab] = React.useState<AssetTypeConfigTab>("general")
 
@@ -97,19 +105,19 @@ export function AssetTypeConfigSheet({
         icon={Settings2}
         title={t("asset-types:config.title")}
         subtitle={
-          assetType ? (
+          displayAssetType ? (
             <span className="inline-flex items-center gap-1.5">
               <span
                 className="size-2 shrink-0 rounded-full"
-                style={{ backgroundColor: assetType.document_type_color }}
+                style={{ backgroundColor: displayAssetType.document_type_color }}
               />
-              <span className="truncate">{assetType.document_type_name}</span>
+              <span className="truncate">{displayAssetType.document_type_name}</span>
             </span>
           ) : undefined
         }
         size="wide"
         closeLabel={t("common:close")}
-        tabs={assetType ? config.tabs : undefined}
+        tabs={displayAssetType ? config.tabs : undefined}
         activeTab={effectiveTab}
         onTabChange={config.handleTabChange}
         saveBar={config.saveBar}
