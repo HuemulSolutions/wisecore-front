@@ -123,7 +123,7 @@ const translations = {
     noDisplayName: { en: "no display name", es: "sin nombre alternativo" },
     orderUnsavedBadge: { en: "Order unsaved", es: "Orden sin guardar" },
     picker: {
-      subtitle: { en: "Search among the organization's templates", es: "Buscá entre las plantillas de la organización" },
+      subtitle: { en: "Search among the organization's templates", es: "Buscar entre las plantillas de la organización" },
       resultsLabel: { en: "Results", es: "Resultados" },
       resultsCount: { en: "{{shown}} of {{total}}", es: "{{shown}} de {{total}}" },
       alreadyLinked: { en: "Already linked", es: "Ya vinculada" },
@@ -316,7 +316,7 @@ const translations = {
     saveChanges: { en: "Save changes", es: "Guardar cambios" },
     unsavedInGroup: { en: "Unsaved changes in «{{group}}»", es: "Cambios sin guardar en «{{group}}»" },
     savedAt: { en: "Saved {{time}}", es: "Guardado {{time}}" },
-    refreshBlockedByDirty: { en: "Discard or save your changes first", es: "Descartá o guardá los cambios antes de refrescar" },
+    refreshBlockedByDirty: { en: "Discard or save your changes first", es: "Descartar o guardar los cambios antes de refrescar" },
     accessOwner: { en: "Owner", es: "Propietario" },
     deleteGroup: { en: "Delete group", es: "Eliminar grupo" },
     cannotDeleteLastStep: { en: "Cannot delete: at least one step of this stage must remain, per the configured final lifecycle stage.", es: "No se puede eliminar: debe quedar al menos un paso de esta etapa según la etapa final del ciclo de vida configurada." },
