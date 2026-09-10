@@ -21,8 +21,9 @@ import type { FileNode } from "@/types/assets";
 import type { LibraryContentFolder, LibraryContentAsset } from "@/types/folders";
 import { SectionFormFieldsBuilder } from "./section-form-fields-builder";
 import { SectionDependencyEditor } from "./section-dependency-editor";
-import { CUSTOM_FIELD_QUESTION_TYPE, QUESTION_TYPE, withFieldKey, stripFieldKey, type FormFieldDraft } from "./question-type-meta";
+import { CUSTOM_FIELD_QUESTION_TYPE, QUESTION_TYPE, isCalculatedField, withFieldKey, stripFieldKey, type FormFieldDraft } from "./question-type-meta";
 import { formFieldsHaveValidDependencies, sectionHasValidDependencies } from "./validate-form-field-dependencies";
+import { formFieldsHaveValidCalculations } from "./validate-calculation-config";
 import type { FieldDependencyCondition } from "@/types/sections/core";
 import Markdown from "@/components/ui/markdown";
 import SectionPlateEditor, { type SectionPlateEditorRef } from "@/components/plate-editor/section-plate-editor";
@@ -527,7 +528,9 @@ export function SectionForm({
         f => f.question_type !== CUSTOM_FIELD_QUESTION_TYPE || !!f.custom_field_id
       );
       const dependenciesOk = formFieldsHaveValidDependencies(formFields, earlierSectionsFormFields);
-      return allFilled && unique && customOk && dependenciesOk;
+      const calculatedOk = formFields.every(f => !isCalculatedField(f) || !!f.calculation_config);
+      const calculationsOk = formFieldsHaveValidCalculations(formFields, earlierSectionsFormFields);
+      return allFilled && unique && customOk && dependenciesOk && calculatedOk && calculationsOk;
     }
 
     return false;

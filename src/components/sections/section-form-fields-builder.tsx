@@ -25,10 +25,13 @@ import type { CustomField, CustomFieldDataType } from "@/types/custom-fields/cor
 import type { FetchOptionsParams, FetchOptionsResult } from "@/types/huemul/field";
 import { SectionFormFieldCard } from "./section-form-field-card";
 import {
+  CONDITIONAL_QUESTION_TYPE,
   CUSTOM_FIELD_QUESTION_TYPE,
+  FORMULA_QUESTION_TYPE,
   NUMERIC_DATA_TYPES,
   QUESTION_TYPE,
   customFieldDataTypeLabel,
+  isCalculatedField,
   readFieldOptions,
   withFieldKey,
   type FormFieldDraft,
@@ -110,6 +113,7 @@ export function SectionFormFieldsBuilder({
         default_value: null,
         min_value: null,
         max_value: null,
+        calculation_config: null,
       }),
     ]);
   };
@@ -166,20 +170,53 @@ export function SectionFormFieldsBuilder({
   };
 
   // Cambia question_type y auto-deriva data_type. Para custom_field el data_type
-  // se resuelve al elegir el custom field.
+  // se resuelve al elegir el custom field. Para los campos calculados, calculation_config
+  // se siembra vacío (el usuario lo arma en SectionCalculatedFieldEditor) — y, crítico, se
+  // limpia a null en cualquier otro tipo: el backend rechaza con 400 un calculation_config
+  // en un campo que no es calculado (ver ia context/campos-calculados-en-formularios-guide.md).
   const handleQuestionTypeChange = (index: number, questionType: string) => {
     onChange(
       value.map((f, i) => {
         if (i !== index) return f;
+
         if (questionType === CUSTOM_FIELD_QUESTION_TYPE) {
-          return { ...f, question_type: questionType, custom_field_id: null, min_value: null, max_value: null, default_value: null };
+          return {
+            ...f, question_type: questionType, custom_field_id: null,
+            min_value: null, max_value: null, default_value: null, calculation_config: null,
+          };
         }
+
+        if (questionType === FORMULA_QUESTION_TYPE) {
+          // data_type fijo decimal — el backend rechaza cualquier otro para este tipo.
+          return {
+            ...f, question_type: questionType, data_type: "decimal", custom_field_id: null,
+            required: false, min_value: null, max_value: null, default_value: null,
+            calculation_config: { mode: "formula", terms: [], constant: 0, round_decimals: 2 },
+          };
+        }
+
+        if (questionType === CONDITIONAL_QUESTION_TYPE) {
+          // El catálogo devuelve data_type null para este slug: lo declara quien crea el
+          // campo (mismo criterio que custom_field) — se preserva si ya venía de otro
+          // campo calculado, si no se parte de "string".
+          return {
+            ...f, question_type: questionType,
+            data_type: isCalculatedField(f) ? f.data_type : "string",
+            custom_field_id: null, required: false, min_value: null, max_value: null, default_value: null,
+            calculation_config: {
+              mode: "conditional",
+              root: { if: [], then: { type: "value", value: null }, else: { type: "value", value: null } },
+            },
+          };
+        }
+
         const derived = (questionTypeDataMap.get(questionType) ?? f.data_type) as SectionFormField["data_type"];
         return {
           ...f,
           question_type: questionType,
           data_type: derived,
           custom_field_id: null,
+          calculation_config: null,
           ...seedForType(questionType, derived, f),
         };
       }),

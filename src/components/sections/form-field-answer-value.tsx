@@ -1,5 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { FileX } from "lucide-react";
+import { Calculator, FileX } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { HuemulFilePreview } from "@/huemul/components/huemul-file-preview";
 import { isMediaToken } from "@/lib/plate-media-utils";
@@ -10,6 +12,7 @@ import {
   QUESTION_TYPE,
   SINGLE_SELECT_QUESTION_TYPES,
   hasAnswer,
+  isCalculatedField,
   normalizeSelectionValue,
   readFieldConfig,
   readFieldOptions,
@@ -36,12 +39,37 @@ interface FormFieldAnswerValueProps {
   filePreviews?: FormFieldFilePreview[];
 }
 
+// Badge "Calculado" con tooltip — marca visualmente los campos campo_calculado_formula/
+// campo_calculado_condicional en toda superficie de solo lectura (esta función es el único
+// punto de render de una respuesta, así que agregarlo acá alcanza para todas: FormAnswersList,
+// AssetFormSectionReader, WorkflowSectionsSummary y la propia vista de edición).
+function CalculatedBadge({ t }: { t: ReturnType<typeof useTranslation>["t"] }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge variant="secondary" className="gap-1 shrink-0 font-normal">
+          <Calculator className="size-3" />
+          {t("form.fill.calculatedBadge")}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent>{t("form.fill.calculatedTooltip")}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 // Render de solo lectura de la respuesta de un form field, según su question_type.
 // Extraído de asset-form-section.tsx para reutilizarse también en paneles de consulta
 // (ej. respuestas de secciones anteriores del wizard) sin depender de su estado local.
 export function FormFieldAnswerValue({ field, value, filePreviews }: FormFieldAnswerValueProps) {
   const { t } = useTranslation("sections");
+  const calculated = isCalculatedField(field);
 
+  const rendered = renderValue();
+  return calculated
+    ? <span className="inline-flex flex-wrap items-center gap-1.5">{rendered}<CalculatedBadge t={t} /></span>
+    : rendered;
+
+  function renderValue() {
   // El valor puede venir crudo del caché (field.value): normalizar selects igual que
   // buildInitialAnswers, porque el backend inicializa value = default_value (las opciones
   // de config) en campos de selección sin responder — sin esto se verían todas las
@@ -52,7 +80,13 @@ export function FormFieldAnswerValue({ field, value, filePreviews }: FormFieldAn
   const resolved = isMulti || isSingle ? normalizeSelectionValue(raw, isMulti) : raw;
 
   if (!hasAnswer(resolved)) {
-    return <span className="text-sm italic text-gray-400">{t("form.fill.noAnswer")}</span>;
+    // Un calculado sin valor significa "falta una respuesta de la que depende", no "nadie
+    // respondió esta pregunta" — mensaje distinto para no confundir al usuario.
+    return (
+      <span className="text-sm italic text-gray-400">
+        {calculated ? t("form.fill.calculatedPending") : t("form.fill.noAnswer")}
+      </span>
+    );
   }
 
   if (field.question_type === QUESTION_TYPE.yesNo) {
@@ -224,4 +258,5 @@ export function FormFieldAnswerValue({ field, value, filePreviews }: FormFieldAn
   }
 
   return <span className="text-sm text-gray-800">{String(resolved)}</span>;
+  }
 }

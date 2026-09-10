@@ -15,6 +15,7 @@ import {
   readFieldConfig,
   QUESTION_TYPE,
   NUMERIC_DATA_TYPES,
+  CALCULATED_QUESTION_TYPES,
 } from "@/components/sections/question-type-meta"
 import type { CreateEditCustomFieldDialogProps, CustomFieldOption } from '@/types/custom-fields'
 import { logger } from "@/lib/logger"
@@ -55,11 +56,15 @@ export function CreateEditCustomFieldSheet({
   const { t: tSections } = useTranslation('sections')
 
   // Fetch question types (lazy loading: only when sheet is open). data_type is derived from this catalog.
-  // "etiqueta" es un separador visual exclusivo de form fields de sección — no se puede crear
-  // como custom field suelto, se excluye del catálogo ofrecido acá.
+  // "etiqueta" es un separador visual exclusivo de form fields de sección, y los campos
+  // calculados (campo_calculado_formula/campo_calculado_condicional) necesitan un
+  // calculation_config que referencia preguntas anteriores de una sección — ninguno de los
+  // dos tiene sentido como custom field suelto, se excluyen del catálogo ofrecido acá.
   const { data: questionTypesResponse, isLoading: loadingQuestionTypes } = useCustomFieldQuestionTypes({ enabled: open })
   const questionTypes = useMemo(
-    () => (questionTypesResponse?.data ?? []).filter((qt) => qt.question_type !== QUESTION_TYPE.label),
+    () => (questionTypesResponse?.data ?? []).filter(
+      (qt) => qt.question_type !== QUESTION_TYPE.label && !CALCULATED_QUESTION_TYPES.includes(qt.question_type),
+    ),
     [questionTypesResponse],
   )
   const questionTypeDataMap = useMemo(

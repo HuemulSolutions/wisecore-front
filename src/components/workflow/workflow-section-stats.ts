@@ -3,6 +3,7 @@ import {
   QUESTION_TYPE,
   SINGLE_SELECT_QUESTION_TYPES,
   hasAnswer,
+  isCalculatedField,
   isFieldAnswerable,
   isFieldVisible,
   normalizeSelectionValue,
@@ -54,8 +55,11 @@ export function isSectionAnswersCompleted(section: Pick<ContentSection, "answers
 export function computeSectionStats(section: ContentSection): SectionStats {
   const fields = [...(section.form_fields ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   // Solo preguntas visibles: una oculta por depends_on no está en pantalla,
-  // así que tampoco debe sumar al total del contador "respondidas/total".
-  const questions = fields.filter((f) => f.question_type !== QUESTION_TYPE.label && isFieldVisible(f));
+  // así que tampoco debe sumar al total del contador "respondidas/total". Los campos
+  // calculados tampoco cuentan: el usuario no los responde, el backend los recalcula.
+  const questions = fields.filter(
+    (f) => f.question_type !== QUESTION_TYPE.label && !isCalculatedField(f) && isFieldVisible(f),
+  );
   const answeredCount = questions.filter((f) => hasAnswer(resolvedValueOf(f))).length;
   // Una sección con `can_edit: false` (permiso por sección resuelto por el backend)
   // o inactiva por su propio depends_on de sección no se puede responder aunque el

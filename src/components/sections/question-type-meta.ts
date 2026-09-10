@@ -17,9 +17,12 @@ import {
   Star,
   CircleHelp,
   Heading,
+  Calculator,
+  GitBranch,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TFunction } from "i18next";
+import type { CustomFieldDataType } from "@/types/custom-fields/core";
 import type { FormFieldConfig, FormFieldOption, FormFieldValue, SectionFormField } from "@/types/sections/core";
 import { isMediaToken } from "@/lib/plate-media-utils";
 
@@ -29,10 +32,24 @@ export const CUSTOM_FIELD_QUESTION_TYPE = "custom_field";
 // persiste valor. No es un control editable — no lleva case en HuemulQuestionInput, se
 // detecta a nivel de loop en cada consumidor (ver ia context/question-type-input-guide.md).
 export const LABEL_QUESTION_TYPE = "etiqueta";
+// question_types cuyo valor lo calcula el backend a partir de otras respuestas de la misma
+// ejecución (ver ia context/campos-calculados-en-formularios-guide.md). Nunca se responden
+// manualmente — is_visible/can_answer y el value ya calculado son responsabilidad del backend.
+export const FORMULA_QUESTION_TYPE = "campo_calculado_formula";
+export const CONDITIONAL_QUESTION_TYPE = "campo_calculado_condicional";
+export const CALCULATED_QUESTION_TYPES: string[] = [FORMULA_QUESTION_TYPE, CONDITIONAL_QUESTION_TYPE];
 // data_types que admiten min/max
 export const NUMERIC_DATA_TYPES = ["int", "decimal"];
+// data_types elegibles al armar un campo_calculado_condicional (el usuario los declara
+// explícitamente — ver guía). Se excluyen image/list: no hay forma de expresar ese literal
+// en el editor de ramas.
+export const CALCULATED_CONDITIONAL_DATA_TYPES: CustomFieldDataType[] =
+  ["string", "int", "decimal", "bool", "date", "time", "datetime", "url"];
 
-// Catálogo canónico de los 15 question types soportados (slugs del backend).
+export const isCalculatedField = (f: { question_type?: string | null }): boolean =>
+  CALCULATED_QUESTION_TYPES.includes(f.question_type ?? "");
+
+// Catálogo canónico de los 17 question types soportados (slugs del backend).
 // ⚠️ Deben coincidir con los slugs reales que devuelve /question_types/.
 export const QUESTION_TYPE = {
   shortAnswer: "respuesta_corta",
@@ -51,6 +68,8 @@ export const QUESTION_TYPE = {
   time: "hora",
   customField: CUSTOM_FIELD_QUESTION_TYPE,
   label: LABEL_QUESTION_TYPE,
+  calculatedFormula: FORMULA_QUESTION_TYPE,
+  calculatedConditional: CONDITIONAL_QUESTION_TYPE,
 } as const;
 
 // Estado de edición de un form field con una clave transitoria para dnd-kit
@@ -98,6 +117,8 @@ const ICON_MAP: Record<string, LucideIcon> = {
   booleano: ToggleLeft,
   si_no: ToggleLeft,
   etiqueta: Heading,
+  campo_calculado_formula: Calculator,
+  campo_calculado_condicional: GitBranch,
 };
 
 export const questionTypeIcon = (slug: string): LucideIcon =>
@@ -242,12 +263,14 @@ export function isFieldVisible(field: FormFieldValue): boolean {
 }
 
 // ¿El usuario puede responder la pregunta? custom_field siempre es solo lectura;
-// etiqueta es puramente visual (no hay nada que responder); una pregunta condicional
-// inactiva (can_answer === false) también lo es, aunque se muestre deshabilitada por
-// show_when_inactive.
+// etiqueta es puramente visual (no hay nada que responder); un campo calculado lo
+// recalcula el backend, nunca se responde manualmente (PATCH form_values/form_answer
+// lo rechaza con 400); una pregunta condicional inactiva (can_answer === false) también
+// lo es, aunque se muestre deshabilitada por show_when_inactive.
 export function isFieldAnswerable(field: FormFieldValue): boolean {
   if (field.question_type === CUSTOM_FIELD_QUESTION_TYPE) return false;
   if (field.question_type === LABEL_QUESTION_TYPE) return false;
+  if (isCalculatedField(field)) return false;
   if (field.is_visible === false) return false;
   if (field.can_answer === false) return false;
   return true;
@@ -311,6 +334,13 @@ export function formatFieldValueForCopy(field: FormFieldValue, t: TFunction): st
     }
     // date / time / numéricos / string → caen al manejo genérico de abajo
   }
+
+  if (isCalculatedField(field) && field.data_type === "bool") {
+    const isYes = value === true || value === "true" || value === 1;
+    return isYes ? t("sections:form.formFields.previewYes") : t("sections:form.formFields.previewNo");
+  }
+  // campo_calculado_condicional con otro data_type / campo_calculado_formula (siempre
+  // decimal) → cae al manejo genérico de abajo (fecha/hora/número/string).
 
   if (
     field.question_type === QUESTION_TYPE.date ||

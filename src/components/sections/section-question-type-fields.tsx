@@ -26,9 +26,13 @@ import {
 } from "./question-type-meta";
 import { QuestionTypePreview } from "./question-type-preview";
 import { SectionFieldSeparator } from "./section-field-separator";
+import { SectionCalculatedFieldEditor } from "./section-calculated-field-editor";
 
 interface SectionQuestionTypeFieldsProps {
   field: FormFieldDraft;
+  // Preguntas anteriores disponibles para referenciar (mismos targets que depends_on) —
+  // solo lo consume el editor de campo_calculado_formula/campo_calculado_condicional.
+  availableDependencyFields: SectionFormField[];
   fetchCustomFieldOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
   isPending?: boolean;
   onUpdate: (patch: Partial<SectionFormField>) => void;
@@ -111,6 +115,7 @@ function SectionCustomFieldQuestionEditor({
 
 export function SectionQuestionTypeFields({
   field,
+  availableDependencyFields,
   fetchCustomFieldOptions,
   isPending,
   onUpdate,
@@ -406,6 +411,18 @@ export function SectionQuestionTypeFields({
           isPending={isPending}
           onCustomFieldChange={onCustomFieldChange}
           onCreateCustomField={onCreateCustomField}
+        />
+      );
+
+    // ── Campos calculados: fórmula / árbol condicional ──────────────────────
+    case QUESTION_TYPE.calculatedFormula:
+    case QUESTION_TYPE.calculatedConditional:
+      return (
+        <SectionCalculatedFieldEditor
+          field={field}
+          availableFields={availableDependencyFields}
+          isPending={isPending}
+          onUpdate={onUpdate}
         />
       );
 

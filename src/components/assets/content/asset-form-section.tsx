@@ -22,6 +22,7 @@ import {
   SINGLE_SELECT_QUESTION_TYPES,
   getQuestionTypePlaceholder,
   hasAnswer,
+  isCalculatedField,
   isFieldAnswerable,
   isFieldVisible,
   isFreeTextField,
@@ -800,9 +801,23 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
               </label>
               {isEditableField
                 ? renderInput(field)
-                : editing && isFieldVisible(field) && field.question_type !== CUSTOM_FIELD_QUESTION_TYPE
+                : editing
+                    && isFieldVisible(field)
+                    && field.question_type !== CUSTOM_FIELD_QUESTION_TYPE
+                    && !isCalculatedField(field)
                   ? renderInput(field, { disabled: true })
-                  : <FormFieldAnswerValue field={field} value={answers[field.id]} filePreviews={filePreviews[field.id]} />}
+                  : (
+                    <FormFieldAnswerValue
+                      field={field}
+                      // Los calculados los recalcula el backend en cada PATCH: `answers` se
+                      // inicializa una sola vez (buildInitialAnswers) y nunca se re-sincroniza
+                      // desde props, así que hay que leer el snapshot fresco (field.value) y no
+                      // el mapa local — si no, un valor recalculado se vería obsoleto durante
+                      // toda la sesión de edición aunque la caché ya se haya refrescado.
+                      value={isCalculatedField(field) ? field.value : answers[field.id]}
+                      filePreviews={filePreviews[field.id]}
+                    />
+                  )}
               {isTriggerField && (
                 <p className="flex items-center gap-1 text-xs text-gray-400">
                   <Info className="h-3 w-3 shrink-0" />
