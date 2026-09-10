@@ -157,7 +157,7 @@ export function SectionFormFieldsBuilder({
       case QUESTION_TYPE.rating:
         return { min_value: null, max_value: 5, default_value: null };
       case QUESTION_TYPE.fileUpload:
-        return { min_value: null, max_value: null, default_value: { allowed_types: [], max_size_mb: 10 } };
+        return { min_value: null, max_value: 1, default_value: { allowed_types: [], max_size_mb: 10 } };
       default: {
         const isNumeric = NUMERIC_DATA_TYPES.includes(derived as string);
         return {

@@ -1,5 +1,5 @@
 import type { FormFieldValue } from "@/types/sections/core";
-import { NUMERIC_DATA_TYPES, QUESTION_TYPE, hasAnswer, readFieldConfig } from "./question-type-meta";
+import { NUMERIC_DATA_TYPES, QUESTION_TYPE, hasAnswer, readFileUploadLimits } from "./question-type-meta";
 
 // Validación (cliente) del VALOR de una respuesta contra los constraints del campo
 // (min_value/max_value/entero/formato email). Corre en el runtime de llenado del
@@ -55,16 +55,12 @@ export function validateFormFieldValue(field: FormFieldValue, value: unknown): F
     return { key: "invalidEmail" };
   }
 
-  // carga_de_archivos con más de un archivo (max_files > 1): value es un array de tokens.
-  // Un solo archivo (comportamiento histórico) no tiene mínimo/máximo de cantidad.
-  if (questionType === QUESTION_TYPE.fileUpload && Array.isArray(value)) {
-    const { min_files, max_files } = readFieldConfig(field);
-    if (typeof min_files === "number" && value.length < min_files) {
-      return { key: "tooFewFiles", params: { min: min_files } };
-    }
-    if (typeof max_files === "number" && value.length > max_files) {
-      return { key: "tooManyFiles", params: { max: max_files } };
-    }
+  // carga_de_archivos: value es siempre un array de tokens (contrato de backend).
+  if (questionType === QUESTION_TYPE.fileUpload) {
+    const list = Array.isArray(value) ? value : [value];
+    const { min, max } = readFileUploadLimits(field);
+    if (list.length < min) return { key: "tooFewFiles", params: { min } };
+    if (list.length > max) return { key: "tooManyFiles", params: { max } };
   }
 
   return null;

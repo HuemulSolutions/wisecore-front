@@ -21,6 +21,7 @@ import {
   jsonbToInputValue,
   readFieldConfig,
   readFieldOptions,
+  readFileUploadLimits,
   writeFieldConfig,
   type FormFieldDraft,
 } from "./question-type-meta";
@@ -250,8 +251,7 @@ export function SectionQuestionTypeFields({
           : [...allowedTypes, type];
         patchConfig({ allowed_types: next });
       };
-      const minFiles = cfg.min_files ?? 0;
-      const maxFiles = cfg.max_files ?? 1;
+      const { min: minFiles, max: maxFiles } = readFileUploadLimits(field);
       return (
         <div className="space-y-3">
           <QuestionTypePreview questionType={qt} />
@@ -293,8 +293,8 @@ export function SectionQuestionTypeFields({
                 label={t("form.formFields.minFiles")}
                 value={minFiles}
                 onChange={(v) => {
-                  const n = v === "" ? 0 : Math.max(0, Number(v));
-                  patchConfig({ min_files: n, max_files: Math.max(maxFiles, n, 1) });
+                  const n = v === "" ? 0 : Math.min(20, Math.max(0, Number(v)));
+                  onUpdate({ min_value: n, max_value: Math.max(maxFiles, n, 1) });
                 }}
                 disabled={isPending}
               />
@@ -303,8 +303,8 @@ export function SectionQuestionTypeFields({
                 label={t("form.formFields.maxFiles")}
                 value={maxFiles}
                 onChange={(v) => {
-                  const n = v === "" ? 1 : Math.max(1, Number(v));
-                  patchConfig({ max_files: n, min_files: Math.min(minFiles, n) });
+                  const n = v === "" ? 1 : Math.min(20, Math.max(1, Number(v)));
+                  onUpdate({ max_value: n, min_value: Math.min(minFiles, n) });
                 }}
                 disabled={isPending}
               />

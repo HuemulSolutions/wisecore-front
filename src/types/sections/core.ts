@@ -153,6 +153,8 @@ export interface FormFieldOption {
 
 // Config de UI por tipo de pregunta, persistida dentro de default_value (JSONB).
 // Para opcion_multiple / desplegable default_value es FormFieldOption[] (no este objeto).
+// La cantidad mín/máx de carga_de_archivos NO vive acá — usa min_value/max_value de
+// SectionFormField, igual que escala_lineal/calificacion (ver readFileUploadLimits).
 export interface FormFieldConfig {
   // escala_lineal — etiquetas de extremos
   min_label?: string;
@@ -160,6 +162,8 @@ export interface FormFieldConfig {
   // carga_de_archivos
   allowed_types?: string[];
   max_size_mb?: number;
+  // Legado: cantidad mín/máx guardada acá por una implementación previa, front-only.
+  // Solo se lee como fallback (readFileUploadLimits) — nunca se escribe.
   min_files?: number;
   max_files?: number;
 }

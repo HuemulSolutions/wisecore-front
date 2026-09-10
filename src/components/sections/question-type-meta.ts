@@ -208,6 +208,22 @@ export const writeFieldConfig = (
 export const jsonbToInputValue = (v: unknown): string | number =>
   v === null || v === undefined || typeof v === "boolean" ? "" : (v as string | number);
 
+// Cantidad mín/máx de archivos de una pregunta carga_de_archivos. Fuente de verdad:
+// min_value/max_value de nivel raíz (mismos campos que usan escala_lineal/calificacion,
+// contrato real del backend). Fallback de lectura a default_value.min_files/max_files
+// por compatibilidad con fields guardados por una implementación previa, front-only,
+// que vivía ahí (nunca llegó a validarse contra el backend real) — al reguardar desde
+// el builder, el field queda migrado a min_value/max_value.
+export const readFileUploadLimits = (
+  field: { min_value?: unknown; max_value?: unknown; default_value?: unknown },
+): { min: number; max: number } => {
+  const cfg = readFieldConfig(field);
+  const min = typeof field.min_value === "number" ? field.min_value : cfg.min_files ?? 0;
+  const maxRaw = typeof field.max_value === "number" ? field.max_value : cfg.max_files;
+  const max = typeof maxRaw === "number" && maxRaw > 0 ? maxRaw : 1;
+  return { min, max };
+};
+
 // question_types de selección single / multi — usados para normalizar el value que
 // llega desde el backend (ver normalizeSelectionValue).
 export const SINGLE_SELECT_QUESTION_TYPES: string[] = [QUESTION_TYPE.multipleChoice, QUESTION_TYPE.dropdown];

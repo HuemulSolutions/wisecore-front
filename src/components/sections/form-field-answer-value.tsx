@@ -14,8 +14,8 @@ import {
   hasAnswer,
   isCalculatedField,
   normalizeSelectionValue,
-  readFieldConfig,
   readFieldOptions,
+  readFileUploadLimits,
   resolveOptionLabels,
 } from "@/components/sections/question-type-meta";
 
@@ -34,8 +34,7 @@ interface FormFieldAnswerValueProps {
    *  pasa answers[field.id], que puede tener ediciones aún no persistidas. */
   value?: unknown;
   /** Metadatos de archivo(s) subido(s) en la sesión actual, en el mismo orden que el
-   *  array de tokens de `value`/`field.value` cuando el campo permite varios archivos
-   *  (`max_files > 1`). Para un solo archivo, sigue siendo un array de 0 o 1 elemento. */
+   *  array de tokens de `value`/`field.value` (siempre array, de 0 o más elementos). */
   filePreviews?: FormFieldFilePreview[];
 }
 
@@ -127,9 +126,8 @@ export function FormFieldAnswerValue({ field, value, filePreviews }: FormFieldAn
   }
 
   if (field.question_type === QUESTION_TYPE.fileUpload) {
-    // Un solo archivo (max_files <= 1, comportamiento histórico): resolved es un string
-    // escalar. Varios archivos (max_files > 1): resolved es un array de tokens/URLs, en el
-    // mismo orden que filePreviews.
+    // resolved es siempre un array de tokens/URLs, en el mismo orden que filePreviews.
+    // Dato legado (guardado antes de este cambio) puede seguir siendo un string escalar.
     const entries = Array.isArray(resolved) ? resolved : [resolved];
     const rows = entries.map((entry, i) => {
       const preview = filePreviews?.[i];
@@ -144,7 +142,7 @@ export function FormFieldAnswerValue({ field, value, filePreviews }: FormFieldAn
 
     // Varios archivos (max_files > 1): grilla de miniaturas compactas en vez de una
     // columna de imágenes grandes (ver asset-form-section.tsx, mismo criterio en edición).
-    const isMulti = (readFieldConfig(field).max_files ?? 1) > 1;
+    const isMulti = readFileUploadLimits(field).max > 1;
 
     if (isMulti) {
       return (

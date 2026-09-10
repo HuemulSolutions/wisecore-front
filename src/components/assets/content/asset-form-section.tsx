@@ -30,6 +30,7 @@ import {
   questionTypeLabel,
   readFieldConfig,
   readFieldOptions,
+  readFileUploadLimits,
 } from "@/components/sections/question-type-meta";
 import { SectionFieldSeparator } from "@/components/sections/section-field-separator";
 import { FormFieldAnswerValue, type FormFieldFilePreview } from "@/components/sections/form-field-answer-value";
@@ -138,8 +139,8 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   // placeholder {{MEDIA:id}} guardado como respuesta no es una URL). name/contentType
   // vienen del archivo real elegido por el usuario, no de field.data_type — ese último
   // siempre es "image" para carga_de_archivos en el catálogo de question_types.
-  // Un archivo (max_files <= 1): array de 0 o 1 elemento. Varios archivos (max_files > 1):
-  // un elemento por token, en el mismo orden que el array `value` guardado.
+  // Un elemento por token, en el mismo orden que el array `value` guardado (siempre array,
+  // de 0 o más elementos, incluso cuando el campo permite un solo archivo).
   const [filePreviews, setFilePreviews] = useState<Record<string, FormFieldFilePreview[]>>({});
   // ids de campos con un auto-guardado en curso — pinta el loader junto al campo respectivo
   // (en vez de un spinner global en una barra) mientras se espera la respuesta del PATCH.
@@ -442,9 +443,18 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
       return;
     }
 
-    const missing = sortedFields.filter(
-      (f) => isFieldAnswerable(f) && f.required && !hasAnswer(answers[f.id]),
-    );
+    const missing = sortedFields.filter((f) => {
+      if (!isFieldAnswerable(f) || !f.required) return false;
+      const value = answers[f.id];
+      if (!hasAnswer(value)) return true;
+      // carga_de_archivos con min_value configurado: sigue pendiente si hay menos archivos
+      // que el mínimo, aunque ya tenga alguno cargado (no solo "vacío" cuenta como pendiente).
+      if (f.question_type === QUESTION_TYPE.fileUpload) {
+        const { min } = readFileUploadLimits(f);
+        return Array.isArray(value) && value.length < min;
+      }
+      return false;
+    });
     const invalidErrors: Record<string, string> = {};
     for (const f of sortedFields) {
       if (!isFieldAnswerable(f)) continue;
@@ -519,9 +529,11 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
         const fileCfg = readFieldConfig(field);
         const accept = fileCfg.allowed_types?.map((ext) => `.${ext}`).join(", ");
         const isUploading = uploadingFields.has(field.id);
-        const maxFiles = fileCfg.max_files && fileCfg.max_files > 1 ? fileCfg.max_files : 1;
+        const { max: maxFiles } = readFileUploadLimits(field);
+        // isMulti gobierna layout (grilla vs. columna) y si un archivo nuevo se agrega o
+        // reemplaza — el value guardado es siempre un array, incluso con maxFiles === 1.
         const isMulti = maxFiles > 1;
-        const existingTokens: unknown[] = isMulti && Array.isArray(value) ? value : value ? [value] : [];
+        const existingTokens: unknown[] = Array.isArray(value) ? value : value ? [value] : [];
 
         const handleFileChange = async (files: FileList | null) => {
           if (!files || files.length === 0) return;
@@ -581,6 +593,8 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
               });
             }
 
+            // value siempre es un array (contrato de backend) — con maxFiles === 1 un
+            // archivo nuevo reemplaza al anterior en vez de agregarse.
             if (isMulti) {
               setAnswer(field.id, [...existingTokens, ...uploaded.map((u) => u.token)], { commit: true });
               setFilePreviews((prev) => ({
@@ -588,7 +602,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
                 [field.id]: [...(prev[field.id] ?? []), ...uploaded.map((u) => u.preview)],
               }));
             } else {
-              setAnswer(field.id, uploaded[0].token, { commit: true });
+              setAnswer(field.id, [uploaded[0].token], { commit: true });
               setFilePreviews((prev) => ({ ...prev, [field.id]: [uploaded[0].preview] }));
             }
           } catch {
@@ -601,7 +615,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
         const handleRemoveFile = (index: number) => {
           const tokens = [...existingTokens];
           tokens.splice(index, 1);
-          setAnswer(field.id, isMulti ? tokens : (tokens[0] ?? null), { commit: true });
+          setAnswer(field.id, tokens, { commit: true });
           setFilePreviews((prev) => {
             const list = [...(prev[field.id] ?? [])];
             list.splice(index, 1);
