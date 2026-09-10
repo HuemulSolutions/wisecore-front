@@ -838,6 +838,8 @@ const translations = {
     needsSections: { en: "This asset needs sections before it can be executed", es: "Este activo necesita secciones antes de poder ejecutarse" },
     noDefaultLlm: { en: "No default LLM available", es: "No hay LLM predeterminado disponible" },
     cannotGenerateNeedsContext: { en: "This asset requires context before generating. Add at least one context item or a dependency.", es: "Este activo requiere contexto antes de generar. Agregar al menos un elemento de contexto o una dependencia." },
+    cannotGenerateMissingRequiredContext: { en: "The following required context items must be filled in before generating: {{items}}.", es: "Faltan completar contextos obligatorios antes de generar: {{items}}." },
+    cannotGenerateMissingRequiredContextGeneric: { en: "There are required context items pending content before generating.", es: "Hay contextos obligatorios pendientes de completar antes de generar." },
     cannotGenerateGeneric: { en: "AI generation isn't available for this asset right now.", es: "La generación con IA no está disponible para este activo en este momento." },
     configureContext: { en: "Configure context", es: "Configurar contexto" },
     refreshContent: { en: "Refresh content", es: "Refrescar contenido" },

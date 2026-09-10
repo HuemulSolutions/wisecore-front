@@ -15,6 +15,12 @@ const translations = {
   noContentAvailable: { en: "No content available", es: "Sin contenido disponible" },
   badgeText: { en: "Text", es: "Texto" },
   badgeDocument: { en: "Asset", es: "Activo" },
+  requiredBadge: { en: "Required", es: "Obligatorio" },
+  pendingContentBadge: { en: "Needs content", es: "Falta completar" },
+  requiredBanner: {
+    en: "{{count}} required context item(s) missing content — blocks AI generation.",
+    es: "Faltan completar {{count}} contexto(s) obligatorio(s) — bloquea la generación con IA.",
+  },
   editContextTitle: { en: "Edit Context", es: "Editar Contexto" },
   deleteContextTitle: { en: "Delete Context", es: "Eliminar Contexto" },
   toast: {
@@ -35,12 +41,17 @@ const translations = {
     addDocumentButton: { en: "Add Asset Context", es: "Agregar Contexto de Activo" },
     contextName: { en: "Context Name", es: "Nombre del Contexto" },
     contextNamePlaceholder: { en: "Enter context name", es: "Ingresar el nombre del contexto" },
+    required: { en: "Required", es: "Obligatorio" },
+    requiredDescription: {
+      en: "Blocks AI generation until this context has content.",
+      es: "Bloquea la generación con IA hasta que este contexto tenga contenido.",
+    },
     contextContent: { en: "Context Content", es: "Contenido del Contexto" },
     contextContentPlaceholder: { en: "Enter context content", es: "Ingresar el contenido del contexto" },
     selectDocument: { en: "Select Asset", es: "Seleccionar Activo" },
     toastTextAdded: { en: "Text context added successfully", es: "Contexto de texto agregado exitosamente" },
     toastDocumentAdded: { en: "Asset context added successfully", es: "Contexto de activo agregado exitosamente" },
-    validationFillFields: { en: "Please fill in all fields", es: "Completar todos los campos" },
+    validationFillFields: { en: "Please fill in the name (and the content, unless marked as required)", es: "Completar el nombre (y el contenido, salvo que sea obligatorio)" },
     validationSelectFile: { en: "Please select a file", es: "Seleccionar un archivo" },
   },
   // context-edit-dialog.tsx
@@ -53,6 +64,11 @@ const translations = {
     saveChanges: { en: "Save Changes", es: "Guardar Cambios" },
     contextName: { en: "Context Name", es: "Nombre del Contexto" },
     contextNamePlaceholder: { en: "Enter context name", es: "Ingresar el nombre del contexto" },
+    required: { en: "Required", es: "Obligatorio" },
+    requiredDescription: {
+      en: "Blocks AI generation until this context has content.",
+      es: "Bloquea la generación con IA hasta que este contexto tenga contenido.",
+    },
     contextContent: { en: "Context Content", es: "Contenido del Contexto" },
     contextContentPlaceholder: { en: "Enter context content", es: "Ingresar el contenido del contexto" },
   },
@@ -76,8 +92,8 @@ const translations = {
   templateTab: {
     title: { en: "Context", es: "Contexto" },
     description: {
-      en: "Text context copied to every asset created from this template.",
-      es: "Contexto de texto que se copia a cada activo creado desde esta plantilla.",
+      en: "Text context copied to every asset created from this template. \"Required\" is inherited too, but only for assets created after the change — existing assets keep what they had.",
+      es: "Contexto de texto que se copia a cada activo creado desde esta plantilla. \"Obligatorio\" también se hereda, pero solo en activos creados después del cambio — los activos existentes conservan lo que tenían.",
     },
     count: { en: "{{count}} contexts", es: "{{count}} contextos" },
     addButton: { en: "Add context", es: "Agregar contexto" },
@@ -114,6 +130,11 @@ const translations = {
     fields: {
       name: { en: "Context name", es: "Nombre del contexto" },
       namePlaceholder: { en: "Enter context name", es: "Ingresar el nombre del contexto" },
+      required: { en: "Required", es: "Obligatorio" },
+      requiredDescription: {
+        en: "Blocks AI generation on inheriting assets until this context has content.",
+        es: "Bloquea la generación con IA en los activos que lo heredan hasta que este contexto tenga contenido.",
+      },
       content: { en: "Context content", es: "Contenido del contexto" },
       contentPlaceholder: { en: "Enter context content", es: "Ingresar el contenido del contexto" },
     },

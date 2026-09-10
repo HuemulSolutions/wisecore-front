@@ -1,6 +1,6 @@
 ﻿import { useMemo, useEffect, useState, useRef, useCallback, useDeferredValue } from "react";
 import { handleApiError } from "@/lib/error-utils";
-import { resolveCannotGenerateReason, isMissingContextReason } from "@/lib/generation-gating";
+import { resolveCannotGenerateReason, isContextRelatedReason } from "@/lib/generation-gating";
 import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
@@ -1047,7 +1047,7 @@ export function AssetContent({
   const cannotGenerateReason = canGenerate
     ? undefined
     : resolveCannotGenerateReason(documentContent?.cannot_generate_reason, t);
-  const isCannotGenerateMissingContext = !canGenerate && isMissingContextReason(documentContent?.cannot_generate_reason);
+  const isCannotGenerateContextRelated = !canGenerate && isContextRelatedReason(documentContent?.cannot_generate_reason);
 
   // Contenido diferido para la lista de secciones: banners, toolbar y el resto
   // del encabezado siguen leyendo `documentContent` directo (necesitan
@@ -3377,7 +3377,7 @@ export function AssetContent({
                                               </>
                                             )}
                                           </HuemulButton>
-                                          {isCannotGenerateMissingContext && frontendPermissions.canAccessSectionSheet && (
+                                          {isCannotGenerateContextRelated && frontendPermissions.canAccessSectionSheet && (
                                             <HuemulButton
                                               variant="outline"
                                               onClick={() => {
