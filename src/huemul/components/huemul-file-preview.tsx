@@ -49,8 +49,9 @@ interface HuemulFilePreviewProps {
   downloadLabel: string;
   className?: string;
   /** "md" (default): imagen grande (max-h-48), para un solo archivo. "sm": miniatura
-   *  cuadrada recortada, para grillas de varios archivos (ver max_files > 1). */
-  size?: "md" | "sm";
+   *  cuadrada recortada, para grillas de varios archivos (ver max_files > 1). "xs":
+   *  miniatura de 32px, para celdas de tabla compactas (ver custom-field-files-cell.tsx). */
+  size?: "md" | "sm" | "xs";
 }
 
 // Preview de un archivo ya subido (campo carga_de_archivos / custom field imagen):
@@ -73,9 +74,26 @@ export function HuemulFilePreview({ url, fileName, contentType, alt, downloadLab
           onError={() => setImgFailed(true)}
           className={cn(
             "rounded border border-gray-200",
-            size === "sm" ? "h-20 w-20 object-cover" : "max-h-48 object-contain",
+            size === "xs" ? "h-8 w-8 object-cover" : size === "sm" ? "h-20 w-20 object-cover" : "max-h-48 object-contain",
           )}
         />
+      </a>
+    );
+  }
+
+  if (size === "xs") {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={name || downloadLabel}
+        className={cn(
+          "inline-flex size-8 items-center justify-center rounded border border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+          className,
+        )}
+      >
+        <MediaIcon contentType={resolvedContentType} className="size-3.5 shrink-0" />
       </a>
     );
   }

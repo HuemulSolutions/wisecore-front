@@ -1,4 +1,4 @@
-import type { PaginationParams, ApiResponse, CustomFieldOption } from './core'
+import type { PaginationParams, ApiResponse, CustomFieldOption, CustomFieldValueFile } from './core'
 
 export type CustomFieldTemplateSource = "manual" | "inferred";
 
@@ -20,6 +20,8 @@ export interface CustomFieldTemplate {
   value_bool: boolean | null;
   value_identifier: string | null;
   value_list: string[] | null;
+  /** Colección value_blobs (carga_de_archivos con max_value > 1) — ver core.ts. */
+  value_files?: CustomFieldValueFile[];
   options?: CustomFieldOption[];
   source: CustomFieldTemplateSource;
   created_at: string;

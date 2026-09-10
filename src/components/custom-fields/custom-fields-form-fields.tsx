@@ -3,7 +3,7 @@ import { HuemulButton } from '@/huemul/components/huemul-button';
 import { Separator } from '@/components/ui/separator';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
-import { QUESTION_TYPE, NUMERIC_DATA_TYPES, jsonbToInputValue } from '@/components/sections/question-type-meta';
+import { QUESTION_TYPE, NUMERIC_DATA_TYPES, jsonbToInputValue, readFileUploadLimits } from '@/components/sections/question-type-meta';
 import { CustomFieldPreview } from '@/components/custom-fields/custom-field-preview';
 import type { CustomFieldFormFieldsProps, CustomFieldOption } from '@/types/custom-fields';
 
@@ -75,6 +75,15 @@ export default function CustomFieldFormFields({
   const settingsSectionLabel = questionType
     ? t('form.section.settings', { type: formatQuestionType(questionType) })
     : t('form.section.settingsGeneric')
+
+  // Cantidad mín/máx de archivos: min_value/max_value (raíz) — fuente de verdad real del
+  // backend. Fallback de lectura a config.min_files/max_files por compatibilidad con
+  // custom fields guardados antes de esta migración (mismo criterio que section-question-type-fields.tsx).
+  const { min: filesMin, max: filesMax } = readFileUploadLimits({
+    min_value: minValue,
+    max_value: maxValue,
+    default_value: config,
+  })
 
   return (
     <div className="space-y-6">
@@ -327,29 +336,29 @@ export default function CustomFieldFormFields({
             <HuemulField
               type="number"
               label={t('sections:form.formFields.minFiles')}
-              value={config.min_files ?? 0}
+              value={filesMin}
               onChange={(v) => {
-                const n = v === '' ? 0 : Math.max(0, Number(v))
-                onConfigChange({ min_files: n, max_files: Math.max(config.max_files ?? 1, n, 1) })
+                const n = v === '' ? 0 : Math.min(20, Math.max(0, Number(v)))
+                onMinValueChange(n)
+                onMaxValueChange(Math.max(filesMax, n, 1))
               }}
               disabled={disabled}
             />
             <HuemulField
               type="number"
               label={t('sections:form.formFields.maxFiles')}
-              value={config.max_files ?? 1}
+              value={filesMax}
               onChange={(v) => {
-                const n = v === '' ? 1 : Math.max(1, Number(v))
-                onConfigChange({ max_files: n, min_files: Math.min(config.min_files ?? 0, n) })
+                const n = v === '' ? 1 : Math.min(20, Math.max(1, Number(v)))
+                onMaxValueChange(n)
+                onMinValueChange(Math.min(filesMin, n))
               }}
               disabled={disabled}
             />
           </div>
-          {(config.max_files ?? 1) > 1 && (
+          {filesMax > 1 && (
             <p className="text-xs text-muted-foreground">
-              {t('sections:form.formFields.filesHint', { max: config.max_files })}
-              {' — '}
-              {t('form.multiFileUploadPendingBackend')}
+              {t('sections:form.formFields.filesHint', { max: filesMax })}
             </p>
           )}
         </div>

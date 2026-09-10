@@ -13,6 +13,7 @@ import { parseCustomFieldUsageError, type CustomFieldUsage } from "@/services/cu
 import {
   questionTypeLabel,
   readFieldConfig,
+  readFileUploadLimits,
   QUESTION_TYPE,
   NUMERIC_DATA_TYPES,
   CALCULATED_QUESTION_TYPES,
@@ -79,14 +80,19 @@ export function CreateEditCustomFieldSheet({
   useEffect(() => {
     if (open) {
       if (customField) {
+        // carga_de_archivos: min/max con fallback a default_value.min_files/max_files —
+        // migra al reguardar un custom field creado antes de esta migración a min_value/max_value.
+        const fileUploadLimits = customField.question_type === QUESTION_TYPE.fileUpload
+          ? readFileUploadLimits(customField)
+          : null
         setFormData({
           name: customField.name,
           description: customField.description,
           masc: customField.masc || "",
           question_type: customField.question_type || "",
           options: customField.data_type === 'list' ? ((customField.default_value as CustomFieldOption[]) ?? []) : [],
-          min_value: typeof customField.min_value === 'number' ? customField.min_value : null,
-          max_value: typeof customField.max_value === 'number' ? customField.max_value : null,
+          min_value: fileUploadLimits ? fileUploadLimits.min : (typeof customField.min_value === 'number' ? customField.min_value : null),
+          max_value: fileUploadLimits ? fileUploadLimits.max : (typeof customField.max_value === 'number' ? customField.max_value : null),
           config: readFieldConfig(customField),
           required: customField.required,
         })
@@ -144,7 +150,9 @@ export function CreateEditCustomFieldSheet({
 
     // Numeric range (respuesta_numerica/decimal) and linear scale share min_value/max_value —
     // only flag when both bounds are set and inverted.
-    const usesMinMax = NUMERIC_DATA_TYPES.includes(dataType) || formData.question_type === QUESTION_TYPE.linearScale
+    const usesMinMax = NUMERIC_DATA_TYPES.includes(dataType)
+      || formData.question_type === QUESTION_TYPE.linearScale
+      || formData.question_type === QUESTION_TYPE.fileUpload
     if (formData.question_type === QUESTION_TYPE.linearScale && (formData.min_value === null || formData.max_value === null)) {
       newErrors.min_value = t('form.minMaxInvalid')
     } else if (usesMinMax && formData.min_value !== null && formData.max_value !== null && formData.min_value > formData.max_value) {
@@ -157,8 +165,9 @@ export function CreateEditCustomFieldSheet({
 
   // Config específica por question_type — mismo modelo de datos que los form fields de sección:
   // numérico → min/max; escala lineal → min/max + etiquetas en default_value; calificación →
-  // estrellas en max_value; carga de archivos → allowed_types/max_size_mb/min_files/max_files
-  // en default_value; lista → opciones en default_value (ya existía).
+  // estrellas en max_value; carga de archivos → cantidad en min_value/max_value (raíz, fuente
+  // de verdad real del backend) y allowed_types/max_size_mb en default_value; lista →
+  // opciones en default_value (ya existía).
   const getTypeSpecificPayload = () => {
     if (dataType === 'list') {
       return { default_value: formData.options }
@@ -175,11 +184,11 @@ export function CreateEditCustomFieldSheet({
     }
     if (formData.question_type === QUESTION_TYPE.fileUpload) {
       return {
+        min_value: formData.min_value,
+        max_value: formData.max_value,
         default_value: {
           allowed_types: formData.config.allowed_types ?? [],
           max_size_mb: formData.config.max_size_mb ?? 10,
-          min_files: formData.config.min_files ?? 0,
-          max_files: formData.config.max_files ?? 1,
         },
       }
     }
@@ -244,19 +253,24 @@ export function CreateEditCustomFieldSheet({
         if (newDataType !== 'list') {
           next.options = []
         }
-        if (!NUMERIC_DATA_TYPES.includes(newDataType) && value !== QUESTION_TYPE.linearScale) {
+        if (!NUMERIC_DATA_TYPES.includes(newDataType) && value !== QUESTION_TYPE.linearScale && value !== QUESTION_TYPE.fileUpload) {
           next.min_value = null
           next.max_value = null
         }
-        // La escala lineal y la calificación por estrellas muestran un default en el
-        // select (1/5), pero ese default es solo visual — si no se inicializa el estado
-        // real, el payload sale con min_value/max_value null y el backend lo rechaza.
+        // La escala lineal, la calificación por estrellas y la carga de archivos muestran
+        // un default en el selector (1/5/1), pero ese default es solo visual — si no se
+        // inicializa el estado real, el payload sale con min_value/max_value null y el
+        // backend lo rechaza.
         if (value === QUESTION_TYPE.linearScale) {
           if (next.min_value === null) next.min_value = 1
           if (next.max_value === null) next.max_value = 5
         }
         if (value === QUESTION_TYPE.rating && next.max_value === null) {
           next.max_value = 5
+        }
+        if (value === QUESTION_TYPE.fileUpload) {
+          if (next.min_value === null) next.min_value = 0
+          if (next.max_value === null) next.max_value = 1
         }
         if (value !== QUESTION_TYPE.linearScale && value !== QUESTION_TYPE.fileUpload) {
           next.config = {}

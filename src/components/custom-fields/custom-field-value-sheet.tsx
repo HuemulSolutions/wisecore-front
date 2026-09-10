@@ -10,7 +10,7 @@ import { useCustomField } from "@/hooks/useCustomFields"
 import { CustomFieldValueField } from "@/components/custom-fields/custom-field-value-field"
 import { CustomFieldInfoCard } from "@/components/custom-fields/custom-field-info-card"
 import { validateCustomFieldValue } from "@/components/custom-fields/custom-field-value-validation"
-import { QUESTION_TYPE } from "@/components/sections/question-type-meta"
+import { QUESTION_TYPE, readFileUploadLimits } from "@/components/sections/question-type-meta"
 import { logger } from "@/lib/logger"
 import type { CustomFieldTemplate, CustomFieldDocument, CustomFieldOption } from "@/types/custom-fields"
 
@@ -63,24 +63,39 @@ export function CustomFieldValueSheet({
     isOpen && !!entity?.custom_field_id,
   )
   const effectiveQuestionType = customFieldDetail?.question_type ?? entity?.question_type
-  const effectiveMinValue = typeof customFieldDetail?.min_value === "number"
-    ? customFieldDetail.min_value
-    : entity?.min_value
-  const effectiveMaxValue = typeof customFieldDetail?.max_value === "number"
-    ? customFieldDetail.max_value
-    : entity?.max_value
+  // Para carga_de_archivos, min/max se resuelven vía readFileUploadLimits — con fallback
+  // legado a default_value.min_files/max_files para custom fields guardados antes de la
+  // migración a min_value/max_value (ver custom-fields-form-fields.tsx).
+  const fileUploadLimits = effectiveQuestionType === QUESTION_TYPE.fileUpload
+    ? readFileUploadLimits({
+        min_value: customFieldDetail?.min_value ?? entity?.min_value,
+        max_value: customFieldDetail?.max_value ?? entity?.max_value,
+        default_value: customFieldDetail?.default_value,
+      })
+    : null
+  const effectiveMinValue = fileUploadLimits
+    ? fileUploadLimits.min
+    : (typeof customFieldDetail?.min_value === "number" ? customFieldDetail.min_value : entity?.min_value)
+  const effectiveMaxValue = fileUploadLimits
+    ? fileUploadLimits.max
+    : (typeof customFieldDetail?.max_value === "number" ? customFieldDetail.max_value : entity?.max_value)
   const effectiveOptions = entity?.data_type === "list"
     ? ((customFieldDetail?.default_value as CustomFieldOption[] | null) ?? entity?.options ?? [])
     : (entity?.options ?? [])
   const scaleLabels = effectiveQuestionType === QUESTION_TYPE.linearScale
     ? (customFieldDetail?.default_value as { min_label?: string; max_label?: string } | null)
     : null
-  const allowedTypes = effectiveQuestionType === QUESTION_TYPE.fileUpload
-    ? (customFieldDetail?.default_value as { allowed_types?: string[] } | null)?.allowed_types
-    : undefined
+  const fileUploadConfig = effectiveQuestionType === QUESTION_TYPE.fileUpload
+    ? (customFieldDetail?.default_value as { allowed_types?: string[]; max_size_mb?: number } | null)
+    : null
+  const allowedTypes = fileUploadConfig?.allowed_types
+  const maxSizeMb = fileUploadConfig?.max_size_mb
 
   const getValueForDataType = (entity: CustomFieldValueEntity): string | string[] => {
     const dataType = entity.data_type
+    // Los archivos se gestionan aparte vía blob upload (singular o colección value_blobs),
+    // sin importar el data_type configurado — antes esto solo se detectaba por "image".
+    if (entity.question_type === QUESTION_TYPE.fileUpload) return ""
     if (dataType === "list" && entity.question_type === QUESTION_TYPE.dropdownMultiple) {
       return entity.value_list ?? []
     }
@@ -146,6 +161,10 @@ export function CustomFieldValueSheet({
 
     const valueVisible = mode === "content" || selectedSource !== "inferred"
     if (valueVisible) {
+      // Legado value_blob singular: si no hay value_files pero sí un value (URL firmada),
+      // cuenta como 1 archivo — sin esto un campo requerido con un solo archivo legado se
+      // vería como "sin responder".
+      const fileCount = entity.value_files?.length ?? (entity.value ? 1 : 0)
       const valueError = validateCustomFieldValue({
         dataType: entity.data_type,
         questionType: effectiveQuestionType,
@@ -153,6 +172,7 @@ export function CustomFieldValueSheet({
         required: isRequired,
         minValue: effectiveMinValue,
         maxValue: effectiveMaxValue,
+        fileCount,
         t,
       })
       if (valueError) newErrors.value = valueError
@@ -192,6 +212,8 @@ export function CustomFieldValueSheet({
 
   const getValuePayload = () => {
     if (!entity) return {}
+    // Los archivos se gestionan aparte vía blob upload — nunca viajan en el PATCH del valor.
+    if (entity.question_type === QUESTION_TYPE.fileUpload) return {}
     if (Array.isArray(value)) {
       return value.length === 0 ? {} : { value }
     }
@@ -349,6 +371,10 @@ export function CustomFieldValueSheet({
                 minLabel={scaleLabels?.min_label}
                 maxLabel={scaleLabels?.max_label}
                 allowedTypes={allowedTypes}
+                maxSizeMb={maxSizeMb}
+                entityType={entityType}
+                entityCustomFieldId={entity.id}
+                valueFiles={entity.value_files}
                 error={formErrors.value}
                 isUploadingImage={isUploadingImage}
                 imageUploadDescription={imageUploadDescription}
@@ -383,6 +409,11 @@ export function CustomFieldValueSheet({
               maxValue={effectiveMaxValue}
               minLabel={scaleLabels?.min_label}
               maxLabel={scaleLabels?.max_label}
+              allowedTypes={allowedTypes}
+              maxSizeMb={maxSizeMb}
+              entityType={entityType}
+              entityCustomFieldId={entity.id}
+              valueFiles={entity.value_files}
               error={formErrors.value}
               isUploadingImage={isUploadingImage}
               imageUploadDescription={imageUploadDescription}
