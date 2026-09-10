@@ -8,6 +8,7 @@ export type ExternalFunctionalityObjective =
   | 'review_section'
   | 'review_asset'
   | 'publish_asset'
+  | 'lifecycle_elaboration'
 
 export interface ExternalFunctionality {
   id: string

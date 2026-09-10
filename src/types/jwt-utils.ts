@@ -44,6 +44,7 @@ export type PermissionResource =
   | 'external_secret'
   | 'lifecycle_external_publish_action'
   | 'lifecycle_external_review_action'
+  | 'lifecycle_elaboration_config'
   | 'token_usage'
   | 'notification'
   | 'custom_fields'

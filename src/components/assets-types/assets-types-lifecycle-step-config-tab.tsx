@@ -6,6 +6,7 @@ import { HuemulSegmentedControl } from "@/huemul/components/huemul-segmented-con
 import { HuemulSectionCard } from "@/huemul/components/huemul-section-card"
 import { deriveAccessType } from "@/lib/lifecycle-access"
 import { LifecycleReviewActionsSection } from "./assets-types-lifecycle-review-actions"
+import { LifecycleElaborationConfigSection } from "./assets-types-lifecycle-elaboration-config"
 import {
   AccessRulesEditor,
   PanelFieldLabel,
@@ -43,6 +44,7 @@ export function LifecycleStepConfigTab({ draft }: { draft: LifecycleStepDraftApi
     updateDraft,
     canManage,
     organizationId,
+    documentTypeId,
     slaUnitOptions,
     accessRuleTypeOptions,
     earlierStepOptions,
@@ -223,6 +225,19 @@ export function LifecycleStepConfigTab({ draft }: { draft: LifecycleStepDraftApi
             )}
           </HuemulSectionCard>
         </>
+      )}
+
+      {capabilities.hasElaborationConfig && organizationId && (
+        step ? (
+          <LifecycleElaborationConfigSection
+            organizationId={organizationId}
+            documentTypeId={documentTypeId}
+            stepId={step.id}
+            readOnly={ro}
+          />
+        ) : (
+          <PanelInfoHint>{t("lifecycle.elaborationConfig.createHint")}</PanelInfoHint>
+        )
       )}
     </div>
   )

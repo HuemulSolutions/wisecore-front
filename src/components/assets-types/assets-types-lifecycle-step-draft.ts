@@ -359,6 +359,7 @@ export function useLifecycleStepDraft({
     isFetching,
     canManage,
     organizationId,
+    documentTypeId,
     isCreateMode: target?.mode === "create",
     step,
     stageType,

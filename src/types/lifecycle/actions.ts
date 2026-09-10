@@ -2,6 +2,7 @@ import type { QueryKey, UseMutationResult } from '@tanstack/react-query'
 import type { LifecycleStatus, LifecyclePermissions, AdvanceBlocker } from '@/types/assets'
 import type { FinalLifecycleStage } from '@/types/document-types'
 import type { LifecycleProgress } from './progress'
+import type { RunElaborationResponse } from './core'
 
 // ----------------------------------------
 // useLifecycleActions
@@ -51,6 +52,8 @@ export interface UseLifecycleActionsOptions {
   onViewChanges?: (previousExecutionId: string, currentExecutionId: string) => void
   /** `custom_fields:l|r` del scope de la página. Gatea la query que alimenta la validación de obligatorios sin valor. */
   canListCustomFields?: boolean
+  /** `lifecycle_elaboration_config:l|r` del scope de la página. Gatea la query que resuelve si el step actual tiene elaboración externa habilitada (decide si se ofrece el botón de disparo manual). */
+  canReadElaborationConfig?: boolean
   /** Abre el tab de campos personalizados del documento. Omitir donde ese tab no existe (WorkflowDetailPanel): el botón "Ir a campos personalizados" se oculta. */
   onOpenCustomFields?: () => void
   /** Navega a la sección con este `section_execution_id` (primer blocker de `advance_blockers`). Omitir donde la superficie no puede navegar a una sección puntual: el botón "Ir a la sección" se oculta. */
@@ -88,6 +91,10 @@ export interface LifecycleActionsController {
   assignVersionMutation: UseMutationResult<unknown, unknown, { major: number; minor: number; patch: number }>
   restoreMutation: UseMutationResult<unknown, unknown, { comment?: string } | undefined>
   runExternalPublishMutation: UseMutationResult<unknown, unknown, void>
+  runElaborationMutation: UseMutationResult<RunElaborationResponse, unknown, void>
+
+  /** `true` si el step actual tiene una `LifecycleElaborationConfig` habilitada — decide si se ofrece el botón de disparo manual. */
+  hasEnabledElaborationConfig: boolean
 
   // Auxiliary data for the "complete" (review) dialog.
   hasExternalReview: boolean
@@ -144,6 +151,8 @@ export interface HuemulLifecycleActionsProps {
   variant?: 'compact' | 'row'
   /** Render the "re-lanzar publish externo" button inline. Assets' desktop row hides it behind the more-options dropdown instead. */
   showRerunExternalPublish?: boolean
+  /** Render el botón de disparo manual de elaboración externa. Omitir donde la superficie no lo ofrece (ej. WorkflowDetailPanel). Default false. */
+  showRunElaboration?: boolean
   /** Oculta el botón "Completar" (status.can_advance) aunque el permiso lo habilite — para superficies que ya lo ofrecen en otro lugar (ej. footer del wizard de /workflow). Default false. */
   hideComplete?: boolean
   className?: string

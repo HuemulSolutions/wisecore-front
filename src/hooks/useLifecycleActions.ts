@@ -9,7 +9,7 @@ import { dataTableQueryKeys } from "@/hooks/useDataTables"
 import { parseMissingRequiredCustomFieldsDetail } from "@/lib/custom-field-required-utils"
 import { getAdvanceBlockers, parseAdvanceBlockersDetail } from "@/lib/advance-blockers-utils"
 import { completeActionLabelKey, completeActionTooltipKey } from "@/lib/lifecycle-labels"
-import { useExternalReviewActions } from "@/hooks/useLifecycle"
+import { useExternalReviewActions, useLifecycleElaborationConfig } from "@/hooks/useLifecycle"
 import { useLifecycleProgress } from "@/hooks/useLifecycleProgress"
 import { useMissingRequiredCustomFields } from "@/hooks/useCustomFieldDocuments"
 import { executionLifecycleQueryKeys } from "@/hooks/useExecutionLifecycle"
@@ -21,6 +21,7 @@ import {
   assignExecutionVersion,
   restoreExecutionLifecycle,
   runExternalPublish,
+  runElaboration,
   getExecutionById,
 } from "@/services/executions"
 import type {
@@ -33,6 +34,7 @@ import type {
   DataTablesRefreshedSummary,
   CompleteLifecycleStepResponse,
   AdvanceLifecycleResponse,
+  RunElaborationResponse,
 } from "@/types/lifecycle"
 
 const VERSION_REQUIRED_CODE = "VERSION_REQUIRED_FOR_APPROVAL"
@@ -71,6 +73,7 @@ export function useLifecycleActions({
   canListCustomFields = false,
   onOpenCustomFields,
   onGoToSection,
+  canReadElaborationConfig = false,
 }: UseLifecycleActionsOptions): LifecycleActionsController {
   const { t } = useTranslation(["assets", "common"])
   const queryClient = useQueryClient()
@@ -344,6 +347,45 @@ export function useLifecycleActions({
     onError: (error) => handleApiError(error, { fallbackMessage: t("lifecycle.errorRerunExternalPublish") }),
   })
 
+  // Whether the current lifecycle step (edit) has an enabled elaboration
+  // config — gatea el botón de disparo manual. `canReadElaborationConfig`
+  // (lifecycle_elaboration_config:l|r del scope de la página) porque el
+  // editor promedio de un activo puede no tener ese permiso de configuración.
+  const { data: elaborationConfigData } = useLifecycleElaborationConfig(
+    organizationId ?? "",
+    lifecycleStatus?.current_step_id ?? "",
+    canReadElaborationConfig &&
+      lifecycleStatus?.stage === "edit" &&
+      !!lifecycleStatus?.current_step_id &&
+      !!organizationId,
+  )
+  const hasEnabledElaborationConfig = elaborationConfigData?.data?.is_enabled === true
+
+  const runElaborationMutation = useMutation({
+    // A diferencia de `runExternalPublishMutation`, acá SÍ hace falta refrescar
+    // `document-content`: el POST arranca el lock (`is_locked_external_elaboration`)
+    // y hay que traerlo para que el poll de 5s (`EXTERNAL_ELABORATION_POLL_MS`)
+    // tome el relevo.
+    mutationFn: withRefresh<void, RunElaborationResponse>(
+      async () => {
+        if (!rbac.canTransition) throw new Error(NO_TRANSITION_PERMISSION)
+        const stepId = lifecycleStatus?.current_step_id
+        if (!executionId || !stepId || !organizationId) throw new Error("Missing execution, step or organization")
+        return runElaboration(executionId, organizationId, stepId)
+      },
+      queryClient,
+      refreshKeys,
+    ),
+    // Sin `meta.successMessage`: el toast de éxito es condicional a que el
+    // backend haya efectivamente disparado un run (`run: null` = el step no
+    // tiene config o está deshabilitada — no es error, pero tampoco hubo
+    // corrida, no corresponde festejarlo).
+    onSuccess: (data: RunElaborationResponse) => {
+      if (data?.run) toast.success(t("lifecycle.successRunElaboration"))
+    },
+    onError: (error) => handleApiError(error, { fallbackMessage: t("lifecycle.errorRunElaboration") }),
+  })
+
   // Whether the current lifecycle step (edit/review) has an external system
   // configured — if so, it must run automatically and the user cannot skip it.
   const canHaveExternalReview = lifecycleStatus?.state === "draft" || lifecycleStatus?.state === "in_review"
@@ -475,6 +517,8 @@ export function useLifecycleActions({
     assignVersionMutation,
     restoreMutation,
     runExternalPublishMutation,
+    runElaborationMutation,
+    hasEnabledElaborationConfig,
 
     hasExternalReview,
     isApprovalStep,

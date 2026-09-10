@@ -5,7 +5,7 @@ import { toDateParam } from "@/lib/date-params";
 import { ApiError } from "@/types/api-error";
 import type { ExecutionsResponse, GetExecutionsParams, RollbackTarget, RollbackStep, RollbackTargetsResponse, ExecutionVersionSuggestion, ExecutionVersionSuggestionResponse, ExecutionSectionsStatusResponse } from "@/types/execution";
 import type { AvailableDocxTemplate, AvailableDocxTemplatesResponse } from "@/types/docx-templates";
-import type { AdvanceLifecycleResponse, CompleteLifecycleStepResponse } from "@/types/lifecycle";
+import type { AdvanceLifecycleResponse, CompleteLifecycleStepResponse, RunElaborationResponse } from "@/types/lifecycle";
 
 export type { RollbackTarget, RollbackStep, RollbackTargetsResponse, ExecutionVersionSuggestion };
 
@@ -658,6 +658,21 @@ export async function runExternalPublish(
     )
     const data = await res.json()
     return data.data
+}
+
+/** `lifecycle_step_id` va como query param (no en el body). `data.run`/`data.job` llegan `null` si el step no tiene config o está deshabilitada — no es error. */
+export async function runElaboration(
+    executionId: string,
+    organizationId: string,
+    lifecycleStepId: string,
+): Promise<RunElaborationResponse> {
+    const res = await httpClient.post(
+        `${backendUrl}/execution-lifecycle/${executionId}/run-elaboration?lifecycle_step_id=${encodeURIComponent(lifecycleStepId)}`,
+        undefined,
+        { headers: { 'X-Org-Id': organizationId } },
+    )
+    const data = await res.json()
+    return data.data as RunElaborationResponse
 }
 
 export async function bulkExportExcel({

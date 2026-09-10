@@ -1,8 +1,8 @@
 import { httpClient } from '@/lib/http-client';
 import { backendUrl } from '@/config';
-import type { LifecycleStepType, LifecycleStepTypesResponse, LifecycleStepRole, LifecycleStep, LifecycleStepsResponse, UpdateLifecycleStepData, SlaUnit, SlaUnitsResponse, CreateLifecycleStepData, LifecycleStepResponse, LifecycleDocumentGrant, LifecycleDocumentGrantsResponse, GrantLifecycleDocumentRequest, GrantLifecycleDocumentResponse, RevokeLifecycleDocumentRequest, RevokeLifecycleDocumentResponse, ExternalPublishAction, ExternalPublishActionsResponse, ExternalPublishActionResponse, CreateExternalPublishActionRequest, UpdateExternalPublishActionRequest, ReorderExternalPublishActionsRequest, ExternalReviewAction, ExternalReviewActionsResponse, ExternalReviewActionResponse, CreateExternalReviewActionRequest, UpdateExternalReviewActionRequest, ReorderExternalReviewActionsRequest, AccessRuleType, AccessRuleTypeOption, AccessRuleTypesResponse, LifecycleAccessRule, CreateAccessRuleData, LifecycleAccessRuleResponse } from '@/types/lifecycle';
+import type { LifecycleStepType, LifecycleStepTypesResponse, LifecycleStepRole, LifecycleStep, LifecycleStepsResponse, UpdateLifecycleStepData, SlaUnit, SlaUnitsResponse, CreateLifecycleStepData, LifecycleStepResponse, LifecycleDocumentGrant, LifecycleDocumentGrantsResponse, GrantLifecycleDocumentRequest, GrantLifecycleDocumentResponse, RevokeLifecycleDocumentRequest, RevokeLifecycleDocumentResponse, ExternalPublishAction, ExternalPublishActionsResponse, ExternalPublishActionResponse, CreateExternalPublishActionRequest, UpdateExternalPublishActionRequest, ReorderExternalPublishActionsRequest, ExternalReviewAction, ExternalReviewActionsResponse, ExternalReviewActionResponse, CreateExternalReviewActionRequest, UpdateExternalReviewActionRequest, ReorderExternalReviewActionsRequest, AccessRuleType, AccessRuleTypeOption, AccessRuleTypesResponse, LifecycleAccessRule, CreateAccessRuleData, LifecycleAccessRuleResponse, LifecycleElaborationConfigResponse, CreateLifecycleElaborationConfigRequest, UpdateLifecycleElaborationConfigRequest } from '@/types/lifecycle';
 
-export type { LifecycleStepType, LifecycleStepTypesResponse, LifecycleStepRole, LifecycleStep, LifecycleStepsResponse, UpdateLifecycleStepData, SlaUnit, SlaUnitsResponse, CreateLifecycleStepData, LifecycleStepResponse, LifecycleDocumentGrant, LifecycleDocumentGrantsResponse, GrantLifecycleDocumentRequest, GrantLifecycleDocumentResponse, RevokeLifecycleDocumentRequest, RevokeLifecycleDocumentResponse, ExternalPublishAction, ExternalPublishActionsResponse, ExternalPublishActionResponse, CreateExternalPublishActionRequest, UpdateExternalPublishActionRequest, ReorderExternalPublishActionsRequest, ExternalReviewAction, ExternalReviewActionsResponse, ExternalReviewActionResponse, CreateExternalReviewActionRequest, UpdateExternalReviewActionRequest, ReorderExternalReviewActionsRequest, AccessRuleType, AccessRuleTypeOption, AccessRuleTypesResponse, LifecycleAccessRule, CreateAccessRuleData, LifecycleAccessRuleResponse };
+export type { LifecycleStepType, LifecycleStepTypesResponse, LifecycleStepRole, LifecycleStep, LifecycleStepsResponse, UpdateLifecycleStepData, SlaUnit, SlaUnitsResponse, CreateLifecycleStepData, LifecycleStepResponse, LifecycleDocumentGrant, LifecycleDocumentGrantsResponse, GrantLifecycleDocumentRequest, GrantLifecycleDocumentResponse, RevokeLifecycleDocumentRequest, RevokeLifecycleDocumentResponse, ExternalPublishAction, ExternalPublishActionsResponse, ExternalPublishActionResponse, CreateExternalPublishActionRequest, UpdateExternalPublishActionRequest, ReorderExternalPublishActionsRequest, ExternalReviewAction, ExternalReviewActionsResponse, ExternalReviewActionResponse, CreateExternalReviewActionRequest, UpdateExternalReviewActionRequest, ReorderExternalReviewActionsRequest, AccessRuleType, AccessRuleTypeOption, AccessRuleTypesResponse, LifecycleAccessRule, CreateAccessRuleData, LifecycleAccessRuleResponse, LifecycleElaborationConfigResponse, CreateLifecycleElaborationConfigRequest, UpdateLifecycleElaborationConfigRequest };
 
 export async function getLifecycleStepTypes(): Promise<LifecycleStepTypesResponse> {
   const response = await httpClient.fetch(`${backendUrl}/lifecycle/step-types`);
@@ -252,6 +252,55 @@ export async function reorderExternalReviewActions(
   await httpClient.put(
     `${backendUrl}/lifecycle/steps/${stepId}/external-review-actions/reorder`,
     body,
+    { headers: { 'X-Org-Id': organizationId } },
+  )
+}
+
+// ─── Elaboration Config ───────────────────────────────────────────────────────
+
+export async function getLifecycleElaborationConfig(
+  stepId: string,
+  organizationId: string,
+): Promise<LifecycleElaborationConfigResponse> {
+  const response = await httpClient.get(
+    `${backendUrl}/lifecycle/steps/${stepId}/elaboration-config`,
+    { headers: { 'X-Org-Id': organizationId } },
+  )
+  return response.json() as Promise<LifecycleElaborationConfigResponse>
+}
+
+export async function createLifecycleElaborationConfig(
+  stepId: string,
+  organizationId: string,
+  body: CreateLifecycleElaborationConfigRequest,
+): Promise<LifecycleElaborationConfigResponse> {
+  const response = await httpClient.post(
+    `${backendUrl}/lifecycle/steps/${stepId}/elaboration-config`,
+    body,
+    { headers: { 'X-Org-Id': organizationId } },
+  )
+  return response.json() as Promise<LifecycleElaborationConfigResponse>
+}
+
+export async function updateLifecycleElaborationConfig(
+  stepId: string,
+  organizationId: string,
+  body: UpdateLifecycleElaborationConfigRequest,
+): Promise<LifecycleElaborationConfigResponse> {
+  const response = await httpClient.put(
+    `${backendUrl}/lifecycle/steps/${stepId}/elaboration-config`,
+    body,
+    { headers: { 'X-Org-Id': organizationId } },
+  )
+  return response.json() as Promise<LifecycleElaborationConfigResponse>
+}
+
+export async function deleteLifecycleElaborationConfig(
+  stepId: string,
+  organizationId: string,
+): Promise<void> {
+  await httpClient.delete(
+    `${backendUrl}/lifecycle/steps/${stepId}/elaboration-config`,
     { headers: { 'X-Org-Id': organizationId } },
   )
 }

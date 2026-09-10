@@ -79,6 +79,8 @@ export interface LifecycleStepCapabilities {
   hasConditions: boolean
   /** Chips de `view` heredado (`inherited_roles` / `view_inherited_for_all_roles`) — solo `view`. */
   hasInheritedViewChips: boolean
+  /** Elaboración externa del contenido (sistema externo procesa los archivos del step y devuelve secciones) — solo `edit`, sin depender de `mode`. */
+  hasElaborationConfig: boolean
 }
 
 export function lifecycleStepCapabilities(type: string): LifecycleStepCapabilities {
@@ -93,6 +95,7 @@ export function lifecycleStepCapabilities(type: string): LifecycleStepCapabiliti
     canDelete: groupable,
     hasConditions: groupable,
     hasInheritedViewChips: type === "view",
+    hasElaborationConfig: type === "edit",
   }
 }
 
@@ -280,6 +283,7 @@ export interface LifecycleActionsVisibility {
   canArchive: boolean
   canRestore: boolean
   canRerunExternalPublish: boolean
+  canRunElaboration: boolean
   /** Ninguna acción disponible: el contenedor no se pinta (ver `HuemulLifecycleActions`). */
   hasAny: boolean
 }
@@ -305,6 +309,9 @@ export function resolveLifecycleActionsVisibility(input: {
   isBlockedByRequiredAnswers?: boolean
   showRerunExternalPublish?: boolean
   hideComplete?: boolean
+  showRunElaboration?: boolean
+  /** `controller.hasEnabledElaborationConfig` — el step actual tiene una `LifecycleElaborationConfig` habilitada. */
+  hasEnabledElaborationConfig?: boolean
 }): LifecycleActionsVisibility {
   const { status, permissions, canTransition, finalLifecycleStage } = input
 
@@ -316,6 +323,7 @@ export function resolveLifecycleActionsVisibility(input: {
       canArchive: false,
       canRestore: false,
       canRerunExternalPublish: false,
+      canRunElaboration: false,
       hasAny: false,
     }
   }
@@ -330,6 +338,17 @@ export function resolveLifecycleActionsVisibility(input: {
   const canRestore = !!permissions?.archive && isRestorableLifecycleState(status.state)
   const canRerunExternalPublish =
     !!input.showRerunExternalPublish && !!permissions?.publish && status.state === "published"
+  // El lock (`is_locked_external_elaboration`) NO entra acá — se resuelve como
+  // `disabled` en el botón, no como visibilidad, para no saltar el layout
+  // mientras corre. `status.stage` (no `state`): `state` varía dentro de la
+  // misma etapa (ej. "returned") y el chequeo canónico de "sigo en edición" en
+  // todo el repo es por `stage`.
+  const canRunElaboration =
+    !!input.showRunElaboration &&
+    !!input.hasEnabledElaborationConfig &&
+    !!permissions?.edit &&
+    status.stage === "edit" &&
+    !isTerminalLifecycleState(status.state)
 
   return {
     canReturn,
@@ -338,7 +357,9 @@ export function resolveLifecycleActionsVisibility(input: {
     canArchive,
     canRestore,
     canRerunExternalPublish,
-    hasAny: canReturn || canComplete || canPublish || canArchive || canRestore || canRerunExternalPublish,
+    canRunElaboration,
+    hasAny:
+      canReturn || canComplete || canPublish || canArchive || canRestore || canRerunExternalPublish || canRunElaboration,
   }
 }
 

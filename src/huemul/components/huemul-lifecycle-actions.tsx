@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next"
-import { Undo2, Check, Globe, Archive, RotateCcw, RefreshCw } from "lucide-react"
+import { Undo2, Check, Globe, Archive, RotateCcw, RefreshCw, Sparkles } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
-import { resolveLifecycleActionsVisibility } from "@/lib/lifecycle-access"
+import { resolveLifecycleActionsVisibility, isExternalElaborationLocked } from "@/lib/lifecycle-access"
 import type { HuemulLifecycleActionsProps } from "@/types/lifecycle"
 
 /**
@@ -17,6 +17,7 @@ export function HuemulLifecycleActions({
   controller,
   variant = "row",
   showRerunExternalPublish = false,
+  showRunElaboration = false,
   hideComplete = false,
   className,
 }: HuemulLifecycleActionsProps) {
@@ -26,7 +27,7 @@ export function HuemulLifecycleActions({
   // Reglas centralizadas en lib/lifecycle-access.ts: el panel de workflow las
   // consulta antes de renderizar para decidir si su fila de ciclo de vida
   // quedaría vacía. Incluye el gate RBAC (`canTransition`, `asset:u`).
-  const { canReturn, canComplete, canPublish, canArchive, canRestore, canRerunExternalPublish, hasAny } =
+  const { canReturn, canComplete, canPublish, canArchive, canRestore, canRerunExternalPublish, canRunElaboration, hasAny } =
     resolveLifecycleActionsVisibility({
       status,
       permissions,
@@ -35,9 +36,16 @@ export function HuemulLifecycleActions({
       isBlockedByRequiredAnswers: controller.isBlockedByRequiredAnswers,
       showRerunExternalPublish,
       hideComplete,
+      showRunElaboration,
+      hasEnabledElaborationConfig: controller.hasEnabledElaborationConfig,
     })
 
   if (!hasAny) return null
+
+  // El lock decide `disabled`, no visibilidad (ver resolveLifecycleActionsVisibility):
+  // si apagara `canRunElaboration`, el botón desaparecería al disparar y
+  // reaparecería al terminar, saltando el layout.
+  const elaborationLocked = isExternalElaborationLocked(status ?? undefined)
 
   const isCompact = variant === "compact"
   const iconClassName = isCompact ? "h-3 w-3" : "h-3.5 w-3.5"
@@ -126,6 +134,21 @@ export function HuemulLifecycleActions({
           className={`${sizeClass} text-gray-600 ${isCompact ? "" : "hover:bg-gray-100 hover:text-gray-800"} hover:cursor-pointer`}
           loading={controller.runExternalPublishMutation.isPending}
           onClick={() => controller.runExternalPublishMutation.mutate()}
+        />
+      )}
+      {canRunElaboration && (
+        <HuemulButton
+          variant={buttonVariant}
+          size="sm"
+          label={t("lifecycle.runElaboration")}
+          icon={Sparkles}
+          iconPosition="left"
+          iconClassName={iconClassName}
+          className={`${sizeClass} text-gray-600 ${isCompact ? "" : "hover:bg-gray-100 hover:text-gray-800"} hover:cursor-pointer`}
+          loading={controller.runElaborationMutation.isPending}
+          disabled={elaborationLocked}
+          tooltip={elaborationLocked ? t("lifecycle.tooltipElaborationRunning") : t("lifecycle.tooltipRunElaboration")}
+          onClick={() => controller.runElaborationMutation.mutate()}
         />
       )}
     </div>

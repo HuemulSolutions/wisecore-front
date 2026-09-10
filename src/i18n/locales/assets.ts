@@ -327,6 +327,11 @@ const translations = {
     rerunExternalPublish: { en: "Run external publish", es: "Ejecutar publicación externa" },
     successRerunExternalPublish: { en: "External publish triggered successfully", es: "Publicación externa iniciada correctamente" },
     errorRerunExternalPublish: { en: "Failed to trigger external publish. Please try again.", es: "Error al relanzar la publicación externa. Reintentar." },
+    runElaboration: { en: "Run external elaboration", es: "Ejecutar elaboración externa" },
+    tooltipRunElaboration: { en: "Send the uploaded files to the external system for processing", es: "Enviar los archivos cargados al sistema externo para procesarlos" },
+    tooltipElaborationRunning: { en: "External elaboration in progress", es: "Elaboración externa en curso" },
+    successRunElaboration: { en: "External elaboration triggered successfully", es: "Elaboración externa iniciada correctamente" },
+    errorRunElaboration: { en: "Failed to trigger external elaboration. Please try again.", es: "Error al ejecutar la elaboración externa. Reintentar." },
     stateLabels: {
       draft: { en: "Elaboration", es: "Elaboración" },
       in_review: { en: "In Review", es: "En Revisión" },

@@ -192,7 +192,7 @@ export function AssetContent({
   const navigate = useOrgNavigate();
   const isMobile = useIsMobile();
   const { selectedOrganizationId } = useOrganization();
-  const { canCreate, canList, canAccessTemplates, canAccessAssets, canAccessDiagrams } = useUserPermissions();
+  const { canCreate, canList, canAccessTemplates, canAccessAssets, canAccessDiagrams, isOrgAdmin, hasPermission } = useUserPermissions();
   const { can } = usePageAccess('asset');
   const { can: canMedia } = usePageAccess('media');
   const { handleCreateAsset: openCreateAssetDialog } = useNavKnowledgeActions();
@@ -553,6 +553,10 @@ export function AssetContent({
   // Los custom fields son un recurso propio (custom_fields), no del asset: el tab
   // y su query exigen el permiso de listarlos.
   const canListCustomFields = can('listCustomFields');
+  // Recurso propio sin feature en RBAC_PAGES (mismo criterio que
+  // `lifecycle_external_review_action` en assets-types-lifecycle-review-actions.tsx)
+  // — gatea la query que decide si se ofrece el botón de disparo manual de elaboración.
+  const canReadElaborationConfig = isOrgAdmin || hasPermission('lifecycle_elaboration_config:l') || hasPermission('lifecycle_elaboration_config:r');
   const canCreateCustomField = can('createCustomField');
   const canListNotifications = can('listNotifications');
   const canListDiscussions = canList('discussion');
@@ -1459,6 +1463,7 @@ export function AssetContent({
           setIsTocSidebarOpen(true);
         }
       : undefined,
+    canReadElaborationConfig,
   });
 
   // Set initial view mode based on lifecycle permissions (once per document+execution):
@@ -2329,7 +2334,7 @@ export function AssetContent({
                     {documentContent?.lifecycle_status && (
                       <div className="flex items-center gap-1.5 flex-wrap bg-gray-50 px-2 py-1 rounded-lg">
                         <HuemulLifecycleStageBadge status={documentContent.lifecycle_status} />
-                        <HuemulLifecycleActions controller={lifecycle} variant="compact" showRerunExternalPublish />
+                        <HuemulLifecycleActions controller={lifecycle} variant="compact" showRerunExternalPublish showRunElaboration />
                       </div>
                     )}
                   </div>
@@ -2848,7 +2853,7 @@ export function AssetContent({
                       {documentContent?.lifecycle_status && (
                         <div className="flex items-center gap-2 shrink-0 bg-gray-50 px-2 py-1 rounded-lg">
                           <HuemulLifecycleStageBadge status={documentContent.lifecycle_status} />
-                          <HuemulLifecycleActions controller={lifecycle} variant="row" />
+                          <HuemulLifecycleActions controller={lifecycle} variant="row" showRunElaboration />
                         </div>
                       )}
                     </div>

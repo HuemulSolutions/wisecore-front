@@ -142,6 +142,11 @@ export function LifecycleStepSheet({
     void queryClient.invalidateQueries({ queryKey: lifecycleQueryKeys.stepsByDocumentType(documentTypeId) })
     void refetchRoles()
     refreshConditionsApi?.refresh()
+    // La tarjeta de elaboración externa (tab Config) persiste al instante y no
+    // participa del batch — mismo motivo que `refreshConditionsApi` arriba.
+    if (draft.step?.id) {
+      void queryClient.invalidateQueries({ queryKey: lifecycleQueryKeys.elaborationConfig(draft.step.id) })
+    }
   }
 
   return (
