@@ -154,7 +154,7 @@ export interface SectionExecutionProps {
     ai_suggestion_status?: 'pending' | 'completed' | 'failed' | null
     ai_suggestion_content?: string | null
     ai_suggestion_instruction?: string | null
-    review_status?: 'editing' | 'reviewing' | 'finished' | null
+    review_status?: 'editing' | 'reviewing' | 'finished' | 'rejected' | null
     /** Completitud de obligatorios resuelta por el backend (solo secciones type="form"). */
     answers_status?: import('../sections/execution-core').SectionAnswersStatus | null
     /** Valores del formulario (solo para secciones type="form") */

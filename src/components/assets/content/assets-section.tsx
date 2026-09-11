@@ -605,6 +605,7 @@ function SectionExecutionInner({
                                         { value: 'editing', label: t('section.reviewStatusEditing'), color: '#3b82f6' },
                                         { value: 'reviewing', label: t('section.reviewStatusReviewing'), color: '#f59e0b' },
                                         { value: 'finished', label: t('section.reviewStatusFinished'), color: '#22c55e' },
+                                        { value: 'rejected', label: t('section.reviewStatusRejected'), color: '#ef4444' },
                                     ]}
                                     className="w-auto"
                                     selectSize="xs"

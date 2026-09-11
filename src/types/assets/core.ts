@@ -425,7 +425,7 @@ export interface ContentSection {
   ai_suggestion_content?: string | null;
   ai_suggestion_instruction?: string | null;
   ai_suggestion_error?: string | null;
-  review_status?: 'editing' | 'reviewing' | 'finished' | null;
+  review_status?: 'editing' | 'reviewing' | 'finished' | 'rejected' | null;
   form_fields?: import('../sections/core').FormFieldValue[];
   depends_on?: import('../sections/core').FieldDependencyCondition[] | null;
   show_when_inactive?: boolean;
