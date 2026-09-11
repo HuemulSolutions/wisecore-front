@@ -19,6 +19,37 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const sh = (cmd) => execSync(cmd, { cwd: repoRoot, encoding: "utf8" }).trim();
 const run = (cmd) => execSync(cmd, { cwd: repoRoot, stdio: "inherit" });
 
+const BUMP_RANK = { patch: 0, minor: 1, major: 2 };
+
+// Mismo criterio que generate-changelog.mjs para encontrar el último tag de versión.
+function lastTag() {
+  const config = JSON.parse(readFileSync(path.join(repoRoot, "scripts/changelog.config.json"), "utf8"));
+  const tagRegex = new RegExp(config.tagPattern);
+  const tags = sh("git tag -l --sort=creatordate")
+    .split("\n")
+    .filter((t) => tagRegex.test(t));
+  const tag = tags[tags.length - 1];
+  return tag ? { tag, hash: sh(`git rev-list -n 1 ${tag}`) } : null;
+}
+
+function commitSubjectsSince(hash) {
+  const out = sh(hash ? `git log --no-merges --format=%s ${hash}..HEAD` : "git log --no-merges --format=%s HEAD");
+  return out ? out.split("\n") : [];
+}
+
+// Piso de bump sugerido según los prefijos Conventional Commits del lote.
+function suggestBump(subjects) {
+  let bump = "patch";
+  for (const subject of subjects) {
+    const m = subject.match(/^([a-z]+)(\([^)]*\))?(!)?:\s*/i);
+    if (!m) continue;
+    const [, type, , breaking] = m;
+    if (breaking) return "major";
+    if (["feat", "feature"].includes(type.toLowerCase())) bump = "minor";
+  }
+  return bump;
+}
+
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const spec = args.find((a) => !a.startsWith("--"));
@@ -35,7 +66,22 @@ let next;
 if (/^\d+\.\d+\.\d+$/.test(spec ?? "")) {
   next = spec;
 } else {
-  const kind = ["minor", "major"].includes(spec) ? spec : "patch";
+  const subjects = commitSubjectsSince(lastTag()?.hash);
+  const suggested = suggestBump(subjects);
+
+  let kind;
+  if (["patch", "minor", "major"].includes(spec)) {
+    kind = spec;
+    if (BUMP_RANK[kind] < BUMP_RANK[suggested]) {
+      console.warn(
+        `Aviso: pediste "${kind}" pero los commits desde el último tag sugieren "${suggested}" (hay feat/breaking en el lote).`,
+      );
+    }
+  } else {
+    kind = suggested;
+    console.log(`Sugerido por commits: ${kind}`);
+  }
+
   const [ma, mi, pa] = current.split(".").map(Number);
   next = kind === "major" ? `${ma + 1}.0.0` : kind === "minor" ? `${ma}.${mi + 1}.0` : `${ma}.${mi}.${pa + 1}`;
 }
