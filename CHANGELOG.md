@@ -1,5 +1,285 @@
 # Changelog
 
+## [1.0.95] - 2026-09-03
+### Nuevo
+- agrega sección fija de documentos relacionados al final del contenido del activo
+### Arreglos
+- ocultar etapa y "Continuar más tarde" cuando el usuario ya no tiene nada por hacer
+- mostrar botón "Continuar más tarde" en cualquier etapa del workflow
+
+## [1.0.94] - 2026-09-02
+### Nuevo
+- Nuevas tarjetas para mostrar al completar o no tener acciones para realizar
+- agrega botón "Continuar más tarde" en vista fullscreen de workflow
+- Ajustar diseños y tamaños de tarjetas workflow
+### Arreglos
+- evitar doble click en campos de fecha/hora vacíos (autosave prematuro en blur)
+
+## [1.0.93] - 2026-09-02
+### Nuevo
+- usa answers_status del backend como fuente de completitud de secciones form
+- Mejoras diseño de workflow y buscador. Cambiar estado de una seccion a completar cuando se completen los campos obligatorios
+- Mejorar diseño de listado de workflows disponibles
+- etiquetar etapa y sección en el panel de detalle de workflow
+- unificar hues de lifecycle y ejecución en lifecycle-colors.ts
+### Arreglos
+- footer del wizard de workflow ya no queda oculto en móvil
+- la matriz de permisos por rol muestra todas las etapas del ciclo de vida
+- próximo paso del ciclo de vida usa los hitos y fallback del nombre de step
+- próximo paso del ciclo de vida usa los hitos, no el siguiente step del array
+- vista fullscreen de workflow ya no termina en pantalla estática
+- estabilizar identidad de paneles resizables y tooltip de botón deshabilitado
+- quitar nombre de etapa del CTA de completar en elaboración
+- unificar nomenclatura de activos en traducciones (documento -> activo)
+- refrescar lifecycle_status al cruzar el umbral de obligatorios pendientes
+
+## [1.0.92] - 2026-08-31
+### Nuevo
+- mostrar paso del ciclo de vida pendiente en tabla de workflows
+- agregar tab de log de cambios de documento al sheet de historial
+- diferenciar empty state de workflow entre sin datos y sin resultados de búsqueda
+- reemplazar "borrador" por "elaboración" en estado draft del ciclo de vida
+- eliminar relación desde el kebab de documentos relacionados
+- fuente de documentos relacionados y sheet con previsualización en tabla de datos
+- precios por 1M tokens en modelos LLM
+- tabla de datos configurable en el editor Plate
+### Arreglos
+- deshabilitar (no ocultar) "Completar Etapa" cuando faltan respuestas obligatorias
+- corregir redacción del aviso de solo lectura por ciclo de vida en workflow
+- desbloquear botón de completar/aprobar cuando la versión se asigna dentro del sheet
+- estado stale de corrida anterior al re-ejecutar una sección con IA
+- banner de generación de secciones no reflejaba estados en re-ejecuciones
+- evitar que el editor se congele al finalizar la generación de una sección
+- jerarquia de capas de toolbars flotantes del editor Plate
+- quitar pantalla completa de diagramas, abrir en código y redimensionar Mermaid por arrastre
+- redisear tamaño y vista de diagramas Mermaid para WYSIWYG real
+### Otros
+- Verion 1.0.92
+- refactor: ajustar copy del paso vacío y del aviso de solo lectura en workflow
+- refactor: intercambiar estado de ciclo de vida y sección en el header del panel de workflow
+- refactor: ajustar copy y controles de la etapa de aprobación en workflow
+- refactor: unificar copy del paso de nombre del workflow express a "activo"
+- refactor: eliminar descripción del header en los sheets del ciclo de vida
+- refactor: simplificar dialog de compartir workflow — un solo cierre, URL en input de una línea y copy nuevo
+- refactor: derivar colores de KPI de ciclo de vida en home desde lifecycle-colors
+- refactor: mover asignación de versión a solo el sheet del ciclo de vida
+- style: reordenar header de assets — modo lector/editor a la derecha, versión y etapa junto a acciones de ciclo de vida
+- style: Ajustar diseño de canvas
+- perf: backoff escalonado en el polling de estado de ejecución
+
+## [1.0.91] - 2026-08-26
+### Nuevo
+- heredar el permiso de lectura desde edición, revisión y aprobación
+- crear rol desde la matriz de permisos por rol de tipos de activo
+- mostrar y editar etiquetas por fila en la tabla de tipos de activo
+- soportar include_tags en el listado de tipos de documento
+- agrupar columnas por etapa con encabezado de dos niveles en las matrices de ciclo de vida y permisos por sección
+- agrupar columnas de la matriz de ciclo de vida por etapa con encabezado de dos niveles
+- renombrar y hacer colapsable la sección de reglas de la matriz de ciclo de vida
+### Arreglos
+- distinguir «sin regla propia» de «sin acceso» en la matriz de permisos por sección
+### Otros
+- style: Mejorar ux y estructura visual
+- refactor: extraer HuemulMatrix como componente reutilizable de las matrices de permisos por rol y por sección
+- refactor: mover el guardado del sheet de configuración de tipos de activo a cada panel
+
+## [1.0.90] - 2026-08-24
+### Nuevo
+- mostrar ruta y ubicar dependencias en el árbol de assets
+- rediseñar confirmaciones de ciclo de vida como sheets con progreso
+### Arreglos
+- guardar contra dragEntry/dropEntry undefined en table-node canDropNode
+- mostrar estado accionable cuando el paso del workflow no tiene secciones para completar
+- mostrar botón de refresh del panel de workflow sin secciones
+- refrescar permisos de sección al completar transiciones de ciclo de vida
+- eliminar nombre duplicado en paso inicial del wizard workflow
+- ocultar botón "Completar" del header en secciones de solo lectura del wizard
+- ocultar botón "Ir a la sección" por sección de solo lectura en resumen de workflow
+- unificar ancho de los sheets de ciclo de vida
+
+## [1.0.89] - 2026-08-24
+### Nuevo
+- rediseñar canvas de relaciones — pill de rol, contenedor y aristas
+- soportar nodos y relaciones de rol en diagramas
+- bloquear generación con IA cuando el activo requiere contexto sin configurar
+- mostrar relation_name en cards de templates de workflow
+- rediseñar capa visual de comentarios del editor Plate y agregar panel "ver todos los comentarios" del documento
+- soportar archivos Excel (.xlsx/.xlsm) como contexto
+### Arreglos
+- ocultar botón "Ir a la sección" en resumen de workflow para usuarios de solo lectura
+- evitar botón Completar duplicado en wizard de workflow
+- no cerrar panel de asset al finalizar y avanzar en /workflow
+- agregar contexto y paridad de reglas de acceso al lifecycle de tipos de activo
+- resolver permisos de sección por ciclo de vida contra /sections en vez de /content
+- corregir tooltip de comentarios y agregar resolver/reabrir/eliminar discusiones
+- corregir posición del popover de nuevo comentario
+- evitar borrado de discusión completa y agregar rollback en comentarios
+
+## [1.0.88] - 2026-08-22
+### Nuevo
+- soportar estado finalized del ciclo de vida
+- consumir el permiso de edición por sección resuelto por el backend
+- permitir acceso diferenciado por rol en permisos por sección
+- activar permisos por sección vía flag de plantilla
+- soportar carpetas colapsables y drag & drop nativo en HuemulTable
+- agregar carpetas para tipos de documento con vista de árbol y drag & drop
+- agregar bloque de condiciones de sección en config de tipo de activo
+- soportar dependencias condicionales a nivel de sección
+- soportar include_executions y asset_ids en get_content de folders
+### Arreglos
+- migrar permisos por sección al endpoint lifecycle_access_matrix
+- conservar la condición de sección guardada en el bloque de tipos de activo
+- enviar name al guardar condiciones de sección de plantilla
+- rediseñar menú de referencias con @
+- Mejorar visualizacion y ux para agregar referencia con @
+
+## [1.0.87] - 2026-08-20
+### Nuevo
+- seleccionar modelo, nombrar y versionar en generación de imágenes con IA
+- bloquear avance desde draft con custom fields obligatorios sin valor
+### Arreglos
+- corregir tipado de placeholderData en useTemplateDependencies
+- cerrar hallazgos de auditoría en /workflow (refresh, borrado, layout, i18n)
+- agregar botón de refresh a /home y limpiar traducciones muertas
+- Ocultar secciones form sin preguntas visibles y recalcular avance del wizard
+### Otros
+- refactor: extraer fila de dependencia a componente propio
+- design: Estandarizar layout de las paginas de canvas
+- design: Ajustar jerarquia
+- refactor: reorganizar dropdown de settings del header en grupos temáticos
+
+## [1.0.86] - 2026-08-19
+### Nuevo
+- agregar link para compartir y responder workflows
+- permitir responder formularios de asset desde el modo lector
+- permitir descartar aviso de autoguardado en formularios
+- hacer desplegable el resumen de secciones del workflow
+- agregar asignación de etiquetas a documentos, plantillas y tipos de activo
+- mostrar creación/edición de etiquetas en sheet con selector de color en swatches
+- agregar página de administración de etiquetas (/tags)
+- agregar capa de datos de etiquetas (tags)
+- agregar acción dedicada para cambiar solo la clave API de un proveedor LLM
+### Arreglos
+- Reemplazar url al crear express para que siempre se vea ese
+- Si el usuario que ingresa no tiene permiso no puede ver nada y se mostrara un mensaje
+- celda sticky de acciones transparente en HuemulTable
+- mover chevron al final del header de tarjeta y achicar botones de acción
+- unificar estilo del título de pregunta entre modo respuesta y vista de solo lectura
+- ocultar botón "atrás" en la primera sección del wizard de workflow
+- ocultar secciones ya agregadas del combo de dependencias internas
+- mostrar siempre un decimal en campos numéricos decimales
+- sincronizar section_name del payload de form_values en el caché de contenido
+- mover etiquetas de tipos de activo a la columna general, sacarlas de la tabla
+- precargar endpoint/deployment al editar proveedor LLM y hacer key opcional
+
+## [1.0.85] - 2026-08-16
+### Nuevo
+- generar imagen con IA desde el picker de referencia de media
+- simplificar toolbar del editor y mejorar picker de referencia de media
+- simplificar toolbar del canvas de diagramas con menús desplegables
+- guardar picker de diagrama en modo sheet y mantener edición tras crear
+- agregar rol a contenedores y nodo de rol en el canvas de diagramas
+- rediseñar sheet de dependencias con lista directa y picker en sheet
+- agregar etapa final del ciclo de vida configurable por tipo de activo
+- suavizar líneas de relación y resaltar etiqueta en el canvas de diagramas
+- mostrar secciones form como tarjetas colapsables en modo lector del asset
+- agregar referencia a roles con @ en el editor
+- agregar creación de documento desde link Markdown y arreglar detalle de duplicado
+- agregar documentos relacionados y rediseñar índice en tab de contenido del asset
+- mover el editor de diagramas a su propia página y llevar diagramas al nav principal
+- rediseñar la configuración de asset types en un sheet con tabs y matriz de permisos por rol
+- fijar botón agregar rol, colorear filas especiales y hacer resizable el panel de etapa
+- rediseñar la pestaña de permisos por rol con selector de etapa y guardado batch
+- agregar tamaño "wide" a HuemulSheet para ocupar 85% del viewport
+- reemplazar selector de pasos del ciclo de vida por matriz de permisos por rol
+- unificar edición, plantillas y ciclo de vida en un sheet de configuración con tabs
+### Arreglos
+- Corregir warnings de tailwind
+- refrescar biblioteca al crear documento express
+- evitar banner global de error al renderizar mermaid inválido
+- mostrar la acción de editar custom field como botón inline
+- cerrar la auditoría RBAC gateando Wisy, /advanced y notificaciones
+- alinear /workflow a RBAC declarativo y cruzar lifecycle × RBAC en transiciones
+- alinear /users a RBAC declarativo y cerrar sus 6 diálogos sin gate
+- alinear /search y /token-usage a RBAC declarativo y cerrar sus gestos sin gate
+- alinear /roles a RBAC declarativo y cerrar sus 7 gestos de escritura sin gate
+- alinear /organizations a RBAC declarativo y cerrar sus diálogos sin gate
+- alinear /models a RBAC declarativo y cerrar sus 3 gestos sin gate
+- alinear /media a RBAC declarativo y cerrar su ruta sin guard
+- alinear /home a RBAC declarativo y gatear sus 8 superficies de datos
+- alinear /external-systems y /global-admin a RBAC declarativo y cerrar deleteKeyCode
+- alinear /diagrams a permisos diagram:* y cerrar lecturas gateadas con :u
+- alinear /custom-fields a permisos custom_fields:* y aislar X-Org-Id del contexto
+- separar canCreate/canUpdate/canDelete en /canvas y alinear nav a RBAC_PAGES
+- cerrar fuga de permisos stale entre sesiones y endurecer /auth
+- alinear /auth-types a requireRootAdmin y defensa en profundidad
+- cerrar huecos RBAC en /asset y cruzar lifecycle con permisos globales
+- cerrar huecos RBAC en /asset-types y /asset-type-relationships
+- cerrar bypass RBAC en /advanced por navegación directa de URL
+- cerrar huecos RBAC en /templates y crear infraestructura de auditoría
+- gatear polling de notificaciones por RBAC y bajar frecuencia a 10 min
+### Otros
+- eliminar página demo /huemul-demo y su ruta
+- eliminar página /graph y el componente NetworkGraph
+
+## [1.0.84] - 2026-08-10
+### Nuevo
+- rediseñar detail sheet de media a layout de dos columnas con drag & drop de versiones
+- permitir editar nombre y resumen de un media desde el detail sheet
+- permitir ver la imagen generada en pantalla completa
+- rediseñar sheet de generación de imagen IA y refrescar galería al instante
+- agregar generación de imágenes con IA en el módulo Media
+- permitir elegir tipo de test de conexión en modelos multimodales
+- agregar servicio y tipos para PATCH form_answer (respuesta pregunta a pregunta)
+- agregar name_placeholder al vínculo asset type-template
+- agregar gestion de tokens de API desde dropdown de usuario
+- agregar endpoints de tokens (list, create, get)
+- agregar creación de asset invocando sistema externo (import síncrono)
+- agregar capa de datos de summary/by-user en token-usage, precios LLM y permiso token_usage
+- agregar creación de asset invocando sistema externo (import síncrono)
+- rediseñar sheet de crear/editar custom field con secciones numeradas
+- unificar edición y eliminación de custom fields en un mismo sheet
+- agregar opción "sin valor" a custom fields de tipo lista/opción múltiple
+### Arreglos
+- corregir onChange de HuemulField en detail sheet de media
+- ejecutar test de conexión chat + imagen para modelos multimodales
+- corregir test de conexión de LLMs y agregar test de generación de imágenes
+- mostrar error de campo en uso dentro del mismo dialog de borrado
+- manejar borrado de custom fields en uso con confirmación forzada
+- permitir 2 líneas en tabs de contenido/campos personalizados antes de truncar
+- quitar padding y estilo de tarjeta del panel lateral de contenido/campos personalizados
+- rediseñar panel de contenido con header y footer grises a sangre y paginación compacta
+- rediseñar panel de campos personalizados (header fijo, scroll area, paginación y render por tipo)
+- llevar vista previa de question types a alta fidelidad (controles reales)
+- rediseñar botón de zona de peligro a texto rojo sin relleno en sheets
+- mover vista previa arriba y danger zone al footer en sheet de campos personalizados
+- mostrar transición de estado con badges de color en historial de ciclo de vida
+- refrescar historial de ciclo de vida tras mutaciones y agregar botón de refresh
+- expandir relaciones solo agrega hijos directos y renombrar botón
+- expandir carpetas ancestro del árbol al crear un asset nuevo
+- corregir refresco del árbol de dependencias tras agregar/quitar/cambiar versión
+- ajustar ancho a xl y agregar refresh al sheet de diagramas
+- restringir duracion de token de API a valores fijos permitidos
+- ocultar skeleton de generación cuando la sección falla
+- mostrar mensaje claro cuando la generación falla por dependencia sin contenido
+- agregar icono + a botones de agregar pregunta y crear custom field
+- corregir label i18n y estados visuales de chips en pregunta tipo Carga de archivos
+- agregar opciones consecutivas 3-10 en selector de estrellas de pregunta tipo Calificación
+- traducir "custom field" a "campo personalizado" en preguntas de tipo campo personalizado
+- renombrar "Enunciado" a "Pregunta" y ajustar textos de field ID en builder de secciones
+- usar selected_option/selected_options para mostrar valor de listas en custom fields de assets
+- corregir bugs de refresh manual y actualizar guide
+
+## [1.0.83] - 2026-08-04
+### Nuevo
+- agregar modo --full a generate-changelog para reconstruir historial completo
+- agregar capa de datos de telemetría diaria de organización (por org y por modelo)
+- exportar diagramas Mermaid a Word y Markdown vía snapshot de imagen
+- permitir elegir versión (publicada/aprobada/específica) al vincular dependencias entre documentos
+### Arreglos
+- Arreglo salto en pantalla
+- corregir tipado de params en getTokenUsageStats para build TS
+
 ## [1.0.82] - 2026-08-03
 ### Nuevo
 - mostrar y generar resumen de IA del contenido en gestión de versiones
@@ -1384,4 +1664,4 @@
 - Configuración inicial
 - Initial commit
 
-<!-- changelog-last-commit: 4df31217b5d2d8cae5b5b4725e31a903ef701863 -->
+<!-- changelog-last-commit: bb091b4028dfb242eb3cfb62f8afcff46f7e31e3 -->
