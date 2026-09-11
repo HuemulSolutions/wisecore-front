@@ -346,6 +346,38 @@ function RelationshipsCanvasFlow({
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
 
+  // Right panel — tracks the clicked node/edge. Declarado antes de `layeredNodes`/
+  // `layeredEdges` porque el resaltado de relaciones (abajo) depende de la selección.
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+
+  // Deriva qué nodos/edges "pertenecen" a la selección actual — usado por
+  // `layeredNodes`/`layeredEdges` para atenuar el resto del canvas. `null` cuando no
+  // hay nada seleccionado (comportamiento normal, sin dimming).
+  const highlightSets = useMemo(() => {
+    if (selectedNodeId) {
+      const activeEdgeIds = new Set<string>()
+      const activeNodeIds = new Set<string>([selectedNodeId])
+      for (const e of edges) {
+        if (e.source === selectedNodeId || e.target === selectedNodeId) {
+          activeEdgeIds.add(e.id)
+          activeNodeIds.add(e.source)
+          activeNodeIds.add(e.target)
+        }
+      }
+      return { activeNodeIds, activeEdgeIds }
+    }
+    if (selectedEdgeId) {
+      const edge = edges.find((e) => e.id === selectedEdgeId)
+      if (!edge) return null
+      return {
+        activeNodeIds: new Set<string>([edge.source, edge.target]),
+        activeEdgeIds: new Set<string>([selectedEdgeId]),
+      }
+    }
+    return null
+  }, [selectedNodeId, selectedEdgeId, edges])
+
   // Deriva el zIndex de render sin tocar el state: los contenedores van siempre debajo de los
   // demás nodos (más grandes primero, para que uno anidado siga siendo seleccionable), y las
   // aristas quedan por encima de los contenedores para poder clickearlas aunque los crucen.
@@ -375,18 +407,22 @@ function RelationshipsCanvasFlow({
 
     return nodes.map((n) => {
       const z = n.type === "container" ? (containerZ.get(n.id) ?? CONTAINER_Z_BASE) : NODE_Z
+      // Containers son lanes de fondo — atenuarlos deja un rectángulo fantasma, así
+      // que quedan fuera del dimming por selección.
+      const isDimmed = !!highlightSets && n.type !== "container" && !highlightSets.activeNodeIds.has(n.id)
+      const dimClassName = isDimmed ? "opacity-30 transition-opacity" : "transition-opacity"
       if (n.type === "role") {
         const roleId = (n.data as CanvasElementNodeData).role?.id
         const count = roleId ? (roleContainerCounts.get(roleId) ?? 0) : 0
         const roleMeta: RoleNodeMeta = count > 0 ? { kind: "containers", count } : { kind: "none" }
         const prevMeta = (n.data as { roleMeta?: RoleNodeMeta }).roleMeta
         const metaChanged = prevMeta?.kind !== roleMeta.kind || (roleMeta.kind === "containers" && (prevMeta as { count?: number })?.count !== roleMeta.count)
-        if (!metaChanged && n.zIndex === z) return n
-        return { ...n, zIndex: z, data: { ...n.data, roleMeta } }
+        if (!metaChanged && n.zIndex === z && n.className === dimClassName) return n
+        return { ...n, zIndex: z, className: dimClassName, data: { ...n.data, roleMeta } }
       }
-      return n.zIndex === z ? n : { ...n, zIndex: z }
+      return n.zIndex === z && n.className === dimClassName ? n : { ...n, zIndex: z, className: dimClassName }
     })
-  }, [nodes])
+  }, [nodes, highlightSets])
 
   // World position for the "ROLES" column eyebrow — above the topmost role pill,
   // aligned to the column's x. Not a node, so it's kept out of `layeredNodes`.
@@ -400,12 +436,19 @@ function RelationshipsCanvasFlow({
 
   const layeredEdges = useMemo(
     () =>
-      edges.map((e) => ({
-        ...e,
-        zIndex: EDGE_Z,
-        markerEnd: e.selected ? EDGE_MARKER_SELECTED : EDGE_MARKER,
-      })),
-    [edges],
+      edges.map((e) => {
+        const highlight: RelationshipEdgeData['highlight'] = highlightSets
+          ? (highlightSets.activeEdgeIds.has(e.id) ? 'active' : 'dim')
+          : undefined
+        const isActive = e.selected || highlight === 'active'
+        return {
+          ...e,
+          zIndex: EDGE_Z,
+          markerEnd: isActive ? EDGE_MARKER_SELECTED : EDGE_MARKER,
+          data: { ...e.data, highlight } as RelationshipEdgeData,
+        }
+      }),
+    [edges, highlightSets],
   )
   // Un solo estado para el sheet de guardado: 'new' crea (POST), 'metadata' solo edita
   // nombre/descripción/ejecución. "Guardar cambios" ya no pasa por el sheet — guarda
@@ -472,9 +515,6 @@ function RelationshipsCanvasFlow({
   const [attributesRelationshipId, setAttributesRelationshipId] = useState<string | null>(null)
   const [attributesRelationshipName, setAttributesRelationshipName] = useState("")
 
-  // Right panel — tracks the clicked edge
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
     setSelectedEdgeId(edge.id)
     setSelectedNodeId(null)
@@ -482,6 +522,13 @@ function RelationshipsCanvasFlow({
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     setSelectedNodeId(node.id)
+    setSelectedEdgeId(null)
+  }, [])
+
+  // Clic en el fondo del canvas: apaga la selección y, con ella, el dimming de
+  // `highlightSets` y el panel lateral.
+  const onPaneClick = useCallback(() => {
+    setSelectedNodeId(null)
     setSelectedEdgeId(null)
   }, [])
 
@@ -1376,7 +1423,13 @@ function RelationshipsCanvasFlow({
       const directRels = filterDocumentTypeId
         ? relData.data.filter((rel) => otherSide(rel).document_type_id === filterDocumentTypeId)
         : relData.data
-      if (!directRels.length) return
+      if (!directRels.length) {
+        // "Expandir por tipo": el conteo del panel viene de esta misma consulta,
+        // así que en teoría siempre hay al menos una — pero si la relación se borró
+        // entre que se abrió el panel y se hizo clic, avisar en vez de no hacer nada.
+        if (filterDocumentTypeId) toast.info(t("nodePanel.noRelationsForType"))
+        return
+      }
 
       // Flatten top-level + all sub-relationships (relationship_source / relationship_target)
       // into a single deduplicated map — used only to draw edges between nodes that end up on
@@ -2155,6 +2208,7 @@ function RelationshipsCanvasFlow({
           onReconnect={readOnly ? undefined : onReconnect}
           onEdgeClick={onEdgeClick}
           onNodeClick={onNodeClick}
+          onPaneClick={onPaneClick}
           onDrop={readOnly ? undefined : handleDrop}
           onDragOver={readOnly ? undefined : handleDragOver}
           nodeTypes={NODE_TYPES}
@@ -2259,7 +2313,6 @@ function RelationshipsCanvasFlow({
               }
               nodeActions={nodeActions}
               onOpenAsset={mode === 'execution' && nodeData.assetId ? () => handleOpenAsset(nodeData.assetId!, nodeData.executionId) : undefined}
-              documentTypeId={mode === 'execution' ? nodeData.documentTypeId : undefined}
               documentTypes={documentTypes}
               onLoadRelationshipsForType={mode === 'execution' && canListExecRelationships ? handleLoadExecutionRelationshipsForType : undefined}
               onLoadRelationships={nodeData.onLoadRelationships && (mode === 'execution' ? canListExecRelationships : canListRelationships) ? (mode === 'execution' ? handleLoadExecutionRelationships : handleLoadRelationships) : undefined}

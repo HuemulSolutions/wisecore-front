@@ -210,10 +210,15 @@ const translations = {
       en: "Adds the node's direct children to the canvas, along with their connections to nodes already there",
       es: "Agrega al canvas los nodos hijos directos y sus conexiones con los nodos que ya están presentes",
     },
-    expandByType: { en: "Expand by Type", es: "Expandir por tipo" },
-    expandByTypeDescription: {
-      en: "Only adds nodes and connections for the chosen related asset type",
-      es: "Solo agrega nodos y conexiones del tipo de activo relacionado elegido",
+    relatedTypes: { en: "Related", es: "Relacionados" },
+    relatedTypesLoading: { en: "Loading…", es: "Cargando…" },
+    relatedTypesEmpty: {
+      en: "This version has no relationships yet.",
+      es: "Esta versión todavía no tiene relaciones.",
+    },
+    noRelationsForType: {
+      en: "No relationships found for that asset type.",
+      es: "No se encontraron relaciones para ese tipo de activo.",
     },
     loadRelationshipsCanvasOnly: { en: "Connect Canvas Nodes", es: "Conectar Nodos del Canvas" },
     loadRelationshipsCanvasOnlyDescription: {
