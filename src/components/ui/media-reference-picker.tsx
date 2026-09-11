@@ -19,6 +19,7 @@ import { HuemulFilterPanel } from '@/huemul/components/huemul-filter-panel'
 import { HuemulViewToggle } from '@/huemul/components/huemul-view-toggle'
 import { HuemulMediaGallery } from '@/huemul/components/huemul-media-gallery'
 import { HuemulMediaGenerateSheet } from '@/huemul/components/huemul-media-generate-sheet'
+import { isImage } from '@/huemul/components/huemul-media-icon'
 import { mediaTokenFor } from '@/lib/plate-media-utils'
 import type { Media } from '@/types/media'
 import type { GeneratedImage } from '@/types/image-generation'
@@ -98,21 +99,26 @@ export function MediaReferencePicker({
     setPage(1)
   }
 
-  function insertMediaReference(mediaId: string, previewUrl: string) {
+  interface InsertMediaArgs {
+    mediaId: string
+    previewUrl: string
+    name: string
+    contentType?: string | null
+    fileSize?: number | null
+  }
+
+  function insertMediaReference({ mediaId, previewUrl, name, contentType, fileSize }: InsertMediaArgs) {
     if (!editor) return
 
     const url = mediaTokenFor(mediaId)
+    const asImage = isImage(contentType)
 
-    // Insert image node at current selection
+    // Insert an image node for images, a file (card) node for everything else —
+    // the picker lists every media type, not just images (see MEDIA_UPLOAD_EXTENSIONS).
     editor.tf.insertNodes(
-      {
-        type: KEYS.img,
-        url,
-        previewUrl,
-        mediaId,
-        children: [{ text: '' }],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any,
+      asImage
+        ? { type: KEYS.img, url, previewUrl, mediaId, alt: name, children: [{ text: '' }] }
+        : { type: KEYS.file, url, previewUrl, mediaId, name, contentType, fileSize, children: [{ text: '' }] },
       { select: true },
     )
 
@@ -123,12 +129,25 @@ export function MediaReferencePicker({
 
   function handleSelect(media: Media) {
     if (!editor) return
-    insertMediaReference(media.id, media.current_version?.download_url || '')
+    const version = media.current_version
+    insertMediaReference({
+      mediaId: media.id,
+      previewUrl: version?.download_url || '',
+      name: media.name ?? version?.original_filename ?? media.id,
+      contentType: version?.content_type,
+      fileSize: version?.file_size,
+    })
     handleClose()
   }
 
   function handleGeneratedInsert(image: GeneratedImage) {
-    insertMediaReference(image.media_id, image.url)
+    // AI-generated images are always PNGs.
+    insertMediaReference({
+      mediaId: image.media_id,
+      previewUrl: image.url,
+      name: tMedia('generate.title'),
+      contentType: 'image/png',
+    })
     setGenerateOpen(false)
     handleClose()
   }

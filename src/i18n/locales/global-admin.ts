@@ -1,9 +1,25 @@
 const translations = {
   title: { en: "Global Admin Settings", es: "Configuración de Administración Global" },
-  description: { en: "Manage organizations and users across all organizations.", es: "Gestionar organizaciones y usuarios en todas las organizaciones." },
+  description: {
+    en: "Cross-organization control: every organization and every user in the installation, regardless of role.",
+    es: "Control cruzado entre organizaciones: todas las organizaciones y todos los usuarios de la instalación, sin importar el rol.",
+  },
+  // Copy diferenciador de /global-admin frente a /organizations y /users:
+  // acá se ve y gestiona TODO (límites de sistema, membership cross-org),
+  // no solo lo alcanzable con el rol de la organización activa.
   tabs: {
-    organizations: { en: "Organizations", es: "Organizaciones" },
-    users: { en: "Organization Users", es: "Usuarios de Organizaciones" },
+    organizations: { en: "All Organizations", es: "Todas las Organizaciones" },
+    users: { en: "All Users", es: "Todos los Usuarios" },
+  },
+  sections: {
+    organizationsSubtitle: {
+      en: "Every organization in the installation, including system limits.",
+      es: "Todas las organizaciones de la instalación, incluidos los límites de sistema.",
+    },
+    usersSubtitle: {
+      en: "Every user across every organization.",
+      es: "Todos los usuarios de todas las organizaciones.",
+    },
   },
   accessDenied: {
     description: {
@@ -11,12 +27,10 @@ const translations = {
       es: "No hay permisos para acceder a la Configuración de Administración Global.",
     },
   },
-  toast: {
-    orgCreated: { en: "Organization created successfully", es: "Organización creada exitosamente" },
-    orgUpdated: { en: "Organization updated successfully", es: "Organización actualizada exitosamente" },
-    orgDeleted: { en: "Organization deleted successfully", es: "Organización eliminada exitosamente" },
-    orgAdminPending: { en: "Organization admin action is pending for {{name}}", es: "Acción de administrador de organización pendiente para {{name}}" },
-  },
+  // Sin bloque `toast` propio: ambas secciones ahora usan los hooks
+  // compartidos (`useOrganizationMutations`, `useUserMutations`), cuyos
+  // toasts salen de los namespaces `organizations`/`users` vía
+  // `meta.successMessage` — ver ia context/refactor-module-guide.md.
 }
 
 export default translations

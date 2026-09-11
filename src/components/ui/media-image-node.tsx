@@ -9,13 +9,14 @@ import { useDraggable } from '@platejs/dnd';
 import { ImagePlugin, useMediaState } from '@platejs/media/react';
 import { ResizableProvider, useResizableValue } from '@platejs/resizable';
 import { PlateElement, withHOC } from 'platejs/react';
-import { ImageOff } from 'lucide-react';
+import { ImageOff, Maximize2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
 import { useResolvedMediaUrl } from '@/contexts/media-url-context';
 
 import { Caption, CaptionTextarea } from './caption';
+import { MediaImageLightbox } from './media-image-lightbox';
 import { MediaToolbar } from './media-toolbar';
 import {
   mediaResizeHandleVariants,
@@ -30,6 +31,7 @@ export const ImageElement = withHOC(
     const width = useResizableValue('width');
     const element = props.element as TImageElement & { mediaId?: string; previewUrl?: string };
     const { t } = useTranslation('editor');
+    const [lightboxOpen, setLightboxOpen] = React.useState(false);
 
     const { isDragging, handleRef } = useDraggable({
       element: props.element,
@@ -44,6 +46,15 @@ export const ImageElement = withHOC(
     // /media_urls refresh replaces an expired SAS url with a fresh one).
     React.useEffect(() => setLoadError(false), [src]);
     const showBroken = isBroken || loadError;
+    const alt = props.attributes.alt as string | undefined;
+
+    // A single click on a void node selects it (needed for resize/toolbar), so
+    // opening the lightbox needs a distinct trigger while editing: double-click,
+    // or the expand button. In read-only mode there's nothing to protect, so a
+    // plain click opens it directly — matching how a reader expects an image to behave.
+    function handleImageClick() {
+      if (readOnly) setLightboxOpen(true);
+    }
 
     return (
       <MediaToolbar plugin={ImagePlugin}>
@@ -72,18 +83,35 @@ export const ImageElement = withHOC(
                   <span className="text-sm">{t('media.unavailable')}</span>
                 </div>
               ) : (
-                <img
-                  ref={handleRef}
-                  src={src}
-                  onError={() => setLoadError(true)}
-                  className={cn(
-                    'block w-full max-w-full cursor-pointer object-cover px-0',
-                    'rounded-sm',
-                    focused && selected && 'ring-2 ring-ring ring-offset-2',
-                    isDragging && 'opacity-50'
-                  )}
-                  alt={props.attributes.alt as string | undefined}
-                />
+                <div className="group/image relative">
+                  <img
+                    ref={handleRef}
+                    src={src}
+                    onError={() => setLoadError(true)}
+                    onClick={handleImageClick}
+                    onDoubleClick={() => setLightboxOpen(true)}
+                    className={cn(
+                      'block w-full max-w-full cursor-pointer object-cover px-0',
+                      'rounded-sm',
+                      focused && selected && 'ring-2 ring-ring ring-offset-2',
+                      isDragging && 'opacity-50'
+                    )}
+                    alt={alt}
+                  />
+                  <button
+                    type="button"
+                    contentEditable={false}
+                    className="absolute right-2 top-2 rounded p-1.5 text-white opacity-0 transition-opacity bg-black/50 hover:bg-black/70 group-hover/image:opacity-100"
+                    aria-label={t('media.expand')}
+                    title={t('media.expand')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLightboxOpen(true);
+                    }}
+                  >
+                    <Maximize2 className="size-4" />
+                  </button>
+                </div>
               )}
               <ResizeHandle
                 className={mediaResizeHandleVariants({
@@ -106,6 +134,9 @@ export const ImageElement = withHOC(
 
           {props.children}
         </PlateElement>
+        {!showBroken && (
+          <MediaImageLightbox open={lightboxOpen} onOpenChange={setLightboxOpen} src={src} alt={alt} />
+        )}
       </MediaToolbar>
     );
   }

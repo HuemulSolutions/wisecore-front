@@ -1,13 +1,3 @@
-import type { Organization } from './table'
-
-export interface OrganizationPageState {
-  searchTerm: string
-  selectedOrganizations: Set<string>
-  editingOrganization: Organization | null
-  showCreateDialog: boolean
-  deletingOrganization: Organization | null
-}
-
 export interface OrganizationUser {
   id: string;
   email: string;

@@ -30,17 +30,12 @@ import {
   type UserDetailPanelGuardApi,
 } from "@/components/users"
 
-const USER_DETAIL_TABS: readonly UserDetailTab[] = ['profile', 'roles']
-
 export default function UsersPage() {
   const [state, setState] = useState<UserListState>({
     searchTerm: "",
     selectedUsers: new Set(),
-    editingUser: null,
-    organizationUser: null,
     showCreateDialog: false,
     deletingUser: null,
-    rootAdminUser: null
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
@@ -49,21 +44,33 @@ export default function UsersPage() {
   const [createRoleSheetOpen, setCreateRoleSheetOpen] = useState(false)
   const [createRoleInitialName, setCreateRoleInitialName] = useState("")
 
+  // Get permissions and organization context
+  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('users')
+  // `isRootAdmin` es el eje del flag de sistema `is_root_admin`
+  // (PATCH /users/{id}/root-admin), no un bypass de los permisos org-scoped.
+  // También gatea el tab "Organizaciones" (asignar/quitar organizaciones,
+  // cross-org y root-admin-only — ver users-detail-organizations-tab.tsx).
+  const { isRootAdmin } = useUserPermissions()
+  const { selectedOrganizationId, organizationToken } = useOrganization()
+
+  // El set de tabs depende de `isRootAdmin`, que resuelve después del primer
+  // render — a diferencia de /roles (tabs fijos), acá hace falta
+  // `normalize: true` + `ready` para corregir un `?tab=organizations` de la
+  // URL si el usuario no es root admin (ver ia context/detail-surface-guide.md).
+  const userDetailTabs: readonly UserDetailTab[] = isRootAdmin
+    ? ['profile', 'roles', 'organizations']
+    : ['profile', 'roles']
+
   // El usuario/tab seleccionados viven en la URL (?user=<id>&tab=roles), no en
   // un useState espejo: así el panel es linkeable y sobrevive al refresh. Ver
   // precedente src/pages/assets-types.tsx:86-93.
   const selectedUserId = searchParams.get('user')
   const { tab: detailTab, setTab: setDetailTab, applyTab } = useUrlTab({
-    tabs: USER_DETAIL_TABS,
+    tabs: userDetailTabs,
     fallback: 'profile',
+    normalize: true,
+    ready: !isLoadingPermissions,
   })
-
-  // Get permissions and organization context
-  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('users')
-  // `isRootAdmin` es el eje del flag de sistema `is_root_admin`
-  // (PATCH /users/{id}/root-admin), no un bypass de los permisos org-scoped.
-  const { isRootAdmin } = useUserPermissions()
-  const { selectedOrganizationId, organizationToken } = useOrganization()
   const queryClient = useQueryClient()
   const { t } = useTranslation(['users', 'common'])
 
@@ -312,6 +319,7 @@ export default function UsersPage() {
         onTabChange={handleTabChange}
         onClose={handleClosePanel}
         onDeleteUser={() => updateState({ deletingUser: selectedUser })}
+        availableTabs={userDetailTabs}
         onOpenCreateRoleSheet={handleOpenCreateRoleSheet}
         userMutations={userMutations}
         profileForm={profileForm}
@@ -323,6 +331,7 @@ export default function UsersPage() {
         canCreateRole={canCreateRole}
         onRegisterGuard={onRegisterGuard}
         staging={staging}
+        organizationsTab={isRootAdmin ? { canManageMembers: true } : undefined}
       />
 
       {/* Dialogs and Sheets */}
@@ -332,12 +341,7 @@ export default function UsersPage() {
         onUpdateState={updateState}
         userMutations={userMutations}
         canCreate={canCreateUser}
-        canUpdate={canUpdateUser}
         canDelete={canDeleteUser}
-        canManageRootAdmin={isRootAdmin}
-        // Asignar/quitar organizaciones es cross-org y solo se ofrece desde
-        // /global-admin (root-admin-only): esta pantalla no tiene el trigger.
-        canManageOrganizations={false}
       />
 
       {/* Sibling del layout — nunca anidado en el panel ni en el popover, ver

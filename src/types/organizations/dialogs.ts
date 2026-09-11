@@ -18,27 +18,7 @@ export interface DeleteOrganizationDialogProps {
   canDelete: boolean
 }
 
-export interface EditOrganizationDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  organization: Organization | null
-  onSave: () => void
-  isSaving: boolean
-  onOrgChange: (org: Organization) => void
-  /** Sin default: cada call-site debe declarar explícitamente su eje de permiso. */
-  canSave: boolean
-  /**
-   * No es un eje de RBAC ni un bypass: solo decide si se muestran/editan los
-   * límites de sistema (`max_users`/`token_limit`), que no son org-scoped.
-   */
-  canManageSystemLimits?: boolean
-}
-
-export interface SetOrganizationAdminDialogProps {
-  organization: Organization | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess?: () => void
-  /** Sin default: cada call-site debe declarar explícitamente su eje de permiso. */
-  canSetAdmin: boolean
-}
+// `EditOrganizationDialogProps`/`SetOrganizationAdminDialogProps` se
+// retiraron: límites de sistema y "Hacer admin" pasaron a ser inline en
+// `OrganizationDetailPanel` (tabs Detalles/Usuarios), en `/organizations` y
+// `/global-admin`.
