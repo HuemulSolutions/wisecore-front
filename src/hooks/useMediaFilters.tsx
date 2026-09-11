@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next"
 import { useOrganization } from "@/contexts/organization-context"
 import { useHuemulFilters } from "@/hooks/useHuemulFilters"
 import { usePageAccess } from "@/hooks/usePageAccess"
-import { getLevelOptions } from "@/huemul/components/huemul-media-icon"
+import { getLevelOptions, getMediaTypeOptions } from "@/huemul/components/huemul-media-icon"
 import { buildMediaParentFetchOptions, getMediaParentLabel } from "@/huemul/components/huemul-media-parent"
 import { HuemulAssetTreePickerField } from "@/huemul/components/huemul-asset-tree-picker"
 import type { MediaLevel } from "@/types/media"
@@ -94,9 +94,13 @@ export function useMediaFilters(options: UseMediaFiltersOptions = {}) {
       parentDef,
       {
         key: "mediaType",
-        type: "text",
+        type: "select",
         label: t("filters.mediaType"),
-        placeholder: t("filters.mediaTypePlaceholder"),
+        allValue: "",
+        options: [
+          { value: "", label: t("filters.allMediaTypes") },
+          ...getMediaTypeOptions(t),
+        ],
       },
     ]
   }, [t, level, selectedOrganizationId, parentLabel, allowedLevels])

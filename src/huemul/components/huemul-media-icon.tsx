@@ -22,6 +22,45 @@ export function hasAllowedMediaExtension(filename: string): boolean {
   return (MEDIA_UPLOAD_EXTENSIONS as readonly string[]).includes(ext)
 }
 
+// Mapa best-effort extensión → mime, usado para decidir imagen vs. archivo y elegir
+// ícono cuando no se conoce el content_type real (ej. valor ya persistido: el backend
+// solo devuelve la URL firmada, sin metadatos del archivo), y como fuente única de
+// los MIME exactos que usa el filtro de tipo de archivo (ver MEDIA_TYPE_FILTER_EXTENSIONS).
+export const EXTENSION_MIME: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  bmp: "image/bmp",
+  webp: "image/webp",
+  svg: "image/svg+xml",
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  csv: "text/csv",
+  ppt: "application/vnd.ms-powerpoint",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  txt: "text/plain",
+  zip: "application/zip",
+  mp4: "video/mp4",
+  mp3: "audio/mpeg",
+}
+
+// Extensiones filtrables por tipo — MEDIA_UPLOAD_EXTENSIONS menos "csv": su MIME
+// varía entre navegador/SO (text/csv vs application/vnd.ms-excel) y el backend
+// hace match exacto contra media_type, así que incluirlo filtraría mal. CSV sigue
+// siendo subible, solo no aparece como opción del filtro.
+export const MEDIA_TYPE_FILTER_EXTENSIONS = MEDIA_UPLOAD_EXTENSIONS.filter((ext) => ext !== "csv")
+
+export function getMediaTypeOptions(t: TFunction): { value: string; label: string }[] {
+  return MEDIA_TYPE_FILTER_EXTENSIONS.map((ext) => ({
+    value: EXTENSION_MIME[ext],
+    label: t(`filters.mediaTypes.${ext}`),
+  }))
+}
+
 export function MediaIcon({ contentType, className }: { contentType?: string | null; className?: string }) {
   const cls = cn("shrink-0", className)
   if (!contentType) return <File className={cls} />

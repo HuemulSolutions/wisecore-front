@@ -25,7 +25,16 @@ const translations = {
     title: { en: "Filters", es: "Filtros" },
     level: { en: "Level", es: "Nivel" },
     mediaType: { en: "File Type", es: "Tipo de Archivo" },
-    mediaTypePlaceholder: { en: "e.g. image/png", es: "ej. image/png" },
+    allMediaTypes: { en: "All types", es: "Todos los tipos" },
+    mediaTypes: {
+      pdf: { en: "PDF", es: "PDF" },
+      docx: { en: "Word (DOCX)", es: "Word (DOCX)" },
+      xlsx: { en: "Excel (XLSX)", es: "Excel (XLSX)" },
+      png: { en: "PNG image", es: "Imagen PNG" },
+      jpg: { en: "JPG image", es: "Imagen JPG" },
+      pptx: { en: "PowerPoint (PPTX)", es: "PowerPoint (PPTX)" },
+      txt: { en: "Text (TXT)", es: "Texto (TXT)" },
+    },
     parentPlaceholder: { en: "Select…", es: "Seleccionar…" },
     clear: { en: "Clear filters", es: "Limpiar filtros" },
     levels: {
