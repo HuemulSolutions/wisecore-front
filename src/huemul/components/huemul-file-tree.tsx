@@ -60,6 +60,10 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       cascadeSelection = false,
       isNodeExpandable,
       renderNodeSuffix,
+      renderNodeSubtitle,
+      activeNodeClassName,
+      nodeNameClassName,
+      disableIndentPadding = false,
       isSectionHeader,
       preserveExpandedOnRefresh = true,
       canDragNode,
@@ -673,6 +677,8 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       const isDropTarget = isFolder && dropTarget?.kind === "node" && dropTarget.id === node.id
       const isActive = activeNodeId === node.id
       const isNodeLoading = loadingNodeId === node.id || cascadeLoadingIds.has(node.id)
+      const subtitle = renderNodeSubtitle?.(node)
+      const hasSubtitle = subtitle !== null && subtitle !== undefined && subtitle !== ""
       const isSelectable = canSelectNode(node)
       const checkState = cascadeSelection ? getCheckState(node) : undefined
       const isSelected = cascadeSelection ? checkState === "checked" : !!selectedIds?.has(node.id)
@@ -713,19 +719,20 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
 
           <div
             className={cn(
-              "group flex items-center gap-1 min-w-0 px-2 rounded-md transition-colors relative",
-              isSection ? "h-8" : "py-0.5",
+              "group flex gap-1 min-w-0 px-2 rounded-md transition-colors relative",
+              hasSubtitle ? "items-start" : "items-center",
+              isSection ? "h-8" : hasSubtitle ? "py-1" : "py-0.5",
               node.disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-accent hover:cursor-pointer",
               isDragging && "opacity-50",
               // Dentro de la caja ya resaltada del subárbol, la propia fila de la
               // carpeta destino marca el punto exacto donde caería el drop.
               isDropTarget && "bg-primary/10 text-primary",
-              isActive && "bg-accent font-medium",
+              isActive && (activeNodeClassName ?? "bg-accent font-medium"),
               isSelected && "bg-primary/5",
               isNodeLoading && "bg-accent/50",
               renderNodeClassName?.(node),
             )}
-            style={{ paddingLeft: `${level * 12 + 6}px` }}
+            style={disableIndentPadding ? undefined : { paddingLeft: `${level * 12 + 6}px` }}
             draggable={!cascadeSelection && !node.disabled && !isSection && (canDragNode?.(node) ?? true)}
             onDragStart={(e) => handleDragStart(e, node.id, node)}
             onDragEnd={() => { setDraggedNode(null); setDropTarget(null); stopAutoScroll() }}
@@ -736,7 +743,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
                 onCheckedChange={() => (cascadeSelection ? toggleCascade(node) : toggleSelection(node.id))}
                 onClick={(e) => e.stopPropagation()}
                 disabled={node.disabled || isNodeLoading}
-                className="shrink-0 border-muted-foreground/50 data-[state=unchecked]:bg-background"
+                className="shrink-0 self-center border-muted-foreground/50 data-[state=unchecked]:bg-background"
                 aria-label={node.name}
               />
             )}
@@ -745,7 +752,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
               <HuemulButton
                 variant="ghost"
                 size="icon"
-                className={cn("h-3 w-3 p-0 hover:bg-transparent", isSection && "text-sidebar-foreground/70")}
+                className={cn("h-3 w-3 p-0 self-center hover:bg-transparent", isSection && "text-sidebar-foreground/70")}
                 onClick={() => handleToggle(node)}
                 disabled={node.disabled}
               >
@@ -760,10 +767,11 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
             )}
 
             <div
-              className="flex items-center gap-1.5 flex-1 min-w-0"
+              className={cn("flex gap-1.5 flex-1 min-w-0", hasSubtitle ? "items-start" : "items-center")}
               onClick={() => {
                 if (cascadeSelection) {
-                  isExpandable(node) ? handleToggle(node) : toggleCascade(node)
+                  if (isExpandable(node)) handleToggle(node)
+                  else toggleCascade(node)
                 } else if (selectable && isSelectable) {
                   toggleSelection(node.id)
                 } else if (isFolder) {
@@ -773,19 +781,28 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
                 }
               }}
             >
-              {isFolder
-                ? (renderFolderIcon
-                    ? renderFolderIcon(node, !!isExpanded)
-                    : (isSection ? null : defaultFolderIcon(node, !!isExpanded)))
-                : isNodeLoading
-                  ? <div className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  : (renderLeafIcon ? renderLeafIcon(node) : defaultLeafIcon())}
-              <p className={cn(
-                isSection ? "text-xs font-medium text-sidebar-foreground/70" : "text-sm",
-                "truncate",
-                isNodeLoading && "text-muted-foreground",
-              )}>{node.name}</p>
-              {renderNodeSuffix?.(node)}
+              <span className={cn("shrink-0", hasSubtitle && "mt-0.5")}>
+                {isFolder
+                  ? (renderFolderIcon
+                      ? renderFolderIcon(node, !!isExpanded)
+                      : (isSection ? null : defaultFolderIcon(node, !!isExpanded)))
+                  : isNodeLoading
+                    ? <div className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    : (renderLeafIcon ? renderLeafIcon(node) : defaultLeafIcon())}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <p className={cn(
+                    nodeNameClassName?.(node) ?? (isSection ? "text-xs font-medium text-sidebar-foreground/70" : "text-sm"),
+                    "truncate",
+                    isNodeLoading && "text-muted-foreground",
+                  )}>{node.name}</p>
+                  {renderNodeSuffix?.(node)}
+                </div>
+                {hasSubtitle && (
+                  <p className="truncate text-[11px] text-muted-foreground">{subtitle}</p>
+                )}
+              </div>
             </div>
 
             {!selectionEnabled && ((hasVisibleMenuActions && !node.disabled) || (hasCustomMenuActions && node.disabled)) && (
@@ -797,7 +814,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
                     icon={MoreVertical}
                     iconClassName="h-4 w-4"
                     className={cn(
-                      "h-6 w-6 shrink-0 transition-opacity",
+                      "h-6 w-6 shrink-0 self-center transition-opacity",
                       alwaysShowMenuActions && hasCustomMenuActions
                         ? "opacity-100"
                         : "opacity-0 group-hover:opacity-100",

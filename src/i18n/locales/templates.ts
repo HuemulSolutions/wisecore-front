@@ -45,6 +45,7 @@ const translations = {
   sidebar: {
     title: { en: "Templates", es: "Plantillas" },
     newTemplate: { en: "New Template", es: "Nueva Plantilla" },
+    newTemplateShort: { en: "New", es: "Nueva" },
     searchPlaceholder: { en: "Search templates...", es: "Buscar plantillas..." },
     loadError: { en: "Failed to load templates", es: "Error al cargar las plantillas" },
     loadErrorDescription: { en: "There was an error loading the templates. Please try again.", es: "Hubo un error al cargar las plantillas. Reintentar." },
@@ -54,6 +55,15 @@ const translations = {
     cloneTemplate: { en: "Clone Template", es: "Clonar Plantilla" },
     editTemplate: { en: "Edit Template", es: "Editar Plantilla" },
     deleteTemplate: { en: "Delete Template", es: "Eliminar Plantilla" },
+    exportTemplateJson: { en: "Export JSON", es: "Exportar JSON" },
+    exportTemplateError: { en: "Error exporting template", es: "Error al exportar la plantilla" },
+    metaDraft: { en: "Draft · no sections", es: "Borrador · sin secciones" },
+    metaSections_one: { en: "{{count}} section", es: "{{count}} sección" },
+    metaSections_other: { en: "{{count}} sections", es: "{{count}} secciones" },
+    metaUses_one: { en: "{{count}} use", es: "{{count}} uso" },
+    metaUses_other: { en: "{{count}} uses", es: "{{count}} usos" },
+    footerImport: { en: "Import JSON", es: "Importar JSON" },
+    footerExport: { en: "Export…", es: "Exportar…" },
   },
   content: {
     noTemplateSelectedTitle: { en: "No Template Selected", es: "Ninguna Plantilla Seleccionada" },

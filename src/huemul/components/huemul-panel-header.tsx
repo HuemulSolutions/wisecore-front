@@ -23,6 +23,7 @@ export type { HuemulPanelHeaderProps, PanelHeaderSearchConfig } from "@/types/hu
 export function HuemulPanelHeader({
   title,
   icon: Icon,
+  titleClassName,
   search,
   onRefresh,
   isRefreshing = false,
@@ -49,7 +50,7 @@ export function HuemulPanelHeader({
   return (
     <div className={cn("relative flex w-full min-w-0 flex-col px-2 py-0", className)}>
       <div className="flex items-center justify-between">
-        <div className="flex h-8 min-w-0 shrink items-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground">
+        <div className={cn("flex h-8 min-w-0 shrink items-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground", titleClassName)}>
           {Icon && <Icon className="h-3.5 w-3.5 shrink-0" />}
           <span className="truncate">{title}</span>
         </div>
@@ -80,13 +81,16 @@ export function HuemulPanelHeader({
         </div>
       </div>
       {isSearchVisible && search && (
-        <div className="px-2 pt-1 pb-1">
+        <div className="relative px-2 pt-1 pb-1">
+          {search.showIcon && (
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          )}
           <Input
             placeholder={search.placeholder}
             value={search.value}
             onChange={(e) => search.onChange(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") search.onCommit?.(search.value) }}
-            className="h-7 text-xs"
+            className={cn("h-7 text-xs", search.showIcon && "pl-7")}
             autoFocus={!search.alwaysOpen}
           />
         </div>

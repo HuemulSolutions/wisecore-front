@@ -61,6 +61,23 @@ export interface HuemulFileTreeProps {
   isNodePersistable?: (node: HuemulTreeNode) => boolean
   // Contenido adicional a mostrar después del nombre del nodo (ej. badge de versión).
   renderNodeSuffix?: (node: HuemulTreeNode) => ReactNode
+  // Segunda línea opcional debajo del nombre (ej. "3 secciones · 12 usos").
+  // Si devuelve contenido no nulo para un nodo, esa fila pasa a dos líneas.
+  renderNodeSubtitle?: (node: HuemulTreeNode) => ReactNode
+  // Override del estilo de la fila activa (activeNodeId). Por defecto es
+  // "bg-accent font-medium"; cuando se pasa, LO REEMPLAZA en vez de sumarse,
+  // para que un consumidor pueda usar un acento propio (ej. borde azul) sin
+  // pelear con el fondo gris genérico.
+  activeNodeClassName?: string
+  // Override del tamaño/peso del nombre (el `<p>` fija su propio `text-sm`,
+  // así que no hereda font-size del contenedor). Reemplaza, no se mezcla.
+  nodeNameClassName?: (node: HuemulTreeNode) => string | undefined
+  // La fila fuerza `paddingLeft` inline según el nivel de anidamiento (para la
+  // franja de indentación de las carpetas). En listas planas sin jerarquía
+  // real (todo a nivel 0), eso pisa cualquier padding horizontal que el
+  // consumidor intente fijar vía `renderNodeClassName`. `true` deja el padding
+  // horizontal completo en manos del consumidor. Default `false` (comportamiento actual).
+  disableIndentPadding?: boolean
   // Nodos de nivel raíz que deben verse como encabezado de sección (estilo Notion):
   // sin ícono de carpeta, texto en negrita, no arrastrables.
   isSectionHeader?: (node: HuemulTreeNode) => boolean

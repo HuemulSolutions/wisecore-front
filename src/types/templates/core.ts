@@ -9,6 +9,9 @@ export interface TemplateItem {
   section_lifecycle_access_enabled?: boolean;
   /** Los activos creados desde este template heredan el valor si no lo especifican. */
   context_required?: boolean;
+  /** Metadata que el backend aun no envia de forma consistente en el listado; la UI se degrada sin ella. */
+  sections_count?: number;
+  usage_count?: number;
 }
 
 export interface CloneTemplateRequest {

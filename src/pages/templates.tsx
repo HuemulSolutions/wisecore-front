@@ -223,7 +223,7 @@ export default function Templates() {
             />
           ),
           defaultSize: 15,
-          minSize: 15,
+          minSize: 20,
           maxSize: 30,
         },
         {
