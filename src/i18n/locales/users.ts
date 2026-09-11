@@ -118,10 +118,20 @@ const translations = {
   },
   toast: {
     userUpdated: { en: "User updated successfully", es: "Usuario actualizado exitosamente" },
+    userCreated: { en: "User created successfully", es: "Usuario creado exitosamente" },
   },
   detail: {
     tabProfile: { en: "Profile", es: "Perfil" },
     tabRoles: { en: "Roles", es: "Roles" },
+    // Tab "Organizaciones" — root-admin-only, reemplaza a `UserOrganizationsDialog`.
+    tabOrganizations: { en: "Organizations", es: "Organizaciones" },
+    addOrganization: { en: "Add organization", es: "Agregar organización" },
+    // Botón "Crear organización" del mismo tab — inline create, ver
+    // ia context/inline-create-entity-in-sheet-guide.md. Mismo copy que
+    // detail.createRoleButton.
+    createOrganizationButton: { en: "Create organization", es: "Crear organización" },
+    searchOrganizationsPlaceholder: { en: "Search organizations…", es: "Buscar organizaciones…" },
+    noOrganizationsFound: { en: "No organizations found", es: "No se encontraron organizaciones" },
     close: { en: "Close", es: "Cerrar" },
     activatedLabel: { en: "Active since", es: "Activo desde" },
     rootAdminSection: { en: "Root Administrator Access", es: "Acceso de Administrador Raíz" },
