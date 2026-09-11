@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { formatBytes } from "@/lib/format-bytes"
-import { IMAGE_TYPES, IMAGE_ACCEPT } from "./huemul-media-icon"
+import { MEDIA_UPLOAD_EXTENSIONS, MEDIA_UPLOAD_ACCEPT, hasAllowedMediaExtension } from "./huemul-media-icon"
 import type { Media, MediaVersion } from "@/types/media"
 
 // ─── Media detail sheet ───────────────────────────────────────────────────────
@@ -133,8 +133,8 @@ export function HuemulMediaDetailSheet({
 
   async function uploadVersionFile(file: File) {
     if (!item || !canCreate || uploadMediaVersion.isPending) return
-    if (!IMAGE_TYPES.has(file.type.toLowerCase())) {
-      toast.error(t("upload.invalidImageType", { formats: "PNG, JPG, GIF, BMP" }))
+    if (!hasAllowedMediaExtension(file.name)) {
+      toast.error(t("upload.invalidFileType", { formats: MEDIA_UPLOAD_EXTENSIONS.map((ext) => ext.toUpperCase()).join(", ") }))
       return
     }
     try {
@@ -297,7 +297,7 @@ export function HuemulMediaDetailSheet({
                         <input
                           ref={versionFileInputRef}
                           type="file"
-                          accept={IMAGE_ACCEPT}
+                          accept={MEDIA_UPLOAD_ACCEPT}
                           className="sr-only"
                           onChange={handleVersionInputChange}
                         />

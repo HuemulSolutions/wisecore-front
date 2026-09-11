@@ -194,6 +194,14 @@ export interface LifecycleStatus {
   version_required: boolean;
   /** Vacío/ausente cuando no hay nada pendiente. Ausente en payloads cacheados de antes de este campo. */
   advance_blockers?: AdvanceBlocker[];
+  /**
+   * `true` mientras un ElaborationRun (pending/running/awaiting_callback) tiene tomada
+   * la execution: toda edición de contenido devuelve 409 EXECUTION_LOCKED_EXTERNAL_ELABORATION.
+   * Se libera al terminar el run, sea `completed` o `failed` — un run fallido no reintenta,
+   * el activo vuelve a ser editable aunque la elaboración no se haya aplicado.
+   * Ausente en payloads cacheados de antes de este campo — leer siempre `=== true`.
+   */
+  is_locked_external_elaboration?: boolean;
 }
 
 /**
@@ -332,14 +340,6 @@ export interface CreateFolderSheetProps {
   onFolderCreated?: (folder?: { id: string; name: string }) => void;
 }
 
-export interface DeleteDocumentDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  documentName: string;
-  onConfirm: () => Promise<void> | void;
-  isDeleting?: boolean;
-}
-
 export interface DeleteFolderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -425,7 +425,7 @@ export interface ContentSection {
   ai_suggestion_content?: string | null;
   ai_suggestion_instruction?: string | null;
   ai_suggestion_error?: string | null;
-  review_status?: 'editing' | 'reviewing' | 'finished' | null;
+  review_status?: 'editing' | 'reviewing' | 'finished' | 'rejected' | null;
   form_fields?: import('../sections/core').FormFieldValue[];
   depends_on?: import('../sections/core').FieldDependencyCondition[] | null;
   show_when_inactive?: boolean;

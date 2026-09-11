@@ -85,6 +85,7 @@ const translations = {
     review_section: { en: "Review Section", es: "Revisar Sección" },
     review_asset: { en: "Review Asset", es: "Revisar Activo" },
     publish_asset: { en: "Publish Asset", es: "Publicar Activo" },
+    lifecycle_elaboration: { en: "Lifecycle Elaboration", es: "Elaboración del Ciclo de Vida" },
   },
   executionType: {
     sync: { en: "Synchronous", es: "Síncrono" },

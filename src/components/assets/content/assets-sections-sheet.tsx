@@ -48,6 +48,7 @@ export function SectionSheet({
   executionInfo,
   lifecyclePermissions,
   stage,
+  isExternalElaborationLocked = false,
   showTrigger = true,
 }: SectionSheetProps) {
   const { t } = useTranslation(['sections', 'common']);
@@ -64,8 +65,10 @@ export function SectionSheet({
   // Whether the current user can edit (add / update / delete / reorder) sections.
   // Requires edit/create permission AND the document must be in the 'edit' stage AND
   // RBAC de escritura sobre el asset (antes faltaba este tercer eje — ver
-  // computeFrontendPermissions en src/hooks/useDocumentAccess.ts, misma regla AND).
-  const canEditSections = !!(lifecyclePermissions?.edit || lifecyclePermissions?.create) && stage === 'edit' && can('updateAssetContent');
+  // computeFrontendPermissions en src/hooks/useDocumentAccess.ts, misma regla AND)
+  // AND que no haya un ElaborationRun bloqueando la execution (el backend rechaza
+  // crear/renombrar/borrar/reordenar sección con el mismo 409 mientras dura).
+  const canEditSections = !!(lifecyclePermissions?.edit || lifecyclePermissions?.create) && stage === 'edit' && can('updateAssetContent') && !isExternalElaborationLocked;
 
   useEffect(() => {
     setSelectedConfigExecutionId(executionInfo?.id || executionId || null);
@@ -533,6 +536,8 @@ export function SectionSheet({
             open={isAddingSectionDialogOpen}
             onOpenChange={setIsAddingSectionDialogOpen}
             documentId={selectedFile!.id}
+            templateId={templateId || undefined}
+            executionId={selectedConfigExecutionId || undefined}
             existingSections={fullDocument?.sections || []}
             onSubmit={(values) => {
               addSectionMutation.mutate(values);

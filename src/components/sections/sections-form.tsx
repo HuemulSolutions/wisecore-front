@@ -11,15 +11,19 @@ import { redactPrompt } from "@/services/generate";
 import { useOrganization } from "@/contexts/organization-context";
 import { FileTree } from "@/components/assets/content/assets-file-tree";
 import { getLibraryContent } from "@/services/folders";
+import { useLibraryTreeExpansion } from "@/hooks/useLibraryTreeExpansion";
+import { buildLibraryTree } from "@/lib/library-tree";
 import { getExecutionsByDocumentId } from "@/services/executions";
 import { getDocumentSections, getDocumentById } from "@/services/assets";
 import { getSectionContent } from "@/services/section";
 import { useQuery } from "@tanstack/react-query";
 import type { FileNode } from "@/types/assets";
+import type { LibraryContentFolder, LibraryContentAsset } from "@/types/folders";
 import { SectionFormFieldsBuilder } from "./section-form-fields-builder";
 import { SectionDependencyEditor } from "./section-dependency-editor";
-import { CUSTOM_FIELD_QUESTION_TYPE, QUESTION_TYPE, withFieldKey, stripFieldKey, type FormFieldDraft } from "./question-type-meta";
+import { CUSTOM_FIELD_QUESTION_TYPE, QUESTION_TYPE, isCalculatedField, withFieldKey, stripFieldKey, type FormFieldDraft } from "./question-type-meta";
 import { formFieldsHaveValidDependencies, sectionHasValidDependencies } from "./validate-form-field-dependencies";
+import { formFieldsHaveValidCalculations } from "./validate-calculation-config";
 import type { FieldDependencyCondition } from "@/types/sections/core";
 import Markdown from "@/components/ui/markdown";
 import SectionPlateEditor, { type SectionPlateEditorRef } from "@/components/plate-editor/section-plate-editor";
@@ -183,28 +187,38 @@ export function SectionForm({
     );
   }, [assetExecutions]);
 
+  // Comparte la clave `tree-expanded` con el sidebar de conocimiento y el
+  // resto de pickers de biblioteca — ver ia context/arbol-biblioteca-activos-guide.md.
+  const { loadRoot, treeProps: expansionTreeProps } = useLibraryTreeExpansion({
+    organizationId: selectedOrganizationId,
+  });
+
   // Función para cargar contenido del árbol
   const handleLoadChildren = async (folderId: string | null): Promise<FileNode[]> => {
     if (!selectedOrganizationId) return [];
-    
+
+    const mapFolder = (item: LibraryContentFolder): FileNode => ({
+      id: item.id,
+      name: item.name,
+      type: "folder" as const,
+      hasChildren: true,
+    });
+    const mapAsset = (item: LibraryContentAsset): FileNode => ({
+      id: item.id,
+      name: item.name,
+      type: "document" as const,
+      document_type: item.document_type,
+      access_levels: item.access_levels,
+      hasChildren: false,
+    });
+
     try {
-      const response = await getLibraryContent(selectedOrganizationId, folderId || undefined);
-      
-      const folderNodes: FileNode[] = response.folders.map((item) => ({
-        id: item.id,
-        name: item.name,
-        type: "folder" as const,
-        hasChildren: true,
-      }));
-      const assetNodes: FileNode[] = response.assets.map((item) => ({
-        id: item.id,
-        name: item.name,
-        type: "document" as const,
-        document_type: item.document_type,
-        access_levels: item.access_levels,
-        hasChildren: false,
-      }));
-      return [...folderNodes, ...assetNodes];
+      if (folderId === null) {
+        const { content } = await loadRoot();
+        return buildLibraryTree<FileNode>(content, { parentFolderId: null, mapFolder, mapAsset });
+      }
+      const response = await getLibraryContent(selectedOrganizationId, folderId);
+      return buildLibraryTree<FileNode>(response, { parentFolderId: folderId, mapFolder, mapAsset });
     } catch (error) {
       logger.error('Error loading folder content:', error);
       return [];
@@ -514,7 +528,9 @@ export function SectionForm({
         f => f.question_type !== CUSTOM_FIELD_QUESTION_TYPE || !!f.custom_field_id
       );
       const dependenciesOk = formFieldsHaveValidDependencies(formFields, earlierSectionsFormFields);
-      return allFilled && unique && customOk && dependenciesOk;
+      const calculatedOk = formFields.every(f => !isCalculatedField(f) || !!f.calculation_config);
+      const calculationsOk = formFieldsHaveValidCalculations(formFields, earlierSectionsFormFields);
+      return allFilled && unique && customOk && dependenciesOk && calculatedOk && calculationsOk;
     }
 
     return false;
@@ -780,6 +796,7 @@ export function SectionForm({
                   showDefaultActions={{ create: false, delete: false, share: false }}
                   showBorder={false}
                   minHeight="300px"
+                  {...expansionTreeProps}
                 />
               </div>
             )}

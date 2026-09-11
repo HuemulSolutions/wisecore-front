@@ -117,6 +117,8 @@ export interface AssetFileTreeProps {
   isNodeSelectable?: (node: FileNode) => boolean
   cascadeSelection?: boolean
   isNodeExpandable?: (node: FileNode) => boolean
+  /** Ver la nota en HuemulFileTreeProps.isNodePersistable. */
+  isNodePersistable?: (node: FileNode) => boolean
   renderNodeSuffix?: (node: FileNode) => React.ReactNode
   // Al refrescar, recargar las carpetas que el usuario expandió a mano.
   // En false, el resultado de onRefresh/onLoadChildren es autoritativo:
@@ -133,7 +135,7 @@ export interface AssetFileTreeProps {
    */
   canDropNode?: (node: FileNode) => boolean
   /** Ver la nota en HuemulFileTreeProps.onExpandedFoldersChange. */
-  onExpandedFoldersChange?: (folderIds: string[]) => void
+  onExpandedFoldersChange?: (folderIds: string[], context: { knownIds: string[] }) => void
 }
 
 export interface FileTreeRef extends HuemulFileTreeRef {}
@@ -152,7 +154,7 @@ export interface SectionExecutionProps {
     ai_suggestion_status?: 'pending' | 'completed' | 'failed' | null
     ai_suggestion_content?: string | null
     ai_suggestion_instruction?: string | null
-    review_status?: 'editing' | 'reviewing' | 'finished' | null
+    review_status?: 'editing' | 'reviewing' | 'finished' | 'rejected' | null
     /** Completitud de obligatorios resuelta por el backend (solo secciones type="form"). */
     answers_status?: import('../sections/execution-core').SectionAnswersStatus | null
     /** Valores del formulario (solo para secciones type="form") */
@@ -200,4 +202,11 @@ export interface SectionExecutionProps {
   canGenerate?: boolean
   /** Motivo ya traducido, para el tooltip. Solo relevante si canGenerate === false. */
   cannotGenerateReason?: string
+  /**
+   * Reporta el `isCollapsed` de ESTA sección hacia AssetContent, para que el botón "colapsar/
+   * expandir todas" del toolbar refleje el estado real (no sólo la última señal que emitió).
+   * `undefined` = la sección se desmontó (eliminada, oculta por permiso/depends_on, o filtrada
+   * por contenido vacío en lector) — se excluye del cómputo agregado.
+   */
+  onCollapsedChange?: (sectionExecutionId: string, collapsed: boolean | undefined) => void
 }

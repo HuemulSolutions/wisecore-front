@@ -24,6 +24,7 @@ const AuthTypes = lazy(() => import("./pages/auth-types"));
 const UsersPage = lazy(() => import("./pages/users"));
 const Roles = lazy(() => import("./pages/roles"));
 const AssetTypesPage = lazy(() => import("./pages/assets-types"));
+const AssetTypeDetailPage = lazy(() => import("./pages/asset-type-detail"));
 const CustomFieldsPage = lazy(() => import("./pages/custom-fields"));
 const TagsPage = lazy(() => import("./pages/tags"));
 const CanvasPage = lazy(() => import("./pages/canvas"));
@@ -125,6 +126,16 @@ export default function App() {
             <Route path="asset-types" element={
               <PermissionProtectedRoute permissions={[...RBAC_PAGES["asset-types"].routePermissions]}>
                 <AssetTypesPage />
+              </PermissionProtectedRoute>
+            } />
+            {/* Detalle compartible de un tipo de activo. El `path` va como string
+                literal y su primer segmento coincide con el del módulo, así que
+                hereda RBAC_PAGES["asset-types"] sin tocar la matriz (mismo
+                criterio que `templates/:id`; ver
+                ia context/fullscreen-share-route-guide.md §2). */}
+            <Route path="asset-types/:documentTypeId" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES["asset-types"].routePermissions]}>
+                <AssetTypeDetailPage />
               </PermissionProtectedRoute>
             } />
             <Route path="custom-fields" element={

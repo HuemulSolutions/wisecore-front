@@ -8,6 +8,7 @@ const REVIEW_STATUS_HUE: Record<ReviewStatus, Parameters<typeof toneColor>[0]> =
   editing: "amber",
   reviewing: "amber",
   finished: "green",
+  rejected: "red",
 }
 
 interface HuemulReviewStatusBadgeProps {

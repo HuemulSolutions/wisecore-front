@@ -36,6 +36,7 @@ export function TemplateContextTab({ templateId, organizationId, canManage = fal
   const [contextToDelete, setContextToDelete] = useState<string | null>(null);
 
   const { data: contexts, isLoading, isFetching, error, refetch } = useTemplateContexts(organizationId, templateId);
+  const missingRequiredCount = contexts?.filter((ctx) => ctx.required && !ctx.content?.trim()).length ?? 0;
 
   const mutations = useTemplateContextMutations(organizationId, templateId, {
     created: t('templateTab.toast.created'),
@@ -63,7 +64,7 @@ export function TemplateContextTab({ templateId, organizationId, canManage = fal
     setDialogOpen(true);
   };
 
-  const handleSubmit = (values: { name: string; content: string }) => {
+  const handleSubmit = (values: { name: string; content?: string; required: boolean }) => {
     if (editingContext) {
       mutations.update.mutate(
         { contextId: editingContext.id, body: values },
@@ -142,6 +143,13 @@ export function TemplateContextTab({ templateId, organizationId, canManage = fal
             </Badge>
           </div>
 
+          {missingRequiredCount > 0 && (
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-amber-200 bg-amber-50">
+              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+              <p className="text-sm text-amber-800">{t('requiredBanner', { count: missingRequiredCount })}</p>
+            </div>
+          )}
+
           <div className="p-4">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
@@ -156,10 +164,22 @@ export function TemplateContextTab({ templateId, organizationId, canManage = fal
               </div>
             ) : (
               <div className="space-y-3">
-                {contexts.map((ctx) => (
-                  <div key={ctx.id} className="border border-gray-200 rounded-lg bg-white hover:border-gray-300 transition-colors">
+                {contexts.map((ctx) => {
+                  const isMissingRequired = ctx.required && !ctx.content?.trim();
+                  return (
+                  <div key={ctx.id} className={`border rounded-lg bg-white transition-colors ${isMissingRequired ? 'border-amber-300' : 'border-gray-200 hover:border-gray-300'}`}>
                     <div className="flex items-center justify-between p-3 border-b border-gray-100">
-                      <span className="text-sm font-medium text-gray-900">{ctx.name}</span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium text-gray-900">{ctx.name}</span>
+                        {ctx.required && (
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${isMissingRequired ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-gray-50 text-gray-600 border-gray-200'}`}
+                          >
+                            {isMissingRequired ? t('pendingContentBadge') : t('requiredBadge')}
+                          </Badge>
+                        )}
+                      </div>
                       {canManage && (
                         <div className="flex items-center gap-1">
                           <HuemulButton
@@ -188,7 +208,8 @@ export function TemplateContextTab({ templateId, organizationId, canManage = fal
                       hideHeader
                     />
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -199,7 +220,7 @@ export function TemplateContextTab({ templateId, organizationId, canManage = fal
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         mode={editingContext ? 'edit' : 'create'}
-        initialValue={editingContext ? { name: editingContext.name, content: editingContext.content } : null}
+        initialValue={editingContext ? { name: editingContext.name, content: editingContext.content, required: editingContext.required } : null}
         onSubmit={handleSubmit}
         isProcessing={mutations.create.isPending || mutations.update.isPending}
       />

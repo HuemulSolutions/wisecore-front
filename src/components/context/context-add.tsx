@@ -20,7 +20,7 @@ import { getContext, deleteContext, editTextContext, addDocumentContext } from "
 import { ContextDisplay } from "./context-content";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
-import type { AddContextSheetProps } from '@/types/context';
+import type { AddContextSheetProps, ContextItem, EditTextContextBody } from '@/types/context';
 
 export type { AddContextSheetProps } from '@/types/context';
 
@@ -32,18 +32,20 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = false }: 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [contextToDelete, setContextToDelete] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [contextToEdit, setContextToEdit] = useState<{ id: string; name: string; content: string; context_type?: string } | null>(null);
+  const [contextToEdit, setContextToEdit] = useState<ContextItem | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
 
   // Get document contexts
-  const { data: contexts, isLoading, error } = useQuery({
+  const { data: contexts, isLoading, error } = useQuery<ContextItem[]>({
     queryKey: ['contexts', id],
     queryFn: () => getContext(id, selectedOrganizationId!),
     enabled: !!id && !!selectedOrganizationId && isSheetOpen
   });
+
+  const missingRequiredCount = contexts?.filter((ctx) => ctx.required && !ctx.content?.trim()).length ?? 0;
 
   // Mutation to delete context
   const deleteContextMutation = useMutation({
@@ -59,8 +61,8 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = false }: 
 
   // Mutation to edit context
   const editTextContextMutation = useMutation({
-    mutationFn: ({ contextId, name, content }: { contextId: string; name: string; content: string }) =>
-      editTextContext(contextId, name, content, selectedOrganizationId!),
+    mutationFn: ({ contextId, body }: { contextId: string; body: EditTextContextBody }) =>
+      editTextContext(contextId, body, selectedOrganizationId!),
     onSuccess: () => {
       toast.success(t('toast.contextUpdated'));
       queryClient.invalidateQueries({ queryKey: ['contexts', id] });
@@ -104,13 +106,13 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = false }: 
     }
   };
 
-  const handleEditContext = (ctx: { id: string; name: string; content: string; context_type?: string }) => {
+  const handleEditContext = (ctx: ContextItem) => {
     setContextToEdit(ctx);
     setEditDialogOpen(true);
   };
 
-  const confirmEditContext = (contextId: string, name: string, content: string) => {
-    editTextContextMutation.mutate({ contextId, name, content });
+  const confirmEditContext = (contextId: string, body: EditTextContextBody) => {
+    editTextContextMutation.mutate({ contextId, body });
   };
 
   if (isLoading) {
@@ -185,6 +187,14 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = false }: 
             )}
           </div>
 
+          {/* Banner de resumen: contextos obligatorios sin contenido bloquean can_generate */}
+          {missingRequiredCount > 0 && (
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-amber-200 bg-amber-50">
+              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+              <p className="text-sm text-amber-800">{t('requiredBanner', { count: missingRequiredCount })}</p>
+            </div>
+          )}
+
           {/* Content */}
           <div className="p-4">
             {!contexts || contexts.length === 0 ? (
@@ -195,8 +205,10 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = false }: 
               </div>
             ) : (
               <div className="space-y-3">
-                {contexts.map((ctx: any) => (
-                  <div key={ctx.id} className="border border-gray-200 rounded-lg bg-white hover:border-gray-300 transition-colors">
+                {contexts.map((ctx) => {
+                  const isMissingRequired = !!ctx.required && !ctx.content?.trim();
+                  return (
+                  <div key={ctx.id} className={`border rounded-lg bg-white transition-colors ${isMissingRequired ? 'border-amber-300' : 'border-gray-200 hover:border-gray-300'}`}>
                     {/* Context Header */}
                     <div className="flex items-center justify-between p-3 border-b border-gray-100">
                       <div className="flex items-center gap-3">
@@ -207,21 +219,29 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = false }: 
                             <FileText className="h-4 w-4 text-gray-600" />
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-medium text-gray-900">{ctx.name}</span>
-                          <Badge 
-                            variant="outline" 
+                          <Badge
+                            variant="outline"
                             className={`text-xs ${
-                              ctx.context_type === 'text' 
-                                ? 'bg-purple-50 text-purple-700 border-purple-200' 
+                              ctx.context_type === 'text'
+                                ? 'bg-purple-50 text-purple-700 border-purple-200'
                                 : 'bg-green-50 text-green-700 border-green-200'
                             }`}
                           >
                             {ctx.context_type === 'text' ? t('badgeText') : t('badgeDocument')}
                           </Badge>
+                          {ctx.required && (
+                            <Badge
+                              variant="outline"
+                              className={`text-xs ${isMissingRequired ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-gray-50 text-gray-600 border-gray-200'}`}
+                            >
+                              {isMissingRequired ? t('pendingContentBadge') : t('requiredBadge')}
+                            </Badge>
+                          )}
                         </div>
                       </div>
-                      
+
                       {canEdit && (
                         <div className="flex items-center gap-1">
                           <HuemulButton
@@ -230,7 +250,7 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = false }: 
                             resource="context"
                             size="sm"
                             variant="outline"
-                            onClick={() => handleEditContext({ id: ctx.id, name: ctx.name, content: ctx.content || '', context_type: ctx.context_type })}
+                            onClick={() => handleEditContext(ctx)}
                             disabled={editTextContextMutation.isPending}
                             className="h-7 w-7 p-0 text-[#4464f7] hover:text-white hover:bg-[#4464f7] hover:cursor-pointer"
                             icon={Pencil}
@@ -266,7 +286,8 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = false }: 
                       />
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

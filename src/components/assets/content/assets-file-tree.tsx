@@ -50,6 +50,7 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
       isNodeSelectable,
       cascadeSelection,
       isNodeExpandable,
+      isNodePersistable,
       renderNodeSuffix,
       preserveExpandedOnRefresh,
       canDragNode,
@@ -151,6 +152,7 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
         isNodeSelectable={isNodeSelectable ? (node) => isNodeSelectable(node as FileNode) : undefined}
         cascadeSelection={cascadeSelection}
         isNodeExpandable={isNodeExpandable ? (node) => isNodeExpandable(node as FileNode) : undefined}
+        isNodePersistable={isNodePersistable ? (node) => isNodePersistable(node as FileNode) : undefined}
         renderNodeSuffix={renderNodeSuffix ? (node) => renderNodeSuffix(node as FileNode) : undefined}
         preserveExpandedOnRefresh={preserveExpandedOnRefresh}
         canDragNode={canDragNode ? (node) => canDragNode(node as FileNode) : undefined}

@@ -1,4 +1,4 @@
-import { RefreshCw, Plus } from "lucide-react"
+import { RefreshCw, Plus, ArrowLeft } from "lucide-react"
 import { HuemulButton } from "./huemul-button"
 import { HuemulField } from "./huemul-field"
 import { useTranslation } from "react-i18next"
@@ -7,7 +7,7 @@ import { useDebounce } from "@/hooks/use-debounce"
 import { cn } from "@/lib/utils"
 import type { PageHeaderProps } from "@/types/huemul"
 
-export type { PageHeaderBadge, PageHeaderAction, PageHeaderSearchConfig, PageHeaderProps } from "@/types/huemul"
+export type { PageHeaderBadge, PageHeaderAction, PageHeaderBackAction, PageHeaderSearchConfig, PageHeaderProps } from "@/types/huemul"
 
 // Paleta de acento para los iconos de las acciones secundarias: permite
 // distinguir cada acción de un vistazo sin romper el estilo outline del botón.
@@ -22,6 +22,7 @@ export function PageHeader({
   icon: Icon,
   title,
   subtitle,
+  backAction,
   badges = [],
   showRefresh = true,
   onRefresh,
@@ -82,7 +83,10 @@ export function PageHeader({
       return badge.label ? `${badge.label}: ${value}` : String(value)
     })
     .join(" · ")
-  const subtitleLine = [subtitle, badgeText].filter(Boolean).join(" · ")
+  // `subtitle` puede ser JSX, así que la línea se compone como nodos hermanos en
+  // vez de un `join` de strings — para un subtítulo de texto el resultado
+  // renderizado es idéntico al de antes.
+  const hasSubtitleLine = Boolean(subtitle) || Boolean(badgeText)
 
   return (
     <div className={cn("space-y-4 mb-6", className)}>
@@ -90,13 +94,27 @@ export function PageHeader({
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
         {/* Title Section */}
         <div className="flex items-center gap-2">
+          {backAction && (
+            <HuemulButton
+              variant="ghost"
+              size="icon"
+              icon={ArrowLeft}
+              tooltip={backAction.label}
+              onClick={backAction.onClick}
+              className="h-8 w-8 shrink-0"
+            />
+          )}
           <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary/10 shrink-0">
             <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
           </div>
-          <div className="flex flex-col">
+          <div className="flex flex-col min-w-0">
             <h1 className="text-lg sm:text-xl font-semibold text-foreground">{title}</h1>
-            {subtitleLine && (
-              <p className="text-xs text-muted-foreground">{subtitleLine}</p>
+            {hasSubtitleLine && (
+              <p className="text-xs text-muted-foreground truncate">
+                {subtitle}
+                {subtitle && badgeText ? " · " : ""}
+                {badgeText}
+              </p>
             )}
           </div>
         </div>

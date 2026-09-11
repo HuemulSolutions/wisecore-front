@@ -2529,10 +2529,21 @@ export function HuemulField({
     >
       {/* ── Inline row (switch/checkbox) or stacked label+control ── */}
       {isInline ? (
-        <div className={cn(
-          "flex flex-row gap-3",
-          labelFirst ? "items-center justify-between max-w-sm" : "items-center",
-        )}>
+        <div
+          className={cn(
+            "flex flex-row gap-3",
+            labelFirst ? "items-start justify-between cursor-pointer" : "items-center",
+          )}
+          onClick={
+            labelFirst
+              ? (e) => {
+                  if (disabled) return;
+                  if ((e.target as HTMLElement).closest("button")) return;
+                  handleCheckedChange(!value);
+                }
+              : undefined
+          }
+        >
           {/* Label row (left) */}
           {labelFirst && (
             <div className="flex flex-col gap-0.5 min-w-0">

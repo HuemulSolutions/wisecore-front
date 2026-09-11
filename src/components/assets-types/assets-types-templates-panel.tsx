@@ -15,39 +15,36 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core"
-import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { HuemulCombobox } from "@/huemul/components/huemul-combobox"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import {
   PanelBadge,
   PanelBreadcrumb,
-  PanelCard,
   PanelCollapsibleCard,
   PanelFieldLabel,
   PanelIconButton,
   PanelSectionLabel,
   SettingToggleRow,
 } from "@/components/assets-types/assets-types-lifecycle-ui"
+import { AssetTypeTemplatePicker } from "@/components/assets-types/assets-types-template-picker"
 import { TemplateSectionAccessMatrix } from "@/components/assets-types/assets-types-template-sections-matrix"
 import { TemplateSectionConditions } from "@/components/assets-types/assets-types-template-section-conditions"
 import { assetTypeQueryKeys, useDocumentTypeTemplates, useAssetTypeMutations } from "@/hooks/useAssetTypes"
 import { updateDocumentTypeTemplate } from "@/services/asset-types"
-import { getAllTemplates } from "@/services/templates"
-import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { cn } from "@/lib/utils"
 import type { AssetTypeTemplatesPanelProps, DocumentTypeTemplateLinkBody, LinkedTemplate } from "@/types/assets"
-import type { FetchOptionsParams } from "@/huemul/components/huemul-field"
 
-// ─── Fila arrastrable de la lista ──────────────────────────────────────────
+// ─── Card arrastrable de la grilla de vinculadas ───────────────────────────
 
-function SortableTemplateRow({
+function SortableTemplateCard({
   template,
+  order,
   isDirty,
   isRemoving,
   canManage,
@@ -55,6 +52,7 @@ function SortableTemplateRow({
   onRequestRemove,
 }: {
   template: LinkedTemplate
+  order: number
   isDirty: boolean
   isRemoving: boolean
   canManage: boolean
@@ -71,48 +69,55 @@ function SortableTemplateRow({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("flex items-center gap-3 px-3 py-2.5", isDragging && "opacity-50 z-50 bg-white")}
+      className={cn(
+        "relative flex flex-col gap-2.5 rounded-[10px] border border-[#e3e9f0] bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
+        isDragging && "opacity-50 z-50",
+      )}
     >
       {canManage && (
         <button
           type="button"
           aria-label={t("templates.reorder", { name: template.template_name })}
-          className="flex shrink-0 items-center justify-center text-[#94a3b8] hover:cursor-grab active:cursor-grabbing"
+          className="absolute top-2 left-2 flex items-center justify-center text-[#cbd5e1] hover:cursor-grab hover:text-[#94a3b8] active:cursor-grabbing"
           {...attributes}
           {...listeners}
         >
-          <GripVertical className="size-4" />
+          <GripVertical className="size-3.5" />
         </button>
       )}
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[#f1effc]">
-        <FileText className="size-3.5 text-[#6d5ae0]" />
-      </span>
-      <div className="flex flex-1 min-w-0 flex-col gap-1">
-        <p className="truncate text-[12.5px] font-medium text-[#334155]">
-          {template.template_name}
-          {template.relation_name && (
-            <span className="ml-1.5 font-normal text-[#94a3b8]">
-              {t("templates.displayNameBadge", { name: template.relation_name })}
-            </span>
-          )}
-        </p>
-        <div className="flex flex-wrap items-center gap-1">
-          {isDirty && <PanelBadge label={t("templates.unsavedBadge")} tone="warning" />}
-          <PanelBadge
-            label={t(
-              template.mostrar_en_workflow
-                ? "templates.summary.visibleInWorkflows"
-                : "templates.summary.notVisibleInWorkflows",
-            )}
-            tone={template.mostrar_en_workflow ? "success" : "neutral"}
-          />
-          {template.require_name_on_express && (
-            <PanelBadge label={t("templates.summary.asksName")} />
-          )}
+
+      <div className="flex items-start gap-2.5 pl-4">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[#f1effc]">
+          <FileText className="size-3.5 text-[#6d5ae0]" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[12.5px] font-medium text-[#334155]">{template.template_name}</p>
+          <p className="truncate text-[11px] text-[#94a3b8]">
+            {template.relation_name
+              ? t("templates.displayNameBadge", { name: template.relation_name })
+              : t("templates.noDisplayName")}
+          </p>
         </div>
+        <span className="shrink-0 text-[11px] font-medium text-[#cbd5e1]">{String(order).padStart(2, "0")}</span>
       </div>
+
+      <div className="flex flex-wrap items-center gap-1 pl-4">
+        {isDirty && <PanelBadge label={t("templates.unsavedBadge")} tone="warning" />}
+        <PanelBadge
+          label={t(
+            template.mostrar_en_workflow
+              ? "templates.summary.visibleInWorkflows"
+              : "templates.summary.notVisibleInWorkflows",
+          )}
+          tone={template.mostrar_en_workflow ? "success" : "neutral"}
+        />
+        {template.require_name_on_express && (
+          <PanelBadge label={t("templates.summary.asksName")} />
+        )}
+      </div>
+
       {canManage && (
-        <>
+        <div className="flex items-center justify-end gap-1.5 border-t border-[#eef1f5] pt-2.5">
           <button
             type="button"
             onClick={onConfigure}
@@ -127,7 +132,7 @@ function SortableTemplateRow({
             disabled={isRemoving}
             tone="danger"
           />
-        </>
+        </div>
       )}
     </div>
   )
@@ -268,7 +273,6 @@ export function AssetTypeTemplatesPanel({
 }: AssetTypeTemplatesPanelProps) {
   const { t } = useTranslation(["asset-types", "common"])
   const queryClient = useQueryClient()
-  const { selectedOrganizationId } = useOrganization()
   const mutations = useAssetTypeMutations()
   const { canUpdate } = useUserPermissions()
   const canManage = canUpdate('asset_type')
@@ -281,9 +285,9 @@ export function AssetTypeTemplatesPanel({
   const [orderDirty, setOrderDirty] = React.useState(false)
   const [isSaving, setIsSaving] = React.useState(false)
   const [configuringId, setConfiguringId] = React.useState<string | null>(null)
-  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>("")
-  const [selectedTemplateLabel, setSelectedTemplateLabel] = React.useState<string>("")
   const [deleteTarget, setDeleteTarget] = React.useState<LinkedTemplate | null>(null)
+
+  const linkedTemplateIds = React.useMemo(() => new Set(localLinks.map((l) => l.template_id)), [localLinks])
 
   const isDirty = dirtyIds.size > 0 || orderDirty
 
@@ -358,20 +362,8 @@ export function AssetTypeTemplatesPanel({
     onDirtyChange?.({ isDirty })
   }, [isDirty, onDirtyChange])
 
-  const fetchTemplateOptions = React.useCallback(
-    async ({ search, page, pageSize }: FetchOptionsParams) => {
-      if (!selectedOrganizationId) return { options: [], hasMore: false }
-      const res = await getAllTemplates(selectedOrganizationId, search, page, pageSize)
-      return {
-        options: res.data.map((tpl) => ({ value: tpl.id, label: tpl.name })),
-        hasMore: res.has_next,
-      }
-    },
-    [selectedOrganizationId],
-  )
-
-  const handleAdd = () => {
-    if (!canManage || !selectedTemplateId || !documentTypeId) return
+  const handleLinkTemplate = (templateId: string, templateName: string) => {
+    if (!canManage || !documentTypeId) return Promise.resolve()
     const body: DocumentTypeTemplateLinkBody = {
       relation_name: null,
       can_create_express: false,
@@ -380,31 +372,33 @@ export function AssetTypeTemplatesPanel({
       mostrar_en_workflow: false,
       orden: localLinks.length,
     }
-    mutations.linkTemplate.mutate(
-      { documentTypeId, templateId: selectedTemplateId, body },
-      {
-        onSuccess: () => {
-          // Se agrega en local además de invalidar: si hay cambios sucios en
-          // otra fila, la hidratación queda bloqueada y la nueva fila no
-          // aparecería hasta el próximo guardado.
-          setLocalLinks((prev) => [
-            ...prev,
-            {
-              template_id: selectedTemplateId,
-              template_name: selectedTemplateLabel,
-              relation_name: null,
-              can_create_express: false,
-              require_name_on_express: false,
-              name_placeholder: null,
-              mostrar_en_workflow: false,
-              orden: prev.length,
-            },
-          ])
-          setSelectedTemplateId("")
-          setSelectedTemplateLabel("")
+    return new Promise<void>((resolve, reject) => {
+      mutations.linkTemplate.mutate(
+        { documentTypeId, templateId, body },
+        {
+          onSuccess: () => {
+            // Se agrega en local además de invalidar: si hay cambios sucios en
+            // otra fila, la hidratación queda bloqueada y la nueva fila no
+            // aparecería hasta el próximo guardado.
+            setLocalLinks((prev) => [
+              ...prev,
+              {
+                template_id: templateId,
+                template_name: templateName,
+                relation_name: null,
+                can_create_express: false,
+                require_name_on_express: false,
+                name_placeholder: null,
+                mostrar_en_workflow: false,
+                orden: prev.length,
+              },
+            ])
+            resolve()
+          },
+          onError: (err) => reject(err),
         },
-      },
-    )
+      )
+    })
   }
 
   const handleConfirmRemove = () => {
@@ -464,39 +458,24 @@ export function AssetTypeTemplatesPanel({
           disabled={!canManage}
         />
       ) : (
-        <div className="flex flex-col gap-5">
+        // Vincular a la izquierda con ancho fijo y angosto (es un formulario
+        // corto, no necesita crecer), vinculadas a la derecha ocupando el
+        // resto — ahí vive una grilla de 2 columnas de cards que sí necesita
+        // el espacio. `items-start` porque la card de vincular es baja y no
+        // debe estirarse al alto de la lista. El detalle de plantilla (la
+        // otra rama) no lleva grid: su matriz de permisos necesita todo el ancho.
+        <div className="grid items-start gap-4 md:grid-cols-[360px_1fr]">
           {canManage && (
-            <PanelCard className="p-4">
-              <h3 className="mb-2 text-[13px] font-semibold text-[#0f172a]">
-                {t("templates.addTemplate")}
-              </h3>
-              <div className="flex gap-2">
-                <div className="flex-1 min-w-0">
-                  <HuemulCombobox
-                    value={selectedTemplateId}
-                    onValueChange={(v) => setSelectedTemplateId(v as string)}
-                    onSelectedLabelChange={(label) => setSelectedTemplateLabel(label ?? "")}
-                    fetchOptions={fetchTemplateOptions}
-                    placeholder={t("templates.searchPlaceholder")}
-                    searchPlaceholder={t("templates.searchPlaceholder")}
-                    emptyMessage={t("templates.noTemplatesAvailable")}
-                    disabled={!selectedOrganizationId || mutations.linkTemplate.isPending}
-                    pageSize={20}
-                  />
-                </div>
-                <HuemulButton
-                  size="sm"
-                  label={t("templates.add")}
-                  loading={mutations.linkTemplate.isPending}
-                  disabled={!selectedTemplateId}
-                  onClick={handleAdd}
-                  className="shrink-0"
-                />
-              </div>
-            </PanelCard>
+            <AssetTypeTemplatePicker
+              linkedTemplateIds={linkedTemplateIds}
+              isLinking={mutations.linkTemplate.isPending}
+              onLink={handleLinkTemplate}
+            />
           )}
 
-          <section className="flex flex-col gap-2">
+          {/* Sin el bloque de vincular quedaría un hueco a la izquierda. Es
+              defensivo: hoy `canManage` es el mismo permiso que monta el tab. */}
+          <section className={cn("flex flex-col gap-2", !canManage && "md:col-span-2")}>
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-baseline gap-2">
                 <PanelSectionLabel label={t("templates.addedTemplates")} count={localLinks.length} />
@@ -504,22 +483,25 @@ export function AssetTypeTemplatesPanel({
                   {t("templates.addedTemplatesHint")}
                 </span>
               </div>
-              <HuemulButton
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                icon={RefreshCw}
-                tooltip={t("common:refresh")}
-                loading={isFetching}
-                disabled={isDirty}
-                onClick={handleRefresh}
-              />
+              <div className="flex shrink-0 items-center gap-2">
+                {orderDirty && <PanelBadge label={t("templates.orderUnsavedBadge")} tone="warning" />}
+                <HuemulButton
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  icon={RefreshCw}
+                  tooltip={t("common:refresh")}
+                  loading={isFetching}
+                  disabled={isDirty}
+                  onClick={handleRefresh}
+                />
+              </div>
             </div>
 
             {isLoading ? (
-              <div className="flex flex-col gap-2">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-11 rounded-lg" />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-28 rounded-[10px]" />
                 ))}
               </div>
             ) : localLinks.length === 0 ? (
@@ -536,13 +518,14 @@ export function AssetTypeTemplatesPanel({
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext
                   items={localLinks.map((l) => l.template_id)}
-                  strategy={verticalListSortingStrategy}
+                  strategy={rectSortingStrategy}
                 >
-                  <PanelCard className="divide-y divide-[#eef1f5]">
-                    {localLinks.map((tpl) => (
-                      <SortableTemplateRow
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {localLinks.map((tpl, index) => (
+                      <SortableTemplateCard
                         key={tpl.template_id}
                         template={tpl}
+                        order={index + 1}
                         isDirty={dirtyIds.has(tpl.template_id)}
                         isRemoving={mutations.unlinkTemplate.isPending && deleteTarget?.template_id === tpl.template_id}
                         canManage={canManage}
@@ -550,7 +533,7 @@ export function AssetTypeTemplatesPanel({
                         onRequestRemove={() => setDeleteTarget(tpl)}
                       />
                     ))}
-                  </PanelCard>
+                  </div>
                 </SortableContext>
               </DndContext>
             )}

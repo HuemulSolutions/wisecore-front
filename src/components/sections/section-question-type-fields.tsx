@@ -21,14 +21,19 @@ import {
   jsonbToInputValue,
   readFieldConfig,
   readFieldOptions,
+  readFileUploadLimits,
   writeFieldConfig,
   type FormFieldDraft,
 } from "./question-type-meta";
 import { QuestionTypePreview } from "./question-type-preview";
 import { SectionFieldSeparator } from "./section-field-separator";
+import { SectionCalculatedFieldEditor } from "./section-calculated-field-editor";
 
 interface SectionQuestionTypeFieldsProps {
   field: FormFieldDraft;
+  // Preguntas anteriores disponibles para referenciar (mismos targets que depends_on) —
+  // solo lo consume el editor de campo_calculado_formula/campo_calculado_condicional.
+  availableDependencyFields: SectionFormField[];
   fetchCustomFieldOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
   isPending?: boolean;
   onUpdate: (patch: Partial<SectionFormField>) => void;
@@ -111,6 +116,7 @@ function SectionCustomFieldQuestionEditor({
 
 export function SectionQuestionTypeFields({
   field,
+  availableDependencyFields,
   fetchCustomFieldOptions,
   isPending,
   onUpdate,
@@ -245,6 +251,7 @@ export function SectionQuestionTypeFields({
           : [...allowedTypes, type];
         patchConfig({ allowed_types: next });
       };
+      const { min: minFiles, max: maxFiles } = readFileUploadLimits(field);
       return (
         <div className="space-y-3">
           <QuestionTypePreview questionType={qt} />
@@ -279,6 +286,35 @@ export function SectionQuestionTypeFields({
             disabled={isPending}
             className="max-w-40"
           />
+          <div className="space-y-1">
+            <div className="grid grid-cols-2 gap-3">
+              <HuemulField
+                type="number"
+                label={t("form.formFields.minFiles")}
+                value={minFiles}
+                onChange={(v) => {
+                  const n = v === "" ? 0 : Math.min(20, Math.max(0, Number(v)));
+                  onUpdate({ min_value: n, max_value: Math.max(maxFiles, n, 1) });
+                }}
+                disabled={isPending}
+              />
+              <HuemulField
+                type="number"
+                label={t("form.formFields.maxFiles")}
+                value={maxFiles}
+                onChange={(v) => {
+                  const n = v === "" ? 1 : Math.min(20, Math.max(1, Number(v)));
+                  onUpdate({ max_value: n, min_value: Math.min(minFiles, n) });
+                }}
+                disabled={isPending}
+              />
+            </div>
+            {maxFiles > 1 && (
+              <p className="text-xs text-muted-foreground">
+                {t("form.formFields.filesHint", { max: maxFiles })}
+              </p>
+            )}
+          </div>
         </div>
       );
     }
@@ -375,6 +411,18 @@ export function SectionQuestionTypeFields({
           isPending={isPending}
           onCustomFieldChange={onCustomFieldChange}
           onCreateCustomField={onCreateCustomField}
+        />
+      );
+
+    // ── Campos calculados: fórmula / árbol condicional ──────────────────────
+    case QUESTION_TYPE.calculatedFormula:
+    case QUESTION_TYPE.calculatedConditional:
+      return (
+        <SectionCalculatedFieldEditor
+          field={field}
+          availableFields={availableDependencyFields}
+          isPending={isPending}
+          onUpdate={onUpdate}
         />
       );
 

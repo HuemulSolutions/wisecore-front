@@ -26,6 +26,10 @@ import {
   getAccessRuleTypes,
   addAccessRuleToStep,
   removeAccessRuleFromStep,
+  getLifecycleElaborationConfig,
+  createLifecycleElaborationConfig,
+  updateLifecycleElaborationConfig,
+  deleteLifecycleElaborationConfig,
   type LifecycleStep,
   type LifecycleStepsResponse,
   type UpdateLifecycleStepData,
@@ -41,6 +45,8 @@ import {
   type UpdateExternalReviewActionRequest,
   type ReorderExternalReviewActionsRequest,
   type CreateAccessRuleData,
+  type CreateLifecycleElaborationConfigRequest,
+  type UpdateLifecycleElaborationConfigRequest,
 } from '@/services/lifecycle'
 import { usesRoleList } from '@/lib/lifecycle-access'
 
@@ -63,6 +69,9 @@ export const lifecycleQueryKeys = {
   externalReviewActionsBase: () => [...lifecycleQueryKeys.all, 'external-review-actions'] as const,
   externalReviewActions: (stepId: string) =>
     [...lifecycleQueryKeys.externalReviewActionsBase(), stepId] as const,
+  elaborationConfigBase: () => [...lifecycleQueryKeys.all, 'elaboration-config'] as const,
+  elaborationConfig: (stepId: string) =>
+    [...lifecycleQueryKeys.elaborationConfigBase(), stepId] as const,
 }
 
 export function useLifecycleStepTypes(enabled: boolean = true) {
@@ -486,4 +495,50 @@ export function useExternalReviewActionMutations(organizationId: string, stepId:
   })
 
   return { createAction, updateAction, deleteAction, reorderActions }
+}
+
+// ─── Lifecycle Elaboration Config ─────────────────────────────────────────────
+
+/** `retry: 0` — un 403 (sin `lifecycle_elaboration_config:l`) debe degradar en silencio, no reintentar. */
+export function useLifecycleElaborationConfig(
+  organizationId: string,
+  stepId: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: lifecycleQueryKeys.elaborationConfig(stepId),
+    queryFn: () => getLifecycleElaborationConfig(stepId, organizationId),
+    enabled: enabled && !!organizationId && !!stepId,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    retry: 0,
+  })
+}
+
+export function useLifecycleElaborationConfigMutations(organizationId: string, stepId: string) {
+  const queryClient = useQueryClient()
+
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: lifecycleQueryKeys.elaborationConfig(stepId),
+    })
+
+  const createConfig = useMutation({
+    mutationFn: (body: CreateLifecycleElaborationConfigRequest) =>
+      createLifecycleElaborationConfig(stepId, organizationId, body),
+    onSuccess: invalidate,
+  })
+
+  const updateConfig = useMutation({
+    mutationFn: (body: UpdateLifecycleElaborationConfigRequest) =>
+      updateLifecycleElaborationConfig(stepId, organizationId, body),
+    onSuccess: invalidate,
+  })
+
+  const deleteConfig = useMutation({
+    mutationFn: () => deleteLifecycleElaborationConfig(stepId, organizationId),
+    onSuccess: invalidate,
+  })
+
+  return { createConfig, updateConfig, deleteConfig }
 }

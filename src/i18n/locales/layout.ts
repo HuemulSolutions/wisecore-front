@@ -31,7 +31,7 @@ const translations = {
     customFields: { en: "Custom Fields", es: "Campos Personalizados" },
     tags: { en: "Tags", es: "Etiquetas" },
     canvas: { en: "Canvas", es: "Canvas" },
-    media: { en: "Media", es: "Media" },
+    media: { en: "Resources", es: "Recursos" },
     organizations: { en: "Organizations", es: "Organizaciones" },
     globalAdminSettings: { en: "Global Admin Settings", es: "Configuración de Admin Global" },
     users: { en: "Users", es: "Usuarios" },

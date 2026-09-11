@@ -245,10 +245,13 @@ export function LifecycleStepConditions({
   enabled = true,
   onRegisterRefresh,
   onRegisterEditor,
+  focusStepId = null,
 }: {
   documentTypeId: string
   stepType: string
   enabled?: boolean
+  /** Muestra solo este grupo (engranaje de columna en la matriz). `null` = todos los de la etapa. */
+  focusStepId?: string | null
   /** Publica un OBJETO `{refresh}` hacia el header de la card contenedora —
    * mismo patrón que `onRegisterEditor` de `EditStepContent` (que publica
    * `{isDirty, save, discard}`, nunca una función suelta). Es intencional: pasar
@@ -323,8 +326,10 @@ export function LifecycleStepConditions({
     return ids
   }, [steps, addedIds])
 
-  const visibleSteps = steps.filter((s) => visibleStepIds.has(s.id))
-  const addableSteps = steps.filter((s) => !visibleStepIds.has(s.id))
+  // Con un grupo enfocado (engranaje de columna en la matriz) el tab queda
+  // acotado a ese step: agregarle una condición o quitársela solo lo afecta a él.
+  const visibleSteps = steps.filter((s) => visibleStepIds.has(s.id) && (!focusStepId || s.id === focusStepId))
+  const addableSteps = steps.filter((s) => !visibleStepIds.has(s.id) && (!focusStepId || s.id === focusStepId))
 
   const [pickerOpen, setPickerOpen] = React.useState(false)
   const [pickerValue, setPickerValue] = React.useState("")

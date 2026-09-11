@@ -30,6 +30,8 @@ const translations = {
   actions: { en: "Actions", es: "Acciones" },
   expandRow: { en: "Expand row", es: "Expandir fila" },
   collapseRow: { en: "Collapse row", es: "Contraer fila" },
+  expand: { en: "Expand", es: "Expandir" },
+  collapse: { en: "Collapse", es: "Colapsar" },
   name: { en: "Name", es: "Nombre" },
   created: { en: "Created", es: "Creado" },
   updated: { en: "Updated", es: "Actualizado" },

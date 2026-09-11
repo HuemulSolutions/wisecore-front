@@ -2,11 +2,11 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
-import { HuemulField } from "@/huemul/components/huemul-field";
+import { TemplateFormFields } from "@/components/templates/templates-form-fields";
 import { updateTemplate, getTemplateById } from "@/services/templates";
 import { Edit3 } from "lucide-react";
 import { withRefresh } from "@/lib/query-utils";
-import type { EditTemplateDialogProps } from '@/types/templates';
+import type { EditTemplateDialogProps, TemplateFormValues } from '@/types/templates';
 export type { EditTemplateDialogProps } from '@/types/templates';
 
 type UpdateTemplatePayload = Parameters<typeof updateTemplate>[1];
@@ -23,19 +23,23 @@ export function EditTemplateDialog({
 }: EditTemplateDialogProps) {
   const { t } = useTranslation('templates');
   const queryClient = useQueryClient();
-  const [editName, setEditName] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const [editInstructions, setEditInstructions] = useState("");
-  const [editContextRequired, setEditContextRequired] = useState(false);
+  const [values, setValues] = useState<TemplateFormValues>({
+    name: "",
+    description: "",
+    instructions: "",
+    contextRequired: false,
+  });
 
   // Prefill inicial desde las props (rápido, pero el sidebar solo pasa datos
   // del listado y puede no traer context_required/instructions completos).
   useEffect(() => {
     if (open) {
-      setEditName(templateName);
-      setEditDescription(templateDescription || "");
-      setEditInstructions(templateInstructions || "");
-      setEditContextRequired(false);
+      setValues({
+        name: templateName,
+        description: templateDescription || "",
+        instructions: templateInstructions || "",
+        contextRequired: false,
+      });
     }
   }, [open, templateName, templateDescription, templateInstructions]);
 
@@ -52,10 +56,12 @@ export function EditTemplateDialog({
 
   useEffect(() => {
     if (!open || !templateDetail) return;
-    setEditName(templateDetail.name ?? templateName);
-    setEditDescription(templateDetail.description || "");
-    setEditInstructions(templateDetail.instructions || "");
-    setEditContextRequired(templateDetail.context_required === true);
+    setValues({
+      name: templateDetail.name ?? templateName,
+      description: templateDetail.description || "",
+      instructions: templateDetail.instructions || "",
+      contextRequired: templateDetail.context_required === true,
+    });
   }, [open, templateDetail, templateName]);
 
   const updateTemplateMutation = useMutation({
@@ -73,10 +79,10 @@ export function EditTemplateDialog({
 
   const handleSubmit = () => {
     updateTemplateMutation.mutate({
-      name: editName.trim(),
-      description: editDescription.trim() || null,
-      instructions: editInstructions.trim() || null,
-      context_required: editContextRequired,
+      name: values.name.trim(),
+      description: values.description.trim() || null,
+      instructions: values.instructions.trim() || null,
+      context_required: values.contextRequired,
     });
   };
 
@@ -91,47 +97,15 @@ export function EditTemplateDialog({
       saveAction={{
         label: t('edit.submitLabel'),
         onClick: handleSubmit,
-        disabled: !editName.trim(),
+        disabled: !values.name.trim(),
         loading: updateTemplateMutation.isPending,
         closeOnSuccess: false,
       }}
     >
-      <div className="space-y-4 py-2">
-        <HuemulField
-          label={t('form.templateName')}
-          type="text"
-          value={editName}
-          onChange={(v) => setEditName(String(v))}
-          placeholder={t('form.templateNamePlaceholder')}
-          required
-          disabled={updateTemplateMutation.isPending}
-        />
-        <HuemulField
-          label={t('form.description')}
-          type="textarea"
-          value={editDescription}
-          onChange={(v) => setEditDescription(String(v))}
-          placeholder={t('form.descriptionPlaceholder')}
-          rows={8}
-          inputClassName="min-h-[16rem]"
-          disabled={updateTemplateMutation.isPending}
-        />
-        <HuemulField
-          label={t('form.instructions')}
-          type="textarea"
-          value={editInstructions}
-          onChange={(v) => setEditInstructions(String(v))}
-          placeholder={t('form.instructionsPlaceholder')}
-          rows={8}
-          inputClassName="min-h-[16rem]"
-          disabled={updateTemplateMutation.isPending}
-        />
-        <HuemulField
-          type="switch"
-          label={t('form.contextRequired')}
-          value={editContextRequired}
-          onChange={(v) => setEditContextRequired(Boolean(v))}
-          description={t('form.contextRequiredDescription')}
+      <div className="space-y-5 py-2">
+        <TemplateFormFields
+          values={values}
+          onChange={(patch) => setValues((v) => ({ ...v, ...patch }))}
           disabled={updateTemplateMutation.isPending}
         />
       </div>

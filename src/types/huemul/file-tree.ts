@@ -49,6 +49,16 @@ export interface HuemulFileTreeProps {
   cascadeSelection?: boolean
   // Qué nodos pueden expandirse. Por defecto: solo carpetas (type === folderType).
   isNodeExpandable?: (node: HuemulTreeNode) => boolean
+  /**
+   * Qué nodos expandidos vale la pena reportar a `onExpandedFoldersChange`.
+   * Por defecto: todos los expandibles. Existe para árboles donde no todo
+   * nodo expandible es una carpeta real de la biblioteca (ej. el modo
+   * "execution" del picker de assets, donde un documento se vuelve
+   * expandible para listar sus versiones) — sin este filtro, ese id
+   * contaminaría el set compartido de carpetas persistidas. Ver
+   * ia context/arbol-biblioteca-activos-guide.md.
+   */
+  isNodePersistable?: (node: HuemulTreeNode) => boolean
   // Contenido adicional a mostrar después del nombre del nodo (ej. badge de versión).
   renderNodeSuffix?: (node: HuemulTreeNode) => ReactNode
   // Nodos de nivel raíz que deben verse como encabezado de sección (estilo Notion):
@@ -79,13 +89,21 @@ export interface HuemulFileTreeProps {
   canDropNode?: (node: HuemulTreeNode) => boolean
   /**
    * Se dispara cada vez que cambia el set de carpetas expandidas (expandir,
-   * colapsar, o una carga que trae expansión ya resuelta desde el backend),
-   * con la lista completa de ids vigente. No se emite antes de la carga
-   * inicial (`isInitialized`) para no pisar un estado persistido con un set
-   * vacío antes de restaurarlo. El componente es agnóstico de storage — solo
-   * avisa; quien lo use decide cómo (o si) persistir el valor.
+   * colapsar, o una carga que trae expansión ya resuelta desde el backend).
+   * `folderIds` es el set expandido vigente (filtrado por `isNodePersistable`
+   * si se pasó). `knownIds` es TODO nodo persistible que el árbol tiene
+   * materializado en memoria en este momento (expandido o no, sin la poda por
+   * colapso de `folderIds`) — le dice a quien persiste qué porción del universo
+   * total puede dar por buena, para hacer un merge por cobertura en vez de un
+   * reemplazo total (ver useTreeExpansionStorage.saveExpandedIds): un árbol que
+   * solo ve una página, un subconjunto filtrado, o que carga vacío por un error
+   * transitorio, no debe borrar carpetas expandidas de otras superficies o
+   * páginas que no pasaron por acá. No se emite antes de la carga inicial
+   * (`isInitialized`) para no pisar un estado persistido con un set vacío antes
+   * de restaurarlo. El componente es agnóstico de storage — solo avisa; quien
+   * lo use decide cómo (o si) persistir el valor.
    */
-  onExpandedFoldersChange?: (folderIds: string[]) => void
+  onExpandedFoldersChange?: (folderIds: string[], context: { knownIds: string[] }) => void
 }
 
 export interface HuemulFileTreeRef {

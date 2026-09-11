@@ -1,7 +1,7 @@
 export interface HuemulPaginationProps {
   page: number
   pageSize: number
-  totalItems?: number
+  totalItems?: number | null
   hasNext?: boolean
   hasPrevious?: boolean
   onPageChange: (page: number) => void

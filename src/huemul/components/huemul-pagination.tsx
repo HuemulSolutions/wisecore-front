@@ -34,7 +34,7 @@ export type { HuemulPaginationProps }
 export function HuemulPagination({
   page,
   pageSize,
-  totalItems,
+  totalItems: totalItemsProp,
   hasNext,
   hasPrevious,
   onPageChange,
@@ -47,6 +47,9 @@ export function HuemulPagination({
 }: HuemulPaginationProps) {
   const { t } = useTranslation("common")
   const isBare = variant === "bare"
+  // El backend a veces manda `total: null` (ej. cuando el conteo exacto no se calculó)
+  // — se trata igual que "sin total conocido" (mismo camino que `undefined`).
+  const totalItems = totalItemsProp ?? undefined
 
   const totalPages =
     totalItems !== undefined ? Math.ceil(totalItems / pageSize) || 1 : undefined
