@@ -901,7 +901,7 @@ const translations = {
     assetInfo: { en: "Asset information", es: "Información del activo" },
     assetPermissions: { en: "Asset permissions", es: "Permisos del activo" },
     diagramsLabel: { en: "Diagrams", es: "Diagramas" },
-    mediaLabel: { en: "Attached files", es: "Archivos adjuntos" },
+    mediaLabel: { en: "Attached resources", es: "Recursos adjuntos" },
     assetInfoTitle: { en: "Asset Information", es: "Información del Activo" },
     assetInfoDescription: { en: "Detailed metadata and status of this asset.", es: "Metadatos y estado detallado de este activo." },
     info: {

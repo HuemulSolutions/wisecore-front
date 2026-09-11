@@ -11,7 +11,7 @@ const translations = {
     language: { en: "Language", es: "Idioma" },
     languageSpanish: { en: "Spanish", es: "Español" },
     languageEnglish: { en: "English", es: "English" },
-    mediaViewMode: { en: "Default media view", es: "Vista de media por defecto" },
+    mediaViewMode: { en: "Default resource view", es: "Vista de recursos por defecto" },
     mediaViewModeGrid: { en: "Grid", es: "Cuadrícula" },
     mediaViewModeList: { en: "List", es: "Lista" },
   },

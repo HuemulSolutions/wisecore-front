@@ -62,7 +62,7 @@ const translations = {
     createTemplate: { en: "Create Template", es: "Crear Plantilla" },
     sectionsTab: { en: "Sections", es: "Secciones" },
     customFieldsTab: { en: "Custom Fields", es: "Campos Personalizados" },
-    mediaTab: { en: "Media", es: "Media" },
+    mediaTab: { en: "Resources", es: "Recursos" },
     contextTab: { en: "Context", es: "Contexto" },
     dependenciesTab: { en: "Dependencies", es: "Dependencias" },
     refreshSections: { en: "Refresh sections", es: "Actualizar secciones" },

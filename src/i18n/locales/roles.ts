@@ -92,7 +92,7 @@ const translations = {
       lifecycle_external_review_action: { en: "External Review Actions", es: "Acciones de Revisión Externa" },
       llm: { en: "AI", es: "IA" },
       llm_provider: { en: "AI Providers", es: "Proveedores de IA" },
-      media: { en: "Media", es: "Archivos Multimedia" },
+      media: { en: "Resources", es: "Recursos" },
       notification: { en: "Notifications", es: "Notificaciones" },
       organization: { en: "Organization", es: "Organización" },
       rbac: { en: "Roles & Permissions", es: "Roles y Permisos" },
