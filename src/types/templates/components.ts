@@ -161,3 +161,16 @@ export interface TemplateCustomFieldsProps {
   canUpdate?: boolean;
   canDelete?: boolean;
 }
+
+export interface TemplateFormValues {
+  name: string;
+  description: string;
+  instructions: string;
+  contextRequired: boolean;
+}
+
+export interface TemplateFormFieldsProps {
+  values: TemplateFormValues;
+  onChange: (patch: Partial<TemplateFormValues>) => void;
+  disabled?: boolean;
+}

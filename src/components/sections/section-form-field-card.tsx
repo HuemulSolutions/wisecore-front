@@ -17,6 +17,7 @@ import { SectionQuestionTypeFields } from "./section-question-type-fields";
 import { SectionFormFieldDependencyEditor } from "./section-form-field-dependency-editor";
 import {
   QUESTION_TYPE,
+  isCalculatedField,
   questionTypeIcon,
   questionTypeLabel,
   slugifyFieldId,
@@ -153,6 +154,7 @@ export function SectionFormFieldCard({
           {field.question_type && (
             <SectionQuestionTypeFields
               field={field}
+              availableDependencyFields={availableDependencyFields}
               fetchCustomFieldOptions={fetchCustomFieldOptions}
               isPending={isPending}
               onUpdate={onUpdate}
@@ -255,7 +257,7 @@ export function SectionFormFieldCard({
               tooltip={t("form.formFields.delete")}
               className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50"
             />
-            {field.question_type !== QUESTION_TYPE.label && (
+            {field.question_type !== QUESTION_TYPE.label && !isCalculatedField(field) && (
               <div className="ml-2 flex items-center gap-2">
                 <Label htmlFor={`required-${field.__key}`} className="text-xs text-gray-600">
                   {t("form.formFields.required")}

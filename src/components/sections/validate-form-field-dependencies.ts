@@ -25,10 +25,14 @@ const SCALAR_VALUE_OPERATORS = new Set(["eq", "neq", "gt", "gte", "lt", "lte", "
 
 // Valida las condiciones de depends_on de UNA pregunta contra el set de preguntas
 // disponibles para referenciar (mismas-sección anteriores + secciones anteriores).
+// `opts.allowDuplicates` lo usa el `if` de campo_calculado_condicional (SectionConditionalRuleEditor):
+// ahí un mismo field_id dos veces es legítimo (ej. "gt 10 AND lt 20"), a diferencia de
+// depends_on que siempre lo rechaza (default false, los 4 consumidores de depends_on no cambian).
 export function validateFieldDependencyConditions(
   ownFieldId: string,
   conditions: FieldDependencyCondition[],
   availableFields: SectionFormField[],
+  opts?: { allowDuplicates?: boolean },
 ): FieldDependencyConditionError[] {
   const errors: FieldDependencyConditionError[] = [];
   const seenRefs = new Set<string>();
@@ -51,10 +55,12 @@ export function validateFieldDependencyConditions(
       return;
     }
 
-    if (seenRefs.has(targetId)) {
-      errors.push({ conditionIndex: i, code: "duplicateReference" });
-    } else {
-      seenRefs.add(targetId);
+    if (!opts?.allowDuplicates) {
+      if (seenRefs.has(targetId)) {
+        errors.push({ conditionIndex: i, code: "duplicateReference" });
+      } else {
+        seenRefs.add(targetId);
+      }
     }
 
     const target = availableFields.find((f) => f.field_id.trim() === targetId);

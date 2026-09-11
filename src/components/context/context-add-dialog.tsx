@@ -18,6 +18,7 @@ export function AddContextDialog({
 }: AddContextDialogProps) {
   const [context, setContext] = useState("");
   const [contextName, setContextName] = useState("");
+  const [required, setRequired] = useState(false);
 
   const { t } = useTranslation('context')
   const queryClient = useQueryClient();
@@ -30,6 +31,7 @@ export function AddContextDialog({
   const resetForm = useCallback(() => {
     setContext("");
     setContextName("");
+    setRequired(false);
   }, []);
 
   // Reset form when dialog closes
@@ -45,8 +47,8 @@ export function AddContextDialog({
 
   // Mutation to add text context
   const addTextMutation = useMutation({
-    mutationFn: ({ name, content }: { name: string; content: string }) =>
-      addTextContext(documentId, name, content, selectedOrganizationId!),
+    mutationFn: ({ name, content, required }: { name: string; content?: string; required: boolean }) =>
+      addTextContext(documentId, { name, content, required }, selectedOrganizationId!),
     onSuccess: () => {
       toast.success(t('addDialog.toastTextAdded'));
       resetForm();
@@ -59,11 +61,11 @@ export function AddContextDialog({
   });
 
   const handleAddText = async () => {
-    if (!contextName.trim() || !context.trim()) {
+    if (!contextName.trim() || (!required && !context.trim())) {
       toast.error(t('addDialog.validationFillFields'));
       return;
     }
-    addTextMutation.mutate({ name: contextName, content: context });
+    addTextMutation.mutate({ name: contextName, content: context.trim() || undefined, required });
   };
 
   return (
@@ -80,7 +82,7 @@ export function AddContextDialog({
       saveAction={{
         label: t('addDialog.addTextButton'),
         onClick: handleAddText,
-        disabled: !contextName.trim() || !context.trim() || addTextMutation.isPending,
+        disabled: !contextName.trim() || (!required && !context.trim()) || addTextMutation.isPending,
         loading: addTextMutation.isPending,
         icon: Plus,
         closeOnSuccess: false,
@@ -99,6 +101,18 @@ export function AddContextDialog({
         />
 
         <HuemulField
+          type="switch"
+          label={t('addDialog.required')}
+          id="dialog-text-required"
+          value={required}
+          onChange={(val) => setRequired(Boolean(val))}
+          description={t('addDialog.requiredDescription')}
+          disabled={addTextMutation.isPending}
+          labelFirst
+          className="px-4 py-3.5 border rounded-[10px]"
+        />
+
+        <HuemulField
           type="textarea"
           label={t('addDialog.contextContent')}
           id="dialog-text-content"
@@ -107,7 +121,7 @@ export function AddContextDialog({
           value={context}
           onChange={(val) => setContext(String(val))}
           disabled={addTextMutation.isPending}
-          required
+          required={!required}
         />
       </div>
     </HuemulDialog>

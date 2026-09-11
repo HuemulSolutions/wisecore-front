@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useOrganization } from "@/contexts/organization-context";
 import { HuemulField } from "@/huemul/components/huemul-field";
-import { PanelCard } from "@/components/assets-types/assets-types-lifecycle-ui";
+import { HuemulSectionCard } from "@/huemul/components/huemul-section-card";
 import { createDocumentType, updateDocumentType, getDocumentTypeById } from "@/services/document-types";
 import { getErrorMessage, isErrorCode } from "@/lib/error-utils";
 import type { DocumentType, CreateDocumentTypeData, FinalLifecycleStage } from "@/types/document-types";
@@ -283,39 +283,40 @@ export function AssetTypeGeneralFormFields({
 
   if (variant === 'cards') {
     return (
-      <div className="space-y-4">
-        <PanelCard className="overflow-hidden">
-          <div className="flex items-baseline gap-2 px-4 py-3">
-            <h3 className="shrink-0 text-[13px] font-semibold text-[#0f172a]">{t('form.identityTitle')}</h3>
-            <p className="truncate text-[11.5px] text-[#94a3b8]">{t('form.identitySubtitle')}</p>
+      // Las dos secciones en una fila de dos columnas: son cortas y apiladas
+      // desperdiciaban el ancho de la página. `items-start` para que no se
+      // estiren a la altura de la más alta.
+      <div className="grid items-start gap-4 md:grid-cols-2">
+        <HuemulSectionCard
+          title={t('form.identityTitle')}
+          subtitle={t('form.identitySubtitle')}
+        >
+          {/* A media anchura, dos columnas fijas apretaban nombre y color. */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {nameField}
+            {colorField}
           </div>
-          <div className="border-t border-[#eef1f5] px-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              {nameField}
-              {colorField}
-            </div>
-            {identityExtra && <div className="mt-4">{identityExtra}</div>}
-          </div>
-        </PanelCard>
+          {identityExtra && <div className="mt-4">{identityExtra}</div>}
+        </HuemulSectionCard>
 
-        <PanelCard className="overflow-hidden">
-          <div className="flex items-baseline gap-2 px-4 py-3">
-            <h3 className="shrink-0 text-[13px] font-semibold text-[#0f172a]">{t('form.versioningTitle')}</h3>
-            <p className="truncate text-[11.5px] text-[#94a3b8]">{t('form.versioningSubtitle')}</p>
-          </div>
-          <div className="space-y-3 border-t border-[#eef1f5] px-4 py-4">
-            {isoToggleField}
-            {!form.values.requiresIsoStrictVersioning && finalStageSelectField}
-          </div>
-          {form.values.requiresIsoStrictVersioning && (
-            <div className="flex items-start gap-2 border-t border-[#eef1f5] bg-[#f8fafc] px-4 py-3 text-[12px] leading-snug text-[#475569]">
-              <Info className="mt-0.5 size-3.5 shrink-0 text-[#64748b]" />
-              <span>{finalStageHint}</span>
-            </div>
-          )}
-        </PanelCard>
+        <HuemulSectionCard
+          title={t('form.versioningTitle')}
+          subtitle={t('form.versioningSubtitle')}
+          bodyClassName="space-y-3"
+          footer={
+            form.values.requiresIsoStrictVersioning ? (
+              <>
+                <Info className="mt-0.5 size-3.5 shrink-0 text-[#64748b]" />
+                <span>{finalStageHint}</span>
+              </>
+            ) : undefined
+          }
+        >
+          {isoToggleField}
+          {!form.values.requiresIsoStrictVersioning && finalStageSelectField}
+        </HuemulSectionCard>
 
-        {errorBlock}
+        {errorBlock && <div className="md:col-span-2">{errorBlock}</div>}
       </div>
     );
   }

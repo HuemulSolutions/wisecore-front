@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getAccessLevels } from '@/services/access-levels'
 import { usePageAccess } from '@/hooks/usePageAccess'
-import { isTerminalLifecycleState } from '@/lib/lifecycle-access'
+import { isTerminalLifecycleState, isExternalElaborationLocked } from '@/lib/lifecycle-access'
 import type { FrontendPermissions, LifecyclePermissions, LifecycleStatus } from '@/types/assets'
 
 /**
@@ -189,12 +189,18 @@ export function computeFrontendPermissions(
   const hasPublish = permissions?.publish === true
   const hasArchive = permissions?.archive === true
   const isEditStage = status?.stage === 'edit' && !isTerminalLifecycleState(status?.state)
+  // Bloqueo de ElaborationRun (ver ia context correspondiente): apaga solo las
+  // capacidades de ESCRITURA DE CONTENIDO, que es lo que el backend rechaza con
+  // 409 EXECUTION_LOCKED_EXTERNAL_ELABORATION. No toca canAccessSectionSheet
+  // (seguir viendo la configuración es legítimo) ni las acciones de ciclo de
+  // vida (review/approve/publish/archive), que el backend no bloquea.
+  const isLocked = isExternalElaborationLocked(status)
 
   return {
-    canEditSections: (hasCreate || hasEdit) && isEditStage && rbac.updateAssetContent,
+    canEditSections: (hasCreate || hasEdit) && isEditStage && rbac.updateAssetContent && !isLocked,
     canAccessSectionSheet:
       (hasCreate || hasEdit || hasReview || hasApprove || hasPublish) && rbac.updateAssetContent,
-    canExecuteAI: (hasCreate || hasEdit) && rbac.updateAssetContent,
+    canExecuteAI: (hasCreate || hasEdit) && rbac.updateAssetContent && !isLocked,
     canReviewContent: hasReview && rbac.updateAssetContent,
     canApproveContent: hasApprove && rbac.updateAssetContent,
     canPublishContent: hasPublish && rbac.updateAssetContent,
@@ -267,15 +273,20 @@ export function useAssetContentPermissions(
     )
   }, [lifecyclePermissions, rbac])
 
-  /** Toggle lector/editor: solo en stage "edit" con create/edit y asset:u. */
+  /**
+   * Toggle lector/editor: solo en stage "edit" con create/edit y asset:u, y
+   * nunca mientras haya un ElaborationRun bloqueando la execution — el efecto
+   * en assets-content.tsx fuerza modo lector en cuanto esto pasa a false.
+   */
   const canSwitchToEditorMode = useMemo(() => {
     const isEditStage = lifecycleStatus?.stage === 'edit'
     return (
       isEditStage &&
       rbac.updateAssetContent &&
-      !!(lifecyclePermissions?.create || lifecyclePermissions?.edit)
+      !!(lifecyclePermissions?.create || lifecyclePermissions?.edit) &&
+      !isExternalElaborationLocked(lifecycleStatus)
     )
-  }, [lifecyclePermissions, lifecycleStatus?.stage, rbac.updateAssetContent])
+  }, [lifecyclePermissions, lifecycleStatus, rbac.updateAssetContent])
 
   return { frontendPermissions, rbac, canViewContent, isViewOnly, canSwitchToEditorMode }
 }

@@ -426,3 +426,62 @@ export interface CompleteLifecycleStepResponse {
   external_review?: CompleteLifecycleStepExternalReview
   data_tables_refreshed?: DataTablesRefreshedSummary
 }
+
+// ─── Lifecycle Elaboration Config ─────────────────────────────────────────────
+
+export interface LifecycleElaborationConfig {
+  id: string
+  lifecycle_step_id: string
+  external_functionality_id: string
+  new_section_template_section_id: string | null
+  is_enabled: boolean
+  external_functionality?: ExternalReviewActionFunctionality
+  created_at: string
+  updated_at: string
+}
+
+/** `data: null` cuando el step todavía no tiene config — no es error, es el estado inicial. */
+export interface LifecycleElaborationConfigResponse {
+  data: LifecycleElaborationConfig | null
+  transaction_id: string
+  timestamp: string
+}
+
+export interface CreateLifecycleElaborationConfigRequest {
+  external_functionality_id: string
+  new_section_template_section_id?: string | null
+  is_enabled?: boolean
+}
+
+/**
+ * PUT parcial con tri-estado en `new_section_template_section_id`: clave
+ * omitida = no tocar el blueprint actual; `null` explícito = limpiarlo.
+ */
+export interface UpdateLifecycleElaborationConfigRequest {
+  external_functionality_id?: string
+  new_section_template_section_id?: string | null
+  is_enabled?: boolean
+}
+
+export interface ElaborationRun {
+  id: string
+  execution_id: string
+  document_id: string
+  lifecycle_step_id: string
+  external_functionality_id: string
+  triggered_by_user_id: string
+  execution_mode: 'sync' | 'async'
+  status: 'pending' | 'running' | 'awaiting_callback' | 'completed' | 'failed'
+  started_at: string | null
+  finished_at: string | null
+  error_detail: string | null
+  result_summary: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** `run`/`job` llegan `null` cuando el step no tiene config o está deshabilitada — no es error, no hubo nada que disparar. */
+export interface RunElaborationResponse {
+  run: ElaborationRun | null
+  job: unknown | null
+}

@@ -55,20 +55,53 @@ export function isGroupableStepType(type: string): boolean {
   return LIFECYCLE_GROUPABLE_TYPES.has(type)
 }
 
+/**
+ * Qué controles ofrece el sheet mono-entidad de un step, por tipo. Reemplaza
+ * el enrutamiento `EditStepContent`/`CreateStepContent` (uno agrupable, otro
+ * simple) por una sola tabla explícita — evita un editor con `isGroupable &&`
+ * disperso por todo el archivo.
+ *
+ * `hasModeSelector` (no `hasMode`): el campo `mode` existe en TODOS los steps
+ * agrupables, pero el selector Manual/Automático solo se muestra en
+ * `edit`/`review` — `approve` es siempre manual, sin control visible.
+ */
+export interface LifecycleStepCapabilities {
+  /** El nombre lo pone el usuario (grupos). Etapas simples usan el nombre fijo del backend. */
+  editableName: boolean
+  hasModeSelector: boolean
+  hasSla: boolean
+  /** Selector de posición — solo tiene sentido con más de un step del mismo tipo. */
+  hasPosition: boolean
+  hasAccessRules: boolean
+  /** «El propietario puede…» — no aplica en `create` (todavía no hay propietario). */
+  hasOwnerToggle: boolean
+  canDelete: boolean
+  hasConditions: boolean
+  /** Chips de `view` heredado (`inherited_roles` / `view_inherited_for_all_roles`) — solo `view`. */
+  hasInheritedViewChips: boolean
+  /** Elaboración externa del contenido (sistema externo procesa los archivos del step y devuelve secciones) — solo `edit`, sin depender de `mode`. */
+  hasElaborationConfig: boolean
+}
+
+export function lifecycleStepCapabilities(type: string): LifecycleStepCapabilities {
+  const groupable = isGroupableStepType(type)
+  return {
+    editableName: groupable,
+    hasModeSelector: type === "edit" || type === "review",
+    hasSla: groupable,
+    hasPosition: groupable,
+    hasAccessRules: true,
+    hasOwnerToggle: type !== "create",
+    canDelete: groupable,
+    hasConditions: groupable,
+    hasInheritedViewChips: type === "view",
+    hasElaborationConfig: type === "edit",
+  }
+}
+
 /** Posición en el pipeline, o `-1` si el tipo no está listado. */
 export function pipelineIndex(type: string): number {
   return LIFECYCLE_PIPELINE_ORDER.indexOf(type)
-}
-
-/**
- * Tipos de step con mínimo de 1 (no se puede borrar el último) según la etapa
- * final configurada en el tipo de activo — mismo criterio que valida el
- * backend en `DELETE /lifecycle/steps/{id}`.
- */
-export function getRequiredStepTypes(finalStage: FinalLifecycleStage): ReadonlySet<string> {
-  if (finalStage === "edit") return new Set(["edit"])
-  if (finalStage === "review") return new Set(["edit", "review"])
-  return new Set(["edit", "approve"]) // approve | publish — comportamiento actual
 }
 
 /** Posición para ordenar: los tipos desconocidos van al final, no al principio. */
@@ -206,6 +239,17 @@ export function isTerminalLifecycleState(state: string | undefined): boolean {
 }
 
 /**
+ * Ausente ⇒ no bloqueado (payloads viejos, o asset type sin elaboración externa
+ * configurada). Nunca comparar por truthiness — el campo puede llegar `undefined`.
+ */
+export function isExternalElaborationLocked(status?: LifecycleStatus): boolean {
+  return status?.is_locked_external_elaboration === true
+}
+
+/** Cadencia del poll de /content mientras el activo está bloqueado esperando al sistema externo. */
+export const EXTERNAL_ELABORATION_POLL_MS = 5000
+
+/**
  * Estados cuyo label de `lifecycle.stateLabels` encaja gramaticalmente embebido en
  * "Este activo está {label}" / "This asset is {label}". `draft` queda fuera a
  * propósito ("está elaboración" no es frase) — para esos se usa el aviso genérico.
@@ -239,6 +283,7 @@ export interface LifecycleActionsVisibility {
   canArchive: boolean
   canRestore: boolean
   canRerunExternalPublish: boolean
+  canRunElaboration: boolean
   /** Ninguna acción disponible: el contenedor no se pinta (ver `HuemulLifecycleActions`). */
   hasAny: boolean
 }
@@ -264,6 +309,9 @@ export function resolveLifecycleActionsVisibility(input: {
   isBlockedByRequiredAnswers?: boolean
   showRerunExternalPublish?: boolean
   hideComplete?: boolean
+  showRunElaboration?: boolean
+  /** `controller.hasEnabledElaborationConfig` — el step actual tiene una `LifecycleElaborationConfig` habilitada. */
+  hasEnabledElaborationConfig?: boolean
 }): LifecycleActionsVisibility {
   const { status, permissions, canTransition, finalLifecycleStage } = input
 
@@ -275,6 +323,7 @@ export function resolveLifecycleActionsVisibility(input: {
       canArchive: false,
       canRestore: false,
       canRerunExternalPublish: false,
+      canRunElaboration: false,
       hasAny: false,
     }
   }
@@ -289,6 +338,17 @@ export function resolveLifecycleActionsVisibility(input: {
   const canRestore = !!permissions?.archive && isRestorableLifecycleState(status.state)
   const canRerunExternalPublish =
     !!input.showRerunExternalPublish && !!permissions?.publish && status.state === "published"
+  // El lock (`is_locked_external_elaboration`) NO entra acá — se resuelve como
+  // `disabled` en el botón, no como visibilidad, para no saltar el layout
+  // mientras corre. `status.stage` (no `state`): `state` varía dentro de la
+  // misma etapa (ej. "returned") y el chequeo canónico de "sigo en edición" en
+  // todo el repo es por `stage`.
+  const canRunElaboration =
+    !!input.showRunElaboration &&
+    !!input.hasEnabledElaborationConfig &&
+    !!permissions?.edit &&
+    status.stage === "edit" &&
+    !isTerminalLifecycleState(status.state)
 
   return {
     canReturn,
@@ -297,7 +357,9 @@ export function resolveLifecycleActionsVisibility(input: {
     canArchive,
     canRestore,
     canRerunExternalPublish,
-    hasAny: canReturn || canComplete || canPublish || canArchive || canRestore || canRerunExternalPublish,
+    canRunElaboration,
+    hasAny:
+      canReturn || canComplete || canPublish || canArchive || canRestore || canRerunExternalPublish || canRunElaboration,
   }
 }
 

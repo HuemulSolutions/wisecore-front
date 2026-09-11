@@ -23,6 +23,9 @@ interface AssetFormSectionReaderProps {
   isSaving?: boolean;
   /** Formulario rellenable (AssetFormSection), inyectado por assets-section.tsx. */
   children?: React.ReactNode;
+  /** Estado de colapso controlado por assets-section.tsx (incluye el force-open al responder). */
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 /**
@@ -34,6 +37,9 @@ interface AssetFormSectionReaderProps {
  * Con `canAnswer`, agrega un botón "Responder" que activa `isAnswering`: la tarjeta renderiza
  * `children` (AssetFormSection rellenable) en vez de FormAnswersList, sin salir del modo lector
  * del asset — atajo para no tener que cambiar a modo editor solo para completar un formulario.
+ *
+ * `open`/`onOpenChange` son controlados: el estado de colapso (incluido el force-open al entrar
+ * en modo respuesta) vive en assets-section.tsx, junto con el de las secciones no-form.
  */
 export function AssetFormSectionReader({
   section,
@@ -45,17 +51,12 @@ export function AssetFormSectionReader({
   onDoneAnswering,
   isSaving = false,
   children,
+  open,
+  onOpenChange,
 }: AssetFormSectionReaderProps) {
   const { t } = useTranslation(["sections", "common"]);
-  // Vista de solo lectura: el contenido arranca visible; el chevron sigue permitiendo colapsar.
-  const [open, setOpen] = React.useState(true);
 
   const { fields, questions, answeredCount } = computeSectionStats(section as ContentSection);
-
-  // Al entrar en modo respuesta la tarjeta se fuerza abierta — no tiene sentido responder colapsado.
-  React.useEffect(() => {
-    if (isAnswering) setOpen(true);
-  }, [isAnswering]);
 
   const actions = canAnswer ? (
     isAnswering ? (
@@ -84,7 +85,7 @@ export function AssetFormSectionReader({
       <HuemulNumberedStatusCard
         collapsible
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={onOpenChange}
         number={sectionIndex + 1}
         title={sectionName ?? ""}
         tone={isSectionAnswersCompleted(section) ? "success" : "warning"}

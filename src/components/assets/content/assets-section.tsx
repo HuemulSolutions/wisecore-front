@@ -1,6 +1,7 @@
-import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitCompare, History, Eye, XCircle, Clock } from 'lucide-react';
+import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitCompare, History, Eye, XCircle, Clock, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { memo, useState, useEffect, useRef } from 'react';
+import { memo, useState, useEffect, useRef, useContext } from 'react';
+import { SectionCollapseContext } from '@/contexts/section-collapse-context';
 import { useQueryClient } from '@tanstack/react-query';
 import SectionPlateEditor from '@/components/plate-editor/section-plate-editor';
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,7 @@ function SectionExecutionInner({
     readOnlyBySectionRule = false,
     canGenerate = true,
     cannotGenerateReason,
+    onCollapsedChange,
     // onCopyLink,
 }: SectionExecutionProps) {
     const generationBlocked = canGenerate === false;
@@ -144,7 +146,35 @@ function SectionExecutionInner({
     // que AssetContent solo prende para las secciones dentro del scope de esa corrida).
     const isSectionRunActive = showExecutionFeedback && !!executionId &&
         (executionMode === 'single' || executionMode === 'from') && isExecutionInProgress;
-    
+
+    // Colapso local de la sección (editor y lector, todos los tipos). El botón
+    // "colapsar/expandir todas" del toolbar (ver assets-content.tsx) no levanta
+    // este estado — emite una señal por Context con un `version` que cada sección
+    // sincroniza una única vez, para que un toggle individual posterior no quede
+    // pisado por renders del Provider que no correspondan a un nuevo click.
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const collapseAllSignal = useContext(SectionCollapseContext);
+    const lastCollapseSignalVersion = useRef(collapseAllSignal?.version ?? 0);
+    useEffect(() => {
+        if (!collapseAllSignal || collapseAllSignal.version === lastCollapseSignalVersion.current) return;
+        lastCollapseSignalVersion.current = collapseAllSignal.version;
+        setIsCollapsed(collapseAllSignal.collapsed);
+    }, [collapseAllSignal]);
+
+    // Reporta el estado de colapso de ESTA sección hacia AssetContent — sin esto, el botón
+    // "colapsar/expandir todas" del toolbar sólo se entera de su propia última señal, no de un
+    // colapso hecho a mano (botón individual o clickeando el cuerpo en lector). Se desregistra
+    // al desmontar.
+    useEffect(() => {
+        onCollapsedChange?.(sectionExecution.id, isCollapsed);
+        return () => onCollapsedChange?.(sectionExecution.id, undefined);
+    }, [sectionExecution.id, isCollapsed, onCollapsedChange]);
+
+    // Force-open: no tiene sentido editar, responder o ver generarse una sección colapsada.
+    useEffect(() => {
+        if (isEditing || isAnsweringInReader || isSectionRunActive) setIsCollapsed(false);
+    }, [isEditing, isAnsweringInReader, isSectionRunActive]);
+
     // If section_id is null, the section was removed from the structure and cannot be executed
     const sectionIdForExecution = sectionExecution.section_id ?? null;
     
@@ -195,6 +225,22 @@ function SectionExecutionInner({
                 });
             }
         }, 100);
+    };
+
+    // Click en cualquier parte del cuerpo de una sección (lector, expandida) la colapsa — "desde
+    // donde empieza hasta donde termina", sin una fila de control visible compitiendo con el
+    // contenido. Se excluyen dos casos para no interceptar interacciones reales del contenido:
+    //   1. Elementos interactivos propios de Plate en modo lectura — links, menciones,
+    //      referencias, fechas, media, tablas de datos, toggles (todos se renderizan como nodos
+    //      "void" de Slate, con data-slate-void="true" en su wrapper), además de cualquier
+    //      <a>/<button>/[role]/[tabindex] genérico.
+    //   2. El click final de un arrastre de selección de texto (el usuario estaba seleccionando,
+    //      no pidiendo colapsar).
+    const handleSectionBodyClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('a, button, [role], [tabindex], [data-slate-void="true"]')) return;
+        if (window.getSelection()?.toString()) return;
+        setIsCollapsed(true);
     };
 
     /**
@@ -430,6 +476,34 @@ function SectionExecutionInner({
         ? aiPreview
         : sectionExecution.output.replace(/\\n/g, "\n");
 
+    // Compartido entre las ramas editor/lector de sección no-form: sólo cambia el wrapper
+    // (barra sticky con chevron en editor, header discreto en lector), nunca este elemento —
+    // ver comentario de "no desmontar Plate" más abajo.
+    const plateEditor = (
+        <SectionPlateEditor
+            sectionId={sectionExecution.id}
+            content={displayedContent}
+            plateContent={sectionExecution.plate_content}
+            isEditing={readyToEdit && isEditing}
+            onSave={handleSave}
+            onAutoSavePlateContent={handleAutoSavePlateContent}
+            onCancel={handleCancelEdit}
+            isSaving={isSaving}
+            documentId={documentId}
+            sectionExecutionId={sectionExecution.id}
+            organizationId={selectedOrganizationId ?? undefined}
+            mediaUploadTarget={
+              executionId
+                ? { level: 'execution', parentId: executionId }
+                : documentId
+                  ? { level: 'document', parentId: documentId }
+                  : null
+            }
+            toolbarTopOffset="36px"
+            onCreateSectionFromSelection={readyToEdit && canEditSections ? onCreateSectionFromSelection : undefined}
+        />
+    );
+
     const handleViewSuggestion = () => {
         setAiPreview(sectionExecution.ai_suggestion_content ?? null);
         setIsDiffOpen(true);
@@ -471,8 +545,15 @@ function SectionExecutionInner({
                 <div className="sticky top-0 z-(--z-page-sticky) justify-end py-1 px-2 bg-white backdrop-blur-sm -mx-2 -mt-2 mb-2 max-w-full w-full flex items-center">
                     {/* Left side: section info + review status */}
                     <div className="mr-auto flex items-center gap-1.5">
+                        {/* Además de informativo, es un segundo trigger de colapso (el chevron
+                            de más abajo es el principal — este chip no siempre está presente). */}
                         {(sectionName || sectionType) && (
-                            <div className="flex items-center rounded-md border border-blue-100 bg-blue-50/55 px-2.5 py-1 backdrop-blur-[1px]">
+                            <button
+                                type="button"
+                                onClick={() => setIsCollapsed((prev) => !prev)}
+                                className="flex items-center rounded-md border border-blue-100 bg-blue-50/55 px-2.5 py-1 backdrop-blur-[1px] hover:bg-blue-100/70 hover:cursor-pointer transition-colors"
+                                title={isCollapsed ? t('section.expand') : t('section.collapse')}
+                            >
                                 <span className="max-w-60 truncate text-xs font-medium text-blue-700/80">
                                     {sectionName || t('section.untitled')}
                                 </span>
@@ -480,7 +561,7 @@ function SectionExecutionInner({
                                 <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-600/70">
                                     {sectionTypeLabel}
                                 </span>
-                            </div>
+                            </button>
                         )}
                         {/* Permiso de sección por ciclo de vida: solo lectura en esta etapa aunque
                             el resto del documento sea editable (ver readOnlyBySectionRule arriba). */}
@@ -524,6 +605,7 @@ function SectionExecutionInner({
                                         { value: 'editing', label: t('section.reviewStatusEditing'), color: '#3b82f6' },
                                         { value: 'reviewing', label: t('section.reviewStatusReviewing'), color: '#f59e0b' },
                                         { value: 'finished', label: t('section.reviewStatusFinished'), color: '#22c55e' },
+                                        { value: 'rejected', label: t('section.reviewStatusRejected'), color: '#ef4444' },
                                     ]}
                                     className="w-auto"
                                     selectSize="xs"
@@ -792,9 +874,26 @@ function SectionExecutionInner({
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         )}
+
+                        {/* Colapsar/expandir sección — navegación, no una acción de edición,
+                            por eso vive fuera del dropdown móvil y de los grupos anteriores. Con
+                            etiqueta de texto (no sólo ícono+tooltip): un ícono desnudo entre
+                            tantos otros de la barra es fácil de pasar por alto. */}
+                        <HuemulButton
+                            variant="ghost"
+                            size="sm"
+                            icon={ChevronDown}
+                            iconClassName={cn(
+                                'h-3.5 w-3.5 text-gray-600 transition-transform duration-200',
+                                !isCollapsed && 'rotate-180'
+                            )}
+                            label={isCollapsed ? t('common:expand') : t('common:collapse')}
+                            className="h-7 px-2 text-gray-600 hover:bg-gray-100 hover:text-gray-800 transition-colors ml-1"
+                            onClick={() => setIsCollapsed((prev) => !prev)}
+                        />
                     </>
                     )}
-                    
+
                 </div>
             )}
             
@@ -895,7 +994,9 @@ function SectionExecutionInner({
             <div className={isSectionRunActive ? 'invisible absolute inset-0 overflow-hidden' : undefined}>
             {sectionType === 'form' ? (
                 !readyToEdit ? (
-                    /* Reader mode: numbered/collapsible summary card instead of the flat answer stack */
+                    /* Reader mode: numbered/collapsible summary card instead of the flat answer stack.
+                       Colapso controlado desde acá (open/onOpenChange) — mismo estado que gobierna las
+                       secciones no-form, así "colapsar todas" también alcanza a los forms. */
                     <AssetFormSectionReader
                         section={{ form_fields: sectionExecution.form_fields, answers_status: sectionExecution.answers_status }}
                         sectionName={sectionName}
@@ -905,6 +1006,8 @@ function SectionExecutionInner({
                         isSaving={isFormSaving}
                         onStartAnswering={() => setIsAnsweringInReader(true)}
                         onDoneAnswering={() => formSectionRef.current?.exit()}
+                        open={!isCollapsed}
+                        onOpenChange={(open) => setIsCollapsed(!open)}
                     >
                         {isAnsweringInReader && (
                             <AssetFormSection
@@ -923,8 +1026,9 @@ function SectionExecutionInner({
                         )}
                     </AssetFormSectionReader>
                 ) : (
-                    /* Form section: render fillable/read-only form instead of the Plate editor */
-                    <div className="pt-4 pr-2 w-full">
+                    /* Form section: render fillable/read-only form instead of the Plate editor.
+                       El chevron vive en la barra sticky de arriba; acá sólo se oculta el contenido. */
+                    <div className={cn('pt-4 pr-2 w-full', isCollapsed && 'hidden')}>
                         <AssetFormSection
                             ref={formSectionRef}
                             sectionExecutionId={sectionExecution.id}
@@ -941,30 +1045,43 @@ function SectionExecutionInner({
                     </div>
                 )
             ) : (
-                /* Unified Plate view: readOnly when not editing, editable when editing */
-                <div className={isEditing ? 'pt-2 pr-0' : `${readyToEdit ? 'pt-4' : 'pt-1'} pr-2 w-full`}>
-                    <SectionPlateEditor
-                        sectionId={sectionExecution.id}
-                        content={displayedContent}
-                        plateContent={sectionExecution.plate_content}
-                        isEditing={isEditing}
-                        onSave={handleSave}
-                        onAutoSavePlateContent={handleAutoSavePlateContent}
-                        onCancel={handleCancelEdit}
-                        isSaving={isSaving}
-                        documentId={documentId}
-                        sectionExecutionId={sectionExecution.id}
-                        organizationId={selectedOrganizationId ?? undefined}
-                        mediaUploadTarget={
-                          executionId
-                            ? { level: 'execution', parentId: executionId }
-                            : documentId
-                              ? { level: 'document', parentId: documentId }
-                              : null
-                        }
-                        toolbarTopOffset="36px"
-                        onCreateSectionFromSelection={readyToEdit && canEditSections ? onCreateSectionFromSelection : undefined}
-                    />
+                /* Editor y lector, no-form: MISMO árbol en ambos modos — el chevron del lector
+                   es un hermano CONDICIONAL (índice estable), nunca una rama alternativa. Si
+                   {plateEditor} cambiara de posición entre modos, React lo desmonta y remonta
+                   (reconstruye un Plate completo, ~25 plugin kits, por sección) en cada toggle
+                   Lector/Editor — ese remount síncrono en todas las secciones a la vez es lo que
+                   congelaba el cambio de modo. En editor el chevron vive en la barra sticky de
+                   arriba; en lector, EXPANDIDA, no hay ningún control visible — el contenido es
+                   lo primordial, sin chrome compitiendo con él — y clickear en cualquier parte
+                   del cuerpo la colapsa (ver handleSectionBodyClick). COLAPSADA sí se muestra el
+                   botón chevron + nombre: único indicio de qué sección es, dado que no hay
+                   contenido visible para mostrar en su lugar. */
+                <div>
+                    {!readyToEdit && isCollapsed && (
+                        <button
+                            type="button"
+                            onClick={() => setIsCollapsed(false)}
+                            className="group/section-toggle mb-1 flex w-full items-center gap-1.5 rounded border-b border-gray-100 py-1 pr-2 text-left hover:bg-gray-50"
+                            title={t('section.expand')}
+                        >
+                            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform duration-200 group-hover/section-toggle:text-gray-600" />
+                            {sectionName && (
+                                <span className="truncate text-xs text-gray-500 group-hover/section-toggle:text-gray-700">
+                                    {sectionName}
+                                </span>
+                            )}
+                        </button>
+                    )}
+                    <div
+                        onClick={!readyToEdit && !isCollapsed ? handleSectionBodyClick : undefined}
+                        className={cn(
+                            readyToEdit ? (isEditing ? 'pt-2 pr-0' : 'pt-4 pr-2 w-full') : 'pt-1 pr-2 w-full',
+                            !readyToEdit && !isCollapsed && 'cursor-pointer',
+                            !isEditing && isCollapsed && 'hidden'
+                        )}
+                    >
+                        {plateEditor}
+                    </div>
                 </div>
             )}
             </div>

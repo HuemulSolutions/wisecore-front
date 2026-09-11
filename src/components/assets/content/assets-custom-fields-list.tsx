@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ImagePreviewDialog } from "@/components/assets/dialogs/assets-image-preview-dialog";
 import type { CustomFieldDocument } from '@/types/custom-fields';
+import { CustomFieldFilesCell } from "@/components/custom-fields/custom-field-files-cell";
 import type { CustomFieldsListProps } from '@/types/assets';
 export type { CustomFieldsListProps } from '@/types/assets';
 import { useTranslation } from "react-i18next";
@@ -209,6 +210,13 @@ export function CustomFieldsList({
       );
     }
     
+    // Colección value_blobs (max_value > 1) — hasta 3 miniaturas + "+N". Si viene vacía
+    // (max_value <= 1, o custom field guardado antes de esta migración), cae al render
+    // legado de abajo (value/URL única) — los dos storages conviven, sin migración automática.
+    if (field.question_type === QUESTION_TYPE.fileUpload && field.value_files?.length) {
+      return <CustomFieldFilesCell files={field.value_files} />;
+    }
+
     // Special handling for image fields
     if (field.data_type === 'image') {
       const imageUrl = String(value);

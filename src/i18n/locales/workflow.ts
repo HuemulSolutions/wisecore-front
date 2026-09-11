@@ -63,6 +63,7 @@ const translations = {
     sectionNotFound: { en: "Section not found in the asset content", es: "No se encontró la sección en el contenido del activo" },
     loadError: { en: "Failed to load the form fields", es: "Error al cargar los campos del formulario" },
     edit: { en: "Edit asset", es: "Editar activo" },
+    media: { en: "Resources", es: "Recursos" },
     stageLabel: { en: "Stage:", es: "Etapa:" },
     sectionLabel: { en: "Section:", es: "Sección:" },
   },
@@ -172,6 +173,10 @@ const translations = {
     readOnlyLifecycleNotice: {
       en: "Fields can't be edited at this lifecycle stage.",
       es: "Los campos no se pueden editar en esta etapa del ciclo de vida.",
+    },
+    readOnlyExternalElaborationNotice: {
+      en: "This asset is temporarily read-only while an external system processes it. It will unlock automatically once that response arrives.",
+      es: "Este activo está temporalmente en modo lectura mientras un sistema externo lo procesa. Se desbloqueará automáticamente en cuanto llegue esa respuesta.",
     },
     readOnlySectionNotice: {
       en: "This section is read-only at this stage — you can view it but not answer it.",
