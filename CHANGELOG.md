@@ -1,5 +1,77 @@
 # Changelog
 
+## [1.0.97] - 2026-09-11
+### Nuevo
+- Agrupar activos relacionados por tipo en vez de entrante/saliente
+- Soportar todos los tipos de media en referencias del editor
+- Ajuste de diseños y ux en global admin
+- Convertir filtro de tipo de archivo en selector de opciones
+- Renombrar módulo Media a Recursos en textos visibles
+- Agregar estado rejected a review_status de sección y ajustar labels
+- Soportar elaboración externa del ciclo de vida
+- Soportar múltiples archivos en custom fields carga_de_archivos
+- Soportar contexto obligatorio por ítem individual
+- Corregir voseo en asset-types
+- Soportar campos calculados en formularios (fórmula y condicional)
+- Bloquear edición de contenido mientras hay elaboración externa pendiente
+- Agregar pagina de detalle de asset type, ajuste en diseños para mejorar ux.
+- Arreglar flash al eliminar asset
+- Ajustes en el alert dialog para eliminar asset
+- Ajustar estructura de formulario y diseño de campos switch en template
+- estandarizar persistencia de expansión en árboles de biblioteca de activos
+- Ajustes media y acceder a media subida desde una asset
+- acciones rápidas (eliminar) siempre visibles en listado de media
+- Colapzar y expandir secciones dentro de los assets
+- cantidad mínima/máxima de archivos en carga_de_archivos
+### Arreglos
+- eliminar valor edit_section inválido de objective en external functionalities
+- Evitar que listado de templates se vacíe al volver a la página
+- Migrar cantidad de archivos de carga_de_archivos a min_value/max_value
+- Abrir configuración de tipo de activo en sheet animado en vez de navegar a página
+- propagar template_id/execution_id al crear sección con IA
+### Otros
+- actualizar README a v1.0.97 y agregar .env.example
+
+## [1.0.96] - 2026-09-07
+### Nuevo
+- panel de detalle de usuarios y roles como HuemulSheet
+- Condiciones por etapa del ciclo de vida
+- unifica la edición de usuarios y roles en el panel de detalle
+- permisos de rol en carpetas anidadas con aviso de corte de herencia
+- consume backend de Home "Mi trabajo"
+- Nuevo diseño rol y usuarios
+- agrega expansión de relaciones filtrada por tipo de activo en diagramas
+- agrega botón para abrir el asset de un nodo de diagrama en pantalla completa
+- agrega vista de asset a pantalla completa
+- agrega botón de refresh dentro del dialog de selección de organización
+- Rediseño home para mejor productividad
+- Persistencia de árbol
+- Editor Plate — integración con data table
+- Preferencias de usuario
+- agrega comentarios a nivel de ejecución completa (execution_id)
+- persiste carpetas expandidas del árbol de /asset vía expanded_folder_ids
+- amplía la zona de drop del árbol al subárbol de cada carpeta
+- reemplaza paginación por footer con carga incremental en árbol de templates
+- agrega botón de cierre a los toasts globales
+- permite crear usuario inline desde sheet de asignar usuarios en roles
+### Arreglos
+- Error build
+- elimina saltos de layout en home al recargar
+- el árbol de conocimiento respeta las carpetas que el usuario colapsa
+- Cambios varios
+- Diagrama de relaciones entre tipos de documento
+- resalta término de búsqueda en nombre de template del panel de workflow
+- muestra siempre el botón de acciones en el árbol de templates
+- Evitar llamado duplicado de endpoint
+- elimina refresh duplicado del árbol tras mover un asset o carpeta
+- traduce texto "Done" hardcodeado en botón de éxito de huemul-alert-dialog
+- fija ancho de columnas internalCode, template y badge de paso en tabla de workflows
+- fija ancho de columna Activo en tabla de workflows
+- elimina columna "Sección actual" de tabla de workflows
+### Otros
+- Refactor de data tables
+- neutraliza el tono de los textos en español a registro impersonal
+
 ## [1.0.95] - 2026-09-03
 ### Nuevo
 - agrega sección fija de documentos relacionados al final del contenido del activo
@@ -1663,5 +1735,3 @@
 ### Otros
 - Configuración inicial
 - Initial commit
-
-<!-- changelog-last-commit: bb091b4028dfb242eb3cfb62f8afcff46f7e31e3 -->

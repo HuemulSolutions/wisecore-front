@@ -139,8 +139,11 @@ npm run build
 | `npm run build` | Type-check (`tsc -b`) and build for production |
 | `npm run lint` | Run ESLint |
 | `npm run preview` | Preview the production build locally |
-| `npm run changelog` | Incrementally regenerate `CHANGELOG.md` from version-bump commits |
-| `npm run changelog:full` | Regenerate the full `CHANGELOG.md` history from scratch |
+| `npm run release` | Bump the version, sync it across files, update `CHANGELOG.md`, commit and tag |
+| `npm run release:dry` | Preview the version bump and changelog section without writing anything |
+| `npm run changelog` | Backfill any tagged version missing from `CHANGELOG.md` |
+| `npm run changelog:dry` | Preview the changelog output without writing anything |
+| `npm run changelog:full` | Regenerate the full `CHANGELOG.md` history from git tags |
 
 > **Type-checking note:** running `tsc --noEmit` from the repo root is a no-op, since the root `tsconfig.json` is a solution file with no sources of its own. Use `tsc -p tsconfig.app.json --noEmit` instead.
 
@@ -236,7 +239,16 @@ The app is a client-side SPA; `staticwebapp.config.json` rewrites all non-asset/
 
 ## Versioning & Changelog
 
-`npm run changelog` regenerates `CHANGELOG.md` from commits that bump the `version` field in `package.json`, classifying commit subjects into **Nuevo** (`feat:`), **Arreglos** (`fix:`), and **Otros** (everything else). It runs incrementally using a `<!-- changelog-last-commit: ... -->` marker at the end of the file; `npm run changelog:full` regenerates the entire history from scratch.
+Releases are tracked with git tags (`vX.Y.Z`) — the source of truth for both the app version and the changelog. To cut a release:
+
+```bash
+npm run release            # bump patch (default)
+npm run release -- minor   # or: major, or an explicit "1.2.3"
+```
+
+This syncs `version` in `package.json`/`package-lock.json`, updates the `**Version X.Y.Z**` line in this README, prepends a new section to `CHANGELOG.md`, and creates the commit + tag locally. It never pushes — run `git push && git push origin vX.Y.Z` yourself once you've reviewed the result (`npm run release:dry` previews everything without writing).
+
+`CHANGELOG.md` classifies commit subjects into **Nuevo** (`feat:`), **Arreglos** (`fix:`), and **Otros** (everything else), configured in `scripts/changelog.config.json`. `npm run changelog` backfills any tagged version missing a section — safe to re-run, it's idempotent (versions already documented are detected from the file's own `## [X.Y.Z]` headers, not from external state). `npm run changelog:full` regenerates the entire history from the git tags.
 
 ## License
 WiseCore is licensed under the **Elastic License 2.0**.

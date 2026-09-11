@@ -1,0 +1,14 @@
+{
+  "tagPattern": "^v\\d+\\.\\d+\\.\\d+$",
+  "groups": [
+    { "title": "Nuevo", "types": ["feat", "feature"] },
+    { "title": "Arreglos", "types": ["fix", "bugfix", "hotfix"] },
+    { "title": "Otros", "types": ["*"] }
+  ],
+  "skip": [
+    "^ver[a-z]*n?\\s+\\d+\\.\\d+",
+    "^nueva\\s+versi[oó]n",
+    "^chore\\(release\\)",
+    "^Merge "
+  ]
+}

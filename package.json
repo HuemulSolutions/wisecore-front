@@ -11,7 +11,10 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "release": "node scripts/release.mjs",
+    "release:dry": "node scripts/release.mjs --dry-run",
     "changelog": "node scripts/generate-changelog.mjs",
+    "changelog:dry": "node scripts/generate-changelog.mjs --dry-run",
     "changelog:full": "node scripts/generate-changelog.mjs --full"
   },
   "dependencies": {
