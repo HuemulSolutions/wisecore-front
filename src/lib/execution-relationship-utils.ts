@@ -21,3 +21,9 @@ export function getRelationshipLabel(rel: ExecutionRelationshipWithDetails, unti
 export function getOtherExecution(rel: ExecutionRelationshipWithDetails): ExecutionRelationshipInlineExecution {
   return rel.direction === 'source' ? rel.target_execution : rel.source_execution;
 }
+
+/** Fondo tenue derivado del color del tipo de documento (hex de 6 dígitos). */
+export function tintFromColor(color?: string): string | undefined {
+  if (!color || !/^#[0-9a-fA-F]{6}$/.test(color)) return undefined;
+  return `${color}1A`;
+}

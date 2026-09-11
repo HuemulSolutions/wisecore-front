@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { ChevronRight, RefreshCw, Link2, Plus, FileText, ArrowLeft, ArrowRight, SquareArrowOutUpRight, MoreVertical, Trash2 } from "lucide-react";
+import { ChevronRight, RefreshCw, Link2, Plus, FileText, SquareArrowOutUpRight, MoreVertical, Trash2 } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,7 +17,7 @@ import { useOrgPath } from "@/hooks/useOrgRouter";
 import { useExecutionRelationships, useExecutionRelationshipMutations } from "@/hooks/useExecutionRelationships";
 import { useDocumentTypes } from "@/hooks/useDocumentTypes";
 import { cn } from "@/lib/utils";
-import { getRelationshipLabel } from "@/lib/execution-relationship-utils";
+import { getRelationshipLabel, getOtherExecution, tintFromColor } from "@/lib/execution-relationship-utils";
 import type { ExecutionRelationshipWithDetails, ExecutionRelationshipInlineExecution } from "@/types/execution-relationships";
 
 export interface AssetsRelatedDocumentsProps {
@@ -32,12 +32,6 @@ export interface AssetsRelatedDocumentsProps {
   canListAssetTypes?: boolean;
   /** Permite eliminar la relación desde el kebab de la fila (gate: execution_relationship:d). */
   canDeleteRelationship?: boolean;
-}
-
-/** Fondo tenue derivado del color del tipo de documento (hex de 6 dígitos). */
-function tintFromColor(color?: string): string | undefined {
-  if (!color || !/^#[0-9a-fA-F]{6}$/.test(color)) return undefined;
-  return `${color}1A`;
 }
 
 function RelatedDocumentRow({
@@ -164,9 +158,40 @@ export function AssetsRelatedDocuments({
   }, [documentTypesResponse]);
 
   const relationships = data?.data ?? [];
-  const outgoing = relationships.filter((r) => r.direction === "source");
-  const incoming = relationships.filter((r) => r.direction === "target");
   const untitledFallback = t("content.relatedDocuments.untitledRelation");
+
+  // Estado de expansión por tipo de activo — todos los grupos arrancan colapsados.
+  const [expandedTypeIds, setExpandedTypeIds] = useState<Set<string>>(new Set());
+  const toggleTypeGroup = (typeId: string) => {
+    setExpandedTypeIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(typeId)) next.delete(typeId);
+      else next.add(typeId);
+      return next;
+    });
+  };
+
+  // Agrupado por tipo de activo (en vez de entrante/saliente, que no aplica a
+  // todos los tipos de documento). Sin permiso para listar tipos no hay nombre
+  // que mostrar, así que se degrada a una lista plana sin agrupar.
+  const typeGroups = useMemo(() => {
+    if (!canListAssetTypes) return [];
+    const byType = new Map<string, { typeId: string; typeName: string; color?: string; items: ExecutionRelationshipWithDetails[] }>();
+    for (const rel of relationships) {
+      const other = getOtherExecution(rel);
+      const typeId = other.document_type_id;
+      let group = byType.get(typeId);
+      if (!group) {
+        group = { typeId, typeName: typeNameById.get(typeId) ?? typeId, color: other.document_type_color, items: [] };
+        byType.set(typeId, group);
+      }
+      group.items.push(rel);
+    }
+    for (const group of byType.values()) {
+      group.items.sort((a, b) => getOtherExecution(a).document_name.localeCompare(getOtherExecution(b).document_name));
+    }
+    return Array.from(byType.values()).sort((a, b) => a.typeName.localeCompare(b.typeName));
+  }, [relationships, typeNameById, canListAssetTypes]);
 
   const openRelated = (other: ExecutionRelationshipInlineExecution) => {
     window.open(
@@ -212,47 +237,61 @@ export function AssetsRelatedDocuments({
     </HuemulButton>
   );
 
-  const renderGroup = (
-    label: string,
-    directionHint: string,
-    DirectionIcon: typeof ArrowLeft,
-    items: ExecutionRelationshipWithDetails[],
-    getOther: (r: ExecutionRelationshipWithDetails) => ExecutionRelationshipInlineExecution,
-  ) => {
-    if (!items.length) return null;
+  const renderRow = (rel: ExecutionRelationshipWithDetails) => {
+    const other = getOtherExecution(rel);
+    const relLabel = getRelationshipLabel(rel, untitledFallback);
+    const directionHint = rel.direction === "target"
+      ? t("content.relatedDocuments.incomingHint")
+      : t("content.relatedDocuments.outgoingHint");
     return (
-      <div className="space-y-1">
-        <div className="flex items-center gap-1.5 px-1">
-          <DirectionIcon className="h-3 w-3 shrink-0 text-muted-foreground" />
-          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
-          <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] font-medium text-muted-foreground">
-            {items.length}
+      <RelatedDocumentRow
+        key={rel.id}
+        other={other}
+        relLabel={relLabel}
+        typeName={typeNameById.get(other.document_type_id)}
+        directionHint={directionHint}
+        isCurrentAsset={other.document_id === currentDocumentId}
+        currentAssetLabel={t("content.relatedDocuments.currentAsset")}
+        openHint={t("content.relatedDocuments.openInNewTab")}
+        actionsLabel={t("content.relatedDocuments.rowActions")}
+        removeLabel={t("content.relatedDocuments.removeRelation")}
+        onOpen={() => openRelated(other)}
+        onDelete={
+          canDeleteRelationship
+            ? () => setPendingDelete({ id: rel.id, documentName: other.document_name, relLabel })
+            : undefined
+        }
+      />
+    );
+  };
+
+  const renderTypeGroup = (group: { typeId: string; typeName: string; color?: string; items: ExecutionRelationshipWithDetails[] }) => {
+    const isGroupOpen = expandedTypeIds.has(group.typeId);
+    return (
+      <div key={group.typeId} className="space-y-1">
+        <button
+          type="button"
+          className="flex w-full items-center gap-1.5 px-1 py-0.5 text-left hover:cursor-pointer"
+          aria-expanded={isGroupOpen}
+          onClick={() => toggleTypeGroup(group.typeId)}
+        >
+          <ChevronRight className={cn("h-3 w-3 shrink-0 text-muted-foreground transition-transform", isGroupOpen && "rotate-90")} />
+          <span
+            className="h-2 w-2 shrink-0 rounded-full bg-muted"
+            style={{ backgroundColor: group.color || undefined }}
+          />
+          <span className="flex-1 truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            {group.typeName}
           </span>
-        </div>
-        {items.map((rel) => {
-          const other = getOther(rel);
-          const relLabel = getRelationshipLabel(rel, untitledFallback);
-          return (
-            <RelatedDocumentRow
-              key={rel.id}
-              other={other}
-              relLabel={relLabel}
-              typeName={typeNameById.get(other.document_type_id)}
-              directionHint={directionHint}
-              isCurrentAsset={other.document_id === currentDocumentId}
-              currentAssetLabel={t("content.relatedDocuments.currentAsset")}
-              openHint={t("content.relatedDocuments.openInNewTab")}
-              actionsLabel={t("content.relatedDocuments.rowActions")}
-              removeLabel={t("content.relatedDocuments.removeRelation")}
-              onOpen={() => openRelated(other)}
-              onDelete={
-                canDeleteRelationship
-                  ? () => setPendingDelete({ id: rel.id, documentName: other.document_name, relLabel })
-                  : undefined
-              }
-            />
-          );
-        })}
+          <span className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-muted px-1 text-[10px] font-medium text-muted-foreground">
+            {group.items.length}
+          </span>
+        </button>
+        {isGroupOpen && (
+          <div className="space-y-1 pl-1">
+            {group.items.map(renderRow)}
+          </div>
+        )}
       </div>
     );
   };
@@ -315,20 +354,9 @@ export function AssetsRelatedDocuments({
           </div>
         ) : (
           <>
-            {renderGroup(
-              t("content.relatedDocuments.incoming"),
-              t("content.relatedDocuments.incomingHint"),
-              ArrowLeft,
-              incoming,
-              (r) => r.source_execution,
-            )}
-            {renderGroup(
-              t("content.relatedDocuments.outgoing"),
-              t("content.relatedDocuments.outgoingHint"),
-              ArrowRight,
-              outgoing,
-              (r) => r.target_execution,
-            )}
+            {canListAssetTypes
+              ? typeGroups.map(renderTypeGroup)
+              : <div className="space-y-1">{relationships.map(renderRow)}</div>}
             {linkButton && <div className="border-t border-border/60 pt-2">{linkButton}</div>}
           </>
         )}
