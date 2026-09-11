@@ -24,6 +24,7 @@ import { useRoles } from "@/hooks/useRbac"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import {
   LIFECYCLE_PIPELINE_ORDER,
+  LIFECYCLE_GROUPABLE_TYPES,
   isGroupableStepType,
   isViewInheritedForRole,
   inheritedViewSource,
@@ -170,7 +171,10 @@ const ROW_TINT: Partial<Record<MatrixRow["kind"], { cell: string; hover: string;
  * es permiso (nombre, posición, modo, SLA, acciones externas) se configura en el
  * sheet mono-entidad (`LifecycleStepSheet`), que se abre desde el engranaje de una
  * columna (`onConfigureStep`), el engranaje del header de una etapa sin grupos
- * (`onConfigureStage`) o el «＋» del header de una etapa agrupable (`onCreateGroup`).
+ * (`onConfigureStage`), el «＋» del header de una etapa agrupable con columnas
+ * (`onCreateGroup`) o — si la etapa agrupable se quedó en cero grupos y por
+ * eso no tiene columna de la que colgar ese «＋» — la propia pastilla del
+ * toolbar, que en ese caso deja de filtrar y pasa a crear el primer grupo.
  * Reclicar el chip de filtro activo restaura todas las columnas.
  */
 export function AssetTypeLifecycleMatrix({
@@ -224,9 +228,13 @@ export function AssetTypeLifecycleMatrix({
 
   // Todas las etapas que devuelva el endpoint son configurables acá: `create`,
   // `publish` y `archive` incluidas. Los tipos que no estén en
-  // `LIFECYCLE_PIPELINE_ORDER` no se descartan, van al final.
+  // `LIFECYCLE_PIPELINE_ORDER` no se descartan, van al final. Las agrupables
+  // (`LIFECYCLE_GROUPABLE_TYPES`) se siembran siempre, aunque hoy tengan 0
+  // steps: si no, borrar el último grupo de una etapa hace desaparecer su
+  // pastilla y con ella el único punto de entrada para volver a crear uno.
   const stepTypesPresent = React.useMemo(() => {
     const present = new Set(allSteps.map((s) => s.type))
+    LIFECYCLE_GROUPABLE_TYPES.forEach((type) => present.add(type))
     const ordered = LIFECYCLE_PIPELINE_ORDER.filter((type) => present.has(type))
     const extra = [...present].filter((type) => pipelineIndex(type) === -1)
     return [...ordered, ...extra]
@@ -239,14 +247,21 @@ export function AssetTypeLifecycleMatrix({
     return counts
   }, [allSteps])
 
+  // Si el filtro activo apunta a una etapa que se quedó sin grupos (se borró
+  // el último desde el sheet lateral mientras estaba filtrada), se ignora:
+  // filtrar a 0 columnas deja la tabla en blanco, `HuemulMatrix` no tiene
+  // fallback para ese caso.
+  const effectiveFilterStageType =
+    filterStageType && (groupCountByType.get(filterStageType) ?? 0) > 0 ? filterStageType : null
+
   const visibleSteps = React.useMemo(() => {
     const sorted = [...allSteps].sort((a, b) => {
       const typeDiff = pipelineSortIndex(a.type) - pipelineSortIndex(b.type)
       if (typeDiff !== 0) return typeDiff
       return (a.order ?? 0) - (b.order ?? 0)
     })
-    return filterStageType ? sorted.filter((s) => s.type === filterStageType) : sorted
-  }, [allSteps, filterStageType])
+    return effectiveFilterStageType ? sorted.filter((s) => s.type === effectiveFilterStageType) : sorted
+  }, [allSteps, effectiveFilterStageType])
 
   // Candidatos a `source_step_id` de "jefe de paso anterior" por columna: mismo
   // criterio que el backend valida — pasos de un tipo anterior en el pipeline, o
@@ -836,8 +851,31 @@ export function AssetTypeLifecycleMatrix({
         }
       >
         {stepTypesPresent.map((type) => {
-          const isActive = filterStageType === type
+          const isActive = effectiveFilterStageType === type
           const groupCount = groupCountByType.get(type) ?? 0
+          const typeLabel = stepTypeLabel(type)
+
+          // Etapa agrupable sin ningún grupo: no hay columna de la que colgar
+          // el "＋" del header de la tabla, así que la pastilla misma es el
+          // punto de entrada para crear el primer grupo. Sin permiso de
+          // gestión no hay nada que el usuario pueda hacer acá, se omite.
+          if (isGroupableStepType(type) && groupCount === 0) {
+            if (!canManage) return null
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => onCreateGroup(type)}
+                title={t("lifecycle.matrix.addGroupToStage", { step: typeLabel })}
+                aria-label={t("lifecycle.matrix.addGroupToStage", { step: typeLabel })}
+                className="inline-flex h-7.5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-dashed border-[#bfd3fb] px-3 text-[13px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
+              >
+                <Plus className="size-3.5" />
+                {typeLabel}
+              </button>
+            )
+          }
+
           return (
             <button
               key={type}
@@ -851,7 +889,7 @@ export function AssetTypeLifecycleMatrix({
                   : "border-[#dbe1e9] text-[#334155] hover:border-[#bfd3fb] hover:bg-[#f8fafc]",
               )}
             >
-              {stepTypeLabel(type)}
+              {typeLabel}
               {isGroupableStepType(type) && (
                 <span
                   className={cn(
@@ -875,10 +913,10 @@ export function AssetTypeLifecycleMatrix({
         columns={visibleSteps.map((step) => ({ key: step.id, data: step, groupKey: step.type }))}
         hasColumnHeader={(group) => isGroupableStepType(group.groupKey)}
         getGroupHeaderClassName={(group) =>
-          filterStageType === group.groupKey ? "bg-[#f2f6fe]" : "bg-[#f7f9fb]"
+          effectiveFilterStageType === group.groupKey ? "bg-[#f2f6fe]" : "bg-[#f7f9fb]"
         }
         renderGroupHeader={(group) => {
-          const isActiveStage = filterStageType === group.groupKey
+          const isActiveStage = effectiveFilterStageType === group.groupKey
           const typeLabel = stepTypeLabel(group.groupKey)
           const isGroupable = isGroupableStepType(group.groupKey)
           return (
