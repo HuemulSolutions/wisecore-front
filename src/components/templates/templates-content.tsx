@@ -1,11 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileText, Loader2, RefreshCw, Edit3, Trash2, Sparkles, Copy } from "lucide-react";
+import { FileText, Loader2, RefreshCw, Edit3, Trash2, Sparkles, Copy, Plus, FileJson } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { TemplateInfoSheet } from "./templates-info-sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import { getTemplateById, generateTemplateSections } from "@/services/templates";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useOrganization } from "@/contexts/organization-context";
@@ -18,6 +17,7 @@ import { TemplateSectionsList } from "./templates-sections-list";
 import { TemplateEmptyState } from "./templates-empty-state";
 import { TemplateCustomFields } from "../templates-custom-fields/templates-custom-fields";
 import { CreateTemplateDialog } from "./templates-create-dialog";
+import { TemplatesImportSheet } from "./templates-import-sheet";
 import { TemplateDocxList } from "./templates-docx-list";
 import { TemplateMediaTab } from "./templates-media-tab";
 import { TemplateContextTab } from "./templates-context-tab";
@@ -69,6 +69,7 @@ export function TemplateContent({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddingSectionOpen, setIsAddingSectionOpen] = useState(false);
   const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] = useState(false);
+  const [isImportSheetOpen, setIsImportSheetOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isInfoSheetOpen, setIsInfoSheetOpen] = useState(false);
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
@@ -134,31 +135,154 @@ export function TemplateContent({
   if (!selectedTemplate) {
     return (
       <>
-        <div className="flex items-center justify-center h-full bg-gray-50">
-          <Empty>
-            <div className="p-8 text-center">
-              <EmptyIcon>
-                <FileText className="h-12 w-12" />
-              </EmptyIcon>
-              <EmptyTitle>{t('templates:content.noTemplateSelectedTitle')}</EmptyTitle>
-              <EmptyDescription>
-                {canCreate
-                  ? t('templates:content.noTemplateSelectedDescription')
-                  : t('templates:content.noTemplateSelectedDescriptionReadOnly')}
-              </EmptyDescription>
-              {canCreate && (
-                <EmptyActions>
-                  <HuemulButton
-                    icon={FileText}
-                    iconClassName="h-4 w-4 mr-2"
-                    label={t('templates:content.createTemplate')}
-                    className="bg-[#4464f7] hover:bg-[#3451e6]"
-                    onClick={() => setIsCreateTemplateDialogOpen(true)}
-                  />
-                </EmptyActions>
-              )}
+        <div className="h-full overflow-y-auto bg-[#f7f8fa]">
+          <div className="mx-auto flex max-w-[900px] flex-col gap-6 px-8 pt-10 pb-12">
+            {/* Introducción */}
+            <div>
+              <h1 className="text-[25px] font-semibold tracking-[-0.01em] text-slate-900">
+                {t('templates:sidebar.title')}
+              </h1>
+              <p className="mt-2 max-w-[680px] text-pretty text-sm leading-[1.6] text-[#64748b]">
+                {t('templates:content.emptyMainDescription')}
+              </p>
             </div>
-          </Empty>
+
+            {/* Tarjeta guía */}
+            <div className="flex flex-col gap-5 rounded-[14px] border border-[#e2e8f0] bg-white p-6">
+              <div>
+                <h2 className="text-[15px] font-semibold text-slate-900">
+                  {t('templates:content.emptyMainGuideTitle')}
+                </h2>
+                <p className="mt-1 text-[13px] text-[#64748b]">
+                  {t('templates:content.emptyMainGuideSubtitle')}
+                </p>
+              </div>
+
+              <div
+                className="grid items-start gap-4"
+                style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}
+              >
+                {/* Paso 1 */}
+                <div className="flex flex-col gap-2">
+                  <div className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#2563eb] text-[11px] font-semibold text-white">
+                    1
+                  </div>
+                  <h3 className="text-[13px] font-semibold text-slate-900">
+                    {t('templates:content.emptyMainStep1Title')}
+                  </h3>
+                  <p className="text-[13px] leading-[1.55] text-[#64748b]">
+                    {t('templates:content.emptyMainStep1Description')}
+                  </p>
+                  {canCreate && (
+                    <HuemulButton
+                      icon={Plus}
+                      iconClassName="h-4 w-4 mr-1.5"
+                      label={t('templates:sidebar.newTemplate')}
+                      className="mt-1 h-[34px] w-fit rounded-lg bg-[#2563eb] px-3 text-sm hover:bg-[#1d4ed8]"
+                      onClick={() => setIsCreateTemplateDialogOpen(true)}
+                    />
+                  )}
+                </div>
+
+                {/* Paso 2 */}
+                <div className="flex flex-col gap-2">
+                  <div className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#e8edf5] text-[11px] font-semibold text-[#475569]">
+                    2
+                  </div>
+                  <h3 className="text-[13px] font-semibold text-slate-900">
+                    {t('templates:content.emptyMainStep2Title')}
+                  </h3>
+                  <p className="text-[13px] leading-[1.55] text-[#64748b]">
+                    {t('templates:content.emptyMainStep2DescriptionPre')}
+                    <span className="font-semibold text-[#475569]">
+                      {t('templates:content.emptyMainStep2DescriptionHighlight')}
+                    </span>
+                    {t('templates:content.emptyMainStep2DescriptionPost')}
+                  </p>
+                </div>
+
+                {/* Paso 3 */}
+                <div className="flex flex-col gap-2">
+                  <div className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#e8edf5] text-[11px] font-semibold text-[#475569]">
+                    3
+                  </div>
+                  <h3 className="text-[13px] font-semibold text-slate-900">
+                    {t('templates:content.emptyMainStep3Title')}
+                  </h3>
+                  <p className="text-[13px] leading-[1.55] text-[#64748b]">
+                    {t('templates:content.emptyMainStep3DescriptionPre')}
+                    <span className="font-semibold text-[#475569]">
+                      {t('templates:content.emptyMainStep3DescriptionHighlight')}
+                    </span>
+                    {t('templates:content.emptyMainStep3DescriptionPost')}
+                    <span className="font-semibold text-[#475569]">
+                      {t('templates:content.emptyMainStep3DescriptionEnd')}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t border-dashed border-[#e2e8f0]" />
+
+              <div>
+                <p className="mb-3 text-[13px] font-semibold text-slate-900">
+                  {t('templates:content.emptyMainSectionTypesTitle')}
+                </p>
+                <div
+                  className="grid gap-2.5"
+                  style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}
+                >
+                  <div className="rounded-[10px] border border-[#eef1f5] bg-[#fafbfc] p-3">
+                    <p className="text-xs font-semibold text-[#475569]">
+                      {t('templates:content.emptyMainTypeFormName')}
+                    </p>
+                    <p className="mt-1 text-xs text-[#64748b]">
+                      {t('templates:content.emptyMainTypeFormDescription')}
+                    </p>
+                  </div>
+                  <div className="rounded-[10px] border border-[#eef1f5] bg-[#fafbfc] p-3">
+                    <p className="text-xs font-semibold text-[#1d4ed8]">
+                      {t('templates:content.emptyMainTypeAiName')}
+                    </p>
+                    <p className="mt-1 text-xs text-[#64748b]">
+                      {t('templates:content.emptyMainTypeAiDescription')}
+                    </p>
+                  </div>
+                  <div className="rounded-[10px] border border-[#eef1f5] bg-[#fafbfc] p-3">
+                    <p className="text-xs font-semibold text-[#15803d]">
+                      {t('templates:content.emptyMainTypeManualName')}
+                    </p>
+                    <p className="mt-1 text-xs text-[#64748b]">
+                      {t('templates:content.emptyMainTypeManualDescription')}
+                    </p>
+                  </div>
+                  <div className="rounded-[10px] border border-[#eef1f5] bg-[#fafbfc] p-3">
+                    <p className="text-xs font-semibold text-[#6d28d9]">
+                      {t('templates:content.emptyMainTypeReferenceName')}
+                    </p>
+                    <p className="mt-1 text-xs text-[#64748b]">
+                      {t('templates:content.emptyMainTypeReferenceDescription')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Salida alternativa */}
+            <div className="flex items-center gap-3">
+              <p className="text-[13px] text-[#64748b]">
+                {t('templates:content.emptyMainImportQuestion')}
+              </p>
+              <HuemulButton
+                icon={FileJson}
+                iconClassName="h-4 w-4 mr-1.5"
+                label={t('templates:sidebar.footerImport')}
+                variant="outline"
+                className="h-[34px] rounded-lg border-[#d7dde5] bg-white text-sm hover:bg-[#f4f6f8]"
+                onClick={() => setIsImportSheetOpen(true)}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Create Template Dialog */}
@@ -173,6 +297,14 @@ export function TemplateContent({
             // Select the newly created template
             onTemplateCreated?.(template);
           }}
+        />
+
+        {/* Import JSON Sheet */}
+        <TemplatesImportSheet
+          open={isImportSheetOpen}
+          onOpenChange={setIsImportSheetOpen}
+          organizationId={selectedOrganizationId}
+          onImportSuccess={onRefresh}
         />
       </>
     );
