@@ -12,6 +12,7 @@ import { isSectionPermissionDeniedError } from "@/lib/section-permission-errors"
 import { cn } from "@/lib/utils";
 import { updateSectionFormValues } from "@/services/section_execution";
 import { uploadMedia } from "@/services/media";
+import type { EditorMediaUploadTarget } from "@/contexts/media-reference-context";
 import type { FormFieldValue, FormValuesSectionPayload } from "@/types/sections/core";
 import { isMediaToken } from "@/lib/plate-media-utils";
 import { AlertTriangle, Check, FileX, Info, Loader2, X } from "lucide-react";
@@ -44,6 +45,8 @@ interface AssetFormSectionProps {
   organizationId?: string;
   /** document_id del asset → se pasa como parent_id al subir archivos a /media/ */
   documentId?: string;
+  /** Nivel/parent real para subir archivos (ej. versión activa). Si falta, cae a level:"document" + documentId. */
+  mediaUploadTarget?: EditorMediaUploadTarget | null;
   /** Si el usuario puede responder/editar el formulario (modo editor + permiso). Si es false, solo lectura. */
   canInteract: boolean;
   /** Modo edición, controlado por el padre (mismo botón de lápiz que las demás secciones). */
@@ -97,6 +100,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   formFields,
   organizationId,
   documentId,
+  mediaUploadTarget,
   canInteract,
   isEditing,
   onExitEditing,
@@ -580,8 +584,8 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
             for (const file of incoming) {
               const media = await uploadMedia(organizationId!, {
                 file,
-                level: "document",
-                parent_id: documentId,
+                level: mediaUploadTarget?.level ?? "document",
+                parent_id: mediaUploadTarget?.parentId ?? documentId,
               });
               uploaded.push({
                 token: `{{MEDIA:${media.id}}}`,
