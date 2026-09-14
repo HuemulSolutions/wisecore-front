@@ -88,6 +88,20 @@ export const stripFieldKey = (f: FormFieldDraft): SectionFormField => {
   return rest as SectionFormField;
 };
 
+// Descarta filas de depends_on sin field_id elegido antes de enviar (ej. una condición
+// recién agregada con "Agregar condición" y nunca completada) — la validación del builder
+// las ignora a propósito (no bloquean el submit), así que sin este filtro se guardarían
+// basura en el backend. Mismo criterio que ya aplica sections-form.tsx al depends_on de
+// SECCIÓN; acá se replica para el depends_on de cada PREGUNTA.
+export const sanitizeFieldDependsOn = (f: SectionFormField): SectionFormField => {
+  const conditions = (f.depends_on ?? []).filter((c) => c.field_id.trim());
+  return {
+    ...f,
+    depends_on: conditions.length > 0 ? conditions : null,
+    show_when_inactive: conditions.length > 0 ? (f.show_when_inactive ?? false) : false,
+  };
+};
+
 // Etiqueta legible para un question_type (slug del backend, ej. "respuesta_corta")
 export const humanizeQuestionType = (slug: string): string =>
   slug ? slug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";

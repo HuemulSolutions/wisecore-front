@@ -194,7 +194,7 @@ export function FormFieldConditionsEditor({
 
   if (availableFields.length === 0) {
     return (
-      <p className="text-xs text-gray-400 italic">
+      <p className="text-xs italic" style={{ color: "#94a3b8" }}>
         {emptyFieldsMessage ?? t("form.formFields.dependency.noEarlierFields")}
       </p>
     );
@@ -203,7 +203,7 @@ export function FormFieldConditionsEditor({
   return (
     <div className="space-y-3">
       {conditions.length === 0 ? (
-        <p className="text-xs text-gray-500 italic">{t("form.formFields.dependency.emptyState")}</p>
+        <p className="text-xs italic" style={{ color: "#94a3b8" }}>{t("form.formFields.dependency.emptyState")}</p>
       ) : (
         <div className="space-y-3">
           {conditions.map((condition, index) => {
@@ -213,7 +213,8 @@ export function FormFieldConditionsEditor({
             return (
               <div
                 key={index}
-                className={dense ? "space-y-2" : "space-y-2 rounded-md border border-gray-100 bg-gray-50 p-2"}
+                className={dense ? "space-y-2" : "space-y-2 rounded-[9px] border p-3"}
+                style={dense ? undefined : { borderColor: "#e2e8f0", backgroundColor: "#f8fafc" }}
               >
                 <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
                   <HuemulField
@@ -262,7 +263,7 @@ export function FormFieldConditionsEditor({
                     disabled={disabled}
                     icon={Trash2}
                     tooltip={t("form.formFields.dependency.removeCondition")}
-                    className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50"
+                    className="h-7 w-7 text-[#94a3b8] hover:bg-[#fef2f2] hover:text-[#dc2626]"
                   />
                 </div>
               </div>
@@ -278,7 +279,7 @@ export function FormFieldConditionsEditor({
         onClick={addCondition}
         disabled={disabled}
         icon={Plus}
-        className="h-7 text-xs border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white"
+        className="h-7 text-xs border-[#bfd3fb] bg-[#f5f8ff] text-[#1d4ed8] hover:bg-[#eaf1ff]"
       >
         {addConditionLabel ?? t("form.formFields.dependency.addCondition")}
       </HuemulButton>

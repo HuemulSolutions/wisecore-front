@@ -26,6 +26,7 @@ import {
 } from "@/hooks/useTemplateSectionLifecycleAccess"
 import type { MatrixSection, MatrixStep } from "@/hooks/useTemplateSectionLifecycleAccess"
 import { LIFECYCLE_GROUPABLE_TYPES, buildAccessPayload, isGroupableStepType, stepRoleIds } from "@/lib/lifecycle-access"
+import { sectionHasOwnRules as computeSectionHasOwnRules } from "@/lib/section-lifecycle-own-rules"
 import { ApiError } from "@/types/api-error"
 import type { TemplateSectionAccessMatrixProps } from "@/types/assets"
 import type { LifecycleStep } from "@/types/lifecycle"
@@ -371,14 +372,7 @@ export function TemplateSectionAccessMatrix({
    * de ningún flag de la plantilla: el backend filtra estricto apenas hay una fila.
    */
   const sectionHasOwnRules = React.useCallback(
-    (sectionId: string) => {
-      const accessByStep = accessBySection.get(sectionId)
-      const roleAccessByStep = roleAccessBySection.get(sectionId)
-      return (
-        (accessByStep?.size ?? 0) > 0 ||
-        [...(roleAccessByStep?.values() ?? [])].some((byRole) => byRole.size > 0)
-      )
-    },
+    (sectionId: string) => computeSectionHasOwnRules(accessBySection, roleAccessBySection, sectionId),
     [accessBySection, roleAccessBySection],
   )
 
