@@ -1,5 +1,8 @@
 import type { CustomFieldDataType } from "@/types/custom-fields/core";
 
+// Los 4 tipos de sección — fuente única del literal, ver section-type-meta.ts.
+export type SectionType = "ai" | "manual" | "reference" | "form";
+
 export type Dependency = {
   id: string
   name: string
@@ -179,6 +182,11 @@ export interface SortableSectionItem extends SectionDependencyConfig {
   reference_section_id?: string
   reference_mode?: "latest" | "specific"
   reference_execution_id?: string
+  // Nombre de la sección referenciada y, en modo `specific`, de la ejecución
+  // elegida — es todo lo que manda el backend hoy (no hay nombre del
+  // documento/activo de origen).
+  reference_section_name?: string
+  reference_execution_name?: string
   template_section_id?: string
   form_fields?: SectionFormField[]
 }
@@ -194,6 +202,8 @@ export interface SortableSectionSheetItem extends SectionDependencyConfig {
   reference_section_id?: string
   reference_mode?: "latest" | "specific"
   reference_execution_id?: string
+  reference_section_name?: string
+  reference_execution_name?: string
   template_section_id?: string
   form_fields?: SectionFormField[]
 }

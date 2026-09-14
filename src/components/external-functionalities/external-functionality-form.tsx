@@ -23,7 +23,6 @@ export function ExternalFunctionalityForm({ formData, onChange }: ExternalFuncti
     [
       "import_asset",
       "export_asset",
-      "edit_section",
       "review_section",
       "review_asset",
       "publish_asset",

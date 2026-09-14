@@ -5,19 +5,19 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
-  RefreshCw,
   Loader2,
   FilePlus,
   FileType,
+  Settings2,
 } from "lucide-react";
 import {
   useDocxTemplatesForTemplate,
   useDocxTemplateMutationsForTemplate,
 } from "@/hooks/useDocxTemplates";
-import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
 import { HuemulDialog } from "@/huemul/components/huemul-dialog";
 import { HuemulField } from "@/huemul/components/huemul-field";
+import { TemplateSettingsPanelHeader } from "./templates-settings-panel-header";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -159,13 +159,7 @@ function DocxTemplateCard({
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
-function DocxEmptyState({
-  canCreate,
-  onUpload,
-}: {
-  canCreate: boolean;
-  onUpload: () => void;
-}) {
+function DocxEmptyState() {
   const { t } = useTranslation("templates");
 
   return (
@@ -181,15 +175,6 @@ function DocxEmptyState({
           {t("docxTemplates.emptyDescription")}
         </p>
       </div>
-      {canCreate && (
-        <HuemulButton
-          icon={FilePlus}
-          iconClassName="mr-1.5 h-4 w-4"
-          label={t("docxTemplates.upload")}
-          size="sm"
-          onClick={onUpload}
-        />
-      )}
     </div>
   );
 }
@@ -202,6 +187,7 @@ export function TemplateDocxList({
   canCreate = false,
   canUpdate = false,
   canDelete = false,
+  onBack,
 }: TemplateDocxListProps) {
   const { t } = useTranslation(["templates", "common"]);
 
@@ -301,39 +287,14 @@ export function TemplateDocxList({
     <div className="flex flex-col h-full">
       {/* Section header */}
       <div className="px-4 pt-6 pb-4 shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <h2 className="text-base font-semibold text-foreground">
-              {t("docxTemplates.sectionTitle")}
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              {t("docxTemplates.sectionDescription")}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <HuemulButton
-              icon={RefreshCw}
-              iconClassName="h-4 w-4 text-gray-600"
-              variant="ghost"
-              size="sm"
-              loading={isFetching}
-              tooltip={t("common:refresh")}
-              className="h-8 w-8 p-0 hover:bg-gray-100"
-              onClick={() => { refetch(); }}
-            />
-            {canCreate && templates.length > 0 && (
-              <HuemulButton
-                icon={FilePlus}
-                iconClassName="mr-1.5 h-3.5 w-3.5"
-                label={t("docxTemplates.upload")}
-                size="sm"
-                className="h-8 text-xs px-3"
-                onClick={openUpload}
-              />
-            )}
-          </div>
-        </div>
+        <TemplateSettingsPanelHeader
+          onBack={onBack}
+          icon={Settings2}
+          title={t("docxTemplates.sectionTitle")}
+          subtitle={t("docxTemplates.sectionDescription")}
+          refresh={{ onClick: () => { refetch(); }, loading: isFetching }}
+          primaryAction={canCreate ? { icon: FilePlus, label: t("docxTemplates.upload"), onClick: openUpload } : undefined}
+        />
       </div>
 
       {/* Content */}
@@ -346,7 +307,7 @@ export function TemplateDocxList({
             </span>
           </div>
         ) : templates.length === 0 ? (
-          <DocxEmptyState canCreate={canCreate} onUpload={openUpload} />
+          <DocxEmptyState />
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
             {templates.map((tpl) => (

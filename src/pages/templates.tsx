@@ -88,6 +88,11 @@ export default function Templates() {
   const canPickAssetsForDependencies =
     hasAnyPermission(['asset:l', 'asset:r']) && hasAnyPermission(['folder:l', 'folder:r']);
 
+  // GET /templates/{id}/child-documents (tab "Documentos creados") — mismo
+  // criterio que listTemplateContext/listTemplateDependencies: sub-recurso
+  // de template, exige template:r.
+  const canListChildDocuments = canRead('template');
+
   // Estados principales
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -223,7 +228,7 @@ export default function Templates() {
             />
           ),
           defaultSize: 15,
-          minSize: 15,
+          minSize: 20,
           maxSize: 30,
         },
         {
@@ -242,6 +247,7 @@ export default function Templates() {
               canCreate={canCreateTemplate}
               canUpdate={canUpdateTemplate}
               canDelete={canDeleteTemplate}
+              canExportTemplate={canExportTemplate}
               canListSections={canListSections}
               canCreateSection={canCreateSection}
               canUpdateSection={canUpdateSection}
@@ -265,6 +271,7 @@ export default function Templates() {
               canListTemplateDependencies={canListTemplateDependencies}
               canManageTemplateDependencies={canManageTemplateDependencies}
               canPickAssetsForDependencies={canPickAssetsForDependencies}
+              canListChildDocuments={canListChildDocuments}
             />
           ),
           defaultSize: 85,

@@ -2,7 +2,7 @@ import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { logger } from "@/lib/logger";
 import type { UserOrganization } from "@/types/users";
-import type { OrganizationUser, OrganizationUsersResponse, SetOrganizationAdminResponse } from '@/types/organizations';
+import type { Organization, OrganizationUser, OrganizationUsersResponse, SetOrganizationAdminResponse } from '@/types/organizations';
 
 export type { OrganizationUser, OrganizationUsersResponse, SetOrganizationAdminResponse };
 
@@ -40,7 +40,7 @@ export async function getAllOrganizations(page = 1, pageSize = 100, search?: str
   return data;
 }
 
-export async function addOrganization({ name, description }: { name: string; description?: string }) {
+export async function addOrganization({ name, description }: { name: string; description?: string }): Promise<Organization> {
   const response = await httpClient.post(`${backendUrl}/organizations`, {
     name,
     description: description || null,

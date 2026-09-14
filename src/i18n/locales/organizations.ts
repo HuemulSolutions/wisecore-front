@@ -13,6 +13,7 @@ const translations = {
   },
   actions: {
     setAdmin: { en: "Set Admin", es: "Asignar Admin" },
+    deleteOrganization: { en: "Delete organization", es: "Eliminar organización" },
   },
   table: {
     noOrgsFound: { en: "No Organizations Found", es: "No se encontraron organizaciones" },
@@ -95,6 +96,43 @@ const translations = {
     updated: { en: "Organization updated successfully", es: "Organización actualizada exitosamente" },
     deleted: { en: "Organization deleted successfully", es: "Organización eliminada exitosamente" },
     adminSet: { en: "Organization admin set successfully", es: "Admin de organización asignado exitosamente" },
+  },
+  detail: {
+    tabDetails: { en: "Details", es: "Detalles" },
+    tabUsers: { en: "Users", es: "Usuarios" },
+    createdOn: { en: "created {{date}}", es: "creada {{date}}" },
+    organizationId: { en: "Organization ID", es: "ID de la organización" },
+    saveChanges: { en: "Save changes", es: "Guardar cambios" },
+    discardChanges: { en: "Discard", es: "Descartar" },
+    discardTitle: { en: "Discard unsaved changes?", es: "¿Descartar los cambios sin guardar?" },
+    discardDescription: {
+      en: "The changes to this organization's details haven't been saved. If you continue, they will be lost.",
+      es: "Los cambios en los detalles de esta organización no se guardaron. Si continúas, se perderán.",
+    },
+    nameRequired: { en: "Name is required", es: "El nombre es obligatorio" },
+    usersSectionTitle: { en: "Organization users", es: "Usuarios de la organización" },
+    usersSectionHint: {
+      en: "Members of this organization.",
+      es: "Miembros de esta organización.",
+    },
+    // Popover "Agregar usuario" del tab Usuarios — root-admin-only.
+    addUser: { en: "Add user", es: "Agregar usuario" },
+    // Botón "Crear usuario" del mismo tab — inline create, ver
+    // ia context/inline-create-entity-in-sheet-guide.md. Mismo copy que
+    // roles:detail.createUserButton.
+    createUserButton: { en: "Create user", es: "Crear usuario" },
+    usersEmpty: { en: "This organization has no users yet", es: "Esta organización aún no tiene usuarios" },
+    errorLoadingUsers: { en: "Couldn't load the organization's users", es: "No se pudieron cargar los usuarios de la organización" },
+    usersForbidden: {
+      en: "You don't have permission to view this organization's users",
+      es: "No hay permiso para ver los usuarios de esta organización",
+    },
+    makeAdmin: { en: "Make admin", es: "Hacer admin" },
+    makeAdminTitle: { en: "Make {{name}} an admin?", es: "¿Hacer admin a {{name}}?" },
+    makeAdminDescription: {
+      en: "{{name}} will become an administrator of \"{{organization}}\" with full management permissions over it.",
+      es: "{{name}} se convertirá en administrador de \"{{organization}}\" y tendrá permisos de gestión completos sobre ella.",
+    },
   },
 }
 

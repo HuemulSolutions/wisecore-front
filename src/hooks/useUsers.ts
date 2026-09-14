@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { getUsers, getUserById, approveUser, rejectUser, deleteUser, updateUser, createUser, getUserOrganizations, updateUserRootAdmin } from "@/services/users"
+import { getUsers, getUserById, approveUser, rejectUser, deleteUser, updateUser, createUser, getUserOrganizations, updateUserRootAdmin, getGlobalUsers } from "@/services/users"
 import type { UpdateUserData } from "@/types/users"
 
 // Query keys
@@ -16,6 +16,23 @@ export const userQueryKeys = {
   ] as const,
   detail: (id: string) => [...userQueryKeys.all, 'detail', id] as const,
   organizations: (userId?: string) => [...userQueryKeys.all, 'organizations', userId] as const,
+}
+
+/**
+ * Espejo acotado de `userQueryKeys` para `GET /users` (root-admin-only, todos
+ * los usuarios de la instalación, sin filtro por organización) — distinto de
+ * `userQueryKeys.list`, que filtra por `X-Org-Id` sobre otro endpoint
+ * (`/user_roles/users_with_roles`). Namespace separado para no mezclar ambas
+ * cachés bajo la misma key.
+ */
+export const globalUserQueryKeys = {
+  all: ['global-users'] as const,
+  list: (page: number, pageSize: number, search?: string) => [
+    ...globalUserQueryKeys.all,
+    page,
+    pageSize,
+    search ?? ''
+  ] as const,
 }
 
 // Hook for fetching users
@@ -51,6 +68,30 @@ export function useUserOrganizations(userId?: string) {
     queryKey: userQueryKeys.organizations(userId),
     queryFn: () => getUserOrganizations(userId),
     enabled: !!userId, // Only enabled when userId is provided
+  })
+}
+
+interface UseGlobalUsersOptions {
+  page?: number
+  pageSize?: number
+  search?: string
+  enabled?: boolean
+}
+
+/**
+ * Lista paginada de TODOS los usuarios de la instalación (`GET /users`,
+ * root-admin-only) — extraído del `useQuery` inline que tenía
+ * `global-admin-users-section.tsx`. Distinto de `useUsers` (org-scoped, otro
+ * endpoint): no filtra por organización activa.
+ */
+export function useGlobalUsers({ page = 1, pageSize = 100, search, enabled = true }: UseGlobalUsersOptions = {}) {
+  return useQuery({
+    queryKey: globalUserQueryKeys.list(page, pageSize, search),
+    queryFn: () => getGlobalUsers(page, pageSize, search?.trim() || undefined),
+    enabled,
+    placeholderData: (prev) => prev,
+    staleTime: 2 * 60 * 1000,
+    retry: 0,
   })
 }
 
@@ -103,7 +144,7 @@ export function useUserMutations(additionalInvalidateKeys: QueryKey[] = []) {
 
   const createUserMutation = useMutation({
     mutationFn: createUser,
-    meta: { successMessage: 'User created successfully' },
+    meta: { successMessage: t('users:toast.userCreated') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       invalidateAdditional()

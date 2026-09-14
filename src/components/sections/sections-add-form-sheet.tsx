@@ -10,7 +10,8 @@ export function AddSectionFormSheet({
   isPending,
   existingSections = [],
   onValidationChange,
-  onGeneratingChange
+  onGeneratingChange,
+  defaultType,
 }: AddSectionFormSheetProps) {
   return (
     <SectionForm
@@ -25,6 +26,7 @@ export function AddSectionFormSheet({
       existingSections={existingSections}
       onValidationChange={onValidationChange}
       onGeneratingChange={onGeneratingChange}
+      defaultType={defaultType}
     />
   );
 }

@@ -116,6 +116,11 @@ export const PlaceholderElement = withHOC(
           type: element.mediaType!,
           url: uploadedFile.url,
           ...(uploadedFile.previewUrl ? { previewUrl: uploadedFile.previewUrl } : {}),
+          // So a `file` chip uploaded from the toolbar renders the same icon/size as
+          // one inserted from the media-reference picker, without an extra request.
+          ...(element.mediaType === KEYS.file
+            ? { contentType: uploadedFile.type, fileSize: uploadedFile.size }
+            : {}),
         };
 
         editor.tf.insertNodes(node, { at: path });

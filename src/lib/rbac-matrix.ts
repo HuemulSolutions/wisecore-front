@@ -153,9 +153,7 @@ export const RBAC_PAGES = {
   organizations: {
     // Vista plana org-scoped sobre un recurso propio (`organization`, ya
     // existente en PermissionResource). Sin `nav`: vive en el dropdown de
-    // Settings, igual que `models`. `setOrganizationAdmin` NO se declara acá:
-    // la única pantalla que lo ofrece es /global-admin, root-admin-only y sin
-    // `features` a propósito.
+    // Settings, igual que `models`.
     route: "organizations",
     routePermissions: ["organization:r", "organization:l"],
     features: {
@@ -163,6 +161,21 @@ export const RBAC_PAGES = {
       createOrganization: "organization:c",
       updateOrganization: "organization:u",
       deleteOrganization: "organization:d",
+      // Tab "Usuarios" del panel de detalle (GET /organizations/{id}/users).
+      // El endpoint cuelga de /organizations pero devuelve usuarios, así que
+      // se gatea con el recurso `user` — mismo criterio que
+      // RBAC_PAGES.roles.features.listUsers para el tab Usuarios del rol.
+      // OJO: el backend lo trata como root-admin-only, así que `user:l`
+      // habilita el tab pero NO garantiza el 200: el tab degrada a estado de
+      // error con reintento, nunca deja el panel en blanco.
+      listOrganizationUsers: ["user:l", "user:r"],
+      // POST /organizations/{id}/admins — no hay recurso propio para la
+      // relación admin↔organización, se gatea con la escritura del recurso
+      // padre (mismo criterio que `assignRoleToUsers: "rbac:u"`). Antes se
+      // omitía a propósito porque solo lo ofrecía /global-admin
+      // (root-admin-only, sin `features`); ahora también vive en el tab
+      // Usuarios de /organizations.
+      setOrganizationAdmin: "organization:u",
     },
   },
   asset: {

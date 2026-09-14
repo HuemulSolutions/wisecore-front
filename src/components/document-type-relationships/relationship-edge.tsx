@@ -34,6 +34,10 @@ export interface RelationshipEdgeData {
   maxCount?: number
   /** Signed offset index used to vary curvature for parallel edges */
   pathOffset?: number
+  /** Derived in `layeredEdges` from the canvas selection — never part of the
+   *  persisted graph. 'active' = touches the selected node/edge, 'dim' = the
+   *  rest while something is selected, undefined = nothing selected. */
+  highlight?: 'active' | 'dim'
   onEdit?: (relationshipId: string) => void
   onDelete?: (relationshipId: string) => void
   onManageAttributes?: (relationshipId: string) => void
@@ -199,7 +203,9 @@ export function RelationshipEdge({
   const isSelfLoop = source === target
   const offset = edgeData.pathOffset ?? 0
   const isDirect = edgeData.edgeKind === "direct"
-  const strokeColor = selected ? "var(--primary)" : isDirect ? "var(--diagram-role-edge)" : "var(--diagram-edge)"
+  const isActive = selected || edgeData.highlight === "active"
+  const isDimmed = edgeData.highlight === "dim"
+  const strokeColor = isActive ? "var(--primary)" : isDirect ? "var(--diagram-role-edge)" : "var(--diagram-edge)"
 
   let edgePath: string
   let labelX: number
@@ -233,8 +239,9 @@ export function RelationshipEdge({
         path={edgePath}
         markerEnd={markerEnd}
         style={{
-          strokeWidth: selected ? 1.75 : 1.25,
+          strokeWidth: isActive ? 1.75 : 1.25,
           stroke: strokeColor,
+          opacity: isDimmed ? 0.25 : 1,
           // Minimal, honest signal that this line has no backend relationship behind
           // it — just an entry in the Diagram's own `relationships`.
           strokeDasharray: isDirect ? '5 5' : undefined,
@@ -248,6 +255,7 @@ export function RelationshipEdge({
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
             pointerEvents: "all",
             zIndex: EDGE_LABEL_Z,
+            opacity: isDimmed ? 0.25 : 1,
           }}
           className="nodrag nopan flex flex-col items-center gap-1"
         >
@@ -257,9 +265,9 @@ export function RelationshipEdge({
             <span
               className={cn(
                 "text-[11px] font-semibold px-1.5 py-0.5 rounded bg-background whitespace-nowrap max-w-40 truncate",
-                selected ? "text-primary" : isDirect ? "" : "text-foreground",
+                isActive ? "text-primary" : isDirect ? "" : "text-foreground",
               )}
-              style={!selected && isDirect ? { color: "var(--diagram-role-edge)" } : undefined}
+              style={!isActive && isDirect ? { color: "var(--diagram-role-edge)" } : undefined}
             >
               {edgeData.name}
             </span>

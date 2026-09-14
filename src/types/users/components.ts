@@ -35,6 +35,12 @@ export interface UserPageDialogsProps {
   // diálogos, nunca el master-detail. Estructuralmente compatible con
   // `UserPageState` (users.tsx) y con `GlobalAdminUserPageState`
   // (global-admin-users-section.tsx), que ya no comparten el mismo padre.
+  //
+  // Solo quedan `CreateUserSheet` y `UserDeleteDialog`: editar, root admin y
+  // asignar organizaciones pasaron a ser inline en `UserDetailPanel` (tabs
+  // Perfil/Organizaciones) en ambos consumidores — ver
+  // `users-edit-sheet.tsx`/`users-root-admin-dialog.tsx`/
+  // `users-organizations-dialog.tsx` (retirados).
   state: UserDialogsState
   onCloseDialog: (dialog: keyof UserDialogsState) => void
   onUpdateState: (updates: Partial<UserDialogsState>) => void
@@ -46,16 +52,9 @@ export interface UserPageDialogsProps {
    * muta, y ninguno tenía gate propio. Los consumidores las resuelven con su
    * propio eje — `/users` con `usePageAccess('users')`, `/global-admin` con su
    * único `canManage` root-admin-only.
-   * `canAssignRoles` ya no vive acá: `AssignRolesSheet` se eliminó, el panel de
-   * detalle de `/users` resuelve la asignación con su propio staging.
    */
   canCreate: boolean
-  canUpdate: boolean
   canDelete: boolean
-  /** PATCH /users/{id}/root-admin: flag de sistema, eje isRootAdmin. */
-  canManageRootAdmin: boolean
-  /** POST/DELETE /organizations/{id}/users: solo alcanzable desde /global-admin. */
-  canManageOrganizations: boolean
 }
 
 export interface EmptyStateProps {

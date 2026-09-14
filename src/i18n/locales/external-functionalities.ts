@@ -81,7 +81,6 @@ const translations = {
   objective: {
     import_asset: { en: "Import Asset", es: "Importar Activo" },
     export_asset: { en: "Export Asset", es: "Exportar Activo" },
-    edit_section: { en: "Edit Section", es: "Editar Sección" },
     review_section: { en: "Review Section", es: "Revisar Sección" },
     review_asset: { en: "Review Asset", es: "Revisar Activo" },
     publish_asset: { en: "Publish Asset", es: "Publicar Activo" },

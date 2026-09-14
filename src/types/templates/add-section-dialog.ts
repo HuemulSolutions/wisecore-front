@@ -7,4 +7,7 @@ export interface AddSectionDialogProps {
   organizationId: string;
   existingSections: any[];
   onGeneratingChange?: (isGenerating: boolean) => void;
+  defaultType?: 'ai' | 'manual' | 'reference' | 'form';
+  /** Nombre de la plantilla — arma el subtítulo dinámico del sheet. */
+  containerName?: string;
 }

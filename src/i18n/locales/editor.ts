@@ -149,6 +149,10 @@ const translations = {
     next: { en: "Next", es: "Siguiente" },
     searchingInPage: { en: "Showing results within current page", es: "Mostrando resultados en la página actual" },
     unavailable: { en: "File unavailable", es: "Archivo no disponible" },
+    untitledFile: { en: "Untitled file", es: "Archivo sin nombre" },
+    openInNewTab: { en: "Open in new tab", es: "Abrir en una pestaña nueva" },
+    downloadFile: { en: "Download", es: "Descargar" },
+    expand: { en: "Expand", es: "Ampliar" },
   },
   colors: {
     customColors: { en: "Custom Colors", es: "Colores personalizados" },

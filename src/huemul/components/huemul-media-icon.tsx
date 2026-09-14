@@ -48,6 +48,13 @@ export const EXTENSION_MIME: Record<string, string> = {
   mp3: "audio/mpeg",
 }
 
+// Best-effort MIME lookup by filename extension, para nodos del editor que solo
+// traen `name` (ej. contenido legacy insertado antes de guardar `contentType`).
+export function contentTypeFromFilename(filename?: string | null): string | undefined {
+  const ext = filename?.split(".").pop()?.toLowerCase()
+  return ext ? EXTENSION_MIME[ext] : undefined
+}
+
 // Extensiones filtrables por tipo — MEDIA_UPLOAD_EXTENSIONS menos "csv": su MIME
 // varía entre navegador/SO (text/csv vs application/vnd.ms-excel) y el backend
 // hace match exacto contra media_type, así que incluirlo filtraría mal. CSV sigue

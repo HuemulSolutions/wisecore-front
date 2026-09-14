@@ -2,11 +2,11 @@
 
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { X, Network, Loader2, AlertCircle, Maximize2, ChevronRight } from "lucide-react"
+import { X, Network, Loader2, AlertCircle, Maximize2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { CanvasNodeAction } from "@/types/document-type-relationships"
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId"
-import { useDocumentTypeRelationships } from "@/hooks/useDocumentTypeRelationships"
+import { useExecutionRelationships } from "@/hooks/useExecutionRelationships"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import type { Execution } from "@/types/execution"
 import type { DocumentType } from "@/types/document-types"
@@ -40,8 +40,6 @@ interface NodePanelProps {
   organizationId?: string
   onSelectExecution?: (nodeId: string, executionId: string, executionName: string) => void
   readOnly?: boolean
-  /** Modo execution: id del tipo de activo del nodo — para listar tipos relacionados configurados. */
-  documentTypeId?: string
   /** Catálogo completo de tipos de activo — resuelve nombre/color de los tipos relacionados. */
   documentTypes?: DocumentType[]
   /** Expande relaciones filtrando solo el tipo de activo relacionado elegido. */
@@ -64,14 +62,12 @@ export function NodePanel({
   organizationId,
   onSelectExecution,
   readOnly = false,
-  documentTypeId,
   documentTypes,
   onLoadRelationshipsForType,
 }: NodePanelProps) {
   const { t } = useTranslation("document-type-relationships")
   const [isLoadingRelationships, setIsLoadingRelationships] = useState(false)
   const [isLoadingRelationshipsCanvasOnly, setIsLoadingRelationshipsCanvasOnly] = useState(false)
-  const [isTypeMenuOpen, setIsTypeMenuOpen] = useState(false)
   const [loadingTypeId, setLoadingTypeId] = useState<string | null>(null)
 
   const isExecutionMode = mode === "execution"
@@ -87,28 +83,36 @@ export function NodePanel({
     value: ex.id,
   }))
 
-  // Tipos de activo relacionados configurados para el tipo de este nodo — para "Expandir por tipo".
-  const { data: relSchema } = useDocumentTypeRelationships(organizationId ?? "", {
-    documentTypeId,
-    includeSubrelationships: false,
-    enabled: isExecutionMode && !!organizationId && !!documentTypeId && !!onLoadRelationshipsForType,
-  })
+  // Relaciones directas reales de esta versión — misma consulta que usa "Expandir
+  // por tipo" al hacer clic, así el conteo mostrado siempre coincide con lo que se
+  // va a agregar al canvas.
+  const { data: relatedData, isLoading: isLoadingRelatedTypes } = useExecutionRelationships(
+    organizationId ?? "",
+    executionId ?? "",
+    {
+      pageSize: 1000,
+      includeSubrelationships: false,
+      enabled: isExecutionMode && !!organizationId && !!executionId && !!onLoadRelationshipsForType,
+    },
+  )
 
   const relatedTypeOptions = useMemo(() => {
-    if (!documentTypeId) return []
-    const seen = new Map<string, string>() // partnerId -> name
-    for (const rel of relSchema?.data ?? []) {
-      const partnerId = rel.source_document_type_id === documentTypeId ? rel.target_document_type_id : rel.source_document_type_id
-      if (!seen.has(partnerId)) {
-        seen.set(partnerId, documentTypes?.find((d) => d.id === partnerId)?.name ?? partnerId)
-      }
+    if (!executionId) return []
+    const grouped = new Map<string, { count: number; color?: string }>()
+    for (const rel of relatedData?.data ?? []) {
+      const other = rel.source_execution.id === executionId ? rel.target_execution : rel.source_execution
+      const entry = grouped.get(other.document_type_id) ?? { count: 0, color: other.document_type_color }
+      entry.count += 1
+      if (!entry.color && other.document_type_color) entry.color = other.document_type_color
+      grouped.set(other.document_type_id, entry)
     }
-    return Array.from(seen, ([value, label]) => ({
+    return Array.from(grouped, ([value, { count, color }]) => ({
       value,
-      label,
-      color: documentTypes?.find((d) => d.id === value)?.color,
-    }))
-  }, [relSchema, documentTypeId, documentTypes])
+      label: documentTypes?.find((d) => d.id === value)?.name ?? value,
+      color: color ?? documentTypes?.find((d) => d.id === value)?.color,
+      count,
+    })).sort((a, b) => b.count - a.count)
+  }, [relatedData, executionId, documentTypes])
 
   const handleLoadRelationships = async () => {
     if (!onLoadRelationships || isLoadingRelationships) return
@@ -226,8 +230,55 @@ export function NodePanel({
           </div>
         )}
 
+        {/* Related asset types — relaciones directas reales de esta versión, con
+            conteo; clic expande al canvas solo los activos de ese tipo. Siempre
+            visible (sin acordeón) cuando hay una versión seleccionada. */}
+        {onLoadRelationshipsForType && executionId && (
+          <div className="space-y-2">
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+              {t("nodePanel.relatedTypes")}
+            </p>
+            {isLoadingRelatedTypes ? (
+              <div className="flex items-center gap-2 h-9 px-3 rounded-md border bg-muted/10 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                <span>{t("nodePanel.relatedTypesLoading")}</span>
+              </div>
+            ) : relatedTypeOptions.length === 0 ? (
+              <p className="text-xs text-muted-foreground">{t("nodePanel.relatedTypesEmpty")}</p>
+            ) : (
+              <div className="flex flex-col gap-0.5">
+                {relatedTypeOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => handleLoadForType(opt.value)}
+                    disabled={!!loadingTypeId}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs text-muted-foreground w-full",
+                      "hover:bg-accent hover:text-foreground hover:cursor-pointer transition-colors",
+                      "disabled:opacity-50 disabled:cursor-not-allowed",
+                    )}
+                  >
+                    {loadingTypeId === opt.value ? (
+                      <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
+                    ) : (
+                      <div
+                        className="h-2.5 w-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: opt.color || "#94a3b8" }}
+                      />
+                    )}
+                    <span className="truncate flex-1 text-left">{opt.label}</span>
+                    <span className="text-[10px] font-medium text-muted-foreground/70 bg-muted rounded-full px-1.5 py-0.5 shrink-0">
+                      {opt.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Actions — hidden entirely in read-only view when there's nothing to show */}
-        {(onOpenAsset || onLoadRelationships || (onLoadRelationshipsForType && relatedTypeOptions.length > 0) || onLoadRelationshipsCanvasOnly || (nodeActions && nodeActions.length > 0)) && (
+        {(onOpenAsset || onLoadRelationships || onLoadRelationshipsCanvasOnly || (nodeActions && nodeActions.length > 0)) && (
         <div className="space-y-2">
           <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
             {t("nodePanel.actions")}
@@ -279,56 +330,6 @@ export function NodePanel({
                   )}
                 </span>
               </button>
-            )}
-
-            {/* Expand relationships filtered to one related asset type */}
-            {onLoadRelationshipsForType && relatedTypeOptions.length > 0 && (
-              <div>
-                <button
-                  onClick={() => setIsTypeMenuOpen((v) => !v)}
-                  className={cn(
-                    "flex items-start gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground w-full",
-                    "hover:bg-accent hover:text-foreground hover:cursor-pointer transition-colors",
-                  )}
-                >
-                  <Network className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                  <span className="flex flex-col items-start text-left gap-0.5 flex-1">
-                    <span className="text-xs font-medium">{t("nodePanel.expandByType")}</span>
-                    <span className="text-[11px] leading-snug text-muted-foreground/80 font-normal">
-                      {t("nodePanel.expandByTypeDescription")}
-                    </span>
-                  </span>
-                  <ChevronRight
-                    className={cn("h-3.5 w-3.5 shrink-0 mt-0.5 transition-transform", isTypeMenuOpen && "rotate-90")}
-                  />
-                </button>
-                {isTypeMenuOpen && (
-                  <div className="flex flex-col gap-0.5 pl-6 mt-0.5">
-                    {relatedTypeOptions.map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => handleLoadForType(opt.value)}
-                        disabled={!!loadingTypeId}
-                        className={cn(
-                          "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs text-muted-foreground",
-                          "hover:bg-accent hover:text-foreground hover:cursor-pointer transition-colors",
-                          "disabled:opacity-50 disabled:cursor-not-allowed",
-                        )}
-                      >
-                        {loadingTypeId === opt.value ? (
-                          <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
-                        ) : (
-                          <div
-                            className="h-2.5 w-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: opt.color || "#94a3b8" }}
-                          />
-                        )}
-                        <span className="truncate">{opt.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
             )}
 
             {/* Load canvas relationships (only connects nodes already on the canvas) */}

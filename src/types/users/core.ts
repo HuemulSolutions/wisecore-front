@@ -80,10 +80,18 @@ export interface CreateUserData {
   photo_file?: string
 }
 
-/** Pestaña activa del panel de detalle del usuario. Sin 'activity': no existe
- *  endpoint de auditoría de asignaciones en el backend (ver
- *  respuestas/backend-panel-usuarios-roles.md). */
-export type UserDetailTab = 'profile' | 'roles'
+/**
+ * Pestaña activa del panel de detalle del usuario. Sin 'activity': no existe
+ * endpoint de auditoría de asignaciones en el backend (ver
+ * respuestas/backend-panel-usuarios-roles.md).
+ *
+ * 'organizations' reemplaza a `UserOrganizationsDialog` (asignar/quitar
+ * organizaciones, root-admin-only): en `/global-admin` siempre disponible
+ * (junto a 'profile', sin 'roles' — los roles son org-scoped y un usuario
+ * global no tiene una organización fija); en `/users` solo si `isRootAdmin`
+ * — ver `UserDetailPanelProps.availableTabs`.
+ */
+export type UserDetailTab = 'profile' | 'roles' | 'organizations'
 
 /**
  * Solo los diálogos/sheets que `UserPageDialogs` monta. Separado de
@@ -92,13 +100,16 @@ export type UserDetailTab = 'profile' | 'roles'
  * no usa. `assigningRoleUser` no vive acá: el sheet de asignación
  * (`roles-assign-sheet.tsx`) se eliminó, el panel de detalle absorbe esa
  * función con su propio staging (`useUserRolesStaging`).
+ *
+ * `editingUser`/`organizationUser`/`rootAdminUser` ya no viven acá: eran
+ * exclusivos del kebab de `/global-admin` (`/users` nunca los seteaba — la
+ * edición, el switch de root admin y ahora la asignación de organizaciones
+ * son inline en el panel de detalle, `UserDetailPanel`). Ver
+ * `users-detail-organizations-tab.tsx`, `UsersDetailProfileTab`.
  */
 export interface UserDialogsState {
-  editingUser: User | null
-  organizationUser: User | null
   showCreateDialog: boolean
   deletingUser: User | null
-  rootAdminUser: User | null
 }
 
 /** Estado de tabla + diálogos, sin el master-detail. Lo que reusa `/global-admin`. */

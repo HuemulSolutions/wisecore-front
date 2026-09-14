@@ -15,4 +15,6 @@ export interface EditSectionDialogProps {
   documentId?: string;
   templateId?: string;
   executionId?: string;
+  /** Nombre del contenedor (plantilla/activo) — arma el subtítulo dinámico del sheet. */
+  containerName?: string;
 }
