@@ -96,7 +96,7 @@ export function CustomFieldsList({
 
   if (!customFields || customFields.length === 0) {
     return (
-      <div className="flex h-full min-h-0 items-center justify-center p-3">
+      <div className="p-3">
         <HuemulPanelEmptyState
           icon={SlidersHorizontal}
           title={t('customFieldsList.noCustomFields')}
