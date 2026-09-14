@@ -1,4 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap');
+/* Solo para el panel de detalle del activo (.asset-detail-panel) — ver ese componente. */
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 
 @plugin 'tailwind-scrollbar-hide';
 
@@ -198,6 +200,20 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
+}
+
+/*
+ * Panel de detalle del activo documental (rail Índice/Campos/Archivos/Vínculos).
+ * Tokens propios de la especificación de diseño — escopados a este panel, no al
+ * tema global (que usa IBM Plex Sans + oklch, ver ia context/diseno-rediseno-pantallas-guide.md).
+ */
+.asset-detail-panel {
+  font-family: 'Inter Tight', 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --adp-border: #e7ebf1;
+  --adp-rail-bg: #f8fafc;
+  --adp-accent-bg: #eef4ff;
+  --adp-accent-fg: #1d4ed8;
+  --adp-page-bg: #eceef1;
 }
 
 /* Markdown content styles for section content dialog */

@@ -13,6 +13,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import type { ImperativePanelHandle } from "react-resizable-panels";
 import { createSectionExecution, type AddSectionExecutionRequest } from "@/services/section_execution";
 import { OtherVersionExecutionBanner } from "@/components/execution/other-version-execution-banner";
 import { ExecutionStatusBanner } from "@/components/execution/execution-status-banner";
@@ -35,7 +36,8 @@ import { useDiscussions } from "@/hooks/useDiscussions";
 import { LifecycleHistorySheet } from "@/components/assets/content/lifecycle-history-sheet";
 import { AssetDiagramsSheet } from "@/components/assets/content/asset-diagrams-sheet";
 import { MediaListSheet } from "@/components/ui/media-list-sheet";
-import { AssetsRelatedDocuments } from "@/components/assets/content/assets-related-documents";
+import type { MediaScope, MediaScopeExecutionOption } from "@/types/media";
+import { AssetsDetailPanel } from "@/components/assets/content/detail-panel/assets-detail-panel";
 import { AssetsRelatedDocumentsBlock } from "@/components/assets/content/assets-related-documents-block";
 
 import {
@@ -81,7 +83,6 @@ import { DeleteCustomFieldDialog } from "@/components/assets/dialogs/assets-dele
 import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import Markdown from "@/components/ui/markdown";
-import { TableOfContents } from "@/components/assets/content/assets-table-of-contents";
 import { toast } from "sonner";
 import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
@@ -102,11 +103,10 @@ import {
   useInvalidateDocumentSectionAccess,
 } from '@/hooks/useDocumentSectionAccess';
 import { usePageAccess } from '@/hooks/usePageAccess';
-import type { ContentSection, LibraryContentProps, LifecyclePermissions, LifecycleStatus } from '@/types/assets';
+import type { AssetDetailPanelTab, ContentSection, LibraryContentProps, LifecyclePermissions, LifecycleStatus } from '@/types/assets';
 import type { FormValuesSectionPayload } from '@/types/sections/core';
 import { applyFormValuesPatch } from '@/components/assets/content/utils/patch-document-content';
 import { isSectionApplicable } from '@/components/workflow/workflow-section-stats';
-import { CustomFieldsList } from './assets-custom-fields-list';
 import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 import { useGlobalPanel } from '@/contexts/global-panel-context';
 
@@ -127,7 +127,8 @@ import { CUSTOM_FIELD_DOCUMENTS_PAGE_SIZE, customFieldDocumentsQueryKeys } from 
 
 // Tamaño de página del listado de campos personalizados en el panel lateral (angosto).
 // Compartido con la validación preventiva del lifecycle (useCustomFieldDocuments) —
-// misma query key, un solo fetch.
+// misma query key, un solo fetch. También es el tamaño del paginado CLIENTE del tab
+// "Campos" del panel de detalle (mismo número, un solo fetch cubre ambos usos).
 const CUSTOM_FIELDS_PAGE_SIZE = CUSTOM_FIELD_DOCUMENTS_PAGE_SIZE;
 
 /** Recursively extract all text from a Plate JSON node. */
@@ -192,7 +193,7 @@ export function AssetContent({
   const navigate = useOrgNavigate();
   const isMobile = useIsMobile();
   const { selectedOrganizationId } = useOrganization();
-  const { canCreate, canList, canAccessTemplates, canAccessAssets, canAccessDiagrams, isOrgAdmin, hasPermission } = useUserPermissions();
+  const { canCreate, canList, canUpdate, canDelete, canAccessTemplates, canAccessAssets, canAccessDiagrams, isOrgAdmin, hasPermission } = useUserPermissions();
   const { can } = usePageAccess('asset');
   const { can: canMedia } = usePageAccess('media');
   const { handleCreateAsset: openCreateAssetDialog } = useNavKnowledgeActions();
@@ -547,9 +548,14 @@ export function AssetContent({
   const [isLifecycleHistorySheetOpen, setIsLifecycleHistorySheetOpen] = useState(false);
   const [isDiagramsSheetOpen, setIsDiagramsSheetOpen] = useState(false);
   const [isMediaSheetOpen, setIsMediaSheetOpen] = useState(false);
+  // Alcance con el que se abrió el sheet desde el panel de detalle (documento completo
+  // o una versión puntual) — null cuando se abrió desde el header, que usa la versión actual.
+  const [mediaSheetScope, setMediaSheetScope] = useState<MediaScope | null>(null);
 
-  // Sidebar and sheets
-  const [activeTab, setActiveTab] = useState<'toc' | 'custom-fields'>('toc');
+  // Sidebar and sheets — rail Índice/Campos/Archivos/Vínculos del panel de detalle.
+  const [activeTab, setActiveTab] = useState<AssetDetailPanelTab>('index');
+  const [isDetailPanelCollapsed, setIsDetailPanelCollapsed] = useState(false);
+  const detailPanelRef = useRef<ImperativePanelHandle>(null);
   // Los custom fields son un recurso propio (custom_fields), no del asset: el tab
   // y su query exigen el permiso de listarlos.
   const canListCustomFields = can('listCustomFields');
@@ -563,8 +569,9 @@ export function AssetContent({
   const canListExecutionRelationships = can('listExecutionRelationships');
   // El tab activo no puede quedar apuntando a un tab que el usuario no puede ver.
   useEffect(() => {
-    if (activeTab === 'custom-fields' && !canListCustomFields) setActiveTab('toc');
-  }, [activeTab, canListCustomFields]);
+    if (activeTab === 'fields' && !canListCustomFields) setActiveTab('index');
+    if (activeTab === 'links' && !canListExecutionRelationships) setActiveTab('index');
+  }, [activeTab, canListCustomFields, canListExecutionRelationships]);
   const [isTocSidebarOpen, setIsTocSidebarOpen] = useState(true);
   const [isSectionSheetOpen, setIsSectionSheetOpen] = useState(false);
   const [isDependenciesSheetOpen, setIsDependenciesSheetOpen] = useState(false);
@@ -1141,15 +1148,18 @@ export function AssetContent({
     staleTime: 300000, // Cache for 5 minutes
   });
 
-  // Fetch custom fields for the document
+  // Fetch custom fields for the document. Página y tamaño fijos en 1/100 (no
+  // `customFieldsPage`, que ahora es solo el paginado CLIENTE de 4 por página del
+  // panel de detalle) — así la query key coincide con la de `useCustomFieldDocuments`
+  // (validación preventiva del lifecycle) y comparten un solo fetch.
   const { data: customFieldsData, isLoading: isLoadingCustomFields } = useQuery({
-    queryKey: customFieldDocumentsQueryKeys.byDocument(selectedFile?.id, customFieldsPage, CUSTOM_FIELDS_PAGE_SIZE),
+    queryKey: customFieldDocumentsQueryKeys.byDocument(selectedFile?.id, 1, CUSTOM_FIELDS_PAGE_SIZE),
     queryFn: () => getCustomFieldDocumentsByDocument({
       document_id: selectedFile!.id,
-      page: customFieldsPage,
+      page: 1,
       page_size: CUSTOM_FIELDS_PAGE_SIZE
     }),
-    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && activeTab === 'custom-fields' && canListCustomFields,
+    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && canListCustomFields,
     staleTime: 60000, // Cache for 1 minute
     placeholderData: (prev) => prev,
   });
@@ -1459,8 +1469,11 @@ export function AssetContent({
     canListCustomFields,
     onOpenCustomFields: canListCustomFields
       ? () => {
-          setActiveTab('custom-fields');
+          setActiveTab('fields');
           setIsTocSidebarOpen(true);
+          // El panel se remonta sin colapsar (defaultSize) — este flag no persiste
+          // solo, hay que resincronizarlo para que no quede mostrando el rail.
+          setIsDetailPanelCollapsed(false);
         }
       : undefined,
     canReadElaborationConfig,
@@ -2765,7 +2778,7 @@ export function AssetContent({
                             canAccessDiagrams={canAccessDiagrams}
                             onOpenDiagrams={() => setIsDiagramsSheetOpen(true)}
                             canAccessMedia={canMedia('listMedia')}
-                            onOpenMedia={() => setIsMediaSheetOpen(true)}
+                            onOpenMedia={() => { setMediaSheetScope(null); setIsMediaSheetOpen(true); }}
                             onOpenPermissions={() => setIsPermissionsSheetOpen(true)}
                             onOpenSections={() => setIsSectionSheetOpen(true)}
                             onOpenDependencies={() => setIsDependenciesSheetOpen(true)}
@@ -3592,84 +3605,66 @@ export function AssetContent({
         </div>
       </ResizablePanel>
 
-      {/* Table of Contents Sidebar - only show for documents with content and not during full/full-single executions */}
+      {/* Panel de detalle del activo (rail Índice/Campos/Archivos/Vínculos) - solo para
+          documentos con contenido y no durante ejecuciones full/full-single */}
       {selectedFile.type === 'document' && documentContent?.content &&
        isTocSidebarOpen &&
        (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
         <>
           <ResizableHandle/>
-          <ResizablePanel defaultSize={20}>
-            <div className="flex flex-col h-full min-h-0 bg-card overflow-hidden">
-                {/* Header con tabs — banda gris a sangre */}
-                <div className="shrink-0 bg-muted/50 border-b border-border px-3 py-2.5">
-                  <div className={cn("grid w-full gap-1", canListCustomFields ? "grid-cols-2" : "grid-cols-1")}>
-                    <button
-                      onClick={() => setActiveTab('toc')}
-                      className={cn(
-                        "flex items-center justify-center text-xs py-1.5 px-2 rounded-md transition-all hover:cursor-pointer",
-                        activeTab === 'toc'
-                          ? "bg-background border border-border shadow-sm text-foreground font-medium"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <span className="line-clamp-2 text-center leading-tight">{t('content.contentTab')}</span>
-                    </button>
-                    {canListCustomFields && (
-                      <button
-                        onClick={() => setActiveTab('custom-fields')}
-                        className={cn(
-                          "flex items-center justify-center text-xs py-1.5 px-2 rounded-md transition-all hover:cursor-pointer",
-                          activeTab === 'custom-fields'
-                            ? "bg-background border border-border shadow-sm text-foreground font-medium"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        <span className="line-clamp-2 text-center leading-tight">{t('content.customFieldsTab')}</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-                {activeTab === 'toc' || !canListCustomFields ? (
-                  <>
-                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2 py-2">
-                      <TableOfContents items={tocItems} />
-                    </div>
-                    {canListExecutionRelationships && (
-                      <AssetsRelatedDocuments
-                        organizationId={selectedOrganizationId}
-                        executionId={selectedExecutionId || documentContent?.execution_id}
-                        currentDocumentId={selectedFile?.id}
-                        versionLabel={getExecutionDisplayLabel(selectedExecutionInfo)}
-                        canOpenDiagrams={can('openDiagramsCanvas')}
-                        canListAssetTypes={can('listAssetTypes')}
-                        canDeleteRelationship={can('deleteExecutionRelationship')}
-                      />
-                    )}
-                  </>
-                ) : (
-                  <div className="flex-1 min-h-0 overflow-hidden">
-                    <CustomFieldsList
-                      customFields={customFieldsData?.data || []}
-                      isLoading={isLoadingCustomFields}
-                      onAdd={handleAddCustomFieldDocument}
-                      onEdit={handleEditCustomFieldDocument}
-                      onEditContent={handleEditCustomFieldDocumentContent}
-                      onDelete={handleDeleteCustomFieldDocument}
-                      onRefresh={handleRefreshCustomFields}
-                      uploadingImageFieldId={uploadingImageFieldId}
-                      isRefreshing={isRefreshingCustomFields}
-                      canCreate={frontendPermissions.canEditSections}
-                      canUpdate={frontendPermissions.canEditSections}
-                      canDelete={frontendPermissions.canEditSections}
-                      page={customFieldsPage}
-                      pageSize={CUSTOM_FIELDS_PAGE_SIZE}
-                      totalItems={customFieldsData?.total}
-                      hasNext={customFieldsData?.has_next}
-                      onPageChange={setCustomFieldsPage}
-                    />
-                  </div>
-                )}
-              </div>
+          <ResizablePanel
+            ref={detailPanelRef}
+            defaultSize={22}
+            minSize={16}
+            collapsible
+            collapsedSize={4}
+            onCollapse={() => setIsDetailPanelCollapsed(true)}
+            onExpand={() => setIsDetailPanelCollapsed(false)}
+          >
+            <AssetsDetailPanel
+              organizationId={selectedOrganizationId}
+              documentId={selectedFile.id}
+              executionId={selectedExecutionId || documentContent?.execution_id}
+              versionLabel={getExecutionDisplayLabel(selectedExecutionInfo)}
+              activeTab={activeTab}
+              onActiveTabChange={setActiveTab}
+              isCollapsed={isDetailPanelCollapsed}
+              onToggleCollapse={() => {
+                const panel = detailPanelRef.current;
+                if (!panel) return;
+                if (isDetailPanelCollapsed) panel.expand(); else panel.collapse();
+              }}
+              canListCustomFields={canListCustomFields}
+              canCreateFields={canCreateCustomField && frontendPermissions.canEditSections}
+              canUpdateFields={canUpdate('custom_fields') && frontendPermissions.canEditSections}
+              canDeleteFields={canDelete('custom_fields') && frontendPermissions.canEditSections}
+              canCreateMedia={canMedia('createMedia')}
+              canUpdateMedia={canMedia('updateMedia')}
+              canDeleteMedia={canMedia('deleteMedia')}
+              canListExecutionRelationships={canListExecutionRelationships}
+              canOpenDiagrams={can('openDiagramsCanvas')}
+              canListAssetTypes={can('listAssetTypes')}
+              canDeleteRelationship={can('deleteExecutionRelationship')}
+              tocItems={tocItems}
+              canAddSection={frontendPermissions.canEditSections}
+              onAddSection={handleAddSection}
+              onRefreshIndex={handleRefreshContent}
+              customFields={customFieldsData?.data || []}
+              isLoadingCustomFields={isLoadingCustomFields}
+              isRefreshingCustomFields={isRefreshingCustomFields}
+              customFieldsPage={customFieldsPage}
+              customFieldsPageSize={CUSTOM_FIELDS_PAGE_SIZE}
+              uploadingImageFieldId={uploadingImageFieldId}
+              onCustomFieldsPageChange={setCustomFieldsPage}
+              onAddCustomField={handleAddCustomFieldDocument}
+              onEditCustomField={handleEditCustomFieldDocument}
+              onEditCustomFieldContent={handleEditCustomFieldDocumentContent}
+              onDeleteCustomField={handleDeleteCustomFieldDocument}
+              onRefreshCustomFields={handleRefreshCustomFields}
+              executions={allExecutions ?? []}
+              onOpenMediaSheet={(scope) => { setMediaSheetScope(scope ?? null); setIsMediaSheetOpen(true); }}
+              className="h-full rounded-none border-0 shadow-none"
+            />
           </ResizablePanel>
         </>
       )}
@@ -3996,10 +3991,17 @@ export function AssetContent({
       {/* Media Sheet — toda la media subida al documento o a la versión seleccionada */}
       {(() => {
         const mediaSheetExecutionId = selectedExecutionId || documentContent?.execution_id || '';
-        const mediaSheetLevel: 'document' | 'execution' = mediaSheetExecutionId ? 'execution' : 'document';
-        const mediaSheetParentId = mediaSheetExecutionId || (selectedFile?.id ?? '');
-        const mediaSheetParentLabel = mediaSheetExecutionId
-          ? getExecutionCompactLabel(selectedExecutionInfo)
+        const defaultLevel: 'document' | 'execution' = mediaSheetExecutionId ? 'execution' : 'document';
+        const defaultParentId = mediaSheetExecutionId || (selectedFile?.id ?? '');
+        // Si el sheet se abrió desde el selector de alcance del panel de detalle, respeta esa
+        // versión en vez de la que está abierta en el editor.
+        const mediaSheetLevel = mediaSheetScope?.level ?? defaultLevel;
+        const mediaSheetParentId = mediaSheetScope?.parentId ?? defaultParentId;
+        const mediaSheetExecutionInfo = mediaSheetScope
+          ? allExecutions?.find((execution: MediaScopeExecutionOption) => execution.id === mediaSheetScope.parentId)
+          : selectedExecutionInfo;
+        const mediaSheetParentLabel = mediaSheetLevel === 'execution'
+          ? getExecutionCompactLabel(mediaSheetExecutionInfo)
           : (documentContent?.document_name || selectedFile?.name);
         return (
           <MediaListSheet
