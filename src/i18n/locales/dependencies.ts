@@ -101,10 +101,10 @@ const translations = {
     },
     count: { en: "{{count}} dependencies", es: "{{count}} dependencias" },
     addButton: { en: "Add dependency", es: "Agregar dependencia" },
-    empty: { en: "This template has no dependencies yet", es: "Esta plantilla aún no tiene dependencias" },
+    empty: { en: "Nothing here yet", es: "Todavía no hay nada acá" },
     emptyHint: {
-      en: "Link it to assets to create relationships and shared context for assets created from it.",
-      es: "Vincularla con activos para crear relaciones y contexto compartido para los activos creados desde ella.",
+      en: "Without dependencies the document generates on its own.",
+      es: "Sin dependencias el documento se genera solo.",
     },
     picker: {
       title: { en: "Add dependency", es: "Agregar dependencia" },

@@ -69,20 +69,20 @@ export function SectionFormFieldDependencyEditor({
       />
 
       {availableFields.length > 0 && conditions.length > 0 && !hideShowWhenInactive && (
-        <div className="flex items-center gap-2 border-t border-gray-100 pt-2">
+        <div className="flex items-center gap-2 border-t pt-2" style={{ borderColor: "#eef1f5" }}>
           <Switch
             id={`show-when-inactive-${switchId}`}
             checked={showWhenInactive}
             onCheckedChange={(checked) => onChange(conditions, !!checked)}
             disabled={disabled}
           />
-          <Label htmlFor={`show-when-inactive-${switchId}`} className="text-xs text-gray-600">
+          <Label htmlFor={`show-when-inactive-${switchId}`} className="text-xs" style={{ color: "#64748b" }}>
             {showWhenInactiveLabel ?? t("form.formFields.dependency.showWhenInactive")}
           </Label>
         </div>
       )}
       {availableFields.length > 0 && conditions.length > 0 && !hideShowWhenInactive && (
-        <p className="text-xs text-gray-400">
+        <p className="text-xs" style={{ color: "#94a3b8" }}>
           {showWhenInactiveHint ?? t("form.formFields.dependency.showWhenInactiveHint")}
         </p>
       )}

@@ -36,11 +36,17 @@ const translations = {
     instructionsTitle: { en: "Instructions", es: "Instrucciones" },
     showMore: { en: "Show more", es: "Ver más" },
     showLess: { en: "Show less", es: "Ver menos" },
+    editData: { en: "Edit data", es: "Editar datos" },
+    moreActions: { en: "More actions", es: "Más acciones" },
+    viewInformation: { en: "View information", es: "Ver información" },
+    duplicateTemplate: { en: "Duplicate template", es: "Duplicar plantilla" },
+    exportJson: { en: "Export as JSON", es: "Exportar como JSON" },
   },
   addSection: {
-    description: { en: "Create a structured section for your template with custom content and dependencies.", es: "Crear una sección estructurada para la plantilla con contenido personalizado y dependencias." },
-    saving: { en: "Adding Section...", es: "Agregando Sección..." },
-    save: { en: "Save Section", es: "Guardar Sección" },
+    subtitle: { en: "It's added at the end of \"{{name}}\". You can reorder it later.", es: "Se agrega al final de «{{name}}». Puedes reordenarla después." },
+    subtitleNoName: { en: "It's added at the end. You can reorder it later.", es: "Se agrega al final. Puedes reordenarla después." },
+    saving: { en: "Adding section...", es: "Agregando sección..." },
+    save: { en: "Add section", es: "Agregar sección" },
   },
   sidebar: {
     title: { en: "Templates", es: "Plantillas" },
@@ -90,7 +96,11 @@ const translations = {
     emptyMainTypeReferenceName: { en: "Reference", es: "Referencia" },
     emptyMainTypeReferenceDescription: { en: "Brings in content already written in another document, without loading it again.", es: "Trae contenido ya escrito en otro documento, sin volver a cargarlo." },
     emptyMainImportQuestion: { en: "Already have a template defined in another environment?", es: "¿Ya tienes una plantilla definida en otro entorno?" },
-    sectionsTab: { en: "Sections", es: "Secciones" },
+    sectionsTab: { en: "Structure", es: "Estructura" },
+    settingsTab: { en: "Configuration", es: "Configuración" },
+    documentsTab: { en: "Created documents", es: "Documentos creados" },
+    // Labels del sub-nav de la pestaña "Configuración" — reusan las mismas
+    // claves que usaban las 5 pestañas de nivel superior antes de consolidarse.
     customFieldsTab: { en: "Custom Fields", es: "Campos Personalizados" },
     mediaTab: { en: "Resources", es: "Recursos" },
     contextTab: { en: "Context", es: "Contexto" },
@@ -107,12 +117,20 @@ const translations = {
     loadError: { en: "Failed to load template", es: "Error al cargar la plantilla" },
     loadErrorDescription: { en: "There was an error loading the template details. Please try again.", es: "Hubo un error al cargar los detalles de la plantilla. Reintentar." },
     loadingTemplate: { en: "Loading template...", es: "Cargando plantilla..." },
-    sectionsTitle: { en: "Sections", es: "Secciones" },
-    manageSections: { en: "Manage sections for this template", es: "Gestionar las secciones de esta plantilla" },
     addSection: { en: "Add Section", es: "Agregar Sección" },
     generateWithAI: { en: "Generate with AI", es: "Generar con IA" },
-    sectionsGenerated: { en: "Sections generated successfully with AI", es: "Secciones generadas correctamente con IA" },
+    sectionsGenerated: { en: "The AI proposed new sections. Review each one and adjust it.", es: "La IA propuso nuevas secciones. Revisar cada una y ajustarla." },
     docxTemplatesTab: { en: "DOCX Templates", es: "Plantillas DOCX" },
+  },
+  documentsTab: {
+    columnName: { en: "Name", es: "Nombre" },
+    columnInternalCode: { en: "Internal code", es: "Código interno" },
+    columnVersions: { en: "Versions", es: "Versiones" },
+    columnUpdatedAt: { en: "Updated at", es: "Actualizado" },
+    openDocument: { en: "Open", es: "Abrir" },
+    emptyTitle: { en: "No documents created yet", es: "Todavía no hay documentos creados" },
+    emptyDescription: { en: "Documents created from this template will show up here.", es: "Los documentos creados a partir de esta plantilla aparecen aquí." },
+    loadError: { en: "Failed to load created documents", es: "Error al cargar los documentos creados" },
   },
   docxTemplates: {
     sectionTitle: { en: "DOCX Templates", es: "Plantillas DOCX" },
@@ -164,10 +182,25 @@ const translations = {
     fileName: { en: "File", es: "Archivo" },
   },
   emptyState: {
-    noSectionsYet: { en: "No Sections Yet", es: "Sin Secciones" },
-    description: { en: "Start building your template by adding structured sections.", es: "Agregar secciones estructuradas para construir la plantilla." },
-    addSection: { en: "Add Section", es: "Agregar Sección" },
-    generateWithAI: { en: "Generate with AI", es: "Generar con IA" },
+    title: { en: "This template doesn't have any sections yet", es: "Esta plantilla todavía no tiene secciones" },
+    description: { en: "A section is a block of the document: the order they're added in is the order they appear in. To close: choose the type of the first section.", es: "Una sección es un bloque del documento: el orden en que se agregan es el orden en que aparecen. Elegir el tipo de la primera sección." },
+    typeFormName: { en: "Form", es: "Formulario" },
+    typeFormDescription: { en: "Data the person fills in when creating the document: text, date, selection, attachment and more.", es: "Datos que completa la persona al crear el documento: texto, fecha, selección, adjunto y más." },
+    typeFormExample: { en: "client name, start date, amount.", es: "nombre del cliente, fecha de inicio, monto." },
+    typeAiName: { en: "AI-generated", es: "Generada con IA" },
+    typeAiDescription: { en: "Write a prompt and choose what context it receives; the AI writes the content in every document.", es: "Escribes un prompt y eliges qué contexto recibe; la IA redacta el contenido en cada documento." },
+    typeAiExample: { en: "executive summary from the form data.", es: "resumen ejecutivo a partir de los datos del formulario." },
+    typeManualName: { en: "Manual", es: "Manual" },
+    typeManualDescription: { en: "Text you write once here and repeats identically in every document.", es: "Texto que escribes una vez acá y se repite igual en todos los documentos." },
+    typeManualExample: { en: "legal clauses, standard scope.", es: "cláusulas legales, alcance estándar." },
+    typeReferenceName: { en: "Reference", es: "Referencia" },
+    typeReferenceDescription: { en: "Brings in content already written in another section or document, without loading it again.", es: "Trae contenido ya escrito en otra sección u otro documento, sin volver a cargarlo." },
+    typeReferenceExample: { en: "the background defined in the commercial proposal.", es: "los antecedentes definidos en la propuesta comercial." },
+    exampleLabel: { en: "E.g.:", es: "Ej.:" },
+    footerNote: { en: "The type can be changed after creating the section, and the structure can also be imported from a JSON file.", es: "El tipo se puede cambiar después de crear la sección, y también se puede importar la estructura desde un JSON." },
+    importStructureLink: { en: "Import structure", es: "Importar estructura" },
+    generateWithAiButton: { en: "Let AI propose the structure", es: "Que la IA proponga la estructura" },
+    generateWithAiNote: { en: "It proposes sections from the name and instructions. Review each one before saving.", es: "A partir del nombre y las instrucciones propone las secciones. Revisar cada una antes de guardar." },
   },
   customFields: {
     title: { en: "Custom Fields", es: "Campos Personalizados" },
@@ -198,6 +231,26 @@ const translations = {
   },
   sectionsList: {
     reordering: { en: "Reordering sections...", es: "Reordenando secciones..." },
+    title_one: { en: "1 section, in this order", es: "1 sección, en este orden" },
+    title_other: { en: "{{count}} sections, in this order", es: "{{count}} secciones, en este orden" },
+    subtitle: { en: "This is the order the document is read in. Use each row's menu to move it.", es: "Así se recorre el documento. Usar el menú de cada fila para moverla." },
+    addSectionAtEnd: { en: "Add section at the end", es: "Agregar sección al final" },
+    configureLink: { en: "Configure", es: "Configurar" },
+    moveUp: { en: "Move up", es: "Subir" },
+    moveDown: { en: "Move down", es: "Bajar" },
+    menuLabel: { en: "More section actions", es: "Más acciones de la sección" },
+    visibleOnlySomeStagesBadge: { en: "Visible only in some stages", es: "Visible solo en algunas etapas" },
+    summaryForm_one: { en: "{{count}} question · answered by whoever creates the document", es: "{{count}} pregunta · la responde quien crea el documento" },
+    summaryForm_other: { en: "{{count}} questions · answered by whoever creates the document", es: "{{count}} preguntas · las responde quien crea el documento" },
+    summaryManual: { en: "Fixed text · \"{{excerpt}}\"", es: "Texto fijo · «{{excerpt}}»" },
+    summaryManualEmpty: { en: "Fixed text · no content yet", es: "Texto fijo · sin contenido todavía" },
+    summaryAi: { en: "Prompt · \"{{excerpt}}\"", es: "Prompt · «{{excerpt}}»" },
+    summaryAiEmpty: { en: "No prompt yet", es: "Sin prompt todavía" },
+    summaryReferenceLatestNoOrigin: { en: "Brings in \"{{section}}\" · always the latest", es: "Trae «{{section}}» · siempre la última" },
+    summaryReferenceVersionNoOrigin: { en: "Brings in \"{{section}}\" · fixed version {{version}}", es: "Trae «{{section}}» · versión fija {{version}}" },
+    summaryReferenceUnknown: { en: "Reference not configured yet", es: "Referencia sin configurar todavía" },
+    usesAsContext: { en: "Uses as context:", es: "Usa como contexto:" },
+    questionChip: { en: "{{name}} · {{type}}", es: "{{name}} · {{type}}" },
   },
   exportImport: {
     // Header menu items
@@ -226,6 +279,70 @@ const translations = {
     resultWarnings: { en: "Warnings ({{count}})", es: "Avisos ({{count}})" },
     resultErrors: { en: "Errors ({{count}})", es: "Errores ({{count}})" },
     resultErrorNote: { en: "The templates below could not be imported. The rest were processed.", es: "Las plantillas a continuación no pudieron importarse. El resto fue procesado." },
+  },
+  // templates-settings-groups-list.tsx / templates-settings-group-detail.tsx
+  // — pestaña "Configuración" (nivel 1: lista de grupos; nivel 2: detalle).
+  // Título de cada grupo reusa content.customFieldsTab/contextTab/etc.
+  settingsGroups: {
+    title: { en: "Template configuration", es: "Configuración de la plantilla" },
+    subtitle: {
+      en: "Things that don't change the document's order, but change how it's filled in and how it comes out.",
+      es: "Cosas que no cambian el orden del documento, pero cambian cómo se llena y cómo sale.",
+    },
+    countInUse: { en: "{{count}} in use", es: "{{count}} en uso" },
+    countFile: { en: "{{count}} file", es: "{{count}} archivo" },
+    countEmpty: { en: "Empty", es: "Vacío" },
+    emptyStateTitle: { en: "Nothing here yet", es: "Todavía no hay nada acá" },
+    customFields: {
+      description: {
+        en: "Reusable organization fields you can insert as a question in any form section.",
+        es: "Campos reutilizables de la organización que puedes insertar como pregunta en cualquier sección de formulario.",
+      },
+      emptyHelp: {
+        en: "Link an existing field or create a new one from a question.",
+        es: "Vincular un campo existente o crear uno nuevo desde una pregunta.",
+      },
+    },
+    context: {
+      description: {
+        en: "Documents and text the AI reads before writing, across every section of this template.",
+        es: "Documentos y textos que la IA lee antes de escribir, en todas las secciones de esta plantilla.",
+      },
+      emptyHelp: {
+        en: "Without context, the AI only uses the prompt and the marked sections.",
+        es: "Sin contexto, la IA solo usa el prompt y las secciones marcadas.",
+      },
+    },
+    dependencies: {
+      description: {
+        en: "Other assets the document needs linked in order to be generated.",
+        es: "Otros activos que el documento necesita tener vinculados para poder generarse.",
+      },
+      emptyHelp: {
+        en: "Without dependencies the document generates on its own.",
+        es: "Sin dependencias el documento se genera solo.",
+      },
+    },
+    media: {
+      description: {
+        en: "Images and diagrams that get inserted into the generated document.",
+        es: "Imágenes y diagramas que se insertan en el documento generado.",
+      },
+      emptyHelp: {
+        en: "You can upload images or generate a diagram.",
+        es: "Puedes subir imágenes o generar un diagrama.",
+      },
+    },
+    docxTemplates: {
+      description: {
+        en: "The Word format the document is exported with: cover page, styles, headers.",
+        es: "El formato Word con el que se exporta el documento: portada, estilos, encabezados.",
+      },
+      emptyHelp: {
+        en: "Without a DOCX template, export uses the default format.",
+        es: "Sin plantilla DOCX la exportación usa el formato por defecto.",
+      },
+    },
   },
 }
 

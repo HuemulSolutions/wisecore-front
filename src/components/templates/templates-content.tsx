@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileText, Loader2, RefreshCw, Edit3, Trash2, Sparkles, Copy, Plus, FileJson } from "lucide-react";
+import { toast } from "sonner";
+import { FileText, Loader2, RefreshCw, LayoutList, Settings, Files } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { TemplateInfoSheet } from "./templates-info-sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getTemplateById, generateTemplateSections } from "@/services/templates";
+import { getTemplateById, generateTemplateSections, exportTemplates } from "@/services/templates";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useOrganization } from "@/contexts/organization-context";
 import { TemplateHeader } from "./templates-header";
@@ -13,18 +14,23 @@ import { EditTemplateDialog } from "./templates-edit-dialog";
 import { DeleteTemplateDialog } from "./templates-delete-dialog";
 import { CloneTemplateDialog } from "./templates-clone-dialog";
 import { AddSectionDialog } from "./templates-add-section-dialog";
-import { TemplateSectionsList } from "./templates-sections-list";
-import { TemplateEmptyState } from "./templates-empty-state";
-import { TemplateCustomFields } from "../templates-custom-fields/templates-custom-fields";
+import { TemplateStructureTab } from "./templates-structure-tab";
+import { TemplateSettingsTab } from "./templates-settings-tab";
+import { TemplateDocumentsTab } from "./templates-documents-tab";
 import { CreateTemplateDialog } from "./templates-create-dialog";
 import { TemplatesImportSheet } from "./templates-import-sheet";
-import { TemplateDocxList } from "./templates-docx-list";
-import { TemplateMediaTab } from "./templates-media-tab";
-import { TemplateContextTab } from "./templates-context-tab";
-import { TemplateDependenciesTab } from "./templates-dependencies-tab";
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
 import type { TemplateContentProps } from '@/types/templates';
+import type { SortableSectionItem } from '@/types/sections/core';
 export type { TemplateContentProps } from '@/types/templates';
+
+function TabPill({ count }: { count: number }) {
+  return (
+    <span className="rounded-full bg-[#f1f4f7] px-1.5 py-px text-[11px] text-[#64748b]">
+      {count}
+    </span>
+  );
+}
 
 export function TemplateContent({
   selectedTemplate,
@@ -35,6 +41,7 @@ export function TemplateContent({
   canCreate,
   canUpdate,
   canDelete,
+  canExportTemplate,
   canListSections,
   canCreateSection,
   canUpdateSection,
@@ -58,6 +65,7 @@ export function TemplateContent({
   canListTemplateDependencies,
   canManageTemplateDependencies,
   canPickAssetsForDependencies,
+  canListChildDocuments,
 }: TemplateContentProps) {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -68,28 +76,29 @@ export function TemplateContent({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddingSectionOpen, setIsAddingSectionOpen] = useState(false);
+  const [sectionDefaultType, setSectionDefaultType] = useState<'ai' | 'manual' | 'reference' | 'form' | undefined>(undefined);
   const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] = useState(false);
   const [isImportSheetOpen, setIsImportSheetOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isInfoSheetOpen, setIsInfoSheetOpen] = useState(false);
-  const [orderedSections, setOrderedSections] = useState<any[]>([]);
+  const [orderedSections, setOrderedSections] = useState<SortableSectionItem[]>([]);
   const [isGeneratingIndividual, setIsGeneratingIndividual] = useState(false);
+  const [documentsCount, setDocumentsCount] = useState<number | undefined>(undefined);
+  const [settingsCount, setSettingsCount] = useState<number | undefined>(undefined);
 
   // Pestañas visibles según permisos. `requestedTab` guarda lo que el usuario
   // clickeó; si esa pestaña deja de estar disponible (permisos que llegan
   // async, o el usuario nunca la tuvo) se cae a la primera disponible en vez
   // de dejar un <Tabs> apuntando a un value desmontado.
+  const canListSettings = canListCustomFields || canListTemplateContext || canListTemplateDependencies || canListMedia || canListDocx;
   const availableTabs = useMemo(
     () =>
       ([
-        canListSections && "sections",
-        canListCustomFields && "custom-fields",
-        canListTemplateContext && "context",
-        canListTemplateDependencies && "dependencies",
-        canListMedia && "media",
-        canListDocx && "docx-templates",
+        canListSections && "structure",
+        canListSettings && "settings",
+        canListChildDocuments && "documents",
       ].filter(Boolean) as string[]),
-    [canListSections, canListCustomFields, canListTemplateContext, canListTemplateDependencies, canListMedia, canListDocx]
+    [canListSections, canListSettings, canListChildDocuments]
   );
   const [requestedTab, setRequestedTab] = useState<string | null>(null);
   const activeTab = (requestedTab && availableTabs.includes(requestedTab)) ? requestedTab : availableTabs[0];
@@ -106,7 +115,7 @@ export function TemplateContent({
   // Actualizar orderedSections cuando cambien las secciones
   useEffect(() => {
     if (templateData?.sections) {
-      const sorted = [...templateData.sections].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+      const sorted = [...templateData.sections].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
       setOrderedSections(sorted);
     } else {
       setOrderedSections([]);
@@ -118,6 +127,9 @@ export function TemplateContent({
     setIsDeleteDialogOpen(false);
     setIsEditDialogOpen(false);
     setIsAddingSectionOpen(false);
+    setSectionDefaultType(undefined);
+    setDocumentsCount(undefined);
+    setSettingsCount(undefined);
   }, [selectedTemplate?.id]);
 
   // Mutation para generar secciones con AI
@@ -131,6 +143,15 @@ export function TemplateContent({
 
   // Combinar ambos estados de generación
   const isGenerating = generateSectionsMutation.isPending || isGeneratingIndividual;
+
+  const handleExportJson = async () => {
+    if (!selectedOrganizationId || !selectedTemplate) return;
+    try {
+      await exportTemplates(selectedOrganizationId, { template_ids: [selectedTemplate.id] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('templates:sidebar.exportTemplateError'));
+    }
+  };
 
   if (!selectedTemplate) {
     return (
@@ -175,7 +196,7 @@ export function TemplateContent({
                   </p>
                   {canCreate && (
                     <HuemulButton
-                      icon={Plus}
+                      icon={FileText}
                       iconClassName="h-4 w-4 mr-1.5"
                       label={t('templates:sidebar.newTemplate')}
                       className="mt-1 h-[34px] w-fit rounded-lg bg-[#2563eb] px-3 text-sm hover:bg-[#1d4ed8]"
@@ -274,7 +295,7 @@ export function TemplateContent({
                 {t('templates:content.emptyMainImportQuestion')}
               </p>
               <HuemulButton
-                icon={FileJson}
+                icon={FileText}
                 iconClassName="h-4 w-4 mr-1.5"
                 label={t('templates:sidebar.footerImport')}
                 variant="outline"
@@ -319,16 +340,20 @@ export function TemplateContent({
           templateDescription={templateData?.description}
           templateInstructions={templateData?.instructions ?? undefined}
           isMobile={isMobile}
-          hasNoSections={!orderedSections || orderedSections.length === 0}
           isGenerating={isGenerating}
           activeTab={activeTab}
           canCreateSection={canCreateSection}
           onToggleSidebar={onToggleSidebar}
           onAddSection={() => setIsAddingSectionOpen(true)}
-          onGenerateWithAI={() => selectedTemplate?.id && generateSectionsMutation.mutate(selectedTemplate.id)}
           onEdit={() => setIsEditDialogOpen(true)}
+          canUpdate={canUpdate}
           onDelete={() => setIsDeleteDialogOpen(true)}
+          canDelete={canDelete}
           onInfo={() => setIsInfoSheetOpen(true)}
+          onDuplicate={() => setIsCloneDialogOpen(true)}
+          canDuplicate={canCreate}
+          onExportJson={handleExportJson}
+          canExportJson={canExportTemplate}
         />
 
         {/* Content Section */}
@@ -356,257 +381,103 @@ export function TemplateContent({
             <HuemulAccessDenied variant="inline" />
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1 overflow-hidden">
-              <div className="border-b border-border shrink-0 px-1.5 sm:px-2 md:px-3">
-                <div className="flex items-center justify-between">
-                  <TabsList className="h-auto bg-transparent p-0">
-                    {canListSections && (
-                      <TabsTrigger
-                        value="sections"
-                        className="relative h-10 px-4 py-2 bg-transparent border-0 rounded-none text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:text-foreground transition-colors data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary data-[state=active]:after:content-['']"
-                      >
-                        {t('templates:content.sectionsTab')}
-                      </TabsTrigger>
-                    )}
-                    {canListCustomFields && (
-                      <TabsTrigger
-                        value="custom-fields"
-                        className="relative h-10 px-4 py-2 bg-transparent border-0 rounded-none text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:text-foreground transition-colors data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary data-[state=active]:after:content-['']"
-                      >
-                        {t('templates:content.customFieldsTab')}
-                      </TabsTrigger>
-                    )}
-                    {canListTemplateContext && (
-                      <TabsTrigger
-                        value="context"
-                        className="relative h-10 px-4 py-2 bg-transparent border-0 rounded-none text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:text-foreground transition-colors data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary data-[state=active]:after:content-['']"
-                      >
-                        {t('templates:content.contextTab')}
-                      </TabsTrigger>
-                    )}
-                    {canListTemplateDependencies && (
-                      <TabsTrigger
-                        value="dependencies"
-                        className="relative h-10 px-4 py-2 bg-transparent border-0 rounded-none text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:text-foreground transition-colors data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary data-[state=active]:after:content-['']"
-                      >
-                        {t('templates:content.dependenciesTab')}
-                      </TabsTrigger>
-                    )}
-                    {canListMedia && (
-                      <TabsTrigger
-                        value="media"
-                        className="relative h-10 px-4 py-2 bg-transparent border-0 rounded-none text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:text-foreground transition-colors data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary data-[state=active]:after:content-['']"
-                      >
-                        {t('templates:content.mediaTab')}
-                      </TabsTrigger>
-                    )}
-                    {canListDocx && (
-                      <TabsTrigger
-                        value="docx-templates"
-                        className="relative h-10 px-4 py-2 bg-transparent border-0 rounded-none text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:text-foreground transition-colors data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary data-[state=active]:after:content-['']"
-                      >
-                        {t('templates:content.docxTemplatesTab')}
-                      </TabsTrigger>
-                    )}
-                  </TabsList>
-                  
-                  {/* Action Icons */}
-                  <div className="flex items-center gap-1 mr-2">
-                    {/* La pestaña "Secciones" usa los mismos datos del template (sin query propia),
-                        así que es la única que se refresca desde aquí; custom-fields/context/
-                        dependencies/media/docx ya llevan su propio strip de refresh (§3 refresh-button-guide). */}
-                    {activeTab === 'sections' && (
-                      <HuemulButton
-                        icon={RefreshCw}
-                        iconClassName="h-4 w-4 text-gray-600"
-                        variant="ghost"
-                        size="sm"
-                        loading={isFetching}
-                        disabled={isGenerating}
-                        tooltip={t('common:refresh')}
-                        className="h-8 w-8 p-0 hover:bg-gray-100"
-                        onClick={() => { refetch(); }}
-                      />
-                    )}
-                    {canCreate && (
-                      <HuemulButton
-                        icon={Copy}
-                        iconClassName="h-4 w-4 text-gray-600"
-                        variant="ghost"
-                        size="sm"
-                        disabled={isGenerating}
-                        tooltip={t('templates:content.cloneTemplate')}
-                        className="h-8 w-8 p-0 hover:bg-gray-100"
-                        onClick={() => setIsCloneDialogOpen(true)}
-                      />
-                    )}
-                    {canUpdate && (
-                      <HuemulButton
-                        icon={Edit3}
-                        iconClassName="h-4 w-4 text-gray-600"
-                        variant="ghost"
-                        size="sm"
-                        disabled={isGenerating}
-                        tooltip={t('templates:content.editTemplate')}
-                        className="h-8 w-8 p-0 hover:bg-gray-100"
-                        onClick={() => setIsEditDialogOpen(true)}
-                      />
-                    )}
-                    {canDelete && (
-                      <HuemulButton
-                        icon={Trash2}
-                        iconClassName="h-4 w-4 text-red-500"
-                        variant="ghost"
-                        size="sm"
-                        disabled={isGenerating}
-                        tooltip={t('templates:content.deleteTemplate')}
-                        className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
-                        onClick={() => setIsDeleteDialogOpen(true)}
-                      />
-                    )}
-                  </div>
-                </div>
+              <div className="border-b border-[#eef1f5] shrink-0 px-8">
+                <TabsList className="h-auto gap-6.5 overflow-x-auto bg-transparent p-0">
+                  {canListSections && (
+                    <TabsTrigger
+                      value="structure"
+                      className="flex items-center gap-1.5 rounded-none border-0 border-b-2 border-transparent bg-transparent px-0 pb-2.75 text-[13px] text-[#64748b] shadow-none transition-colors hover:text-[#0f172a] data-[state=active]:border-[#2563eb] data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-[#2563eb] data-[state=active]:shadow-none"
+                    >
+                      <LayoutList className="h-3.5 w-3.5" />
+                      {t('templates:content.sectionsTab')}
+                      <TabPill count={orderedSections.length} />
+                    </TabsTrigger>
+                  )}
+                  {canListSettings && (
+                    <TabsTrigger
+                      value="settings"
+                      className="flex items-center gap-1.5 rounded-none border-0 border-b-2 border-transparent bg-transparent px-0 pb-2.75 text-[13px] text-[#64748b] shadow-none transition-colors hover:text-[#0f172a] data-[state=active]:border-[#2563eb] data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-[#2563eb] data-[state=active]:shadow-none"
+                    >
+                      <Settings className="h-3.5 w-3.5" />
+                      {t('templates:content.settingsTab')}
+                      {settingsCount !== undefined && <TabPill count={settingsCount} />}
+                    </TabsTrigger>
+                  )}
+                  {canListChildDocuments && (
+                    <TabsTrigger
+                      value="documents"
+                      className="flex items-center gap-1.5 rounded-none border-0 border-b-2 border-transparent bg-transparent px-0 pb-2.75 text-[13px] text-[#64748b] shadow-none transition-colors hover:text-[#0f172a] data-[state=active]:border-[#2563eb] data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-[#2563eb] data-[state=active]:shadow-none"
+                    >
+                      <Files className="h-3.5 w-3.5" />
+                      {t('templates:content.documentsTab')}
+                      {documentsCount !== undefined && <TabPill count={documentsCount} />}
+                    </TabsTrigger>
+                  )}
+                </TabsList>
               </div>
 
               {canListSections && (
-                <TabsContent value="sections" className="mt-0 flex-1 flex flex-col overflow-hidden bg-gray-50">
-                {/* Fixed Header */}
-                <div className="px-4 pt-6 pb-4 shrink-0">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <h2 className="text-base font-semibold text-foreground">{t('templates:content.sectionsTitle')}</h2>
-                      <p className="text-xs text-muted-foreground">
-                        {t('templates:content.manageSections')}
-                      </p>
-                    </div>
-                    
-                    {orderedSections && orderedSections.length > 0 ? (
-                      canCreateSection && (
-                        <HuemulButton
-                          icon={FileText}
-                          iconClassName="mr-1.5 h-3.5 w-3.5"
-                          label={t('templates:content.addSection')}
-                          size="sm"
-                          className="h-8 text-xs px-3"
-                          disabled={isGenerating}
-                          onClick={() => setIsAddingSectionOpen(true)}
-                        />
-                      )
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        {canCreateSection && (
-                          <HuemulButton
-                            icon={FileText}
-                            iconClassName="mr-1.5 h-3.5 w-3.5"
-                            label={t('templates:content.addSection')}
-                            size="sm"
-                            variant="outline"
-                            className="h-8 text-xs px-3"
-                            disabled={isGenerating}
-                            onClick={() => setIsAddingSectionOpen(true)}
-                          />
-                        )}
-                        {canCreateSection && (
-                          <HuemulButton
-                            icon={Sparkles}
-                            iconClassName="mr-1.5 h-3.5 w-3.5"
-                            label={t('templates:content.generateWithAI')}
-                            size="sm"
-                            loading={isGenerating}
-                            className="h-8 text-xs px-3"
-                            onClick={() => { if (selectedTemplate?.id) generateSectionsMutation.mutate(selectedTemplate.id); }}
-                          />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Scrollable Content */}
-                <div className="flex-1 overflow-auto px-4 py-6">
-                  {orderedSections && orderedSections.length > 0 ? (
-                    <TemplateSectionsList
-                      sections={orderedSections}
-                      templateId={selectedTemplate.id}
-                      organizationId={selectedOrganizationId!}
-                      onSectionsReorder={setOrderedSections}
-                      canUpdate={canUpdateSection}
-                      canDelete={canDeleteSection}
-                    />
-                  ) : (
-                    <TemplateEmptyState
-                      isGenerating={isGenerating}
-                      onAddSection={() => setIsAddingSectionOpen(true)}
-                      onGenerateWithAI={() => selectedTemplate?.id && generateSectionsMutation.mutate(selectedTemplate.id)}
-                      canCreate={canCreateSection}
-                    />
-                  )}
-                </div>
-              </TabsContent>
-              )}
-
-              {canListCustomFields && (
-                <TabsContent value="custom-fields" className="mt-0 flex-1 overflow-auto bg-gray-50">
-                  {selectedTemplate && (
-                    <TemplateCustomFields
-                      templateId={selectedTemplate.id}
-                      canCreate={canCreateCustomField}
-                      canUpdate={canUpdateCustomField}
-                      canDelete={canDeleteCustomField}
-                    />
-                  )}
+                <TabsContent value="structure" className="mt-0 flex-1 flex flex-col overflow-hidden bg-gray-50">
+                  <TemplateStructureTab
+                    templateId={selectedTemplate.id}
+                    templateName={selectedTemplate.name}
+                    organizationId={selectedOrganizationId!}
+                    documentTypeId={templateData?.document_type_id}
+                    sections={orderedSections}
+                    isGenerating={isGenerating}
+                    onGenerateWithAI={() => { if (selectedTemplate?.id) generateSectionsMutation.mutate(selectedTemplate.id); }}
+                    onAddSection={() => setIsAddingSectionOpen(true)}
+                    onAddSectionWithType={(type) => {
+                      setSectionDefaultType(type);
+                      setIsAddingSectionOpen(true);
+                    }}
+                    onSectionsReorder={setOrderedSections}
+                    onImportStructure={() => setIsImportSheetOpen(true)}
+                    onRefreshTemplate={() => { refetch(); }}
+                    isFetchingTemplate={isFetching}
+                    canListSections={canListSections}
+                    canCreateSection={canCreateSection}
+                    canUpdateSection={canUpdateSection}
+                    canDeleteSection={canDeleteSection}
+                  />
                 </TabsContent>
               )}
 
-              {canListTemplateContext && (
-                <TabsContent value="context" className="mt-0 flex-1 flex flex-col overflow-hidden bg-gray-50">
-                  {selectedTemplate && (
-                    <TemplateContextTab
-                      templateId={selectedTemplate.id}
-                      organizationId={selectedOrganizationId!}
-                      canManage={canManageTemplateContext}
-                    />
-                  )}
+              {canListSettings && (
+                <TabsContent value="settings" className="mt-0 flex-1 flex flex-col overflow-hidden bg-gray-50">
+                  <TemplateSettingsTab
+                    templateId={selectedTemplate.id}
+                    organizationId={selectedOrganizationId!}
+                    canListCustomFields={canListCustomFields}
+                    canCreateCustomField={canCreateCustomField}
+                    canUpdateCustomField={canUpdateCustomField}
+                    canDeleteCustomField={canDeleteCustomField}
+                    canListTemplateContext={canListTemplateContext}
+                    canManageTemplateContext={canManageTemplateContext}
+                    canListTemplateDependencies={canListTemplateDependencies}
+                    canManageTemplateDependencies={canManageTemplateDependencies}
+                    canPickAssetsForDependencies={canPickAssetsForDependencies}
+                    canListMedia={canListMedia}
+                    canCreateMedia={canCreateMedia}
+                    canUpdateMedia={canUpdateMedia}
+                    canDeleteMedia={canDeleteMedia}
+                    canListDocx={canListDocx}
+                    canCreateDocx={canCreateDocx}
+                    canUpdateDocx={canUpdateDocx}
+                    canDeleteDocx={canDeleteDocx}
+                    onCountChange={setSettingsCount}
+                  />
                 </TabsContent>
               )}
 
-              {canListTemplateDependencies && (
-                <TabsContent value="dependencies" className="mt-0 flex-1 flex flex-col overflow-hidden bg-gray-50">
-                  {selectedTemplate && (
-                    <TemplateDependenciesTab
-                      templateId={selectedTemplate.id}
-                      organizationId={selectedOrganizationId!}
-                      canManage={canManageTemplateDependencies}
-                      canPickAssets={canPickAssetsForDependencies}
-                    />
-                  )}
-                </TabsContent>
-              )}
-
-              {canListMedia && (
-                <TabsContent value="media" className="mt-0 flex-1 flex flex-col overflow-hidden bg-gray-50">
-                  {selectedTemplate && (
-                    <TemplateMediaTab
-                      templateId={selectedTemplate.id}
-                      organizationId={selectedOrganizationId!}
-                      canCreate={canCreateMedia}
-                      canUpdate={canUpdateMedia}
-                      canDelete={canDeleteMedia}
-                    />
-                  )}
-                </TabsContent>
-              )}
-
-              {canListDocx && (
-                <TabsContent value="docx-templates" className="mt-0 flex-1 flex flex-col overflow-hidden bg-gray-50">
-                  {selectedTemplate && (
-                    <TemplateDocxList
-                      templateId={selectedTemplate.id}
-                      organizationId={selectedOrganizationId!}
-                      canCreate={canCreateDocx}
-                      canUpdate={canUpdateDocx}
-                      canDelete={canDeleteDocx}
-                    />
-                  )}
+              {canListChildDocuments && (
+                <TabsContent value="documents" className="mt-0 flex-1 flex flex-col overflow-hidden bg-gray-50">
+                  <TemplateDocumentsTab
+                    templateId={selectedTemplate.id}
+                    organizationId={selectedOrganizationId!}
+                    canList={canListChildDocuments}
+                    onCountChange={setDocumentsCount}
+                  />
                 </TabsContent>
               )}
             </Tabs>
@@ -647,11 +518,23 @@ export function TemplateContent({
 
           <AddSectionDialog
             open={isAddingSectionOpen}
-            onOpenChange={setIsAddingSectionOpen}
+            onOpenChange={(open) => {
+              setIsAddingSectionOpen(open);
+              if (!open) setSectionDefaultType(undefined);
+            }}
             templateId={selectedTemplate.id}
             organizationId={selectedOrganizationId!}
             existingSections={orderedSections}
             onGeneratingChange={setIsGeneratingIndividual}
+            defaultType={sectionDefaultType}
+            containerName={selectedTemplate.name}
+          />
+
+          <TemplatesImportSheet
+            open={isImportSheetOpen}
+            onOpenChange={setIsImportSheetOpen}
+            organizationId={selectedOrganizationId}
+            onImportSuccess={onRefresh}
           />
 
           <CloneTemplateDialog

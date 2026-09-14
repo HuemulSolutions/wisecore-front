@@ -25,4 +25,5 @@ export interface AddSectionFormSheetProps {
   existingSections?: Section[];
   onValidationChange?: (isValid: boolean) => void;
   onGeneratingChange?: (isGenerating: boolean) => void;
+  defaultType?: 'ai' | 'manual' | 'reference' | 'form';
 }

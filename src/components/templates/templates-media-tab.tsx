@@ -1,18 +1,18 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useQueryClient } from "@tanstack/react-query"
-import { RefreshCw, Plus } from "lucide-react"
+import { Plus, Paperclip } from "lucide-react"
 
 import { useMediaList, mediaQueryKeys } from "@/hooks/useMedia"
 import { useMediaViewMode } from "@/hooks/useMediaViewMode"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
-import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulPagination } from "@/huemul/components/huemul-pagination"
 import { HuemulViewToggle } from "@/huemul/components/huemul-view-toggle"
 import { HuemulMediaGallery } from "@/huemul/components/huemul-media-gallery"
 import { HuemulMediaDetailSheet } from "@/huemul/components/huemul-media-detail-sheet"
 import { HuemulMediaUploadSheet } from "@/huemul/components/huemul-media-upload-sheet"
+import { TemplateSettingsPanelHeader } from "./templates-settings-panel-header"
 import type { Media } from "@/types/media"
 
 interface TemplateMediaTabProps {
@@ -21,6 +21,8 @@ interface TemplateMediaTabProps {
   canCreate: boolean
   canUpdate: boolean
   canDelete: boolean
+  /** Chevron a la izquierda del título — vuelve a la lista de grupos de "Configuración". */
+  onBack?: () => void
 }
 
 export function TemplateMediaTab({
@@ -29,8 +31,9 @@ export function TemplateMediaTab({
   canCreate,
   canUpdate,
   canDelete,
+  onBack,
 }: TemplateMediaTabProps) {
-  const { t } = useTranslation(["media", "common"])
+  const { t } = useTranslation(["media", "common", "templates"])
   const queryClient = useQueryClient()
 
   const [page, setPage] = useState(1)
@@ -74,35 +77,15 @@ export function TemplateMediaTab({
     <div className="flex flex-col h-full overflow-hidden bg-gray-50">
       {/* Fixed header */}
       <div className="px-4 pt-6 pb-4 shrink-0">
-        <div className="flex items-center justify-between gap-2">
-          <div className="space-y-1">
-            <h2 className="text-base font-semibold text-foreground">{t("media:templateTab.title")}</h2>
-            <p className="text-xs text-muted-foreground">{t("media:templateTab.description")}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <HuemulViewToggle value={viewMode} onChange={setViewMode} />
-            <HuemulButton
-              variant="outline"
-              size="sm"
-              icon={RefreshCw}
-              iconClassName="w-3 h-3 mr-1"
-              label={t("common:refresh")}
-              loading={isRefreshing || isFetching}
-              onClick={handleRefresh}
-              className="h-8 text-xs px-2"
-            />
-            {canCreate && (
-              <HuemulButton
-                size="sm"
-                icon={Plus}
-                iconClassName="w-3 h-3 mr-1"
-                label={t("media:upload.title")}
-                onClick={() => setUploadOpen(true)}
-                className="h-8 text-xs px-2"
-              />
-            )}
-          </div>
-        </div>
+        <TemplateSettingsPanelHeader
+          onBack={onBack}
+          icon={Paperclip}
+          title={t("media:templateTab.title")}
+          subtitle={t("media:templateTab.description")}
+          refresh={{ onClick: handleRefresh, loading: isRefreshing || isFetching }}
+          extraActions={<HuemulViewToggle value={viewMode} onChange={setViewMode} />}
+          primaryAction={canCreate ? { icon: Plus, label: t("media:upload.title"), onClick: () => setUploadOpen(true) } : undefined}
+        />
       </div>
 
       {/* Scrollable content */}
