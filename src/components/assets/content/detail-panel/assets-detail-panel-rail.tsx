@@ -30,7 +30,7 @@ export function AssetsDetailPanelRail({
 
   return (
     <div
-      className="flex h-full w-[52px] shrink-0 flex-col items-center border-r py-2"
+      className="flex h-full w-13 shrink-0 flex-col items-center border-r py-2"
       style={{ backgroundColor: "var(--adp-rail-bg, var(--muted))", borderColor: "var(--adp-border, var(--border))" }}
     >
       <div className="flex flex-1 flex-col items-center gap-1">
@@ -74,7 +74,7 @@ export function AssetsDetailPanelRail({
         className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:cursor-pointer hover:bg-muted hover:text-foreground"
       >
         <ChevronRight
-          className="h-3.5 w-3.5 transition-transform duration-[180ms]"
+          className="h-3.5 w-3.5 transition-transform duration-180"
           style={{ transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)" }}
         />
       </button>

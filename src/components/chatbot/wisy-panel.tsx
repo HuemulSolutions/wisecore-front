@@ -47,7 +47,7 @@ function WelcomeMessage() {
         <Sparkles className="w-7 h-7 text-primary wisy-sparkle-pulse" />
       </div>
       <p className="text-sm font-semibold text-foreground mb-1.5">{t('wisy.welcome')}</p>
-      <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px]">
+      <p className="text-xs text-muted-foreground leading-relaxed max-w-55">
         {t('wisy.welcomeSubtext')}
       </p>
     </div>
@@ -126,7 +126,7 @@ function SessionBar({
 
   return (
     <>
-      <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border bg-muted/20 shrink-0 min-h-[32px]">
+      <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border bg-muted/20 shrink-0 min-h-8">
         <MessageCircle className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
 
         {isEditing && canManage ? (
@@ -477,7 +477,7 @@ export function WisyPanel() {
                 placeholder={t('input.placeholder')}
                 disabled={isInputDisabled}
                 rows={1}
-                className="flex-1 px-3 py-2 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 text-sm resize-none overflow-y-auto min-h-[36px] max-h-28 bg-muted/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground/50"
+                className="flex-1 px-3 py-2 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 text-sm resize-none overflow-y-auto min-h-9 max-h-28 bg-muted/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground/50"
                 style={{
                   height: 'auto',
                   minHeight: '36px',
@@ -492,7 +492,7 @@ export function WisyPanel() {
                 onClick={handleSendMessage}
                 disabled={!inputValue.trim() || isInputDisabled}
                 size="sm"
-                className="hover:cursor-pointer disabled:opacity-50 disabled:hover:cursor-not-allowed flex-shrink-0 h-[36px] min-w-[36px] rounded-xl bg-primary shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30"
+                className="hover:cursor-pointer disabled:opacity-50 disabled:hover:cursor-not-allowed shrink-0 h-9 min-w-9 rounded-xl bg-primary shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30"
               >
                 <Send className="w-4 h-4" />
               </Button>
@@ -507,7 +507,7 @@ export function WisyPanel() {
                 disabled={isModelSelectorDisabled}
               >
                 <SelectTrigger
-                  className="h-7 min-w-[120px] max-w-[160px] border-transparent bg-transparent px-2 text-[11px] text-muted-foreground shadow-none transition-colors hover:cursor-pointer hover:border-border hover:bg-accent/50 focus:ring-ring/15 disabled:hover:cursor-not-allowed"
+                  className="h-7 min-w-30 max-w-40 border-transparent bg-transparent px-2 text-[11px] text-muted-foreground shadow-none transition-colors hover:cursor-pointer hover:border-border hover:bg-accent/50 focus:ring-ring/15 disabled:hover:cursor-not-allowed"
                 >
                   <div className="flex min-w-0 items-center gap-1.5">
                     <SelectValue placeholder={isLoadingLlms ? t('common:loading') : t('model.selectModel')} />

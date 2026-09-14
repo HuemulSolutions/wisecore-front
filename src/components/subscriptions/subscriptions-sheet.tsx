@@ -61,7 +61,7 @@ export function SubscriptionsSheet({ open, onOpenChange, organizationId }: Subsc
             ) : (
               <Eye className="size-3 text-blue-500 shrink-0" />
             )}
-            <span className="text-xs font-medium text-foreground truncate max-w-[180px]">
+            <span className="text-xs font-medium text-foreground truncate max-w-45">
               {item.document_name ?? item.document_id}
             </span>
           </div>
@@ -153,7 +153,7 @@ export function SubscriptionsSheet({ open, onOpenChange, organizationId }: Subsc
       >
         <div className="flex flex-col h-full overflow-auto">
           {error ? (
-            <div className="flex flex-col items-center justify-center min-h-[300px] text-center p-6 gap-2">
+            <div className="flex flex-col items-center justify-center min-h-75 text-center p-6 gap-2">
               <p className="text-sm text-red-600 font-medium">{t("errorState.failedToLoad")}</p>
               <p className="text-xs text-muted-foreground">{t("errorState.errorDescription")}</p>
             </div>

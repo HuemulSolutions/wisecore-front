@@ -18,7 +18,7 @@ function WisyContextChip({ item, onRemove }: WisyContextChipProps) {
   return (
     <span
       title={`${item.name} · ${t(config.labelKey)}`}
-      className="inline-flex items-center gap-1 max-w-[180px] rounded-md bg-primary text-primary-foreground pl-1.5 pr-0.5 py-0.5 text-[11px] leading-tight font-medium shadow-sm"
+      className="inline-flex items-center gap-1 max-w-45 rounded-md bg-primary text-primary-foreground pl-1.5 pr-0.5 py-0.5 text-[11px] leading-tight font-medium shadow-sm"
     >
       <Icon className="w-3 h-3 shrink-0 opacity-80" />
       <span className="truncate">{item.name}</span>
@@ -67,7 +67,7 @@ export function WisyContextChips({ items, onRemove, currentPageContext, onAddCur
           ) : (
             <FileText className="w-3 h-3 shrink-0" />
           )}
-          <span className="truncate max-w-[120px]">{currentPageContext.name}</span>
+          <span className="truncate max-w-30">{currentPageContext.name}</span>
           <Plus className="w-2.5 h-2.5 shrink-0" />
         </button>
       )}

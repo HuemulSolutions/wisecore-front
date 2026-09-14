@@ -130,7 +130,7 @@ export function HuemulExpandableText({
           <p
             ref={setTextEl}
             className={cn(
-              "text-sm text-gray-500 whitespace-pre-line break-words pr-3",
+              "text-sm text-gray-500 whitespace-pre-line wrap-break-word pr-3",
               textClassName
             )}
           >
@@ -141,7 +141,7 @@ export function HuemulExpandableText({
         <p
           ref={setTextEl}
           className={cn(
-            "flex-1 min-w-0 text-sm text-gray-500 whitespace-pre-line break-words",
+            "flex-1 min-w-0 text-sm text-gray-500 whitespace-pre-line wrap-break-word",
             textClassName
           )}
           style={{

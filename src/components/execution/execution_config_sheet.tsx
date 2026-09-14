@@ -61,7 +61,7 @@ export function ExecutionConfigSheet({
   };
 
   return (
-    <Card className="border-l-4 border-l-[#4464f7] bg-gradient-to-r from-blue-50/30 to-white">
+    <Card className="border-l-4 border-l-[#4464f7] bg-linear-to-r from-blue-50/30 to-white">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center justify-between text-base">
           <div className="flex items-center gap-2">
@@ -126,7 +126,7 @@ export function ExecutionConfigSheet({
               value={instructions}
               onChange={(e) => onInstructionsChange(e.target.value)}
               placeholder="Enter specific instructions for this execution..."
-              className={`min-h-[100px] resize-vertical transition-colors text-sm ${
+              className={`min-h-25 resize-vertical transition-colors text-sm ${
                 !isEditable
                   ? "bg-gray-50 border-gray-200 text-gray-500 cursor-not-allowed"
                   : "border-gray-300 focus:ring-2 focus:ring-[#4464f7] focus:border-[#4464f7]"
