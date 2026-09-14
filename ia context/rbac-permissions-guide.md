@@ -394,6 +394,8 @@ export function FooPageHeader({ canCreate }: FooPageHeaderProps) {
 
 ### Deshabilitar botones en lugar de ocultarlos
 
+Ver `ia context/tooltip-guide.md` para la regla completa de tooltips (`title=` nativo).
+
 ```tsx
 const { isOrgAdmin, hasPermission } = useUserPermissions()
 const canEdit = isOrgAdmin || hasPermission('foo:u')

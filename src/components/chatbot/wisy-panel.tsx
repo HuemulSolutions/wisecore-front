@@ -22,11 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from '@/components/ui/tooltip';
 import { MessageBubble } from './chatbot-bubble';
 import { ConversationList } from './conversation-list';
 import { WisyContextChips } from './wisy-context-chips';
@@ -172,38 +167,26 @@ function SessionBar({
 
             {canManage && (
               <>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={startEditing}
-                      disabled={renameMutation.isPending}
-                      className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground hover:cursor-pointer shrink-0"
-                    >
-                      <Pencil className="w-3 h-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p>{t('conversations.renameTooltip')}</p>
-                  </TooltipContent>
-                </Tooltip>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={startEditing}
+                  disabled={renameMutation.isPending}
+                  title={t('conversations.renameTooltip')}
+                  className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground hover:cursor-pointer shrink-0"
+                >
+                  <Pencil className="w-3 h-3" />
+                </Button>
 
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setDeleteOpen(true)}
-                      className="h-5 w-5 p-0 text-muted-foreground hover:text-red-600 hover:cursor-pointer shrink-0"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p>{t('conversations.deleteTooltip')}</p>
-                  </TooltipContent>
-                </Tooltip>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setDeleteOpen(true)}
+                  title={t('conversations.deleteTooltip')}
+                  className="h-5 w-5 p-0 text-muted-foreground hover:text-red-600 hover:cursor-pointer shrink-0"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
               </>
             )}
           </>
@@ -387,59 +370,41 @@ export function WisyPanel() {
         </div>
         <div className="flex items-center gap-0.5">
           {/* History toggle */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                onClick={handleToggleHistory}
-                size="sm"
-                variant="ghost"
-                className={`hover:cursor-pointer h-7 w-7 p-0 transition-colors ${
-                  view === 'history'
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Clock className="w-3.5 h-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p>{t('actions.conversationHistory')}</p>
-            </TooltipContent>
-          </Tooltip>
+          <Button
+            onClick={handleToggleHistory}
+            size="sm"
+            variant="ghost"
+            title={t('actions.conversationHistory')}
+            className={`hover:cursor-pointer h-7 w-7 p-0 transition-colors ${
+              view === 'history'
+                ? 'bg-accent text-accent-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+          </Button>
 
           {/* New conversation */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                onClick={handleNewConversation}
-                size="sm"
-                variant="ghost"
-                className="text-muted-foreground hover:text-foreground hover:cursor-pointer h-7 w-7 p-0 transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p>{t('actions.newConversation')}</p>
-            </TooltipContent>
-          </Tooltip>
+          <Button
+            onClick={handleNewConversation}
+            size="sm"
+            variant="ghost"
+            title={t('actions.newConversation')}
+            className="text-muted-foreground hover:text-foreground hover:cursor-pointer h-7 w-7 p-0 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </Button>
 
           {/* Close */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                onClick={closePanel}
-                size="sm"
-                variant="ghost"
-                className="text-muted-foreground hover:text-foreground hover:cursor-pointer h-7 w-7 p-0 transition-colors"
-              >
-                <X className="w-3.5 h-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p>{t('common:close')}</p>
-            </TooltipContent>
-          </Tooltip>
+          <Button
+            onClick={closePanel}
+            size="sm"
+            variant="ghost"
+            title={t('common:close')}
+            className="text-muted-foreground hover:text-foreground hover:cursor-pointer h-7 w-7 p-0 transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </Button>
         </div>
       </div>
 

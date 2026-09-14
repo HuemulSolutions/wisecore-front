@@ -84,6 +84,8 @@ Cuando la superficie no tiene un `PageHeader` propio (un tab dentro de un detall
 />
 ```
 
+`tooltip` se renderiza como `title` nativo (ver `tooltip-guide.md`).
+
 ```tsx
 // Alternativa válida cuando ya se usa el Button base del tab (ej. tabs de external-systems)
 <Button
@@ -172,5 +174,5 @@ Reusar claves existentes de `common.ts`: `common:refresh` (`common.ts:2`) para e
 [ ] Varias queries en la superficie: un solo handleRefresh que las agrupa
 [ ] Sin toast de éxito/error al refrescar
 [ ] i18n: reusa common:refresh / common:retry salvo texto específico del módulo
-[ ] npx tsc --noEmit y eslint pasan
+[ ] npx tsc -p tsconfig.app.json --noEmit y eslint pasan
 ```

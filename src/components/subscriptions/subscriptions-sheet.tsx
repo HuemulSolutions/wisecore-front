@@ -8,7 +8,6 @@ import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import { DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import { Badge } from "@/components/ui/badge"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useSubscriptions } from "@/hooks/useSubscriptions"
 import type { Subscription } from "@/types/subscriptions"
 import { SubscriptionCreateDialog } from "./subscriptions-create-dialog"
@@ -99,26 +98,18 @@ export function SubscriptionsSheet({ open, onOpenChange, organizationId }: Subsc
       key: "notifications",
       label: t("columns.notifications"),
       render: (item) => (
-        <TooltipProvider>
-          <div className="flex items-center gap-1.5">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Mail
-                  className={`size-3.5 ${item.notify_email ? "text-foreground" : "text-muted-foreground/30"}`}
-                />
-              </TooltipTrigger>
-              <TooltipContent>{t("form.notifyEmail")}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Smartphone
-                  className={`size-3.5 ${item.notify_in_app ? "text-foreground" : "text-muted-foreground/30"}`}
-                />
-              </TooltipTrigger>
-              <TooltipContent>{t("form.notifyInApp")}</TooltipContent>
-            </Tooltip>
-          </div>
-        </TooltipProvider>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-flex" title={t("form.notifyEmail")}>
+            <Mail
+              className={`size-3.5 ${item.notify_email ? "text-foreground" : "text-muted-foreground/30"}`}
+            />
+          </span>
+          <span className="inline-flex" title={t("form.notifyInApp")}>
+            <Smartphone
+              className={`size-3.5 ${item.notify_in_app ? "text-foreground" : "text-muted-foreground/30"}`}
+            />
+          </span>
+        </div>
       ),
     },
   ]

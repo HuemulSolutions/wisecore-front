@@ -437,7 +437,8 @@ Before building any UI, check whether a `huemul-*` component already covers the 
 | `HuemulAlertDialog` | `huemul-alert-dialog` | Destructive confirmations (delete, disable, etc.) |
 | `HuemulSheet` | `huemul-sheet` | Side-panel forms or detail views that need more vertical space |
 | `HuemulField` / `HuemulFieldGroup` | `huemul-field` | Every form input — text, select, combobox, checkbox, switch, date, richtext, etc. |
-| `HuemulButton` | `huemul-button` | Any button — supports async `onClick`, loading state, tooltip, permission guard |
+| `HuemulButton` | `huemul-button` | Any button — supports async `onClick`, loading state, native `title` tooltip, permission guard |
+| `HuemulTruncatedText` | `huemul-truncated-text` | Text that truncates and must reveal its full value on hover — only when it actually overflows (see `ia context/tooltip-guide.md`) |
 
 ### 9.1 When to create a new Huemul component
 

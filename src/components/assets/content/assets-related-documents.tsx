@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ChevronRight, RefreshCw, Link2, Plus, FileText, SquareArrowOutUpRight, MoreVertical, Trash2 } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
@@ -129,35 +128,26 @@ function RelatedDocumentRow({
     // Fila no interactiva: todas las acciones (abrir, eliminar) viven en el
     // kebab, así que el cuerpo es solo presentación con tooltip informativo.
     <div className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-card px-2 py-1.5 text-left transition-colors hover:bg-accent/30">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <span
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted"
-              style={{ backgroundColor: tintFromColor(color), color: color || undefined }}
-            >
-              <FileText className="h-3.5 w-3.5" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-xs font-medium text-foreground">{other.document_name}</span>
-              <span className="block truncate text-[11px] text-muted-foreground">
-                {meta}
-                {isCurrentAsset && ` · ${currentAssetLabel}`}
-              </span>
-            </span>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="left" className="max-w-60">
-          <p className="font-medium">{other.document_name}</p>
-          <p className="text-[11px] opacity-90">{directionHint}</p>
-          {meta && <p className="text-[11px] opacity-90">{meta}</p>}
-        </TooltipContent>
-      </Tooltip>
+      <div
+        className="flex min-w-0 flex-1 items-center gap-2"
+        title={[other.document_name, directionHint, meta].filter(Boolean).join("\n")}
+      >
+        <span
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted"
+          style={{ backgroundColor: tintFromColor(color), color: color || undefined }}
+        >
+          <FileText className="h-3.5 w-3.5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-xs font-medium text-foreground">{other.document_name}</span>
+          <span className="block truncate text-[11px] text-muted-foreground">
+            {meta}
+            {isCurrentAsset && ` · ${currentAssetLabel}`}
+          </span>
+        </span>
+      </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          {/* Sin prop `tooltip`: con tooltip, HuemulButton devuelve un
-              TooltipProvider como raíz y el `asChild` del trigger le pasaría
-              los handlers a un provider en vez de al <button>. */}
           <HuemulButton
             variant="ghost"
             size="sm"

@@ -19,7 +19,7 @@ sin el header/nav de la app?
 
 `AppLayout` (`src/components/layout/app-layout.tsx`) es quien:
 - Sincroniza el `orgId` de la URL con el contexto y genera el `organizationToken` de esa org (bloque "Sync URL orgId → organization context", `app-layout.tsx:244-328`).
-- Monta los providers de los que dependen los componentes de contenido reales (`ChatbotProvider`, `GlobalPanelProvider`, `TooltipProvider`, `EditingGuardProvider`, `NavKnowledgeProvider`, `app-layout.tsx:576-582` en el árbol normal).
+- Monta los providers de los que dependen los componentes de contenido reales (`ChatbotProvider`, `GlobalPanelProvider`, `EditingGuardProvider`, `NavKnowledgeProvider`, `app-layout.tsx:570-573` en el árbol normal). No hay `TooltipProvider`: los tooltips son `title=` nativo, ver `ia context/tooltip-guide.md`.
 
 Una ruta hermana (fuera de `<Route path="/:orgId" element={<AppLayout />}>`) quedaría sin token de org y sin esos providers. La solución es un **modo "bare"** dentro del mismo `AppLayout`: mismos hooks/efectos, pero sin `<header>`, sin `LlmConfigBanner` y sin `GlobalPanelOutlet`.
 
@@ -30,17 +30,15 @@ if (isBareRoute) {
   return (
     <ChatbotProvider resetKey={selectedOrganizationId ?? 'no-org'}>
       <GlobalPanelProvider>
-        <TooltipProvider>
-          <EditingGuardProvider>
-            <NavKnowledgeProvider>
-              <div className="flex flex-col h-screen overflow-hidden">
-                <Suspense fallback={<PageSkeleton />}>
-                  <Outlet />
-                </Suspense>
-              </div>
-            </NavKnowledgeProvider>
-          </EditingGuardProvider>
-        </TooltipProvider>
+        <EditingGuardProvider>
+          <NavKnowledgeProvider>
+            <div className="flex flex-col h-screen overflow-hidden">
+              <Suspense fallback={<PageSkeleton />}>
+                <Outlet />
+              </Suspense>
+            </div>
+          </NavKnowledgeProvider>
+        </EditingGuardProvider>
       </GlobalPanelProvider>
     </ChatbotProvider>
   )

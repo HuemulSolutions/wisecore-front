@@ -43,6 +43,7 @@ Existe una carpeta `ia context/` en la raíz del proyecto con guías de arquitec
 | Crear una entidad relacionada (ej. usuario) desde un sheet de asignación, sin salir de él | `ia context/inline-create-entity-in-sheet-guide.md` |
 | Redactar un pedido de cambio o reporte de bug para el equipo de backend | `ia context/backend-change-request-guide.md` |
 | Configurar, disparar o auditar la elaboración externa del ciclo de vida (step `edit` procesado por un sistema externo) | `ia context/elaboracion-externa-guide.md` |
+| Agregar un tooltip, ayuda contextual al pasar el mouse, o texto recortado (`truncate`/`line-clamp`) que deba mostrar su contenido completo | `ia context/tooltip-guide.md` |
 
 Cuando una tarea involucra varias guías, leerlas todas antes de empezar.
 
@@ -68,5 +69,6 @@ El nuevo archivo debe seguir la misma estructura que los existentes:
 - Los permisos se manejan con `useUserPermissions` / `ProtectedComponent`, nunca lógica propia.
 - Los layouts de página usan `HuemulPageLayout`; no crear estructuras de layout ad-hoc.
 - Toda superficie que muestre datos provenientes del backend debe ofrecer un botón de refresh para recargarlos (`PageHeader` en páginas, toolbar strip en tabs/paneles). Exentos: comboboxes/selects/catálogos de formularios. Ver `ia context/refresh-button-guide.md`.
+- Todo tooltip es el atributo `title=` nativo de HTML. No existe primitivo Radix Tooltip en el repo. Ver `ia context/tooltip-guide.md`.
 - Los tipos compartidos van en `src/types/`; los tipos locales de un solo componente se pueden mantener en el archivo.
 - Al terminar una tarea que modificó archivos, proponer un mensaje de commit (español, corto, estilo del historial reciente vía `git log`). No ejecutar el commit salvo pedido explícito.

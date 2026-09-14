@@ -311,9 +311,6 @@ export function AssetsRelatedDocumentsBlock({
                   </span>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      {/* Sin prop `tooltip`: con tooltip, HuemulButton devuelve un
-                          TooltipProvider como raíz y el `asChild` del trigger le pasaría
-                          los handlers a un provider en vez de al <button>. */}
                       <HuemulButton
                         variant="ghost"
                         size="sm"

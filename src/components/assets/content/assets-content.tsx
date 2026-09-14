@@ -29,6 +29,7 @@ import { useRecentAssets } from "@/hooks/useRecentAssets";
 import { DocumentAccessControl } from "@/components/assets/content/assets-access-control";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulExpandableText } from "@/huemul/components/huemul-expandable-text";
+import { HuemulTruncatedText } from "@/huemul/components/huemul-truncated-text";
 import { AssetsNotificationsSheet } from "@/components/assets/content/assets-notifications-sheet";
 import { AssetsDiscussionsSheet } from "@/components/assets/content/assets-discussions-sheet";
 import { DiscussionFocusProvider, useDiscussionFocus } from "@/contexts/discussion-focus-context";
@@ -93,7 +94,6 @@ import { CustomWordExportDialog } from "@/components/assets/dialogs/assets-expor
 import { useNavKnowledgeActions } from "@/contexts/nav-knowledge-context";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { useAssetContentPermissions } from '@/hooks/useDocumentAccess';
 import { isExternalElaborationLocked, EXTERNAL_ELABORATION_POLL_MS } from '@/lib/lifecycle-access';
@@ -2683,16 +2683,11 @@ export function AssetContent({
                   <div className="flex flex-col gap-1.5 flex-1 min-w-0 animate-in fade-in duration-300">
                     <div className="flex items-center justify-between gap-2.5">
                       <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
-                        <TooltipProvider delayDuration={300}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <h1 className="text-lg font-semibold text-gray-900 truncate cursor-default">{documentContent?.document_name || selectedFile.name}</h1>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-md">
-                              <p>{documentContent?.document_name || selectedFile.name}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        <HuemulTruncatedText
+                          as="h1"
+                          text={documentContent?.document_name || selectedFile.name}
+                          className="text-lg font-semibold text-gray-900 cursor-default"
+                        />
                         <HuemulButton
                           requiredAccess="edit"
                           checkGlobalPermissions={true}
@@ -2704,7 +2699,6 @@ export function AssetContent({
                           icon={Pencil}
                           iconClassName="h-3.5 w-3.5"
                           tooltip={t('content.editDocument')}
-                          tooltipSide="right"
                           className="h-7 w-7 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
                         />
 

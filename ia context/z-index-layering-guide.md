@@ -40,7 +40,7 @@ Con z-index igual entre elementos `sticky`, CSS resuelve el pintado por orden en
 - **`--z-page-sticky`** (30): banners que, mientras están visibles, **reemplazan** la lista de secciones por un skeleton (no hay ninguna barra de sección montada con la que competir). Ej.: banner de ejecución completa/full-single sobre la versión que se está generando.
 - **`--z-page-sticky-elevated`** (32): banners que deben convivir con secciones **reales e interactivas** en pantalla (ej. ejecución `single`/`from`: la sección sigue editable mientras se regenera). Usarlo siempre que el banner pueda coexistir con una barra de sección visible — si no, queda tapado sin que ningún error lo avise.
 
-**No tocar** los primitivos de overlay: `dialog`, `alert-dialog`, `sheet`, `tooltip`, `dropdown-menu`, `popover` base siguen en `z-50`. Son modales/menús invocados por el usuario y deben ir sobre el header.
+**No tocar** los primitivos de overlay: `dialog`, `alert-dialog`, `sheet`, `dropdown-menu`, `popover` base siguen en `z-50`. Son modales/menús invocados por el usuario y deben ir sobre el header. (No hay primitivo `tooltip`: los tooltips son `title=` nativo del navegador, sin z-index propio — ver `ia context/tooltip-guide.md`.)
 
 ### Por qué los toolbars del editor tienen números bajos
 
@@ -125,4 +125,4 @@ overflowPadding={Math.max(8, chromeInset + 8)}
 - [ ] Probado con el nodo pegado al tope del scroll → hace flip hacia abajo.
 - [ ] Probado en variante `section` (con `toolbarTopOffset`) y `default`.
 - [ ] Probado en modo lector (`readOnly`, sin toolbar) → usa el fallback.
-- [ ] Dialogs, sheets, dropdowns del header y tooltips siguen por encima del header.
+- [ ] Dialogs, sheets y dropdowns del header siguen por encima del header.
