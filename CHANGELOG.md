@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.1.0] - 2026-09-15
+### Nuevo
+- Nuevo diseño del panel lateral en assets.
+- agregar carpeta ia context con guías de arquitectura y convenciones
+- Ajuste de diseño ux en pagina de templates
+- rediseñar estado vacío de plantillas con guía de tres pasos
+- rediseñar panel lateral de plantillas (buscador en vivo, metadata por fila, exportar JSON individual)
+- resaltar relaciones del nodo seleccionado y mostrar tipos de activo relacionados con conteo real
+- sugerir bump semver automáticamente según commits desde el último tag
+- versionar el changelog con git tags en vez de un marcador HTML
+- actualizar configuración de flujo de trabajo para la implementación en Azure, ajustando la variable de entorno VITE_API_URL para el entorno de desarrollo
+### Arreglos
+- filtrar lifecycle steps por depends_on via execution_id
+- Arreglar warnings de ts
+- fusionar fase y grupo del ciclo de vida en un mismo badge
+- alinear empty state de campos personalizados arriba, igual otros tabs
+- subir archivos de campos de formulario a la versión, no al asset
+- permitir recrear un grupo de ciclo de vida tras dejar la etapa en cero
+### Otros
+- rediseñar toggle Lector/Editor y unificar versión mobile/desktop
+- estandarizar tooltips a title nativo, eliminar Radix Tooltip
+- package
+- resincronizar package-lock.json con package.json (#228)
+- sync deploy workflow de web-hs-wisecore-front-dev-003 (Terraform)
+- Add or update the Azure App Service build and deployment workflow config
+
 ## [1.0.97] - 2026-09-11
 ### Nuevo
 - Agrupar activos relacionados por tipo en vez de entrante/saliente
