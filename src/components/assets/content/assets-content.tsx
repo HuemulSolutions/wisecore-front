@@ -1719,24 +1719,32 @@ export function AssetContent({
     // 1. We have document content with an execution_id OR an importing execution
     // 2. selectedExecutionId is currently null (no manual selection yet)
     // 3. We haven't already initialized for this document
+    // isFetchingContent: espera a que termine un refetch en curso antes de sembrar.
+    // En un remonte con caché stale (refetchOnMount dispara un refetch en background),
+    // este efecto corre primero con el dato viejo — sin este guard, sembraba esa key
+    // como si fuera fresca y el refetch de la key sin ejecución nunca la actualizaba.
     if (
       selectedFile?.type === 'document' &&
       resolvedExecutionId &&
       !selectedExecutionId &&
+      !isFetchingContent &&
       hasInitializedExecutionRef.current !== selectedFile.id
     ) {
       logger.log('🔄 Syncing selectedExecutionId with loaded execution:', resolvedExecutionId);
 
-      // Copy the already-loaded data to the new queryKey to prevent duplicate API call
+      // Copy the already-loaded data to the new queryKey to prevent duplicate API call.
+      // updatedAt preserva el timestamp real del fetch (contentUpdatedAt) en vez de
+      // "ahora" — si este dato ya estaba stale, la key sembrada hereda esa staleness.
       queryClient.setQueryData(
         ['document-content', selectedFile.id, resolvedExecutionId],
-        documentContent
+        documentContent,
+        { updatedAt: contentUpdatedAt }
       );
 
       setSelectedExecutionId(resolvedExecutionId);
       hasInitializedExecutionRef.current = selectedFile.id;
     }
-  }, [selectedFile?.id, selectedFile?.type, documentContent?.execution_id, documentContent?.executions, selectedExecutionId, queryClient]);
+  }, [selectedFile?.id, selectedFile?.type, documentContent?.execution_id, documentContent?.executions, selectedExecutionId, isFetchingContent, contentUpdatedAt, queryClient]);
   
   // Removed invalidation useEffect - React Query automatically handles query key changes
 
