@@ -176,7 +176,7 @@ function MediaRow({
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(e) => e.key === "Enter" && onClick()}
-      className="group flex items-center gap-3 rounded-lg border bg-card px-3 py-2 hover:shadow-sm transition-shadow hover:cursor-pointer hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group flex min-w-0 items-center gap-2 @[400px]/media:gap-3 rounded-lg border bg-card px-3 py-2 hover:shadow-sm transition-shadow hover:cursor-pointer hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div className="relative h-10 w-10 shrink-0 rounded-md bg-muted flex items-center justify-center overflow-hidden">
         {isImage(contentType) && version?.download_url ? (
@@ -191,20 +191,20 @@ function MediaRow({
       </p>
 
       {item.origin && (
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 shrink-0 hidden sm:inline-flex">
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 shrink-0 hidden @[420px]/media:inline-flex">
           {item.origin}
         </Badge>
       )}
       {contentType && (
-        <Badge variant="secondary" className="text-[10px] font-mono px-1.5 py-0 h-5 shrink-0">
+        <Badge variant="secondary" className="text-[10px] font-mono px-1.5 py-0 h-5 shrink-0 hidden @[220px]/media:inline-flex">
           {contentType.split("/")[1] ?? contentType}
         </Badge>
       )}
-      <span className="text-xs text-muted-foreground shrink-0 w-16 text-right tabular-nums">
+      <span className="text-xs text-muted-foreground shrink-0 w-16 text-right tabular-nums hidden @[300px]/media:block">
         {formatBytes(version?.file_size)}
       </span>
       {item.created_at && (
-        <span className="text-xs text-muted-foreground shrink-0 hidden md:block w-20 text-right" title={item.created_at}>
+        <span className="text-xs text-muted-foreground shrink-0 hidden @[560px]/media:block w-20 text-right" title={item.created_at}>
           {formatRelativeTime(item.created_at)}
         </span>
       )}
@@ -265,7 +265,7 @@ export function HuemulMediaGallery({
 }: HuemulMediaGalleryProps) {
   if (isError) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
+      <div className="@container/media flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
         <AlertCircle className="h-8 w-8 text-destructive" />
         <p className="text-sm font-medium text-destructive">{loadError}</p>
         <Button variant="outline" size="sm" onClick={onRetry} className="hover:cursor-pointer">
@@ -278,7 +278,7 @@ export function HuemulMediaGallery({
 
   if (!isLoading && items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
+      <div className="@container/media flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
         <Inbox className="h-8 w-8" />
         <p className="text-sm font-medium">{emptyTitle}</p>
         <p className="text-xs">{emptyDescription}</p>
@@ -288,7 +288,7 @@ export function HuemulMediaGallery({
 
   if (viewMode === "list") {
     return (
-      <div className={cn("flex flex-col gap-1.5", isFetching && "opacity-60 pointer-events-none")}>
+      <div className={cn("@container/media flex flex-col gap-1.5", isFetching && "opacity-60 pointer-events-none")}>
         {isLoading
           ? Array.from({ length: 12 }).map((_, i) => (
               <Skeleton key={i} className="h-14 w-full rounded-lg" />
@@ -311,7 +311,8 @@ export function HuemulMediaGallery({
   return (
     <div
       className={cn(
-        gridClassName ?? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4",
+        "@container/media",
+        gridClassName ?? "grid grid-cols-2 @[380px]/media:grid-cols-3 @[500px]/media:grid-cols-4 @[760px]/media:grid-cols-5 @[1000px]/media:grid-cols-6 gap-4",
         isFetching && "opacity-60 pointer-events-none",
       )}
     >

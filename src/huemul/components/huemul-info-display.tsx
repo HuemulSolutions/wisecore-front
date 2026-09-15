@@ -1,15 +1,10 @@
 ﻿import { useState, useContext, createContext } from "react";
 import { Copy, Check } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import type {
   InfoLayout,
   HuemulInfoItemVariant,
@@ -34,6 +29,7 @@ const InfoLayoutContext = createContext<InfoLayout>("vertical");
 // ── Internal helpers ───────────────────────────────────────────────────────
 
 function CopyButton({ value }: { value: string }) {
+  const { t } = useTranslation("common");
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -43,26 +39,18 @@ function CopyButton({ value }: { value: string }) {
   };
 
   return (
-    <TooltipProvider delayDuration={300}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="shrink-0 p-1 rounded hover:bg-muted transition-colors hover:cursor-pointer"
-          >
-            {copied ? (
-              <Check className="h-3 w-3 text-green-500" />
-            ) : (
-              <Copy className="h-3 w-3 text-muted-foreground" />
-            )}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top">
-          {copied ? "Copied!" : "Copy"}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <button
+      type="button"
+      onClick={handleCopy}
+      title={copied ? t("copied") : t("copy")}
+      className="shrink-0 p-1 rounded hover:bg-muted transition-colors hover:cursor-pointer"
+    >
+      {copied ? (
+        <Check className="h-3 w-3 text-green-500" />
+      ) : (
+        <Copy className="h-3 w-3 text-muted-foreground" />
+      )}
+    </button>
   );
 }
 

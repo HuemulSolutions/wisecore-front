@@ -59,6 +59,9 @@ export interface CustomFieldsListProps {
   totalItems?: number
   hasNext?: boolean
   onPageChange?: (page: number) => void
+  /** Título + refresh + "+" propios (default `true`). En `false` el caller (ej. el panel de
+   * detalle del activo) los pone en su propio header y esta lista solo renderiza filas. */
+  showHeader?: boolean
 }
 
 // ----------------------------------------

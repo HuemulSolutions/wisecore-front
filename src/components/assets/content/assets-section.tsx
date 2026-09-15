@@ -476,6 +476,15 @@ function SectionExecutionInner({
         ? aiPreview
         : sectionExecution.output.replace(/\\n/g, "\n");
 
+    // Compartido entre secciones form y no-form: dónde deben quedar los archivos que
+    // se suban (editor Plate o campos de formulario tipo carga_de_archivos) — a la
+    // versión activa (execution) si existe, si no al asset (document).
+    const mediaUploadTarget = executionId
+      ? { level: 'execution' as const, parentId: executionId }
+      : documentId
+        ? { level: 'document' as const, parentId: documentId }
+        : null;
+
     // Compartido entre las ramas editor/lector de sección no-form: sólo cambia el wrapper
     // (barra sticky con chevron en editor, header discreto en lector), nunca este elemento —
     // ver comentario de "no desmontar Plate" más abajo.
@@ -492,13 +501,7 @@ function SectionExecutionInner({
             documentId={documentId}
             sectionExecutionId={sectionExecution.id}
             organizationId={selectedOrganizationId ?? undefined}
-            mediaUploadTarget={
-              executionId
-                ? { level: 'execution', parentId: executionId }
-                : documentId
-                  ? { level: 'document', parentId: documentId }
-                  : null
-            }
+            mediaUploadTarget={mediaUploadTarget}
             toolbarTopOffset="36px"
             onCreateSectionFromSelection={readyToEdit && canEditSections ? onCreateSectionFromSelection : undefined}
         />
@@ -1017,6 +1020,7 @@ function SectionExecutionInner({
                                 status={status}
                                 organizationId={selectedOrganizationId ?? undefined}
                                 documentId={documentId}
+                                mediaUploadTarget={mediaUploadTarget}
                                 canInteract={canEditSections}
                                 isEditing
                                 onExitEditing={() => setIsAnsweringInReader(false)}
@@ -1036,6 +1040,7 @@ function SectionExecutionInner({
                             status={status}
                             organizationId={selectedOrganizationId ?? undefined}
                             documentId={documentId}
+                            mediaUploadTarget={mediaUploadTarget}
                             canInteract={readyToEdit && canEditSections && sectionCanAnswer}
                             isEditing={isEditing}
                             onExitEditing={handleCancelEdit}

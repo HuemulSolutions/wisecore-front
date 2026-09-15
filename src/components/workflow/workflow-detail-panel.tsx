@@ -763,6 +763,13 @@ export function WorkflowDetailPanel({
             formFields={currentSection.form_fields ?? []}
             organizationId={selectedOrganizationId ?? undefined}
             documentId={documentId}
+            mediaUploadTarget={
+              lifecycleExecutionId
+                ? { level: "execution", parentId: lifecycleExecutionId }
+                : documentId
+                  ? { level: "document", parentId: documentId }
+                  : null
+            }
             canInteract={canAnswerSection}
             isEditing={canAnswerSection}
             onExitEditing={goNext}

@@ -136,3 +136,24 @@ export interface UseMediaVersionsOptions {
   page?: number
   pageSize?: number
 }
+
+// ─── Alcance documento/versión (selector compartido) ──────────────────────────
+
+/** Alcance de media entre "documento completo" y una versión (ejecución) puntual. */
+export interface MediaScope {
+  level: Extract<MediaLevel, 'document' | 'execution'>
+  parentId: string
+}
+
+/** Datos mínimos de una ejecución para listarla en `HuemulMediaScopeSelector`. */
+export interface MediaScopeExecutionOption {
+  id: string
+  created_at: string
+  name: string
+  status?: string
+  version?: string | null
+  version_major?: number | null
+  version_minor?: number | null
+  version_patch?: number | null
+  created_by_user?: { name: string; last_name: string } | null
+}

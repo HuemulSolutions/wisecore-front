@@ -3,12 +3,6 @@ import { Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { lifecycleAllows } from "@/hooks/useDocumentAccess";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import type { HuemulButtonProps } from "@/types/huemul";
@@ -24,7 +18,7 @@ export const HuemulButton = React.forwardRef<HTMLButtonElement, HuemulButtonProp
       loading: controlledLoading,
       onClick,
       tooltip,
-      tooltipSide = "top",
+      title,
       variant,
       size,
       asChild = false,
@@ -136,42 +130,35 @@ export const HuemulButton = React.forwardRef<HTMLButtonElement, HuemulButtonProp
         content
       );
 
+    // `tooltip` es un alias histórico de `title`: un `title` explícito gana.
+    const resolvedTitle = title ?? tooltip;
+    const isButtonDisabled = disabled || isLoading;
+
     const button = (
       <Button
         ref={ref}
         variant={variant}
         size={resolvedSize}
         asChild={asChild}
-        disabled={disabled || isLoading}
+        disabled={isButtonDisabled}
         className={cn("hover:cursor-pointer", className)}
         onClick={handleClick}
+        // Con el botón deshabilitado el title va en el wrapper de abajo, no acá.
+        title={isButtonDisabled && resolvedTitle ? undefined : resolvedTitle}
         {...props}
       >
         {contentWithLoadingFallback}
       </Button>
     );
 
-    if (tooltip) {
-      // Radix no dispara eventos de puntero sobre un <button disabled> — sin el
-      // wrapper focuseable, un botón deshabilitado nunca abre el tooltip.
-      const isButtonDisabled = disabled || isLoading;
+    // `buttonVariants` aplica `disabled:pointer-events-none` (button.tsx): un
+    // `title` sobre el propio <button> deshabilitado nunca recibe hover. El span
+    // envolvente sí, y mantiene el mismo DOM que antes generaba el TooltipTrigger.
+    if (resolvedTitle && isButtonDisabled) {
       return (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              {isButtonDisabled ? (
-                <span tabIndex={0} className="inline-flex">
-                  {button}
-                </span>
-              ) : (
-                button
-              )}
-            </TooltipTrigger>
-            <TooltipContent side={tooltipSide}>
-              <p>{tooltip}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <span title={resolvedTitle} className="inline-flex">
+          {button}
+        </span>
       );
     }
 

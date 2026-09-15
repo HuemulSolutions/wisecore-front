@@ -20,9 +20,10 @@ export interface UseLifecycleProgressOptions {
   finalLifecycleStage: FinalLifecycleStage
   /**
    * Habilita `useAllLifecycleSteps` (config de steps del tipo de activo —
-   * nombres, orden). De acá salen `phases` y `nextStep`. Se comparte cache
-   * por `documentTypeId`, así que puede quedar prendido más tiempo que un
-   * sheet puntual (ej. mientras el botón "Completar" necesita el label del
+   * nombres, orden — filtrada por `depends_on` vía `execution_id`). De acá
+   * salen `phases` y `nextStep`. Se comparte cache por `documentTypeId` +
+   * `executionId`, así que puede quedar prendido más tiempo que un sheet
+   * puntual (ej. mientras el botón "Completar" necesita el label del
    * próximo destino) sin costo de refetch entre documentos del mismo tipo.
    */
   enabled: boolean
@@ -59,17 +60,12 @@ const EMPTY_PROGRESS: LifecycleProgress = {
  * `isAvailable` es `false` y el caller debe omitir el stepper/panel sin
  * avisar ni bloquear la confirmación.
  *
- * GAP CONOCIDO: `LifecycleStep.depends_on` (ver
+ * `LifecycleStep.depends_on` (ver
  * "ia context/dependencias-condicionales-formularios-guide.md" §3.4) hace que
- * un step no aplique a una ejecución concreta, pero este hook no lo sabe —
- * `useAllLifecycleSteps` trae la CONFIGURACIÓN del tipo de activo, no qué
- * steps aplican a esta ejecución puntual, y `lifecycle_status` no expone esa
- * lista (front nunca evalúa `depends_on`, ver la guía). Consecuencia: si el
- * step actual (o uno de la fase actual) tiene una condición que no se cumple,
- * `currentPhase.total`/`completed` lo sigue contando y `nextStep` puede
- * anunciar un step que el backend jamás va a poner como `current_step_id`.
- * No hay mitigación cliente correcta — requiere que el backend exponga los
- * steps aplicables de la ejecución en `lifecycle_status` (pedido pendiente).
+ * un step no aplique a una ejecución concreta. Se resuelve pasando
+ * `executionId` a `useAllLifecycleSteps`, que lo reenvía como `execution_id`
+ * al endpoint — el backend excluye ahí los steps cuyo `depends_on` no se
+ * cumple para esa ejecución (misma evaluación que el avance del lifecycle).
  */
 export function useLifecycleProgress({
   documentTypeId,
@@ -82,7 +78,11 @@ export function useLifecycleProgress({
 }: UseLifecycleProgressOptions): LifecycleProgress {
   const { t } = useTranslation("assets")
 
-  const { data: allStepsData } = useAllLifecycleSteps(documentTypeId ?? null, enabled && !!documentTypeId)
+  const { data: allStepsData } = useAllLifecycleSteps(
+    documentTypeId ?? null,
+    enabled && !!documentTypeId,
+    executionId,
+  )
 
   // Misma query key que `LifecycleRollbackSheet` — comparten el fetch.
   const { data: rollbackTargets } = useQuery({

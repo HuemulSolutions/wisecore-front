@@ -11,10 +11,12 @@ export async function getLifecycleStepTypes(): Promise<LifecycleStepTypesRespons
 
 export async function getLifecycleSteps(
   documentTypeId: string,
-  stepType?: string
+  stepType?: string,
+  executionId?: string
 ): Promise<LifecycleStepsResponse> {
   const params = new URLSearchParams();
   if (stepType) params.set('step_type', stepType);
+  if (executionId) params.set('execution_id', executionId);
   const query = params.toString() ? `?${params}` : '';
   const response = await httpClient.get(
     `${backendUrl}/lifecycle/document-types/${documentTypeId}/steps${query}`

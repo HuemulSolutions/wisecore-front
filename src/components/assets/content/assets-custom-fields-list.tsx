@@ -18,6 +18,8 @@ import { CustomFieldFilesCell } from "@/components/custom-fields/custom-field-fi
 import type { CustomFieldsListProps } from '@/types/assets';
 export type { CustomFieldsListProps } from '@/types/assets';
 import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
+import { HuemulPanelEmptyState } from "@/huemul/components/huemul-panel-empty-state";
 import { MULTI_SELECT_QUESTION_TYPES, QUESTION_TYPE } from "@/components/sections/question-type-meta";
 
 export function CustomFieldsList({
@@ -38,6 +40,7 @@ export function CustomFieldsList({
   totalItems,
   hasNext,
   onPageChange,
+  showHeader = true,
 }: CustomFieldsListProps) {
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
@@ -73,13 +76,15 @@ export function CustomFieldsList({
   if (isLoading) {
     return (
       <div className="flex flex-col h-full min-h-0 space-y-3 px-3 py-3">
-        <div className="flex items-center justify-between">
-          <div className="h-4 w-24 bg-muted rounded animate-pulse" />
-          <Button size="sm" variant="outline" disabled>
-            <Plus className="h-4 w-4 mr-2" />
-            {t('customFieldsList.addField')}
-          </Button>
-        </div>
+        {showHeader && (
+          <div className="flex items-center justify-between">
+            <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+            <Button size="sm" variant="outline" disabled>
+              <Plus className="h-4 w-4 mr-2" />
+              {t('customFieldsList.addField')}
+            </Button>
+          </div>
+        )}
         <div className="space-y-2">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="h-16 bg-muted/50 rounded animate-pulse" />
@@ -91,20 +96,13 @@ export function CustomFieldsList({
 
   if (!customFields || customFields.length === 0) {
     return (
-      <div className="flex flex-col h-full min-h-0 items-center justify-center py-10 px-4 text-center gap-4">
-        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-muted">
-          <SlidersHorizontal className="h-5 w-5 text-muted-foreground" />
-        </div>
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-foreground">{t('customFieldsList.noCustomFields')}</p>
-          <p className="text-xs text-muted-foreground">{t('customFieldsList.noCustomFieldsHint')}</p>
-        </div>
-        {canCreate && (
-          <Button size="sm" onClick={onAdd} className="hover:cursor-pointer">
-            <Plus className="h-4 w-4 mr-2" />
-            {t('customFieldsList.addField')}
-          </Button>
-        )}
+      <div className="p-3">
+        <HuemulPanelEmptyState
+          icon={SlidersHorizontal}
+          title={t('customFieldsList.noCustomFields')}
+          description={t('customFieldsList.noCustomFieldsHint')}
+          action={canCreate ? { label: t('customFieldsList.addField'), onClick: onAdd } : undefined}
+        />
       </div>
     );
   }
@@ -253,7 +251,7 @@ export function CustomFieldsList({
     if (field.data_type === 'list') {
       const labels = getListLabels(field);
       if (labels.length === 0) {
-        return <span className="text-xs text-gray-600">{t('customFieldsList.empty')}</span>;
+        return <span className="text-xs italic text-muted-foreground">{t('customFieldsList.noValue')}</span>;
       }
       return (
         <div className="flex flex-wrap gap-1">
@@ -295,7 +293,7 @@ export function CustomFieldsList({
     if (field.question_type === QUESTION_TYPE.fileUpload && field.data_type !== 'image') {
       const fileName = typeof value === 'string' && value !== 'customFieldsList.empty' ? value : null;
       if (!fileName) {
-        return <span className="text-xs text-gray-600">{t('customFieldsList.empty')}</span>;
+        return <span className="text-xs italic text-muted-foreground">{t('customFieldsList.noValue')}</span>;
       }
       return (
         <span className="flex items-center gap-1.5 text-xs text-gray-600">
@@ -306,10 +304,11 @@ export function CustomFieldsList({
     }
 
     // For non-boolean and non-image fields, return text with proper overflow handling
-    const textValue = typeof value === 'string' && value === 'customFieldsList.empty' ? t('customFieldsList.empty') : String(value);
+    const isEmpty = typeof value === 'string' && value === 'customFieldsList.empty';
+    const textValue = isEmpty ? t('customFieldsList.noValue') : String(value);
     return (
-      <span 
-        className="text-xs text-gray-600 wrap-break-word line-clamp-2" 
+      <span
+        className={cn("text-xs wrap-break-word line-clamp-2", isEmpty ? "italic text-muted-foreground" : "text-gray-600")}
         title={textValue.length > 50 ? textValue : undefined}
       >
         {textValue}
@@ -320,32 +319,34 @@ export function CustomFieldsList({
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Header with Refresh and Add buttons — fijo, no scrollea con la lista */}
-      <div className="shrink-0 flex items-center justify-between px-3 pt-3 pb-2">
-        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('customFieldsList.title')}</h4>
-        <div className="flex gap-1">
-          <HuemulButton
-            size="sm"
-            variant="outline"
-            className="h-7 w-7 p-0"
-            icon={RefreshCw}
-            iconClassName="h-3 w-3"
-            tooltip={t('customFieldsList.refreshCustomFields')}
-            loading={isRefreshing}
-            onClick={onRefresh}
-          />
-          {canCreate && (
-            <Button
+      {showHeader && (
+        <div className="shrink-0 flex items-center justify-between px-3 pt-3 pb-2">
+          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('customFieldsList.title')}</h4>
+          <div className="flex gap-1">
+            <HuemulButton
               size="sm"
               variant="outline"
-              onClick={onAdd}
-              className="h-7 w-7 p-0 hover:cursor-pointer"
-              title={t('customFieldsList.addCustomField')}
-            >
-              <Plus className="h-3 w-3" />
-            </Button>
-          )}
+              className="h-7 w-7 p-0"
+              icon={RefreshCw}
+              iconClassName="h-3 w-3"
+              tooltip={t('customFieldsList.refreshCustomFields')}
+              loading={isRefreshing}
+              onClick={onRefresh}
+            />
+            {canCreate && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onAdd}
+                className="h-7 w-7 p-0 hover:cursor-pointer"
+                title={t('customFieldsList.addCustomField')}
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Fields List */}
       <ScrollArea className="flex-1 min-h-0">
@@ -353,11 +354,18 @@ export function CustomFieldsList({
         {customFields.map((field) => {
           const isUploadingThisField = uploadingImageFieldId === field.id;
           return (
-            <div key={field.id} className="flex items-start justify-between p-2 border rounded bg-card">
+            <div
+              key={field.id}
+              className="flex items-start justify-between rounded-lg border p-2"
+              style={{ borderColor: "var(--adp-border, var(--border))" }}
+            >
               <div className="flex-1 min-w-0 mr-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-1.5 min-w-0 flex-1">
-                    <span className="text-xs font-medium text-foreground wrap-break-word line-clamp-2" title={field.name || t('customFieldsList.unknownField')}>
+                    <span
+                      className="text-[10.5px] font-medium uppercase tracking-wide text-muted-foreground wrap-break-word line-clamp-2"
+                      title={field.name || t('customFieldsList.unknownField')}
+                    >
                       {field.name || t('customFieldsList.unknownField')}
                     </span>
                     {field.required && (
@@ -445,21 +453,23 @@ export function CustomFieldsList({
       </div>
       </ScrollArea>
 
-      {/* Pagination footer — fijo, fuera del scroll area, banda gris a sangre */}
+      {/* Footer fijo, fuera del scroll area: mismo estilo "detailed" que la grilla de
+          Users (huemul-table.tsx), pero sin números de página — en un panel de ~250px
+          los números no aportan y comprimen el espacio. El wrapper propio (borde/fondo)
+          lo trae el variant, no hace falta un <div> extra. */}
       {onPageChange && page !== undefined && pageSize !== undefined && (
-        <div className="shrink-0 border-t border-border bg-muted/50 px-3 py-2">
-          <HuemulPagination
-            variant="bare"
-            labelPosition="start"
-            showFirstLast={false}
-            page={page}
-            pageSize={pageSize}
-            totalItems={totalItems}
-            hasNext={hasNext}
-            hasPrevious={page > 1}
-            onPageChange={onPageChange}
-          />
-        </div>
+        <HuemulPagination
+          variant="detailed"
+          showPageNumbers={false}
+          showSummary={false}
+          page={page}
+          pageSize={pageSize}
+          totalItems={totalItems}
+          hasNext={hasNext}
+          hasPrevious={page > 1}
+          onPageChange={onPageChange}
+          className="shrink-0"
+        />
       )}
 
       {/* Image preview dialog */}

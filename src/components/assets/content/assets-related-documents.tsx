@@ -1,9 +1,8 @@
-import { useMemo, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ChevronRight, RefreshCw, Link2, Plus, FileText, SquareArrowOutUpRight, MoreVertical, Trash2 } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
@@ -13,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
+import { HuemulPanelEmptyState } from "@/huemul/components/huemul-panel-empty-state";
 import { useOrgPath } from "@/hooks/useOrgRouter";
 import { useExecutionRelationships, useExecutionRelationshipMutations } from "@/hooks/useExecutionRelationships";
 import { useDocumentTypes } from "@/hooks/useDocumentTypes";
@@ -32,6 +32,21 @@ export interface AssetsRelatedDocumentsProps {
   canListAssetTypes?: boolean;
   /** Permite eliminar la relación desde el kebab de la fila (gate: execution_relationship:d). */
   canDeleteRelationship?: boolean;
+  /**
+   * "collapsible" (default): bloque plegable con su propio header — uso histórico bajo el índice.
+   * "panel": sin Collapsible ni header propio (título y refresh los pone el caller, ej. el tab
+   * "Vínculos" del panel de detalle); filas con botón "quitar" visible en vez de kebab.
+   */
+  variant?: "collapsible" | "panel";
+  /** Notifica al caller el estado de fetching — usado por el panel para el footer "Actualizando…". */
+  onFetchingChange?: (isFetching: boolean) => void;
+  /** Notifica al caller la cantidad de relaciones — usado por el badge del rail del panel. */
+  onCountChange?: (count: number) => void;
+}
+
+export interface AssetsRelatedDocumentsHandle {
+  /** Refresca la lista — usado por el refresh del header del tab "Vínculos" del panel. */
+  refresh: () => void | Promise<unknown>;
 }
 
 function RelatedDocumentRow({
@@ -46,6 +61,7 @@ function RelatedDocumentRow({
   removeLabel,
   onOpen,
   onDelete,
+  compact = false,
 }: {
   other: ExecutionRelationshipInlineExecution;
   relLabel: string;
@@ -57,45 +73,81 @@ function RelatedDocumentRow({
   actionsLabel: string;
   removeLabel: string;
   onOpen: () => void;
-  /** Ausente cuando el usuario no puede borrar: el kebab queda solo con "abrir". */
+  /** Ausente cuando el usuario no puede borrar: el kebab (o el botón quitar, en compact) desaparece. */
   onDelete?: () => void;
+  /** Tab "Vínculos" del panel: botones de abrir/quitar visibles en la fila, sin kebab. */
+  compact?: boolean;
 }) {
   const color = other.document_type_color;
   const meta = [typeName, other.name, relLabel].filter(Boolean).join(" · ");
+
+  if (compact) {
+    return (
+      <div
+        className="flex w-full items-center gap-2 rounded-lg border p-2"
+        style={{ borderColor: "var(--adp-border, var(--border))" }}
+      >
+        <span
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted"
+          style={{ backgroundColor: tintFromColor(color), color: color || undefined }}
+        >
+          <FileText className="h-3.5 w-3.5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-medium text-foreground" title={other.document_name}>{other.document_name}</p>
+          <p className="truncate text-[11px] text-muted-foreground">
+            {meta}
+            {isCurrentAsset && ` · ${currentAssetLabel}`}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <button
+            type="button"
+            title={openHint}
+            onClick={onOpen}
+            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:cursor-pointer hover:bg-muted hover:text-foreground"
+          >
+            <SquareArrowOutUpRight className="h-3.5 w-3.5" />
+          </button>
+          {onDelete && (
+            <button
+              type="button"
+              title={removeLabel}
+              onClick={onDelete}
+              className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:cursor-pointer hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     // Fila no interactiva: todas las acciones (abrir, eliminar) viven en el
     // kebab, así que el cuerpo es solo presentación con tooltip informativo.
     <div className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-card px-2 py-1.5 text-left transition-colors hover:bg-accent/30">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <span
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted"
-              style={{ backgroundColor: tintFromColor(color), color: color || undefined }}
-            >
-              <FileText className="h-3.5 w-3.5" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-xs font-medium text-foreground">{other.document_name}</span>
-              <span className="block truncate text-[11px] text-muted-foreground">
-                {meta}
-                {isCurrentAsset && ` · ${currentAssetLabel}`}
-              </span>
-            </span>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="left" className="max-w-60">
-          <p className="font-medium">{other.document_name}</p>
-          <p className="text-[11px] opacity-90">{directionHint}</p>
-          {meta && <p className="text-[11px] opacity-90">{meta}</p>}
-        </TooltipContent>
-      </Tooltip>
+      <div
+        className="flex min-w-0 flex-1 items-center gap-2"
+        title={[other.document_name, directionHint, meta].filter(Boolean).join("\n")}
+      >
+        <span
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted"
+          style={{ backgroundColor: tintFromColor(color), color: color || undefined }}
+        >
+          <FileText className="h-3.5 w-3.5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-xs font-medium text-foreground">{other.document_name}</span>
+          <span className="block truncate text-[11px] text-muted-foreground">
+            {meta}
+            {isCurrentAsset && ` · ${currentAssetLabel}`}
+          </span>
+        </span>
+      </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          {/* Sin prop `tooltip`: con tooltip, HuemulButton devuelve un
-              TooltipProvider como raíz y el `asChild` del trigger le pasaría
-              los handlers a un provider en vez de al <button>. */}
           <HuemulButton
             variant="ghost"
             size="sm"
@@ -125,7 +177,8 @@ function RelatedDocumentRow({
   );
 }
 
-export function AssetsRelatedDocuments({
+export const AssetsRelatedDocuments = forwardRef<AssetsRelatedDocumentsHandle, AssetsRelatedDocumentsProps>(
+  function AssetsRelatedDocuments({
   organizationId,
   executionId,
   currentDocumentId,
@@ -133,9 +186,13 @@ export function AssetsRelatedDocuments({
   canOpenDiagrams = false,
   canListAssetTypes = false,
   canDeleteRelationship = false,
-}: AssetsRelatedDocumentsProps) {
+  variant = "collapsible",
+  onFetchingChange,
+  onCountChange,
+}, ref) {
   const { t } = useTranslation(["assets", "common"]);
   const buildPath = useOrgPath();
+  const isPanel = variant === "panel";
   const [isOpen, setIsOpen] = useState(true);
   const [pendingDelete, setPendingDelete] = useState<{
     id: string;
@@ -149,6 +206,9 @@ export function AssetsRelatedDocuments({
     { enabled: !!executionId, direction: "all", includeSubrelationships: false },
   );
 
+  useImperativeHandle(ref, () => ({ refresh: () => refetch() }), [refetch]);
+  useEffect(() => { onFetchingChange?.(isFetching); }, [isFetching, onFetchingChange]);
+
   // Catálogo de tipos: solo para resolver el nombre del tipo por documento.
   const { data: documentTypesResponse } = useDocumentTypes({ enabled: canListAssetTypes });
   const typeNameById = useMemo(() => {
@@ -159,6 +219,8 @@ export function AssetsRelatedDocuments({
 
   const relationships = data?.data ?? [];
   const untitledFallback = t("content.relatedDocuments.untitledRelation");
+
+  useEffect(() => { onCountChange?.(relationships.length); }, [relationships.length, onCountChange]);
 
   // Estado de expansión por tipo de activo — todos los grupos arrancan colapsados.
   const [expandedTypeIds, setExpandedTypeIds] = useState<Set<string>>(new Set());
@@ -261,6 +323,7 @@ export function AssetsRelatedDocuments({
             ? () => setPendingDelete({ id: rel.id, documentName: other.document_name, relLabel })
             : undefined
         }
+        compact={isPanel}
       />
     );
   };
@@ -295,6 +358,79 @@ export function AssetsRelatedDocuments({
       </div>
     );
   };
+
+  const bodyContent = isLoading ? (
+    <div className="space-y-1 px-1 py-1">
+      {Array.from({ length: 2 }).map((_, i) => (
+        <Skeleton key={i} className="h-10 w-full rounded-lg" />
+      ))}
+    </div>
+  ) : isError ? (
+    <p className="px-1 py-1 text-xs text-muted-foreground">{t("content.relatedDocuments.error")}</p>
+  ) : relationships.length === 0 ? (
+    isPanel ? (
+      <div className="p-3">
+        <HuemulPanelEmptyState
+          icon={Link2}
+          title={versionLabel ? t("content.relatedDocuments.emptyInVersion", { version: versionLabel }) : t("content.relatedDocuments.empty")}
+          description={t("content.relatedDocuments.emptyHint")}
+        />
+      </div>
+    ) : (
+      <div className="space-y-2 px-1 py-1">
+        <p className="text-xs font-medium text-foreground">
+          {versionLabel
+            ? t("content.relatedDocuments.emptyInVersion", { version: versionLabel })
+            : t("content.relatedDocuments.empty")}
+        </p>
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          {t("content.relatedDocuments.emptyHint")}
+        </p>
+        {linkButton}
+      </div>
+    )
+  ) : (
+    <>
+      {canListAssetTypes
+        ? typeGroups.map(renderTypeGroup)
+        : <div className="space-y-1">{relationships.map(renderRow)}</div>}
+      {!isPanel && linkButton && <div className="border-t border-border/60 pt-2">{linkButton}</div>}
+    </>
+  );
+
+  const deleteDialog = (
+    <HuemulAlertDialog
+      open={!!pendingDelete}
+      onOpenChange={(open) => {
+        if (!open) setPendingDelete(null);
+      }}
+      title={t("content.relatedDocuments.removeRelationTitle")}
+      description={t("content.relatedDocuments.removeRelationDescription", {
+        document: pendingDelete?.documentName ?? "",
+        relation: pendingDelete?.relLabel ?? "",
+      })}
+      actionLabel={t("common:delete")}
+      actionIcon={Trash2}
+      cancelLabel={t("common:cancel")}
+      onAction={handleDelete}
+    />
+  );
+
+  if (isPanel) {
+    return (
+      <div className="flex h-full flex-col">
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden px-2 py-2">
+          {bodyContent}
+        </div>
+        {linkButton && (
+          <div className="shrink-0 border-t px-3 py-2" style={{ borderColor: "var(--adp-border, var(--border))" }}>
+            {linkButton}
+          </div>
+        )}
+        {deleteDialog}
+      </div>
+    );
+  }
 
   return (
     <Collapsible
@@ -332,52 +468,11 @@ export function AssetsRelatedDocuments({
         />
       </div>
       <CollapsibleContent className="max-h-[45vh] space-y-2 overflow-y-auto overflow-x-hidden px-2 pb-2">
-        {isLoading ? (
-          <div className="space-y-1 px-1 py-1">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full rounded-lg" />
-            ))}
-          </div>
-        ) : isError ? (
-          <p className="px-1 py-1 text-xs text-muted-foreground">{t("content.relatedDocuments.error")}</p>
-        ) : relationships.length === 0 ? (
-          <div className="space-y-2 px-1 py-1">
-            <p className="text-xs font-medium text-foreground">
-              {versionLabel
-                ? t("content.relatedDocuments.emptyInVersion", { version: versionLabel })
-                : t("content.relatedDocuments.empty")}
-            </p>
-            <p className="text-[11px] leading-snug text-muted-foreground">
-              {t("content.relatedDocuments.emptyHint")}
-            </p>
-            {linkButton}
-          </div>
-        ) : (
-          <>
-            {canListAssetTypes
-              ? typeGroups.map(renderTypeGroup)
-              : <div className="space-y-1">{relationships.map(renderRow)}</div>}
-            {linkButton && <div className="border-t border-border/60 pt-2">{linkButton}</div>}
-          </>
-        )}
+        {bodyContent}
       </CollapsibleContent>
       {/* Hermano del contenido colapsable para que la confirmación siga montada
           aunque el bloque se colapse. */}
-      <HuemulAlertDialog
-        open={!!pendingDelete}
-        onOpenChange={(open) => {
-          if (!open) setPendingDelete(null);
-        }}
-        title={t("content.relatedDocuments.removeRelationTitle")}
-        description={t("content.relatedDocuments.removeRelationDescription", {
-          document: pendingDelete?.documentName ?? "",
-          relation: pendingDelete?.relLabel ?? "",
-        })}
-        actionLabel={t("common:delete")}
-        actionIcon={Trash2}
-        cancelLabel={t("common:cancel")}
-        onAction={handleDelete}
-      />
+      {deleteDialog}
     </Collapsible>
   );
-}
+});
