@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.1.1] - 2026-09-15
+### Arreglos
+- invalidar steps de ciclo de vida por depends_on tras autoguardado
+- refetchear queries stale al remontar y evitar sembrar contenido viejo en assets
+- igualar altura de fecha, selector de versión y badge de fase con el botón de ciclo de vida
+- mover botón de pantalla completa al toolbar de TOC en modo Editor y usar íconos Maximize/Minimize
+- mover toggle Lector/Editor a la izquierda del separador en header de assets
+### Otros
+- limpiar workflows obsoletos y agregar pipelines dev-003/qa/temp-prod
+- renombrar workflow de deploy Azure de qa-1 a dev-01
+
 ## [1.1.0] - 2026-09-15
 ### Nuevo
 - Nuevo diseño del panel lateral en assets.
