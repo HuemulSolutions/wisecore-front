@@ -589,6 +589,7 @@ const translations = {
     executionDisapproved: { en: "Execution disapproved successfully!", es: "¡Ejecución desaprobada correctamente!" },
     executionDeleted: { en: "Execution deleted successfully!", es: "¡Ejecución eliminada correctamente!" },
     executionCloned: { en: "Execution cloned successfully!", es: "¡Ejecución clonada correctamente!" },
+    assetCloned: { en: "Asset cloned successfully!", es: "¡Activo clonado correctamente!" },
     documentDeleted: { en: "Asset deleted successfully", es: "Activo eliminado correctamente" },
     customFieldCreated: { en: "Asset custom field created successfully!", es: "¡Campo personalizado del activo creado correctamente!" },
     customFieldUpdated: { en: "Asset custom field updated successfully!", es: "¡Campo personalizado del activo actualizado correctamente!" },
