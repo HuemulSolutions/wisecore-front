@@ -104,6 +104,7 @@ import {
   useInvalidateDocumentSectionAccess,
 } from '@/hooks/useDocumentSectionAccess';
 import { usePageAccess } from '@/hooks/usePageAccess';
+import { invalidateExecutionLifecycleSteps } from '@/hooks/useLifecycle';
 import type { AssetDetailPanelTab, ContentSection, LibraryContentProps, LifecyclePermissions, LifecycleStatus } from '@/types/assets';
 import type { FormValuesSectionPayload } from '@/types/sections/core';
 import { applyFormValuesPatch } from '@/components/assets/content/utils/patch-document-content';
@@ -835,6 +836,9 @@ export function AssetContent({
         queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] }),
         queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] }),
         queryClient.invalidateQueries({ queryKey: ['document-section-access', selectedFile?.id] }),
+        // Steps de ciclo de vida filtrados por `depends_on` de esta ejecución
+        // (panel "N de M" del sheet de Completar) — ver patch-document-content.ts.
+        invalidateExecutionLifecycleSteps(queryClient),
       ]);
     } finally {
       setIsRefreshingContent(false);
