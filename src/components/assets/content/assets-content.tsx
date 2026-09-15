@@ -475,6 +475,7 @@ export function AssetContent({
             selectedDocumentId: newDocumentId,
             selectedDocumentName: clonedExecution.document_name,
             selectedDocumentType: 'document',
+            selectedExecutionId: clonedExecution.id,
             fromFileTree: true,
           },
         });
@@ -1095,7 +1096,22 @@ export function AssetContent({
   // deja que React renderice ESE árbol en baja prioridad e interrumpible: el
   // scroll y los clicks siguen respondiendo mientras se arma, en vez de
   // bloquear el hilo principal hasta que termine (ver AssetsSectionsList).
-  const deferredContent = useDeferredValue(documentContent?.content);
+  //
+  // El valor diferido va etiquetado con el documento y la execution a los que
+  // pertenece: al cambiar de asset (p. ej. tras clonar, o al saltar a otro
+  // activo desde el árbol) React conserva el valor anterior durante la
+  // transición, y sin este chequeo la lista renderizaba el contenido del asset
+  // previo —o el [] de un primer fetch sin execution_id— mientras `tocItems`,
+  // que lee documentContent directo, ya mostraba las secciones nuevas.
+  const contentSnapshot = useMemo(
+    () => ({ docId: selectedFile?.id, execId: selectedExecutionId, content: documentContent?.content }),
+    [selectedFile?.id, selectedExecutionId, documentContent?.content],
+  );
+  const deferredSnapshot = useDeferredValue(contentSnapshot);
+  const deferredContent =
+    deferredSnapshot.docId === selectedFile?.id && deferredSnapshot.execId === selectedExecutionId
+      ? deferredSnapshot.content
+      : undefined;
 
   // Emptiness por sección (índice a índice con deferredContent — el mismo
   // array que se le pasa a AssetsSectionsList, para no desalinear índices
