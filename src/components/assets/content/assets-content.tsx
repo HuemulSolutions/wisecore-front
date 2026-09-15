@@ -589,6 +589,9 @@ export function AssetContent({
   // `lifecycle_external_review_action` en assets-types-lifecycle-review-actions.tsx)
   // — gatea la query que decide si se ofrece el botón de disparo manual de elaboración.
   const canReadElaborationConfig = isOrgAdmin || hasPermission('lifecycle_elaboration_config:l') || hasPermission('lifecycle_elaboration_config:r');
+  // Idem, para gatear la query que resuelve si hay publicación externa habilitada
+  // en el step de publish (decide si se ofrece "Ejecutar publicación por extensión").
+  const canReadExternalPublishConfig = isOrgAdmin || hasPermission('lifecycle_external_publish_action:l');
   const canCreateCustomField = can('createCustomField');
   const canListNotifications = can('listNotifications');
   const canListDiscussions = canList('discussion');
@@ -1521,6 +1524,7 @@ export function AssetContent({
         }
       : undefined,
     canReadElaborationConfig,
+    canReadExternalPublishConfig,
   });
 
   // Set initial view mode based on lifecycle permissions (once per document+execution):

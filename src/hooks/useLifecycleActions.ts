@@ -9,7 +9,12 @@ import { dataTableQueryKeys } from "@/hooks/useDataTables"
 import { parseMissingRequiredCustomFieldsDetail } from "@/lib/custom-field-required-utils"
 import { getAdvanceBlockers, parseAdvanceBlockersDetail } from "@/lib/advance-blockers-utils"
 import { completeActionLabelKey, completeActionTooltipKey } from "@/lib/lifecycle-labels"
-import { lifecycleQueryKeys, useExternalReviewActions, useLifecycleElaborationConfig } from "@/hooks/useLifecycle"
+import {
+  lifecycleQueryKeys,
+  useExternalReviewActions,
+  useLifecycleElaborationConfig,
+  useExternalPublishActions,
+} from "@/hooks/useLifecycle"
 import { useLifecycleProgress } from "@/hooks/useLifecycleProgress"
 import { useMissingRequiredCustomFields } from "@/hooks/useCustomFieldDocuments"
 import { executionLifecycleQueryKeys } from "@/hooks/useExecutionLifecycle"
@@ -74,6 +79,7 @@ export function useLifecycleActions({
   onOpenCustomFields,
   onGoToSection,
   canReadElaborationConfig = false,
+  canReadExternalPublishConfig = false,
 }: UseLifecycleActionsOptions): LifecycleActionsController {
   const { t } = useTranslation(["assets", "common"])
   const queryClient = useQueryClient()
@@ -374,6 +380,22 @@ export function useLifecycleActions({
   )
   const hasEnabledElaborationConfig = elaborationConfigData?.data?.is_enabled === true
 
+  // Whether the current (publish) lifecycle step has at least one enabled
+  // `ExternalPublishAction` — gatea el botón de re-lanzar publicación externa.
+  // 1:N (a diferencia de la elaboración, 1:1): mismo criterio `.some(is_enabled)`
+  // que `hasExternalReview`. Gateado por `canReadExternalPublishConfig`
+  // (`lifecycle_external_publish_action:l`) porque el editor/publicador promedio
+  // de un activo puede no tener ese permiso de configuración.
+  const { data: externalPublishActionsData } = useExternalPublishActions(
+    organizationId ?? "",
+    lifecycleStatus?.current_step_id ?? "",
+    canReadExternalPublishConfig &&
+      lifecycleStatus?.state === "published" &&
+      !!lifecycleStatus?.current_step_id &&
+      !!organizationId,
+  )
+  const hasEnabledExternalPublishConfig = (externalPublishActionsData?.data ?? []).some((a) => a.is_enabled)
+
   const runElaborationMutation = useMutation({
     // A diferencia de `runExternalPublishMutation`, acá SÍ hace falta refrescar
     // `document-content`: el POST arranca el lock (`is_locked_external_elaboration`)
@@ -532,6 +554,7 @@ export function useLifecycleActions({
     runExternalPublishMutation,
     runElaborationMutation,
     hasEnabledElaborationConfig,
+    hasEnabledExternalPublishConfig,
 
     hasExternalReview,
     isApprovalStep,

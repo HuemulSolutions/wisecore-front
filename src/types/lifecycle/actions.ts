@@ -54,6 +54,8 @@ export interface UseLifecycleActionsOptions {
   canListCustomFields?: boolean
   /** `lifecycle_elaboration_config:l|r` del scope de la página. Gatea la query que resuelve si el step actual tiene elaboración externa habilitada (decide si se ofrece el botón de disparo manual). */
   canReadElaborationConfig?: boolean
+  /** `lifecycle_external_publish_action:l` del scope de la página. Gatea la query que resuelve si el step de publish actual tiene alguna `ExternalPublishAction` habilitada (decide si se ofrece el botón de re-lanzar publicación externa). */
+  canReadExternalPublishConfig?: boolean
   /** Abre el tab de campos personalizados del documento. Omitir donde ese tab no existe (WorkflowDetailPanel): el botón "Ir a campos personalizados" se oculta. */
   onOpenCustomFields?: () => void
   /** Navega a la sección con este `section_execution_id` (primer blocker de `advance_blockers`). Omitir donde la superficie no puede navegar a una sección puntual: el botón "Ir a la sección" se oculta. */
@@ -95,6 +97,8 @@ export interface LifecycleActionsController {
 
   /** `true` si el step actual tiene una `LifecycleElaborationConfig` habilitada — decide si se ofrece el botón de disparo manual. */
   hasEnabledElaborationConfig: boolean
+  /** `true` si el step de publish actual tiene al menos una `ExternalPublishAction` habilitada — decide si se ofrece el botón de re-lanzar publicación externa. */
+  hasEnabledExternalPublishConfig: boolean
 
   // Auxiliary data for the "complete" (review) dialog.
   hasExternalReview: boolean

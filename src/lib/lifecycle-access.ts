@@ -312,6 +312,8 @@ export function resolveLifecycleActionsVisibility(input: {
   showRunElaboration?: boolean
   /** `controller.hasEnabledElaborationConfig` — el step actual tiene una `LifecycleElaborationConfig` habilitada. */
   hasEnabledElaborationConfig?: boolean
+  /** `controller.hasEnabledExternalPublishConfig` — el step de publish actual tiene al menos una `ExternalPublishAction` habilitada. */
+  hasEnabledExternalPublishConfig?: boolean
 }): LifecycleActionsVisibility {
   const { status, permissions, canTransition, finalLifecycleStage } = input
 
@@ -337,7 +339,10 @@ export function resolveLifecycleActionsVisibility(input: {
   const canArchive = !!permissions?.archive && (status.state === "approved" || status.state === "published")
   const canRestore = !!permissions?.archive && isRestorableLifecycleState(status.state)
   const canRerunExternalPublish =
-    !!input.showRerunExternalPublish && !!permissions?.publish && status.state === "published"
+    !!input.showRerunExternalPublish &&
+    !!permissions?.publish &&
+    status.state === "published" &&
+    !!input.hasEnabledExternalPublishConfig
   // El lock (`is_locked_external_elaboration`) NO entra acá — se resuelve como
   // `disabled` en el botón, no como visibilidad, para no saltar el layout
   // mientras corre. `status.stage` (no `state`): `state` varía dentro de la
