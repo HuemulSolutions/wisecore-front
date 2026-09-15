@@ -25,6 +25,7 @@ import { READ_ONLY_NOTICE_STATES, resolveLifecycleActionsVisibility, isExternalE
 import { resolveWorkflowFinishOutcome, type WorkflowFinishOutcome } from "@/lib/workflow-finish-outcome"
 import { workflowQueryKeys } from "@/hooks/useWorkflows"
 import { useLifecycleActions } from "@/hooks/useLifecycleActions"
+import { invalidateExecutionLifecycleSteps } from "@/hooks/useLifecycle"
 import type { AssetContentResponse, ContentSection } from "@/types/assets"
 import type { WorkflowRowRef } from "@/types/workflow"
 import type { WorkflowTemplateItem, CreateExpressResult } from "@/types/templates"
@@ -187,6 +188,9 @@ export function WorkflowDetailPanel({
   const handleRefresh = React.useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["document-content", documentId] })
     invalidateSectionAccess(documentId ?? undefined)
+    // Steps de ciclo de vida filtrados por `depends_on` de esta ejecución
+    // (panel "N de M" del sheet de Completar) — ver patch-document-content.ts.
+    invalidateExecutionLifecycleSteps(queryClient)
   }, [queryClient, documentId, invalidateSectionAccess])
 
   // Solo secciones form "aplicables" (ver ia context/dependencias-condicionales-formularios-guide.md)
@@ -763,6 +767,13 @@ export function WorkflowDetailPanel({
             formFields={currentSection.form_fields ?? []}
             organizationId={selectedOrganizationId ?? undefined}
             documentId={documentId}
+            mediaUploadTarget={
+              lifecycleExecutionId
+                ? { level: "execution", parentId: lifecycleExecutionId }
+                : documentId
+                  ? { level: "document", parentId: documentId }
+                  : null
+            }
             canInteract={canAnswerSection}
             isEditing={canAnswerSection}
             onExitEditing={goNext}

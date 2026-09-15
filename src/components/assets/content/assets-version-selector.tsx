@@ -95,7 +95,7 @@ export function VersionSelectorDropdown({
   );
 
   return (
-    <div className="flex items-center bg-gray-100 p-0.5 rounded-lg">
+    <div className="flex items-center bg-gray-100 rounded-lg">
       {showCreateButton && showTriggerCreateButton && (
         <HuemulButton
           size="sm"

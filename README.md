@@ -1,6 +1,6 @@
 # Wisecore Frontend
 
-**Version 1.0.97**
+**Version 1.1.1**
 
 Wisecore is a multi-tenant, LLM-powered platform for generating, managing, and sharing organizational knowledge. This repository contains the frontend application, built with React, TypeScript, and Vite.
 

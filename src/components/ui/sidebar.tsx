@@ -18,12 +18,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
@@ -128,25 +122,23 @@ function SidebarProvider({
 
   return (
     <SidebarContext.Provider value={contextValue}>
-      <TooltipProvider delayDuration={0}>
-        <div
-          data-slot="sidebar-wrapper"
-          style={
-            {
-              "--sidebar-width": SIDEBAR_WIDTH,
-              "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
-              ...style,
-            } as React.CSSProperties
-          }
-          className={cn(
-            "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full",
-            className
-          )}
-          {...props}
-        >
-          {children}
-        </div>
-      </TooltipProvider>
+      <div
+        data-slot="sidebar-wrapper"
+        style={
+          {
+            "--sidebar-width": SIDEBAR_WIDTH,
+            "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
+            ...style,
+          } as React.CSSProperties
+        }
+        className={cn(
+          "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full",
+          className
+        )}
+        {...props}
+      >
+        {children}
+      </div>
     </SidebarContext.Provider>
   )
 }
@@ -231,8 +223,8 @@ function Sidebar({
         className={cn(
           "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex",
           side === "left"
-            ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
-            : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
+            ? "left-0 group-data-[collapsible=offcanvas]:-left-(--sidebar-width)"
+            : "right-0 group-data-[collapsible=offcanvas]:-right-(--sidebar-width)",
           // Adjust the padding for floating and inset variants.
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
@@ -291,7 +283,7 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
       onClick={toggleSidebar}
       title="Toggle Sidebar"
       className={cn(
-        "hover:after:bg-sidebar-border absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] sm:flex",
+        "hover:after:bg-sidebar-border absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-0.5 sm:flex",
         "in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize",
         "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize",
         "hover:group-data-[collapsible=offcanvas]:bg-sidebar group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full",
@@ -506,42 +498,23 @@ function SidebarMenuButton({
 }: React.ComponentProps<"button"> & {
   asChild?: boolean
   isActive?: boolean
-  tooltip?: string | React.ComponentProps<typeof TooltipContent>
+  /** Solo se muestra con el sidebar colapsado en desktop. */
+  tooltip?: string
 } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const Comp = asChild ? Slot : "button"
   const { isMobile, state } = useSidebar()
 
-  const button = (
+  return (
     <Comp
       data-slot="sidebar-menu-button"
       data-sidebar="menu-button"
       data-size={size}
       data-active={isActive}
+      // Expandido el label ya está visible: duplicarlo en `title` es ruido.
+      title={state === "collapsed" && !isMobile ? tooltip : undefined}
       className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
       {...props}
     />
-  )
-
-  if (!tooltip) {
-    return button
-  }
-
-  if (typeof tooltip === "string") {
-    tooltip = {
-      children: tooltip,
-    }
-  }
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent
-        side="right"
-        align="center"
-        hidden={state !== "collapsed" || isMobile}
-        {...tooltip}
-      />
-    </Tooltip>
   )
 }
 

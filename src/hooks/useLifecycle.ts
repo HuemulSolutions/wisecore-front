@@ -54,8 +54,8 @@ export const lifecycleQueryKeys = {
   all: ['lifecycle'] as const,
   stepTypes: () => [...lifecycleQueryKeys.all, 'step-types'] as const,
   accessRuleTypes: () => [...lifecycleQueryKeys.all, 'access-rule-types'] as const,
-  steps: (documentTypeId: string, stepType: string | null) =>
-    [...lifecycleQueryKeys.all, 'steps', documentTypeId, stepType] as const,
+  steps: (documentTypeId: string, stepType: string | null, executionId?: string | null) =>
+    [...lifecycleQueryKeys.all, 'steps', documentTypeId, stepType, executionId ?? null] as const,
   // Prefijo compartido por `steps(documentTypeId, stepType)` y `steps(documentTypeId, null)` —
   // invalidar por este prefijo refresca tanto el step activo como la matriz de "todos los steps".
   stepsByDocumentType: (documentTypeId: string) =>
@@ -72,6 +72,22 @@ export const lifecycleQueryKeys = {
   elaborationConfigBase: () => [...lifecycleQueryKeys.all, 'elaboration-config'] as const,
   elaborationConfig: (stepId: string) =>
     [...lifecycleQueryKeys.elaborationConfigBase(), stepId] as const,
+}
+
+/**
+ * Invalida las queries de steps ATADAS A UNA EJECUCIÓN (las que llevan
+ * `execution_id` y por lo tanto vienen filtradas por `depends_on` — ver
+ * `useAllLifecycleSteps` y "ia context/dependencias-condicionales-formularios-guide.md"
+ * §3.4). Las de configuración del tipo de activo (`executionId` ausente, el
+ * 5.º elemento de `lifecycleQueryKeys.steps` queda `null`) no dependen de las
+ * respuestas del documento y se dejan intactas — evita invalidar de más la
+ * matriz de admin (Tipos de Activo → Ciclo de vida) en cada autoguardado.
+ */
+export function invalidateExecutionLifecycleSteps(queryClient: QueryClient): Promise<void> {
+  return queryClient.invalidateQueries({
+    queryKey: [...lifecycleQueryKeys.all, 'steps'],
+    predicate: (query) => query.queryKey[4] != null,
+  })
 }
 
 export function useLifecycleStepTypes(enabled: boolean = true) {
@@ -116,10 +132,14 @@ export function useLifecycleSteps(
 
 // All steps of a document type, regardless of step type — used to build the
 // "earlier step" candidate list for the step_actor_manager access rule.
-export function useAllLifecycleSteps(documentTypeId: string | null, enabled: boolean = true) {
+export function useAllLifecycleSteps(
+  documentTypeId: string | null,
+  enabled: boolean = true,
+  executionId?: string | null
+) {
   return useQuery({
-    queryKey: lifecycleQueryKeys.steps(documentTypeId ?? '', null),
-    queryFn: () => getLifecycleSteps(documentTypeId!),
+    queryKey: lifecycleQueryKeys.steps(documentTypeId ?? '', null, executionId),
+    queryFn: () => getLifecycleSteps(documentTypeId!, undefined, executionId ?? undefined),
     enabled: enabled && !!documentTypeId,
     staleTime: 0,
     gcTime: 5 * 60 * 1000,

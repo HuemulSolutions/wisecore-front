@@ -13,8 +13,8 @@ export interface HuemulButtonProps
   iconClassName?: string;
   loading?: boolean;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  /** Texto del tooltip nativo. Alias de `title`; un `title` explícito gana. */
   tooltip?: string;
-  tooltipSide?: "top" | "right" | "bottom" | "left";
   asChild?: boolean;
   requiredAccess?: string | string[];
   requireAll?: boolean;

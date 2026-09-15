@@ -16,6 +16,8 @@ const translations = {
   tryAgain: { en: "Try Again", es: "Reintentar" },
   close: { en: "Close", es: "Cerrar" },
   edit: { en: "Edit", es: "Editar" },
+  copy: { en: "Copy", es: "Copiar" },
+  copied: { en: "Copied!", es: "¡Copiado!" },
   done: { en: "Done", es: "Listo" },
   add: { en: "Add", es: "Agregar" },
   execute: { en: "Execute", es: "Ejecutar" },

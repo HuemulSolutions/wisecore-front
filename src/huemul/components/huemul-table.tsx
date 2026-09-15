@@ -1121,7 +1121,6 @@ function HuemulTableInner<T>(
                                     size="sm"
                                     icon={loading ? Loader2 : ActionIcon}
                                     tooltip={action.label}
-                                    tooltipSide="top"
                                     onClick={() => { if (!disabled && !hasMenu) action.onClick(item) }}
                                     disabled={disabled}
                                     className={cn(

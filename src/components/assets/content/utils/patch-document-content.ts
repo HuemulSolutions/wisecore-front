@@ -1,6 +1,8 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { computeSectionStats } from '@/components/workflow/workflow-section-stats';
+import { invalidateExecutionLifecycleSteps } from '@/hooks/useLifecycle';
 import type { ContentSection } from '@/types/assets';
+import type { LifecycleStepsResponse } from '@/types/lifecycle';
 import type { FormValuesSectionPayload } from '@/types/sections/core';
 import type { ReviewStatus } from '@/types/section-execution';
 
@@ -59,6 +61,26 @@ export function applyFormValuesPatch(
   const touchedSectionTrigger = payload.some((p) =>
     p.form_fields.some((f) => f.field_id && sectionTriggerIds.has(f.field_id)),
   );
+
+  // Mismo problema que `sectionTriggerIds`, pero para `LifecycleStep.depends_on`
+  // (ver "ia context/dependencias-condicionales-formularios-guide.md" §3.4):
+  // `PATCH /form_values` tampoco recalcula qué steps de ciclo de vida aplican a
+  // esta ejecución, así que si el payload tocó un campo del que depende un step
+  // cacheado, el panel "N de M" del sheet de Completar (`useLifecycleProgress`)
+  // quedaría mostrando un grupo que el backend ya excluyó. No se evalúa
+  // `depends_on` acá — solo se decide cuándo volver a pedirle al backend la
+  // lista de steps aplicables.
+  const stepTriggerIds = new Set<string>();
+  for (const [, data] of queryClient.getQueriesData<LifecycleStepsResponse>({ queryKey: ['lifecycle', 'steps'] })) {
+    for (const step of data?.data?.steps ?? []) {
+      for (const cond of step.depends_on ?? []) stepTriggerIds.add(cond.field_id);
+    }
+  }
+  const touchedStepTrigger = payload.some((p) =>
+    p.form_fields.some((f) => f.field_id && stepTriggerIds.has(f.field_id)),
+  );
+  if (touchedStepTrigger) invalidateExecutionLifecycleSteps(queryClient);
+
   if (hasUnknownSection || touchedSectionTrigger) {
     queryClient.invalidateQueries(queryKey);
     return;

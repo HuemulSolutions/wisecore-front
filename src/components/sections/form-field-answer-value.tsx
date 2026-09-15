@@ -1,7 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Calculator, FileX } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { HuemulFilePreview } from "@/huemul/components/huemul-file-preview";
 import { isMediaToken } from "@/lib/plate-media-utils";
@@ -44,15 +43,10 @@ interface FormFieldAnswerValueProps {
 // AssetFormSectionReader, WorkflowSectionsSummary y la propia vista de edición).
 function CalculatedBadge({ t }: { t: ReturnType<typeof useTranslation>["t"] }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Badge variant="secondary" className="gap-1 shrink-0 font-normal">
-          <Calculator className="size-3" />
-          {t("form.fill.calculatedBadge")}
-        </Badge>
-      </TooltipTrigger>
-      <TooltipContent>{t("form.fill.calculatedTooltip")}</TooltipContent>
-    </Tooltip>
+    <Badge variant="secondary" title={t("form.fill.calculatedTooltip")} className="gap-1 shrink-0 font-normal">
+      <Calculator className="size-3" />
+      {t("form.fill.calculatedBadge")}
+    </Badge>
   );
 }
 

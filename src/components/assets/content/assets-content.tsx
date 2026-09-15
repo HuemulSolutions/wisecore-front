@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell, Sparkles, MessageSquareText, BookOpen, Maximize2, Minimize2, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell, Sparkles, MessageSquareText, BookOpen, Maximize, Minimize, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { SectionCollapseContext, type CollapseAllSignal } from "@/contexts/section-collapse-context";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
@@ -13,6 +13,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import type { ImperativePanelHandle } from "react-resizable-panels";
 import { createSectionExecution, type AddSectionExecutionRequest } from "@/services/section_execution";
 import { OtherVersionExecutionBanner } from "@/components/execution/other-version-execution-banner";
 import { ExecutionStatusBanner } from "@/components/execution/execution-status-banner";
@@ -23,11 +24,13 @@ import { AssetVersionCompareSheet } from "@/components/assets/content/asset-vers
 import { AssetsInfoSheet } from "@/components/assets/content/assets-info-sheet";
 import AssetLifecycleSheet from "@/components/assets/dialogs/assets-lifecycle-sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useElementWidth } from "@/hooks/useElementWidth";
 import { useAuth } from "@/contexts/auth-context";
 import { useRecentAssets } from "@/hooks/useRecentAssets";
 import { DocumentAccessControl } from "@/components/assets/content/assets-access-control";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulExpandableText } from "@/huemul/components/huemul-expandable-text";
+import { HuemulTruncatedText } from "@/huemul/components/huemul-truncated-text";
 import { AssetsNotificationsSheet } from "@/components/assets/content/assets-notifications-sheet";
 import { AssetsDiscussionsSheet } from "@/components/assets/content/assets-discussions-sheet";
 import { DiscussionFocusProvider, useDiscussionFocus } from "@/contexts/discussion-focus-context";
@@ -35,7 +38,8 @@ import { useDiscussions } from "@/hooks/useDiscussions";
 import { LifecycleHistorySheet } from "@/components/assets/content/lifecycle-history-sheet";
 import { AssetDiagramsSheet } from "@/components/assets/content/asset-diagrams-sheet";
 import { MediaListSheet } from "@/components/ui/media-list-sheet";
-import { AssetsRelatedDocuments } from "@/components/assets/content/assets-related-documents";
+import type { MediaScope, MediaScopeExecutionOption } from "@/types/media";
+import { AssetsDetailPanel } from "@/components/assets/content/detail-panel/assets-detail-panel";
 import { AssetsRelatedDocumentsBlock } from "@/components/assets/content/assets-related-documents-block";
 
 import {
@@ -81,7 +85,6 @@ import { DeleteCustomFieldDialog } from "@/components/assets/dialogs/assets-dele
 import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import Markdown from "@/components/ui/markdown";
-import { TableOfContents } from "@/components/assets/content/assets-table-of-contents";
 import { toast } from "sonner";
 import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
@@ -92,7 +95,6 @@ import { CustomWordExportDialog } from "@/components/assets/dialogs/assets-expor
 import { useNavKnowledgeActions } from "@/contexts/nav-knowledge-context";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { useAssetContentPermissions } from '@/hooks/useDocumentAccess';
 import { isExternalElaborationLocked, EXTERNAL_ELABORATION_POLL_MS } from '@/lib/lifecycle-access';
@@ -102,11 +104,11 @@ import {
   useInvalidateDocumentSectionAccess,
 } from '@/hooks/useDocumentSectionAccess';
 import { usePageAccess } from '@/hooks/usePageAccess';
-import type { ContentSection, LibraryContentProps, LifecyclePermissions, LifecycleStatus } from '@/types/assets';
+import { invalidateExecutionLifecycleSteps } from '@/hooks/useLifecycle';
+import type { AssetDetailPanelTab, ContentSection, LibraryContentProps, LifecyclePermissions, LifecycleStatus } from '@/types/assets';
 import type { FormValuesSectionPayload } from '@/types/sections/core';
 import { applyFormValuesPatch } from '@/components/assets/content/utils/patch-document-content';
 import { isSectionApplicable } from '@/components/workflow/workflow-section-stats';
-import { CustomFieldsList } from './assets-custom-fields-list';
 import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 import { useGlobalPanel } from '@/contexts/global-panel-context';
 
@@ -127,7 +129,8 @@ import { CUSTOM_FIELD_DOCUMENTS_PAGE_SIZE, customFieldDocumentsQueryKeys } from 
 
 // Tamaño de página del listado de campos personalizados en el panel lateral (angosto).
 // Compartido con la validación preventiva del lifecycle (useCustomFieldDocuments) —
-// misma query key, un solo fetch.
+// misma query key, un solo fetch. También es el tamaño del paginado CLIENTE del tab
+// "Campos" del panel de detalle (mismo número, un solo fetch cubre ambos usos).
 const CUSTOM_FIELDS_PAGE_SIZE = CUSTOM_FIELD_DOCUMENTS_PAGE_SIZE;
 
 /** Recursively extract all text from a Plate JSON node. */
@@ -191,8 +194,12 @@ export function AssetContent({
   const queryClient = useQueryClient();
   const navigate = useOrgNavigate();
   const isMobile = useIsMobile();
+  // Ancho real del header desktop (no del viewport): se angosta con el panel de Wisy o el
+  // TOC abiertos aunque la ventana no cambie — ahí el ViewModeToggle pasa a solo-icono.
+  const { ref: desktopHeaderRef, width: desktopHeaderWidth } = useElementWidth<HTMLDivElement>();
+  const isDesktopHeaderNarrow = desktopHeaderWidth > 0 && desktopHeaderWidth < 640;
   const { selectedOrganizationId } = useOrganization();
-  const { canCreate, canList, canAccessTemplates, canAccessAssets, canAccessDiagrams, isOrgAdmin, hasPermission } = useUserPermissions();
+  const { canCreate, canList, canUpdate, canDelete, canAccessTemplates, canAccessAssets, canAccessDiagrams, isOrgAdmin, hasPermission } = useUserPermissions();
   const { can } = usePageAccess('asset');
   const { can: canMedia } = usePageAccess('media');
   const { handleCreateAsset: openCreateAssetDialog } = useNavKnowledgeActions();
@@ -547,9 +554,14 @@ export function AssetContent({
   const [isLifecycleHistorySheetOpen, setIsLifecycleHistorySheetOpen] = useState(false);
   const [isDiagramsSheetOpen, setIsDiagramsSheetOpen] = useState(false);
   const [isMediaSheetOpen, setIsMediaSheetOpen] = useState(false);
+  // Alcance con el que se abrió el sheet desde el panel de detalle (documento completo
+  // o una versión puntual) — null cuando se abrió desde el header, que usa la versión actual.
+  const [mediaSheetScope, setMediaSheetScope] = useState<MediaScope | null>(null);
 
-  // Sidebar and sheets
-  const [activeTab, setActiveTab] = useState<'toc' | 'custom-fields'>('toc');
+  // Sidebar and sheets — rail Índice/Campos/Archivos/Vínculos del panel de detalle.
+  const [activeTab, setActiveTab] = useState<AssetDetailPanelTab>('index');
+  const [isDetailPanelCollapsed, setIsDetailPanelCollapsed] = useState(false);
+  const detailPanelRef = useRef<ImperativePanelHandle>(null);
   // Los custom fields son un recurso propio (custom_fields), no del asset: el tab
   // y su query exigen el permiso de listarlos.
   const canListCustomFields = can('listCustomFields');
@@ -563,8 +575,9 @@ export function AssetContent({
   const canListExecutionRelationships = can('listExecutionRelationships');
   // El tab activo no puede quedar apuntando a un tab que el usuario no puede ver.
   useEffect(() => {
-    if (activeTab === 'custom-fields' && !canListCustomFields) setActiveTab('toc');
-  }, [activeTab, canListCustomFields]);
+    if (activeTab === 'fields' && !canListCustomFields) setActiveTab('index');
+    if (activeTab === 'links' && !canListExecutionRelationships) setActiveTab('index');
+  }, [activeTab, canListCustomFields, canListExecutionRelationships]);
   const [isTocSidebarOpen, setIsTocSidebarOpen] = useState(true);
   const [isSectionSheetOpen, setIsSectionSheetOpen] = useState(false);
   const [isDependenciesSheetOpen, setIsDependenciesSheetOpen] = useState(false);
@@ -823,6 +836,9 @@ export function AssetContent({
         queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] }),
         queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] }),
         queryClient.invalidateQueries({ queryKey: ['document-section-access', selectedFile?.id] }),
+        // Steps de ciclo de vida filtrados por `depends_on` de esta ejecución
+        // (panel "N de M" del sheet de Completar) — ver patch-document-content.ts.
+        invalidateExecutionLifecycleSteps(queryClient),
       ]);
     } finally {
       setIsRefreshingContent(false);
@@ -1141,15 +1157,18 @@ export function AssetContent({
     staleTime: 300000, // Cache for 5 minutes
   });
 
-  // Fetch custom fields for the document
+  // Fetch custom fields for the document. Página y tamaño fijos en 1/100 (no
+  // `customFieldsPage`, que ahora es solo el paginado CLIENTE de 4 por página del
+  // panel de detalle) — así la query key coincide con la de `useCustomFieldDocuments`
+  // (validación preventiva del lifecycle) y comparten un solo fetch.
   const { data: customFieldsData, isLoading: isLoadingCustomFields } = useQuery({
-    queryKey: customFieldDocumentsQueryKeys.byDocument(selectedFile?.id, customFieldsPage, CUSTOM_FIELDS_PAGE_SIZE),
+    queryKey: customFieldDocumentsQueryKeys.byDocument(selectedFile?.id, 1, CUSTOM_FIELDS_PAGE_SIZE),
     queryFn: () => getCustomFieldDocumentsByDocument({
       document_id: selectedFile!.id,
-      page: customFieldsPage,
+      page: 1,
       page_size: CUSTOM_FIELDS_PAGE_SIZE
     }),
-    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && activeTab === 'custom-fields' && canListCustomFields,
+    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && canListCustomFields,
     staleTime: 60000, // Cache for 1 minute
     placeholderData: (prev) => prev,
   });
@@ -1459,8 +1478,11 @@ export function AssetContent({
     canListCustomFields,
     onOpenCustomFields: canListCustomFields
       ? () => {
-          setActiveTab('custom-fields');
+          setActiveTab('fields');
           setIsTocSidebarOpen(true);
+          // El panel se remonta sin colapsar (defaultSize) — este flag no persiste
+          // solo, hay que resincronizarlo para que no quede mostrando el rail.
+          setIsDetailPanelCollapsed(false);
         }
       : undefined,
     canReadElaborationConfig,
@@ -1701,24 +1723,32 @@ export function AssetContent({
     // 1. We have document content with an execution_id OR an importing execution
     // 2. selectedExecutionId is currently null (no manual selection yet)
     // 3. We haven't already initialized for this document
+    // isFetchingContent: espera a que termine un refetch en curso antes de sembrar.
+    // En un remonte con caché stale (refetchOnMount dispara un refetch en background),
+    // este efecto corre primero con el dato viejo — sin este guard, sembraba esa key
+    // como si fuera fresca y el refetch de la key sin ejecución nunca la actualizaba.
     if (
       selectedFile?.type === 'document' &&
       resolvedExecutionId &&
       !selectedExecutionId &&
+      !isFetchingContent &&
       hasInitializedExecutionRef.current !== selectedFile.id
     ) {
       logger.log('🔄 Syncing selectedExecutionId with loaded execution:', resolvedExecutionId);
 
-      // Copy the already-loaded data to the new queryKey to prevent duplicate API call
+      // Copy the already-loaded data to the new queryKey to prevent duplicate API call.
+      // updatedAt preserva el timestamp real del fetch (contentUpdatedAt) en vez de
+      // "ahora" — si este dato ya estaba stale, la key sembrada hereda esa staleness.
       queryClient.setQueryData(
         ['document-content', selectedFile.id, resolvedExecutionId],
-        documentContent
+        documentContent,
+        { updatedAt: contentUpdatedAt }
       );
 
       setSelectedExecutionId(resolvedExecutionId);
       hasInitializedExecutionRef.current = selectedFile.id;
     }
-  }, [selectedFile?.id, selectedFile?.type, documentContent?.execution_id, documentContent?.executions, selectedExecutionId, queryClient]);
+  }, [selectedFile?.id, selectedFile?.type, documentContent?.execution_id, documentContent?.executions, selectedExecutionId, isFetchingContent, contentUpdatedAt, queryClient]);
   
   // Removed invalidation useEffect - React Query automatically handles query key changes
 
@@ -2365,36 +2395,14 @@ export function AssetContent({
               </div>
             ) : (
             <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 animate-in fade-in duration-300">
-              {/* Mode Toggle - Mobile */}
+              {/* Mode Toggle - Mobile: siempre compact (solo icono), poco espacio disponible */}
               {canSwitchToEditorMode && (
-                <div className="flex items-center bg-gray-100 p-0.5 rounded-lg gap-0.5">
-                  <HuemulButton
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => { preserveScrollPosition(); setIsViewMode(true); }}
-                    icon={Eye}
-                    iconClassName="h-3.5 w-3.5"
-                    className={`h-7 w-7 p-0 rounded-md transition-all ${
-                      isViewMode
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                    tooltip={t('content.readerMode')}
-                  />
-                  <HuemulButton
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => { preserveScrollPosition(); setIsViewMode(false); }}
-                    icon={Pencil}
-                    iconClassName="h-3.5 w-3.5"
-                    className={`h-7 w-7 p-0 rounded-md transition-all ${
-                      !isViewMode
-                        ? 'bg-white text-primary shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                    tooltip={t('content.editorMode')}
-                  />
-                </div>
+                <ViewModeToggle
+                  isViewMode={isViewMode}
+                  onSwitchToReader={() => { preserveScrollPosition(); setIsViewMode(true); }}
+                  onSwitchToEditor={() => { preserveScrollPosition(); setIsViewMode(false); }}
+                  compact
+                />
               )}
 
               {/* Mobile action: create new version. El propio HuemulButton hace el
@@ -2640,7 +2648,7 @@ export function AssetContent({
         
         {/* Header Section */}
         {!isMobile && !isContentError && (
-        <div className="bg-white border-b border-gray-200 shadow-sm py-3 px-5 md:px-6 z-(--z-page-header) shrink-0" data-desktop-header>
+        <div ref={desktopHeaderRef} className="bg-white border-b border-gray-200 shadow-sm py-3 px-5 md:px-6 z-(--z-page-header) shrink-0" data-desktop-header>
           <div className="space-y-2.5">
             {/* Title and Type Section */}
             {!isMobile && (
@@ -2670,16 +2678,11 @@ export function AssetContent({
                   <div className="flex flex-col gap-1.5 flex-1 min-w-0 animate-in fade-in duration-300">
                     <div className="flex items-center justify-between gap-2.5">
                       <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
-                        <TooltipProvider delayDuration={300}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <h1 className="text-lg font-semibold text-gray-900 truncate cursor-default">{documentContent?.document_name || selectedFile.name}</h1>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-md">
-                              <p>{documentContent?.document_name || selectedFile.name}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        <HuemulTruncatedText
+                          as="h1"
+                          text={documentContent?.document_name || selectedFile.name}
+                          className="text-lg font-semibold text-gray-900 cursor-default"
+                        />
                         <HuemulButton
                           requiredAccess="edit"
                           checkGlobalPermissions={true}
@@ -2691,13 +2694,23 @@ export function AssetContent({
                           icon={Pencil}
                           iconClassName="h-3.5 w-3.5"
                           tooltip={t('content.editDocument')}
-                          tooltipSide="right"
                           className="h-7 w-7 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
                         />
 
                       </div>
                       {/* Notifications/menu + mode toggle — always in the same position for muscle memory. Version selector lives in the metadata row below. */}
                       <div className="flex items-center gap-1.5 shrink-0">
+                        {canSwitchToEditorMode && (
+                          <ViewModeToggle
+                            isViewMode={isViewMode}
+                            onSwitchToReader={() => { preserveScrollPosition(); setIsViewMode(true); }}
+                            onSwitchToEditor={() => { preserveScrollPosition(); setIsViewMode(false); }}
+                            compact={isDesktopHeaderNarrow}
+                          />
+                        )}
+                        {canSwitchToEditorMode && (canListDiscussions || canListNotifications || !isViewOnly || !!(onOpenFullscreen || onExitFullscreen)) && (
+                          <div className="h-5 w-px bg-gray-200 mx-0.5" aria-hidden="true" />
+                        )}
                         {canListDiscussions && (
                           <div className="relative">
                             <HuemulButton
@@ -2765,7 +2778,7 @@ export function AssetContent({
                             canAccessDiagrams={canAccessDiagrams}
                             onOpenDiagrams={() => setIsDiagramsSheetOpen(true)}
                             canAccessMedia={canMedia('listMedia')}
-                            onOpenMedia={() => setIsMediaSheetOpen(true)}
+                            onOpenMedia={() => { setMediaSheetScope(null); setIsMediaSheetOpen(true); }}
                             onOpenPermissions={() => setIsPermissionsSheetOpen(true)}
                             onOpenSections={() => setIsSectionSheetOpen(true)}
                             onOpenDependencies={() => setIsDependenciesSheetOpen(true)}
@@ -2784,24 +2797,15 @@ export function AssetContent({
                             onRerunExternalPublish={() => lifecycle.runExternalPublishMutation.mutate()}
                           />
                         )}
-                        {canSwitchToEditorMode && (canListDiscussions || canListNotifications || !isViewOnly) && (
-                          <div className="h-5 w-px bg-gray-200 mx-0.5" aria-hidden="true" />
-                        )}
-                        {canSwitchToEditorMode && (
-                          <ViewModeToggle
-                            isViewMode={isViewMode}
-                            onSwitchToReader={() => { preserveScrollPosition(); setIsViewMode(true); }}
-                            onSwitchToEditor={() => { preserveScrollPosition(); setIsViewMode(false); }}
-                          />
-                        )}
-                        {/* Botón de pantalla completa, siempre visible (no gateado por
-                            isViewOnly): es el único camino de entrada cuando el dropdown
-                            de arriba no se renderiza — ver ia context/fullscreen-share-route-guide.md */}
-                        {(onOpenFullscreen || onExitFullscreen) && (
+                        {/* Botón de pantalla completa: en modo Editor vive en el toolbar de
+                            TOC (RIGHT GROUP), acá sólo se muestra en modo Lector — es el único
+                            camino de entrada cuando el dropdown de arriba no se renderiza
+                            (isViewOnly) — ver ia context/fullscreen-share-route-guide.md */}
+                        {deferredViewChrome.isViewMode && (onOpenFullscreen || onExitFullscreen) && (
                           <HuemulButton
                             size="sm"
                             variant="ghost"
-                            icon={isFullscreen ? Minimize2 : Maximize2}
+                            icon={isFullscreen ? Minimize : Maximize}
                             iconClassName="h-4 w-4"
                             className="h-7 w-7 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
                             tooltip={isFullscreen ? t('content.exitFullscreen') : t('content.openFullscreen')}
@@ -2816,7 +2820,7 @@ export function AssetContent({
                       {/* Left: date + version selector */}
                       <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600 min-w-0">
                         {selectedExecutionInfo && (
-                          <span className="inline-flex items-center gap-1.5 shrink-0">
+                          <span className="inline-flex h-7 items-center gap-1.5 shrink-0">
                             <Clock className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                             {selectedExecutionInfo.formattedDate}
                           </span>
@@ -2852,7 +2856,7 @@ export function AssetContent({
                           que el header móvil (bg-gray-50) y que ViewModeToggle / el selector de versiones. */}
                       {documentContent?.lifecycle_status && (
                         <div className="flex items-center gap-2 shrink-0 bg-gray-50 px-2 py-1 rounded-lg">
-                          <HuemulLifecycleStageBadge status={documentContent.lifecycle_status} />
+                          <HuemulLifecycleStageBadge status={documentContent.lifecycle_status} className="h-7" />
                           <HuemulLifecycleActions controller={lifecycle} variant="row" showRunElaboration />
                         </div>
                       )}
@@ -2868,13 +2872,13 @@ export function AssetContent({
                 lista de secciones — ver comentario junto a la declaración de `deferredViewChrome`. */}
             {!deferredViewChrome.isViewMode && (isLoadingContent && !documentContent ? (
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
+                <div className="flex items-center gap-1.5">
                   <Skeleton className="h-7 w-10 rounded-md" />
                   <Skeleton className="h-7 w-20 rounded-md" />
                   <Skeleton className="h-7 w-24 rounded-md" />
                   <Skeleton className="h-7 w-18 rounded-md" />
                 </div>
-                <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
+                <div className="flex items-center gap-1.5">
                   <Skeleton className="h-7 w-26.5 rounded-md" />
                   <Skeleton className="h-7 w-8 rounded-md" />
                   <Skeleton className="h-7 w-8 rounded-md" />
@@ -2885,7 +2889,7 @@ export function AssetContent({
             ) : (
             <div className="flex items-center justify-between gap-2 animate-in fade-in duration-300">
               {/* LEFT GROUP - Sections, Dependencies, Context */}
-              <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0">
                 {/* Sections sheet */}
                 {frontendPermissions.canAccessSectionSheet && (
                   <SectionSheet
@@ -2929,7 +2933,7 @@ export function AssetContent({
               </div>
 
               {/* RIGHT GROUP - Refresh, TOC Toggle */}
-              <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0">
                 <HuemulButton
                   size="sm"
                   variant="ghost"
@@ -2970,6 +2974,19 @@ export function AssetContent({
                         : 'text-gray-600 hover:bg-gray-200 hover:text-gray-800'
                     }`}
                     tooltip={isTocSidebarOpen ? t('content.hideSidebar') : t('content.showSidebar')}
+                  />
+                )}
+
+                {/* Fullscreen toggle — en modo Lector vive en el header, acá sólo en modo Editor */}
+                {(onOpenFullscreen || onExitFullscreen) && (
+                  <HuemulButton
+                    size="sm"
+                    variant="ghost"
+                    onClick={isFullscreen ? onExitFullscreen : onOpenFullscreen}
+                    icon={isFullscreen ? Minimize : Maximize}
+                    iconClassName="h-3.5 w-3.5"
+                    className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors hover:cursor-pointer"
+                    tooltip={isFullscreen ? t('content.exitFullscreen') : t('content.openFullscreen')}
                   />
                 )}
 
@@ -3592,84 +3609,66 @@ export function AssetContent({
         </div>
       </ResizablePanel>
 
-      {/* Table of Contents Sidebar - only show for documents with content and not during full/full-single executions */}
+      {/* Panel de detalle del activo (rail Índice/Campos/Archivos/Vínculos) - solo para
+          documentos con contenido y no durante ejecuciones full/full-single */}
       {selectedFile.type === 'document' && documentContent?.content &&
        isTocSidebarOpen &&
        (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
         <>
           <ResizableHandle/>
-          <ResizablePanel defaultSize={20}>
-            <div className="flex flex-col h-full min-h-0 bg-card overflow-hidden">
-                {/* Header con tabs — banda gris a sangre */}
-                <div className="shrink-0 bg-muted/50 border-b border-border px-3 py-2.5">
-                  <div className={cn("grid w-full gap-1", canListCustomFields ? "grid-cols-2" : "grid-cols-1")}>
-                    <button
-                      onClick={() => setActiveTab('toc')}
-                      className={cn(
-                        "flex items-center justify-center text-xs py-1.5 px-2 rounded-md transition-all hover:cursor-pointer",
-                        activeTab === 'toc'
-                          ? "bg-background border border-border shadow-sm text-foreground font-medium"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <span className="line-clamp-2 text-center leading-tight">{t('content.contentTab')}</span>
-                    </button>
-                    {canListCustomFields && (
-                      <button
-                        onClick={() => setActiveTab('custom-fields')}
-                        className={cn(
-                          "flex items-center justify-center text-xs py-1.5 px-2 rounded-md transition-all hover:cursor-pointer",
-                          activeTab === 'custom-fields'
-                            ? "bg-background border border-border shadow-sm text-foreground font-medium"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        <span className="line-clamp-2 text-center leading-tight">{t('content.customFieldsTab')}</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-                {activeTab === 'toc' || !canListCustomFields ? (
-                  <>
-                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2 py-2">
-                      <TableOfContents items={tocItems} />
-                    </div>
-                    {canListExecutionRelationships && (
-                      <AssetsRelatedDocuments
-                        organizationId={selectedOrganizationId}
-                        executionId={selectedExecutionId || documentContent?.execution_id}
-                        currentDocumentId={selectedFile?.id}
-                        versionLabel={getExecutionDisplayLabel(selectedExecutionInfo)}
-                        canOpenDiagrams={can('openDiagramsCanvas')}
-                        canListAssetTypes={can('listAssetTypes')}
-                        canDeleteRelationship={can('deleteExecutionRelationship')}
-                      />
-                    )}
-                  </>
-                ) : (
-                  <div className="flex-1 min-h-0 overflow-hidden">
-                    <CustomFieldsList
-                      customFields={customFieldsData?.data || []}
-                      isLoading={isLoadingCustomFields}
-                      onAdd={handleAddCustomFieldDocument}
-                      onEdit={handleEditCustomFieldDocument}
-                      onEditContent={handleEditCustomFieldDocumentContent}
-                      onDelete={handleDeleteCustomFieldDocument}
-                      onRefresh={handleRefreshCustomFields}
-                      uploadingImageFieldId={uploadingImageFieldId}
-                      isRefreshing={isRefreshingCustomFields}
-                      canCreate={frontendPermissions.canEditSections}
-                      canUpdate={frontendPermissions.canEditSections}
-                      canDelete={frontendPermissions.canEditSections}
-                      page={customFieldsPage}
-                      pageSize={CUSTOM_FIELDS_PAGE_SIZE}
-                      totalItems={customFieldsData?.total}
-                      hasNext={customFieldsData?.has_next}
-                      onPageChange={setCustomFieldsPage}
-                    />
-                  </div>
-                )}
-              </div>
+          <ResizablePanel
+            ref={detailPanelRef}
+            defaultSize={22}
+            minSize={16}
+            collapsible
+            collapsedSize={4}
+            onCollapse={() => setIsDetailPanelCollapsed(true)}
+            onExpand={() => setIsDetailPanelCollapsed(false)}
+          >
+            <AssetsDetailPanel
+              organizationId={selectedOrganizationId}
+              documentId={selectedFile.id}
+              executionId={selectedExecutionId || documentContent?.execution_id}
+              versionLabel={getExecutionDisplayLabel(selectedExecutionInfo)}
+              activeTab={activeTab}
+              onActiveTabChange={setActiveTab}
+              isCollapsed={isDetailPanelCollapsed}
+              onToggleCollapse={() => {
+                const panel = detailPanelRef.current;
+                if (!panel) return;
+                if (isDetailPanelCollapsed) panel.expand(); else panel.collapse();
+              }}
+              canListCustomFields={canListCustomFields}
+              canCreateFields={canCreateCustomField && frontendPermissions.canEditSections}
+              canUpdateFields={canUpdate('custom_fields') && frontendPermissions.canEditSections}
+              canDeleteFields={canDelete('custom_fields') && frontendPermissions.canEditSections}
+              canCreateMedia={canMedia('createMedia')}
+              canUpdateMedia={canMedia('updateMedia')}
+              canDeleteMedia={canMedia('deleteMedia')}
+              canListExecutionRelationships={canListExecutionRelationships}
+              canOpenDiagrams={can('openDiagramsCanvas')}
+              canListAssetTypes={can('listAssetTypes')}
+              canDeleteRelationship={can('deleteExecutionRelationship')}
+              tocItems={tocItems}
+              canAddSection={frontendPermissions.canEditSections}
+              onAddSection={handleAddSection}
+              onRefreshIndex={handleRefreshContent}
+              customFields={customFieldsData?.data || []}
+              isLoadingCustomFields={isLoadingCustomFields}
+              isRefreshingCustomFields={isRefreshingCustomFields}
+              customFieldsPage={customFieldsPage}
+              customFieldsPageSize={CUSTOM_FIELDS_PAGE_SIZE}
+              uploadingImageFieldId={uploadingImageFieldId}
+              onCustomFieldsPageChange={setCustomFieldsPage}
+              onAddCustomField={handleAddCustomFieldDocument}
+              onEditCustomField={handleEditCustomFieldDocument}
+              onEditCustomFieldContent={handleEditCustomFieldDocumentContent}
+              onDeleteCustomField={handleDeleteCustomFieldDocument}
+              onRefreshCustomFields={handleRefreshCustomFields}
+              executions={allExecutions ?? []}
+              onOpenMediaSheet={(scope) => { setMediaSheetScope(scope ?? null); setIsMediaSheetOpen(true); }}
+              className="h-full rounded-none border-0 shadow-none"
+            />
           </ResizablePanel>
         </>
       )}
@@ -3996,10 +3995,17 @@ export function AssetContent({
       {/* Media Sheet — toda la media subida al documento o a la versión seleccionada */}
       {(() => {
         const mediaSheetExecutionId = selectedExecutionId || documentContent?.execution_id || '';
-        const mediaSheetLevel: 'document' | 'execution' = mediaSheetExecutionId ? 'execution' : 'document';
-        const mediaSheetParentId = mediaSheetExecutionId || (selectedFile?.id ?? '');
-        const mediaSheetParentLabel = mediaSheetExecutionId
-          ? getExecutionCompactLabel(selectedExecutionInfo)
+        const defaultLevel: 'document' | 'execution' = mediaSheetExecutionId ? 'execution' : 'document';
+        const defaultParentId = mediaSheetExecutionId || (selectedFile?.id ?? '');
+        // Si el sheet se abrió desde el selector de alcance del panel de detalle, respeta esa
+        // versión en vez de la que está abierta en el editor.
+        const mediaSheetLevel = mediaSheetScope?.level ?? defaultLevel;
+        const mediaSheetParentId = mediaSheetScope?.parentId ?? defaultParentId;
+        const mediaSheetExecutionInfo = mediaSheetScope
+          ? allExecutions?.find((execution: MediaScopeExecutionOption) => execution.id === mediaSheetScope.parentId)
+          : selectedExecutionInfo;
+        const mediaSheetParentLabel = mediaSheetLevel === 'execution'
+          ? getExecutionCompactLabel(mediaSheetExecutionInfo)
           : (documentContent?.document_name || selectedFile?.name);
         return (
           <MediaListSheet
