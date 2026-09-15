@@ -2688,6 +2688,17 @@ export function AssetContent({
                       </div>
                       {/* Notifications/menu + mode toggle — always in the same position for muscle memory. Version selector lives in the metadata row below. */}
                       <div className="flex items-center gap-1.5 shrink-0">
+                        {canSwitchToEditorMode && (
+                          <ViewModeToggle
+                            isViewMode={isViewMode}
+                            onSwitchToReader={() => { preserveScrollPosition(); setIsViewMode(true); }}
+                            onSwitchToEditor={() => { preserveScrollPosition(); setIsViewMode(false); }}
+                            compact={isDesktopHeaderNarrow}
+                          />
+                        )}
+                        {canSwitchToEditorMode && (canListDiscussions || canListNotifications || !isViewOnly || !!(onOpenFullscreen || onExitFullscreen)) && (
+                          <div className="h-5 w-px bg-gray-200 mx-0.5" aria-hidden="true" />
+                        )}
                         {canListDiscussions && (
                           <div className="relative">
                             <HuemulButton
@@ -2772,17 +2783,6 @@ export function AssetContent({
                             onDeleteDocument={() => openDeleteDialog('document')}
                             isRerunningExternalPublish={lifecycle.runExternalPublishMutation.isPending}
                             onRerunExternalPublish={() => lifecycle.runExternalPublishMutation.mutate()}
-                          />
-                        )}
-                        {canSwitchToEditorMode && (canListDiscussions || canListNotifications || !isViewOnly) && (
-                          <div className="h-5 w-px bg-gray-200 mx-0.5" aria-hidden="true" />
-                        )}
-                        {canSwitchToEditorMode && (
-                          <ViewModeToggle
-                            isViewMode={isViewMode}
-                            onSwitchToReader={() => { preserveScrollPosition(); setIsViewMode(true); }}
-                            onSwitchToEditor={() => { preserveScrollPosition(); setIsViewMode(false); }}
-                            compact={isDesktopHeaderNarrow}
                           />
                         )}
                         {/* Botón de pantalla completa, siempre visible (no gateado por
