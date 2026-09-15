@@ -9,18 +9,18 @@ o elegir una carpeta destino. No aplica a jerarquías de otra naturaleza
 
 ## 0. Superficies existentes (inventario)
 
-| Superficie | Componente | Rol |
-|---|---|---|
-| Sidebar de `/asset` | `NavKnowledgeContent` (`src/components/layout/nav-knowledge.tsx`) | Navegación, es la referencia |
-| Picker genérico de assets | `HuemulAssetTreePickerDialog`/`Field` (`src/huemul/components/huemul-asset-tree-picker.tsx`) | Elegir asset y/o versión — modos `document`/`execution`/`document-with-version` |
-| ↳ Filtro de media | `src/hooks/useMediaFilters.tsx` | Usa el picker de arriba |
-| ↳ Subida de media | `src/huemul/components/huemul-media-upload-sheet.tsx` | Ídem |
-| ↳ Guardar como diagrama | `src/components/document-type-relationships/save-as-diagram-sheet.tsx` | Ídem, modo `execution` |
-| ↳ Panel de dependencias | `src/components/dependency/dependency-panel.tsx` | `HuemulAssetTreePickerDialog` directo |
-| ↳ Dependencias de plantillas | `src/components/templates/templates-dependencies-tab.tsx` | Ídem |
-| ↳ Asset de referencia de sección | `src/components/sections/section-reference-block.tsx` | Ídem, `container="sheet"` |
-| Diálogo de suscripciones | `src/components/subscriptions/subscriptions-create-dialog.tsx` | `HuemulFileTree` directo |
-| Clonar a nuevo documento | `src/components/assets/dialogs/assets-clone-to-new-document-dialog.tsx` | `HuemulFileTree`, solo carpetas |
+| Superficie | Componente | Rol | Acciones |
+|---|---|---|---|
+| Sidebar de `/asset` | `NavKnowledgeContent` (`src/components/layout/nav-knowledge.tsx`) | Navegación, es la referencia | 12 `menuActions` propias + drag&drop |
+| Picker genérico de assets | `HuemulAssetTreePickerDialog`/`Field` (`src/huemul/components/huemul-asset-tree-picker.tsx`) | Elegir asset y/o versión — modos `document`/`execution`/`document-with-version` | — |
+| ↳ Filtro de media | `src/hooks/useMediaFilters.tsx` | Usa el picker de arriba | — |
+| ↳ Subida de media | `src/huemul/components/huemul-media-upload-sheet.tsx` | Ídem | — |
+| ↳ Guardar como diagrama | `src/components/document-type-relationships/save-as-diagram-sheet.tsx` | Ídem, modo `execution` | — |
+| ↳ Panel de dependencias | `src/components/dependency/dependency-panel.tsx` | `HuemulAssetTreePickerDialog` directo | — |
+| ↳ Dependencias de plantillas | `src/components/templates/templates-dependencies-tab.tsx` | Ídem | — |
+| ↳ Asset de referencia de sección | `src/components/sections/section-reference-block.tsx` | Ídem, `container="sheet"` | — |
+| Diálogo de suscripciones | `src/components/subscriptions/subscriptions-create-dialog.tsx` | `HuemulFileTree` directo | — |
+| Clonar en nuevo activo | `src/components/assets/dialogs/assets-clone-to-new-document-sheet.tsx` | `HuemulFileTree`, solo carpetas | Crear carpeta (`useLibraryFolderActions`, §7) |
 
 **Fuera de alcance, a propósito:**
 - **`templates-sidebar.tsx`**: `templateToNode` produce una lista **plana** de
@@ -186,6 +186,72 @@ localStorage simple, `wisecore:mention-trail:<orgId>`). No es una carpeta
 expandida, así que no reusa nada de `useTreeExpansionStorage` salvo el switch
 "recordar" para el gate.
 
+## 7. Acciones contextuales — `toolbarActions`, `menuActions`, `useLibraryFolderActions`
+
+El árbol no asume ninguna acción: cada superficie declara las que su contexto
+justifica. Dos superficies distintas, no intercambiables:
+
+| Prop | Dónde se ve | Para qué |
+|---|---|---|
+| `toolbarActions` | Franja de botones ARRIBA del árbol, fuera de la caja con borde y del overlay de loading, compartiendo fila con `showRefreshButton` | Acciones de la **superficie**: "Nueva carpeta" en un picker de carpeta destino |
+| `menuActions` | Menú ⋮ de cada fila (hover, o siempre con `alwaysShowMenuActions`) | Acciones sobre un **nodo**: "Nueva subcarpeta", renombrar, eliminar |
+
+`toolbarActions` es `HuemulTreeToolbarAction[]` (`src/types/huemul/tree.ts`):
+`{ key, label, icon?, onClick, disabled?, variant? }`. `icon` es el **componente**
+(ej. `FolderPlus`), no un elemento ya renderizado — al revés que
+`HuemulTreeMenuAction.icon`, que sí es un `ReactNode`.
+
+`showCreateButtons` / `showDefaultActions.create` son la botonera legacy (input
+inline de creación). **No usarlas**: son todo-o-nada (archivo + carpeta juntos),
+se renderizan dentro de la caja tapadas por el overlay, y su `onCreateFolder`
+obliga a reimplementar mutation, validación y toasts. Los 7 call-sites las tienen
+en `false`.
+
+### Crear carpeta: `useLibraryFolderActions`
+
+`src/hooks/useLibraryFolderActions.tsx`. Es el kit completo (franja + ítem de
+menú + props del sheet), gateado por `canCreate('folder')` (`folder:c`):
+
+```tsx
+const treeRef = useRef<HuemulFileTreeRef>(null)
+const { toolbarActions, menuActions, createFolderSheetProps, closeCreateFolderSheet } =
+  useLibraryFolderActions({
+    treeRef,
+    activeFolderId: selectedFolderId,   // destino del botón de la franja; null = raíz
+    onFolderCreated: (folder) => { /* p.ej. seleccionarla como destino */ },
+  })
+
+return (
+  <>
+    <HuemulSheet ...>
+      <HuemulFileTree ref={treeRef} toolbarActions={toolbarActions} menuActions={menuActions} ... />
+    </HuemulSheet>
+    {/* SIBLING, nunca dentro de los children del sheet de arriba */}
+    <CreateFolderSheet {...createFolderSheetProps} />
+  </>
+)
+```
+
+Reglas que el hook ya resuelve — no reimplementarlas:
+- El formulario real es `CreateFolderSheet`
+  (`src/components/assets/dialogs/assets-create-folder-sheet.tsx`), que ya trae
+  mutation, toast (`meta.successMessage`) e `invalidateQueries(["library", orgId])`.
+  Ver `ia context/inline-create-entity-in-sheet-guide.md` para el porqué del sibling.
+- Tras crear: `treeRef.current?.refresh()` y recién después `onFolderCreated`.
+- `show` del ítem de menú replica las reglas del nav de conocimiento: carpetas
+  `grupal`/`forms` no admiten contenido directo, y vale `folder:c` **o**
+  `access_levels` con `create` sobre esa carpeta puntual.
+- Sin permiso, ambos arrays salen vacíos ⇒ ni franja ni ⋮.
+
+El `mapFolder` del consumidor debe cargar el `metadata` que ese `show` lee:
+
+```ts
+metadata: { folderType: folder.folder_type, accessLevels: folder.access_levels }
+```
+
+El `useEffect` de reset del sheet padre debe llamar también a
+`closeCreateFolderSheet()`.
+
 ## Errores comunes
 
 - ❌ Dejar `preserveExpandedOnRefresh` en su default (`true`) en un árbol que
@@ -203,6 +269,15 @@ expandida, así que no reusa nada de `useTreeExpansionStorage` salvo el switch
 - ❌ Reimplementar el mapeo de `LibraryContent` a nodos a mano en vez de
   `buildLibraryTree` — duplica la mecánica de anidado/`is_expanded`/`hasChildren`
   que ya está resuelta y probada.
+- ❌ Cablear `onCreateFolder` + `showCreateButtons` para ofrecer "crear carpeta"
+  en una superficie nueva — duplica la mutation, la validación y los toasts de
+  `CreateFolderSheet`. Usar `useLibraryFolderActions` (§7).
+- ❌ Montar `CreateFolderSheet` dentro de los `children` del sheet padre en vez
+  de como sibling — se desmonta con el contenido condicional y complica el
+  stacking (§7).
+- ❌ Olvidar `folder_type`/`access_levels` en el `metadata` del `mapFolder`: el
+  `show` de "Nueva subcarpeta" cae al permiso global y ofrece crear dentro de
+  carpetas Grupal/Forms, que no admiten contenido directo.
 
 ## Checklist final
 
@@ -214,4 +289,7 @@ expandida, así que no reusa nada de `useTreeExpansionStorage` salvo el switch
 [ ] isNodePersistable si hay nodos expandibles que no son carpetas reales
 [ ] Si es otra jerarquía: clave propia, restauración client-side acotada,
     switch "recordar" reusado (§5/6 según corresponda)
+[ ] Si la superficie ofrece acciones: toolbarActions (superficie) y/o
+    menuActions (nodo), nunca showCreateButtons; para crear carpeta,
+    useLibraryFolderActions + CreateFolderSheet como sibling (§7)
 ```

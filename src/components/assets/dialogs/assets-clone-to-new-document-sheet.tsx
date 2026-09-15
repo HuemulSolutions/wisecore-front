@@ -1,12 +1,15 @@
-import { memo, useState, useEffect, useCallback } from 'react';
+import { memo, useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Copy, Folder, X } from 'lucide-react';
 import { HuemulSheet } from '@/huemul/components/huemul-sheet';
 import { HuemulField, HuemulFieldGroup } from '@/huemul/components/huemul-field';
 import { HuemulFileTree } from '@/huemul/components/huemul-file-tree';
+import { CreateFolderSheet } from '@/components/assets/dialogs/assets-create-folder-sheet';
 import { getLibraryContent } from '@/services/folders';
 import { useLibraryTreeExpansion } from '@/hooks/useLibraryTreeExpansion';
+import { useLibraryFolderActions } from '@/hooks/useLibraryFolderActions';
 import { buildLibraryTree } from '@/lib/library-tree';
+import type { HuemulFileTreeRef } from '@/huemul/components/huemul-file-tree';
 import type { HuemulTreeNode } from '@/types/huemul/tree';
 import type { LibraryContentFolder } from '@/types/folders';
 
@@ -38,6 +41,27 @@ function CloneToNewDocumentSheetInner({
   const [description, setDescription] = useState('');
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [selectedFolderName, setSelectedFolderName] = useState<string | null>(null);
+  const treeRef = useRef<HuemulFileTreeRef>(null);
+
+  // Crear carpeta destino sin salir del sheet: la franja de acciones y el ítem
+  // "Nueva subcarpeta" del menú de cada carpeta salen de este hook, gateados
+  // por `folder:c`. El formulario real es CreateFolderSheet, montado abajo como
+  // sibling — ver ia context/inline-create-entity-in-sheet-guide.md.
+  const {
+    toolbarActions,
+    menuActions,
+    createFolderSheetProps,
+    closeCreateFolderSheet,
+  } = useLibraryFolderActions({
+    treeRef,
+    activeFolderId: selectedFolderId,
+    // La carpeta recién creada pasa a ser el destino: el usuario la creó para
+    // usarla, no para volver a buscarla en el árbol.
+    onFolderCreated: (folder) => {
+      setSelectedFolderId(folder.id);
+      setSelectedFolderName(folder.name);
+    },
+  });
 
   useEffect(() => {
     if (open) {
@@ -46,8 +70,9 @@ function CloneToNewDocumentSheetInner({
       setDescription('');
       setSelectedFolderId(null);
       setSelectedFolderName(null);
+      closeCreateFolderSheet();
     }
-  }, [open]);
+  }, [open, closeCreateFolderSheet]);
 
   // Comparte la clave `tree-expanded` con el sidebar de conocimiento y el
   // resto de pickers de biblioteca — ver ia context/arbol-biblioteca-activos-guide.md.
@@ -58,6 +83,8 @@ function CloneToNewDocumentSheetInner({
     name: folder.name,
     type: 'folder',
     hasChildren: true,
+    // Lo consume el `show` de "Nueva subcarpeta" (useLibraryFolderActions).
+    metadata: { folderType: folder.folder_type, accessLevels: folder.access_levels },
   }), []);
 
   const handleLoadChildren = useCallback(async (folderId: string | null): Promise<HuemulTreeNode[]> => {
@@ -91,6 +118,7 @@ function CloneToNewDocumentSheetInner({
   }
 
   return (
+    <>
     <HuemulSheet
       open={open}
       onOpenChange={(o) => { if (!isProcessing) onOpenChange(o); }}
@@ -155,9 +183,12 @@ function CloneToNewDocumentSheetInner({
             <p className="text-xs text-muted-foreground">{t('content.cloneToNewDocumentFolderHint')}</p>
           )}
           <HuemulFileTree
+            ref={treeRef}
             onLoadChildren={handleLoadChildren}
             onFolderClick={handleFolderClick}
             activeNodeId={selectedFolderId ?? undefined}
+            toolbarActions={toolbarActions}
+            menuActions={menuActions}
             showCreateButtons={false}
             showDefaultActions={{ create: false, delete: false, share: false }}
             showBorder={true}
@@ -167,6 +198,11 @@ function CloneToNewDocumentSheetInner({
         </div>
       </HuemulFieldGroup>
     </HuemulSheet>
+
+    {/* Sibling, no anidado en los children del sheet de arriba: ambos son
+        z-50 y el que monta después pinta encima (ver z-index-layering-guide). */}
+    <CreateFolderSheet {...createFolderSheetProps} />
+    </>
   );
 }
 

@@ -577,6 +577,7 @@ const translations = {
   fileTree: {
     newFile: { en: "New File", es: "Nuevo Archivo" },
     newFolder: { en: "New Folder", es: "Nueva Carpeta" },
+    newSubfolder: { en: "New Subfolder", es: "Nueva Subcarpeta" },
     shareLink: { en: "Share Link", es: "Compartir Enlace" },
     deleteFolder: { en: "Delete Folder", es: "Eliminar Carpeta" },
     deleteFile: { en: "Delete File", es: "Eliminar Archivo" },

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import type { HuemulTreeNode, HuemulTreeMenuAction, HuemulFileTreeLabels } from "@/types/huemul"
+import type { HuemulTreeNode, HuemulTreeMenuAction, HuemulTreeToolbarAction, HuemulFileTreeLabels } from "@/types/huemul"
 import type { HuemulFileTreeProps, HuemulFileTreeRef } from "@/types/huemul"
 export type { HuemulFileTreeProps, HuemulFileTreeRef }
 
@@ -39,6 +39,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       onFolderClick,
       activeNodeId,
       menuActions = [],
+      toolbarActions = [],
       showDefaultActions = { create: true, delete: true, share: true },
       customDialogs,
       folderType = "folder",
@@ -85,6 +86,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       createFile: t("createFile"),
       createFolder: t("createFolder"),
       inputPlaceholder: t("inputPlaceholder"),
+      refresh: t("refresh"),
       ...labelOverrides,
     }
 
@@ -930,17 +932,36 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
     // ─── Root render ────────────────────────────────────────────────────────────
     return (
       <div className="space-y-2 w-full min-w-0">
-        {showRefreshButton && (
-          <div className="flex justify-end">
-            <HuemulButton
-              variant="outline"
-              size="sm"
-              onClick={refresh}
-              disabled={isLoading}
-              icon={RefreshCw}
-              iconClassName={cn("h-4 w-4", isLoading && "animate-spin")}
-              label="Refresh"
-            />
+        {/* Franja de acciones de la superficie: queda FUERA de la caja con
+            borde (y del overlay de loading que la tapa), a diferencia de la
+            botonera legacy de showCreateButtons. */}
+        {(toolbarActions.length > 0 || showRefreshButton) && (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              {toolbarActions.map((action: HuemulTreeToolbarAction) => (
+                <HuemulButton
+                  key={action.key}
+                  variant={action.variant ?? "outline"}
+                  size="sm"
+                  onClick={() => action.onClick()}
+                  disabled={action.disabled || isLoading}
+                  icon={action.icon}
+                  iconClassName="h-4 w-4"
+                  label={action.label}
+                />
+              ))}
+            </div>
+            {showRefreshButton && (
+              <HuemulButton
+                variant="outline"
+                size="sm"
+                onClick={refresh}
+                disabled={isLoading}
+                icon={RefreshCw}
+                iconClassName={cn("h-4 w-4", isLoading && "animate-spin")}
+                label={labels.refresh}
+              />
+            )}
           </div>
         )}
 
