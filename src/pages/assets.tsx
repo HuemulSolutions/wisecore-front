@@ -18,6 +18,7 @@ import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useGlobalPanel } from "@/contexts/global-panel-context";
 import { usePageAccess } from "@/hooks/usePageAccess";
+import { useInvalidateDocumentSectionAccess } from "@/hooks/useDocumentSectionAccess";
 
 /**
  * Main content component for the Assets page
@@ -30,6 +31,7 @@ function AssetsContent() {
   const refreshFileTree = useNavKnowledgeRefresh();
   const { isOpen: isWisyOpen } = useGlobalPanel();
   const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('asset');
+  const invalidateSectionAccess = useInvalidateDocumentSectionAccess();
   const { page, pageSize, hasNext, hasPrevious, setPage } = useNavKnowledgePagination();
   const canListLibrary = can('listAssets') || can('listFolders');
 
@@ -56,8 +58,14 @@ function AssetsContent() {
   }, [restoreScrollPosition, selectedFile, selectedExecutionId]);
 
   // Handle refresh library content
+  // Invalida el árbol de la biblioteca Y el contenido del asset abierto (alineado
+  // con asset-fullscreen.tsx:61-65) — antes solo refrescaba el árbol, dejando el
+  // panel de detalle con el contenido viejo.
   const handleRefresh = async () => {
     queryClient.invalidateQueries({ queryKey: ['library', selectedOrganizationId] });
+    queryClient.invalidateQueries({ queryKey: ['document-content'] });
+    queryClient.invalidateQueries({ queryKey: ['document'] });
+    invalidateSectionAccess(selectedFile?.id);
     refreshFileTree();
   };
 

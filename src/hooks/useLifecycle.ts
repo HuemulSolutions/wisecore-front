@@ -74,6 +74,22 @@ export const lifecycleQueryKeys = {
     [...lifecycleQueryKeys.elaborationConfigBase(), stepId] as const,
 }
 
+/**
+ * Invalida las queries de steps ATADAS A UNA EJECUCIÓN (las que llevan
+ * `execution_id` y por lo tanto vienen filtradas por `depends_on` — ver
+ * `useAllLifecycleSteps` y "ia context/dependencias-condicionales-formularios-guide.md"
+ * §3.4). Las de configuración del tipo de activo (`executionId` ausente, el
+ * 5.º elemento de `lifecycleQueryKeys.steps` queda `null`) no dependen de las
+ * respuestas del documento y se dejan intactas — evita invalidar de más la
+ * matriz de admin (Tipos de Activo → Ciclo de vida) en cada autoguardado.
+ */
+export function invalidateExecutionLifecycleSteps(queryClient: QueryClient): Promise<void> {
+  return queryClient.invalidateQueries({
+    queryKey: [...lifecycleQueryKeys.all, 'steps'],
+    predicate: (query) => query.queryKey[4] != null,
+  })
+}
+
 export function useLifecycleStepTypes(enabled: boolean = true) {
   return useQuery({
     queryKey: lifecycleQueryKeys.stepTypes(),

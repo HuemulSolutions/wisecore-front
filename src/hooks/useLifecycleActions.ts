@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -9,7 +9,7 @@ import { dataTableQueryKeys } from "@/hooks/useDataTables"
 import { parseMissingRequiredCustomFieldsDetail } from "@/lib/custom-field-required-utils"
 import { getAdvanceBlockers, parseAdvanceBlockersDetail } from "@/lib/advance-blockers-utils"
 import { completeActionLabelKey, completeActionTooltipKey } from "@/lib/lifecycle-labels"
-import { useExternalReviewActions, useLifecycleElaborationConfig } from "@/hooks/useLifecycle"
+import { lifecycleQueryKeys, useExternalReviewActions, useLifecycleElaborationConfig } from "@/hooks/useLifecycle"
 import { useLifecycleProgress } from "@/hooks/useLifecycleProgress"
 import { useMissingRequiredCustomFields } from "@/hooks/useCustomFieldDocuments"
 import { executionLifecycleQueryKeys } from "@/hooks/useExecutionLifecycle"
@@ -106,6 +106,19 @@ export function useLifecycleActions({
     if (!open) setPendingVersionAction(null)
     setIsAssignVersionDialogOpenState(open)
   }
+
+  // Red de seguridad para el panel "N de M" del sheet de Completar
+  // (`useLifecycleProgress` → `useAllLifecycleSteps`): `applyFormValuesPatch`
+  // ya invalida los steps por ejecución cuando el autoguardado toca un campo
+  // trigger de `LifecycleStep.depends_on`, pero eso no cubre la carrera donde
+  // el PATCH resuelve antes de que el primer GET de steps termine (el set de
+  // triggers todavía está vacío), ni las respuestas que llegan por otro canal
+  // (elaboración externa, otra sesión). Se invalida —no se borra el cache— al
+  // abrir el sheet, para no mostrar de más un grupo que el backend ya excluyó.
+  useEffect(() => {
+    if (!isCheckDialogOpen || !documentTypeId) return
+    queryClient.invalidateQueries({ queryKey: lifecycleQueryKeys.steps(documentTypeId, null, executionId ?? null) })
+  }, [isCheckDialogOpen, documentTypeId, executionId, queryClient])
 
   const refreshKeys = () => [
     ["document-content", documentId],

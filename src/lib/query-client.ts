@@ -44,7 +44,7 @@ export const queryClient = new QueryClient({
       staleTime: 2 * 60 * 1000, // 2 minutos - datos considerados frescos
       gcTime: 5 * 60 * 1000, // 5 minutos - tiempo en cache
       refetchOnWindowFocus: false, // No re-fetch al enfocar ventana
-      refetchOnMount: false, // No re-fetch al montar si hay datos frescos
+      refetchOnMount: true, // Refetch al montar solo si el dato está stale (ver staleTime) o fue invalidado
       retry: (failureCount, error: unknown) => {
         // No reintentar errores del cliente (4xx)
         if (ApiError.isApiError(error) && error.statusCode >= 400 && error.statusCode < 500) {

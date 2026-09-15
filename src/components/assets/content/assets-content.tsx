@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell, Sparkles, MessageSquareText, BookOpen, Maximize2, Minimize2, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell, Sparkles, MessageSquareText, BookOpen, Maximize, Minimize, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { SectionCollapseContext, type CollapseAllSignal } from "@/contexts/section-collapse-context";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
@@ -104,6 +104,7 @@ import {
   useInvalidateDocumentSectionAccess,
 } from '@/hooks/useDocumentSectionAccess';
 import { usePageAccess } from '@/hooks/usePageAccess';
+import { invalidateExecutionLifecycleSteps } from '@/hooks/useLifecycle';
 import type { AssetDetailPanelTab, ContentSection, LibraryContentProps, LifecyclePermissions, LifecycleStatus } from '@/types/assets';
 import type { FormValuesSectionPayload } from '@/types/sections/core';
 import { applyFormValuesPatch } from '@/components/assets/content/utils/patch-document-content';
@@ -835,6 +836,9 @@ export function AssetContent({
         queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] }),
         queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] }),
         queryClient.invalidateQueries({ queryKey: ['document-section-access', selectedFile?.id] }),
+        // Steps de ciclo de vida filtrados por `depends_on` de esta ejecución
+        // (panel "N de M" del sheet de Completar) — ver patch-document-content.ts.
+        invalidateExecutionLifecycleSteps(queryClient),
       ]);
     } finally {
       setIsRefreshingContent(false);
@@ -1719,24 +1723,32 @@ export function AssetContent({
     // 1. We have document content with an execution_id OR an importing execution
     // 2. selectedExecutionId is currently null (no manual selection yet)
     // 3. We haven't already initialized for this document
+    // isFetchingContent: espera a que termine un refetch en curso antes de sembrar.
+    // En un remonte con caché stale (refetchOnMount dispara un refetch en background),
+    // este efecto corre primero con el dato viejo — sin este guard, sembraba esa key
+    // como si fuera fresca y el refetch de la key sin ejecución nunca la actualizaba.
     if (
       selectedFile?.type === 'document' &&
       resolvedExecutionId &&
       !selectedExecutionId &&
+      !isFetchingContent &&
       hasInitializedExecutionRef.current !== selectedFile.id
     ) {
       logger.log('🔄 Syncing selectedExecutionId with loaded execution:', resolvedExecutionId);
 
-      // Copy the already-loaded data to the new queryKey to prevent duplicate API call
+      // Copy the already-loaded data to the new queryKey to prevent duplicate API call.
+      // updatedAt preserva el timestamp real del fetch (contentUpdatedAt) en vez de
+      // "ahora" — si este dato ya estaba stale, la key sembrada hereda esa staleness.
       queryClient.setQueryData(
         ['document-content', selectedFile.id, resolvedExecutionId],
-        documentContent
+        documentContent,
+        { updatedAt: contentUpdatedAt }
       );
 
       setSelectedExecutionId(resolvedExecutionId);
       hasInitializedExecutionRef.current = selectedFile.id;
     }
-  }, [selectedFile?.id, selectedFile?.type, documentContent?.execution_id, documentContent?.executions, selectedExecutionId, queryClient]);
+  }, [selectedFile?.id, selectedFile?.type, documentContent?.execution_id, documentContent?.executions, selectedExecutionId, isFetchingContent, contentUpdatedAt, queryClient]);
   
   // Removed invalidation useEffect - React Query automatically handles query key changes
 
@@ -2688,6 +2700,17 @@ export function AssetContent({
                       </div>
                       {/* Notifications/menu + mode toggle — always in the same position for muscle memory. Version selector lives in the metadata row below. */}
                       <div className="flex items-center gap-1.5 shrink-0">
+                        {canSwitchToEditorMode && (
+                          <ViewModeToggle
+                            isViewMode={isViewMode}
+                            onSwitchToReader={() => { preserveScrollPosition(); setIsViewMode(true); }}
+                            onSwitchToEditor={() => { preserveScrollPosition(); setIsViewMode(false); }}
+                            compact={isDesktopHeaderNarrow}
+                          />
+                        )}
+                        {canSwitchToEditorMode && (canListDiscussions || canListNotifications || !isViewOnly || !!(onOpenFullscreen || onExitFullscreen)) && (
+                          <div className="h-5 w-px bg-gray-200 mx-0.5" aria-hidden="true" />
+                        )}
                         {canListDiscussions && (
                           <div className="relative">
                             <HuemulButton
@@ -2774,25 +2797,15 @@ export function AssetContent({
                             onRerunExternalPublish={() => lifecycle.runExternalPublishMutation.mutate()}
                           />
                         )}
-                        {canSwitchToEditorMode && (canListDiscussions || canListNotifications || !isViewOnly) && (
-                          <div className="h-5 w-px bg-gray-200 mx-0.5" aria-hidden="true" />
-                        )}
-                        {canSwitchToEditorMode && (
-                          <ViewModeToggle
-                            isViewMode={isViewMode}
-                            onSwitchToReader={() => { preserveScrollPosition(); setIsViewMode(true); }}
-                            onSwitchToEditor={() => { preserveScrollPosition(); setIsViewMode(false); }}
-                            compact={isDesktopHeaderNarrow}
-                          />
-                        )}
-                        {/* Botón de pantalla completa, siempre visible (no gateado por
-                            isViewOnly): es el único camino de entrada cuando el dropdown
-                            de arriba no se renderiza — ver ia context/fullscreen-share-route-guide.md */}
-                        {(onOpenFullscreen || onExitFullscreen) && (
+                        {/* Botón de pantalla completa: en modo Editor vive en el toolbar de
+                            TOC (RIGHT GROUP), acá sólo se muestra en modo Lector — es el único
+                            camino de entrada cuando el dropdown de arriba no se renderiza
+                            (isViewOnly) — ver ia context/fullscreen-share-route-guide.md */}
+                        {deferredViewChrome.isViewMode && (onOpenFullscreen || onExitFullscreen) && (
                           <HuemulButton
                             size="sm"
                             variant="ghost"
-                            icon={isFullscreen ? Minimize2 : Maximize2}
+                            icon={isFullscreen ? Minimize : Maximize}
                             iconClassName="h-4 w-4"
                             className="h-7 w-7 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
                             tooltip={isFullscreen ? t('content.exitFullscreen') : t('content.openFullscreen')}
@@ -2807,7 +2820,7 @@ export function AssetContent({
                       {/* Left: date + version selector */}
                       <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600 min-w-0">
                         {selectedExecutionInfo && (
-                          <span className="inline-flex items-center gap-1.5 shrink-0">
+                          <span className="inline-flex h-7 items-center gap-1.5 shrink-0">
                             <Clock className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                             {selectedExecutionInfo.formattedDate}
                           </span>
@@ -2843,7 +2856,7 @@ export function AssetContent({
                           que el header móvil (bg-gray-50) y que ViewModeToggle / el selector de versiones. */}
                       {documentContent?.lifecycle_status && (
                         <div className="flex items-center gap-2 shrink-0 bg-gray-50 px-2 py-1 rounded-lg">
-                          <HuemulLifecycleStageBadge status={documentContent.lifecycle_status} />
+                          <HuemulLifecycleStageBadge status={documentContent.lifecycle_status} className="h-7" />
                           <HuemulLifecycleActions controller={lifecycle} variant="row" showRunElaboration />
                         </div>
                       )}
@@ -2859,13 +2872,13 @@ export function AssetContent({
                 lista de secciones — ver comentario junto a la declaración de `deferredViewChrome`. */}
             {!deferredViewChrome.isViewMode && (isLoadingContent && !documentContent ? (
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
+                <div className="flex items-center gap-1.5">
                   <Skeleton className="h-7 w-10 rounded-md" />
                   <Skeleton className="h-7 w-20 rounded-md" />
                   <Skeleton className="h-7 w-24 rounded-md" />
                   <Skeleton className="h-7 w-18 rounded-md" />
                 </div>
-                <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
+                <div className="flex items-center gap-1.5">
                   <Skeleton className="h-7 w-26.5 rounded-md" />
                   <Skeleton className="h-7 w-8 rounded-md" />
                   <Skeleton className="h-7 w-8 rounded-md" />
@@ -2876,7 +2889,7 @@ export function AssetContent({
             ) : (
             <div className="flex items-center justify-between gap-2 animate-in fade-in duration-300">
               {/* LEFT GROUP - Sections, Dependencies, Context */}
-              <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0">
                 {/* Sections sheet */}
                 {frontendPermissions.canAccessSectionSheet && (
                   <SectionSheet
@@ -2920,7 +2933,7 @@ export function AssetContent({
               </div>
 
               {/* RIGHT GROUP - Refresh, TOC Toggle */}
-              <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0">
                 <HuemulButton
                   size="sm"
                   variant="ghost"
@@ -2961,6 +2974,19 @@ export function AssetContent({
                         : 'text-gray-600 hover:bg-gray-200 hover:text-gray-800'
                     }`}
                     tooltip={isTocSidebarOpen ? t('content.hideSidebar') : t('content.showSidebar')}
+                  />
+                )}
+
+                {/* Fullscreen toggle — en modo Lector vive en el header, acá sólo en modo Editor */}
+                {(onOpenFullscreen || onExitFullscreen) && (
+                  <HuemulButton
+                    size="sm"
+                    variant="ghost"
+                    onClick={isFullscreen ? onExitFullscreen : onOpenFullscreen}
+                    icon={isFullscreen ? Minimize : Maximize}
+                    iconClassName="h-3.5 w-3.5"
+                    className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors hover:cursor-pointer"
+                    tooltip={isFullscreen ? t('content.exitFullscreen') : t('content.openFullscreen')}
                   />
                 )}
 
