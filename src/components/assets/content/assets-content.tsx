@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell, Sparkles, MessageSquareText, BookOpen, Maximize2, Minimize2, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell, Sparkles, MessageSquareText, BookOpen, Maximize, Minimize, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { SectionCollapseContext, type CollapseAllSignal } from "@/contexts/section-collapse-context";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
@@ -2785,14 +2785,15 @@ export function AssetContent({
                             onRerunExternalPublish={() => lifecycle.runExternalPublishMutation.mutate()}
                           />
                         )}
-                        {/* Botón de pantalla completa, siempre visible (no gateado por
-                            isViewOnly): es el único camino de entrada cuando el dropdown
-                            de arriba no se renderiza — ver ia context/fullscreen-share-route-guide.md */}
-                        {(onOpenFullscreen || onExitFullscreen) && (
+                        {/* Botón de pantalla completa: en modo Editor vive en el toolbar de
+                            TOC (RIGHT GROUP), acá sólo se muestra en modo Lector — es el único
+                            camino de entrada cuando el dropdown de arriba no se renderiza
+                            (isViewOnly) — ver ia context/fullscreen-share-route-guide.md */}
+                        {deferredViewChrome.isViewMode && (onOpenFullscreen || onExitFullscreen) && (
                           <HuemulButton
                             size="sm"
                             variant="ghost"
-                            icon={isFullscreen ? Minimize2 : Maximize2}
+                            icon={isFullscreen ? Minimize : Maximize}
                             iconClassName="h-4 w-4"
                             className="h-7 w-7 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
                             tooltip={isFullscreen ? t('content.exitFullscreen') : t('content.openFullscreen')}
@@ -2961,6 +2962,19 @@ export function AssetContent({
                         : 'text-gray-600 hover:bg-gray-200 hover:text-gray-800'
                     }`}
                     tooltip={isTocSidebarOpen ? t('content.hideSidebar') : t('content.showSidebar')}
+                  />
+                )}
+
+                {/* Fullscreen toggle — en modo Lector vive en el header, acá sólo en modo Editor */}
+                {(onOpenFullscreen || onExitFullscreen) && (
+                  <HuemulButton
+                    size="sm"
+                    variant="ghost"
+                    onClick={isFullscreen ? onExitFullscreen : onOpenFullscreen}
+                    icon={isFullscreen ? Minimize : Maximize}
+                    iconClassName="h-3.5 w-3.5"
+                    className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors hover:cursor-pointer"
+                    tooltip={isFullscreen ? t('content.exitFullscreen') : t('content.openFullscreen')}
                   />
                 )}
 
