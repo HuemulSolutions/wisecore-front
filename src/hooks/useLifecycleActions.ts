@@ -14,6 +14,7 @@ import {
   useExternalReviewActions,
   useLifecycleElaborationConfig,
   useExternalPublishActions,
+  invalidateExecutionLifecycleSteps,
 } from "@/hooks/useLifecycle"
 import { useLifecycleProgress } from "@/hooks/useLifecycleProgress"
 import { useMissingRequiredCustomFields } from "@/hooks/useCustomFieldDocuments"
@@ -209,15 +210,20 @@ export function useLifecycleActions({
     mutationFn: withRefresh(
       async (options?: { comment?: string; run_external_review?: boolean }) => {
         if (!rbac.canTransition) throw new Error(NO_TRANSITION_PERMISSION)
-        const stepId = lifecycleStatus?.current_step_id
         if (!executionId || !organizationId) throw new Error("Missing execution or organization")
-        if (!stepId) throw new Error("Missing step ID")
+        const stepId = lifecycleStatus?.current_step_id
+        // Hay etapas sin step configurado (ej. `in_approval` en un tipo de activo sin
+        // steps `approve`, típicamente tras un `restore` que devuelve la ejecución a
+        // esa etapa). Ahí la transición no es "completar un step" sino avanzar el
+        // estado — mismo endpoint que publicar/archivar. `run_external_review` es
+        // exclusivo del complete y no se reenvía.
+        if (!stepId) return advanceExecutionLifecycle(executionId, organizationId, { comment: options?.comment })
         return completeExecutionLifecycleStep(executionId, stepId, organizationId, options)
       },
       queryClient,
       refreshKeys,
     ),
-    onSuccess: (data: CompleteLifecycleStepResponse) => {
+    onSuccess: (data: CompleteLifecycleStepResponse | AdvanceLifecycleResponse) => {
       setIsCheckDialogOpen(false)
       queryClient.invalidateQueries({ queryKey: executionLifecycleQueryKeys.eventsBase() })
       notifyDataTablesRefreshed(data?.data_tables_refreshed)
@@ -347,6 +353,10 @@ export function useLifecycleActions({
     onSuccess: () => {
       setIsRestoreDialogOpen(false)
       queryClient.invalidateQueries({ queryKey: executionLifecycleQueryKeys.eventsBase() })
+      // El estado vuelve atrás en el pipeline: los steps por ejecución (progreso,
+      // "próximo paso") quedan stale si no se invalidan acá — mismo helper que usa
+      // el botón Refrescar del panel de workflow.
+      invalidateExecutionLifecycleSteps(queryClient)
     },
     meta: { successMessage: t("lifecycle.successRestore") },
     onError: (error) => {
