@@ -503,17 +503,15 @@ export function WorkflowDetailPanel({
   // backend seguiría rechazando con 409.
   const isBlockedLastStep = isLastStep && lifecycle.canTransition && lifecycle.isBlockedByRequiredAnswers
 
-  // Al usuario no le queda nada por hacer con este documento (ver `finishOutcome`).
-  // No depende de `viewingAnswersAfterFinish`: mirar las respuestas ya enviadas no
-  // devuelve nada por hacer, así que la barra sigue oculta también ahí.
-  const isFinished = finishOutcome !== null
-
   // El wizard ya ofrece "Finalizar" (o el paso no es respondible por este
   // usuario): no duplicar el botón "Completar" en la barra.
   const hideComplete = willAdvanceOnFinish || (step !== null && !canAnswerSection)
 
   // Misma tabla de verdad que usa HuemulLifecycleActions para pintarse: se
-  // consulta acá para saber si la fila quedaría vacía antes de renderizarla.
+  // consulta acá para saber si la fila quedaría vacía antes de renderizarla, y
+  // también para no dar por "terminado" (`isFinished` abajo) a quien todavía
+  // tiene una acción de ciclo de vida ofrecida (ej. Archivar) aunque no le
+  // quede nada por responder/avanzar.
   const lifecycleActions = resolveLifecycleActionsVisibility({
     status: data?.lifecycle_status,
     permissions: data?.lifecycle_permissions,
@@ -521,8 +519,19 @@ export function WorkflowDetailPanel({
     finalLifecycleStage: lifecycle.finalLifecycleStage,
     isBlockedByRequiredAnswers: lifecycle.isBlockedByRequiredAnswers,
     showRerunExternalPublish: true,
+    hasEnabledExternalPublishConfig: lifecycle.hasEnabledExternalPublishConfig,
     hideComplete,
   })
+
+  // Al usuario no le queda nada por hacer con este documento: ni respuesta/avance
+  // (`finishOutcome`, ver arriba) ni ninguna otra acción de ciclo de vida
+  // (archivar, restaurar, re-lanzar publicación externa...). Si queda una acción
+  // de lifecycle disponible, fullscreen sigue mostrando el resumen normal (como
+  // el panel) en vez de la tarjeta terminal — esa tarjeta es solo para cuando de
+  // verdad no hay ningún botón que ofrecer. No depende de `viewingAnswersAfterFinish`:
+  // mirar las respuestas ya enviadas no devuelve nada por hacer, así que la barra
+  // sigue oculta también ahí.
+  const isFinished = finishOutcome !== null && !lifecycleActions.hasAny
 
   // `showLifecycle` es `true` por default en ambos usos (panel de /workflow y
   // link compartido, ver ia context/fullscreen-share-route-guide.md §4: el
@@ -728,7 +737,7 @@ export function WorkflowDetailPanel({
             <AlertCircle className="h-4 w-4 shrink-0" />
             {t("panel.loadError")}
           </div>
-        ) : finishOutcome && !viewingAnswersAfterFinish ? (
+        ) : finishOutcome && isFinished && !viewingAnswersAfterFinish ? (
           <WorkflowFinishedCard
             outcome={finishOutcome}
             workflowName={workflowName}
@@ -802,7 +811,7 @@ export function WorkflowDetailPanel({
         !error &&
         formSections.length > 0 &&
         step !== null &&
-        !(finishOutcome && !viewingAnswersAfterFinish) && (
+        !(finishOutcome && isFinished && !viewingAnswersAfterFinish) && (
         <div
           className={cn(
             "flex flex-wrap items-center justify-between gap-2 border-t p-4 shrink-0",
