@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell, Sparkles, MessageSquareText, BookOpen, Maximize2, Minimize2, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell, Sparkles, MessageSquareText, BookOpen, Maximize2, Minimize2, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { SectionCollapseContext, type CollapseAllSignal } from "@/contexts/section-collapse-context";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
@@ -24,6 +24,7 @@ import { AssetVersionCompareSheet } from "@/components/assets/content/asset-vers
 import { AssetsInfoSheet } from "@/components/assets/content/assets-info-sheet";
 import AssetLifecycleSheet from "@/components/assets/dialogs/assets-lifecycle-sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useElementWidth } from "@/hooks/useElementWidth";
 import { useAuth } from "@/contexts/auth-context";
 import { useRecentAssets } from "@/hooks/useRecentAssets";
 import { DocumentAccessControl } from "@/components/assets/content/assets-access-control";
@@ -192,6 +193,10 @@ export function AssetContent({
   const queryClient = useQueryClient();
   const navigate = useOrgNavigate();
   const isMobile = useIsMobile();
+  // Ancho real del header desktop (no del viewport): se angosta con el panel de Wisy o el
+  // TOC abiertos aunque la ventana no cambie — ahí el ViewModeToggle pasa a solo-icono.
+  const { ref: desktopHeaderRef, width: desktopHeaderWidth } = useElementWidth<HTMLDivElement>();
+  const isDesktopHeaderNarrow = desktopHeaderWidth > 0 && desktopHeaderWidth < 640;
   const { selectedOrganizationId } = useOrganization();
   const { canCreate, canList, canUpdate, canDelete, canAccessTemplates, canAccessAssets, canAccessDiagrams, isOrgAdmin, hasPermission } = useUserPermissions();
   const { can } = usePageAccess('asset');
@@ -2378,36 +2383,14 @@ export function AssetContent({
               </div>
             ) : (
             <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 animate-in fade-in duration-300">
-              {/* Mode Toggle - Mobile */}
+              {/* Mode Toggle - Mobile: siempre compact (solo icono), poco espacio disponible */}
               {canSwitchToEditorMode && (
-                <div className="flex items-center bg-gray-100 p-0.5 rounded-lg gap-0.5">
-                  <HuemulButton
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => { preserveScrollPosition(); setIsViewMode(true); }}
-                    icon={Eye}
-                    iconClassName="h-3.5 w-3.5"
-                    className={`h-7 w-7 p-0 rounded-md transition-all ${
-                      isViewMode
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                    tooltip={t('content.readerMode')}
-                  />
-                  <HuemulButton
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => { preserveScrollPosition(); setIsViewMode(false); }}
-                    icon={Pencil}
-                    iconClassName="h-3.5 w-3.5"
-                    className={`h-7 w-7 p-0 rounded-md transition-all ${
-                      !isViewMode
-                        ? 'bg-white text-primary shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                    tooltip={t('content.editorMode')}
-                  />
-                </div>
+                <ViewModeToggle
+                  isViewMode={isViewMode}
+                  onSwitchToReader={() => { preserveScrollPosition(); setIsViewMode(true); }}
+                  onSwitchToEditor={() => { preserveScrollPosition(); setIsViewMode(false); }}
+                  compact
+                />
               )}
 
               {/* Mobile action: create new version. El propio HuemulButton hace el
@@ -2653,7 +2636,7 @@ export function AssetContent({
         
         {/* Header Section */}
         {!isMobile && !isContentError && (
-        <div className="bg-white border-b border-gray-200 shadow-sm py-3 px-5 md:px-6 z-(--z-page-header) shrink-0" data-desktop-header>
+        <div ref={desktopHeaderRef} className="bg-white border-b border-gray-200 shadow-sm py-3 px-5 md:px-6 z-(--z-page-header) shrink-0" data-desktop-header>
           <div className="space-y-2.5">
             {/* Title and Type Section */}
             {!isMobile && (
@@ -2799,6 +2782,7 @@ export function AssetContent({
                             isViewMode={isViewMode}
                             onSwitchToReader={() => { preserveScrollPosition(); setIsViewMode(true); }}
                             onSwitchToEditor={() => { preserveScrollPosition(); setIsViewMode(false); }}
+                            compact={isDesktopHeaderNarrow}
                           />
                         )}
                         {/* Botón de pantalla completa, siempre visible (no gateado por
