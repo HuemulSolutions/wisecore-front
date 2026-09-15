@@ -332,7 +332,7 @@ export default function ExternalSystemsPage() {
       <HuemulAccessDenied
         variant="inline"
         icon={Globe}
-        description={t("accessDenied.description", "You don't have permission to access External Systems.")}
+        description={t("accessDenied.description", "You don't have permission to access Extensions.")}
       />
     )
   }
