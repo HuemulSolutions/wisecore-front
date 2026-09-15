@@ -11,7 +11,7 @@ interface ViewModeToggleProps {
 }
 
 const baseButtonClass =
-  "h-6 gap-1.5 text-[12.5px] font-medium rounded-[6px] border-0 transition-colors hover:cursor-pointer whitespace-nowrap";
+  "h-7 gap-1.5 text-[12.5px] font-medium rounded-[6px] border-0 transition-colors hover:cursor-pointer whitespace-nowrap";
 const activeButtonClass = "bg-white text-[#0f172a] font-semibold shadow-[0_1px_2px_rgba(15,23,42,0.12)]";
 const inactiveButtonClass = "bg-transparent text-[#64748b] hover:text-[#0f172a]";
 
@@ -19,7 +19,7 @@ export function ViewModeToggle({ isViewMode, onSwitchToReader, onSwitchToEditor,
   const { t } = useTranslation(["assets"]);
 
   return (
-    <div className="flex shrink-0 items-center gap-0.5 rounded-[9px] bg-[#f2f5f8] p-0.5">
+    <div className="flex shrink-0 items-center gap-0.5 rounded-[9px] bg-[#f2f5f8]">
       <HuemulButton
         size="sm"
         variant="ghost"

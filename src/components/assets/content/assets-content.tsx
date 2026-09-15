@@ -2808,7 +2808,7 @@ export function AssetContent({
                       {/* Left: date + version selector */}
                       <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600 min-w-0">
                         {selectedExecutionInfo && (
-                          <span className="inline-flex items-center gap-1.5 shrink-0">
+                          <span className="inline-flex h-7 items-center gap-1.5 shrink-0">
                             <Clock className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                             {selectedExecutionInfo.formattedDate}
                           </span>
@@ -2844,7 +2844,7 @@ export function AssetContent({
                           que el header móvil (bg-gray-50) y que ViewModeToggle / el selector de versiones. */}
                       {documentContent?.lifecycle_status && (
                         <div className="flex items-center gap-2 shrink-0 bg-gray-50 px-2 py-1 rounded-lg">
-                          <HuemulLifecycleStageBadge status={documentContent.lifecycle_status} />
+                          <HuemulLifecycleStageBadge status={documentContent.lifecycle_status} className="h-7" />
                           <HuemulLifecycleActions controller={lifecycle} variant="row" showRunElaboration />
                         </div>
                       )}
@@ -2860,13 +2860,13 @@ export function AssetContent({
                 lista de secciones — ver comentario junto a la declaración de `deferredViewChrome`. */}
             {!deferredViewChrome.isViewMode && (isLoadingContent && !documentContent ? (
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
+                <div className="flex items-center gap-1.5">
                   <Skeleton className="h-7 w-10 rounded-md" />
                   <Skeleton className="h-7 w-20 rounded-md" />
                   <Skeleton className="h-7 w-24 rounded-md" />
                   <Skeleton className="h-7 w-18 rounded-md" />
                 </div>
-                <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
+                <div className="flex items-center gap-1.5">
                   <Skeleton className="h-7 w-26.5 rounded-md" />
                   <Skeleton className="h-7 w-8 rounded-md" />
                   <Skeleton className="h-7 w-8 rounded-md" />
@@ -2877,7 +2877,7 @@ export function AssetContent({
             ) : (
             <div className="flex items-center justify-between gap-2 animate-in fade-in duration-300">
               {/* LEFT GROUP - Sections, Dependencies, Context */}
-              <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0">
                 {/* Sections sheet */}
                 {frontendPermissions.canAccessSectionSheet && (
                   <SectionSheet
@@ -2921,7 +2921,7 @@ export function AssetContent({
               </div>
 
               {/* RIGHT GROUP - Refresh, TOC Toggle */}
-              <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0">
                 <HuemulButton
                   size="sm"
                   variant="ghost"
