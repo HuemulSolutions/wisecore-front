@@ -3,6 +3,7 @@ import type React from 'react'
 import type { LifecyclePermissions, FileNode } from './core'
 import type { MenuAction } from '@/types/menu-action'
 import type { HuemulFileTreeRef } from '@/huemul/components/huemul-file-tree'
+import type { HuemulTreeToolbarAction } from '@/types/huemul/tree'
 import type { CustomFieldDocument } from '@/types/custom-fields'
 
 // ----------------------------------------
@@ -92,6 +93,8 @@ export interface AssetFileTreeProps {
   onFileClick?: (node: FileNode) => void | Promise<void>
   activeNodeId?: string | null
   menuActions?: MenuAction[]
+  /** Ver la nota en HuemulFileTreeProps.toolbarActions. */
+  toolbarActions?: HuemulTreeToolbarAction[]
   showDefaultActions?: {
     create?: boolean
     delete?: boolean

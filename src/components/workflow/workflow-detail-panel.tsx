@@ -20,6 +20,7 @@ import { HuemulLifecycleSheets } from "@/huemul/components/huemul-lifecycle-shee
 import { getDocumentContent } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { lifecycleAllows, lifecycleStageAllowsEditing } from "@/hooks/useDocumentAccess"
 import { READ_ONLY_NOTICE_STATES, resolveLifecycleActionsVisibility, isExternalElaborationLocked, EXTERNAL_ELABORATION_POLL_MS } from "@/lib/lifecycle-access"
 import { resolveWorkflowFinishOutcome, type WorkflowFinishOutcome } from "@/lib/workflow-finish-outcome"
@@ -120,11 +121,15 @@ export function WorkflowDetailPanel({
   const { selectedOrganizationId } = useOrganization()
   const { can } = usePageAccess("workflow")
   const { can: canMedia } = usePageAccess("media")
+  const { isOrgAdmin, hasPermission } = useUserPermissions()
   const queryClient = useQueryClient()
 
   // Eje RBAC del panel (grueso, `asset:*` — mismo criterio que useAssetContentPermissions).
   const canReadAsset = can("readAsset")
   const canUpdateAssetContent = can("updateAssetContent")
+  // Recurso propio sin feature en RBAC_PAGES (mismo criterio que assets-content.tsx)
+  // — gatea la query que decide si se ofrece el botón de re-lanzar publicación externa.
+  const canReadExternalPublishConfig = isOrgAdmin || hasPermission("lifecycle_external_publish_action:l")
 
   // null = pantalla de resumen de secciones; number = paso del wizard (índice en formSections).
   // Solo una fila ya existente (`row`) tiene algo que resumir — un express recién iniciado
@@ -349,6 +354,7 @@ export function WorkflowDetailPanel({
     // personalizados. El diálogo oculta el botón y queda solo con "Cerrar" +
     // la lista de campos (que sigue siendo la información útil).
     canListCustomFields: can("listCustomFields"),
+    canReadExternalPublishConfig,
     // Mapea el section_execution_id que reporta un blocker al índice del wizard:
     // ContentSection.id ES el section execution id. Si la sección no está en
     // formSections (de otro step, o sin permiso de vista para este usuario), no
@@ -497,17 +503,15 @@ export function WorkflowDetailPanel({
   // backend seguiría rechazando con 409.
   const isBlockedLastStep = isLastStep && lifecycle.canTransition && lifecycle.isBlockedByRequiredAnswers
 
-  // Al usuario no le queda nada por hacer con este documento (ver `finishOutcome`).
-  // No depende de `viewingAnswersAfterFinish`: mirar las respuestas ya enviadas no
-  // devuelve nada por hacer, así que la barra sigue oculta también ahí.
-  const isFinished = finishOutcome !== null
-
   // El wizard ya ofrece "Finalizar" (o el paso no es respondible por este
   // usuario): no duplicar el botón "Completar" en la barra.
   const hideComplete = willAdvanceOnFinish || (step !== null && !canAnswerSection)
 
   // Misma tabla de verdad que usa HuemulLifecycleActions para pintarse: se
-  // consulta acá para saber si la fila quedaría vacía antes de renderizarla.
+  // consulta acá para saber si la fila quedaría vacía antes de renderizarla, y
+  // también para no dar por "terminado" (`isFinished` abajo) a quien todavía
+  // tiene una acción de ciclo de vida ofrecida (ej. Archivar) aunque no le
+  // quede nada por responder/avanzar.
   const lifecycleActions = resolveLifecycleActionsVisibility({
     status: data?.lifecycle_status,
     permissions: data?.lifecycle_permissions,
@@ -515,8 +519,19 @@ export function WorkflowDetailPanel({
     finalLifecycleStage: lifecycle.finalLifecycleStage,
     isBlockedByRequiredAnswers: lifecycle.isBlockedByRequiredAnswers,
     showRerunExternalPublish: true,
+    hasEnabledExternalPublishConfig: lifecycle.hasEnabledExternalPublishConfig,
     hideComplete,
   })
+
+  // Al usuario no le queda nada por hacer con este documento: ni respuesta/avance
+  // (`finishOutcome`, ver arriba) ni ninguna otra acción de ciclo de vida
+  // (archivar, restaurar, re-lanzar publicación externa...). Si queda una acción
+  // de lifecycle disponible, fullscreen sigue mostrando el resumen normal (como
+  // el panel) en vez de la tarjeta terminal — esa tarjeta es solo para cuando de
+  // verdad no hay ningún botón que ofrecer. No depende de `viewingAnswersAfterFinish`:
+  // mirar las respuestas ya enviadas no devuelve nada por hacer, así que la barra
+  // sigue oculta también ahí.
+  const isFinished = finishOutcome !== null && !lifecycleActions.hasAny
 
   // `showLifecycle` es `true` por default en ambos usos (panel de /workflow y
   // link compartido, ver ia context/fullscreen-share-route-guide.md §4: el
@@ -654,7 +669,13 @@ export function WorkflowDetailPanel({
 
       <div className={cn("flex-1 overflow-auto p-4", isFullscreen && "sm:px-8")}>
         <div className={cn(isFullscreen && "mx-auto w-full max-w-3xl")}>
-        {!needsNameStep && documentId && !isLoading && !error && formSections.length > 0 && readOnlyReason && (
+        {!needsNameStep &&
+          documentId &&
+          !isLoading &&
+          !error &&
+          formSections.length > 0 &&
+          readOnlyReason &&
+          (!isFinished || viewingAnswersAfterFinish) && (
           <div className="mb-4 flex items-center rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
             {readOnlyReason === "externalElaboration"
               ? t("fill.readOnlyExternalElaborationNotice")
@@ -716,7 +737,7 @@ export function WorkflowDetailPanel({
             <AlertCircle className="h-4 w-4 shrink-0" />
             {t("panel.loadError")}
           </div>
-        ) : finishOutcome && !viewingAnswersAfterFinish ? (
+        ) : finishOutcome && isFinished && !viewingAnswersAfterFinish ? (
           <WorkflowFinishedCard
             outcome={finishOutcome}
             workflowName={workflowName}
@@ -790,7 +811,7 @@ export function WorkflowDetailPanel({
         !error &&
         formSections.length > 0 &&
         step !== null &&
-        !(finishOutcome && !viewingAnswersAfterFinish) && (
+        !(finishOutcome && isFinished && !viewingAnswersAfterFinish) && (
         <div
           className={cn(
             "flex flex-wrap items-center justify-between gap-2 border-t p-4 shrink-0",

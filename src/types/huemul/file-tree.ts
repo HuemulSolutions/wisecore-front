@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { HuemulTreeNode, HuemulTreeMenuAction, HuemulFileTreeLabels } from './tree'
+import type { HuemulTreeNode, HuemulTreeMenuAction, HuemulTreeToolbarAction, HuemulFileTreeLabels } from './tree'
 
 export interface HuemulFileTreeProps {
   onLoadChildren?: (folderId: string | null, node?: HuemulTreeNode) => Promise<HuemulTreeNode[]>
@@ -14,6 +14,16 @@ export interface HuemulFileTreeProps {
   onFolderClick?: (node: HuemulTreeNode) => void | Promise<void>
   activeNodeId?: string | null
   menuActions?: HuemulTreeMenuAction[]
+  /**
+   * Acciones contextuales de la superficie (no de un nodo): se renderizan como
+   * botones en una franja ARRIBA del árbol, fuera de la caja con borde y del
+   * overlay de loading, compartiendo fila con `showRefreshButton`. Cada
+   * consumidor define las suyas según el contexto en que monta el árbol (ej.
+   * "Nueva carpeta" en un picker de carpeta destino) — el árbol no asume
+   * ninguna. Para acciones sobre un nodo puntual, usar `menuActions`.
+   * Default: ninguna, y sin franja si tampoco hay refresh.
+   */
+  toolbarActions?: HuemulTreeToolbarAction[]
   showDefaultActions?: {
     create?: boolean
     delete?: boolean

@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0] - 2026-09-16
+### Nuevo
+- acciones contextuales en el árbol y crear carpeta al clonar activo
+- clonar en nuevo activo abre sheet y navega al clon
+### Arreglos
+- avanzar ciclo de vida sin step configurado al aprobar tras restore
+- mostrar resumen completo en fullscreen si queda una acción de lifecycle
+- ocultar aviso de solo lectura en tarjeta terminal y gatear botón de publicación externa
+- evitar parpadeo de contenido ajeno al abrir el activo clonado
+### Otros
+- renombrar "Sistema Externo" a "Extensión" en textos de UI
+
 ## [1.1.1] - 2026-09-15
 ### Arreglos
 - invalidar steps de ciclo de vida por depends_on tras autoguardado

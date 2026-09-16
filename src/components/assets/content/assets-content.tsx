@@ -76,7 +76,7 @@ import { AddSectionExecutionSheet } from "@/components/assets/dialogs/assets-add
 import { CreateTemplateDialog } from "@/components/templates/templates-create-dialog";
 import { CreateTemplateFromDocumentDialog } from "@/components/assets/dialogs/assets-create-template-from-document-dialog";
 import { RenameVersionDialog } from "@/components/assets/dialogs/assets-rename-version-dialog";
-import { CloneToNewDocumentDialog } from "@/components/assets/dialogs/assets-clone-to-new-document-dialog";
+import { CloneToNewDocumentSheet } from "@/components/assets/dialogs/assets-clone-to-new-document-sheet";
 import { DeleteDocumentDialog } from "@/components/assets/dialogs/assets-delete-dialog";
 import { CloneExecutionDialog } from "@/components/assets/dialogs/assets-clone-execution-dialog";
 import { ApproveExecutionDialog } from "@/components/assets/dialogs/assets-approve-execution-dialog";
@@ -92,7 +92,7 @@ import { useDataTableSources } from "@/hooks/useDataTables";
 import { AssetsSectionsList } from "./assets-sections-list";
 import { formatApiDateTime, cn } from "@/lib/utils";
 import { CustomWordExportDialog } from "@/components/assets/dialogs/assets-export-custom.word-dialog";
-import { useNavKnowledgeActions } from "@/contexts/nav-knowledge-context";
+import { useNavKnowledgeActions, useNavKnowledgeRefresh } from "@/contexts/nav-knowledge-context";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
@@ -203,6 +203,7 @@ export function AssetContent({
   const { can } = usePageAccess('asset');
   const { can: canMedia } = usePageAccess('media');
   const { handleCreateAsset: openCreateAssetDialog } = useNavKnowledgeActions();
+  const refreshFileTree = useNavKnowledgeRefresh();
   const { guardedAction } = useOptionalEditingGuard();
   const { isOpen: isGlobalPanelOpen } = useGlobalPanel();
   const { requestFocus } = useDiscussionFocus();
@@ -457,11 +458,30 @@ export function AssetContent({
       }
       return cloneExecutionToNewDocument(selectedExecutionId, selectedOrganizationId, options);
     },
-    onSuccess: () => {
-      closeCloneToNewDocumentDialog();
+    onSuccess: (clonedExecution) => {
+      closeCloneToNewDocumentSheet();
       queryClient.invalidateQueries({ queryKey: ['library'] });
+
+      const newDocumentId = clonedExecution?.document_id;
+      if (!newDocumentId) return;
+
+      // Mismo patrón que nav-knowledge-provider.tsx al crear un asset: se espera
+      // la animación de salida del sheet (Radix, 200ms) antes de disparar la
+      // cascada de re-render de la navegación.
+      setTimeout(() => {
+        refreshFileTree();
+        navigate(`/asset/${newDocumentId}`, {
+          state: {
+            selectedDocumentId: newDocumentId,
+            selectedDocumentName: clonedExecution.document_name,
+            selectedDocumentType: 'document',
+            selectedExecutionId: clonedExecution.id,
+            fromFileTree: true,
+          },
+        });
+      }, 300);
     },
-    meta: { successMessage: t('mutations.executionCloned') },
+    meta: { successMessage: t('mutations.assetCloned') },
   });
 
   // Mutation for creating custom field document
@@ -544,7 +564,7 @@ export function AssetContent({
   const [deleteType, setDeleteType] = useState<'document' | 'execution' | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
-  const [isCloneToNewDocumentDialogOpen, setIsCloneToNewDocumentDialogOpen] = useState(false);
+  const [isCloneToNewDocumentSheetOpen, setIsCloneToNewDocumentSheetOpen] = useState(false);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isDisapproveDialogOpen, setIsDisapproveDialogOpen] = useState(false);
   const [isRenameVersionDialogOpen, setIsRenameVersionDialogOpen] = useState(false);
@@ -569,6 +589,9 @@ export function AssetContent({
   // `lifecycle_external_review_action` en assets-types-lifecycle-review-actions.tsx)
   // — gatea la query que decide si se ofrece el botón de disparo manual de elaboración.
   const canReadElaborationConfig = isOrgAdmin || hasPermission('lifecycle_elaboration_config:l') || hasPermission('lifecycle_elaboration_config:r');
+  // Idem, para gatear la query que resuelve si hay publicación externa habilitada
+  // en el step de publish (decide si se ofrece "Ejecutar publicación por extensión").
+  const canReadExternalPublishConfig = isOrgAdmin || hasPermission('lifecycle_external_publish_action:l');
   const canCreateCustomField = can('createCustomField');
   const canListNotifications = can('listNotifications');
   const canListDiscussions = canList('discussion');
@@ -1076,7 +1099,22 @@ export function AssetContent({
   // deja que React renderice ESE árbol en baja prioridad e interrumpible: el
   // scroll y los clicks siguen respondiendo mientras se arma, en vez de
   // bloquear el hilo principal hasta que termine (ver AssetsSectionsList).
-  const deferredContent = useDeferredValue(documentContent?.content);
+  //
+  // El valor diferido va etiquetado con el documento y la execution a los que
+  // pertenece: al cambiar de asset (p. ej. tras clonar, o al saltar a otro
+  // activo desde el árbol) React conserva el valor anterior durante la
+  // transición, y sin este chequeo la lista renderizaba el contenido del asset
+  // previo —o el [] de un primer fetch sin execution_id— mientras `tocItems`,
+  // que lee documentContent directo, ya mostraba las secciones nuevas.
+  const contentSnapshot = useMemo(
+    () => ({ docId: selectedFile?.id, execId: selectedExecutionId, content: documentContent?.content }),
+    [selectedFile?.id, selectedExecutionId, documentContent?.content],
+  );
+  const deferredSnapshot = useDeferredValue(contentSnapshot);
+  const deferredContent =
+    deferredSnapshot.docId === selectedFile?.id && deferredSnapshot.execId === selectedExecutionId
+      ? deferredSnapshot.content
+      : undefined;
 
   // Emptiness por sección (índice a índice con deferredContent — el mismo
   // array que se le pasa a AssetsSectionsList, para no desalinear índices
@@ -1486,6 +1524,7 @@ export function AssetContent({
         }
       : undefined,
     canReadElaborationConfig,
+    canReadExternalPublishConfig,
   });
 
   // Set initial view mode based on lifecycle permissions (once per document+execution):
@@ -2117,20 +2156,20 @@ export function AssetContent({
     }
   };
 
-  function openCloneToNewDocumentDialog() {
+  function openCloneToNewDocumentSheet() {
     preserveScrollPosition();
-    setIsCloneToNewDocumentDialogOpen(true);
+    setIsCloneToNewDocumentSheetOpen(true);
   }
 
-  function closeCloneToNewDocumentDialog() {
-    setIsCloneToNewDocumentDialogOpen(false);
+  function closeCloneToNewDocumentSheet() {
+    setIsCloneToNewDocumentSheetOpen(false);
   }
 
-  const handleCloneToNewDocumentDialogChange = (open: boolean) => {
+  const handleCloneToNewDocumentSheetChange = (open: boolean) => {
     if (open) {
-      openCloneToNewDocumentDialog();
+      openCloneToNewDocumentSheet();
     } else {
-      closeCloneToNewDocumentDialog();
+      closeCloneToNewDocumentSheet();
     }
   };
 
@@ -2784,7 +2823,7 @@ export function AssetContent({
                             onOpenDependencies={() => setIsDependenciesSheetOpen(true)}
                             onOpenContext={() => setIsContextSheetOpen(true)}
                             onClone={() => openCloneDialog()}
-                            onCloneToNew={() => openCloneToNewDocumentDialog()}
+                            onCloneToNew={() => openCloneToNewDocumentSheet()}
                             onCreateTemplate={() => setIsCreateTemplateFromDocumentDialogOpen(true)}
                             onExportMarkdown={handleExportMarkdown}
                             onExportWord={handleExportWord}
@@ -3754,10 +3793,10 @@ export function AssetContent({
         onAction={() => cloneMutation.mutateAsync()}
       />
 
-      {/* Clone to New Document Dialog */}
-      <CloneToNewDocumentDialog
-        open={isCloneToNewDocumentDialogOpen}
-        onOpenChange={handleCloneToNewDocumentDialogChange}
+      {/* Clone to New Document Sheet */}
+      <CloneToNewDocumentSheet
+        open={isCloneToNewDocumentSheetOpen}
+        onOpenChange={handleCloneToNewDocumentSheetChange}
         onConfirm={(options) => cloneToNewDocumentMutation.mutate(options)}
         isProcessing={cloneToNewDocumentMutation.isPending}
         organizationId={selectedOrganizationId!}

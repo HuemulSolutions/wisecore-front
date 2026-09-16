@@ -54,10 +54,10 @@ const translations = {
     objectivePlaceholder: { en: "Select objective", es: "Seleccionar objetivo" },
     executionTypePlaceholder: { en: "Select execution type", es: "Seleccionar tipo de ejecución" },
     functionalityClassPlaceholder: { en: "Select class", es: "Seleccionar clase" },
-    bodyHelpSecret: { en: "resolves an external secret.", es: "resuelve un secreto externo." },
+    bodyHelpSecret: { en: "resolves an extension secret.", es: "resuelve un secreto de extensión." },
     bodyHelpInput: {
-      en: "becomes a form field when importing an asset from an external system.",
-      es: "se convierte en un campo del formulario al importar un activo desde un sistema externo.",
+      en: "becomes a form field when importing an asset from an extension.",
+      es: "se convierte en un campo del formulario al importar un activo desde una extensión.",
     },
     bodyHelpUnavailable: {
       en: "not available when the objective is \"Import Asset\" — the asset doesn't exist yet at call time.",

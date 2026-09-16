@@ -38,6 +38,7 @@ export function HuemulLifecycleActions({
       hideComplete,
       showRunElaboration,
       hasEnabledElaborationConfig: controller.hasEnabledElaborationConfig,
+      hasEnabledExternalPublishConfig: controller.hasEnabledExternalPublishConfig,
     })
 
   if (!hasAny) return null

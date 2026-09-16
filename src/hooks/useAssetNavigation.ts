@@ -223,7 +223,10 @@ export function useAssetNavigation({
         // Check if we're coming from FileTree navigation with full context
         const navState = location.state as LibraryNavigationState | undefined;
         if (navState?.fromFileTree && navState.selectedDocumentId) {
-          setSelectedExecutionId(null);
+          // Si quien navega ya conoce la execution (ej. tras clonar), arrancar
+          // directo con ella evita un primer fetch de /content sin execution_id
+          // (que puede volver vacío) seguido de un segundo fetch con la real.
+          setSelectedExecutionId(navState.selectedExecutionId ?? null);
           setSelectedSectionId(null);
           setSelectedFile({
             id: navState.selectedDocumentId,
