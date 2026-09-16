@@ -1,7 +1,7 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, CheckCircle2, Clock, Edit3, ListChecks, RefreshCw, Paperclip } from "lucide-react"
+import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, CheckCircle2, Clock, Edit3, ListChecks, RefreshCw, Paperclip, Eye } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Input } from "@/components/ui/input"
@@ -422,16 +422,6 @@ export function WorkflowDetailPanel({
     hasAnswerableSection,
   ])
 
-  // "Ver mis respuestas" pide volver al resumen sin que la tarjeta se pierda
-  // para siempre: se resetea a `false` cada vez que `finishOutcome` CAMBIA de
-  // valor (nueva transición, p.ej. otra persona avanza el documento), para que
-  // la tarjeta pueda reaparecer — mientras el outcome no cambie, el usuario
-  // se queda viendo el resumen tanto tiempo como quiera.
-  const [viewingAnswersAfterFinish, setViewingAnswersAfterFinish] = React.useState(false)
-  React.useEffect(() => {
-    setViewingAnswersAfterFinish(false)
-  }, [finishOutcome])
-
   // AssetFormSection ya validó (required/formato) y guardó antes de llamar esto.
   // Solo se invoca mientras se está respondiendo un paso (step !== null). En el
   // último paso, si el usuario puede avanzar el ciclo de vida, "Finalizar" no
@@ -528,10 +518,64 @@ export function WorkflowDetailPanel({
   // (archivar, restaurar, re-lanzar publicación externa...). Si queda una acción
   // de lifecycle disponible, fullscreen sigue mostrando el resumen normal (como
   // el panel) en vez de la tarjeta terminal — esa tarjeta es solo para cuando de
-  // verdad no hay ningún botón que ofrecer. No depende de `viewingAnswersAfterFinish`:
+  // verdad no hay ningún botón que ofrecer. No depende de `viewingAnswers`:
   // mirar las respuestas ya enviadas no devuelve nada por hacer, así que la barra
   // sigue oculta también ahí.
   const isFinished = finishOutcome !== null && !lifecycleActions.hasAny
+
+  // ── Aviso de "no te toca nada AHORA" ──────────────────────────────────────
+  // El backend pasó a devolver SIEMPRE las secciones (con las respuestas ya
+  // dadas), así que `formSections.length === 0` dejó de cubrir este caso y
+  // todo caía en el resumen sin ninguna tarjeta clickeable. Factores, en orden:
+  //  - canAnswerForm: RBAC × rol `edit` × ETAPA de edición × sin lock externo.
+  //    La etapa es el factor crítico: sin él, un documento en aprobación/
+  //    aprobado/publicado abierto en el PANEL (donde `finishOutcome` es
+  //    siempre null, ver arriba) mostraría "pendiente de otro rol" —falso— en
+  //    vez del resumen + el aviso ámbar de etapa, que es lo correcto y lo que
+  //    se ve hoy.
+  //  - !hasAnswerableSection: ninguna sección concreta es respondible por mí
+  //    (hand-off entre grupos de la misma etapa, o secciones can_edit:false).
+  //  - !lifecycleActions.hasAny: si queda CUALQUIER acción (Completar,
+  //    Devolver, Publicar, Archivar...) el usuario sí tiene algo que hacer y
+  //    necesita el resumen para revisar antes de apretarla — mismo criterio
+  //    que `isFinished`. De paso deja fuera las variantes advance/blocked de
+  //    `wizard.emptyStep.*`: ambas implican can_advance/blockers ⇒
+  //    canComplete ⇒ hasAny.
+  const isWaitingForOthers = canAnswerForm && !hasAnswerableSection && !lifecycleActions.hasAny
+
+  // "Ver mis respuestas" / "Ver las respuestas": UN SOLO flag para la tarjeta
+  // terminal y para el aviso de abajo. Con dos flags separados, el botón de
+  // WorkflowFinishedCard llevaba al aviso en vez de al resumen (al ceder la
+  // tarjeta, `isWaitingForOthers` suele ser true en el mismo estado). Se
+  // resetea cuando CAMBIA el motivo por el que se ofreció: ambas deps son
+  // primitivas, así que un refetch con los mismos datos no expulsa al usuario
+  // del resumen que está leyendo.
+  const [viewingAnswers, setViewingAnswers] = React.useState(false)
+  React.useEffect(() => {
+    setViewingAnswers(false)
+  }, [finishOutcome, isWaitingForOthers])
+
+  // El aviso REEMPLAZA al resumen (comportamiento previo al cambio de
+  // backend), nunca al wizard: quien ya estaba dentro de una sección se queda
+  // ahí en solo lectura con su banner ámbar. Sin secciones visibles (rama
+  // vieja) el aviso es el único contenido posible — WorkflowSectionsSummary
+  // renderiría un div vacío.
+  const showEmptyStepNotice =
+    formSections.length === 0 ||
+    (isWaitingForOthers && (step === null || !currentSection) && !viewingAnswers)
+
+  // Sin secciones a la vista no hay resumen al que volver — misma regla que
+  // el `onViewAnswers` de WorkflowFinishedCard (ver más abajo).
+  const emptyStepViewAnswersConfig =
+    showEmptyStepNotice && formSections.length > 0
+      ? {
+          label: t("wizard.emptyStep.viewAnswers"),
+          onClick: () => {
+            setViewingAnswers(true)
+            setStep(null)
+          },
+        }
+      : null
 
   // `showLifecycle` es `true` por default en ambos usos (panel de /workflow y
   // link compartido, ver ia context/fullscreen-share-route-guide.md §4: el
@@ -674,18 +718,20 @@ export function WorkflowDetailPanel({
           !isLoading &&
           !error &&
           formSections.length > 0 &&
-          readOnlyReason &&
-          (!isFinished || viewingAnswersAfterFinish) && (
+          (readOnlyReason || (isWaitingForOthers && viewingAnswers)) &&
+          (!isFinished || viewingAnswers) && (
           <div className="mb-4 flex items-center rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            {readOnlyReason === "externalElaboration"
-              ? t("fill.readOnlyExternalElaborationNotice")
-              : readOnlyReason === "stage"
-                ? stageNotice
-                : readOnlyReason === "sectionInactive"
-                  ? t("fill.readOnlyInactiveSectionNotice")
-                  : readOnlyReason === "section"
-                    ? t("fill.readOnlySectionNotice")
-                    : t("fill.readOnlyNotice")}
+            {!readOnlyReason
+              ? t("wizard.emptyStep.waitingDescription")
+              : readOnlyReason === "externalElaboration"
+                ? t("fill.readOnlyExternalElaborationNotice")
+                : readOnlyReason === "stage"
+                  ? stageNotice
+                  : readOnlyReason === "sectionInactive"
+                    ? t("fill.readOnlyInactiveSectionNotice")
+                    : readOnlyReason === "section"
+                      ? t("fill.readOnlySectionNotice")
+                      : t("fill.readOnlyNotice")}
           </div>
         )}
         {needsNameStep ? (
@@ -737,7 +783,7 @@ export function WorkflowDetailPanel({
             <AlertCircle className="h-4 w-4 shrink-0" />
             {t("panel.loadError")}
           </div>
-        ) : finishOutcome && isFinished && !viewingAnswersAfterFinish ? (
+        ) : finishOutcome && isFinished && !viewingAnswers ? (
           <WorkflowFinishedCard
             outcome={finishOutcome}
             workflowName={workflowName}
@@ -749,23 +795,37 @@ export function WorkflowDetailPanel({
             onViewAnswers={
               formSections.length > 0
                 ? () => {
-                    setViewingAnswersAfterFinish(true)
+                    setViewingAnswers(true)
                     setStep(null)
                   }
                 : undefined
             }
             onStartAnother={onStartAnother}
           />
-        ) : formSections.length === 0 ? (
+        ) : showEmptyStepNotice ? (
           isFullscreen ? (
             <WorkflowStatusCard
               icon={CheckCircle2}
               title={t(emptyStepTitleKey)}
               description={t(emptyStepDescriptionKey)}
               actions={
-                emptyStepButtonConfig && (
-                  <HuemulButton size="sm" icon={Check} iconPosition="left" className="w-full" {...emptyStepButtonConfig} />
-                )
+                emptyStepButtonConfig || emptyStepViewAnswersConfig ? (
+                  <>
+                    {emptyStepButtonConfig && (
+                      <HuemulButton size="sm" icon={Check} iconPosition="left" className="w-full" {...emptyStepButtonConfig} />
+                    )}
+                    {emptyStepViewAnswersConfig && (
+                      <HuemulButton
+                        variant="outline"
+                        size="sm"
+                        icon={Eye}
+                        iconPosition="left"
+                        className="w-full"
+                        {...emptyStepViewAnswersConfig}
+                      />
+                    )}
+                  </>
+                ) : null // `actions` se chequea por truthiness: un fragment vacío pintaría el border-t solo
               }
             />
           ) : (
@@ -773,8 +833,15 @@ export function WorkflowDetailPanel({
               <CheckCircle2 className="h-8 w-8 text-muted-foreground" />
               <p className="text-sm font-medium text-foreground">{t(emptyStepTitleKey)}</p>
               <p className="max-w-sm text-xs text-muted-foreground">{t(emptyStepDescriptionKey)}</p>
-              {emptyStepButtonConfig && (
-                <HuemulButton size="sm" icon={Check} iconPosition="left" className="mt-2" {...emptyStepButtonConfig} />
+              {(emptyStepButtonConfig || emptyStepViewAnswersConfig) && (
+                <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                  {emptyStepButtonConfig && (
+                    <HuemulButton size="sm" icon={Check} iconPosition="left" {...emptyStepButtonConfig} />
+                  )}
+                  {emptyStepViewAnswersConfig && (
+                    <HuemulButton variant="outline" size="sm" icon={Eye} iconPosition="left" {...emptyStepViewAnswersConfig} />
+                  )}
+                </div>
               )}
             </div>
           )
@@ -811,7 +878,8 @@ export function WorkflowDetailPanel({
         !error &&
         formSections.length > 0 &&
         step !== null &&
-        !(finishOutcome && isFinished && !viewingAnswersAfterFinish) && (
+        !showEmptyStepNotice &&
+        !(finishOutcome && isFinished && !viewingAnswers) && (
         <div
           className={cn(
             "flex flex-wrap items-center justify-between gap-2 border-t p-4 shrink-0",
