@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next";
+import { Calculator } from "lucide-react";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { HuemulQuestionInput, type HuemulQuestionInputValue } from "@/huemul/components/huemul-question-input";
-import { getQuestionTypePlaceholder, NUMERIC_DATA_TYPES, QUESTION_TYPE, questionTypeLabel } from "./question-type-meta";
+import { getQuestionTypePlaceholder, isCalculatedField, NUMERIC_DATA_TYPES, QUESTION_TYPE, questionTypeLabel } from "./question-type-meta";
 import { SectionFieldSeparator } from "./section-field-separator";
 
 // Caja gris de vista previa (mismo estilo compartido entre sections y custom fields).
@@ -67,6 +68,31 @@ export function QuestionTypePreview({
 
   if (questionType === QUESTION_TYPE.label) {
     return <SectionFieldSeparator name={fieldName || t("form.formFields.fieldName")} />;
+  }
+
+  // Campo calculado: deliberadamente SIN simular el cálculo (el front nunca evalúa
+  // calculation_config, mismo criterio que depends_on — ver
+  // ia context/campos-calculados-en-formularios-guide.md) — solo un aviso de que el valor
+  // se completa solo. Sin caso en HuemulQuestionInput: no es un control editable.
+  if (isCalculatedField({ question_type: questionType })) {
+    const control = (
+      <PreviewBox>
+        <div className="flex items-center gap-1.5 text-sm text-gray-500">
+          <Calculator className="size-3.5 shrink-0" />
+          {t("form.formFields.calculated.previewValue")}
+        </div>
+      </PreviewBox>
+    );
+    if (!fieldName) return control;
+    return (
+      <div className="space-y-1.5">
+        <span className="flex items-baseline gap-1.5 text-sm font-semibold text-gray-900">
+          <span>{fieldName}</span>
+          <span className="text-xs font-normal text-gray-400">· {questionTypeLabel(questionType, t)}</span>
+        </span>
+        {control}
+      </div>
+    );
   }
 
   // carga_de_archivos y el fallback data_type "image" no tienen widget propio en

@@ -8,8 +8,11 @@ import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { HuemulFileTree } from "@/huemul/components/huemul-file-tree"
 import { useSubscriptionMutations } from "@/hooks/useSubscriptions"
 import { getLibraryContent } from "@/services/folders"
+import { useLibraryTreeExpansion } from "@/hooks/useLibraryTreeExpansion"
+import { buildLibraryTree } from "@/lib/library-tree"
 import type { CreateSubscriptionRequest, SubscriptionReactionType } from "@/types/subscriptions"
 import type { HuemulTreeNode } from "@/types/huemul"
+import type { LibraryContentFolder, LibraryContentAsset } from "@/types/folders"
 import { Label } from "@/components/ui/label"
 
 const EXECUTION_EVENT_TYPES = [
@@ -64,25 +67,34 @@ export function SubscriptionCreateDialog({
 
   const isExecutionEvent = EXECUTION_EVENT_TYPES.includes(formData.event_type ?? "")
 
+  // Comparte la clave `tree-expanded` con el sidebar de conocimiento y el
+  // resto de pickers de biblioteca — ver ia context/arbol-biblioteca-activos-guide.md.
+  const { loadRoot, treeProps: expansionTreeProps } = useLibraryTreeExpansion({ organizationId })
+
+  const mapFolder = useCallback((f: LibraryContentFolder): HuemulTreeNode => ({
+    id: f.id,
+    name: f.name,
+    type: "folder",
+    hasChildren: true,
+  }), [])
+  const mapAsset = useCallback((a: LibraryContentAsset): HuemulTreeNode => ({
+    id: a.id,
+    name: a.name,
+    type: "file",
+    hasChildren: false,
+    metadata: { color: a.document_type?.color },
+  }), [])
+
   const handleLoadChildren = useCallback(
     async (folderId: string | null): Promise<HuemulTreeNode[]> => {
-      const content = await getLibraryContent(organizationId, folderId ?? undefined)
-      const folderNodes: HuemulTreeNode[] = content.folders.map((f) => ({
-        id: f.id,
-        name: f.name,
-        type: "folder",
-        hasChildren: true,
-      }))
-      const fileNodes: HuemulTreeNode[] = content.assets.map((a) => ({
-        id: a.id,
-        name: a.name,
-        type: "file",
-        hasChildren: false,
-        metadata: { color: a.document_type?.color },
-      }))
-      return [...folderNodes, ...fileNodes]
+      if (folderId === null) {
+        const { content } = await loadRoot()
+        return buildLibraryTree<HuemulTreeNode>(content, { parentFolderId: null, mapFolder, mapAsset })
+      }
+      const content = await getLibraryContent(organizationId, folderId)
+      return buildLibraryTree<HuemulTreeNode>(content, { parentFolderId: folderId, mapFolder, mapAsset })
     },
-    [organizationId],
+    [organizationId, loadRoot, mapFolder, mapAsset],
   )
 
   const handleFileClick = useCallback((node: HuemulTreeNode) => {
@@ -170,6 +182,7 @@ export function SubscriptionCreateDialog({
             showDefaultActions={{ create: false, delete: false, share: false }}
             showBorder
             minHeight="180px"
+            {...expansionTreeProps}
             renderLeafIcon={(node) => (
               <File
                 className="h-3.5 w-3.5 shrink-0"

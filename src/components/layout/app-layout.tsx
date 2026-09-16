@@ -7,12 +7,6 @@ import { useQueryClient } from "@tanstack/react-query"
 import { generateOrganizationToken } from "@/services/organizations"
 import packageInfo from "../../../package.json"
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import {
   Sheet,
   SheetContent,
   SheetTrigger,
@@ -548,8 +542,8 @@ export default function AppLayout() {
   // Vistas a pantalla completa (ver ia context/fullscreen-share-route-guide.md):
   // link compartido de workflow (workflow/share/*) y vista dedicada de un asset
   // (asset/full/*). Mismos providers que el resto de la app (Chatbot/GlobalPanel/
-  // Tooltip/EditingGuard/NavKnowledge, de los que depende AssetFormSection), pero
-  // SIN header/nav/LlmConfigBanner/GlobalPanelOutlet — quien entra no debe ver ni
+  // EditingGuard/NavKnowledge, de los que depende AssetFormSection), pero SIN
+  // header/nav/LlmConfigBanner/GlobalPanelOutlet — quien entra no debe ver ni
   // tocar el resto de la organización. Todos los efectos de arriba (OrgSync,
   // returnUrl, etc.) siguen corriendo igual: solo cambia lo que se renderiza. Un
   // caso de uso nuevo suma su propio prefijo al regex — no dupliques el bloque `if`.
@@ -558,17 +552,15 @@ export default function AppLayout() {
     return (
       <ChatbotProvider resetKey={selectedOrganizationId ?? 'no-org'}>
         <GlobalPanelProvider>
-          <TooltipProvider>
-            <EditingGuardProvider>
-              <NavKnowledgeProvider>
-                <div className="flex flex-col h-dvh overflow-hidden">
-                  <Suspense fallback={<PageSkeleton />}>
-                    <Outlet />
-                  </Suspense>
-                </div>
-              </NavKnowledgeProvider>
-            </EditingGuardProvider>
-          </TooltipProvider>
+          <EditingGuardProvider>
+            <NavKnowledgeProvider>
+              <div className="flex flex-col h-dvh overflow-hidden">
+                <Suspense fallback={<PageSkeleton />}>
+                  <Outlet />
+                </Suspense>
+              </div>
+            </NavKnowledgeProvider>
+          </EditingGuardProvider>
         </GlobalPanelProvider>
       </ChatbotProvider>
     )
@@ -577,7 +569,6 @@ export default function AppLayout() {
   return (
     <ChatbotProvider resetKey={selectedOrganizationId ?? 'no-org'}>
       <GlobalPanelProvider>
-      <TooltipProvider>
         <EditingGuardProvider>
         <NavKnowledgeProvider>
         <div className="flex flex-col h-dvh overflow-hidden">
@@ -675,16 +666,12 @@ export default function AppLayout() {
 
               {/* Wisy toggle */}
               <WisyToggle />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="hidden md:flex bg-muted/50 text-muted-foreground text-xs font-mono px-2 py-1 rounded border">
-                    v{packageInfo.version}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{t('header.applicationVersion')}</p>
-                </TooltipContent>
-              </Tooltip>
+              <div
+                title={t('header.applicationVersion')}
+                className="hidden md:flex bg-muted/50 text-muted-foreground text-xs font-mono px-2 py-1 rounded border"
+              >
+                v{packageInfo.version}
+              </div>
               
               {/* Settings dropdown */}
               <HeaderSettingsMenu
@@ -766,7 +753,6 @@ export default function AppLayout() {
         )}
         </NavKnowledgeProvider>
         </EditingGuardProvider>
-      </TooltipProvider>
       </GlobalPanelProvider>
     </ChatbotProvider>
   )

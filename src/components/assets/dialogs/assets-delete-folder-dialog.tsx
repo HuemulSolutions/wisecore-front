@@ -53,6 +53,7 @@ export function DeleteFolderDialog({
       description={description}
       onAction={handleConfirm}
       actionLabel={t('common:delete')}
+      showSuccessState={false}
     />
   )
 }

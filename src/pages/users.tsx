@@ -12,6 +12,7 @@ import { useUsers, useUserById, useUserMutations, userQueryKeys } from "@/hooks/
 import { useUserRolesStaging } from "@/hooks/useUserRolesStaging"
 import { useUserProfileForm } from "@/hooks/useUserProfileForm"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
+import { useUrlTab } from "@/hooks/useUrlTab"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import CreateRoleSheet from "@/components/roles/roles-create-sheet"
@@ -33,11 +34,8 @@ export default function UsersPage() {
   const [state, setState] = useState<UserListState>({
     searchTerm: "",
     selectedUsers: new Set(),
-    editingUser: null,
-    organizationUser: null,
     showCreateDialog: false,
     deletingUser: null,
-    rootAdminUser: null
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
@@ -46,18 +44,33 @@ export default function UsersPage() {
   const [createRoleSheetOpen, setCreateRoleSheetOpen] = useState(false)
   const [createRoleInitialName, setCreateRoleInitialName] = useState("")
 
-  // El usuario/tab seleccionados viven en la URL (?user=<id>&tab=roles), no en
-  // un useState espejo: así el panel es linkeable y sobrevive al refresh. Ver
-  // precedente src/pages/assets-types.tsx:86-93.
-  const selectedUserId = searchParams.get('user')
-  const detailTab: UserDetailTab = searchParams.get('tab') === 'roles' ? 'roles' : 'profile'
-
   // Get permissions and organization context
   const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('users')
   // `isRootAdmin` es el eje del flag de sistema `is_root_admin`
   // (PATCH /users/{id}/root-admin), no un bypass de los permisos org-scoped.
+  // También gatea el tab "Organizaciones" (asignar/quitar organizaciones,
+  // cross-org y root-admin-only — ver users-detail-organizations-tab.tsx).
   const { isRootAdmin } = useUserPermissions()
   const { selectedOrganizationId, organizationToken } = useOrganization()
+
+  // El set de tabs depende de `isRootAdmin`, que resuelve después del primer
+  // render — a diferencia de /roles (tabs fijos), acá hace falta
+  // `normalize: true` + `ready` para corregir un `?tab=organizations` de la
+  // URL si el usuario no es root admin (ver ia context/detail-surface-guide.md).
+  const userDetailTabs: readonly UserDetailTab[] = isRootAdmin
+    ? ['profile', 'roles', 'organizations']
+    : ['profile', 'roles']
+
+  // El usuario/tab seleccionados viven en la URL (?user=<id>&tab=roles), no en
+  // un useState espejo: así el panel es linkeable y sobrevive al refresh. Ver
+  // precedente src/pages/assets-types.tsx:86-93.
+  const selectedUserId = searchParams.get('user')
+  const { tab: detailTab, setTab: setDetailTab, applyTab } = useUrlTab({
+    tabs: userDetailTabs,
+    fallback: 'profile',
+    normalize: true,
+    ready: !isLoadingPermissions,
+  })
   const queryClient = useQueryClient()
   const { t } = useTranslation(['users', 'common'])
 
@@ -193,7 +206,7 @@ export default function UsersPage() {
       const next = new URLSearchParams(prev)
       if (userId) {
         next.set('user', userId)
-        next.set('tab', tab)
+        applyTab(next, tab)
       } else {
         next.delete('user')
         next.delete('tab')
@@ -213,7 +226,7 @@ export default function UsersPage() {
 
   const handleTabChange = (tab: UserDetailTab) => {
     if (!selectedUserId) return
-    navigateToUser(selectedUserId, tab)
+    setDetailTab(tab)
   }
 
   const handleOpenCreateRoleSheet = (initialName: string) => {
@@ -293,34 +306,32 @@ export default function UsersPage() {
               className: "px-4 pb-4 md:px-6 md:pb-6",
             },
           },
-          {
-            content: selectedUser ? (
-              <UserDetailPanel
-                user={selectedUser}
-                activeTab={detailTab}
-                onTabChange={handleTabChange}
-                onClose={handleClosePanel}
-                onDeleteUser={() => updateState({ deletingUser: selectedUser })}
-                onOpenCreateRoleSheet={handleOpenCreateRoleSheet}
-                userMutations={userMutations}
-                profileForm={profileForm}
-                canUpdate={canUpdateUser}
-                canDelete={canDeleteUser}
-                canManageRootAdmin={isRootAdmin}
-                canAssignRoles={canAssignRoles}
-                canListRoles={canListRoles}
-                canCreateRole={canCreateRole}
-                onRegisterGuard={onRegisterGuard}
-                staging={staging}
-              />
-            ) : null,
-            show: !!selectedUserId,
-            defaultSize: 32,
-            minSize: 24,
-            maxSize: 45,
-            className: "border-l border-border",
-          },
         ]}
+      />
+
+      {/* El detalle del usuario seleccionado se muestra en un HuemulSheet
+          (no como columna del layout) — se mantiene montado con `open`
+          controlado por la URL para que la animación de cierre corra. */}
+      <UserDetailPanel
+        open={!!selectedUserId}
+        user={selectedUser}
+        activeTab={detailTab}
+        onTabChange={handleTabChange}
+        onClose={handleClosePanel}
+        onDeleteUser={() => updateState({ deletingUser: selectedUser })}
+        availableTabs={userDetailTabs}
+        onOpenCreateRoleSheet={handleOpenCreateRoleSheet}
+        userMutations={userMutations}
+        profileForm={profileForm}
+        canUpdate={canUpdateUser}
+        canDelete={canDeleteUser}
+        canManageRootAdmin={isRootAdmin}
+        canAssignRoles={canAssignRoles}
+        canListRoles={canListRoles}
+        canCreateRole={canCreateRole}
+        onRegisterGuard={onRegisterGuard}
+        staging={staging}
+        organizationsTab={isRootAdmin ? { canManageMembers: true } : undefined}
       />
 
       {/* Dialogs and Sheets */}
@@ -330,12 +341,7 @@ export default function UsersPage() {
         onUpdateState={updateState}
         userMutations={userMutations}
         canCreate={canCreateUser}
-        canUpdate={canUpdateUser}
         canDelete={canDeleteUser}
-        canManageRootAdmin={isRootAdmin}
-        // Asignar/quitar organizaciones es cross-org y solo se ofrece desde
-        // /global-admin (root-admin-only): esta pantalla no tiene el trigger.
-        canManageOrganizations={false}
       />
 
       {/* Sibling del layout — nunca anidado en el panel ni en el popover, ver

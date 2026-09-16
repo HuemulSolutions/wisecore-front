@@ -18,6 +18,11 @@ export interface PanelHeaderSearchConfig {
    */
   alwaysOpen?: boolean
   /**
+   * Ícono de lupa dentro del input, a la izquierda. Por defecto no se
+   * muestra (el input queda igual que hoy en los paneles existentes).
+   */
+  showIcon?: boolean
+  /**
    * Estado abierto/cerrado del toggle. Se pasa solo cuando el consumidor ya
    * guarda ese estado fuera (contexto), para que sobreviva a un remontaje del
    * panel; omitido, el componente lo maneja internamente.
@@ -31,6 +36,12 @@ export interface HuemulPanelHeaderProps {
   title: string
   /** Icono opcional a la izquierda del título */
   icon?: LucideIcon
+  /**
+   * Override del estilo del título. Por defecto es el label chico mudo
+   * actual (`text-xs font-medium text-muted-foreground`); se usa cuando un
+   * panel necesita un título más prominente (ej. templates-sidebar).
+   */
+  titleClassName?: string
   /** Búsqueda del panel; si se omite no se renderiza el botón de lupa */
   search?: PanelHeaderSearchConfig
   /**

@@ -5,6 +5,7 @@ import type { SectionFormField } from "@/types/sections/core";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
   QUESTION_TYPE,
+  isCalculatedField,
   questionTypeIcon,
   questionTypeLabel,
   readFieldConfig,
@@ -12,6 +13,7 @@ import {
 } from "./question-type-meta";
 import { SectionFieldSeparator } from "./section-field-separator";
 import { PreviewBox, QuestionTypePreview } from "./question-type-preview";
+import { describeCalculationConfig } from "./describe-calculation-config";
 
 interface SectionFormFieldsViewProps {
   fields: SectionFormField[];
@@ -39,15 +41,20 @@ export function SectionFormFieldsView({ fields }: SectionFormFieldsViewProps) {
     }
 
     return (
-      <QuestionTypePreview
-        questionType={field.question_type}
-        dataType={field.data_type}
-        options={readFieldOptions(field)}
-        minValue={typeof field.min_value === "number" ? field.min_value : undefined}
-        maxValue={typeof field.max_value === "number" ? field.max_value : undefined}
-        minLabel={cfg.min_label}
-        maxLabel={cfg.max_label}
-      />
+      <div className="space-y-1">
+        <QuestionTypePreview
+          questionType={field.question_type}
+          dataType={field.data_type}
+          options={readFieldOptions(field)}
+          minValue={typeof field.min_value === "number" ? field.min_value : undefined}
+          maxValue={typeof field.max_value === "number" ? field.max_value : undefined}
+          minLabel={cfg.min_label}
+          maxLabel={cfg.max_label}
+        />
+        {isCalculatedField(field) && (
+          <p className="text-xs text-gray-500">{describeCalculationConfig(field, fields, t)}</p>
+        )}
+      </div>
     );
   };
 

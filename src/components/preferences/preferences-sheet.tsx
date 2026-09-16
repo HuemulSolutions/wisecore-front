@@ -9,7 +9,8 @@ import { HuemulSegmentedControl } from "@/huemul/components/huemul-segmented-con
 import { Switch } from "@/components/ui/switch"
 import { useMediaViewMode } from "@/hooks/useMediaViewMode"
 import { useLanguagePreference } from "@/hooks/useLanguagePreference"
-import { useTreeExpansionStorage } from "@/hooks/useTreeExpansionStorage"
+import { useTreeExpansionStorage, useExternalSystemsExpansionStorage } from "@/hooks/useTreeExpansionStorage"
+import { clearMentionTrail } from "@/hooks/useMentionTrailStorage"
 import { useOrganization } from "@/contexts/organization-context"
 import { userPreferenceQueryKeys } from "@/hooks/useUserPreference"
 import type { PreferencesSheetProps } from "@/types/preferences"
@@ -30,14 +31,20 @@ export function PreferencesSheet({ open, onOpenChange }: PreferencesSheetProps) 
   const { language, setLanguage } = useLanguagePreference()
   const [mediaViewMode, setMediaViewMode] = useMediaViewMode()
   const { rememberEnabled, setRememberEnabled, clearExpanded } = useTreeExpansionStorage(selectedOrganizationId)
+  const { clearExpanded: clearExternalSystemsExpanded } = useExternalSystemsExpansionStorage(selectedOrganizationId)
 
   const isFetching = useIsFetching({ queryKey: userPreferenceQueryKeys.all }) > 0
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: userPreferenceQueryKeys.all })
   }
 
+  // Un solo botón, un solo toast: borra las tres superficies que gobierna el
+  // switch "recordar" (biblioteca de activos, sistemas externos, trail del
+  // popover @ del editor) — ver ia context/arbol-biblioteca-activos-guide.md.
   const handleForgetExpanded = () => {
     clearExpanded()
+    clearExternalSystemsExpanded()
+    clearMentionTrail(selectedOrganizationId)
     toast.success(t("assetTree.forgetExpandedSuccess"))
   }
 

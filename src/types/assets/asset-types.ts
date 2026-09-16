@@ -72,8 +72,6 @@ export interface CloneAssetTypeData {
 export interface AssetTypePageState {
   searchTerm: string;
   showCreateDialog: boolean;
-  /** Tipo de activo abierto en el sheet de configuración (general/plantillas/ciclo de vida). */
-  configAssetType: AssetTypeWithRoles | null;
   deletingAssetType: AssetTypeWithRoles | null;
   cloningAssetType: AssetTypeWithRoles | null;
   viewRelationshipsAssetType: AssetTypeWithRoles | null;

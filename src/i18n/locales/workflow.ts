@@ -63,6 +63,7 @@ const translations = {
     sectionNotFound: { en: "Section not found in the asset content", es: "No se encontró la sección en el contenido del activo" },
     loadError: { en: "Failed to load the form fields", es: "Error al cargar los campos del formulario" },
     edit: { en: "Edit asset", es: "Editar activo" },
+    media: { en: "Resources", es: "Recursos" },
     stageLabel: { en: "Stage:", es: "Etapa:" },
     sectionLabel: { en: "Section:", es: "Sección:" },
   },
@@ -134,6 +135,7 @@ const translations = {
         en: "This stage can't be completed until the required fields in the pending sections are answered.",
         es: "No se puede completar esta etapa hasta responder los campos obligatorios de las secciones pendientes.",
       },
+      viewAnswers: { en: "View the answers", es: "Ver las respuestas" },
     },
     summary: {
       tooltip: { en: "Back to summary", es: "Volver al resumen" },
@@ -172,6 +174,10 @@ const translations = {
     readOnlyLifecycleNotice: {
       en: "Fields can't be edited at this lifecycle stage.",
       es: "Los campos no se pueden editar en esta etapa del ciclo de vida.",
+    },
+    readOnlyExternalElaborationNotice: {
+      en: "This asset is temporarily read-only while an extension processes it. It will unlock automatically once that response arrives.",
+      es: "Este activo está temporalmente en modo lectura mientras una extensión lo procesa. Se desbloqueará automáticamente en cuanto llegue esa respuesta.",
     },
     readOnlySectionNotice: {
       en: "This section is read-only at this stage — you can view it but not answer it.",

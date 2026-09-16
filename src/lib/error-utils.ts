@@ -78,6 +78,16 @@ export function handleApiError(
       return;
     }
 
+    // Respaldo ante la carrera donde el usuario mandó el request justo antes de que
+    // lifecycle_status refrescara con is_locked_external_elaboration: true (los botones
+    // ya deberían estar apagados por computeFrontendPermissions, esto es solo el eco).
+    if (error.code === 'EXECUTION_LOCKED_EXTERNAL_ELABORATION') {
+      if (showToast) {
+        toast.error(i18n.t('assets:lifecycle.errorLockedExternalElaboration'));
+      }
+      return;
+    }
+
     // Solo saltar cuando httpClient ya lo manejó (logout + redirect).
     // No volver a adivinar aquí con el mismo heurístico de permisos: dos
     // copias de esa heurística fue justo lo que causó que un 401 de

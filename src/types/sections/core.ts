@@ -1,5 +1,8 @@
 import type { CustomFieldDataType } from "@/types/custom-fields/core";
 
+// Los 4 tipos de sección — fuente única del literal, ver section-type-meta.ts.
+export type SectionType = "ai" | "manual" | "reference" | "form";
+
 export type Dependency = {
   id: string
   name: string
@@ -26,6 +29,43 @@ export interface SectionDependencyConfig {
   show_when_inactive?: boolean;
 }
 
+// Config de un campo calculado (ver "ia context/campos-calculados-en-formularios-guide.md").
+// El front NUNCA evalúa esto — solo lo persiste (builder) y muestra el value ya calculado
+// por el backend (runtime), mismo criterio que depends_on/is_visible/can_answer.
+export type CalculationMode = "formula" | "conditional";
+export type FormulaTermOperator = "add" | "subtract";
+
+export interface FormulaTerm {
+  field_id: string;              // pregunta numérica (int|decimal) anterior; puede repetirse
+  operator: FormulaTermOperator;
+  multiplier?: number;           // default 1
+}
+
+export interface FormulaCalculationConfig {
+  mode: "formula";
+  terms: FormulaTerm[];
+  constant?: number;             // default 0
+  round_decimals?: number | null;
+}
+
+// `if` reusa FieldDependencyCondition: mismo shape y mismos operadores que depends_on.
+export interface ConditionalRuleNode {
+  if: FieldDependencyCondition[];   // AND entre condiciones
+  then: ConditionalBranch;
+  else: ConditionalBranch;
+}
+
+export type ConditionalBranch =
+  | { type: "value"; value: unknown }
+  | ({ type: "rule" } & ConditionalRuleNode);
+
+export interface ConditionalCalculationConfig {
+  mode: "conditional";
+  root: ConditionalRuleNode;     // la raíz no lleva `type`
+}
+
+export type CalculationConfig = FormulaCalculationConfig | ConditionalCalculationConfig;
+
 export interface SectionFormField {
   id?: string;                          // id de la fila section_form (presente en lecturas)
   field_id: string;
@@ -40,6 +80,8 @@ export interface SectionFormField {
   custom_field_id?: string | null;      // solo si question_type === "custom_field"
   depends_on?: FieldDependencyCondition[] | null;
   show_when_inactive?: boolean;
+  // Solo si question_type es campo_calculado_formula/campo_calculado_condicional; null en el resto.
+  calculation_config?: CalculationConfig | null;
 }
 
 // Valor de un form field en el snapshot de una section_execution (contenido del asset).
@@ -63,6 +105,8 @@ export interface FormFieldValue {
   max_value?: unknown | null;
   depends_on?: FieldDependencyCondition[] | null;
   show_when_inactive?: boolean;
+  // Solo si question_type es campo_calculado_formula/campo_calculado_condicional; null en el resto.
+  calculation_config?: CalculationConfig | null;
   // Calculados por el backend a partir de depends_on/show_when_inactive y las respuestas actuales.
   is_visible?: boolean;
   can_answer?: boolean;
@@ -112,6 +156,8 @@ export interface FormFieldOption {
 
 // Config de UI por tipo de pregunta, persistida dentro de default_value (JSONB).
 // Para opcion_multiple / desplegable default_value es FormFieldOption[] (no este objeto).
+// La cantidad mín/máx de carga_de_archivos NO vive acá — usa min_value/max_value de
+// SectionFormField, igual que escala_lineal/calificacion (ver readFileUploadLimits).
 export interface FormFieldConfig {
   // escala_lineal — etiquetas de extremos
   min_label?: string;
@@ -119,6 +165,10 @@ export interface FormFieldConfig {
   // carga_de_archivos
   allowed_types?: string[];
   max_size_mb?: number;
+  // Legado: cantidad mín/máx guardada acá por una implementación previa, front-only.
+  // Solo se lee como fallback (readFileUploadLimits) — nunca se escribe.
+  min_files?: number;
+  max_files?: number;
 }
 
 export interface SortableSectionItem extends SectionDependencyConfig {
@@ -132,6 +182,11 @@ export interface SortableSectionItem extends SectionDependencyConfig {
   reference_section_id?: string
   reference_mode?: "latest" | "specific"
   reference_execution_id?: string
+  // Nombre de la sección referenciada y, en modo `specific`, de la ejecución
+  // elegida — es todo lo que manda el backend hoy (no hay nombre del
+  // documento/activo de origen).
+  reference_section_name?: string
+  reference_execution_name?: string
   template_section_id?: string
   form_fields?: SectionFormField[]
 }
@@ -147,6 +202,8 @@ export interface SortableSectionSheetItem extends SectionDependencyConfig {
   reference_section_id?: string
   reference_mode?: "latest" | "specific"
   reference_execution_id?: string
+  reference_section_name?: string
+  reference_execution_name?: string
   template_section_id?: string
   form_fields?: SectionFormField[]
 }

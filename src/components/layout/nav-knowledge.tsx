@@ -34,7 +34,7 @@ import { cn } from "@/lib/utils"
 import { logger } from "@/lib/logger"
 import { useNavKnowledge } from "@/contexts/nav-knowledge-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
-import { useTreeExpansionStorage } from "@/hooks/useTreeExpansionStorage"
+import { useLibraryTreeExpansion } from "@/hooks/useLibraryTreeExpansion"
 import { handleFolderActionError, isRootGroupFolderNode, buildFocusedTree } from "@/components/layout/nav-knowledge-utils"
 
 // Las áreas (subcarpetas de Grupal) se distinguen visualmente de una carpeta común.
@@ -225,7 +225,20 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
   // `enabled` — ver punto 3 del checklist en ia context/rbac-audit-guide.md.
   const canListLibrary = can('listAssets') || can('listFolders')
   const { guardedAction } = useOptionalEditingGuard()
-  const { expandedIdsRef, saveExpandedIds, serverDiffered } = useTreeExpansionStorage(selectedOrganizationId)
+  const { loadRoot, treeProps: expansionTreeProps } = useLibraryTreeExpansion({
+    organizationId: selectedOrganizationId,
+    // El sidebar es la única superficie persistente montada todo el tiempo:
+    // si otro navegador cambió la expansión mientras tanto, vale la pena el
+    // refresh único al hidratar. Un picker efímero no lo pide (ver el hook).
+    refreshOnServerDiffered: true,
+    treeRef: fileTreeRef,
+  })
+  // Ref para que handleLoadChildren (deps acotadas, ver más abajo) siempre
+  // lea la versión vigente de loadRoot sin tener que recrearse en cada
+  // render — mismo idiom que activeAssetIdRef/pendingFocusAssetIdRef en este
+  // archivo.
+  const loadRootRef = useRef(loadRoot)
+  loadRootRef.current = loadRoot
 
   /**
    * Qué nodos puede arrastrar el usuario. Mismo predicado que el item de kebab
@@ -375,16 +388,9 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
     }
   }, [selectedOrganizationId, fileTreeRef])
 
-  // El root load ya usó expandedIdsRef en su valor de caché local (síncrono);
-  // si el servidor trae un set distinto al del caché local AL MONTAR (otro
-  // dispositivo/navegador cambió la expansión mientras tanto), refrescar una
-  // vez para que el root load siguiente lo recoja. `serverDiffered` es
-  // one-shot de esa hidratación inicial (ver useUserPreference.ts) — nunca se
-  // vuelve a activar por un guardado local propio, así que este efecto no
-  // dispara un refresh en cada toggle del usuario.
-  React.useEffect(() => {
-    if (serverDiffered) fileTreeRef.current?.refresh()
-  }, [serverDiffered, fileTreeRef])
+  // El refresh único ante `serverDiffered` (otro navegador/dispositivo cambió
+  // la expansión mientras tanto) lo maneja useLibraryTreeExpansion
+  // internamente (refreshOnServerDiffered: true, arriba).
 
   // Refresh root-level items when pagination changes
   const isFirstPaginationRender = React.useRef(true)
@@ -417,53 +423,20 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
         // Consumo único — no debe reusarse en refrescos posteriores no
         // relacionados, ni siquiera si esta carga falla.
         if (isRoot && pendingFocusAssetIdRef.current) pendingFocusAssetIdRef.current = null
-        // Carpetas que el usuario dejó expandidas (persistidas por org) — solo
-        // aplica al root load, igual que el foco.
-        const expandedFolderIds = isRoot ? expandedIdsRef.current : []
-        // Tracks whether the enriched-tree branch actually ran (foco y/o
-        // expandidas). Starts optimistic and gets demoted to false if el
-        // backend rechaza el pedido (asset/ids inválidos, combinación no
-        // soportada) — ver el catch de abajo.
-        let enrichedRootLoad = isRoot && (!!focusAssetId || expandedFolderIds.length > 0)
 
         let content: LibraryContent
-        if (enrichedRootLoad) {
-          try {
-            content = await getLibraryContent(
-              selectedOrganizationId,
-              undefined,
-              rootPageRef.current,
-              rootPageSizeRef.current,
-              undefined,
-              undefined,
-              focusAssetId ?? undefined,
-              { expandedFolderIds },
-            )
-          } catch (enrichedError) {
-            if (!ApiError.isApiError(enrichedError) ||
-              (enrichedError.statusCode !== 404 && enrichedError.statusCode !== 400)) {
-              throw enrichedError
-            }
-            // 404: el asset enfocado no existe / no es alcanzable en esta org
-            // (id viejo de otra org, documento borrado). 400: el backend
-            // rechazó la combinación (p. ej. INVALID_FOLDER_EXPANDED_IDS_LIMIT).
-            // En ambos casos es una falla del enriquecimiento, no de la carga
-            // de la carpeta — cae a una carga root plana en vez de vaciar el árbol.
-            content = await getLibraryContent(
-              selectedOrganizationId,
-              undefined,
-              rootPageRef.current,
-              rootPageSizeRef.current,
-            )
-            enrichedRootLoad = false
-          }
-        } else if (isRoot) {
-          content = await getLibraryContent(
-            selectedOrganizationId,
-            undefined,
-            rootPageRef.current,
-            rootPageSizeRef.current,
-          )
+        // `enrichedRootLoad` marca si la respuesta trae is_expanded/foco
+        // resueltos server-side (loadRoot decide y hace su propio fallback a
+        // carga plana ante 400/404 — ver useLibraryTreeExpansion).
+        let enrichedRootLoad = false
+        if (isRoot) {
+          const rootResult = await loadRootRef.current({
+            page: rootPageRef.current,
+            pageSize: rootPageSizeRef.current,
+            focusAssetId,
+          })
+          content = rootResult.content
+          enrichedRootLoad = rootResult.enriched
         } else {
           content = await getLibraryContent(selectedOrganizationId, folderId!)
         }
@@ -917,11 +890,10 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
           alwaysShowMenuActions={true}
           // La carga root ahora siempre trae la expansión resuelta por el
           // backend (foco + expanded_folder_ids persistidas), así que su
-          // respuesta es autoritativa — evita el camino de N requests
-          // (una por carpeta expandida) que preserveExpandedOnRefresh={true}
-          // dispararía en cada refresh.
-          preserveExpandedOnRefresh={false}
-          onExpandedFoldersChange={saveExpandedIds}
+          // respuesta es autoritativa — evita el camino de N requests (una
+          // por carpeta expandida) que preserveExpandedOnRefresh={true}
+          // dispararía en cada refresh. Ambas props vienen del hook.
+          {...expansionTreeProps}
           renderLeafIcon={(node) => {
             const fileNode = node as FileNode
             const color = fileNode.document_type?.color

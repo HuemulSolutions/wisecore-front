@@ -4,10 +4,10 @@ import type { HomeWorkGroupCount } from '@/types/home';
 
 // Tabs de texto con subrayado: el `TabsTrigger` base es una pastilla sobre
 // fondo gris, así que se neutraliza y el estado activo se dibuja con un
-// inset shadow — mismo patrón que ya usa
-// `assets-types-config-sheet.tsx:29-31` (ahí con otra paleta, pensada para un
-// sheet). No se promueve a un componente huemul compartido todavía: son solo
-// 2 usos con contextos visuales distintos — si aparece un tercero, ahí sí.
+// inset shadow — mismo patrón que `HuemulDetailSurface`
+// (`huemul-detail-surface.tsx`, ahí con otra paleta y ya compartido por sus
+// dos variantes). Esta copia sobrevive porque /home no usa esa superficie y su
+// paleta es distinta; si aparece un tercer uso, unificar contra el huemul.
 const TAB_TRIGGER_CLASS =
   'flex-none rounded-none border-0 bg-transparent px-0 pb-2.5 text-[13.5px] font-medium text-[#64748b] shadow-none hover:cursor-pointer hover:text-[#334155] data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-[#0f172a] data-[state=active]:shadow-[inset_0_-2px_0_#2563eb]';
 

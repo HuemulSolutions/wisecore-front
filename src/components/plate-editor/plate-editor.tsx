@@ -111,7 +111,6 @@ import { ModeToolbarButton } from '@/components/ui/mode-toolbar-button';
 import { EmojiToolbarButton } from '@/components/ui/emoji-toolbar-button';
 import { FontSizeToolbarButton } from '@/components/ui/font-size-toolbar-button';
 import { ToolbarButton, ToolbarSeparator } from '@/components/ui/toolbar';
-import { TooltipProvider } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -566,17 +565,16 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
 
   return (
     <MediaReferenceContext.Provider value={mediaReferenceCtx}>
-      <TooltipProvider>
-        <div
-          ref={containerRef}
-          className={cn(
-            'relative isolate w-full min-w-0',
-            variant === 'section'
-              ? cn('rounded-md bg-background', !readOnly && 'border border-border')
-              : cn('rounded-lg bg-background', !readOnly && 'border border-border shadow-sm'),
-            className
-          )}
-        >
+      <div
+        ref={containerRef}
+        className={cn(
+          'relative isolate w-full min-w-0',
+          variant === 'section'
+            ? cn('rounded-md bg-background', !readOnly && 'border border-border')
+            : cn('rounded-lg bg-background', !readOnly && 'border border-border shadow-sm'),
+          className
+        )}
+      >
 
           <EditorErrorBoundary>
             <EditorChromeInsetProvider toolbarRef={toolbarRef}>
@@ -644,8 +642,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
           uploadTarget={mediaUploadTarget}
         />
       )}
-    </TooltipProvider>
-  </MediaReferenceContext.Provider>
+    </MediaReferenceContext.Provider>
   );
   }
 );

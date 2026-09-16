@@ -16,6 +16,8 @@ export function AddSectionDialog({
   organizationId,
   existingSections,
   onGeneratingChange,
+  defaultType,
+  containerName,
 }: AddSectionDialogProps) {
   const { t } = useTranslation(['sections', 'templates', 'common']);
   const queryClient = useQueryClient();
@@ -40,6 +42,8 @@ export function AddSectionDialog({
     },
   });
 
+  const position = existingSections.length + 1;
+
   return (
     <HuemulSheet
       open={open}
@@ -47,11 +51,16 @@ export function AddSectionDialog({
         if (!o) setIsFormValid(false);
         onOpenChange(o);
       }}
-      title={t('sections:addDialog.title')}
-      description={t('templates:addSection.description')}
+      title={t('sections:addDialog.title', { position })}
+      description={
+        containerName
+          ? t('templates:addSection.subtitle', { name: containerName })
+          : t('templates:addSection.subtitleNoName')
+      }
       icon={Plus}
-      maxWidth="w-full sm:max-w-2xl lg:max-w-3xl"
+      maxWidth="w-full sm:max-w-[860px]"
       cancelLabel={t('common:cancel')}
+      footerLeft={<span className="text-xs text-[#64748b]">{t('sections:form.propagate.footerNote')}</span>}
       saveAction={{
         label: addSectionMutation.isPending ? t('templates:addSection.saving') : t('templates:addSection.save'),
         icon: Plus,
@@ -70,6 +79,7 @@ export function AddSectionDialog({
         existingSections={existingSections}
         onValidationChange={setIsFormValid}
         onGeneratingChange={handleGeneratingChange}
+        defaultType={defaultType}
       />
     </HuemulSheet>
   );

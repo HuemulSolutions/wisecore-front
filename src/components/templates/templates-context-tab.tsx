@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, AlertCircle, Pencil, Trash2, Plus, RefreshCw, Users } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { HuemulButton } from "@/huemul/components/huemul-button";
+import { Loader2, AlertCircle, Plus, Trash2, MessageSquareText } from "lucide-react";
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
-import { ContextDisplay } from "@/components/context/context-content";
+import { TemplateSettingsPanelHeader } from "./templates-settings-panel-header";
 import { TemplateContextDialog } from "./templates-context-dialog";
 import {
   templateContextQueryKeys,
@@ -19,14 +17,16 @@ export interface TemplateContextTabProps {
   organizationId: string;
   /** template:u — alta/edición/borrado de contexto. Sin esto, tab de solo lectura. */
   canManage?: boolean;
+  /** Chevron a la izquierda del título — vuelve a la lista de grupos de "Configuración". */
+  onBack?: () => void;
 }
 
 // Contexto de texto a nivel de template (tab del detalle de template). Se
 // copia a cada documento creado desde este template — copia one-shot, sin
 // sincronización posterior. A diferencia del contexto de documento no hay
 // variante de archivo, así que no hay botón "Archivo" ni badge de tipo.
-export function TemplateContextTab({ templateId, organizationId, canManage = false }: TemplateContextTabProps) {
-  const { t } = useTranslation(['context', 'common']);
+export function TemplateContextTab({ templateId, organizationId, canManage = false, onBack }: TemplateContextTabProps) {
+  const { t } = useTranslation(['context', 'common', 'templates']);
   const queryClient = useQueryClient();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -36,6 +36,7 @@ export function TemplateContextTab({ templateId, organizationId, canManage = fal
   const [contextToDelete, setContextToDelete] = useState<string | null>(null);
 
   const { data: contexts, isLoading, isFetching, error, refetch } = useTemplateContexts(organizationId, templateId);
+  const missingRequiredCount = contexts?.filter((ctx) => ctx.required && !ctx.content?.trim()).length ?? 0;
 
   const mutations = useTemplateContextMutations(organizationId, templateId, {
     created: t('templateTab.toast.created'),
@@ -63,7 +64,7 @@ export function TemplateContextTab({ templateId, organizationId, canManage = fal
     setDialogOpen(true);
   };
 
-  const handleSubmit = (values: { name: string; content: string }) => {
+  const handleSubmit = (values: { name: string; content?: string; required: boolean }) => {
     if (editingContext) {
       mutations.update.mutate(
         { contextId: editingContext.id, body: values },
@@ -99,107 +100,81 @@ export function TemplateContextTab({ templateId, organizationId, canManage = fal
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-gray-50">
-      {/* Fixed header */}
-      <div className="px-4 pt-6 pb-4 shrink-0">
-        <div className="flex items-center justify-between gap-2">
-          <div className="space-y-1">
-            <h2 className="text-base font-semibold text-foreground">{t('templateTab.title')}</h2>
-            <p className="text-xs text-muted-foreground">{t('templateTab.description')}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <HuemulButton
-              variant="outline"
-              size="sm"
-              icon={RefreshCw}
-              iconClassName="w-3 h-3 mr-1"
-              label={t('common:refresh')}
-              loading={isRefreshing || isFetching}
-              onClick={handleRefresh}
-              className="h-8 text-xs px-2"
-            />
-            {canManage && (
-              <HuemulButton
-                size="sm"
-                icon={Plus}
-                iconClassName="w-3 h-3 mr-1"
-                label={t('templateTab.addButton')}
-                onClick={openCreateDialog}
-                className="h-8 text-xs px-2"
-              />
-            )}
-          </div>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden px-8">
+      <TemplateSettingsPanelHeader
+        className="shrink-0 pb-4 pt-1"
+        titleWrapClassName="max-w-[620px]"
+        onBack={onBack}
+        icon={MessageSquareText}
+        title={t('templateTab.title')}
+        subtitle={t('templateTab.description')}
+        refresh={{ onClick: handleRefresh, loading: isRefreshing || isFetching }}
+        primaryAction={canManage ? { icon: Plus, label: t('templateTab.addButton'), onClick: openCreateDialog } : undefined}
+      />
+
+      {missingRequiredCount > 0 && (
+        <div className="mb-3 flex shrink-0 items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+          <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+          <p className="text-sm text-amber-800">{t('requiredBanner', { count: missingRequiredCount })}</p>
         </div>
-      </div>
+      )}
 
       {/* Scrollable content */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-6">
-        <div className="border rounded-lg bg-white shadow-sm">
-          <div className="flex items-center gap-2 p-4 border-b border-gray-100 bg-gray-50">
-            <Users className="h-4 w-4 text-[#4464f7]" />
-            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-              {t('templateTab.count', { count: contexts?.length || 0 })}
-            </Badge>
+      <div className="min-h-0 flex-1 overflow-y-auto pb-8">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            <span className="ml-2 text-sm text-gray-500">{t('loading')}</span>
           </div>
+        ) : !contexts || contexts.length === 0 ? (
+          <div className="flex flex-col items-center gap-1 rounded-[10px] border border-dashed border-[#d7dde5] p-7 text-center">
+            <p className="text-sm font-semibold text-[#475569]">{t('templateTab.empty')}</p>
+            <p className="text-[13px] text-[#64748b]">{t('templateTab.emptyHint')}</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {contexts.map((ctx) => {
+              const isMissingRequired = ctx.required && !ctx.content?.trim();
+              const metadata = [
+                ctx.required ? (isMissingRequired ? t('pendingContentBadge') : t('requiredBadge')) : t('optionalBadge'),
+                ctx.content?.trim() ? t('metaHasContent') : t('metaNoContent'),
+              ].join(' · ');
 
-          <div className="p-4">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                <span className="ml-2 text-sm text-gray-500">{t('loading')}</span>
-              </div>
-            ) : !contexts || contexts.length === 0 ? (
-              <div className="text-center py-8">
-                <Users className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">{t('templateTab.empty')}</p>
-                <p className="text-xs text-gray-400 mt-1">{t('templateTab.emptyHint')}</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {contexts.map((ctx) => (
-                  <div key={ctx.id} className="border border-gray-200 rounded-lg bg-white hover:border-gray-300 transition-colors">
-                    <div className="flex items-center justify-between p-3 border-b border-gray-100">
-                      <span className="text-sm font-medium text-gray-900">{ctx.name}</span>
-                      {canManage && (
-                        <div className="flex items-center gap-1">
-                          <HuemulButton
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openEditDialog(ctx)}
-                            className="h-7 w-7 p-0 text-[#4464f7] hover:text-white hover:bg-[#4464f7] hover:cursor-pointer"
-                            icon={Pencil}
-                            iconClassName="h-3 w-3"
-                            title={t('templateTab.editTitle')}
-                          />
-                          <HuemulButton
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDelete(ctx.id)}
-                            className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
-                            icon={Trash2}
-                            iconClassName="h-3 w-3"
-                            title={t('templateTab.deleteTitle')}
-                          />
-                        </div>
-                      )}
-                    </div>
-                    <ContextDisplay
-                      item={{ id: ctx.id, name: ctx.name, content: ctx.content || t('noContentAvailable') }}
-                      hideHeader
-                    />
+              return (
+                <div
+                  key={ctx.id}
+                  role={canManage ? "button" : undefined}
+                  tabIndex={canManage ? 0 : undefined}
+                  onClick={canManage ? () => openEditDialog(ctx) : undefined}
+                  className={`flex items-center gap-3 rounded-[10px] border px-3.5 py-3 transition-colors ${
+                    isMissingRequired ? 'border-amber-300 bg-amber-50/40' : 'border-[#eef1f5] bg-white'
+                  } ${canManage ? 'hover:cursor-pointer hover:border-[#d7dde5]' : ''}`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-semibold text-[#0f172a]">{ctx.name}</p>
+                    <p className="text-xs text-[#64748b]">{metadata}</p>
                   </div>
-                ))}
-              </div>
-            )}
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleDelete(ctx.id); }}
+                      className="shrink-0 text-xs text-[#b91c1c] hover:cursor-pointer hover:underline"
+                    >
+                      {t('removeAction')}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        </div>
+        )}
       </div>
 
       <TemplateContextDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         mode={editingContext ? 'edit' : 'create'}
-        initialValue={editingContext ? { name: editingContext.name, content: editingContext.content } : null}
+        initialValue={editingContext ? { name: editingContext.name, content: editingContext.content, required: editingContext.required } : null}
         onSubmit={handleSubmit}
         isProcessing={mutations.create.isPending || mutations.update.isPending}
       />

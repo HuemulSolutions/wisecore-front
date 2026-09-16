@@ -15,6 +15,13 @@ export interface UserDeleteDialogProps {
   canDelete: boolean
 }
 
+/**
+ * Único consumidor: el sheet "Editar mi perfil" del menú de usuario
+ * (`app-layout.tsx`, `canSave: true` siempre — editar el propio perfil no es
+ * una acción sobre el recurso `user` de la organización). La edición inline
+ * de OTRO usuario ya vive en `UsersDetailProfileTab` — ver `users.tsx` y
+ * `global-admin-users-section.tsx`.
+ */
 export interface EditUserSheetProps {
   user: User | null
   open: boolean
@@ -24,21 +31,10 @@ export interface EditUserSheetProps {
   canSave: boolean
 }
 
-export interface UserOrganizationsDialogProps {
-  user: User | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  canManage: boolean
-}
-
-export interface RootAdminDialogProps {
-  user: User | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onConfirm: (userId: string, isRootAdmin: boolean) => void
-  isLoading?: boolean
-  canManage: boolean
-}
+// `UserOrganizationsDialogProps`/`RootAdminDialogProps` se retiraron: ambas
+// funciones (asignar organizaciones, switch de root admin) pasaron a ser
+// inline en `UserDetailPanel` (tabs Organizaciones/Perfil) en `/users` y
+// `/global-admin`.
 
 export interface CreateUserSheetProps {
   open: boolean

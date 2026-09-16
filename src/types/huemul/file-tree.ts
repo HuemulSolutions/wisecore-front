@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { HuemulTreeNode, HuemulTreeMenuAction, HuemulFileTreeLabels } from './tree'
+import type { HuemulTreeNode, HuemulTreeMenuAction, HuemulTreeToolbarAction, HuemulFileTreeLabels } from './tree'
 
 export interface HuemulFileTreeProps {
   onLoadChildren?: (folderId: string | null, node?: HuemulTreeNode) => Promise<HuemulTreeNode[]>
@@ -14,6 +14,16 @@ export interface HuemulFileTreeProps {
   onFolderClick?: (node: HuemulTreeNode) => void | Promise<void>
   activeNodeId?: string | null
   menuActions?: HuemulTreeMenuAction[]
+  /**
+   * Acciones contextuales de la superficie (no de un nodo): se renderizan como
+   * botones en una franja ARRIBA del árbol, fuera de la caja con borde y del
+   * overlay de loading, compartiendo fila con `showRefreshButton`. Cada
+   * consumidor define las suyas según el contexto en que monta el árbol (ej.
+   * "Nueva carpeta" en un picker de carpeta destino) — el árbol no asume
+   * ninguna. Para acciones sobre un nodo puntual, usar `menuActions`.
+   * Default: ninguna, y sin franja si tampoco hay refresh.
+   */
+  toolbarActions?: HuemulTreeToolbarAction[]
   showDefaultActions?: {
     create?: boolean
     delete?: boolean
@@ -49,8 +59,35 @@ export interface HuemulFileTreeProps {
   cascadeSelection?: boolean
   // Qué nodos pueden expandirse. Por defecto: solo carpetas (type === folderType).
   isNodeExpandable?: (node: HuemulTreeNode) => boolean
+  /**
+   * Qué nodos expandidos vale la pena reportar a `onExpandedFoldersChange`.
+   * Por defecto: todos los expandibles. Existe para árboles donde no todo
+   * nodo expandible es una carpeta real de la biblioteca (ej. el modo
+   * "execution" del picker de assets, donde un documento se vuelve
+   * expandible para listar sus versiones) — sin este filtro, ese id
+   * contaminaría el set compartido de carpetas persistidas. Ver
+   * ia context/arbol-biblioteca-activos-guide.md.
+   */
+  isNodePersistable?: (node: HuemulTreeNode) => boolean
   // Contenido adicional a mostrar después del nombre del nodo (ej. badge de versión).
   renderNodeSuffix?: (node: HuemulTreeNode) => ReactNode
+  // Segunda línea opcional debajo del nombre (ej. "3 secciones · 12 usos").
+  // Si devuelve contenido no nulo para un nodo, esa fila pasa a dos líneas.
+  renderNodeSubtitle?: (node: HuemulTreeNode) => ReactNode
+  // Override del estilo de la fila activa (activeNodeId). Por defecto es
+  // "bg-accent font-medium"; cuando se pasa, LO REEMPLAZA en vez de sumarse,
+  // para que un consumidor pueda usar un acento propio (ej. borde azul) sin
+  // pelear con el fondo gris genérico.
+  activeNodeClassName?: string
+  // Override del tamaño/peso del nombre (el `<p>` fija su propio `text-sm`,
+  // así que no hereda font-size del contenedor). Reemplaza, no se mezcla.
+  nodeNameClassName?: (node: HuemulTreeNode) => string | undefined
+  // La fila fuerza `paddingLeft` inline según el nivel de anidamiento (para la
+  // franja de indentación de las carpetas). En listas planas sin jerarquía
+  // real (todo a nivel 0), eso pisa cualquier padding horizontal que el
+  // consumidor intente fijar vía `renderNodeClassName`. `true` deja el padding
+  // horizontal completo en manos del consumidor. Default `false` (comportamiento actual).
+  disableIndentPadding?: boolean
   // Nodos de nivel raíz que deben verse como encabezado de sección (estilo Notion):
   // sin ícono de carpeta, texto en negrita, no arrastrables.
   isSectionHeader?: (node: HuemulTreeNode) => boolean
@@ -79,13 +116,21 @@ export interface HuemulFileTreeProps {
   canDropNode?: (node: HuemulTreeNode) => boolean
   /**
    * Se dispara cada vez que cambia el set de carpetas expandidas (expandir,
-   * colapsar, o una carga que trae expansión ya resuelta desde el backend),
-   * con la lista completa de ids vigente. No se emite antes de la carga
-   * inicial (`isInitialized`) para no pisar un estado persistido con un set
-   * vacío antes de restaurarlo. El componente es agnóstico de storage — solo
-   * avisa; quien lo use decide cómo (o si) persistir el valor.
+   * colapsar, o una carga que trae expansión ya resuelta desde el backend).
+   * `folderIds` es el set expandido vigente (filtrado por `isNodePersistable`
+   * si se pasó). `knownIds` es TODO nodo persistible que el árbol tiene
+   * materializado en memoria en este momento (expandido o no, sin la poda por
+   * colapso de `folderIds`) — le dice a quien persiste qué porción del universo
+   * total puede dar por buena, para hacer un merge por cobertura en vez de un
+   * reemplazo total (ver useTreeExpansionStorage.saveExpandedIds): un árbol que
+   * solo ve una página, un subconjunto filtrado, o que carga vacío por un error
+   * transitorio, no debe borrar carpetas expandidas de otras superficies o
+   * páginas que no pasaron por acá. No se emite antes de la carga inicial
+   * (`isInitialized`) para no pisar un estado persistido con un set vacío antes
+   * de restaurarlo. El componente es agnóstico de storage — solo avisa; quien
+   * lo use decide cómo (o si) persistir el valor.
    */
-  onExpandedFoldersChange?: (folderIds: string[]) => void
+  onExpandedFoldersChange?: (folderIds: string[], context: { knownIds: string[] }) => void
 }
 
 export interface HuemulFileTreeRef {

@@ -47,6 +47,24 @@ export const MarkdownKit = [
             };
           },
         },
+        // Non-image media reference (pdf/docx/xlsx/csv/pptx/txt) — serialized as a
+        // markdown link, not an image: unlike KEYS.img, the backend's export_markdown
+        // does not (yet) resolve a {{MEDIA:GUID}} token inside a link, so this degrades
+        // to a visible file name with an unresolved href until backend implements it
+        // (see respuestas/backend-referencia-archivo-markdown.md). Wrapped as raw HTML,
+        // same reason as KEYS.img, so remark doesn't escape the token's curly braces.
+        // Without this rule the node has no text children and disappears from the
+        // export entirely, which is strictly worse — never revert to no rule at all.
+        [KEYS.file]: {
+          serialize: (slateNode: any) => {
+            const url: string = slateNode.url ?? '';
+            const label = plainTextOf(slateNode.caption) || slateNode.name || 'archivo';
+            if (isMediaToken(url)) {
+              return { type: 'html', value: `[${label}](${url})` } as any;
+            }
+            return { type: 'link', url, children: [{ type: 'text', value: label }] } as any;
+          },
+        },
         // A Mermaid diagram can't be rendered server-side, so the parallel markdown
         // text carries either the rasterized snapshot (once uploaded) as a standard
         // markdown image, or – if no snapshot exists yet – the source code in a fenced

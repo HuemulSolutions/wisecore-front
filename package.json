@@ -1,7 +1,7 @@
 {
   "name": "wisecore-front",
   "private": true,
-  "version": "1.0.95",
+  "version": "1.2.0",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -11,7 +11,10 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "release": "node scripts/release.mjs",
+    "release:dry": "node scripts/release.mjs --dry-run",
     "changelog": "node scripts/generate-changelog.mjs",
+    "changelog:dry": "node scripts/generate-changelog.mjs --dry-run",
     "changelog:full": "node scripts/generate-changelog.mjs --full"
   },
   "dependencies": {
@@ -70,7 +73,6 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-toolbar": "^1.1.11",
-    "@radix-ui/react-tooltip": "^1.2.8",
     "@tailwindcss/vite": "^4.1.7",
     "@tanstack/react-query": "^5.77.2",
     "@tanstack/react-virtual": "^3.14.10",

@@ -36,6 +36,8 @@ export interface AddSectionDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   documentId: string
+  templateId?: string
+  executionId?: string
   sectionInsertPosition?: number
   existingSections: Section[]
   onSubmit: (values: any) => void
@@ -241,13 +243,14 @@ export interface ImagePreviewDialogProps {
 }
 
 // ----------------------------------------
-// Content Delete (combined document / execution)
+// Delete Document (combined document / execution) — usado tanto desde el
+// árbol de la biblioteca como desde el detalle del activo (un solo diálogo).
 // ----------------------------------------
 
-export interface ContentDeleteDialogProps {
+export interface DeleteDocumentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  deleteType: 'document' | 'execution' | null
+  deleteType?: 'document' | 'execution' | null
   documentName?: string
   executionFormattedDate?: string
   onAction: () => Promise<void>

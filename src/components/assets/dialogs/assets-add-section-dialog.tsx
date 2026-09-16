@@ -10,6 +10,8 @@ export function AddSectionDialog({
   open,
   onOpenChange,
   documentId,
+  templateId,
+  executionId,
   sectionInsertPosition,
   existingSections,
   onSubmit,
@@ -67,6 +69,8 @@ export function AddSectionDialog({
     >
       <AddSectionFormSheet
         documentId={documentId}
+        templateId={templateId}
+        executionId={executionId}
         onSubmit={onSubmit}
         isPending={isPending}
         existingSections={existingSections}

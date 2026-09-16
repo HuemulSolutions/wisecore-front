@@ -61,6 +61,36 @@ export interface AssetTypeConfigSheetProps {
   canManageTags?: boolean
 }
 
+/**
+ * Opciones de `useAssetTypeConfig` — el estado compartido por las dos
+ * superficies que muestran la configuración de un tipo de activo: el sheet
+ * (`AssetTypeConfigSheet`) y la página (`pages/asset-type-detail.tsx`).
+ */
+export interface UseAssetTypeConfigOptions {
+  documentTypeId: string
+  organizationId: string
+  /**
+   * Gatea los fetch de los tabs. En el sheet es su `open`; en la página es
+   * siempre `true` (ahí el desmontaje lo hace el router).
+   */
+  enabled: boolean
+  activeTab: AssetTypeConfigTab
+  /** Ya viene envuelto en el guard de cambios sin guardar. */
+  onTabChange: (tab: AssetTypeConfigTab) => void
+  /** `asset_type:u` — habilita el tab General y su botón Guardar. */
+  canUpdate: boolean
+  /** `manageLinkedTemplates` — habilita el tab Plantillas. */
+  canManageTemplates: boolean
+  /** `manageLifecycle` — habilita el tab Ciclo de vida. */
+  canManageLifecycle: boolean
+  /** tag:r — muestra la sección de etiquetas en el tab General. */
+  canViewTags?: boolean
+  /** tag:u — permite asignar/quitar etiquetas. Sin esto, solo lectura. */
+  canManageTags?: boolean
+  /** `variant` de la superficie: ajusta el padding de los tabs. */
+  variant?: 'page' | 'sheet'
+}
+
 // ----------------------------------------
 // Asset Type Templates Panel (tab «Plantillas»)
 // ----------------------------------------

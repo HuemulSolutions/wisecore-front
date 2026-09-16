@@ -343,7 +343,6 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
                               disabled={isOtherRowEditing || revoking}
                               onClick={() => startEditingGrant(role.id)}
                               tooltip={t('role-folder:permissionsDialog.editButton')}
-                              tooltipSide="left"
                             />
                           )}
                           {canDeleteRoleFolder && (
@@ -356,7 +355,6 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
                               loading={revoking}
                               onClick={() => setRoleToRevoke({ id: role.id, name: role.name })}
                               tooltip={t('role-folder:permissionsDialog.removeButton')}
-                              tooltipSide="left"
                             />
                           )}
                         </div>

@@ -19,9 +19,11 @@ export interface AddSectionFormProps {
 export interface AddSectionFormSheetProps {
   documentId?: string;
   templateId?: string;
+  executionId?: string;
   onSubmit: (values: any) => void;
   isPending: boolean;
   existingSections?: Section[];
   onValidationChange?: (isValid: boolean) => void;
   onGeneratingChange?: (isGenerating: boolean) => void;
+  defaultType?: 'ai' | 'manual' | 'reference' | 'form';
 }

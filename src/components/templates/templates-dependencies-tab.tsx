@@ -1,12 +1,11 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link2, Loader2, AlertCircle, RefreshCw, Plus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { HuemulButton } from "@/huemul/components/huemul-button";
+import { Loader2, AlertCircle, Plus, GitBranch } from "lucide-react";
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
 import { HuemulPagination } from "@/huemul/components/huemul-pagination";
 import { HuemulAssetTreePickerDialog } from "@/huemul/components/huemul-asset-tree-picker";
+import { TemplateSettingsPanelHeader } from "./templates-settings-panel-header";
 import { DependencyVersionDialog } from "@/components/dependency/dependency-version-dialog";
 import { DependencyListItem } from "@/components/dependency/dependency-list-item";
 import { useTableLoadingState } from "@/hooks/useTableLoadingState";
@@ -26,6 +25,8 @@ export interface TemplateDependenciesTabProps {
   canManage?: boolean;
   /** asset:l|r + folder:l|r — el picker de documentos del alta. */
   canPickAssets?: boolean;
+  /** Chevron a la izquierda del título — vuelve a la lista de grupos de "Configuración". */
+  onBack?: () => void;
 }
 
 // Dependencias de documento a nivel de template (tab del detalle de
@@ -37,8 +38,9 @@ export function TemplateDependenciesTab({
   organizationId,
   canManage = false,
   canPickAssets = false,
+  onBack,
 }: TemplateDependenciesTabProps) {
-  const { t } = useTranslation(['dependencies', 'common']);
+  const { t } = useTranslation(['dependencies', 'common', 'templates']);
   const queryClient = useQueryClient();
 
   const [page, setPage] = useState(1);
@@ -129,88 +131,46 @@ export function TemplateDependenciesTab({
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-gray-50">
-      {/* Fixed header */}
-      <div className="px-4 pt-6 pb-4 shrink-0">
-        <div className="flex items-center justify-between gap-2">
-          <div className="space-y-1">
-            <h2 className="text-base font-semibold text-foreground">{t('templateTab.title')}</h2>
-            <p className="text-xs text-muted-foreground">{t('templateTab.description')}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <HuemulButton
-              variant="outline"
-              size="sm"
-              icon={RefreshCw}
-              iconClassName="w-3 h-3 mr-1"
-              label={t('common:refresh')}
-              loading={isRefreshing || isFetching}
-              onClick={handleRefresh}
-              className="h-8 text-xs px-2"
-            />
-            {canManage && canPickAssets && (
-              <HuemulButton
-                size="sm"
-                icon={Plus}
-                iconClassName="w-3 h-3 mr-1"
-                label={t('templateTab.addButton')}
-                onClick={() => setPickerOpen(true)}
-                className="h-8 text-xs px-2"
-              />
-            )}
-          </div>
-        </div>
-      </div>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden px-8">
+      <TemplateSettingsPanelHeader
+        className="shrink-0 pb-4 pt-1"
+        titleWrapClassName="max-w-[620px]"
+        onBack={onBack}
+        icon={GitBranch}
+        title={t('templateTab.title')}
+        subtitle={t('templateTab.description')}
+        refresh={{ onClick: handleRefresh, loading: isRefreshing || isFetching }}
+        primaryAction={canManage && canPickAssets ? { icon: Plus, label: t('templateTab.addButton'), onClick: () => setPickerOpen(true) } : undefined}
+      />
 
       {/* Scrollable content */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-6">
-        <div className="border rounded-lg bg-white shadow-sm">
-          <div className="flex items-center gap-2 p-4 border-b border-gray-100 bg-gray-50">
-            <Link2 className="h-4 w-4 text-[#4464f7]" />
-            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-              {t('templateTab.count', { count: dependencies.length })}
-            </Badge>
+      <div className="min-h-0 flex-1 overflow-y-auto pb-8">
+        {isTableLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            <span className="ml-2 text-sm text-gray-500">{t('loading')}</span>
           </div>
-
-          <div className="p-2">
-            {isTableLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                <span className="ml-2 text-sm text-gray-500">{t('loading')}</span>
-              </div>
-            ) : dependencies.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-2 py-8 px-4 text-center">
-                <Link2 className="h-8 w-8 text-gray-300" />
-                <p className="text-sm font-medium text-gray-600">{t('templateTab.empty')}</p>
-                <p className="text-xs text-gray-400 max-w-xs">{t('templateTab.emptyHint')}</p>
-                {canManage && canPickAssets && (
-                  <HuemulButton
-                    variant="outline"
-                    size="sm"
-                    className="mt-2 hover:cursor-pointer"
-                    onClick={() => setPickerOpen(true)}
-                  >
-                    <Plus className="h-3.5 w-3.5 mr-1.5" />
-                    {t('templateTab.addButton')}
-                  </HuemulButton>
-                )}
-              </div>
-            ) : (
-              <ul className="divide-y divide-gray-100">
-                {dependencies.map((dependency) => (
-                  <DependencyListItem
-                    key={dependency.id}
-                    dependency={dependency}
-                    orgId={organizationId}
-                    canEdit={canManage}
-                    onChangeVersion={handleChangeVersion}
-                    onRemove={handleRemoveDependency}
-                  />
-                ))}
-              </ul>
-            )}
+        ) : dependencies.length === 0 ? (
+          <div className="flex flex-col items-center gap-1 rounded-[10px] border border-dashed border-[#d7dde5] p-7 text-center">
+            <p className="text-sm font-semibold text-[#475569]">{t('templateTab.empty')}</p>
+            <p className="text-[13px] text-[#64748b]">{t('templateTab.emptyHint')}</p>
           </div>
-        </div>
+        ) : (
+          <div className="overflow-hidden rounded-[10px] border border-[#eef1f5] bg-white">
+            <ul className="divide-y divide-[#eef1f5]">
+              {dependencies.map((dependency) => (
+                <DependencyListItem
+                  key={dependency.id}
+                  dependency={dependency}
+                  orgId={organizationId}
+                  canEdit={canManage}
+                  onChangeVersion={handleChangeVersion}
+                  onRemove={handleRemoveDependency}
+                />
+              ))}
+            </ul>
+          </div>
+        )}
 
         {(dependencies.length > 0 || page > 1) && (
           <div className="pt-2">

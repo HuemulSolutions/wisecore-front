@@ -22,11 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from '@/components/ui/tooltip';
 import { MessageBubble } from './chatbot-bubble';
 import { ConversationList } from './conversation-list';
 import { WisyContextChips } from './wisy-context-chips';
@@ -52,7 +47,7 @@ function WelcomeMessage() {
         <Sparkles className="w-7 h-7 text-primary wisy-sparkle-pulse" />
       </div>
       <p className="text-sm font-semibold text-foreground mb-1.5">{t('wisy.welcome')}</p>
-      <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px]">
+      <p className="text-xs text-muted-foreground leading-relaxed max-w-55">
         {t('wisy.welcomeSubtext')}
       </p>
     </div>
@@ -131,7 +126,7 @@ function SessionBar({
 
   return (
     <>
-      <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border bg-muted/20 shrink-0 min-h-[32px]">
+      <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border bg-muted/20 shrink-0 min-h-8">
         <MessageCircle className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
 
         {isEditing && canManage ? (
@@ -172,38 +167,26 @@ function SessionBar({
 
             {canManage && (
               <>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={startEditing}
-                      disabled={renameMutation.isPending}
-                      className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground hover:cursor-pointer shrink-0"
-                    >
-                      <Pencil className="w-3 h-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p>{t('conversations.renameTooltip')}</p>
-                  </TooltipContent>
-                </Tooltip>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={startEditing}
+                  disabled={renameMutation.isPending}
+                  title={t('conversations.renameTooltip')}
+                  className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground hover:cursor-pointer shrink-0"
+                >
+                  <Pencil className="w-3 h-3" />
+                </Button>
 
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setDeleteOpen(true)}
-                      className="h-5 w-5 p-0 text-muted-foreground hover:text-red-600 hover:cursor-pointer shrink-0"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p>{t('conversations.deleteTooltip')}</p>
-                  </TooltipContent>
-                </Tooltip>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setDeleteOpen(true)}
+                  title={t('conversations.deleteTooltip')}
+                  className="h-5 w-5 p-0 text-muted-foreground hover:text-red-600 hover:cursor-pointer shrink-0"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
               </>
             )}
           </>
@@ -387,59 +370,41 @@ export function WisyPanel() {
         </div>
         <div className="flex items-center gap-0.5">
           {/* History toggle */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                onClick={handleToggleHistory}
-                size="sm"
-                variant="ghost"
-                className={`hover:cursor-pointer h-7 w-7 p-0 transition-colors ${
-                  view === 'history'
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Clock className="w-3.5 h-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p>{t('actions.conversationHistory')}</p>
-            </TooltipContent>
-          </Tooltip>
+          <Button
+            onClick={handleToggleHistory}
+            size="sm"
+            variant="ghost"
+            title={t('actions.conversationHistory')}
+            className={`hover:cursor-pointer h-7 w-7 p-0 transition-colors ${
+              view === 'history'
+                ? 'bg-accent text-accent-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+          </Button>
 
           {/* New conversation */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                onClick={handleNewConversation}
-                size="sm"
-                variant="ghost"
-                className="text-muted-foreground hover:text-foreground hover:cursor-pointer h-7 w-7 p-0 transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p>{t('actions.newConversation')}</p>
-            </TooltipContent>
-          </Tooltip>
+          <Button
+            onClick={handleNewConversation}
+            size="sm"
+            variant="ghost"
+            title={t('actions.newConversation')}
+            className="text-muted-foreground hover:text-foreground hover:cursor-pointer h-7 w-7 p-0 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </Button>
 
           {/* Close */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                onClick={closePanel}
-                size="sm"
-                variant="ghost"
-                className="text-muted-foreground hover:text-foreground hover:cursor-pointer h-7 w-7 p-0 transition-colors"
-              >
-                <X className="w-3.5 h-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p>{t('common:close')}</p>
-            </TooltipContent>
-          </Tooltip>
+          <Button
+            onClick={closePanel}
+            size="sm"
+            variant="ghost"
+            title={t('common:close')}
+            className="text-muted-foreground hover:text-foreground hover:cursor-pointer h-7 w-7 p-0 transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </Button>
         </div>
       </div>
 
@@ -512,7 +477,7 @@ export function WisyPanel() {
                 placeholder={t('input.placeholder')}
                 disabled={isInputDisabled}
                 rows={1}
-                className="flex-1 px-3 py-2 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 text-sm resize-none overflow-y-auto min-h-[36px] max-h-28 bg-muted/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground/50"
+                className="flex-1 px-3 py-2 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 text-sm resize-none overflow-y-auto min-h-9 max-h-28 bg-muted/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground/50"
                 style={{
                   height: 'auto',
                   minHeight: '36px',
@@ -527,7 +492,7 @@ export function WisyPanel() {
                 onClick={handleSendMessage}
                 disabled={!inputValue.trim() || isInputDisabled}
                 size="sm"
-                className="hover:cursor-pointer disabled:opacity-50 disabled:hover:cursor-not-allowed flex-shrink-0 h-[36px] min-w-[36px] rounded-xl bg-primary shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30"
+                className="hover:cursor-pointer disabled:opacity-50 disabled:hover:cursor-not-allowed shrink-0 h-9 min-w-9 rounded-xl bg-primary shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30"
               >
                 <Send className="w-4 h-4" />
               </Button>
@@ -542,7 +507,7 @@ export function WisyPanel() {
                 disabled={isModelSelectorDisabled}
               >
                 <SelectTrigger
-                  className="h-7 min-w-[120px] max-w-[160px] border-transparent bg-transparent px-2 text-[11px] text-muted-foreground shadow-none transition-colors hover:cursor-pointer hover:border-border hover:bg-accent/50 focus:ring-ring/15 disabled:hover:cursor-not-allowed"
+                  className="h-7 min-w-30 max-w-40 border-transparent bg-transparent px-2 text-[11px] text-muted-foreground shadow-none transition-colors hover:cursor-pointer hover:border-border hover:bg-accent/50 focus:ring-ring/15 disabled:hover:cursor-not-allowed"
                 >
                   <div className="flex min-w-0 items-center gap-1.5">
                     <SelectValue placeholder={isLoadingLlms ? t('common:loading') : t('model.selectModel')} />

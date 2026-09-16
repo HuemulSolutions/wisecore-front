@@ -4,8 +4,6 @@ import { toast } from "sonner";
 import {
   ChevronDown,
   ChevronUp,
-  ArrowLeft,
-  ArrowRight,
   Link2,
   MoreVertical,
   Plus,
@@ -28,8 +26,7 @@ import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
 import { useOrgPath, useOrgNavigate } from "@/hooks/useOrgRouter";
 import { useExecutionRelationships, useExecutionRelationshipMutations } from "@/hooks/useExecutionRelationships";
 import { useDocumentTypes } from "@/hooks/useDocumentTypes";
-import { cn } from "@/lib/utils";
-import { getRelationshipLabel, getOtherExecution } from "@/lib/execution-relationship-utils";
+import { getRelationshipLabel, getOtherExecution, tintFromColor } from "@/lib/execution-relationship-utils";
 import type { ExecutionRelationshipWithDetails } from "@/types/execution-relationships";
 
 export interface AssetsRelatedDocumentsBlockProps {
@@ -117,9 +114,6 @@ export function AssetsRelatedDocumentsBlock({
     });
   }, [sorted, search, untitledFallback]);
 
-  const incomingCount = relationships.filter((r) => r.direction === "target").length;
-  const outgoingCount = relationships.length - incomingCount;
-
   const openInNewTab = (rel: ExecutionRelationshipWithDetails) => {
     const other = getOtherExecution(rel);
     window.open(
@@ -168,21 +162,14 @@ export function AssetsRelatedDocumentsBlock({
     .filter(Boolean)
     .join(" · ");
 
-  const badgeLabel =
-    relationships.length === 0
-      ? ""
-      : incomingCount === 0
-        ? t("content.relatedDocuments.countOutgoing", { count: outgoingCount })
-        : outgoingCount === 0
-          ? t("content.relatedDocuments.countIncoming", { count: incomingCount })
-          : String(relationships.length);
+  const badgeLabel = relationships.length === 0 ? "" : String(relationships.length);
 
   return (
     <div className="not-prose mt-4 shrink-0 rounded-[10px] border border-[#e5eaf1] bg-white shadow-[0_-12px_20px_-12px_rgba(15,23,42,0.12)]">
-      <div className="flex items-center gap-[9px] rounded-t-[10px] border-b border-[#f1f4f8] bg-[#fbfcfe] px-[11px] py-[9px]">
+      <div className="flex items-center gap-2.25 rounded-t-[10px] border-b border-[#f1f4f8] bg-[#fbfcfe] px-2.75 py-2.25">
         <button
           type="button"
-          className="flex min-w-0 flex-1 items-center gap-[9px] text-left hover:cursor-pointer"
+          className="flex min-w-0 flex-1 items-center gap-2.25 text-left hover:cursor-pointer"
           aria-expanded={isOpen}
           aria-controls="related-documents-block-list"
           onClick={() => setIsOpen((o) => !o)}
@@ -262,7 +249,7 @@ export function AssetsRelatedDocumentsBlock({
       </div>
 
       {isOpen && (
-        <ul id="related-documents-block-list" className="flex max-h-[172px] flex-col gap-1.5 overflow-y-auto px-3 pt-2.5 pb-3">
+        <ul id="related-documents-block-list" className="flex max-h-43 flex-col gap-1.5 overflow-y-auto px-3 pt-2.5 pb-3">
           {isLoading ? (
             Array.from({ length: 2 }).map((_, i) => (
               <li key={i}>
@@ -284,7 +271,6 @@ export function AssetsRelatedDocumentsBlock({
             filtered.map((rel) => {
               const other = getOtherExecution(rel);
               const relLabel = getRelationshipLabel(rel, untitledFallback);
-              const isIncoming = rel.direction === "target";
               const typeName = typeNameById.get(other.document_type_id);
               return (
                 <li
@@ -292,7 +278,7 @@ export function AssetsRelatedDocumentsBlock({
                   role="button"
                   tabIndex={0}
                   title={t("content.relatedDocuments.openInNewTab")}
-                  className="flex items-center gap-3 rounded-lg border border-[#eef1f5] px-[11px] py-[9px] hover:cursor-pointer hover:border-[#bfd3fb] hover:bg-[#fafcff]"
+                  className="flex items-center gap-3 rounded-lg border border-[#eef1f5] px-2.75 py-2.25 hover:cursor-pointer hover:border-[#bfd3fb] hover:bg-[#fafcff]"
                   onClick={() => openInNewTab(rel)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") openInNewTab(rel);
@@ -302,47 +288,36 @@ export function AssetsRelatedDocumentsBlock({
                     }
                   }}
                 >
-                  <span
-                    className={cn(
-                      "flex shrink-0 items-center gap-1 rounded px-[7px] py-0.5 text-[11px] font-semibold uppercase",
-                      isIncoming ? "border border-[#d8efe4] bg-[#f1fbf6] text-[#0f766e]" : "border border-[#e5dffb] bg-[#f7f5ff] text-[#6d28d9]",
-                    )}
-                  >
-                    {isIncoming ? <ArrowLeft className="h-2.5 w-2.5" /> : <ArrowRight className="h-2.5 w-2.5" />}
-                    {isIncoming
-                      ? t("content.relatedDocuments.directionIncomingBadge")
-                      : t("content.relatedDocuments.directionOutgoingBadge")}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#0f172a]">
-                    {other.document_name}
-                  </span>
                   {typeName && (
-                    <span className="flex shrink-0 items-center gap-1.5 text-[11.5px] text-[#64748b]">
-                      <span
-                        className="h-[7px] w-[7px] shrink-0 rounded-full bg-muted"
-                        style={{ backgroundColor: other.document_type_color || undefined }}
-                      />
+                    <span
+                      className="flex shrink-0 items-center gap-1 rounded border px-1.75 py-0.5 text-[11px] font-semibold"
+                      style={{
+                        backgroundColor: tintFromColor(other.document_type_color) || "#eef1f5",
+                        borderColor: tintFromColor(other.document_type_color) ? other.document_type_color : "#e2e8f0",
+                        color: other.document_type_color || "#475569",
+                      }}
+                    >
                       {typeName}
                     </span>
                   )}
-                  <span className="w-[78px] shrink-0 truncate text-[11.5px] text-[#94a3b8]">
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#0f172a]">
+                    {other.document_name}
+                  </span>
+                  <span className="w-19.5 shrink-0 truncate text-[11.5px] text-[#94a3b8]">
                     {other.name}
                   </span>
-                  <span className="w-[120px] shrink-0 truncate text-[11.5px] text-[#475569]">
+                  <span className="w-30 shrink-0 truncate text-[11.5px] text-[#475569]">
                     {t("content.relatedDocuments.relationPrefix", { name: relLabel })}
                   </span>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      {/* Sin prop `tooltip`: con tooltip, HuemulButton devuelve un
-                          TooltipProvider como raíz y el `asChild` del trigger le pasaría
-                          los handlers a un provider en vez de al <button>. */}
                       <HuemulButton
                         variant="ghost"
                         size="sm"
                         icon={MoreVertical}
                         iconClassName="h-3.5 w-3.5"
                         aria-label={t("content.relatedDocuments.rowActions")}
-                        className="h-[26px] w-[26px] shrink-0 p-0 text-[#94a3b8] hover:cursor-pointer hover:bg-[#f1f4f8] hover:text-foreground"
+                        className="h-6.5 w-6.5 shrink-0 p-0 text-[#94a3b8] hover:cursor-pointer hover:bg-[#f1f4f8] hover:text-foreground"
                         onClick={(e) => e.stopPropagation()}
                       />
                     </DropdownMenuTrigger>

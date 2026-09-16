@@ -88,6 +88,11 @@ export default function Templates() {
   const canPickAssetsForDependencies =
     hasAnyPermission(['asset:l', 'asset:r']) && hasAnyPermission(['folder:l', 'folder:r']);
 
+  // GET /templates/{id}/child-documents (tab "Documentos creados") — mismo
+  // criterio que listTemplateContext/listTemplateDependencies: sub-recurso
+  // de template, exige template:r.
+  const canListChildDocuments = canRead('template');
+
   // Estados principales
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -95,6 +100,7 @@ export default function Templates() {
   const [pageSize] = useState(100);
   const [accumulatedTemplates, setAccumulatedTemplates] = useState<TemplateItem[]>([]);
   const hasRestoredRef = useRef(false);
+  const prevOrgIdRef = useRef(selectedOrganizationId);
 
   const clearTagFilter = () => {
     setSearchParams((prev) => {
@@ -159,8 +165,16 @@ export default function Templates() {
     hasRestoredRef.current = true;
   }, [selectedOrganizationId, templates, templateId]);
 
-  // Reset cuando cambia la organización
+  // Reset cuando cambia la organización.
+  // Guard contra prevOrgIdRef: un useEffect corre también en el mount inicial
+  // (no solo cuando cambian sus deps), así que sin este guard este reset se
+  // disparaba en cada remount de la página (ej. al volver de otra pantalla)
+  // y vaciaba accumulatedTemplates justo después de que el efecto de sync lo
+  // hubiera poblado desde la caché de React Query, dejando el listado vacío
+  // hasta refrescar manualmente.
   useEffect(() => {
+    if (prevOrgIdRef.current === selectedOrganizationId) return;
+    prevOrgIdRef.current = selectedOrganizationId;
     setSelectedTemplate(null);
     hasRestoredRef.current = false;
     setPage(1);
@@ -214,7 +228,7 @@ export default function Templates() {
             />
           ),
           defaultSize: 15,
-          minSize: 15,
+          minSize: 20,
           maxSize: 30,
         },
         {
@@ -233,6 +247,7 @@ export default function Templates() {
               canCreate={canCreateTemplate}
               canUpdate={canUpdateTemplate}
               canDelete={canDeleteTemplate}
+              canExportTemplate={canExportTemplate}
               canListSections={canListSections}
               canCreateSection={canCreateSection}
               canUpdateSection={canUpdateSection}
@@ -256,6 +271,7 @@ export default function Templates() {
               canListTemplateDependencies={canListTemplateDependencies}
               canManageTemplateDependencies={canManageTemplateDependencies}
               canPickAssetsForDependencies={canPickAssetsForDependencies}
+              canListChildDocuments={canListChildDocuments}
             />
           ),
           defaultSize: 85,

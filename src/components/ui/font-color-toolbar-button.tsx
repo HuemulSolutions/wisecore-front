@@ -21,12 +21,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 import { ToolbarButton, ToolbarMenuGroup } from './toolbar';
@@ -340,8 +334,9 @@ function ColorDropdownMenuItem({
   updateColor: (color: string) => void;
   name?: string;
 } & DropdownMenuItemProps) {
-  const content = (
+  return (
     <DropdownMenuItem
+      title={name ? name.charAt(0).toUpperCase() + name.slice(1) : undefined}
       className={cn(
         buttonVariants({
           size: 'icon',
@@ -359,15 +354,6 @@ function ColorDropdownMenuItem({
       }}
       {...props}
     />
-  );
-
-  return name ? (
-    <Tooltip>
-      <TooltipTrigger>{content}</TooltipTrigger>
-      <TooltipContent className="mb-1 capitalize">{name}</TooltipContent>
-    </Tooltip>
-  ) : (
-    content
   );
 }
 
@@ -390,19 +376,17 @@ export function ColorDropdownMenuItems({
       )}
       {...props}
     >
-      <TooltipProvider>
-        {colors.map(({ isBrightColor, name, value }) => (
-          <ColorDropdownMenuItem
-            name={name}
-            key={name ?? value}
-            value={value}
-            isBrightColor={isBrightColor}
-            isSelected={color === value}
-            updateColor={updateColor}
-          />
-        ))}
-        {props.children}
-      </TooltipProvider>
+      {colors.map(({ isBrightColor, name, value }) => (
+        <ColorDropdownMenuItem
+          name={name}
+          key={name ?? value}
+          value={value}
+          isBrightColor={isBrightColor}
+          isSelected={color === value}
+          updateColor={updateColor}
+        />
+      ))}
+      {props.children}
     </div>
   );
 }

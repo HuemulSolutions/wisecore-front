@@ -46,7 +46,6 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false)
   const [deleteFolderDialogOpen, setDeleteFolderDialogOpen] = useState(false)
   const [deleteDocumentDialogOpen, setDeleteDocumentDialogOpen] = useState(false)
-  const [renderDeleteDocumentDialog, setRenderDeleteDocumentDialog] = useState(false)
   const [editFolderDialogOpen, setEditFolderDialogOpen] = useState(false)
   const [editDocumentDialogOpen, setEditDocumentDialogOpen] = useState(false)
   const [assetLifecycleSheetOpen, setAssetLifecycleSheetOpen] = useState(false)
@@ -56,7 +55,6 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const [documentToDelete, setDocumentToDelete] = useState<{ id: string; name: string } | null>(null)
   const [folderToEdit, setFolderToEdit] = useState<{ id: string; name: string } | null>(null)
   const [documentToEdit, setDocumentToEdit] = useState<{ id: string; name: string } | null>(null)
-  const [isDeletingDocument, setIsDeletingDocument] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [committedSearch, setCommittedSearch] = useState('')
@@ -79,8 +77,6 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   documentToDeleteRef.current = documentToDelete
   const selectedOrganizationIdRef = useRef(selectedOrganizationId)
   selectedOrganizationIdRef.current = selectedOrganizationId
-  const isDeletingDocumentRef = useRef(isDeletingDocument)
-  isDeletingDocumentRef.current = isDeletingDocument
 
   const handleCreateAsset = useCallback((folderId?: string) => {
     setCurrentFolderId(folderId)
@@ -179,7 +175,6 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
 
   const handleDeleteDocument = useCallback((documentId: string, documentName: string) => {
     setDocumentToDelete({ id: documentId, name: documentName })
-    setRenderDeleteDocumentDialog(true)
     setDeleteDocumentDialogOpen(true)
   }, [])
 
@@ -202,29 +197,30 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     try {
       await deleteFolder(folderToDelete.id, selectedOrganizationId, deleteDocuments)
       toast.success(t('knowledge.folderDeletedSuccess', { name: folderToDelete.name }))
-      setDeleteFolderDialogOpen(false)
-      setFolderToDelete(null)
+      // HuemulAlertDialog se cierra solo (showSuccessState=false en
+      // DeleteFolderDialog). Acá solo difiero cleanup y navegación, mismo
+      // lapso que la animación de salida.
       fileTreeRef.current?.refresh()
-      if (deleteDocuments) {
-        // Navigate away from any open asset since it may have been deleted
-        setTimeout(() => {
+      setTimeout(() => {
+        setFolderToDelete(null)
+        if (deleteDocuments) {
+          // Navigate away from any open asset since it may have been deleted
           navigateRef.current('/asset', { replace: true })
-        }, 300)
-      }
+        }
+      }, 300)
     } catch (error) {
       handleFolderActionError(error, t, t('knowledge.folderDeleteError'))
       throw error
     }
   }, [folderToDelete, selectedOrganizationId, t])
 
-  // Stable callback for DeleteDocumentDialog onOpenChange.
-  // Uses ref to read isDeletingDocument without closing over it.
-  const deleteDocumentDialogOnOpenChange = useCallback((open: boolean) => {
-    if (!open && !isDeletingDocumentRef.current) {
-      setDeleteDocumentDialogOpen(false)
-      setDocumentToDelete(null)
-      // Unmount dialog after exit animation
-      setTimeout(() => setRenderDeleteDocumentDialog(false), 300)
+  // Cierre por Cancelar/Escape. La limpieza de documentToDelete se difiere
+  // 300ms (duración de la animación de salida de Radix) para que el nombre
+  // no desaparezca de la descripción mientras el diálogo se desvanece.
+  const handleDeleteDocumentDialogChange = useCallback((open: boolean) => {
+    setDeleteDocumentDialogOpen(open)
+    if (!open) {
+      setTimeout(() => setDocumentToDelete(null), 300)
     }
   }, [])
 
@@ -233,33 +229,20 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     const orgId = selectedOrganizationIdRef.current
     if (!doc || !orgId) return
 
-    setIsDeletingDocument(true)
     try {
       await deleteDocument(doc.id, orgId)
       toast.success(t('knowledge.documentDeletedSuccess', { name: doc.name }))
-
-      // ONLY close the dialog — keep isDeletingDocument=true so:
-      //   1. ReusableAlertDialog's onOpenChange guard blocks any
-      //      Radix-initiated close event during the exit animation.
-      //   2. The dialog content (spinner / button label) doesn't
-      //      change mid-animation, avoiding a visual "flash".
-      setDeleteDocumentDialogOpen(false)
-
-      // Defer ALL remaining state resets, navigation, and tree refresh
-      // until after the Radix exit animation (200 ms) completes.
-      // Navigating during the animation causes a large re-render
-      // cascade (PermissionsProvider, Outlet swap) that interrupts
-      // the portal and produces a visible flash.
+      // HuemulAlertDialog se cierra solo (showSuccessState=false en
+      // DeleteDocumentDialog), lo que dispara handleDeleteDocumentDialogChange
+      // y difiere la limpieza de documentToDelete. Acá solo difiero
+      // navegación y refresh, mismo lapso que la animación de salida.
       setTimeout(() => {
-        setIsDeletingDocument(false)
-        setDocumentToDelete(null)
-        setRenderDeleteDocumentDialog(false)
         navigateRef.current('/asset', { replace: true })
         fileTreeRef.current?.refresh()
       }, 300)
     } catch (error) {
       handleApiError(error, { fallbackMessage: t('knowledge.documentDeleteError') })
-      setIsDeletingDocument(false)
+      throw error // deja el diálogo abierto en "idle" para reintentar
     }
   }, []) // stable — uses refs for mutable values
 
@@ -380,15 +363,13 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
         currentName={folderToEdit?.name || ""}
         onFolderEdited={handleFolderEdited}
       />
-      {renderDeleteDocumentDialog && (
-        <DeleteDocumentDialog
-          open={deleteDocumentDialogOpen}
-          onOpenChange={deleteDocumentDialogOnOpenChange}
-          documentName={documentToDelete?.name || ""}
-          onConfirm={handleDocumentDeleted}
-          isDeleting={isDeletingDocument}
-        />
-      )}
+      <DeleteDocumentDialog
+        open={deleteDocumentDialogOpen}
+        onOpenChange={handleDeleteDocumentDialogChange}
+        deleteType="document"
+        documentName={documentToDelete?.name || ""}
+        onAction={handleDocumentDeleted}
+      />
       <EditDocumentDialog
         open={editDocumentDialogOpen}
         onOpenChange={setEditDocumentDialogOpen}

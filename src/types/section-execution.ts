@@ -17,7 +17,7 @@ export interface AiSuggestionStatus {
   error: string | null;
 }
 
-export type ReviewStatus = 'editing' | 'reviewing' | 'finished';
+export type ReviewStatus = 'editing' | 'reviewing' | 'finished' | 'rejected';
 
 /** Completitud de obligatorios de una sección form, resuelta por el backend en /content. */
 export type SectionAnswersStatus = 'completed' | 'pending';

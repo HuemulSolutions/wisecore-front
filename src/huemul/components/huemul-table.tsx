@@ -447,7 +447,7 @@ function HuemulTableInner<T>(
 
   // ── Carpetas: acción "Mover a carpeta" inyectada al final de las acciones ──
   const effectiveActions = React.useMemo<HuemulTableAction<T>[] | undefined>(() => {
-    if (!folders) return actions
+    if (!folders || folders.canMoveRows === false) return actions
     const buildMoveTargets = (item: T): HuemulTableActionItem<T>[] => {
       const currentFolderId = folders.getFolderId(item)
       const targets: HuemulTableActionItem<T>[] = folders.folders
@@ -1121,7 +1121,6 @@ function HuemulTableInner<T>(
                                     size="sm"
                                     icon={loading ? Loader2 : ActionIcon}
                                     tooltip={action.label}
-                                    tooltipSide="top"
                                     onClick={() => { if (!disabled && !hasMenu) action.onClick(item) }}
                                     disabled={disabled}
                                     className={cn(

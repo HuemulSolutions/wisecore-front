@@ -1,4 +1,4 @@
-import { useState, useRef } from "react"
+import { useCallback, useState, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { Upload } from "lucide-react"
 import { toast } from "sonner"
@@ -9,7 +9,7 @@ import { HuemulField } from "./huemul-field"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { formatBytes } from "@/lib/format-bytes"
-import { IMAGE_TYPES, IMAGE_ACCEPT, MediaIcon, getLevelOptions } from "./huemul-media-icon"
+import { MEDIA_UPLOAD_EXTENSIONS, MEDIA_UPLOAD_ACCEPT, hasAllowedMediaExtension, MediaIcon, getLevelOptions } from "./huemul-media-icon"
 import { HuemulMediaParentField, getMediaParentLabel } from "./huemul-media-parent"
 import { HuemulAssetTreePickerField } from "./huemul-asset-tree-picker"
 import type { MediaLevel } from "@/types/media"
@@ -43,8 +43,37 @@ export function HuemulMediaUploadSheet({
   const [parentLabel, setParentLabel] = useState<string>()
   const [name, setName] = useState("")
   const [summary, setSummary] = useState("")
+  const [isDragOver, setIsDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { uploadMedia } = useMediaMutations(organizationId)
+
+  const handleFile = useCallback((f: File) => {
+    if (!hasAllowedMediaExtension(f.name)) {
+      toast.error(t("upload.invalidFileType", { formats: MEDIA_UPLOAD_EXTENSIONS.map((ext) => ext.toUpperCase()).join(", ") }))
+      return
+    }
+    setFile(f)
+    setName((prev) => prev || f.name)
+  }, [t])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes("Files")) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "copy"
+    setIsDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return
+    setIsDragOver(false)
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const f = e.dataTransfer.files?.[0]
+    if (f) handleFile(f)
+  }, [handleFile])
 
   // Whether the user must pick a parent entity (non-org level chosen via the dropdown).
   const needsParent = !fixedLevel && level !== "organization"
@@ -91,25 +120,22 @@ export function HuemulMediaUploadSheet({
         <div
           className={cn(
             "flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-8 text-center transition-colors hover:cursor-pointer hover:bg-muted/50",
-            file ? "border-primary/40 bg-primary/5" : "border-muted-foreground/25",
+            isDragOver ? "border-primary bg-primary/5" : file ? "border-primary/40 bg-primary/5" : "border-muted-foreground/25",
           )}
           onClick={() => fileInputRef.current?.click()}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
         >
           <input
             ref={fileInputRef}
             type="file"
-            accept={IMAGE_ACCEPT}
+            accept={MEDIA_UPLOAD_ACCEPT}
             className="sr-only"
             onChange={(e) => {
               const f = e.target.files?.[0]
               if (!f) return
-              if (f.type.startsWith("image/") && !IMAGE_TYPES.has(f.type.toLowerCase())) {
-                toast.error(t("upload.invalidImageType", { formats: "PNG, JPG, GIF, BMP" }))
-                if (fileInputRef.current) fileInputRef.current.value = ""
-                return
-              }
-              setFile(f)
-              if (!name) setName(f.name)
+              handleFile(f)
             }}
           />
           {file ? (

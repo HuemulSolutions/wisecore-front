@@ -2,15 +2,15 @@
 
 import { useState } from "react"
 import type { ReactNode } from "react"
-import { ChevronDown, ChevronRight, Info, Plus, X } from "lucide-react"
+import { ArrowLeft, ChevronRight, Info, Plus, X } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 import { Switch } from "@/components/ui/switch"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { HuemulField } from "@/huemul/components/huemul-field"
+import { HuemulSectionCard } from "@/huemul/components/huemul-section-card"
 import { cn } from "@/lib/utils"
 import type { AccessRuleType, AccessRuleTypeOption } from "@/types/lifecycle"
-import type { EditStepCardAccessRule } from "@/types/assets"
+import type { LifecycleAccessRuleDraft } from "@/types/assets"
 
 /**
  * Primitivos visuales compartidos por los tabs del sheet de configuración de
@@ -295,25 +295,14 @@ export function ChipList({ children }: { children: ReactNode }) {
 
 // ─── Tarjeta ──────────────────────────────────────────────────────────────────
 
-/** Tarjeta blanca del panel (grupo o bloque de permisos simples). */
-export function PanelCard({
-  children,
-  className,
-}: {
-  children: ReactNode
-  className?: string
-}) {
-  return (
-    <div
-      className={cn(
-        "rounded-[10px] border border-[#e3e9f0] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  )
-}
+/**
+ * Tarjeta blanca del panel (grupo o bloque de permisos simples).
+ *
+ * Es `HuemulSectionCard` sin `title`: el shell puro, con el padding a cargo del
+ * consumidor vía `className`. Se mantiene el alias para no tocar sus ~11 call
+ * sites — mismo criterio que `PanelSaveBar`/`PanelDirtyBadge` más arriba.
+ */
+export { HuemulSectionCard as PanelCard }
 
 /** Badge del tipo de paso («Manual» / «Automático») en la cabecera de la tarjeta. */
 export function StepModeBadge({ label }: { label: string }) {
@@ -399,10 +388,10 @@ export function AccessRulesEditor({
   disabled,
   t,
 }: {
-  accessRules: EditStepCardAccessRule[]
+  accessRules: LifecycleAccessRuleDraft[]
   accessRuleTypeOptions: AccessRuleTypeOption[]
   earlierStepOptions: { value: string; label: string }[]
-  onChange: (rules: EditStepCardAccessRule[]) => void
+  onChange: (rules: LifecycleAccessRuleDraft[]) => void
   disabled?: boolean
   t: (key: string, options?: Record<string, unknown>) => string
 }) {
@@ -589,30 +578,19 @@ export function PanelCollapsibleCard({
   children: ReactNode
   className?: string
 }) {
+  // Es `HuemulSectionCard` en modo colapsable; se conserva el wrapper porque
+  // acá `title` y `open` son requeridos y el alias directo los haría opcionales.
   return (
-    <PanelCard className={cn("overflow-hidden", className)}>
-      <Collapsible open={open} onOpenChange={onOpenChange}>
-        <CollapsibleTrigger className="flex w-full items-center gap-2 px-4 py-3 text-left hover:cursor-pointer">
-          <ChevronDown
-            className={cn("size-3.5 shrink-0 text-[#94a3b8] transition-transform", !open && "-rotate-90")}
-          />
-          <div className="flex min-w-0 flex-1 items-baseline gap-2">
-            <span className="shrink-0 text-[13px] font-semibold text-[#0f172a]">{title}</span>
-            {subtitle && (
-              <span className="truncate text-[11.5px] text-[#94a3b8]">{subtitle}</span>
-            )}
-          </div>
-          {headerRight && (
-            <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-              {headerRight}
-            </div>
-          )}
-        </CollapsibleTrigger>
-        <CollapsibleContent className="border-t border-[#eef1f5] px-4 py-4">
-          {children}
-        </CollapsibleContent>
-      </Collapsible>
-    </PanelCard>
+    <HuemulSectionCard
+      title={title}
+      subtitle={subtitle}
+      headerRight={headerRight}
+      open={open}
+      onOpenChange={onOpenChange}
+      className={className}
+    >
+      {children}
+    </HuemulSectionCard>
   )
 }
 
@@ -635,10 +613,13 @@ export function PanelBreadcrumb({
       <button
         type="button"
         onClick={onBack}
-        className="shrink-0 font-medium text-[#1d4ed8] hover:cursor-pointer hover:underline"
+        title={rootLabel}
+        aria-label={rootLabel}
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[#475569] hover:cursor-pointer hover:bg-[#f1f5f9] hover:text-[#0f172a]"
       >
-        {rootLabel}
+        <ArrowLeft className="size-4" />
       </button>
+      <span className="shrink-0 font-medium text-[#64748b]">{rootLabel}</span>
       <ChevronRight className="size-3.5 shrink-0 text-[#c3cbd6]" />
       <span className="truncate font-semibold text-[#0f172a]">{current}</span>
       {badge}

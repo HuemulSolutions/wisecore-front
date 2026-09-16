@@ -11,12 +11,13 @@ import { useCustomField, useCustomFieldQuestionTypes, useCustomFieldMutations } 
 import { getCustomFields } from "@/services/custom-fields"
 import { useOrganization } from "@/contexts/organization-context"
 import { logger } from "@/lib/logger"
-import { questionTypeLabel, QUESTION_TYPE, NUMERIC_DATA_TYPES } from "@/components/sections/question-type-meta"
-import type { CustomFieldOption } from "@/types/custom-fields"
+import { questionTypeLabel, QUESTION_TYPE, NUMERIC_DATA_TYPES, readFileUploadLimits } from "@/components/sections/question-type-meta"
+import type { CustomFieldOption, PendingCustomFieldFile } from "@/types/custom-fields"
 import type { FormFieldConfig } from "@/types/sections/core"
 import type { FetchOptionsParams, FetchOptionsResult } from "@/types/huemul/field"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
 import { CustomFieldValueField } from "@/components/custom-fields/custom-field-value-field"
+import { addCustomFieldValueBlob } from "@/services/custom-field-value-blobs"
 import { validateCustomFieldValue } from "@/components/custom-fields/custom-field-value-validation"
 import { useTranslation } from "react-i18next"
 import type { AddCustomFieldDialogProps } from "@/types/add-custom-field-dialog"
@@ -43,6 +44,9 @@ export function AddCustomFieldSheet({
   const [prompt, setPrompt] = useState<string>("")
   const [value, setValue] = useState<string | string[]>("")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  // Colección de archivos elegidos antes de crear la entidad (max_value > 1) — se suben
+  // en serie contra el id recién creado, generalización de selectedFile (single-file).
+  const [pendingFiles, setPendingFiles] = useState<PendingCustomFieldFile[]>([])
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const { selectedOrganizationId } = useOrganization();
   const [newCustomFieldData, setNewCustomFieldData] = useState({
@@ -111,6 +115,7 @@ export function AddCustomFieldSheet({
       setPrompt("")
       setValue("")
       setSelectedFile(null)
+      setPendingFiles((prev) => { revokePendingFiles(prev); return [] })
       setNewCustomFieldData({
         name: "",
         description: "",
@@ -133,6 +138,7 @@ export function AddCustomFieldSheet({
       setPrompt("")
       setValue("")
       setSelectedFile(null)
+      setPendingFiles((prev) => { revokePendingFiles(prev); return [] })
       setFormErrors({})
     }
   }, [selectedCustomFieldId, fieldType])
@@ -152,7 +158,15 @@ export function AddCustomFieldSheet({
     }
   }
 
-  const getValuePayload = (dataType: string) => {
+  // Libera los object URLs de las miniaturas pendientes — evita fugas de memoria al
+  // cerrar el sheet o cambiar de custom field seleccionado sin llegar a crear la entidad.
+  const revokePendingFiles = (files: PendingCustomFieldFile[]) => {
+    files.forEach((f) => URL.revokeObjectURL(f.previewUrl))
+  }
+
+  const getValuePayload = (dataType: string, questionType?: string) => {
+    // Los archivos se gestionan aparte vía blob upload, sin importar el data_type.
+    if (questionType === QUESTION_TYPE.fileUpload) return {}
     if (Array.isArray(value)) {
       return value.length === 0 ? {} : { value }
     }
@@ -194,6 +208,9 @@ export function AddCustomFieldSheet({
       required: isRequired,
       minValue: selectedCustomField?.min_value,
       maxValue: selectedCustomField?.max_value,
+      // La entidad todavía no existe (sheet de alta) — la única fuente posible es lo
+      // acumulado en memoria antes de crear (pendingFiles) o, en single-file, selectedFile.
+      fileCount: pendingFiles.length || (selectedFile ? 1 : 0),
       t,
     })
     setFormErrors(prev => ({ ...prev, value: error || "" }))
@@ -230,7 +247,9 @@ export function AddCustomFieldSheet({
 
     // Numeric range (respuesta_numerica/decimal) and linear scale share min_value/max_value —
     // only flag when both bounds are set and inverted.
-    const usesMinMax = NUMERIC_DATA_TYPES.includes(newCustomFieldDataType) || newCustomFieldData.question_type === QUESTION_TYPE.linearScale
+    const usesMinMax = NUMERIC_DATA_TYPES.includes(newCustomFieldDataType)
+      || newCustomFieldData.question_type === QUESTION_TYPE.linearScale
+      || newCustomFieldData.question_type === QUESTION_TYPE.fileUpload
     if (newCustomFieldData.question_type === QUESTION_TYPE.linearScale && (newMinValue === null || newMaxValue === null)) {
       newErrors.min_value = t('form.minMaxInvalid')
     } else if (usesMinMax && newMinValue !== null && newMaxValue !== null && newMinValue > newMaxValue) {
@@ -257,7 +276,11 @@ export function AddCustomFieldSheet({
       return { max_value: newMaxValue }
     }
     if (newCustomFieldData.question_type === QUESTION_TYPE.fileUpload) {
+      // Cantidad de archivos en min_value/max_value (raíz) — fuente de verdad real del
+      // backend; allowed_types/max_size_mb siguen en default_value (no tienen columna propia).
       return {
+        min_value: newMinValue,
+        max_value: newMaxValue,
         default_value: {
           allowed_types: newConfig.allowed_types ?? [],
           max_size_mb: newConfig.max_size_mb ?? 10,
@@ -286,6 +309,7 @@ export function AddCustomFieldSheet({
     setPrompt("")
     setValue("")
     setSelectedFile(null)
+    setPendingFiles((prev) => { revokePendingFiles(prev); return [] })
     setNewCustomFieldData({
       name: "",
       description: "",
@@ -320,19 +344,36 @@ export function AddCustomFieldSheet({
         source: selectedSource,
         required: isRequired,
         prompt: prompt.trim() || undefined,
-        ...getValuePayload(selectedCustomField?.data_type || ""),
+        ...getValuePayload(selectedCustomField?.data_type || "", selectedCustomField?.question_type),
       }
 
       try {
         const createdEntity = await onAdd(data)
+        const isFileUpload = selectedCustomField?.question_type === QUESTION_TYPE.fileUpload
+          || selectedCustomField?.data_type === "image"
 
-        // If it's an image and there's a file to upload, handle it after creation
-        if (selectedCustomField?.data_type === "image" && selectedFile) {
-          if (createdEntity?.id) {
+        if (isFileUpload && createdEntity?.id) {
+          const { max } = readFileUploadLimits({
+            min_value: selectedCustomField?.min_value,
+            max_value: selectedCustomField?.max_value,
+            default_value: selectedCustomField?.default_value,
+          })
+          if (max > 1) {
+            // Colección value_blobs: subir en serie los archivos elegidos antes de crear.
+            try {
+              for (const pending of pendingFiles) {
+                await addCustomFieldValueBlob(entityType, createdEntity.id, pending.file, selectedOrganizationId!)
+              }
+            } catch (error) {
+              logger.error("Error uploading custom field files:", error)
+              setFormErrors(prev => ({ ...prev, value: t('addDialog.uploadFailed') }))
+            }
+          } else if (selectedFile) {
+            // value_blob singular (comportamiento histórico).
             await handleImageUpload(createdEntity.id, selectedFile)
-          } else {
-            logger.error(`No ${entityType} field ID returned from onAdd`)
           }
+        } else if (isFileUpload && !createdEntity?.id) {
+          logger.error(`No ${entityType} field ID returned from onAdd`)
         }
 
         closeSheet()
@@ -488,6 +529,20 @@ export function AddCustomFieldSheet({
                     options={(selectedCustomField?.default_value as CustomFieldOption[] | null) ?? []}
                     minValue={selectedCustomField?.min_value}
                     maxValue={selectedCustomField?.max_value}
+                    allowedTypes={
+                      selectedCustomField?.question_type === QUESTION_TYPE.fileUpload
+                        ? (selectedCustomField?.default_value as { allowed_types?: string[] } | null)?.allowed_types
+                        : undefined
+                    }
+                    maxSizeMb={
+                      selectedCustomField?.question_type === QUESTION_TYPE.fileUpload
+                        ? (selectedCustomField?.default_value as { max_size_mb?: number } | null)?.max_size_mb
+                        : undefined
+                    }
+                    entityType={entityType}
+                    entityCustomFieldId={null}
+                    pendingFiles={pendingFiles}
+                    onPendingFilesChange={setPendingFiles}
                     error={formErrors.value}
                     disabled={isUploadingImage}
                     isUploadingImage={isUploadingImage}
@@ -546,18 +601,23 @@ export function AddCustomFieldSheet({
                 if (newDataType !== 'list') {
                   setNewOptions([])
                 }
-                if (!NUMERIC_DATA_TYPES.includes(newDataType) && value !== QUESTION_TYPE.linearScale) {
+                if (!NUMERIC_DATA_TYPES.includes(newDataType) && value !== QUESTION_TYPE.linearScale && value !== QUESTION_TYPE.fileUpload) {
                   setNewMinValue(null)
                   setNewMaxValue(null)
                 }
-                // Escala lineal / calificación muestran un default en el select (1/5) que es
-                // solo visual — sin esto el estado real queda null y el backend lo rechaza.
+                // Escala lineal / calificación / carga de archivos muestran un default en el
+                // selector (1/5/1) que es solo visual — sin esto el estado real queda null y
+                // el backend lo rechaza.
                 if (value === QUESTION_TYPE.linearScale) {
                   setNewMinValue(prev => prev ?? 1)
                   setNewMaxValue(prev => prev ?? 5)
                 }
                 if (value === QUESTION_TYPE.rating) {
                   setNewMaxValue(prev => prev ?? 5)
+                }
+                if (value === QUESTION_TYPE.fileUpload) {
+                  setNewMinValue(prev => prev ?? 0)
+                  setNewMaxValue(prev => prev ?? 1)
                 }
                 if (value !== QUESTION_TYPE.linearScale && value !== QUESTION_TYPE.fileUpload) {
                   setNewConfig({})

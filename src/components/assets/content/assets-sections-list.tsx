@@ -36,6 +36,9 @@ export interface AssetsSectionsListProps {
   onOpenExecuteSheetForSection: (sectionIndex: number, sectionId?: string) => () => void;
   onCreateSectionFromSelectionForSection: (sectionIndex: number) => (selectedMarkdown: string) => void;
   onCopyLink: (sectionId: string) => void;
+  /** Reporta el isCollapsed de cada sección hacia AssetContent (ver assets-section.tsx). Se pasa
+   *  directo, sin currificar por índice: el id de la sección ya está disponible dentro de ella. */
+  onSectionCollapsedChange: (sectionExecutionId: string, collapsed: boolean | undefined) => void;
 }
 
 /**
@@ -76,6 +79,7 @@ function AssetsSectionsListInner({
   onOpenExecuteSheetForSection,
   onCreateSectionFromSelectionForSection,
   onCopyLink,
+  onSectionCollapsedChange,
 }: AssetsSectionsListProps) {
   return (
     <>
@@ -170,6 +174,7 @@ function AssetsSectionsListInner({
                 cannotGenerateReason={cannotGenerateReason}
                 onCreateSectionFromSelection={onCreateSectionFromSelectionForSection(index)}
                 onCopyLink={realSectionId ? () => onCopyLink(realSectionId) : undefined}
+                onCollapsedChange={onSectionCollapsedChange}
               />
             </div>
 

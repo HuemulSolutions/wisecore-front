@@ -58,12 +58,6 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
@@ -261,31 +255,24 @@ function generateId(name?: string, label?: string): string {
 
 function FieldHelpButton({ helpText }: { helpText: string }) {
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:cursor-pointer transition-colors"
-            tabIndex={-1}
-          >
-            <HelpCircle className="size-3.5" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs">
-          <p>{helpText}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <button
+      type="button"
+      title={helpText}
+      className="inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:cursor-pointer transition-colors"
+      tabIndex={-1}
+    >
+      <HelpCircle className="size-3.5" />
+    </button>
   );
 }
 
 function FieldLabelAction({ action }: { action: HuemulFieldLabelAction }) {
   const ActionIcon = action.icon;
 
-  const button = (
+  return (
     <button
       type="button"
+      title={action.tooltip}
       className="inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:cursor-pointer transition-colors"
       onClick={action.onClick}
       tabIndex={-1}
@@ -293,21 +280,6 @@ function FieldLabelAction({ action }: { action: HuemulFieldLabelAction }) {
       <ActionIcon className="size-3.5" />
     </button>
   );
-
-  if (action.tooltip) {
-    return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>{button}</TooltipTrigger>
-          <TooltipContent side="top">
-            <p>{action.tooltip}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    );
-  }
-
-  return button;
 }
 
 // ── Combobox ───────────────────────────────────────────────────────────────
@@ -2529,10 +2501,21 @@ export function HuemulField({
     >
       {/* ── Inline row (switch/checkbox) or stacked label+control ── */}
       {isInline ? (
-        <div className={cn(
-          "flex flex-row gap-3",
-          labelFirst ? "items-center justify-between max-w-sm" : "items-center",
-        )}>
+        <div
+          className={cn(
+            "flex flex-row gap-3",
+            labelFirst ? "items-start justify-between cursor-pointer" : "items-center",
+          )}
+          onClick={
+            labelFirst
+              ? (e) => {
+                  if (disabled) return;
+                  if ((e.target as HTMLElement).closest("button")) return;
+                  handleCheckedChange(!value);
+                }
+              : undefined
+          }
+        >
           {/* Label row (left) */}
           {labelFirst && (
             <div className="flex flex-col gap-0.5 min-w-0">

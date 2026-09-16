@@ -87,8 +87,11 @@ export function HuemulSheet({
   size,
   className,
   bodyClassName,
+  hideHeaderBorder = false,
   headerExtra,
   footerLeft,
+  headerContent,
+  footerContent,
   onOpenAutoFocus,
   children,
 }: HuemulSheetProps) {
@@ -159,7 +162,7 @@ export function HuemulSheet({
   const isTile = iconVariant === "tile";
 
   // Determine if footer has any content
-  const hasFooterContent = showFooter && (showCancelButton || saveInFooter || footerActions.length > 0 || !!footerLeft);
+  const hasFooterContent = footerContent != null || (showFooter && (showCancelButton || saveInFooter || footerActions.length > 0 || !!footerLeft));
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -175,81 +178,100 @@ export function HuemulSheet({
       >
         {/* ── Header ─────────────────────────────────────────────────── */}
         <SheetHeader
-          className={cn("px-6 pt-6 pb-4 space-y-1.5", isTile && "space-y-1 pb-3")}
-        >
-          {eyebrow && (
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              {eyebrow}
-            </p>
+          className={cn(
+            headerContent
+              ? "p-0"
+              : cn(
+                  "px-6 pt-6 pb-4 space-y-1.5",
+                  !hideHeaderBorder && "border-b",
+                  isTile && "space-y-1 pb-3",
+                ),
           )}
-          <div className={cn("flex gap-2", isTile ? "items-start gap-3" : "items-center")}>
-            {Icon &&
-              (isTile ? (
-                <span className="flex size-7.5 shrink-0 items-center justify-center rounded-xl bg-[#eef2ff]">
-                  <Icon className={cn("size-4 text-[#4f46e5]", iconClassName)} />
-                </span>
-              ) : (
-                <Icon
-                  className={cn("size-5 shrink-0 text-blue-600", iconClassName)}
-                />
-              ))}
-            {isTile ? (
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <SheetTitle className="text-[16px] font-semibold leading-tight text-[#0f172a]">
-                  {title}
-                </SheetTitle>
-                {description && (
-                  <SheetDescription className="text-[13px] leading-tight text-[#64748b]">
-                    {description}
-                  </SheetDescription>
-                )}
-              </div>
-            ) : (
-              <SheetTitle>{title}</SheetTitle>
-            )}
-
-            {/* Header-positioned actions (right-aligned) */}
-            {(headerActions.length > 0 || saveInHeader || headerExtra) && (
-              <div className="ml-auto flex items-center gap-2 pr-6">
-                {headerExtra}
-                {headerActions.map((action, _index) => {
-                  const globalIndex = extraActions!.indexOf(action);
-                  return (
-                    <ActionButton
-                      key={action.label}
-                      action={action}
-                      isLoading={extraLoading[globalIndex] ?? false}
-                      defaultVariant="outline"
-                      onClickAction={() =>
-                        handleActionClick(
-                          action,
-                          (v) =>
-                            setExtraLoading((prev) => ({
-                              ...prev,
-                              [globalIndex]: v,
-                            })),
-                          false,
-                        )
-                      }
+        >
+          {headerContent ? (
+            <>
+              {/* Radix exige un Dialog.Title en el árbol — se mantiene oculto
+                  visualmente porque `headerContent` ya muestra el título a su manera. */}
+              <SheetTitle className="sr-only">{title}</SheetTitle>
+              {headerContent}
+            </>
+          ) : (
+            <>
+              {eyebrow && (
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  {eyebrow}
+                </p>
+              )}
+              <div className={cn("flex gap-2", isTile ? "items-start gap-3" : "items-center")}>
+                {Icon &&
+                  (isTile ? (
+                    <span className="flex size-7.5 shrink-0 items-center justify-center rounded-xl bg-[#eef2ff]">
+                      <Icon className={cn("size-4 text-[#4f46e5]", iconClassName)} />
+                    </span>
+                  ) : (
+                    <Icon
+                      className={cn("size-5 shrink-0 text-blue-600", iconClassName)}
                     />
-                  );
-                })}
+                  ))}
+                {isTile ? (
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <SheetTitle className="text-[16px] font-semibold leading-tight text-[#0f172a]">
+                      {title}
+                    </SheetTitle>
+                    {description && (
+                      <SheetDescription className="text-[13px] leading-tight text-[#64748b]">
+                        {description}
+                      </SheetDescription>
+                    )}
+                  </div>
+                ) : (
+                  <SheetTitle>{title}</SheetTitle>
+                )}
 
-                {saveInHeader && saveAction && (
-                  <ActionButton
-                    action={saveAction}
-                    isLoading={saveLoading}
-                    defaultVariant="default"
-                    onClickAction={() =>
-                      handleActionClick(saveAction, setSaveLoading, true)
-                    }
-                  />
+                {/* Header-positioned actions (right-aligned) */}
+                {(headerActions.length > 0 || saveInHeader || headerExtra) && (
+                  <div className="ml-auto flex items-center gap-2 pr-6">
+                    {headerExtra}
+                    {headerActions.map((action, _index) => {
+                      const globalIndex = extraActions!.indexOf(action);
+                      return (
+                        <ActionButton
+                          key={action.label}
+                          action={action}
+                          isLoading={extraLoading[globalIndex] ?? false}
+                          defaultVariant="outline"
+                          onClickAction={() =>
+                            handleActionClick(
+                              action,
+                              (v) =>
+                                setExtraLoading((prev) => ({
+                                  ...prev,
+                                  [globalIndex]: v,
+                                })),
+                              false,
+                            )
+                          }
+                        />
+                      );
+                    })}
+
+                    {saveInHeader && saveAction && (
+                      <ActionButton
+                        action={saveAction}
+                        isLoading={saveLoading}
+                        defaultVariant="default"
+                        onClickAction={() =>
+                          handleActionClick(saveAction, setSaveLoading, true)
+                        }
+                      />
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-          {!isTile && description && (
-            <SheetDescription>{description}</SheetDescription>
+              {!isTile && description && (
+                <SheetDescription>{description}</SheetDescription>
+              )}
+            </>
           )}
         </SheetHeader>
 
@@ -275,7 +297,9 @@ export function HuemulSheet({
         </div>
 
         {/* ── Footer (sticky) ────────────────────────────────────────── */}
-        {hasFooterContent && (
+        {footerContent != null ? (
+          footerContent
+        ) : hasFooterContent && (
           <div className="sticky bottom-0 border-t bg-background px-6 py-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             {footerLeft && (
               <div className="flex items-center gap-2">{footerLeft}</div>

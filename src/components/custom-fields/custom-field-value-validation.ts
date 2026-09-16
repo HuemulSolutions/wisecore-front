@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next"
-import { QUESTION_TYPE } from "@/components/sections/question-type-meta"
+import { QUESTION_TYPE, readFileUploadLimits } from "@/components/sections/question-type-meta"
 
 /**
  * Valida el borrador en edición del sheet (value: string | string[], un solo
@@ -15,10 +15,23 @@ interface ValidateCustomFieldValueParams {
   required?: boolean
   minValue?: unknown
   maxValue?: unknown
+  /** carga_de_archivos: cantidad actual de archivos (value_files o el legado value_blob
+   *  singular) — el value en sí siempre viaja vacío, los archivos se gestionan aparte. */
+  fileCount?: number
   t: TFunction
 }
 
-export function validateCustomFieldValue({ dataType, questionType, value, required, minValue, maxValue, t }: ValidateCustomFieldValueParams): string | undefined {
+export function validateCustomFieldValue({ dataType, questionType, value, required, minValue, maxValue, fileCount, t }: ValidateCustomFieldValueParams): string | undefined {
+  if (questionType === QUESTION_TYPE.fileUpload) {
+    const count = fileCount ?? 0
+    if (required && count === 0) return t('addDialog.valueRequired')
+    if (count === 0) return undefined
+    const { min, max } = readFileUploadLimits({ min_value: minValue, max_value: maxValue })
+    if (count < min) return t('sections:form.fill.tooFewFiles', { min })
+    if (count > max) return t('sections:form.fill.tooManyFiles', { max })
+    return undefined
+  }
+
   if (Array.isArray(value)) {
     if (required && value.length === 0) return t('addDialog.valueRequired')
     return undefined

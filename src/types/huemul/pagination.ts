@@ -1,7 +1,7 @@
 export interface HuemulPaginationProps {
   page: number
   pageSize: number
-  totalItems?: number
+  totalItems?: number | null
   hasNext?: boolean
   hasPrevious?: boolean
   onPageChange: (page: number) => void
@@ -14,4 +14,8 @@ export interface HuemulPaginationProps {
   labelPosition?: "start" | "end"
   /** Muestra los botones de primera/última página. Default `true`. */
   showFirstLast?: boolean
+  /** Solo aplica a `variant="detailed"`. Oculta los botones numerados, dejando solo Prev/Next. Default `true`. */
+  showPageNumbers?: boolean
+  /** Solo aplica a `variant="detailed"`. Oculta el label "Mostrando X–Y de Z". Default `true`. */
+  showSummary?: boolean
 }

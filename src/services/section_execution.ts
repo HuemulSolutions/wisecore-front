@@ -162,6 +162,11 @@ export async function updateReviewStatus(
 
 // â”€â”€â”€ Form values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+// Rechaza con 400 ("'<field>' is a calculated field; its value cannot be set directly.")
+// si `values` incluye el id de un campo campo_calculado_formula/campo_calculado_condicional
+// (ver ia context/campos-calculados-en-formularios-guide.md) — el caller ya los excluye vía
+// isFieldAnswerable antes de armar el payload. La respuesta sí incluye, ya recalculados, los
+// campos calculados de TODA la ejecución afectados por este guardado (cross-sección).
 export async function updateSectionFormValues(
     sectionExecutionId: string,
     values: { id: string; value: unknown }[],
@@ -180,6 +185,10 @@ export async function updateSectionFormValues(
     return data.data as FormValuesSectionPayload[];
 }
 
+// Mismo rechazo de 400 que updateSectionFormValues para un id de campo calculado. A
+// diferencia de ese endpoint, la respuesta solo trae form_fields de ESTA sección — un
+// recálculo cross-sección disparado por esta respuesta se guarda en el backend pero no se
+// refleja acá (hay que refrescar la otra sección aparte). Sin consumidor en el repo aún.
 export async function answerSectionFormQuestion(
     sectionExecutionId: string,
     id: string,

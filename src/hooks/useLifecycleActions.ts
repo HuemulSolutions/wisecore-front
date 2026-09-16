@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -9,7 +9,13 @@ import { dataTableQueryKeys } from "@/hooks/useDataTables"
 import { parseMissingRequiredCustomFieldsDetail } from "@/lib/custom-field-required-utils"
 import { getAdvanceBlockers, parseAdvanceBlockersDetail } from "@/lib/advance-blockers-utils"
 import { completeActionLabelKey, completeActionTooltipKey } from "@/lib/lifecycle-labels"
-import { useExternalReviewActions } from "@/hooks/useLifecycle"
+import {
+  lifecycleQueryKeys,
+  useExternalReviewActions,
+  useLifecycleElaborationConfig,
+  useExternalPublishActions,
+  invalidateExecutionLifecycleSteps,
+} from "@/hooks/useLifecycle"
 import { useLifecycleProgress } from "@/hooks/useLifecycleProgress"
 import { useMissingRequiredCustomFields } from "@/hooks/useCustomFieldDocuments"
 import { executionLifecycleQueryKeys } from "@/hooks/useExecutionLifecycle"
@@ -21,6 +27,7 @@ import {
   assignExecutionVersion,
   restoreExecutionLifecycle,
   runExternalPublish,
+  runElaboration,
   getExecutionById,
 } from "@/services/executions"
 import type {
@@ -33,6 +40,7 @@ import type {
   DataTablesRefreshedSummary,
   CompleteLifecycleStepResponse,
   AdvanceLifecycleResponse,
+  RunElaborationResponse,
 } from "@/types/lifecycle"
 
 const VERSION_REQUIRED_CODE = "VERSION_REQUIRED_FOR_APPROVAL"
@@ -71,6 +79,8 @@ export function useLifecycleActions({
   canListCustomFields = false,
   onOpenCustomFields,
   onGoToSection,
+  canReadElaborationConfig = false,
+  canReadExternalPublishConfig = false,
 }: UseLifecycleActionsOptions): LifecycleActionsController {
   const { t } = useTranslation(["assets", "common"])
   const queryClient = useQueryClient()
@@ -103,6 +113,19 @@ export function useLifecycleActions({
     if (!open) setPendingVersionAction(null)
     setIsAssignVersionDialogOpenState(open)
   }
+
+  // Red de seguridad para el panel "N de M" del sheet de Completar
+  // (`useLifecycleProgress` → `useAllLifecycleSteps`): `applyFormValuesPatch`
+  // ya invalida los steps por ejecución cuando el autoguardado toca un campo
+  // trigger de `LifecycleStep.depends_on`, pero eso no cubre la carrera donde
+  // el PATCH resuelve antes de que el primer GET de steps termine (el set de
+  // triggers todavía está vacío), ni las respuestas que llegan por otro canal
+  // (elaboración externa, otra sesión). Se invalida —no se borra el cache— al
+  // abrir el sheet, para no mostrar de más un grupo que el backend ya excluyó.
+  useEffect(() => {
+    if (!isCheckDialogOpen || !documentTypeId) return
+    queryClient.invalidateQueries({ queryKey: lifecycleQueryKeys.steps(documentTypeId, null, executionId ?? null) })
+  }, [isCheckDialogOpen, documentTypeId, executionId, queryClient])
 
   const refreshKeys = () => [
     ["document-content", documentId],
@@ -187,15 +210,20 @@ export function useLifecycleActions({
     mutationFn: withRefresh(
       async (options?: { comment?: string; run_external_review?: boolean }) => {
         if (!rbac.canTransition) throw new Error(NO_TRANSITION_PERMISSION)
-        const stepId = lifecycleStatus?.current_step_id
         if (!executionId || !organizationId) throw new Error("Missing execution or organization")
-        if (!stepId) throw new Error("Missing step ID")
+        const stepId = lifecycleStatus?.current_step_id
+        // Hay etapas sin step configurado (ej. `in_approval` en un tipo de activo sin
+        // steps `approve`, típicamente tras un `restore` que devuelve la ejecución a
+        // esa etapa). Ahí la transición no es "completar un step" sino avanzar el
+        // estado — mismo endpoint que publicar/archivar. `run_external_review` es
+        // exclusivo del complete y no se reenvía.
+        if (!stepId) return advanceExecutionLifecycle(executionId, organizationId, { comment: options?.comment })
         return completeExecutionLifecycleStep(executionId, stepId, organizationId, options)
       },
       queryClient,
       refreshKeys,
     ),
-    onSuccess: (data: CompleteLifecycleStepResponse) => {
+    onSuccess: (data: CompleteLifecycleStepResponse | AdvanceLifecycleResponse) => {
       setIsCheckDialogOpen(false)
       queryClient.invalidateQueries({ queryKey: executionLifecycleQueryKeys.eventsBase() })
       notifyDataTablesRefreshed(data?.data_tables_refreshed)
@@ -325,6 +353,10 @@ export function useLifecycleActions({
     onSuccess: () => {
       setIsRestoreDialogOpen(false)
       queryClient.invalidateQueries({ queryKey: executionLifecycleQueryKeys.eventsBase() })
+      // El estado vuelve atrás en el pipeline: los steps por ejecución (progreso,
+      // "próximo paso") quedan stale si no se invalidan acá — mismo helper que usa
+      // el botón Refrescar del panel de workflow.
+      invalidateExecutionLifecycleSteps(queryClient)
     },
     meta: { successMessage: t("lifecycle.successRestore") },
     onError: (error) => {
@@ -342,6 +374,61 @@ export function useLifecycleActions({
     },
     meta: { successMessage: t("lifecycle.successRerunExternalPublish") },
     onError: (error) => handleApiError(error, { fallbackMessage: t("lifecycle.errorRerunExternalPublish") }),
+  })
+
+  // Whether the current lifecycle step (edit) has an enabled elaboration
+  // config — gatea el botón de disparo manual. `canReadElaborationConfig`
+  // (lifecycle_elaboration_config:l|r del scope de la página) porque el
+  // editor promedio de un activo puede no tener ese permiso de configuración.
+  const { data: elaborationConfigData } = useLifecycleElaborationConfig(
+    organizationId ?? "",
+    lifecycleStatus?.current_step_id ?? "",
+    canReadElaborationConfig &&
+      lifecycleStatus?.stage === "edit" &&
+      !!lifecycleStatus?.current_step_id &&
+      !!organizationId,
+  )
+  const hasEnabledElaborationConfig = elaborationConfigData?.data?.is_enabled === true
+
+  // Whether the current (publish) lifecycle step has at least one enabled
+  // `ExternalPublishAction` — gatea el botón de re-lanzar publicación externa.
+  // 1:N (a diferencia de la elaboración, 1:1): mismo criterio `.some(is_enabled)`
+  // que `hasExternalReview`. Gateado por `canReadExternalPublishConfig`
+  // (`lifecycle_external_publish_action:l`) porque el editor/publicador promedio
+  // de un activo puede no tener ese permiso de configuración.
+  const { data: externalPublishActionsData } = useExternalPublishActions(
+    organizationId ?? "",
+    lifecycleStatus?.current_step_id ?? "",
+    canReadExternalPublishConfig &&
+      lifecycleStatus?.state === "published" &&
+      !!lifecycleStatus?.current_step_id &&
+      !!organizationId,
+  )
+  const hasEnabledExternalPublishConfig = (externalPublishActionsData?.data ?? []).some((a) => a.is_enabled)
+
+  const runElaborationMutation = useMutation({
+    // A diferencia de `runExternalPublishMutation`, acá SÍ hace falta refrescar
+    // `document-content`: el POST arranca el lock (`is_locked_external_elaboration`)
+    // y hay que traerlo para que el poll de 5s (`EXTERNAL_ELABORATION_POLL_MS`)
+    // tome el relevo.
+    mutationFn: withRefresh<void, RunElaborationResponse>(
+      async () => {
+        if (!rbac.canTransition) throw new Error(NO_TRANSITION_PERMISSION)
+        const stepId = lifecycleStatus?.current_step_id
+        if (!executionId || !stepId || !organizationId) throw new Error("Missing execution, step or organization")
+        return runElaboration(executionId, organizationId, stepId)
+      },
+      queryClient,
+      refreshKeys,
+    ),
+    // Sin `meta.successMessage`: el toast de éxito es condicional a que el
+    // backend haya efectivamente disparado un run (`run: null` = el step no
+    // tiene config o está deshabilitada — no es error, pero tampoco hubo
+    // corrida, no corresponde festejarlo).
+    onSuccess: (data: RunElaborationResponse) => {
+      if (data?.run) toast.success(t("lifecycle.successRunElaboration"))
+    },
+    onError: (error) => handleApiError(error, { fallbackMessage: t("lifecycle.errorRunElaboration") }),
   })
 
   // Whether the current lifecycle step (edit/review) has an external system
@@ -475,6 +562,9 @@ export function useLifecycleActions({
     assignVersionMutation,
     restoreMutation,
     runExternalPublishMutation,
+    runElaborationMutation,
+    hasEnabledElaborationConfig,
+    hasEnabledExternalPublishConfig,
 
     hasExternalReview,
     isApprovalStep,

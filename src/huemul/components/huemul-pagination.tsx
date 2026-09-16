@@ -34,7 +34,7 @@ export type { HuemulPaginationProps }
 export function HuemulPagination({
   page,
   pageSize,
-  totalItems,
+  totalItems: totalItemsProp,
   hasNext,
   hasPrevious,
   onPageChange,
@@ -44,9 +44,14 @@ export function HuemulPagination({
   variant = "card",
   labelPosition = "end",
   showFirstLast = true,
+  showPageNumbers = true,
+  showSummary = true,
 }: HuemulPaginationProps) {
   const { t } = useTranslation("common")
   const isBare = variant === "bare"
+  // El backend a veces manda `total: null` (ej. cuando el conteo exacto no se calculó)
+  // — se trata igual que "sin total conocido" (mismo camino que `undefined`).
+  const totalItems = totalItemsProp ?? undefined
 
   const totalPages =
     totalItems !== undefined ? Math.ceil(totalItems / pageSize) || 1 : undefined
@@ -78,13 +83,13 @@ export function HuemulPagination({
 
     return (
       <div className={cn("flex flex-wrap items-center gap-2.5 border-t border-[#e5eaf0] bg-white px-4.5 py-2.5", className)}>
-        {totalItems === 0 ? (
+        {showSummary && (totalItems === 0 ? (
           <span className="text-[12.5px] text-[#64748b]">{t("pagination.noResults")}</span>
         ) : rangeLabel ? (
           <span className="whitespace-nowrap text-[12.5px] tabular-nums text-[#64748b]">
             {t("pagination.showing")} {rangeLabel}
           </span>
-        ) : null}
+        ) : null)}
 
         <div className="flex-1" />
 
@@ -98,7 +103,7 @@ export function HuemulPagination({
                   type="button"
                   onClick={() => onPageSizeChange(size)}
                   className={cn(
-                    "h-7 min-w-[30px] rounded-[7px] border px-[7px] text-[12.5px] font-medium transition-colors hover:cursor-pointer",
+                    "h-7 min-w-7.5 rounded-[7px] border px-1.75 text-[12.5px] font-medium transition-colors hover:cursor-pointer",
                     size === pageSize
                       ? "border-[#bfd3fb] bg-[#eef4ff] text-[#1d4ed8]"
                       : "border-[#dfe4ec] bg-white text-[#64748b] hover:border-[#93b4f5]"
@@ -112,7 +117,7 @@ export function HuemulPagination({
           </>
         )}
 
-        <div className="flex items-center gap-[5px]">
+        <div className="flex items-center gap-1.25">
           <button
             type="button"
             aria-label="Previous page"
@@ -120,12 +125,12 @@ export function HuemulPagination({
             disabled={isFirstPage || hasPrevious === false}
             className={navBtnClass(isFirstPage || hasPrevious === false)}
           >
-            <ChevronLeft className="h-[13px] w-[13px]" />
+            <ChevronLeft className="h-3.25 w-3.25" />
           </button>
 
-          {pageRange?.map((p, i) =>
+          {showPageNumbers && pageRange?.map((p, i) =>
             p === "…" ? (
-              <span key={`e${i}`} className="flex h-7 min-w-[28px] items-center justify-center text-[12.5px] text-[#94a3b8] select-none">
+              <span key={`e${i}`} className="flex h-7 min-w-7 items-center justify-center text-[12.5px] text-[#94a3b8] select-none">
                 …
               </span>
             ) : (
@@ -135,7 +140,7 @@ export function HuemulPagination({
                 onClick={() => p !== page && onPageChange(p)}
                 aria-current={p === page ? "page" : undefined}
                 className={cn(
-                  "h-7 min-w-[28px] rounded-[7px] border px-[7px] text-[12.5px] transition-colors",
+                  "h-7 min-w-7 rounded-[7px] border px-1.75 text-[12.5px] transition-colors",
                   p === page
                     ? "border-[#2563eb] bg-[#2563eb] font-semibold text-white pointer-events-none"
                     : "border-[#dfe4ec] bg-white font-medium text-[#475569] hover:cursor-pointer hover:border-[#93b4f5]"
@@ -153,7 +158,7 @@ export function HuemulPagination({
             disabled={isLastPage}
             className={navBtnClass(isLastPage)}
           >
-            <ChevronRight className="h-[13px] w-[13px]" />
+            <ChevronRight className="h-3.25 w-3.25" />
           </button>
         </div>
       </div>

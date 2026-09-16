@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { useEffectiveOrgId } from '@/hooks/useOrgRouter';
 import { useMentionSearch } from '@/hooks/useMentionSearch';
 import { useMentionFolderContent } from '@/hooks/useMentionFolderContent';
+import { useMentionTrailStorage, clearMentionTrail } from '@/hooks/useMentionTrailStorage';
 import { useRolesMap } from '@/contexts/role-refs-context';
 import { ASSET_REFERENCE_KEY, ROLE_REFERENCE_KEY } from '@/lib/plate-reference-utils';
 import {
@@ -559,7 +560,25 @@ function ReferenceComboboxBody({
   // Pestañas excluyentes (no toggles independientes) — Activos por defecto.
   const [activeFilter, setActiveFilter] = React.useState<TypeFilter>('asset');
   const [versionAsset, setVersionAsset] = React.useState<LibraryContentAsset | null>(null);
-  const [trail, setTrail] = React.useState<TrailSegment[]>(() => [{ id: null, name: t('mention.browseRoot') }]);
+
+  const { restoredTrail, save: saveMentionTrail } = useMentionTrailStorage(organizationId);
+  // true mientras el trail vigente sea EXACTAMENTE el restaurado al montar,
+  // sin que el usuario haya navegado todavía — gatea el auto-reset a root si
+  // esa carpeta ya no existe (ver el efecto sobre folderIsError más abajo).
+  // Cualquier navegación manual (entrar, subir por el breadcrumb, "buscar en
+  // todo") lo apaga: a partir de ahí un error se muestra con "reintentar"
+  // como cualquier carpeta que el usuario abrió a mano.
+  const usedRestoredTrailRef = React.useRef(false);
+  const [trail, setTrail] = React.useState<TrailSegment[]>(() => {
+    const root: TrailSegment = { id: null, name: t('mention.browseRoot') };
+    // Solo si el input arranca vacío (modo explorar) — con un término tipeado
+    // el trail no se muestra ni se usa (modo búsqueda global).
+    if (search.length === 0 && restoredTrail && restoredTrail.length > 0) {
+      usedRestoredTrailRef.current = true;
+      return [root, ...restoredTrail.map((s) => ({ id: s.id as string | null, name: s.name }))];
+    }
+    return [root];
+  });
 
   const shorthand = parseVersionShorthand(search);
   const effectiveTerm = shorthand ? shorthand.namePart : search;
@@ -650,16 +669,45 @@ function ReferenceComboboxBody({
   };
 
   const handleEnterFolder = (folder: LibraryContentFolder) => {
+    usedRestoredTrailRef.current = false;
     setTrail((prev) => [...prev, { id: folder.id, name: folder.name }]);
   };
 
   const handleNavigateTrail = (index: number) => {
+    usedRestoredTrailRef.current = false;
     setTrail((prev) => prev.slice(0, index + 1));
   };
 
   const handleSearchAll = () => {
+    usedRestoredTrailRef.current = false;
     setTrail((prev) => (prev.length > 1 ? [prev[0]] : prev));
   };
+
+  // Persiste el trail (sin el segmento raíz) cada vez que cambia. Un trail de
+  // un solo segmento (root) se traduce en borrar la clave — evita dejar un
+  // array vacío ocupando espacio.
+  React.useEffect(() => {
+    if (trail.length <= 1) {
+      saveMentionTrail([]);
+      return;
+    }
+    saveMentionTrail(
+      trail.slice(1).filter((s): s is { id: string; name: string } => s.id !== null),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trail]);
+
+  // La carpeta restaurada al montar ya no existe o el usuario perdió el
+  // permiso (borrada, movida fuera de alcance) — cae a root y borra la clave
+  // en vez de dejar el panel en error permanente. Solo mientras el trail siga
+  // siendo exactamente el restaurado (ver usedRestoredTrailRef arriba).
+  React.useEffect(() => {
+    if (!usedRestoredTrailRef.current || !folderIsError) return;
+    usedRestoredTrailRef.current = false;
+    setTrail([{ id: null, name: t('mention.browseRoot') }]);
+    clearMentionTrail(organizationId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [folderIsError]);
 
   const handleRetry = () => {
     if (showingAssets) void (browsing ? folderRefetch() : refetchAssets());

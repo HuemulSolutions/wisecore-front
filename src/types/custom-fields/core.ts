@@ -62,6 +62,26 @@ export interface ApiResponse<T> {
   timestamp: string;
 }
 
+// Archivo de la colección value_blobs de un custom field value (carga_de_archivos con
+// max_value > 1) — independiente del legado media_id/value/value_identifier poblado por
+// el endpoint value_blob singular. Ver ia context/multiples-archivos-en-custom-fields.md.
+export interface CustomFieldValueFile {
+  id: string;
+  media_id: string;
+  name: string;
+  content_type: string;
+  size: number;
+  download_url: string;
+  created_at: string;
+}
+
+export type CustomFieldValueFilesResponse = ApiResponse<CustomFieldValueFile[]>;
+export type CustomFieldValueFileResponse = ApiResponse<CustomFieldValueFile>;
+
+// Distingue entre custom_field_templates y custom_field_documents — mismos endpoints,
+// distinto recurso base.
+export type CustomFieldValueEntityType = "template" | "document";
+
 export interface CreateCustomFieldRequest {
   name: string;
   description: string;

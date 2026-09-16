@@ -1,10 +1,12 @@
 import { Loader2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import type { TFunction } from "i18next"
+import { Label } from "@/components/ui/label"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulQuestionInput } from "@/huemul/components/huemul-question-input"
 import type { HuemulQuestionInputValue } from "@/huemul/components/huemul-question-input"
-import { QUESTION_TYPE, NUMERIC_DATA_TYPES } from "@/components/sections/question-type-meta"
+import { QUESTION_TYPE, NUMERIC_DATA_TYPES, readFileUploadLimits } from "@/components/sections/question-type-meta"
+import { CustomFieldFilesInput } from "@/components/custom-fields/custom-field-files-input"
 import type { CustomFieldValueFieldProps } from "@/types/custom-fields"
 export type { CustomFieldValueFieldProps } from "@/types/custom-fields"
 
@@ -78,17 +80,56 @@ export function CustomFieldValueField({
   maxValue,
   minLabel,
   maxLabel,
+  allowedTypes,
+  maxSizeMb,
+  entityType,
+  entityCustomFieldId,
+  valueFiles,
+  pendingFiles,
+  onPendingFilesChange,
 }: CustomFieldValueFieldProps) {
   const { t } = useTranslation("custom-fields")
 
-  // Carga de imagen: flujo de upload propio (blob por custom field) — no delega a
+  // Carga de archivos: flujo de upload propio (blob por custom field) — no delega a
   // HuemulQuestionInput, que no maneja archivos (ver comentario en ese componente).
-  if (dataType === "image") {
+  // Gate por question_type (no solo data_type "image"): un custom field carga_de_archivos
+  // con otro data_type también necesita el uploader — antes no tenía ninguno.
+  if (questionType === QUESTION_TYPE.fileUpload || dataType === "image") {
+    const { min, max } = readFileUploadLimits({ min_value: minValue, max_value: maxValue })
+
+    // Varios archivos (max_value > 1): colección value_blobs — subir varios, listar,
+    // borrar uno. max_value <= 1 (o sin configurar) sigue el flujo legado de abajo.
+    if (max > 1) {
+      return (
+        <div className="space-y-1.5">
+          {label && <Label className="text-sm font-medium leading-snug">{label}</Label>}
+          <CustomFieldFilesInput
+            entityType={entityType ?? "document"}
+            entityCustomFieldId={entityCustomFieldId ?? null}
+            files={valueFiles ?? []}
+            pendingFiles={pendingFiles}
+            onPendingFilesChange={onPendingFilesChange}
+            min={min}
+            max={max}
+            allowedTypes={allowedTypes}
+            maxSizeMb={maxSizeMb}
+            disabled={disabled}
+            error={error}
+            onError={(message) => onImageValidationError?.(message ?? "")}
+          />
+        </div>
+      )
+    }
+
+    // Respeta los tipos configurados en el custom field (carga_de_archivos); si no hay
+    // configuración (custom fields creados antes de esta opción), cae al catálogo fijo.
+    const validExtensions = allowedTypes?.length ? allowedTypes : VALID_IMAGE_EXTENSIONS
+    const accept = validExtensions.map((ext) => `.${ext}`).join(",")
     return (
       <HuemulField
         type="file"
         label={label}
-        accept=".png,.jpg,.jpeg,.gif,.bmp"
+        accept={accept}
         disabled={disabled || isUploadingImage}
         description={!isUploadingImage ? imageUploadDescription : undefined}
         error={error}
@@ -96,7 +137,7 @@ export function CustomFieldValueField({
           const file = files?.[0]
           if (!file) return
           const ext = file.name.split(".").pop()?.toLowerCase() ?? ""
-          if (!VALID_IMAGE_EXTENSIONS.includes(ext)) {
+          if (!validExtensions.includes(ext)) {
             onImageValidationError?.(t("addDialog.invalidImageType"))
             return
           }

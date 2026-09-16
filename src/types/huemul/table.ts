@@ -102,6 +102,8 @@ export interface HuemulTableFolders<T> {
   canCreateFolder?: boolean
   /** false = desactiva el drag de filas (p. ej. por permisos). El menú "Mover a carpeta" sigue disponible. Default true. */
   canDragRows?: boolean
+  /** false = oculta también la acción "Mover a carpeta" del menú de fila (pantallas de solo lectura, sin onMoveRow real). Default true. */
+  canMoveRows?: boolean
 }
 
 export interface HuemulTableProps<T> {

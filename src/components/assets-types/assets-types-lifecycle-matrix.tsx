@@ -24,6 +24,7 @@ import { useRoles } from "@/hooks/useRbac"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import {
   LIFECYCLE_PIPELINE_ORDER,
+  LIFECYCLE_GROUPABLE_TYPES,
   isGroupableStepType,
   isViewInheritedForRole,
   inheritedViewSource,
@@ -165,17 +166,27 @@ const ROW_TINT: Partial<Record<MatrixRow["kind"], { cell: string; hover: string;
  * anterior). Todas las filas son editables acá — la matriz es dueña de todo el
  * permiso del ciclo de vida, no solo de los roles.
  *
- * Sobre la tabla, el selector de etapa del flujo: elegir una etapa tinta y filtra la
- * tabla a solo esa etapa, y abre el panel lateral (`onSelectStage`), que es donde se
- * configura lo que no es permiso: nombre, modo, SLA, vigencia, orden y acciones
- * externas. Reclicar el chip activo restaura todas las columnas.
+ * Sobre la tabla, el selector de etapa del flujo: elegir una etapa tinta y filtra
+ * la tabla a solo esa etapa (`onFilterStage`) — ya NO abre ningún sheet. Lo que no
+ * es permiso (nombre, posición, modo, SLA, acciones externas) se configura en el
+ * sheet mono-entidad (`LifecycleStepSheet`), que se abre desde el engranaje de una
+ * columna (`onConfigureStep`), el engranaje del header de una etapa sin grupos
+ * (`onConfigureStage`), el «＋» del header de una etapa agrupable con columnas
+ * (`onCreateGroup`) o — si la etapa agrupable se quedó en cero grupos y por
+ * eso no tiene columna de la que colgar ese «＋» — la propia pastilla del
+ * toolbar, que en ese caso deja de filtrar y pasa a crear el primer grupo.
+ * Reclicar el chip de filtro activo restaura todas las columnas.
  */
 export function AssetTypeLifecycleMatrix({
   documentTypeId,
   enabled = true,
-  activeStageType,
-  lockedStageType = null,
-  onSelectStage,
+  filterStageType,
+  onFilterStage,
+  lockedStepId = null,
+  focusedStepId = null,
+  onConfigureStep,
+  onConfigureStage,
+  onCreateGroup,
 }: AssetTypeLifecycleMatrixProps) {
   const { t } = useTranslation(["asset-types", "common"])
   const { canUpdate, canCreate } = useUserPermissions()
@@ -217,9 +228,13 @@ export function AssetTypeLifecycleMatrix({
 
   // Todas las etapas que devuelva el endpoint son configurables acá: `create`,
   // `publish` y `archive` incluidas. Los tipos que no estén en
-  // `LIFECYCLE_PIPELINE_ORDER` no se descartan, van al final.
+  // `LIFECYCLE_PIPELINE_ORDER` no se descartan, van al final. Las agrupables
+  // (`LIFECYCLE_GROUPABLE_TYPES`) se siembran siempre, aunque hoy tengan 0
+  // steps: si no, borrar el último grupo de una etapa hace desaparecer su
+  // pastilla y con ella el único punto de entrada para volver a crear uno.
   const stepTypesPresent = React.useMemo(() => {
     const present = new Set(allSteps.map((s) => s.type))
+    LIFECYCLE_GROUPABLE_TYPES.forEach((type) => present.add(type))
     const ordered = LIFECYCLE_PIPELINE_ORDER.filter((type) => present.has(type))
     const extra = [...present].filter((type) => pipelineIndex(type) === -1)
     return [...ordered, ...extra]
@@ -232,14 +247,21 @@ export function AssetTypeLifecycleMatrix({
     return counts
   }, [allSteps])
 
+  // Si el filtro activo apunta a una etapa que se quedó sin grupos (se borró
+  // el último desde el sheet lateral mientras estaba filtrada), se ignora:
+  // filtrar a 0 columnas deja la tabla en blanco, `HuemulMatrix` no tiene
+  // fallback para ese caso.
+  const effectiveFilterStageType =
+    filterStageType && (groupCountByType.get(filterStageType) ?? 0) > 0 ? filterStageType : null
+
   const visibleSteps = React.useMemo(() => {
     const sorted = [...allSteps].sort((a, b) => {
       const typeDiff = pipelineSortIndex(a.type) - pipelineSortIndex(b.type)
       if (typeDiff !== 0) return typeDiff
       return (a.order ?? 0) - (b.order ?? 0)
     })
-    return activeStageType ? sorted.filter((s) => s.type === activeStageType) : sorted
-  }, [allSteps, activeStageType])
+    return effectiveFilterStageType ? sorted.filter((s) => s.type === effectiveFilterStageType) : sorted
+  }, [allSteps, effectiveFilterStageType])
 
   // Candidatos a `source_step_id` de "jefe de paso anterior" por columna: mismo
   // criterio que el backend valida — pasos de un tipo anterior en el pipeline, o
@@ -541,13 +563,13 @@ export function AssetTypeLifecycleMatrix({
   /** Celda de intersección permiso × step. */
   const renderStepCell = (row: MatrixRow, step: LifecycleStep) => {
     const isAutomatic = step.mode === "automatic"
-    const isLocked = lockedStageType === step.type
+    const isLocked = lockedStepId === step.id
     const pending = pendingStepIds.has(step.id)
     const commonDisabled = !canManage || isAutomatic || isLocked || pending
     const lockedOrAutomaticTitle = isAutomatic
       ? t("lifecycle.matrix.automaticHint")
       : isLocked
-        ? t("lifecycle.unsavedInStage", { stage: stepTypeLabel(step.type) })
+        ? t("lifecycle.unsavedInGroup", { group: stepColumnLabel(step) })
         : undefined
 
     switch (row.kind) {
@@ -829,14 +851,37 @@ export function AssetTypeLifecycleMatrix({
         }
       >
         {stepTypesPresent.map((type) => {
-          const isActive = activeStageType === type
+          const isActive = effectiveFilterStageType === type
           const groupCount = groupCountByType.get(type) ?? 0
+          const typeLabel = stepTypeLabel(type)
+
+          // Etapa agrupable sin ningún grupo: no hay columna de la que colgar
+          // el "＋" del header de la tabla, así que la pastilla misma es el
+          // punto de entrada para crear el primer grupo. Sin permiso de
+          // gestión no hay nada que el usuario pueda hacer acá, se omite.
+          if (isGroupableStepType(type) && groupCount === 0) {
+            if (!canManage) return null
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => onCreateGroup(type)}
+                title={t("lifecycle.matrix.addGroupToStage", { step: typeLabel })}
+                aria-label={t("lifecycle.matrix.addGroupToStage", { step: typeLabel })}
+                className="inline-flex h-7.5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-dashed border-[#bfd3fb] px-3 text-[13px] font-medium text-[#1d4ed8] transition-colors hover:cursor-pointer hover:bg-[#f5f8ff]"
+              >
+                <Plus className="size-3.5" />
+                {typeLabel}
+              </button>
+            )
+          }
+
           return (
             <button
               key={type}
               type="button"
               aria-pressed={isActive}
-              onClick={() => onSelectStage(type)}
+              onClick={() => onFilterStage(type)}
               className={cn(
                 "inline-flex h-7.5 items-center gap-1.5 rounded-full border px-3 text-[13px] transition-colors hover:cursor-pointer",
                 isActive
@@ -844,7 +889,7 @@ export function AssetTypeLifecycleMatrix({
                   : "border-[#dbe1e9] text-[#334155] hover:border-[#bfd3fb] hover:bg-[#f8fafc]",
               )}
             >
-              {stepTypeLabel(type)}
+              {typeLabel}
               {isGroupableStepType(type) && (
                 <span
                   className={cn(
@@ -868,11 +913,12 @@ export function AssetTypeLifecycleMatrix({
         columns={visibleSteps.map((step) => ({ key: step.id, data: step, groupKey: step.type }))}
         hasColumnHeader={(group) => isGroupableStepType(group.groupKey)}
         getGroupHeaderClassName={(group) =>
-          activeStageType === group.groupKey ? "bg-[#f2f6fe]" : "bg-[#f7f9fb]"
+          effectiveFilterStageType === group.groupKey ? "bg-[#f2f6fe]" : "bg-[#f7f9fb]"
         }
         renderGroupHeader={(group) => {
-          const isActiveStage = activeStageType === group.groupKey
+          const isActiveStage = effectiveFilterStageType === group.groupKey
           const typeLabel = stepTypeLabel(group.groupKey)
+          const isGroupable = isGroupableStepType(group.groupKey)
           return (
             <>
               <span
@@ -884,28 +930,71 @@ export function AssetTypeLifecycleMatrix({
               >
                 {typeLabel}
               </span>
-              <button
-                type="button"
-                onClick={() => onSelectStage(group.groupKey)}
-                title={t("lifecycle.matrix.configureStep", { step: typeLabel })}
-                aria-label={t("lifecycle.matrix.configureStep", { step: typeLabel })}
-                className={cn(
-                  "inline-flex size-4 shrink-0 items-center justify-center rounded-lg transition-colors hover:cursor-pointer",
-                  isActiveStage
-                    ? "text-[#1d4ed8]"
-                    : "text-[#b6c0cd] hover:bg-[#eef2f7] hover:text-[#64748b]",
-                )}
-              >
-                <Settings className="size-3" />
-              </button>
+              {isGroupable ? (
+                canManage && (
+                  <button
+                    type="button"
+                    onClick={() => onCreateGroup(group.groupKey)}
+                    title={t("lifecycle.matrix.addGroupToStage", { step: typeLabel })}
+                    aria-label={t("lifecycle.matrix.addGroupToStage", { step: typeLabel })}
+                    className={cn(
+                      "inline-flex size-4 shrink-0 items-center justify-center rounded-lg transition-colors hover:cursor-pointer",
+                      isActiveStage
+                        ? "text-[#1d4ed8]"
+                        : "text-[#64748b] hover:bg-[#eef2f7] hover:text-[#475569]",
+                    )}
+                  >
+                    <Plus className="size-3" />
+                  </button>
+                )
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onConfigureStage(group.groupKey)}
+                  title={t("lifecycle.matrix.configureStep", { step: typeLabel })}
+                  aria-label={t("lifecycle.matrix.configureStep", { step: typeLabel })}
+                  className={cn(
+                    "inline-flex size-4 shrink-0 items-center justify-center rounded-lg transition-colors hover:cursor-pointer",
+                    isActiveStage
+                      ? "text-[#1d4ed8]"
+                      : "text-[#64748b] hover:bg-[#eef2f7] hover:text-[#475569]",
+                  )}
+                >
+                  <Settings className="size-3" />
+                </button>
+              )}
             </>
           )
         }}
         renderColumnHeader={(column) => {
-          const groupName = column.data.name?.trim() || t("lifecycle.matrix.unassigned")
+          const step = column.data
+          const groupName = step.name?.trim() || t("lifecycle.matrix.unassigned")
+          const isFocused = focusedStepId === step.id
           return (
-            <span className="truncate text-[11px] font-normal text-[#94a3b8]" title={groupName}>
-              {groupName}
+            <span className="flex min-w-0 flex-1 items-center gap-1">
+              <span
+                className={cn(
+                  "truncate text-[11px] font-normal",
+                  isFocused ? "font-medium text-[#1d4ed8]" : "text-[#64748b]",
+                )}
+                title={groupName}
+              >
+                {groupName}
+              </span>
+              <button
+                type="button"
+                onClick={() => onConfigureStep(step)}
+                title={t("lifecycle.matrix.configureGroup", { group: groupName })}
+                aria-label={t("lifecycle.matrix.configureGroup", { group: groupName })}
+                className={cn(
+                  "inline-flex size-4 shrink-0 items-center justify-center rounded-lg transition-colors hover:cursor-pointer",
+                  isFocused
+                    ? "text-[#1d4ed8]"
+                    : "text-[#94a3b8] hover:bg-[#eef2f7] hover:text-[#475569]",
+                )}
+              >
+                <Settings className="size-3" />
+              </button>
             </span>
           )
         }}
@@ -918,9 +1007,10 @@ export function AssetTypeLifecycleMatrix({
         }}
         getCellClassName={(row, step) => {
           const tint = ROW_TINT[row.kind]
+          const isFocusedColumn = focusedStepId === step.id
           return cn(
             tint ? cn(tint.cell, tint.hover) : "group-hover:bg-[#fafbfd]",
-            !tint && activeStageType === step.type && "bg-[#fafcff]",
+            !tint && isFocusedColumn && "bg-[#fafcff]",
           )
         }}
       />

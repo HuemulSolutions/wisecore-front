@@ -1,6 +1,14 @@
-import type { CustomField, CustomFieldOption, CustomFieldQuestionType } from './core'
+import type { CustomField, CustomFieldOption, CustomFieldQuestionType, CustomFieldValueEntityType, CustomFieldValueFile } from './core'
 import type { HuemulTablePagination } from '@/huemul/components/huemul-table'
 import type { FormFieldConfig } from '@/types/sections/core'
+
+// Archivo elegido en el sheet de alta (custom field aún sin id) mientras no se sube —
+// se acumula en memoria y el padre lo sube tras crear la entidad. previewUrl es un
+// object URL (URL.revokeObjectURL al quitarlo o al desmontar).
+export interface PendingCustomFieldFile {
+  file: File
+  previewUrl: string
+}
 
 export interface CustomFieldContentEmptyStateProps {
   type: "error" | "empty" | "no-results"
@@ -60,6 +68,18 @@ export interface CustomFieldValueFieldProps {
   maxValue?: unknown
   minLabel?: string
   maxLabel?: string
+  /** Extensiones configuradas en el custom field (carga_de_archivos/image). Sin esto,
+   *  cae al catálogo fijo de imágenes (custom fields ya existentes sin `allowed_types`). */
+  allowedTypes?: string[]
+  /** Tamaño máximo en MB (carga_de_archivos con max_value > 1) — default_value.max_size_mb. */
+  maxSizeMb?: number
+  /** Requeridos solo cuando max_value > 1 (colección value_blobs, no el value_blob singular). */
+  entityType?: CustomFieldValueEntityType
+  /** null en el sheet de alta (la entidad todavía no existe) — ver CustomFieldFilesInput. */
+  entityCustomFieldId?: string | null
+  valueFiles?: CustomFieldValueFile[]
+  pendingFiles?: PendingCustomFieldFile[]
+  onPendingFilesChange?: (files: PendingCustomFieldFile[]) => void
 }
 
 export interface CustomFieldInfoCardProps {

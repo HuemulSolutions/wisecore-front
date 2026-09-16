@@ -125,6 +125,8 @@ export interface SectionSheetProps {
   } | null
   lifecyclePermissions?: LifecyclePermissions
   stage?: string
+  /** `isExternalElaborationLocked(documentContent?.lifecycle_status)` del caller — ver ia context correspondiente. */
+  isExternalElaborationLocked?: boolean
   showTrigger?: boolean
 }
 

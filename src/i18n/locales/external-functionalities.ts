@@ -54,10 +54,10 @@ const translations = {
     objectivePlaceholder: { en: "Select objective", es: "Seleccionar objetivo" },
     executionTypePlaceholder: { en: "Select execution type", es: "Seleccionar tipo de ejecución" },
     functionalityClassPlaceholder: { en: "Select class", es: "Seleccionar clase" },
-    bodyHelpSecret: { en: "resolves an external secret.", es: "resuelve un secreto externo." },
+    bodyHelpSecret: { en: "resolves an extension secret.", es: "resuelve un secreto de extensión." },
     bodyHelpInput: {
-      en: "becomes a form field when importing an asset from an external system.",
-      es: "se convierte en un campo del formulario al importar un activo desde un sistema externo.",
+      en: "becomes a form field when importing an asset from an extension.",
+      es: "se convierte en un campo del formulario al importar un activo desde una extensión.",
     },
     bodyHelpUnavailable: {
       en: "not available when the objective is \"Import Asset\" — the asset doesn't exist yet at call time.",
@@ -81,10 +81,10 @@ const translations = {
   objective: {
     import_asset: { en: "Import Asset", es: "Importar Activo" },
     export_asset: { en: "Export Asset", es: "Exportar Activo" },
-    edit_section: { en: "Edit Section", es: "Editar Sección" },
     review_section: { en: "Review Section", es: "Revisar Sección" },
     review_asset: { en: "Review Asset", es: "Revisar Activo" },
     publish_asset: { en: "Publish Asset", es: "Publicar Activo" },
+    lifecycle_elaboration: { en: "Lifecycle Elaboration", es: "Elaboración del Ciclo de Vida" },
   },
   executionType: {
     sync: { en: "Synchronous", es: "Síncrono" },

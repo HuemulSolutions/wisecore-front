@@ -19,9 +19,10 @@ interface WorkflowStatusCardProps {
  *
  * Extraído de `WorkflowFinishedCard` (tarjetas terminales: enviado/aprobado/
  * publicado) para reutilizarlo también en `WorkflowDetailPanel` cuando el
- * usuario TODAVÍA puede avanzar el flujo o está bloqueado por respuestas
- * obligatorias en otra sección (`wizard.emptyStep.*`) — mismo look, pero con
- * el botón de avanzar en vez de "Iniciar otro activo"/"Ver mis respuestas".
+ * usuario TODAVÍA puede avanzar el flujo, está bloqueado por respuestas
+ * obligatorias en otra sección, o espera a otro rol con secciones a la vista
+ * (`wizard.emptyStep.*`) — mismo look, pero con el botón de avanzar y/o "Ver
+ * las respuestas" en vez de "Iniciar otro activo"/"Ver mis respuestas".
  */
 export function WorkflowStatusCard({ icon: Icon, title, description, actions }: WorkflowStatusCardProps) {
   return (

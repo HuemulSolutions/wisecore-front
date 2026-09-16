@@ -15,7 +15,7 @@ export interface FormAnswersListProps {
 /**
  * Lista de solo lectura pregunta/respuesta de una sección form — compartida entre el resumen
  * de workflow (ver workflow-sections-summary.tsx) y el modo lector del asset (ver
- * asset-form-section-reader.tsx). No recibe `filePreview`: solo tiene sentido con subidas
+ * asset-form-section-reader.tsx). No recibe `filePreviews`: solo tiene sentido con subidas
  * de la sesión actual (ver asset-form-section.tsx), ausentes en toda vista puramente lectora.
  */
 export function FormAnswersList({ fields, emptyLabel, className }: FormAnswersListProps) {

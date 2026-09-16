@@ -1,5 +1,8 @@
 import type { HuemulTablePagination } from '@/types/huemul'
 
+/** Pestaña activa del panel de detalle de una organización (espejo de `RoleDetailTab`). */
+export type OrganizationDetailTab = 'details' | 'users'
+
 export interface Organization {
   id: string
   name: string
@@ -11,22 +14,22 @@ export interface Organization {
   token_limit?: number | null
 }
 
-export interface OrganizationTableProps {
+// `OrganizationTableProps` (kebab: editar/eliminar/set-admin) se retiró:
+// `/global-admin` migró a `OrganizationsTableProps` de acá abajo — mismo
+// componente que `/organizations`, con `canManageSystemLimits`/
+// `canManageMembers`/`canSetAdmin` en `OrganizationDetailPanel`.
+
+/**
+ * Tabla maestro-detalle de `/organizations` y `/global-admin` (variant
+ * "detailed" + chevron, sin kebab) — ver ia context/list-detail-panel-guide.md.
+ */
+export interface OrganizationsTableProps {
   organizations: Organization[]
-  onEditOrganization: (organization: Organization) => void
-  onDeleteOrganization: (organization: Organization) => void
-  onSetAdmin?: (organization: Organization) => void
+  isTableLoading?: boolean
+  isTableFetching?: boolean
+  /** Abre el panel de detalle. `tab` fuerza la pestaña. */
+  onSelectOrganization: (organization: Organization, tab?: OrganizationDetailTab) => void
+  /** Fila resaltada como activa. */
+  selectedOrganizationId?: string | null
   pagination?: HuemulTablePagination
-  canUpdate?: boolean
-  canDelete?: boolean
-  canSetAdmin?: boolean
-  /**
-   * No es un eje de RBAC ni un bypass: solo decide si se muestran las
-   * columnas de límites de sistema (`max_users`/`token_limit`), que no son
-   * org-scoped. Ver ia context/rbac-audit-guide.md.
-   */
-  canManageSystemLimits?: boolean
-  maxHeight?: string
-  isLoading?: boolean
-  isFetching?: boolean
 }

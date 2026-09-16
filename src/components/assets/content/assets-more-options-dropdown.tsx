@@ -25,6 +25,7 @@ import {
   FileX,
   Maximize2,
   Minimize2,
+  Paperclip,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -120,6 +121,8 @@ interface MoreOptionsDropdownProps {
   onOpenFullscreen?: () => void;
   canAccessDiagrams: boolean;
   onOpenDiagrams: () => void;
+  canAccessMedia: boolean;
+  onOpenMedia: () => void;
   onOpenPermissions: () => void;
   onOpenSections: () => void;
   onOpenDependencies: () => void;
@@ -174,6 +177,8 @@ export function MoreOptionsDropdown({
   onOpenFullscreen,
   canAccessDiagrams,
   onOpenDiagrams,
+  canAccessMedia,
+  onOpenMedia,
   onOpenPermissions,
   onOpenSections,
   onOpenDependencies,
@@ -400,6 +405,15 @@ export function MoreOptionsDropdown({
             >
               <Workflow className="h-4 w-4" />
               {t("content.diagramsLabel")}
+            </DropdownMenuItem>
+          )}
+          {canAccessMedia && (
+            <DropdownMenuItem
+              onSelect={() => setTimeout(onOpenMedia, 0)}
+              className="hover:cursor-pointer"
+            >
+              <Paperclip className="h-4 w-4" />
+              {t("content.mediaLabel")}
             </DropdownMenuItem>
           )}
           {canManageGrants && (

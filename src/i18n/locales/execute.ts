@@ -1,4 +1,16 @@
 const translations = {
+  // Tooltips de ExecutionConfigSheet (componente sin uso activo hoy, ver
+  // execution_config_sheet.tsx). Ver `ia context/tooltip-guide.md`.
+  config: {
+    modelHelp: {
+      en: "Select the AI model to use for content generation",
+      es: "Seleccionar el modelo de IA para usar en la generación de contenido",
+    },
+    instructionsHelp: {
+      en: "Specific instructions for this execution. Describe requirements, constraints, or special considerations.",
+      es: "Instrucciones específicas para esta ejecución. Describir requisitos, restricciones o consideraciones especiales.",
+    },
+  },
   sheet: {
     title: { en: "Execute Version", es: "Ejecutar Versión" },
     description: {

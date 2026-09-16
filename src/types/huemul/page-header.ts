@@ -29,13 +29,27 @@ export interface PageHeaderSearchConfig {
   triggerOnEnter?: boolean
 }
 
+export interface PageHeaderBackAction {
+  label: string
+  onClick: () => void
+}
+
 export interface PageHeaderProps {
   /** Icon component to display */
   icon: LucideIcon
   /** Page title */
   title: string
-  /** Optional one-line description shown under the title */
-  subtitle?: string
+  /**
+   * Optional one-line description shown under the title. Acepta JSX (no solo
+   * texto) para casos como un punto de color + nombre de la entidad; cuando es
+   * string se concatena con `badges` igual que antes.
+   */
+  subtitle?: ReactNode
+  /**
+   * Botón de volver a la izquierda del ícono. Para páginas de detalle que se
+   * abren desde un listado (ver `HuemulDetailSurface` variant="page").
+   */
+  backAction?: PageHeaderBackAction
   /** Badges to display next to actions */
   badges?: PageHeaderBadge[]
   /** Show refresh button */

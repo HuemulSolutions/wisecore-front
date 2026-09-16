@@ -9,7 +9,8 @@ import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import { Edit2, Trash2, FileEdit } from "lucide-react"
-import { questionTypeLabel } from "@/components/sections/question-type-meta"
+import { questionTypeLabel, QUESTION_TYPE } from "@/components/sections/question-type-meta"
+import { CustomFieldFilesCell } from "@/components/custom-fields/custom-field-files-cell"
 import type { CustomFieldTemplate } from '@/types/custom-fields';
 import type { CustomFieldTemplateTableProps } from '@/types/templates';
 export type { CustomFieldTemplateTableProps } from '@/types/templates';
@@ -71,7 +72,14 @@ export function CustomFieldTemplateTable({
 
   const renderValueDisplay = (template: CustomFieldTemplate) => {
     const dataType = template.data_type
-    
+
+    // Colección value_blobs (max_value > 1) — hasta 3 miniaturas + "+N". Si viene vacía
+    // (max_value <= 1, o custom field guardado antes de esta migración), cae al render
+    // legado de abajo (value/URL única) — los dos storages conviven, sin migración automática.
+    if (template.question_type === QUESTION_TYPE.fileUpload && template.value_files?.length) {
+      return <CustomFieldFilesCell files={template.value_files} />
+    }
+
     if (dataType === "bool") {
       return (
         <div className="flex items-center gap-1.5">

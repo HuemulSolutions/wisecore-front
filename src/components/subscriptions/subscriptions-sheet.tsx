@@ -8,7 +8,6 @@ import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import { DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import { Badge } from "@/components/ui/badge"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useSubscriptions } from "@/hooks/useSubscriptions"
 import type { Subscription } from "@/types/subscriptions"
 import { SubscriptionCreateDialog } from "./subscriptions-create-dialog"
@@ -62,7 +61,7 @@ export function SubscriptionsSheet({ open, onOpenChange, organizationId }: Subsc
             ) : (
               <Eye className="size-3 text-blue-500 shrink-0" />
             )}
-            <span className="text-xs font-medium text-foreground truncate max-w-[180px]">
+            <span className="text-xs font-medium text-foreground truncate max-w-45">
               {item.document_name ?? item.document_id}
             </span>
           </div>
@@ -99,26 +98,18 @@ export function SubscriptionsSheet({ open, onOpenChange, organizationId }: Subsc
       key: "notifications",
       label: t("columns.notifications"),
       render: (item) => (
-        <TooltipProvider>
-          <div className="flex items-center gap-1.5">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Mail
-                  className={`size-3.5 ${item.notify_email ? "text-foreground" : "text-muted-foreground/30"}`}
-                />
-              </TooltipTrigger>
-              <TooltipContent>{t("form.notifyEmail")}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Smartphone
-                  className={`size-3.5 ${item.notify_in_app ? "text-foreground" : "text-muted-foreground/30"}`}
-                />
-              </TooltipTrigger>
-              <TooltipContent>{t("form.notifyInApp")}</TooltipContent>
-            </Tooltip>
-          </div>
-        </TooltipProvider>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-flex" title={t("form.notifyEmail")}>
+            <Mail
+              className={`size-3.5 ${item.notify_email ? "text-foreground" : "text-muted-foreground/30"}`}
+            />
+          </span>
+          <span className="inline-flex" title={t("form.notifyInApp")}>
+            <Smartphone
+              className={`size-3.5 ${item.notify_in_app ? "text-foreground" : "text-muted-foreground/30"}`}
+            />
+          </span>
+        </div>
       ),
     },
   ]
@@ -162,7 +153,7 @@ export function SubscriptionsSheet({ open, onOpenChange, organizationId }: Subsc
       >
         <div className="flex flex-col h-full overflow-auto">
           {error ? (
-            <div className="flex flex-col items-center justify-center min-h-[300px] text-center p-6 gap-2">
+            <div className="flex flex-col items-center justify-center min-h-75 text-center p-6 gap-2">
               <p className="text-sm text-red-600 font-medium">{t("errorState.failedToLoad")}</p>
               <p className="text-xs text-muted-foreground">{t("errorState.errorDescription")}</p>
             </div>

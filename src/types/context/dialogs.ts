@@ -1,4 +1,4 @@
-import type { ContextItem } from './core'
+import type { ContextItem, EditTextContextBody } from './core'
 
 export interface AddContextDialogProps {
   /** Document ID to add context to */
@@ -19,6 +19,6 @@ export interface EditContextDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   context: ContextItem | null
-  onConfirm: (id: string, name: string, content: string) => void
+  onConfirm: (id: string, body: EditTextContextBody) => void
   isProcessing: boolean
 }
