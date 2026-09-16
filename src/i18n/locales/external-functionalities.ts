@@ -31,14 +31,6 @@ const translations = {
       logs: { en: "Logs", es: "Registros" },
       lifecycle: { en: "Lifecycle", es: "Ciclo de vida" },
     },
-    response: {
-      label: { en: "Response", es: "Respuesta" },
-      empty: { en: "No response yet", es: "Sin respuesta aún" },
-      hint: {
-        en: "Responses will appear here once the endpoint is called",
-        es: "Las respuestas aparecerán aquí cuando se llame al endpoint",
-      },
-    },
   },
   form: {
     namePlaceholder: { en: "e.g. Get Users", es: "ej. Obtener Usuarios" },
