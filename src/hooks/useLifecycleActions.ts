@@ -9,7 +9,13 @@ import { dataTableQueryKeys } from "@/hooks/useDataTables"
 import { parseMissingRequiredCustomFieldsDetail } from "@/lib/custom-field-required-utils"
 import { getAdvanceBlockers, parseAdvanceBlockersDetail } from "@/lib/advance-blockers-utils"
 import { completeActionLabelKey, completeActionTooltipKey } from "@/lib/lifecycle-labels"
-import { lifecycleQueryKeys, useExternalReviewActions, useLifecycleElaborationConfig } from "@/hooks/useLifecycle"
+import {
+  lifecycleQueryKeys,
+  useExternalReviewActions,
+  useLifecycleElaborationConfig,
+  useExternalPublishActions,
+  invalidateExecutionLifecycleSteps,
+} from "@/hooks/useLifecycle"
 import { useLifecycleProgress } from "@/hooks/useLifecycleProgress"
 import { useMissingRequiredCustomFields } from "@/hooks/useCustomFieldDocuments"
 import { executionLifecycleQueryKeys } from "@/hooks/useExecutionLifecycle"
@@ -74,6 +80,7 @@ export function useLifecycleActions({
   onOpenCustomFields,
   onGoToSection,
   canReadElaborationConfig = false,
+  canReadExternalPublishConfig = false,
 }: UseLifecycleActionsOptions): LifecycleActionsController {
   const { t } = useTranslation(["assets", "common"])
   const queryClient = useQueryClient()
@@ -203,15 +210,20 @@ export function useLifecycleActions({
     mutationFn: withRefresh(
       async (options?: { comment?: string; run_external_review?: boolean }) => {
         if (!rbac.canTransition) throw new Error(NO_TRANSITION_PERMISSION)
-        const stepId = lifecycleStatus?.current_step_id
         if (!executionId || !organizationId) throw new Error("Missing execution or organization")
-        if (!stepId) throw new Error("Missing step ID")
+        const stepId = lifecycleStatus?.current_step_id
+        // Hay etapas sin step configurado (ej. `in_approval` en un tipo de activo sin
+        // steps `approve`, típicamente tras un `restore` que devuelve la ejecución a
+        // esa etapa). Ahí la transición no es "completar un step" sino avanzar el
+        // estado — mismo endpoint que publicar/archivar. `run_external_review` es
+        // exclusivo del complete y no se reenvía.
+        if (!stepId) return advanceExecutionLifecycle(executionId, organizationId, { comment: options?.comment })
         return completeExecutionLifecycleStep(executionId, stepId, organizationId, options)
       },
       queryClient,
       refreshKeys,
     ),
-    onSuccess: (data: CompleteLifecycleStepResponse) => {
+    onSuccess: (data: CompleteLifecycleStepResponse | AdvanceLifecycleResponse) => {
       setIsCheckDialogOpen(false)
       queryClient.invalidateQueries({ queryKey: executionLifecycleQueryKeys.eventsBase() })
       notifyDataTablesRefreshed(data?.data_tables_refreshed)
@@ -341,6 +353,10 @@ export function useLifecycleActions({
     onSuccess: () => {
       setIsRestoreDialogOpen(false)
       queryClient.invalidateQueries({ queryKey: executionLifecycleQueryKeys.eventsBase() })
+      // El estado vuelve atrás en el pipeline: los steps por ejecución (progreso,
+      // "próximo paso") quedan stale si no se invalidan acá — mismo helper que usa
+      // el botón Refrescar del panel de workflow.
+      invalidateExecutionLifecycleSteps(queryClient)
     },
     meta: { successMessage: t("lifecycle.successRestore") },
     onError: (error) => {
@@ -373,6 +389,22 @@ export function useLifecycleActions({
       !!organizationId,
   )
   const hasEnabledElaborationConfig = elaborationConfigData?.data?.is_enabled === true
+
+  // Whether the current (publish) lifecycle step has at least one enabled
+  // `ExternalPublishAction` — gatea el botón de re-lanzar publicación externa.
+  // 1:N (a diferencia de la elaboración, 1:1): mismo criterio `.some(is_enabled)`
+  // que `hasExternalReview`. Gateado por `canReadExternalPublishConfig`
+  // (`lifecycle_external_publish_action:l`) porque el editor/publicador promedio
+  // de un activo puede no tener ese permiso de configuración.
+  const { data: externalPublishActionsData } = useExternalPublishActions(
+    organizationId ?? "",
+    lifecycleStatus?.current_step_id ?? "",
+    canReadExternalPublishConfig &&
+      lifecycleStatus?.state === "published" &&
+      !!lifecycleStatus?.current_step_id &&
+      !!organizationId,
+  )
+  const hasEnabledExternalPublishConfig = (externalPublishActionsData?.data ?? []).some((a) => a.is_enabled)
 
   const runElaborationMutation = useMutation({
     // A diferencia de `runExternalPublishMutation`, acá SÍ hace falta refrescar
@@ -532,6 +564,7 @@ export function useLifecycleActions({
     runExternalPublishMutation,
     runElaborationMutation,
     hasEnabledElaborationConfig,
+    hasEnabledExternalPublishConfig,
 
     hasExternalReview,
     isApprovalStep,

@@ -175,8 +175,8 @@ const translations = {
       es: "Los campos no se pueden editar en esta etapa del ciclo de vida.",
     },
     readOnlyExternalElaborationNotice: {
-      en: "This asset is temporarily read-only while an external system processes it. It will unlock automatically once that response arrives.",
-      es: "Este activo está temporalmente en modo lectura mientras un sistema externo lo procesa. Se desbloqueará automáticamente en cuanto llegue esa respuesta.",
+      en: "This asset is temporarily read-only while an extension processes it. It will unlock automatically once that response arrives.",
+      es: "Este activo está temporalmente en modo lectura mientras una extensión lo procesa. Se desbloqueará automáticamente en cuanto llegue esa respuesta.",
     },
     readOnlySectionNotice: {
       en: "This section is read-only at this stage — you can view it but not answer it.",

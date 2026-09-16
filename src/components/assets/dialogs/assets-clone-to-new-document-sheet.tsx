@@ -1,14 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { memo, useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Copy, Folder, X } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { HuemulDialog } from '@/huemul/components/huemul-dialog';
+import { HuemulSheet } from '@/huemul/components/huemul-sheet';
+import { HuemulField, HuemulFieldGroup } from '@/huemul/components/huemul-field';
 import { HuemulFileTree } from '@/huemul/components/huemul-file-tree';
+import { CreateFolderSheet } from '@/components/assets/dialogs/assets-create-folder-sheet';
 import { getLibraryContent } from '@/services/folders';
 import { useLibraryTreeExpansion } from '@/hooks/useLibraryTreeExpansion';
+import { useLibraryFolderActions } from '@/hooks/useLibraryFolderActions';
 import { buildLibraryTree } from '@/lib/library-tree';
+import type { HuemulFileTreeRef } from '@/huemul/components/huemul-file-tree';
 import type { HuemulTreeNode } from '@/types/huemul/tree';
 import type { LibraryContentFolder } from '@/types/folders';
 
@@ -19,7 +20,7 @@ interface CloneToNewDocumentOptions {
   folder_id?: string;
 }
 
-interface CloneToNewDocumentDialogProps {
+interface CloneToNewDocumentSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (options: CloneToNewDocumentOptions) => void;
@@ -27,19 +28,40 @@ interface CloneToNewDocumentDialogProps {
   organizationId: string;
 }
 
-export function CloneToNewDocumentDialog({
+function CloneToNewDocumentSheetInner({
   open,
   onOpenChange,
   onConfirm,
   isProcessing = false,
   organizationId,
-}: CloneToNewDocumentDialogProps) {
+}: CloneToNewDocumentSheetProps) {
   const { t } = useTranslation('assets');
   const [name, setName] = useState('');
   const [internalCode, setInternalCode] = useState('');
   const [description, setDescription] = useState('');
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [selectedFolderName, setSelectedFolderName] = useState<string | null>(null);
+  const treeRef = useRef<HuemulFileTreeRef>(null);
+
+  // Crear carpeta destino sin salir del sheet: la franja de acciones y el ítem
+  // "Nueva subcarpeta" del menú de cada carpeta salen de este hook, gateados
+  // por `folder:c`. El formulario real es CreateFolderSheet, montado abajo como
+  // sibling — ver ia context/inline-create-entity-in-sheet-guide.md.
+  const {
+    toolbarActions,
+    menuActions,
+    createFolderSheetProps,
+    closeCreateFolderSheet,
+  } = useLibraryFolderActions({
+    treeRef,
+    activeFolderId: selectedFolderId,
+    // La carpeta recién creada pasa a ser el destino: el usuario la creó para
+    // usarla, no para volver a buscarla en el árbol.
+    onFolderCreated: (folder) => {
+      setSelectedFolderId(folder.id);
+      setSelectedFolderName(folder.name);
+    },
+  });
 
   useEffect(() => {
     if (open) {
@@ -48,8 +70,9 @@ export function CloneToNewDocumentDialog({
       setDescription('');
       setSelectedFolderId(null);
       setSelectedFolderName(null);
+      closeCreateFolderSheet();
     }
-  }, [open]);
+  }, [open, closeCreateFolderSheet]);
 
   // Comparte la clave `tree-expanded` con el sidebar de conocimiento y el
   // resto de pickers de biblioteca — ver ia context/arbol-biblioteca-activos-guide.md.
@@ -60,6 +83,8 @@ export function CloneToNewDocumentDialog({
     name: folder.name,
     type: 'folder',
     hasChildren: true,
+    // Lo consume el `show` de "Nueva subcarpeta" (useLibraryFolderActions).
+    metadata: { folderType: folder.folder_type, accessLevels: folder.access_levels },
   }), []);
 
   const handleLoadChildren = useCallback(async (folderId: string | null): Promise<HuemulTreeNode[]> => {
@@ -93,14 +118,15 @@ export function CloneToNewDocumentDialog({
   }
 
   return (
-    <HuemulDialog
+    <>
+    <HuemulSheet
       open={open}
       onOpenChange={(o) => { if (!isProcessing) onOpenChange(o); }}
       title={t('content.cloneToNewDocumentTitle')}
       description={t('content.cloneToNewDocumentDescription')}
       icon={Copy}
-      iconClassName="h-4 w-4 text-[#4464f7]"
-      maxWidth="sm:max-w-lg"
+      side="right"
+      maxWidth="sm:max-w-2xl"
       saveAction={{
         label: t('content.cloneToNewDocumentConfirm'),
         onClick: handleConfirm,
@@ -108,46 +134,39 @@ export function CloneToNewDocumentDialog({
         closeOnSuccess: false,
       }}
     >
-      <div className="flex flex-col gap-4 py-2">
+      <HuemulFieldGroup>
+        <HuemulField
+          type="text"
+          label={t('content.cloneToNewDocumentName')}
+          name="clone-new-name"
+          value={name}
+          onChange={(v) => setName(String(v))}
+          placeholder={t('content.cloneToNewDocumentNamePlaceholder')}
+          disabled={isProcessing}
+        />
+        <HuemulField
+          type="text"
+          label={t('content.cloneToNewDocumentInternalCode')}
+          name="clone-new-internal-code"
+          value={internalCode}
+          onChange={(v) => setInternalCode(String(v))}
+          placeholder={t('content.cloneToNewDocumentInternalCodePlaceholder')}
+          disabled={isProcessing}
+        />
+        <HuemulField
+          type="textarea"
+          label={t('content.cloneToNewDocumentDescriptionLabel')}
+          name="clone-new-description"
+          value={description}
+          onChange={(v) => setDescription(String(v))}
+          placeholder={t('content.cloneToNewDocumentDescriptionPlaceholder')}
+          rows={3}
+          disabled={isProcessing}
+        />
         <div className="space-y-1.5">
-          <Label htmlFor="clone-new-name" className="text-sm font-medium">
-            {t('content.cloneToNewDocumentName')}
-          </Label>
-          <Input
-            id="clone-new-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t('content.cloneToNewDocumentNamePlaceholder')}
-            autoFocus
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="clone-new-internal-code" className="text-sm font-medium">
-            {t('content.cloneToNewDocumentInternalCode')}
-          </Label>
-          <Input
-            id="clone-new-internal-code"
-            value={internalCode}
-            onChange={(e) => setInternalCode(e.target.value)}
-            placeholder={t('content.cloneToNewDocumentInternalCodePlaceholder')}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="clone-new-description" className="text-sm font-medium">
-            {t('content.cloneToNewDocumentDescriptionLabel')}
-          </Label>
-          <Textarea
-            id="clone-new-description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder={t('content.cloneToNewDocumentDescriptionPlaceholder')}
-            rows={3}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium">
+          <span className="text-sm font-medium leading-snug">
             {t('content.cloneToNewDocumentFolder')}
-          </Label>
+          </span>
           {selectedFolderName ? (
             <div className="flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5">
               <Folder className="h-3.5 w-3.5 shrink-0 text-blue-500" />
@@ -164,17 +183,27 @@ export function CloneToNewDocumentDialog({
             <p className="text-xs text-muted-foreground">{t('content.cloneToNewDocumentFolderHint')}</p>
           )}
           <HuemulFileTree
+            ref={treeRef}
             onLoadChildren={handleLoadChildren}
             onFolderClick={handleFolderClick}
             activeNodeId={selectedFolderId ?? undefined}
+            toolbarActions={toolbarActions}
+            menuActions={menuActions}
             showCreateButtons={false}
             showDefaultActions={{ create: false, delete: false, share: false }}
             showBorder={true}
-            minHeight="150px"
+            minHeight="320px"
             {...expansionTreeProps}
           />
         </div>
-      </div>
-    </HuemulDialog>
+      </HuemulFieldGroup>
+    </HuemulSheet>
+
+    {/* Sibling, no anidado en los children del sheet de arriba: ambos son
+        z-50 y el que monta después pinta encima (ver z-index-layering-guide). */}
+    <CreateFolderSheet {...createFolderSheetProps} />
+    </>
   );
 }
+
+export const CloneToNewDocumentSheet = memo(CloneToNewDocumentSheetInner);

@@ -9,6 +9,7 @@ const translations = {
   createFile: { en: "Create file", es: "Crear archivo" },
   createFolder: { en: "Create folder", es: "Crear carpeta" },
   inputPlaceholder: { en: "Name...", es: "Nombre..." },
+  refresh: { en: "Refresh", es: "Actualizar" },
 };
 
 export default translations;

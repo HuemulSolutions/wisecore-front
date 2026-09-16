@@ -12,7 +12,7 @@ const translations = {
   },
   add: {
     title: { en: "Add Secret", es: "Agregar Secreto" },
-    description: { en: "Add a new secret to this external system.", es: "Agregar un nuevo secreto a este sistema externo." },
+    description: { en: "Add a new secret to this extension.", es: "Agregar un nuevo secreto a esta extensión." },
     submitLabel: { en: "Add Secret", es: "Agregar Secreto" },
     keyLabel: { en: "Key", es: "Clave" },
     keyPlaceholder: { en: "e.g. N8N Connection Key", es: "ej. Clave de conexión N8N" },

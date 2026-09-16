@@ -47,6 +47,9 @@ export interface LibraryNavigationState {
   fromFileTree?: boolean;
   documentType?: DocumentType;
   accessLevels?: string[];
+  /** Execution a seleccionar al llegar. Sin esto la vista arranca con execution=null
+   *  y hace un primer fetch de /content sin execution_id que puede volver vacío. */
+  selectedExecutionId?: string;
 }
 
 // ========================================

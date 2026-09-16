@@ -1,31 +1,31 @@
 const translations = {
   header: {
-    title: { en: "External Systems", es: "Sistemas Externos" },
-    addSystem: { en: "Add System", es: "Agregar Sistema" },
-    searchPlaceholder: { en: "Search systems...", es: "Buscar sistemas..." },
-    systemsCount: { en: "{{count}} systems", es: "{{count}} sistemas" },
+    title: { en: "Extensions", es: "Extensiones" },
+    addSystem: { en: "Add Extension", es: "Agregar Extensión" },
+    searchPlaceholder: { en: "Search extensions...", es: "Buscar extensiones..." },
+    systemsCount: { en: "{{count}} extensions", es: "{{count}} extensiones" },
     closeSearch: { en: "Close search", es: "Cerrar búsqueda" },
-    newSystem: { en: "New external system", es: "Nuevo sistema externo" },
+    newSystem: { en: "New extension", es: "Nueva extensión" },
   },
   columns: {
     baseUrl: { en: "Base URL", es: "URL Base" },
   },
   list: {
-    empty: { en: "No external systems found", es: "No se encontraron sistemas externos" },
+    empty: { en: "No extensions found", es: "No se encontraron extensiones" },
     emptyDescription: {
-      en: "Get started by adding your first external system.",
-      es: "Agregar el primer sistema externo para comenzar.",
+      en: "Get started by adding your first extension.",
+      es: "Agregar la primera extensión para comenzar.",
     },
     emptySearchDescription: {
-      en: "No systems match your search. Try a different term.",
-      es: "Ningún sistema coincide con la búsqueda. Probar otro término.",
+      en: "No extensions match your search. Try a different term.",
+      es: "Ninguna extensión coincide con la búsqueda. Probar otro término.",
     },
-    loading: { en: "Loading systems...", es: "Cargando sistemas..." },
+    loading: { en: "Loading extensions...", es: "Cargando extensiones..." },
   },
   detail: {
     placeholder: {
-      en: "Select a system to view its details",
-      es: "Seleccionar un sistema para ver sus detalles",
+      en: "Select an extension to view its details",
+      es: "Seleccionar una extensión para ver sus detalles",
     },
     baseUrl: { en: "Base URL", es: "URL Base" },
     createdAt: { en: "Created At", es: "Creado el" },
@@ -38,22 +38,22 @@ const translations = {
     statusPlaceholder: { en: "Select status", es: "Seleccionar estado" },
   },
   emptyState: {
-    empty: { en: "No external systems yet", es: "No hay sistemas externos aún" },
-    noResults: { en: "No systems match your search", es: "Ningún sistema coincide con la búsqueda" },
+    empty: { en: "No extensions yet", es: "No hay extensiones aún" },
+    noResults: { en: "No extensions match your search", es: "Ninguna extensión coincide con la búsqueda" },
   },
   errorState: {
-    failedToLoad: { en: "Failed to load external systems", es: "Error al cargar los sistemas externos" },
-    errorDescription: { en: "An error occurred while loading systems. Please try again.", es: "Ocurrió un error al cargar los sistemas. Reintentar." },
+    failedToLoad: { en: "Failed to load extensions", es: "Error al cargar las extensiones" },
+    errorDescription: { en: "An error occurred while loading extensions. Please try again.", es: "Ocurrió un error al cargar las extensiones. Reintentar." },
   },
   accessDenied: {
     description: {
-      en: "You don't have permission to access External Systems.",
-      es: "No hay permiso para acceder a los Sistemas Externos.",
+      en: "You don't have permission to access Extensions.",
+      es: "No hay permiso para acceder a las Extensiones.",
     },
   },
   actions: {
-    edit: { en: "Edit System", es: "Editar Sistema" },
-    delete: { en: "Delete System", es: "Eliminar Sistema" },
+    edit: { en: "Edit Extension", es: "Editar Extensión" },
+    delete: { en: "Delete Extension", es: "Eliminar Extensión" },
     connect: { en: "Connect", es: "Conectar" },
     disconnect: { en: "Disconnect", es: "Desconectar" },
   },
@@ -63,33 +63,33 @@ const translations = {
     error: { en: "Error", es: "Error" },
   },
   create: {
-    title: { en: "Add External System", es: "Agregar Sistema Externo" },
+    title: { en: "Add Extension", es: "Agregar Extensión" },
     description: {
-      en: "Enter the details to connect a new external system.",
-      es: "Ingresar los detalles para conectar un nuevo sistema externo.",
+      en: "Enter the details to connect a new extension.",
+      es: "Ingresar los detalles para conectar una nueva extensión.",
     },
-    submitLabel: { en: "Add System", es: "Agregar Sistema" },
-    success: { en: "System added successfully", es: "Sistema agregado correctamente" },
-    errorFailed: { en: "Failed to add system", es: "Error al agregar el sistema" },
+    submitLabel: { en: "Add Extension", es: "Agregar Extensión" },
+    success: { en: "Extension added successfully", es: "Extensión agregada correctamente" },
+    errorFailed: { en: "Failed to add extension", es: "Error al agregar la extensión" },
   },
   edit: {
-    title: { en: "Edit External System", es: "Editar Sistema Externo" },
+    title: { en: "Edit Extension", es: "Editar Extensión" },
     description: {
-      en: "Update the external system details.",
-      es: "Actualizar los detalles del sistema externo.",
+      en: "Update the extension details.",
+      es: "Actualizar los detalles de la extensión.",
     },
     submitLabel: { en: "Save Changes", es: "Guardar Cambios" },
-    success: { en: "System updated successfully", es: "Sistema actualizado correctamente" },
-    errorFailed: { en: "Failed to update system", es: "Error al actualizar el sistema" },
+    success: { en: "Extension updated successfully", es: "Extensión actualizada correctamente" },
+    errorFailed: { en: "Failed to update extension", es: "Error al actualizar la extensión" },
   },
   delete: {
-    title: { en: "Delete External System", es: "Eliminar Sistema Externo" },
+    title: { en: "Delete Extension", es: "Eliminar Extensión" },
     description: {
       en: "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
       es: "¿Eliminar \"{{name}}\"? Esta acción no se puede deshacer.",
     },
-    success: { en: "System deleted successfully", es: "Sistema eliminado correctamente" },
-    errorFailed: { en: "Failed to delete system", es: "Error al eliminar el sistema" },
+    success: { en: "Extension deleted successfully", es: "Extensión eliminada correctamente" },
+    errorFailed: { en: "Failed to delete extension", es: "Error al eliminar la extensión" },
   },
 }
 

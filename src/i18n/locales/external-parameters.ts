@@ -16,7 +16,7 @@ const translations = {
   },
   add: {
     title: { en: "Add Parameter", es: "Agregar Parámetro" },
-    descriptionSystem: { en: "Add a new parameter to this external system.", es: "Agregar un nuevo parámetro a este sistema externo." },
+    descriptionSystem: { en: "Add a new parameter to this extension.", es: "Agregar un nuevo parámetro a esta extensión." },
     descriptionFunctionality: { en: "Add a new parameter to this functionality.", es: "Agregar un nuevo parámetro a esta funcionalidad." },
     submitLabel: { en: "Add Parameter", es: "Agregar Parámetro" },
     typeLabel: { en: "Type", es: "Tipo" },

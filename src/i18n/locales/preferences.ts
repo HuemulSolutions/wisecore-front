@@ -19,8 +19,8 @@ const translations = {
     title: { en: "Navigation trees", es: "Árboles de navegación" },
     rememberExpanded: { en: "Remember expanded folders", es: "Recordar carpetas expandidas" },
     rememberExpandedHint: {
-      en: "Keeps the folders you opened expanded next time — in the asset library, selectors, and external systems.",
-      es: "Mantiene abiertas las carpetas que abriste — en la biblioteca de activos, selectores y sistemas externos.",
+      en: "Keeps the folders you opened expanded next time — in the asset library, selectors, and extensions.",
+      es: "Mantiene abiertas las carpetas que abriste — en la biblioteca de activos, selectores y extensiones.",
     },
     forgetExpanded: { en: "Forget saved folders", es: "Olvidar carpetas guardadas" },
     forgetExpandedSuccess: { en: "Saved folders cleared", es: "Carpetas guardadas eliminadas" },

@@ -32,6 +32,7 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
       onFileClick,
       activeNodeId,
       menuActions = [],
+      toolbarActions,
       showDefaultActions = { create: true, delete: true, share: true },
       customDialogs,
       showCreateButtons = true,
@@ -117,6 +118,7 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
         onFileClick={adaptedFileClick}
         activeNodeId={activeNodeId}
         menuActions={adaptedMenuActions}
+        toolbarActions={toolbarActions}
         showDefaultActions={showDefaultActions}
         customDialogs={adaptedCustomDialogs}
         folderType="folder"

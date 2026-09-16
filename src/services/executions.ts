@@ -3,7 +3,7 @@ import { httpClient } from "@/lib/http-client";
 import { logger } from "@/lib/logger";
 import { toDateParam } from "@/lib/date-params";
 import { ApiError } from "@/types/api-error";
-import type { ExecutionsResponse, GetExecutionsParams, RollbackTarget, RollbackStep, RollbackTargetsResponse, ExecutionVersionSuggestion, ExecutionVersionSuggestionResponse, ExecutionSectionsStatusResponse } from "@/types/execution";
+import type { Execution, ExecutionsResponse, GetExecutionsParams, RollbackTarget, RollbackStep, RollbackTargetsResponse, ExecutionVersionSuggestion, ExecutionVersionSuggestionResponse, ExecutionSectionsStatusResponse } from "@/types/execution";
 import type { AvailableDocxTemplate, AvailableDocxTemplatesResponse } from "@/types/docx-templates";
 import type { AdvanceLifecycleResponse, CompleteLifecycleStepResponse, RunElaborationResponse } from "@/types/lifecycle";
 
@@ -426,7 +426,7 @@ export async function cloneExecutionToNewDocument(
         description?: string;
         folder_id?: string;
     } = {},
-) {
+): Promise<Execution> {
     logger.log(`Cloning execution with ID: ${executionId} to new document`);
     const body: Record<string, string> = { mode: 'new_document' };
     if (options.name) body.name = options.name;
