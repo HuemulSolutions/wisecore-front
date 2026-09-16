@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { HuemulFilePreview } from "@/huemul/components/huemul-file-preview";
 import { isMediaToken } from "@/lib/plate-media-utils";
+import { formatNumber } from "@/lib/utils";
 import type { FormFieldValue } from "@/types/sections/core";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
@@ -223,7 +224,18 @@ export function FormFieldAnswerValue({ field, value, filePreviews }: FormFieldAn
       const options = readFieldOptions(field);
       return <span className="text-sm text-gray-800">{resolveOptionLabels(resolved, options).join(", ")}</span>;
     }
-    // date / time / numéricos / string → caen al manejo genérico de abajo
+    // date / time / string → caen al manejo genérico de abajo (numéricos se manejan arriba)
+  }
+
+  if (
+    field.question_type === QUESTION_TYPE.number ||
+    field.question_type === QUESTION_TYPE.decimal ||
+    (field.question_type === CUSTOM_FIELD_QUESTION_TYPE && (field.data_type === "int" || field.data_type === "decimal"))
+  ) {
+    const num = typeof resolved === "number" ? resolved : Number(resolved);
+    if (!Number.isNaN(num)) {
+      return <span className="text-sm text-gray-800">{formatNumber(num)}</span>;
+    }
   }
 
   if (
