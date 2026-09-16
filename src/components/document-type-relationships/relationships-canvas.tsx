@@ -13,10 +13,12 @@ import {
   useReactFlow,
   useNodesInitialized,
   useStore,
+  useViewport,
   ConnectionMode,
   MarkerType,
   type Node,
   type Edge,
+  type NodeChange,
   type OnConnect,
   type OnConnectEnd,
   type OnReconnect,
@@ -35,6 +37,7 @@ import { MemoizedGatewayNode } from "./gateway-node"
 import { MemoizedStartEventNode } from "./start-event-node"
 import { MemoizedEndEventNode } from "./end-event-node"
 import { RoleColumnLabel } from "./role-column-label"
+import { AlignmentGuides } from "./alignment-guides"
 import { CanvasElementPalette } from "./canvas-element-palette"
 import { CanvasActionsBar, CanvasReadOnlyBadge } from "./canvas-actions-bar"
 import { CanvasEmptyState } from "./canvas-empty-state"
@@ -234,6 +237,61 @@ const ROLE_COLUMN_MARGIN = 96
 const ROLE_ROW_SPACING = 24
 const ROLE_NODE_HEIGHT = 56
 
+// Distancia (en px de pantalla, no en unidades "flow") por debajo de la cual dos
+// bordes/centros se consideran "alineados" al arrastrar un nodo. Se convierte a
+// unidades flow dividiendo por el zoom, así el snap se siente igual de sensible
+// sin importar cuánto esté acercado/alejado el canvas.
+const ALIGNMENT_SNAP_THRESHOLD_PX = 6
+
+function nodeBounds(n: Node) {
+  const width = n.measured?.width ?? (n.style?.width as number) ?? 160
+  const height = n.measured?.height ?? (n.style?.height as number) ?? 160
+  return {
+    left: n.position.x,
+    centerX: n.position.x + width / 2,
+    right: n.position.x + width,
+    top: n.position.y,
+    centerY: n.position.y + height / 2,
+    bottom: n.position.y + height,
+  }
+}
+
+// Compara los 3 valores en X (left/centerX/right) y los 3 en Y (top/centerY/bottom)
+// del nodo arrastrado contra los de cada otro nodo. Devuelve, por eje, el mejor
+// match dentro del threshold — la coordenada para dibujar la línea guía y el delta
+// a aplicar a la posición del nodo arrastrado para que ese borde/centro snapee.
+function computeAlignmentSnap(dragged: Node, others: Node[], thresholdFlow: number) {
+  const draggedBounds = nodeBounds(dragged)
+  const xCandidates = [draggedBounds.left, draggedBounds.centerX, draggedBounds.right]
+  const yCandidates = [draggedBounds.top, draggedBounds.centerY, draggedBounds.bottom]
+
+  let bestX: { guide: number; delta: number; diff: number } | null = null
+  let bestY: { guide: number; delta: number; diff: number } | null = null
+
+  for (const other of others) {
+    if (other.id === dragged.id) continue
+    const b = nodeBounds(other)
+    for (const value of xCandidates) {
+      for (const otherValue of [b.left, b.centerX, b.right]) {
+        const diff = Math.abs(value - otherValue)
+        if (diff <= thresholdFlow && (!bestX || diff < bestX.diff)) {
+          bestX = { guide: otherValue, delta: otherValue - value, diff }
+        }
+      }
+    }
+    for (const value of yCandidates) {
+      for (const otherValue of [b.top, b.centerY, b.bottom]) {
+        const diff = Math.abs(value - otherValue)
+        if (diff <= thresholdFlow && (!bestY || diff < bestY.diff)) {
+          bestY = { guide: otherValue, delta: otherValue - value, diff }
+        }
+      }
+    }
+  }
+
+  return { snapX: bestX, snapY: bestY }
+}
+
 function computeRoleColumnPosition(nodes: Node[]): { x: number; y: number } {
   const others = nodes.filter((n) => n.type !== "role")
   const roles = nodes.filter((n) => n.type === "role")
@@ -343,8 +401,42 @@ function RelationshipsCanvasFlow({
   // no /rbac/roles fetch involved, so no `canPickRole` gate, just diagram write access.
   const canAddFlowNode = mode === 'execution' && canWriteDiagramGraph
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
+  const [nodes, setNodes, onNodesChangeInternal] = useNodesState<Node>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
+
+  // Líneas guía de alineación mostradas mientras se arrastra un nodo (ver
+  // `AlignmentGuides`) — puramente visual/efímero, `null` cuando no hay drag activo.
+  const [alignmentGuides, setAlignmentGuides] = useState<{ vertical: number[]; horizontal: number[] } | null>(null)
+  const viewport = useViewport()
+
+  // Intercepta el change de posición (no `onNodeDrag`: su 3er parámetro es solo el/los
+  // nodo(s) que se están arrastrando, no el resto del diagrama — no sirve para comparar).
+  // Mismo patrón que el ejemplo oficial de "helper lines" de React Flow: usa `nodes`
+  // (state, con la posición vigente de todos los demás) para calcular el snap y muta
+  // `change.position` antes de delegar, así se aplica en el mismo paso que React Flow
+  // usa para actualizar la posición.
+  const handleNodesChange = useCallback((changes: NodeChange<Node>[]) => {
+    setAlignmentGuides(null)
+
+    const change = changes.length === 1 ? changes[0] : null
+    if (change && change.type === "position" && change.dragging && change.position) {
+      const position = change.position
+      const draggedNode = nodes.find((n) => n.id === change.id)
+      if (draggedNode) {
+        const thresholdFlow = ALIGNMENT_SNAP_THRESHOLD_PX / viewport.zoom
+        const simulated = { ...draggedNode, position }
+        const others = nodes.filter((n) => n.id !== change.id)
+        const { snapX, snapY } = computeAlignmentSnap(simulated, others, thresholdFlow)
+        if (snapX) position.x += snapX.delta
+        if (snapY) position.y += snapY.delta
+        if (snapX || snapY) {
+          setAlignmentGuides({ vertical: snapX ? [snapX.guide] : [], horizontal: snapY ? [snapY.guide] : [] })
+        }
+      }
+    }
+
+    onNodesChangeInternal(changes)
+  }, [nodes, viewport.zoom, onNodesChangeInternal])
 
   // Right panel — tracks the clicked node/edge. Declarado antes de `layeredNodes`/
   // `layeredEdges` porque el resaltado de relaciones (abajo) depende de la selección.
@@ -2201,7 +2293,7 @@ function RelationshipsCanvasFlow({
         <ReactFlow
           nodes={layeredNodes}
           edges={layeredEdges}
-          onNodesChange={onNodesChange}
+          onNodesChange={handleNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={readOnly ? undefined : onConnect}
           onConnectEnd={readOnly ? undefined : onConnectEnd}
@@ -2244,6 +2336,9 @@ function RelationshipsCanvasFlow({
         >
           <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
           <Controls />
+          {alignmentGuides && (
+            <AlignmentGuides vertical={alignmentGuides.vertical} horizontal={alignmentGuides.horizontal} />
+          )}
           {roleColumnLabelPos && (
             <RoleColumnLabel
               x={roleColumnLabelPos.x}

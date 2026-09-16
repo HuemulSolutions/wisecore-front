@@ -135,6 +135,7 @@ const translations = {
         en: "This stage can't be completed until the required fields in the pending sections are answered.",
         es: "No se puede completar esta etapa hasta responder los campos obligatorios de las secciones pendientes.",
       },
+      viewAnswers: { en: "View the answers", es: "Ver las respuestas" },
     },
     summary: {
       tooltip: { en: "Back to summary", es: "Volver al resumen" },
