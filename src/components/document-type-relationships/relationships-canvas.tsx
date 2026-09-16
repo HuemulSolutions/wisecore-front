@@ -16,6 +16,7 @@ import {
   useViewport,
   ConnectionMode,
   MarkerType,
+  SelectionMode,
   type Node,
   type Edge,
   type NodeChange,
@@ -2309,6 +2310,11 @@ function RelationshipsCanvasFlow({
           elevateNodesOnSelect={false}
           nodesDraggable={!readOnly}
           nodesConnectable={!readOnly}
+          // Selección múltiple por caja: Shift + arrastrar sobre el pane vacío (comporta-
+          // miento nativo de React Flow, `selectionKeyCode` default 'Shift') — el click
+          // izquierdo sin modificador sigue siendo pan. `Partial` selecciona un nodo si la
+          // caja lo toca, no exige cubrirlo entero.
+          selectionMode={SelectionMode.Partial}
           // Reanclar cambia solo el diagrama (no la execution_relationship/relación de
           // negocio detrás del edge), así que el permiso correcto es el de escritura
           // del diagrama — mismo criterio que la rama de rol de `deleteKeyCode` abajo.
