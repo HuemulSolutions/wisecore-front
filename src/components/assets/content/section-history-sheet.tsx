@@ -67,6 +67,15 @@ const CHANGE_TYPE_CONFIG: Record<
         badgeClass: 'bg-green-50 text-green-700 border-green-200',
         dotClass: 'bg-green-400',
     },
+    modify_ai_partial: {
+        icon: Bot,
+        iconColorClass: 'text-indigo-500',
+        activeBgClass: 'bg-indigo-50',
+        activeTextClass: 'text-indigo-700',
+        activeBorderClass: 'border-l-indigo-500',
+        badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+        dotClass: 'bg-indigo-400',
+    },
 };
 
 // ── Left panel list item ───────────────────────────────────────────────────
