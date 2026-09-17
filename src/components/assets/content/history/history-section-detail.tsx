@@ -44,14 +44,12 @@ export function HistorySectionDetail({ entry }: { entry: HistoryEntryVM<SectionH
           newContent={raw.new_text}
           oldLabel={t("history.diffPreviousLabel")}
           newLabel={t("history.diffNewLabel")}
-          defaultMode="split"
-          modes={["split", "unified"]}
-          showModeToggle
+          defaultMode="rendered"
+          showModeToggle={false}
+          showRenderedDiffPanel={false}
           labels={{
             title: t("assetHistory.diff.title"),
             unchanged: t("assetHistory.diff.unchanged"),
-            split: t("assetHistory.diff.modeSplit"),
-            unified: t("assetHistory.diff.modeUnified"),
           }}
         />
       </div>
