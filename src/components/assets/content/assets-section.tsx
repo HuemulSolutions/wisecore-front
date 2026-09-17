@@ -1014,6 +1014,7 @@ function SectionExecutionInner({
                         isSaving={isFormSaving}
                         onStartAnswering={() => setIsAnsweringInReader(true)}
                         onDoneAnswering={() => formSectionRef.current?.exit()}
+                        onOpenHistory={() => setIsHistorySheetOpen(true)}
                         open={!isCollapsed}
                         onOpenChange={(open) => setIsCollapsed(!open)}
                     >
