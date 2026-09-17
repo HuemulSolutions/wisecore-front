@@ -43,6 +43,12 @@ export type ColorHue =
   | "stone"
   | "indigo"
   | "red"
+  // `fuchsia` (≈322°) queda a 19° de `violet` (≈303°), por debajo del criterio
+  // de 38° de separación del comentario de arriba — pero ese criterio es para
+  // etapas *consecutivas* del lifecycle, y fuchsia no es una etapa: es el eje
+  // ortogonal de "comentarios" (KPI del Panorama de home, celda de la tabla),
+  // que nunca convive en pantalla con `in_approval` como alternativa exclusiva.
+  | "fuchsia"
 
 /** Clases de badge (pill) por hue. Todas con variante dark explícita. */
 const BADGE_CLASSES: Record<ColorHue, string> = {
@@ -59,6 +65,7 @@ const BADGE_CLASSES: Record<ColorHue, string> = {
   stone: "bg-stone-100 text-stone-800 dark:bg-stone-950 dark:text-stone-200",
   indigo: "bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-200",
   red: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200",
+  fuchsia: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-950 dark:text-fuchsia-200",
 }
 
 /** Clase del punto de color (6px) que acompaña el texto del badge de estado — segunda señal cuando dos estados caen en filas contiguas. */
@@ -76,6 +83,7 @@ const DOT_CLASSES: Record<ColorHue, string> = {
   stone: "bg-stone-600 dark:bg-stone-500",
   indigo: "bg-indigo-600 dark:bg-indigo-500",
   red: "bg-red-600 dark:bg-red-500",
+  fuchsia: "bg-fuchsia-600 dark:bg-fuchsia-500",
 }
 
 /** Clase del badge sólido (fondo -600, texto blanco) para el estado del activo abierto (header, selector de versión) y siempre para "published". */
@@ -93,6 +101,7 @@ const SOLID_BADGE_CLASSES: Record<ColorHue, string> = {
   stone: "bg-stone-600 text-white",
   indigo: "bg-indigo-600 text-white",
   red: "bg-red-600 text-white",
+  fuchsia: "bg-fuchsia-600 text-white",
 }
 
 export interface BannerToneClasses {
@@ -193,6 +202,12 @@ const STAGE_TONE_CLASSES: Record<ColorHue, StageToneClasses> = {
     text: "text-red-700 dark:text-red-300",
     border: "border-red-600 dark:border-red-500",
     soft: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
+  },
+  fuchsia: {
+    solid: "bg-fuchsia-600 dark:bg-fuchsia-500",
+    text: "text-fuchsia-700 dark:text-fuchsia-300",
+    border: "border-fuchsia-600 dark:border-fuchsia-500",
+    soft: "bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950 dark:text-fuchsia-300",
   },
 }
 
@@ -361,4 +376,140 @@ export function lifecycleStageTone(stage: string | null | undefined): StageToneC
 /** Tono genérico (para casos como "Devolver a", que es advertencia y no una etapa del dominio). */
 export function toneStyle(hue: ColorHue): StageToneClasses {
   return STAGE_TONE_CLASSES[hue]
+}
+
+/** Punto de color (6px, `bg-{hue}-600`) por hue crudo — para superficies que resuelven su propio hue fuera del dominio de lifecycle (p. ej. los KPI del Panorama de home). Ver `lifecycleStateHue`. */
+export function toneDot(hue: ColorHue): string {
+  return DOT_CLASSES[hue]
+}
+
+export interface SectionToneClasses {
+  /** Fondo del header tintado de la sección. */
+  surface: string
+  /** Divisor entre el header tintado y el cuerpo de la card. */
+  headerBorder: string
+  /** Barra de acento de 3px en el canto izquierdo de la card — ancla visual del grupo. */
+  accentBorder: string
+  /** Texto e iconos del header (chevron, píldora). */
+  text: string
+  /** Fondo + texto de la píldora de conteo. */
+  pill: string
+}
+
+/**
+ * Tono de "superficie de sección" por hue: header tintado + acento lateral,
+ * para cards que agrupan filas de un mismo estado (los grupos de "Mi trabajo"
+ * de home). A diferencia de `BANNER_CLASSES` (8 `BannerHue`, eje de
+ * ejecución), cubre los 14 `ColorHue` — incluidos `violet` y `teal`, que son
+ * justo `in_approval` y `approved`.
+ */
+const SECTION_TONE_CLASSES: Record<ColorHue, SectionToneClasses> = {
+  slate: {
+    surface: "bg-slate-50 dark:bg-slate-950/40",
+    headerBorder: "border-slate-100 dark:border-slate-900",
+    accentBorder: "border-l-slate-500 dark:border-l-slate-400",
+    text: "text-slate-700 dark:text-slate-300",
+    pill: "bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-100",
+  },
+  blue: {
+    surface: "bg-blue-50 dark:bg-blue-950/40",
+    headerBorder: "border-blue-100 dark:border-blue-900",
+    accentBorder: "border-l-blue-500 dark:border-l-blue-400",
+    text: "text-blue-700 dark:text-blue-300",
+    pill: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+  },
+  sky: {
+    surface: "bg-sky-50 dark:bg-sky-950/40",
+    headerBorder: "border-sky-100 dark:border-sky-900",
+    accentBorder: "border-l-sky-500 dark:border-l-sky-400",
+    text: "text-sky-700 dark:text-sky-300",
+    pill: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-100",
+  },
+  amber: {
+    surface: "bg-amber-50 dark:bg-amber-950/40",
+    headerBorder: "border-amber-100 dark:border-amber-900",
+    accentBorder: "border-l-amber-500 dark:border-l-amber-400",
+    text: "text-amber-700 dark:text-amber-300",
+    pill: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100",
+  },
+  yellow: {
+    surface: "bg-yellow-50 dark:bg-yellow-950/40",
+    headerBorder: "border-yellow-100 dark:border-yellow-900",
+    accentBorder: "border-l-yellow-500 dark:border-l-yellow-400",
+    text: "text-yellow-700 dark:text-yellow-300",
+    pill: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
+  },
+  violet: {
+    surface: "bg-violet-50 dark:bg-violet-950/40",
+    headerBorder: "border-violet-100 dark:border-violet-900",
+    accentBorder: "border-l-violet-500 dark:border-l-violet-400",
+    text: "text-violet-700 dark:text-violet-300",
+    pill: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-100",
+  },
+  teal: {
+    surface: "bg-teal-50 dark:bg-teal-950/40",
+    headerBorder: "border-teal-100 dark:border-teal-900",
+    accentBorder: "border-l-teal-500 dark:border-l-teal-400",
+    text: "text-teal-700 dark:text-teal-300",
+    pill: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-100",
+  },
+  green: {
+    surface: "bg-green-50 dark:bg-green-950/40",
+    headerBorder: "border-green-100 dark:border-green-900",
+    accentBorder: "border-l-green-500 dark:border-l-green-400",
+    text: "text-green-700 dark:text-green-300",
+    pill: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+  },
+  cyan: {
+    surface: "bg-cyan-50 dark:bg-cyan-950/40",
+    headerBorder: "border-cyan-100 dark:border-cyan-900",
+    accentBorder: "border-l-cyan-500 dark:border-l-cyan-400",
+    text: "text-cyan-700 dark:text-cyan-300",
+    pill: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100",
+  },
+  gray: {
+    surface: "bg-gray-50 dark:bg-gray-950/40",
+    headerBorder: "border-gray-100 dark:border-gray-900",
+    accentBorder: "border-l-gray-500 dark:border-l-gray-400",
+    text: "text-gray-700 dark:text-gray-300",
+    pill: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100",
+  },
+  stone: {
+    surface: "bg-stone-50 dark:bg-stone-950/40",
+    headerBorder: "border-stone-100 dark:border-stone-900",
+    accentBorder: "border-l-stone-500 dark:border-l-stone-400",
+    text: "text-stone-700 dark:text-stone-300",
+    pill: "bg-stone-100 text-stone-800 dark:bg-stone-900 dark:text-stone-100",
+  },
+  indigo: {
+    surface: "bg-indigo-50 dark:bg-indigo-950/40",
+    headerBorder: "border-indigo-100 dark:border-indigo-900",
+    accentBorder: "border-l-indigo-500 dark:border-l-indigo-400",
+    text: "text-indigo-700 dark:text-indigo-300",
+    pill: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
+  },
+  red: {
+    surface: "bg-red-50 dark:bg-red-950/40",
+    headerBorder: "border-red-100 dark:border-red-900",
+    accentBorder: "border-l-red-500 dark:border-l-red-400",
+    text: "text-red-700 dark:text-red-300",
+    pill: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
+  },
+  fuchsia: {
+    surface: "bg-fuchsia-50 dark:bg-fuchsia-950/40",
+    headerBorder: "border-fuchsia-100 dark:border-fuchsia-900",
+    accentBorder: "border-l-fuchsia-500 dark:border-l-fuchsia-400",
+    text: "text-fuchsia-700 dark:text-fuchsia-300",
+    pill: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900 dark:text-fuchsia-100",
+  },
+}
+
+/** Tono de superficie de sección por hue crudo. Ver `SECTION_TONE_CLASSES`. */
+export function toneSection(hue: ColorHue): SectionToneClasses {
+  return SECTION_TONE_CLASSES[hue]
+}
+
+/** Tono de superficie de sección por `state` de lifecycle — grupos de "Mi trabajo" en home. */
+export function lifecycleStateSectionTone(state: string | null | undefined): SectionToneClasses {
+  return SECTION_TONE_CLASSES[(state && LIFECYCLE_STATE_HUE[state]) || FALLBACK_HUE]
 }

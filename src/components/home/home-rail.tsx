@@ -35,7 +35,7 @@ export function HomeRail({
   overviewPersonalRows,
 }: HomeRailProps) {
   return (
-    <div className="flex w-[306px] shrink-0 flex-col gap-3.5">
+    <div className="flex w-[306px] shrink-0 flex-col gap-3">
       {showGettingStarted && (
         <HomeGettingStartedCard
           steps={onboarding.steps}

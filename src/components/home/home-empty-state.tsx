@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { HOME_LINK } from './home-surface';
 
 export interface HomeEmptyStateProps {
   /**
@@ -17,26 +18,22 @@ export function HomeEmptyState({ variant, onViewAllAssets }: HomeEmptyStateProps
   const { t } = useTranslation('home');
 
   return (
-    <div className="flex flex-col items-center gap-3 rounded-[11px] border border-dashed border-[#d4dbe4] bg-white px-[26px] py-[26px] text-center">
+    <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border bg-card px-6 py-6 text-center">
       <div
         className="h-16 w-[220px] rounded-md"
         style={{
           backgroundImage:
-            'repeating-linear-gradient(135deg, #f7f9fb 0 8px, #f1f4f8 8px 16px)',
+            'repeating-linear-gradient(135deg, var(--surface-sunken) 0 8px, var(--divider) 8px 16px)',
         }}
       />
-      <p className="text-[13.5px] font-semibold">
+      <p className="text-sm font-semibold text-foreground">
         {t(variant === 'firstTime' ? 'emptyState.firstTime.title' : 'emptyState.noPending.title')}
       </p>
-      <p className="max-w-[420px] text-[12.5px] text-[#64748b]">
+      <p className="max-w-[420px] text-xs text-muted-foreground">
         {t(variant === 'firstTime' ? 'emptyState.firstTime.description' : 'emptyState.noPending.description')}
       </p>
       {variant === 'noPending' && onViewAllAssets && (
-        <button
-          type="button"
-          onClick={onViewAllAssets}
-          className="text-[12.5px] font-medium text-[#2563eb] hover:cursor-pointer hover:underline"
-        >
+        <button type="button" onClick={onViewAllAssets} className={HOME_LINK}>
           {t('emptyState.noPending.cta')}
         </button>
       )}
