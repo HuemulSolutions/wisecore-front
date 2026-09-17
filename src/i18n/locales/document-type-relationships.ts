@@ -46,6 +46,11 @@ const translations = {
       en: "Loaded {{count}} relationship(s)",
       es: "Se cargaron {{count}} relación(es)",
     },
+    exploreDiagrams: { en: "View diagrams for this version", es: "Ver diagramas de esta versión" },
+    exploreDiagramsDescription: {
+      en: "Opens an overlay with every diagram assigned to this asset's version",
+      es: "Abre un panel con todos los diagramas asignados a la versión de este activo",
+    },
   },
   sidebar: {
     title: { en: "Asset Types", es: "Tipos de Activo" },
@@ -205,6 +210,7 @@ const translations = {
     assetType: { en: "Asset Type", es: "Tipo de Activo" },
     actions: { en: "Actions", es: "Acciones" },
     openAsset: { en: "Open Asset", es: "Abrir Activo" },
+    exploreDiagrams: { en: "View diagrams for this version", es: "Ver diagramas de esta versión" },
     loadRelationships: { en: "Expand Relationships and Child Nodes", es: "Expandir relaciones y todos sus nodos hijos" },
     loadRelationshipsDescription: {
       en: "Adds the node's direct children to the canvas, along with their connections to nodes already there",

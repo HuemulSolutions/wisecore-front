@@ -61,6 +61,23 @@ const translations = {
       es: "Ocurrió un error al cargar los diagramas. Reintentar.",
     },
   },
+  explorer: {
+    title: { en: "Diagrams for this version", es: "Diagramas de esta versión" },
+    subtitle: { en: "{{asset}} — {{execution}}", es: "{{asset}} — {{execution}}" },
+    diagramsCount: { en: "{{count}} diagram(s)", es: "{{count}} diagrama(s)" },
+    back: { en: "Back to diagram", es: "Volver al diagrama" },
+    currentBadge: { en: "Current", es: "Actual" },
+    empty: {
+      en: "This version isn't assigned to any diagram yet.",
+      es: "Esta versión aún no está asignada a ningún diagrama.",
+    },
+    loadingError: {
+      en: "Failed to load the diagrams for this version.",
+      es: "Error al cargar los diagramas de esta versión.",
+    },
+    createAction: { en: "New diagram", es: "Nuevo diagrama" },
+    nodesCount: { en: "{{count}} node(s)", es: "{{count}} nodo(s)" },
+  },
   contentEmptyState: {
     errorTitle: { en: "Failed to load diagrams", es: "Error al cargar diagramas" },
     errorDescription: {
