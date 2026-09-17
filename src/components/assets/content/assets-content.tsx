@@ -2508,9 +2508,10 @@ export function AssetContent({
                   documentName={documentContent?.document_name}
                   lifecyclePermissions={lifecyclePermissions}
                   stage={documentContent?.lifecycle_status?.stage}
+                  isExternalElaborationLocked={isAssetLockedByExternalElaboration}
                 />
               )}
-              
+
               {frontendPermissions.canAccessSectionSheet && (
                 <ContextSheet
                   selectedFile={selectedFile}
@@ -2522,6 +2523,7 @@ export function AssetContent({
                   isMobile={isMobile}
                   documentName={documentContent?.document_name}
                   lifecyclePermissions={lifecyclePermissions}
+                  isExternalElaborationLocked={isAssetLockedByExternalElaboration}
                   stage={documentContent?.lifecycle_status?.stage}
                 />
               )}
@@ -2959,6 +2961,7 @@ export function AssetContent({
                     documentName={documentContent?.document_name}
                     lifecyclePermissions={lifecyclePermissions}
                     stage={documentContent?.lifecycle_status?.stage}
+                    isExternalElaborationLocked={isAssetLockedByExternalElaboration}
                     showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
                   />
                 )}
@@ -2971,6 +2974,7 @@ export function AssetContent({
                     documentName={documentContent?.document_name}
                     lifecyclePermissions={lifecyclePermissions}
                     stage={documentContent?.lifecycle_status?.stage}
+                    isExternalElaborationLocked={isAssetLockedByExternalElaboration}
                     showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
                   />
                 )}

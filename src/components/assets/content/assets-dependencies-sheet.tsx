@@ -14,6 +14,7 @@ export function DependenciesSheet({
   documentName,
   lifecyclePermissions,
   stage,
+  isExternalElaborationLocked = false,
   showTrigger = true,
 }: DependenciesSheetProps) {
   const { t } = useTranslation('dependencies')
@@ -27,8 +28,8 @@ export function DependenciesSheet({
     lifecyclePermissions?.edit
   );
 
-  // Can add/remove dependencies: only create or edit, and only in edit stage
-  const canEdit = !!(lifecyclePermissions?.create || lifecyclePermissions?.edit) && stage === 'edit';
+  // Can add/remove dependencies: only create or edit, only in edit stage, y no mientras el sistema externo está elaborando
+  const canEdit = !!(lifecyclePermissions?.create || lifecyclePermissions?.edit) && stage === 'edit' && !isExternalElaborationLocked;
 
   if (!canAccess) return null;
 
