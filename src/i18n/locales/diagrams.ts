@@ -19,7 +19,7 @@ const translations = {
   },
   actions: {
     browseDiagrams: { en: "Diagrams", es: "Diagramas" },
-    view: { en: "Open", es: "Abrir" },
+    recentDiagrams: { en: "Recent", es: "Recientes" },
     deleteDiagram: { en: "Delete Diagram", es: "Eliminar Diagrama" },
     clearFilters: { en: "Clear Filters", es: "Limpiar Filtros" },
   },

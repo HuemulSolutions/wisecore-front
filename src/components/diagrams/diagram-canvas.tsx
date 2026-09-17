@@ -13,13 +13,15 @@ export interface DiagramCanvasProps {
   diagramId: string
   readOnly?: boolean
   className?: string
+  /** Fired after "Clear canvas" — lets the caller (e.g. the /diagrams page) sync the URL. */
+  onCanvasCleared?: () => void
 }
 
 // Loads a saved Diagram and mounts it on RelationshipsCanvas — shared between the
 // diagram viewer sheet (readOnly) and the assets page relations mode (editable).
 // Relies on react-query's cache: the sheet fetches the same diagram (by the same
 // key) for its title/loading UI, so this doesn't cost a second network request.
-export function DiagramCanvas({ organizationId, diagramId, readOnly = false, className }: DiagramCanvasProps) {
+export function DiagramCanvas({ organizationId, diagramId, readOnly = false, className, onCanvasCleared }: DiagramCanvasProps) {
   const { t } = useTranslation(["diagrams", "document-type-relationships"])
 
   const { data: diagram, isLoading: isLoadingDiagram, error: diagramError } = useDiagram(organizationId, diagramId)
@@ -54,6 +56,7 @@ export function DiagramCanvas({ organizationId, diagramId, readOnly = false, cla
         initialNodes={graph.nodes}
         initialRelationships={graph.relationships}
         initialElements={graph.elements}
+        onCanvasCleared={onCanvasCleared}
         editingDiagram={{
           id: diagram.id,
           name: diagram.name,

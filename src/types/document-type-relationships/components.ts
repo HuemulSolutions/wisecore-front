@@ -172,6 +172,9 @@ export interface RelationshipsCanvasProps {
   // resulting Diagram — lets the caller (e.g. NewDiagramCanvas) sync its own state/URL
   // now that the canvas has been promoted into "editing" mode for it.
   onDiagramSaved?: (diagram: Diagram) => void
+  // Fired after "Clear canvas" wipes nodes/edges — lets the caller (e.g. the /diagrams
+  // page) drop the `?diagram=` URL param so it doesn't point at content no longer shown.
+  onCanvasCleared?: () => void
   // View-only mode: no dragging, connecting, resizing, inline editing, or toolbars —
   // just pan/zoom and the informational side panels. Used by the diagram viewer sheet;
   // real editing happens back on the assets page in relations mode.
@@ -196,8 +199,6 @@ export interface CanvasActionsBarProps {
   diagramName?: string
   isDirty: boolean
   isSaving: boolean
-  /** El canvas no tiene nodos: promueve "Cargar diagrama" a botón visible. */
-  isEmpty?: boolean
   /** Canvas angosto: labels → iconos + tooltip. */
   compact?: boolean
   /** Canvas muy angosto: toda la barra colapsa a un único menú "⋯". */
@@ -207,7 +208,6 @@ export interface CanvasActionsBarProps {
   onSaveChanges?: () => void
   onSaveAsNew?: () => void
   onEditMetadata?: () => void
-  onLoadDiagram?: () => void
   onClearCanvas?: () => void
 }
 
