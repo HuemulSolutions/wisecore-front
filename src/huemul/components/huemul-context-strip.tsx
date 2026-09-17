@@ -11,12 +11,12 @@ export type { HuemulContextStripProps, HuemulContextStripBlock } from "@/types/h
  */
 export function HuemulContextStrip({ blocks, className }: HuemulContextStripProps) {
   return (
-    <div className={cn("flex shrink-0 items-center gap-4 bg-[#fcfdfe] px-[22px] py-2.5", className)}>
+    <div className={cn("flex shrink-0 items-center gap-4 bg-[#f7f9fc] px-[22px] py-2.5", className)}>
       {blocks.map((block, index) => (
         <div key={block.key} className={cn("flex items-center gap-4", block.grow && "flex-1 justify-end")}>
-          {index > 0 && <span className="h-[34px] w-px shrink-0 bg-[#e8ecf2]" aria-hidden="true" />}
+          {index > 0 && <span className="h-[34px] w-px shrink-0 bg-[#dde3ec]" aria-hidden="true" />}
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#94a3b8]">{block.label}</p>
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[#94a3b8]">{block.label}</p>
             <div className="mt-1">{block.content}</div>
           </div>
         </div>

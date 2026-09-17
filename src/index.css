@@ -128,6 +128,7 @@
   --z-editor-selection: 10;        /* rectángulo de selección de bloques por arrastre */
   --z-editor-menu: 50;             /* menús invocados por el usuario: slash, emoji, selects */
   --z-launcher-scrim: 49;          /* velo de contexto bajo el panel del lanzador de workflows */
+  --z-feed-sticky: 10;             /* cabecera de grupo sticky dentro de un feed scrolleable */
 }
 
 .dark {

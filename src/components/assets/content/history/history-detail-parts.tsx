@@ -29,7 +29,7 @@ export function HistoryDetailHeader({
   authorName: string | null;
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-[#e8ecf2] px-5 py-2.5">
+    <div className="flex shrink-0 items-center gap-2 border-b border-[#dde3ec] bg-[#f7f9fc] px-5 py-2.5">
       <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium leading-5", TONE_PILL_CLASS[tone])}>
         {label}
       </span>

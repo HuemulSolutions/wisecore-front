@@ -57,13 +57,16 @@ export function HistoryLifecycleRow({
     : null;
 
   return (
-    <div className={cn("border-b border-[#eef1f6]", expanded && "relative bg-[#eff5ff]")}>
+    <div className={cn("border-b border-[#e8ecf2]", expanded && "relative bg-[#eff5ff]")}>
       {expanded && <span className="absolute inset-y-0 left-0 w-[3px] bg-[#2563eb]" aria-hidden="true" />}
 
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center gap-2.5 px-[22px] py-[13px] text-left hover:cursor-pointer"
+        className={cn(
+          "group flex w-full items-center gap-2.5 px-[22px] py-[13px] text-left hover:cursor-pointer",
+          !expanded && "hover:bg-[#f8fafc]",
+        )}
         aria-expanded={expanded}
         title={expanded ? t("common:collapseRow") : t("common:expandRow")}
       >
@@ -72,12 +75,17 @@ export function HistoryLifecycleRow({
         </span>
 
         <span className="min-w-0 flex-1 truncate text-[13.5px]">
-          <span className="font-medium text-[#1e293b]">{entry.typeLabel}</span>
+          <span className="font-medium text-[#0f172a]">{entry.typeLabel}</span>
           {context && <span className="font-normal text-[#64748b]"> · {context}</span>}
         </span>
 
         <span className="shrink-0 text-[12px] text-[#64748b]">{formatHistoryDateTime(entry.createdAt)}</span>
-        <ChevronDown className={cn("size-3.5 shrink-0 text-[#cbd5e1] transition-transform", expanded && "rotate-180")} />
+        <ChevronDown
+          className={cn(
+            "size-3.5 shrink-0 text-[#94a3b8] transition-transform group-hover:text-[#64748b]",
+            expanded && "rotate-180 text-[#2563eb]",
+          )}
+        />
       </button>
 
       {expanded && (

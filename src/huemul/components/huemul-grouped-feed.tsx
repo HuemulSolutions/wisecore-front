@@ -27,7 +27,7 @@ export function HuemulGroupedFeed({
     return (
       <div className={cn("flex h-full min-h-0 w-full min-w-0 flex-col", className)}>
         {contextStrip}
-        <div className="flex min-h-0 flex-1 flex-col border-t border-[#e8ecf2]">{errorState}</div>
+        <div className="flex min-h-0 flex-1 flex-col border-t border-[#dde3ec]">{errorState}</div>
       </div>
     )
   }
@@ -39,13 +39,13 @@ export function HuemulGroupedFeed({
     <div className={cn("flex h-full min-h-0 w-full min-w-0 flex-col", className)}>
       {contextStrip}
 
-      <div className="min-h-0 flex-1 overflow-y-auto border-t border-[#e8ecf2]">
+      <div className="min-h-0 flex-1 overflow-y-auto border-t border-[#dde3ec]">
         {state === "loading" && <RowsSkeleton count={skeletonRows} />}
         {state === "empty" && <div className="px-[22px] py-6">{emptyState}</div>}
         {state !== "loading" && state !== "empty" &&
           groups.map((group) => (
             <div key={group.key}>
-              <p className="border-y border-[#eef1f6] bg-[#fcfdfe] px-[22px] py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#94a3b8]">
+              <p className="sticky -top-px z-(--z-feed-sticky) border-y border-[#dde3ec] bg-[#eef2f7] px-[22px] py-[7px] text-[11px] font-semibold uppercase tracking-[0.08em] text-[#64748b]">
                 {group.label}
               </p>
               {group.rows}
@@ -54,7 +54,7 @@ export function HuemulGroupedFeed({
       </div>
 
       {footer && (
-        <div className="shrink-0 border-t border-[#e8ecf2] px-[22px] py-2.5">{footer}</div>
+        <div className="shrink-0 border-t border-[#dde3ec] bg-[#f7f9fc] px-[22px] py-2.5">{footer}</div>
       )}
     </div>
   )

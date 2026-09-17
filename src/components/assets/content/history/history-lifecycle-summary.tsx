@@ -33,20 +33,20 @@ export function HistoryLifecycleSummary({
           key: "state",
           label: t("assetHistory.summaryCurrentState"),
           content: isLifecycleState(currentState) ? (
-            <HuemulLifecycleBadge state={currentState} />
+            <HuemulLifecycleBadge state={currentState} variant="solid" />
           ) : (
-            <span className="text-[12.5px] text-[#475569]">{currentState ?? "—"}</span>
+            <span className="text-[13px] font-semibold text-[#0f172a]">{currentState ?? "—"}</span>
           ),
         },
         {
           key: "stage",
           label: t("assetHistory.summaryStage"),
-          content: <span className="text-[12.5px] text-[#475569]">{raw.step_name ?? "—"}</span>,
+          content: <span className="text-[13px] font-semibold text-[#0f172a]">{raw.step_name ?? "—"}</span>,
         },
         {
           key: "since",
           label: t("assetHistory.summarySince"),
-          content: <span className="text-[12.5px] text-[#475569]">{formatHistoryDateTime(latestEvent.createdAt)}</span>,
+          content: <span className="text-[13px] font-semibold text-[#0f172a]">{formatHistoryDateTime(latestEvent.createdAt)}</span>,
         },
         ...(executions.length > 1
           ? [

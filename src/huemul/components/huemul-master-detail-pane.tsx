@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
 import { HuemulTruncatedText } from "@/huemul/components/huemul-truncated-text"
 import { HuemulInitialsAvatar } from "@/huemul/components/huemul-initials-avatar"
+import { HuemulLoadMoreFooter } from "@/huemul/components/huemul-load-more-footer"
 import type { HuemulMasterDetailPaneProps, HuemulMasterDetailRow } from "@/types/huemul"
 export type { HuemulMasterDetailPaneProps, HuemulMasterDetailRow, HuemulMasterDetailState } from "@/types/huemul"
 
@@ -40,9 +41,9 @@ export function HuemulMasterDetailPane({
   return (
     // `w-full`: mismo fix que `HuemulGroupedFeed` — hijo único de `TabsContent`
     // cuando el tab está activo, sin ancho explícito se encoge a su contenido.
-    <div className={cn("flex h-full min-h-0 w-full min-w-0 border-t border-[#e8ecf2]", className)}>
-      <aside className={cn("flex shrink-0 flex-col border-r border-[#e8ecf2] bg-white", listWidthClassName)}>
-        <div className="flex flex-col gap-2 border-b border-[#e8ecf2] px-3 py-2.5">
+    <div className={cn("flex h-full min-h-0 w-full min-w-0 border-t border-[#dde3ec]", className)}>
+      <aside className={cn("flex shrink-0 flex-col border-r border-[#dde3ec] bg-white", listWidthClassName)}>
+        <div className="flex flex-col gap-2 border-b border-[#dde3ec] bg-[#f7f9fc] px-3 py-2.5">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[#64748b]">{listLabel}</p>
           {listFilter}
         </div>
@@ -57,19 +58,12 @@ export function HuemulMasterDetailPane({
         </div>
 
         {(listCountLabel || loadMore) && (
-          <div className="flex items-center justify-between gap-2 border-t border-[#e8ecf2] px-3 py-2">
-            {listCountLabel && <span className="text-[11px] text-[#64748b]">{listCountLabel}</span>}
-            {loadMore && (
-              <button
-                type="button"
-                onClick={loadMore.onClick}
-                disabled={loadMore.loading}
-                className="text-[11px] font-medium text-[#2563eb] hover:cursor-pointer hover:text-[#1d4ed8] disabled:cursor-default disabled:opacity-50"
-              >
-                {loadMore.loading ? "…" : loadMore.label}
-              </button>
-            )}
-          </div>
+          <HuemulLoadMoreFooter
+            countLabel={listCountLabel ?? ""}
+            loadMoreLabel={loadMore?.label ?? ""}
+            onLoadMore={loadMore?.onClick}
+            isLoading={loadMore?.loading}
+          />
         )}
       </aside>
 
@@ -101,7 +95,7 @@ function RowItem({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full gap-2 border-l-[3px] px-3 py-2.5 text-left transition-colors hover:cursor-pointer",
+        "flex w-full gap-2 border-b border-l-[3px] border-b-[#e8ecf2] px-3 py-2.5 text-left transition-colors hover:cursor-pointer",
         isSelected ? "border-l-[#2563eb] bg-[#eff5ff]" : "border-l-transparent hover:bg-[#f8fafc]",
       )}
     >

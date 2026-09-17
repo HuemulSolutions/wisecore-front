@@ -20,7 +20,7 @@ export interface HuemulLoadMoreFooterProps {
  */
 export function HuemulLoadMoreFooter({ countLabel, loadMoreLabel, onLoadMore, isLoading, className }: HuemulLoadMoreFooterProps) {
   return (
-    <div className={cn("sticky bottom-0 flex w-full items-center justify-between gap-2 border-t border-[#e8ecf2] bg-white px-[22px] py-2.5", className)}>
+    <div className={cn("sticky bottom-0 flex w-full items-center justify-between gap-2 border-t border-[#dde3ec] bg-[#f7f9fc] px-[22px] py-2.5", className)}>
       <span className="text-[12.5px] text-[#64748b]">{countLabel}</span>
       {onLoadMore && (
         <button
