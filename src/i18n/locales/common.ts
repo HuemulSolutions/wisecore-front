@@ -119,6 +119,7 @@ const translations = {
     justNow: { en: "Just now", es: "Ahora mismo" },
     minutesAgo: { en: "{{count}}m ago", es: "hace {{count}}m" },
     hoursAgo: { en: "{{count}}h ago", es: "hace {{count}}h" },
+    today: { en: "Today", es: "Hoy" },
     yesterday: { en: "Yesterday", es: "Ayer" },
   },
 }

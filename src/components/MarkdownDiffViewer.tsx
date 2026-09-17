@@ -1041,11 +1041,11 @@ const RenderedView: FC<RenderedViewProps> = ({
 
 /* ─── Componente principal ──────────────────────────────────────── */
 
-const MODES: ModeOption[] = [
-  { id: "split", label: "Dividido" },
-  { id: "unified", label: "Unificado" },
-  { id: "rendered", label: "Renderizado" },
-];
+const DEFAULT_MODE_LABELS: Record<ViewMode, string> = {
+  split: "Dividido",
+  unified: "Unificado",
+  rendered: "Renderizado",
+};
 
 const MarkdownDiffViewer: FC<MarkdownDiffViewerProps> = ({
   oldContent = "",
@@ -1056,9 +1056,17 @@ const MarkdownDiffViewer: FC<MarkdownDiffViewerProps> = ({
   showModeToggle = true,
   showRenderedDiffPanel = true,
   showRenderedSubToggle = true,
+  modes,
+  labels,
   className = "",
 }) => {
   const [mode, setMode] = useState<ViewMode>(defaultMode);
+
+  // Restringe el toggle a los modos pedidos por el caller — default: los tres.
+  const availableModes: ModeOption[] = (modes ?? ["split", "unified", "rendered"]).map((id) => ({
+    id,
+    label: labels?.[id] ?? DEFAULT_MODE_LABELS[id],
+  }));
 
   const diff = useMemo(
     () => computeDiff(oldContent, newContent),
@@ -1082,20 +1090,20 @@ const MarkdownDiffViewer: FC<MarkdownDiffViewerProps> = ({
       {/* Header - GitHub file header style */}
       <div className="flex flex-wrap items-center gap-3 px-3 py-2 mb-3 bg-[#f6f8fa] border border-gray-200 dark:border-gray-700 rounded-md">
         <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
-          Diferencias de versiones
+          {labels?.title ?? "Diferencias de versiones"}
         </span>
 
       {/* Stats - GitHub style */}
         <div className="flex items-center gap-1.5 text-xs">
           <span className="font-mono font-semibold text-[#1a7f37]">+{stats.added}</span>
           <span className="font-mono font-semibold text-[#82071e]">-{stats.removed}</span>
-          <span className="text-gray-400">{stats.unchanged} sin cambios</span>
+          <span className="text-gray-400">{stats.unchanged} {labels?.unchanged ?? "sin cambios"}</span>
         </div>
 
         {/* Toggle principal — se oculta con showModeToggle={false} */}
         {showModeToggle && (
           <div className="ml-auto flex border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden text-xs">
-            {MODES.map(({ id, label }) => (
+            {availableModes.map(({ id, label }) => (
               <button
                 key={id}
                 onClick={() => setMode(id)}

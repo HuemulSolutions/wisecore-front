@@ -26,6 +26,7 @@ export type { HuemulSheetAction, HuemulSheetIconVariant, HuemulSheetProps, Huemu
 const SHEET_SIZE_CLASSES: Record<HuemulSheetSize, string> = {
   sm: "sm:max-w-sm",
   md: "sm:max-w-md",
+  narrow: "w-full sm:w-[520px] sm:max-w-none",
   lg: "sm:max-w-2xl",
   xl: "sm:max-w-4xl",
   "2xl": "sm:max-w-5xl",

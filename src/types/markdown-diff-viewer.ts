@@ -94,6 +94,17 @@ export interface SingleRow {
 
 export type GroupedTableRow = PairedRow | SingleRow;
 
+/** Textos del header y el toggle. Todos opcionales; sin overrides quedan los strings en español actuales. */
+export interface MarkdownDiffViewerLabels {
+  /** "Diferencias de versiones" */
+  title?: string;
+  /** Sufijo tras el conteo: "{count} " + unchanged, ej. "sin cambios". */
+  unchanged?: string;
+  split?: string;
+  unified?: string;
+  rendered?: string;
+}
+
 export interface MarkdownDiffViewerProps {
   oldContent?: string;
   newContent?: string;
@@ -103,6 +114,10 @@ export interface MarkdownDiffViewerProps {
   defaultMode?: ViewMode;
   /** Muestra u oculta el selector de modo principal. Default: true */
   showModeToggle?: boolean;
+  /** Modos ofrecidos por el toggle principal. Default: los tres (split/unified/rendered). */
+  modes?: ViewMode[];
+  /** Overrides de texto del header y el toggle. Default: los strings en español actuales. */
+  labels?: MarkdownDiffViewerLabels;
   /**
    * En la vista Renderizada, muestra u oculta el panel superior de "Cambios renderizados".
    * - true  → se muestra el panel con el diff marcado.

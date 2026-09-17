@@ -1,6 +1,7 @@
 import type { LifecycleAccessType, LifecycleInheritedRole, LifecycleStep } from "@/types/lifecycle"
 import type { LifecyclePermissions, LifecycleStatus } from "@/types/assets"
 import type { FinalLifecycleStage } from "@/types/document-types"
+import type { ExecutionLifecycleState } from "@/types/execution"
 
 /**
  * Fuente única de verdad del pipeline del ciclo de vida y de la semántica de
@@ -217,6 +218,29 @@ export function milestoneForStage(stage: string): string {
   if (stage === "publish") return "approved"
   if (stage === "archive") return "published"
   return stage
+}
+
+// ─── Estados de ejecución (badges) ───────────────────────────────────────────
+
+/**
+ * Los siete estados de `ExecutionLifecycleState`, en el orden en que los
+ * recorre el pipeline. Antes duplicado en `timeline-shared.tsx` (historiales
+ * de sección/ciclo de vida/cambios) y redeclarado localmente en
+ * `assets-info-sheet.tsx` y `assets-version-management-sheet.tsx` — esos dos
+ * no importan de acá, quedan como deuda si se quiere unificar del todo.
+ */
+export const LIFECYCLE_STATES: ExecutionLifecycleState[] = [
+  "draft",
+  "in_review",
+  "in_approval",
+  "approved",
+  "published",
+  "archived",
+  "finalized",
+]
+
+export function isLifecycleState(state: string | null | undefined): state is ExecutionLifecycleState {
+  return !!state && (LIFECYCLE_STATES as string[]).includes(state)
 }
 
 // ─── Estados terminales ──────────────────────────────────────────────────────
