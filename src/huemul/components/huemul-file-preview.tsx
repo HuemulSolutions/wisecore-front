@@ -5,7 +5,9 @@ import { MediaIcon, isImage, EXTENSION_MIME } from "@/huemul/components/huemul-m
 
 // Deriva nombre y extensión desde la URL cuando no se conocen por props (valor ya
 // persistido: el backend solo resuelve la URL firmada, sin metadatos del archivo).
-function inferFromUrl(url: string): { name: string; extension: string } {
+// Exportada para media-ref-render.ts (renderiza referencias a archivos dentro del
+// diff del historial de sección, mismo criterio imagen-vs-archivo que acá).
+export function inferFromUrl(url: string): { name: string; extension: string } {
   try {
     const path = new URL(url).pathname;
     const last = decodeURIComponent(path.split("/").pop() ?? "");

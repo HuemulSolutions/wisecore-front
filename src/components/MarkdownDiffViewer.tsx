@@ -483,7 +483,7 @@ function buildRenderedDiffHtml(diff: DiffEntry[]): string {
         const inner = lineToHtml(entry.val);
         if (!inner) continue;
         parts.push(
-          `<div style='background:rgba(220,38,38,0.08);border-left:3px solid #ef4444;padding-left:6px;margin:2px 0;'>` +
+          `<div class='mdv-del' style='background:rgba(220,38,38,0.08);border-left:3px solid #ef4444;padding-left:6px;margin:2px 0;'>` +
             `<span style='text-decoration:line-through;color:#991b1b;opacity:0.85;'>${inner}</span></div>`
         );
         continue;
@@ -494,13 +494,13 @@ function buildRenderedDiffHtml(diff: DiffEntry[]): string {
       if (pairedDelBi !== undefined) {
         const wordHtml = renderWordDiffUnified(textBuffer[pairedDelBi].val, entry.val);
         parts.push(
-          `<div style='background:rgba(250,204,21,0.06);border-left:3px solid #eab308;padding-left:6px;margin:2px 0;'>${wordHtml}</div>`
+          `<div class='mdv-chg' style='background:rgba(250,204,21,0.06);border-left:3px solid #eab308;padding-left:6px;margin:2px 0;'>${wordHtml}</div>`
         );
       } else {
         const inner = lineToHtml(entry.val);
         if (!inner) continue;
         parts.push(
-          `<div style='background:rgba(34,197,94,0.1);border-left:3px solid #22c55e;padding-left:6px;margin:2px 0;'>` +
+          `<div class='mdv-ins' style='background:rgba(34,197,94,0.1);border-left:3px solid #22c55e;padding-left:6px;margin:2px 0;'>` +
             `<span style='color:#166534;'>${inner}</span></div>`
         );
       }
@@ -627,7 +627,7 @@ function buildSideDiffHtml(diff: DiffEntry[], side: "old" | "new"): string {
         const inner = lineToHtml(entry.val);
         if (!inner) continue;
         parts.push(
-          `<div style='background:rgba(220,38,38,0.08);border-left:3px solid #ef4444;padding-left:6px;margin:2px 0;'>` +
+          `<div class='mdv-del' style='background:rgba(220,38,38,0.08);border-left:3px solid #ef4444;padding-left:6px;margin:2px 0;'>` +
             `<span style='text-decoration:line-through;color:#991b1b;opacity:0.85;'>${inner}</span></div>`
         );
         continue;
@@ -640,14 +640,14 @@ function buildSideDiffHtml(diff: DiffEntry[], side: "old" | "new"): string {
         const borderColor = side === "old" ? "#ef4444" : "#22c55e";
         const bgColor = side === "old" ? "rgba(220,38,38,0.04)" : "rgba(34,197,94,0.04)";
         parts.push(
-          `<div style='background:${bgColor};border-left:3px solid ${borderColor};padding-left:6px;margin:2px 0;'>${wordHtml}</div>`
+          `<div class='${side === "old" ? "mdv-del" : "mdv-ins"}' style='background:${bgColor};border-left:3px solid ${borderColor};padding-left:6px;margin:2px 0;'>${wordHtml}</div>`
         );
       } else {
         if (side !== "new") continue;
         const inner = lineToHtml(entry.val);
         if (!inner) continue;
         parts.push(
-          `<div style='background:rgba(34,197,94,0.1);border-left:3px solid #22c55e;padding-left:6px;margin:2px 0;'>` +
+          `<div class='mdv-ins' style='background:rgba(34,197,94,0.1);border-left:3px solid #22c55e;padding-left:6px;margin:2px 0;'>` +
             `<span style='color:#166534;'>${inner}</span></div>`
         );
       }
@@ -941,6 +941,13 @@ const DiffLegend: FC<{ oldLabel: string; newLabel: string }> = ({ oldLabel, newL
   </div>
 );
 
+// Clases del contenedor que dan señal de agregado/eliminado a una miniatura
+// insertada por transformHtml — el tinte de fondo de mdv-ins/mdv-del no se ve
+// detrás de una imagen opaca, así que se marca directamente sobre el <img>.
+const MEDIA_DIFF_MARK_CLASSES =
+  "[&_.mdv-ins_img]:ring-2 [&_.mdv-ins_img]:ring-green-500 " +
+  "[&_.mdv-del_img]:ring-2 [&_.mdv-del_img]:ring-red-400 [&_.mdv-del_img]:opacity-60";
+
 /** Panel de diff renderizado (usado tanto en el panel principal como en el sub-modo unificado) */
 const RenderedDiffPanel: FC<RenderedDiffPanelProps> = ({ diffHtml, title, oldLabel, newLabel }) => (
   <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
@@ -949,7 +956,7 @@ const RenderedDiffPanel: FC<RenderedDiffPanelProps> = ({ diffHtml, title, oldLab
       <DiffLegend oldLabel={oldLabel} newLabel={newLabel} />
     </div>
     <div
-      className="p-4 text-gray-800 dark:text-gray-200"
+      className={`p-4 text-gray-800 dark:text-gray-200 ${MEDIA_DIFF_MARK_CLASSES}`}
       dangerouslySetInnerHTML={{ __html: diffHtml }}
     />
   </div>
@@ -963,9 +970,25 @@ const RenderedView: FC<RenderedViewProps> = ({
   newContent,
   showRenderedDiffPanel,
   showRenderedSubToggle,
+  transformHtml,
+  copyOldContent,
+  copyNewContent,
 }) => {
   const [subMode, setSubMode] = useState<RenderedSubMode>("split");
-  const diffHtml = useMemo(() => buildRenderedDiffHtml(diff), [diff]);
+  const diffHtml = useMemo(() => {
+    const html = buildRenderedDiffHtml(diff);
+    return transformHtml ? transformHtml(html) : html;
+  }, [diff, transformHtml]);
+  // Memoizado (antes se llamaba inline en cada render): evita recalcular el
+  // diff O(n·m) de cada lado en cada re-render, y aplica transformHtml una
+  // sola vez por HTML generado (ver media-ref-render.ts).
+  const sideHtml = useMemo(() => {
+    const build = (side: "old" | "new") => {
+      const html = buildSideDiffHtml(diff, side);
+      return transformHtml ? transformHtml(html) : html;
+    };
+    return { old: build("old"), new: build("new") };
+  }, [diff, transformHtml]);
 
 
   return (
@@ -1000,8 +1023,11 @@ const RenderedView: FC<RenderedViewProps> = ({
               {(["old", "new"] as const).map((side) => {
                 const label = side === "old" ? oldLabel : newLabel;
                 const dot   = side === "old" ? "bg-red-400" : "bg-green-500";
-                const html  = buildSideDiffHtml(diff, side);
-                const content = side === "old" ? oldContent : newContent;
+                const html  = sideHtml[side];
+                // copyOldContent/copyNewContent: cuando el caller normalizó oldContent/
+                // newContent con sentinelas (ver useMediaRefDiff), copiar debe devolver
+                // el texto original, no la sentinela.
+                const content = side === "old" ? (copyOldContent ?? oldContent) : (copyNewContent ?? newContent);
                 return (
                   <div
                     key={side}
@@ -1015,7 +1041,7 @@ const RenderedView: FC<RenderedViewProps> = ({
                       <CopyButton content={content} />
                     </div>
                     <div
-                      className="p-4 text-gray-800 dark:text-gray-200"
+                      className={`p-4 text-gray-800 dark:text-gray-200 ${MEDIA_DIFF_MARK_CLASSES}`}
                       dangerouslySetInnerHTML={{ __html: html }}
                     />
                   </div>
@@ -1058,6 +1084,9 @@ const MarkdownDiffViewer: FC<MarkdownDiffViewerProps> = ({
   showRenderedSubToggle = true,
   modes,
   labels,
+  transformHtml,
+  copyOldContent,
+  copyNewContent,
   className = "",
 }) => {
   const [mode, setMode] = useState<ViewMode>(defaultMode);
@@ -1136,6 +1165,9 @@ const MarkdownDiffViewer: FC<MarkdownDiffViewerProps> = ({
           newLabel={newLabel}
           showRenderedDiffPanel={showRenderedDiffPanel}
           showRenderedSubToggle={showRenderedSubToggle}
+          transformHtml={transformHtml}
+          copyOldContent={copyOldContent}
+          copyNewContent={copyNewContent}
         />
       )}
     </div>

@@ -72,6 +72,10 @@ export interface RenderedViewProps extends SharedViewProps {
   newContent: string;
   showRenderedDiffPanel: boolean;
   showRenderedSubToggle: boolean;
+  /** Post-processes the rendered HTML right before it's injected. See MarkdownDiffViewerProps. */
+  transformHtml?: (html: string) => string;
+  copyOldContent?: string;
+  copyNewContent?: string;
 }
 
 export interface RenderedDiffPanelProps {
@@ -133,5 +137,22 @@ export interface MarkdownDiffViewerProps {
    * Default: true
    */
   showRenderedSubToggle?: boolean;
+  /**
+   * Post-processes the HTML of the "rendered" mode right before it's injected
+   * (both the top diff panel and the split/unified sub-modes). Used to swap
+   * sentinels left in oldContent/newContent for real markup — e.g. media
+   * references resolved by `useMediaRefDiff` — without the diff engine itself
+   * knowing about them. Must be stable (useMemo/useCallback): its identity is a
+   * dependency of the internal HTML memos. Only affects "rendered"; the plain
+   * "split"/"unified" text modes render oldContent/newContent as-is.
+   */
+  transformHtml?: (html: string) => string;
+  /**
+   * Text the copy buttons copy, when it must differ from oldContent/newContent
+   * (e.g. those were normalized with sentinels for transformHtml). Defaults to
+   * oldContent/newContent.
+   */
+  copyOldContent?: string;
+  copyNewContent?: string;
   className?: string;
 }

@@ -3,6 +3,7 @@ import { Copy, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import MarkdownDiffViewer from "@/components/MarkdownDiffViewer";
 import { HistoryDetailBlock } from "./history-detail-parts";
+import { useMediaRefDiff } from "@/hooks/useMediaRefDiff";
 import type { HistoryEntryVM } from "@/types/assets";
 import type { SectionHistoryEntry } from "@/types/section-execution";
 
@@ -11,6 +12,14 @@ export function HistorySectionDetail({ entry }: { entry: HistoryEntryVM<SectionH
   const { t } = useTranslation("assets");
   const [copied, setCopied] = useState(false);
   const { raw } = entry;
+
+  // El backend no resuelve {{MEDIA:<uuid>}}/URLs de blob dentro de previous_text/
+  // new_text (a diferencia de /documents/{id}/content) — ver
+  // respuestas/backend-media-historial-seccion.md. Se normalizan a sentinelas antes
+  // del diff y se renderizan como miniatura/tarjeta después, resueltas con el mismo
+  // mapa de media del documento (MediaUrlContext) que usa el resto de la sección.
+  const previousText = raw.previous_text ?? "";
+  const { oldContent, newContent, transformHtml } = useMediaRefDiff(previousText, raw.new_text);
 
   const handleCopy = () => {
     if (!raw.user_instruction) return;
@@ -40,8 +49,11 @@ export function HistorySectionDetail({ entry }: { entry: HistoryEntryVM<SectionH
 
       <div className="p-4">
         <MarkdownDiffViewer
-          oldContent={raw.previous_text ?? ""}
-          newContent={raw.new_text}
+          oldContent={oldContent}
+          newContent={newContent}
+          copyOldContent={previousText}
+          copyNewContent={raw.new_text}
+          transformHtml={transformHtml}
           oldLabel={t("history.diffPreviousLabel")}
           newLabel={t("history.diffNewLabel")}
           defaultMode="rendered"
