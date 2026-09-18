@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import i18next from "i18next"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -19,6 +20,14 @@ export function normalizeForSearch(value: string): string {
  */
 export function getUserLocale(): string {
   return navigator.language || navigator.languages?.[0] || 'en-US';
+}
+
+/**
+ * Format a number with locale-appropriate thousands/decimal separators.
+ */
+export function formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
+  const locale = i18next.language || getUserLocale();
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 20, ...options }).format(value);
 }
 
 /**

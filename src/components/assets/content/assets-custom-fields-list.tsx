@@ -18,7 +18,7 @@ import { CustomFieldFilesCell } from "@/components/custom-fields/custom-field-fi
 import type { CustomFieldsListProps } from '@/types/assets';
 export type { CustomFieldsListProps } from '@/types/assets';
 import { useTranslation } from "react-i18next";
-import { cn } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
 import { HuemulPanelEmptyState } from "@/huemul/components/huemul-panel-empty-state";
 import { MULTI_SELECT_QUESTION_TYPES, QUESTION_TYPE } from "@/components/sections/question-type-meta";
 
@@ -171,9 +171,10 @@ export function CustomFieldsList({
         const labels = getListLabels(field)
         return labels.length > 0 ? labels.join(', ') : 'customFieldsList.empty'
       }
-      case 'number':
+      case 'int':
+      case 'decimal':
         if (field.value_number !== null && field.value_number !== undefined) {
-          return field.value_number.toString();
+          return formatNumber(field.value_number);
         }
         return String(field.value);
       case 'bool':

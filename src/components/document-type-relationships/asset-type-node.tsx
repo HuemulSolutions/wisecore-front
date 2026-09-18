@@ -3,7 +3,7 @@
 import { memo, useState } from "react"
 import { Handle, Position, type NodeProps, type Node, ConnectionMode } from "@xyflow/react"
 export { ConnectionMode }
-import { Loader2, Network, Trash2, AlertCircle } from "lucide-react"
+import { Loader2, Network, Trash2, AlertCircle, Workflow } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import {
   ContextMenu,
@@ -23,6 +23,9 @@ export interface AssetTypeNodeData {
   color: string
   onLoadRelationships?: (documentTypeId: string) => Promise<void> | void
   onLoadRelationshipsCanvasOnly?: (documentTypeId: string) => Promise<void> | void
+  // Abre el overlay "diagramas de esta versión" (ver AssetDiagramsExplorer) — solo se
+  // setea cuando el usuario tiene permiso de listar diagramas (diagram:l/r).
+  onExploreDiagrams?: (id: string) => void
   onRemove?: (id: string) => void
   // View-only mode: hides the context menu. Connection handles stay mounted
   // (just invisible/inert) — ReactFlow needs their handleBounds to position
@@ -104,7 +107,7 @@ export function AssetTypeNode({ data, selected }: NodeProps<AssetTypeNodeType>) 
     </div>
   )
 
-  if (data.readOnly || (!data.onLoadRelationships && !data.onLoadRelationshipsCanvasOnly)) {
+  if (data.readOnly || (!data.onLoadRelationships && !data.onLoadRelationshipsCanvasOnly && !data.onExploreDiagrams)) {
     return nodeContent
   }
 
@@ -169,6 +172,20 @@ export function AssetTypeNode({ data, selected }: NodeProps<AssetTypeNodeType>) 
                   {t("nodePanel.loadRelationshipsCanvasOnlyDescription")}
                 </span>
               )}
+            </span>
+          </ContextMenuItem>
+        )}
+        {data.onExploreDiagrams && (
+          <ContextMenuItem
+            className="items-start hover:cursor-pointer"
+            onSelect={() => data.onExploreDiagrams?.(data.id)}
+          >
+            <Workflow className="mr-2 h-4 w-4 shrink-0 mt-0.5" />
+            <span className="flex flex-col gap-0.5">
+              <span className="font-medium">{t("node.exploreDiagrams")}</span>
+              <span className="text-[11px] leading-snug text-muted-foreground/80 font-normal whitespace-normal">
+                {t("node.exploreDiagramsDescription")}
+              </span>
             </span>
           </ContextMenuItem>
         )}

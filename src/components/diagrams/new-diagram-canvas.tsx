@@ -19,6 +19,8 @@ export interface NewDiagramCanvasProps {
   /** Fired after the first "Save as Diagram" (or a later save) — lets the caller
    * (e.g. the /diagrams page) sync the URL now that this diagram has an id. */
   onDiagramSaved?: (diagram: Diagram) => void
+  /** Fired after "Clear canvas" — lets the caller (e.g. the /diagrams page) sync the URL. */
+  onCanvasCleared?: () => void
 }
 
 // Fresh canvas for creating a Diagram from scratch (no editingDiagram → the
@@ -27,7 +29,7 @@ export interface NewDiagramCanvasProps {
 // `RelationshipsCanvas.onDiagramSaved`), so "Save changes" appears right away.
 // When opened from the asset diagrams sheet, seeds the canvas with the asset
 // the user came from so they land already relating it instead of an empty board.
-export function NewDiagramCanvas({ organizationId, seedAssetId, seedExecutionId, className, onDiagramSaved }: NewDiagramCanvasProps) {
+export function NewDiagramCanvas({ organizationId, seedAssetId, seedExecutionId, className, onDiagramSaved, onCanvasCleared }: NewDiagramCanvasProps) {
   const { data: docTypesResponse, isLoading: isLoadingDocTypes } = useDocumentTypes()
   const documentTypes = docTypesResponse?.data ?? []
 
@@ -72,6 +74,7 @@ export function NewDiagramCanvas({ organizationId, seedAssetId, seedExecutionId,
         mode="execution"
         initialNodes={seed ? [seed] : undefined}
         onDiagramSaved={onDiagramSaved}
+        onCanvasCleared={onCanvasCleared}
       />
     </div>
   )

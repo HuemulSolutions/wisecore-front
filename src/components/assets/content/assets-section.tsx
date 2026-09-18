@@ -10,7 +10,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import ExecutionConfigDialog, { type ExecutionConfig } from '@/components/execution/execution-config-dialog';
 import { DeleteSectionDialog } from '@/components/assets/dialogs/assets-delete-section-dialog';
 import { AiEditSectionDialog } from '@/components/assets/dialogs/assets-ai-edit-section-dialog';
-import { SectionHistorySheet } from '@/components/assets/content/section-history-sheet';
+import { AssetHistorySheet } from '@/components/assets/content/history/asset-history-sheet';
+import type { AssetHistoryTab } from '@/types/assets';
 import { isExecutionTerminal } from '@/lib/execution-status';
 import {
   DropdownMenu,
@@ -37,6 +38,10 @@ import { HuemulAnswersStatusBadge } from '@/huemul/components/huemul-answers-sta
 import { QUESTION_TYPE, formatFieldValueForCopy, isFieldAnswerable, isFieldVisible } from '@/components/sections/question-type-meta';
 import type { SectionExecutionProps } from '@/types/assets';
 export type { SectionExecutionProps } from '@/types/assets';
+
+// Constante a nivel de módulo (no array literal inline): una referencia
+// estable evita recrear el array de tabs en cada render del sheet de historial.
+const SECTION_HISTORY_TABS: AssetHistoryTab[] = ['section'];
 
 function SectionExecutionInner({ 
     sectionExecution, 
@@ -1009,6 +1014,7 @@ function SectionExecutionInner({
                         isSaving={isFormSaving}
                         onStartAnswering={() => setIsAnsweringInReader(true)}
                         onDoneAnswering={() => formSectionRef.current?.exit()}
+                        onOpenHistory={() => setIsHistorySheetOpen(true)}
                         open={!isCollapsed}
                         onOpenChange={(open) => setIsCollapsed(!open)}
                     >
@@ -1117,11 +1123,14 @@ function SectionExecutionInner({
         />
 
         {/* Change History Sheet */}
-        <SectionHistorySheet
+        <AssetHistorySheet
             open={isHistorySheetOpen}
             onOpenChange={setIsHistorySheetOpen}
+            organizationId={selectedOrganizationId ?? ''}
+            tabs={SECTION_HISTORY_TABS}
             sectionExecutionId={sectionExecution.id}
             sectionName={sectionName}
+            entityName={sectionName}
         />
 
         {/* AI Suggestion Diff Dialog */}

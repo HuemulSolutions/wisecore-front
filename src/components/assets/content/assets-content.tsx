@@ -35,10 +35,11 @@ import { AssetsNotificationsSheet } from "@/components/assets/content/assets-not
 import { AssetsDiscussionsSheet } from "@/components/assets/content/assets-discussions-sheet";
 import { DiscussionFocusProvider, useDiscussionFocus } from "@/contexts/discussion-focus-context";
 import { useDiscussions } from "@/hooks/useDiscussions";
-import { LifecycleHistorySheet } from "@/components/assets/content/lifecycle-history-sheet";
+import { AssetHistorySheet } from "@/components/assets/content/history/asset-history-sheet";
 import { AssetDiagramsSheet } from "@/components/assets/content/asset-diagrams-sheet";
 import { MediaListSheet } from "@/components/ui/media-list-sheet";
 import type { MediaScope, MediaScopeExecutionOption } from "@/types/media";
+import type { AssetHistoryTab } from "@/types/assets";
 import { AssetsDetailPanel } from "@/components/assets/content/detail-panel/assets-detail-panel";
 import { AssetsRelatedDocumentsBlock } from "@/components/assets/content/assets-related-documents-block";
 
@@ -161,9 +162,13 @@ function isSectionContentEmpty(section: ContentSection): boolean {
 
 
 
+// Constante a nivel de módulo (no array literal inline): una referencia
+// estable evita recrear el array de tabs en cada render del sheet de historial.
+const ASSET_HISTORY_TABS: AssetHistoryTab[] = ['lifecycle', 'changes'];
+
 /**
  * AssetContent Component
- * 
+ *
  * Main component for displaying and managing document/template content.
  * Handles content rendering, version management, executions, and user interactions.
  */
@@ -2503,9 +2508,10 @@ export function AssetContent({
                   documentName={documentContent?.document_name}
                   lifecyclePermissions={lifecyclePermissions}
                   stage={documentContent?.lifecycle_status?.stage}
+                  isExternalElaborationLocked={isAssetLockedByExternalElaboration}
                 />
               )}
-              
+
               {frontendPermissions.canAccessSectionSheet && (
                 <ContextSheet
                   selectedFile={selectedFile}
@@ -2517,6 +2523,7 @@ export function AssetContent({
                   isMobile={isMobile}
                   documentName={documentContent?.document_name}
                   lifecyclePermissions={lifecyclePermissions}
+                  isExternalElaborationLocked={isAssetLockedByExternalElaboration}
                   stage={documentContent?.lifecycle_status?.stage}
                 />
               )}
@@ -2954,6 +2961,7 @@ export function AssetContent({
                     documentName={documentContent?.document_name}
                     lifecyclePermissions={lifecyclePermissions}
                     stage={documentContent?.lifecycle_status?.stage}
+                    isExternalElaborationLocked={isAssetLockedByExternalElaboration}
                     showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
                   />
                 )}
@@ -2966,6 +2974,7 @@ export function AssetContent({
                     documentName={documentContent?.document_name}
                     lifecyclePermissions={lifecyclePermissions}
                     stage={documentContent?.lifecycle_status?.stage}
+                    isExternalElaborationLocked={isAssetLockedByExternalElaboration}
                     showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
                   />
                 )}
@@ -4012,14 +4021,16 @@ export function AssetContent({
         />
       )}
 
-      {/* Lifecycle History Sheet */}
-      <LifecycleHistorySheet
+      {/* Asset History Sheet */}
+      <AssetHistorySheet
         open={isLifecycleHistorySheetOpen}
         onOpenChange={setIsLifecycleHistorySheetOpen}
+        organizationId={selectedOrganizationId ?? ''}
+        tabs={ASSET_HISTORY_TABS}
         documentId={selectedFile?.id ?? ''}
         executionId={selectedExecutionId || documentContent?.execution_id || ''}
-        organizationId={selectedOrganizationId ?? ''}
         allExecutions={allExecutions ?? []}
+        entityName={documentContent?.document_name || selectedFile?.name}
       />
 
       {/* Related Diagrams Sheet */}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import {
   ReactFlow,
@@ -16,6 +16,7 @@ import {
   useViewport,
   ConnectionMode,
   MarkerType,
+  SelectionMode,
   type Node,
   type Edge,
   type NodeChange,
@@ -49,7 +50,6 @@ import { ExecutionRelationshipCreateDialog, ExecutionRelationshipEditDialog, Exe
 import { RelationshipDeleteDialog } from "./relationship-delete-dialog"
 import { RelationshipAttributesDialog } from "./relationship-attributes-dialog"
 import { SaveAsDiagramSheet } from "./save-as-diagram-sheet"
-import { LoadDiagramSheet } from "./load-diagram-sheet"
 import { RoleEdgeNameDialog } from "./role-edge-dialogs"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { RelationshipPanel } from "./relationship-panel"
@@ -62,6 +62,7 @@ import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { CreateAssetSheet } from "@/components/assets/dialogs"
 import { getDocumentById } from "@/services/assets"
 import { getExecutionsByDocumentId } from "@/services/executions"
+import { AssetDiagramsExplorer } from "@/components/diagrams/asset-diagrams-explorer"
 import type {
   DocumentTypeRelationship,
   InitialCanvasNode,
@@ -78,7 +79,6 @@ import type {
 import type { ExecutionRelationship, ExecutionRelationshipSubitem } from "@/types/execution-relationships"
 import type { Diagram, DiagramRelationshipEndpoint } from "@/types/diagrams"
 import {
-  buildInitialCanvasGraph,
   detailEndpointOf,
   DEFAULT_CANVAS_ELEMENT_COLOR,
   EXEC_EDGE_ID_PREFIX,
@@ -105,6 +105,14 @@ const NODE_TYPES = {
 const EDGE_TYPES = {
   relationship: MemoizedRelationshipEdge,
 }
+
+// Import diferido: `DiagramViewSheet` → `DiagramCanvas` → `RelationshipsCanvas` (este
+// mismo archivo) — un import estático cerraría un ciclo. `lazy` lo saca del grafo de
+// módulos síncrono; solo se descarga cuando el overlay de exploración realmente abre
+// un diagrama.
+const LazyDiagramViewSheet = lazy(() =>
+  import("@/components/diagrams/diagram-view-sheet").then((m) => ({ default: m.DiagramViewSheet })),
+)
 
 const EDGE_MARKER = {
   type: MarkerType.ArrowClosed,
@@ -349,6 +357,7 @@ function RelationshipsCanvasFlow({
   initialElements,
   editingDiagram: editingDiagramProp,
   onDiagramSaved,
+  onCanvasCleared,
   readOnly = false,
 }: RelationshipsCanvasProps) {
   const { t } = useTranslation("document-type-relationships")
@@ -392,6 +401,9 @@ function RelationshipsCanvasFlow({
 
   const canUpdateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:u'))
   const canCreateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:c'))
+  // Ver el explorador de "diagramas de esta versión" es una LECTURA, sin exigir
+  // permiso de escritura.
+  const canListDiagrams = isOrgAdmin || hasAnyPermission(['diagram:l', 'diagram:r'])
   // A role node/edge is content of the diagram itself: it's persisted with the
   // POST/PUT of /diagrams and never creates an execution_relationship on its own ⇒
   // it does NOT require execution_relationship:c/u, only a diagram write permission.
@@ -442,6 +454,11 @@ function RelationshipsCanvasFlow({
   // `layeredEdges` porque el resaltado de relaciones (abajo) depende de la selección.
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+  // Overlay "diagramas de esta versión" — el id del nodo assetType explorado, o null
+  // si está cerrado. El canvas de fondo (nodes/edges) sigue montado e intacto debajo.
+  const [exploringNodeId, setExploringNodeId] = useState<string | null>(null)
+  // Diagrama abierto desde un nodo del overlay, mostrado en el visor read-only.
+  const [viewingDiagramId, setViewingDiagramId] = useState<string | null>(null)
 
   // Deriva qué nodos/edges "pertenecen" a la selección actual — usado por
   // `layeredNodes`/`layeredEdges` para atenuar el resto del canvas. `null` cuando no
@@ -547,11 +564,7 @@ function RelationshipsCanvasFlow({
   // directo (ver `handleSaveChanges`) porque nombre/descripción/ejecución ya están
   // guardados y no hace falta reconfirmarlos.
   const [saveSheetMode, setSaveSheetMode] = useState<'new' | 'metadata' | null>(null)
-  const [showLoadDiagramSheet, setShowLoadDiagramSheet] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
-  // "Cargar diagrama" reemplaza todo el contenido del canvas: con cambios sin
-  // guardar de por medio pide confirmación antes, igual que "Limpiar canvas".
-  const [showDiscardLoadConfirm, setShowDiscardLoadConfirm] = useState(false)
   const [editingDiagram, setEditingDiagram] = useState(editingDiagramProp)
   const { saveDiagramGraph, isSaving: isSavingDiagram } = useSaveDiagramGraph(organizationId)
 
@@ -616,6 +629,17 @@ function RelationshipsCanvasFlow({
     setSelectedNodeId(node.id)
     setSelectedEdgeId(null)
   }, [])
+
+  // Doble clic en un nodo assetType con versión elegida: abre el overlay "diagramas
+  // de esta versión" (ver AssetDiagramsExplorer más abajo). Es una lectura — sigue
+  // funcionando en `readOnly`. Sin efecto sobre role/text/container/gateway/etc., sobre
+  // un nodo sin versión, o en modo document-type (no hay Diagram detrás ahí).
+  const onNodeDoubleClick = useCallback((_: React.MouseEvent, node: Node) => {
+    if (mode !== 'execution' || !canListDiagrams || node.type !== 'assetType') return
+    const data = node.data as AssetTypeNodeData
+    if (!data.assetId || !data.executionId) return
+    setExploringNodeId(node.id)
+  }, [mode, canListDiagrams])
 
   // Clic en el fondo del canvas: apaga la selección y, con ella, el dimming de
   // `highlightSets` y el panel lateral.
@@ -992,6 +1016,7 @@ function RelationshipsCanvasFlow({
             onLoadRelationships: (id: string) => handleLoadExecRelRef.current?.(id),
             onLoadRelationshipsCanvasOnly: (id: string) => handleLoadExecRelCanvasOnlyRef.current?.(id),
             onRemove: handleRemoveNode,
+            ...(canListDiagrams ? { onExploreDiagrams: setExploringNodeId } : {}),
           },
         },
       ])
@@ -999,7 +1024,7 @@ function RelationshipsCanvasFlow({
       setSelectedEdgeId(null)
       return canvasNodeId
     },
-    [setNodes, handleRemoveNode],
+    [setNodes, handleRemoveNode, canListDiagrams],
   )
 
   // ─── Free-standing text/container elements (not tied to an asset) ─────────
@@ -2121,6 +2146,7 @@ function RelationshipsCanvasFlow({
             onLoadRelationships: (id: string) => handleLoadExecRelRef.current?.(id),
             onLoadRelationshipsCanvasOnly: (id: string) => handleLoadExecRelCanvasOnlyRef.current?.(id),
             onRemove: handleRemoveNode,
+            ...(canListDiagrams ? { onExploreDiagrams: setExploringNodeId } : {}),
           }),
         },
       }
@@ -2129,7 +2155,7 @@ function RelationshipsCanvasFlow({
 
     setNodes((nds) => [...nds, ...seeded.map((s) => s.node)])
     pendingEdgeSeedRef.current = { seeded, relationships }
-  }, [setNodes, handleRemoveNode, handleRequestRolePick, handleUpdateElementContent, readOnly])
+  }, [setNodes, handleRemoveNode, handleRequestRolePick, handleUpdateElementContent, readOnly, canListDiagrams])
 
   // Flush any pending edge seed once react-flow reports the current nodes are
   // initialized (measured). Depends on `nodes` too (not just the boolean) so a
@@ -2182,23 +2208,7 @@ function RelationshipsCanvasFlow({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialNodes, initialElements])
 
-  // Picking a Diagram from LoadDiagramSheet replaces the canvas contents and
-  // switches the canvas into "editing" mode for that diagram. A single
-  // `buildInitialCanvasGraph` call keeps the "a legacy role in `texts` is a node"
-  // rule in one place — see lib/diagram-utils.ts.
-  const handleDiagramLoaded = useCallback((diagram: Diagram) => {
-    requestBaselineReset()
-    setNodes([])
-    setEdges([])
-    setSelectedEdgeId(null)
-    setSelectedNodeId(null)
-    setEditingDiagram(toEditingDiagram(diagram))
-    const { nodes: nodesToSeed, elements, relationships } = buildInitialCanvasGraph(diagram)
-    seedCanvasNodes(nodesToSeed, relationships)
-    if (elements.length) seedElementNodes(elements)
-  }, [seedCanvasNodes, seedElementNodes, setNodes, setEdges, requestBaselineReset])
-
-  // Saving (create or update) resolves the same shape LoadDiagramSheet feeds in —
+  // Saving (create or update) resolves the same shape a saved Diagram loads with —
   // reused here so a freshly created diagram is promoted straight into "editing" mode.
   const handleDiagramSaved = useCallback((diagram: Diagram) => {
     setEditingDiagram(toEditingDiagram(diagram))
@@ -2253,22 +2263,18 @@ function RelationshipsCanvasFlow({
     setSelectedEdgeId(null)
     setSelectedNodeId(null)
     setEditingDiagram(undefined)
-  }, [setNodes, setEdges, requestBaselineReset])
+    onCanvasCleared?.()
+  }, [setNodes, setEdges, requestBaselineReset, onCanvasCleared])
 
   const sourceDocType = pendingConnection ? docTypeMap.get(pendingConnection.sourceId) : undefined
   const targetDocType = pendingConnection ? docTypeMap.get(pendingConnection.targetId) : undefined
-
-  // Cargar un diagrama al canvas es una LECTURA: el guardado posterior ya está
-  // gateado aparte por canUpdateDiagram / canCreateDiagram.
-  const canLoadDiagram = !readOnly && (isOrgAdmin || hasAnyPermission(['diagram:l', 'diagram:r']))
   // A node "counts" toward a savable diagram once it reaches `details` — an execution
   // node with a version picked, or a role node with a role assigned (containers/texts
   // never do). Same rule `buildDiagramGraphPayload` uses to decide what to persist.
   const hasPersistableDetails = nodes.some((n) => detailEndpointOf(n as CanvasNode) !== null)
-  // La barra de acciones agrupa todo lo relativo al Diagrama (guardar, cargar,
-  // limpiar): sigue existiendo con el canvas vacío si se puede cargar uno, igual
-  // que antes lo hacía el panel de "Cargar Diagrama" aparte.
-  const showActionsBar = !readOnly && (nodes.length > 0 || (mode === 'execution' && canLoadDiagram))
+  // La barra de acciones agrupa todo lo relativo al Diagrama (guardar, limpiar):
+  // sin nodos no hay nada que guardar ni limpiar, así que no se muestra.
+  const showActionsBar = !readOnly && nodes.length > 0
 
   // Traducción 1:1 de los gates que antes vivían en cada `DropdownMenuItem`: un
   // handler `undefined` hace que `CanvasActionsBar` no renderice el botón — nunca
@@ -2277,19 +2283,10 @@ function RelationshipsCanvasFlow({
   const canSaveChanges = isExecution && hasPersistableDetails && !!editingDiagram && canUpdateDiagram
   const canSaveAsNew = isExecution && hasPersistableDetails && canCreateDiagram
   const canEditMetadata = isExecution && !!editingDiagram && canUpdateDiagram
-  const canShowLoad = isExecution && canLoadDiagram
-
-  // "Cargar diagrama" reemplaza todo el contenido del canvas: con cambios sin
-  // guardar de por medio, pide confirmación antes (mismo criterio que "Limpiar
-  // canvas", que siempre confirma porque siempre es destructivo).
-  const requestLoadDiagram = useCallback(() => {
-    if (isDirty) setShowDiscardLoadConfirm(true)
-    else setShowLoadDiagramSheet(true)
-  }, [isDirty])
 
   return (
     <>
-      <div ref={containerRef} className="flex h-full w-full">
+      <div ref={containerRef} className="relative flex h-full w-full">
         <ReactFlow
           nodes={layeredNodes}
           edges={layeredEdges}
@@ -2300,6 +2297,7 @@ function RelationshipsCanvasFlow({
           onReconnect={readOnly ? undefined : onReconnect}
           onEdgeClick={onEdgeClick}
           onNodeClick={onNodeClick}
+          onNodeDoubleClick={onNodeDoubleClick}
           onPaneClick={onPaneClick}
           onDrop={readOnly ? undefined : handleDrop}
           onDragOver={readOnly ? undefined : handleDragOver}
@@ -2309,6 +2307,11 @@ function RelationshipsCanvasFlow({
           elevateNodesOnSelect={false}
           nodesDraggable={!readOnly}
           nodesConnectable={!readOnly}
+          // Selección múltiple por caja: Shift + arrastrar sobre el pane vacío (comporta-
+          // miento nativo de React Flow, `selectionKeyCode` default 'Shift') — el click
+          // izquierdo sin modificador sigue siendo pan. `Partial` selecciona un nodo si la
+          // caja lo toca, no exige cubrirlo entero.
+          selectionMode={SelectionMode.Partial}
           // Reanclar cambia solo el diagrama (no la execution_relationship/relación de
           // negocio detrás del edge), así que el permiso correcto es el de escritura
           // del diagrama — mismo criterio que la rama de rol de `deleteKeyCode` abajo.
@@ -2359,13 +2362,11 @@ function RelationshipsCanvasFlow({
               diagramName={mode === 'execution' ? editingDiagram?.name : undefined}
               isDirty={isDirty}
               isSaving={isSavingDiagram}
-              isEmpty={nodes.length === 0}
               compact={isNarrow}
               collapsed={isVeryNarrow}
               onSaveChanges={canSaveChanges ? handleSaveChanges : undefined}
               onSaveAsNew={canSaveAsNew ? () => setSaveSheetMode('new') : undefined}
               onEditMetadata={canEditMetadata ? () => setSaveSheetMode('metadata') : undefined}
-              onLoadDiagram={canShowLoad ? requestLoadDiagram : undefined}
               onClearCanvas={() => setShowClearConfirm(true)}
             />
           )}
@@ -2408,6 +2409,11 @@ function RelationshipsCanvasFlow({
               }
               nodeActions={nodeActions}
               onOpenAsset={mode === 'execution' && nodeData.assetId ? () => handleOpenAsset(nodeData.assetId!, nodeData.executionId) : undefined}
+              onExploreDiagrams={
+                mode === 'execution' && canListDiagrams && nodeData.assetId && nodeData.executionId
+                  ? () => setExploringNodeId(nodeData.id)
+                  : undefined
+              }
               documentTypes={documentTypes}
               onLoadRelationshipsForType={mode === 'execution' && canListExecRelationships ? handleLoadExecutionRelationshipsForType : undefined}
               onLoadRelationships={nodeData.onLoadRelationships && (mode === 'execution' ? canListExecRelationships : canListRelationships) ? (mode === 'execution' ? handleLoadExecutionRelationships : handleLoadRelationships) : undefined}
@@ -2421,7 +2427,39 @@ function RelationshipsCanvasFlow({
             />
           )
         })()}
+
+        {/* Overlay "diagramas de esta versión" — cubre el ReactFlow de arriba sin
+            desmontarlo; nodes/edges del canvas en edición siguen intactos debajo. */}
+        {exploringNodeId && (() => {
+          const exploringNode = nodes.find((n) => n.id === exploringNodeId)
+          const exploringData = exploringNode?.data as AssetTypeNodeData | undefined
+          if (!exploringData?.assetId || !exploringData.executionId) return null
+          return (
+            <AssetDiagramsExplorer
+              organizationId={organizationId}
+              assetId={exploringData.assetId}
+              executionId={exploringData.executionId}
+              assetName={exploringData.name}
+              assetColor={exploringData.color}
+              executionName={exploringData.executionName}
+              currentDiagramId={editingDiagram?.id}
+              onOpenDiagram={setViewingDiagramId}
+              onClose={() => setExploringNodeId(null)}
+            />
+          )
+        })()}
       </div>
+
+      {viewingDiagramId && (
+        <Suspense fallback={null}>
+          <LazyDiagramViewSheet
+            open={!!viewingDiagramId}
+            onOpenChange={(open) => !open && setViewingDiagramId(null)}
+            diagramId={viewingDiagramId}
+            organizationId={organizationId}
+          />
+        </Suspense>
+      )}
 
       {/* Create relationship dialog — document-type mode */}
       {pendingConnection && mode === 'document-type' && (
@@ -2596,18 +2634,6 @@ function RelationshipsCanvasFlow({
         }}
       />
 
-      {/* Load-diagram confirmation — only shown with unsaved changes on the canvas */}
-      <HuemulAlertDialog
-        open={showDiscardLoadConfirm}
-        onOpenChange={setShowDiscardLoadConfirm}
-        title={t("canvas.discardConfirm.loadTitle")}
-        description={t("canvas.discardConfirm.loadDescription")}
-        actionLabel={t("canvas.discardConfirm.loadConfirmLabel")}
-        onAction={async () => {
-          setShowLoadDiagramSheet(true)
-        }}
-      />
-
       {/* Delete exec relationship dialog */}
       <HuemulAlertDialog
         open={!!deletingExecRelId}
@@ -2681,16 +2707,6 @@ function RelationshipsCanvasFlow({
             executionId: editingDiagram.executionId,
             snapshotMediaId: editingDiagram.snapshotMediaId,
           } : undefined}
-        />
-      )}
-
-      {/* Load an existing Diagram into the canvas to edit/update it (execution mode only) */}
-      {mode === 'execution' && (
-        <LoadDiagramSheet
-          open={showLoadDiagramSheet}
-          onOpenChange={setShowLoadDiagramSheet}
-          organizationId={organizationId}
-          onLoad={handleDiagramLoaded}
         />
       )}
     </>

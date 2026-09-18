@@ -1,6 +1,6 @@
 "use client"
 
-import { CheckCircle2, Eye, Globe, Plus } from "lucide-react"
+import { Archive, CheckCircle2, Eye, Globe, Plus } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { WorkflowStatusCard } from "@/components/workflow/workflow-status-card"
@@ -46,16 +46,24 @@ export function WorkflowFinishedCard({ outcome, workflowName, onViewAnswers, onS
         ? "fill.finished.sentToApprovalTitle"
         : outcome === "approved"
           ? "fill.finished.approvedTitle"
-          : "fill.finished.publishedTitle"
+          : outcome === "archived"
+            ? "fill.finished.archivedTitle"
+            : "fill.finished.publishedTitle"
 
   const isPublished = outcome === "published"
-  const Icon = isPublished ? Globe : CheckCircle2
+  const Icon = isPublished ? Globe : outcome === "archived" ? Archive : CheckCircle2
 
   return (
     <WorkflowStatusCard
       icon={Icon}
       title={t(titleKey, { name: workflowName })}
-      description={t(isPublished ? "fill.finished.publishedDescription" : "fill.finished.description")}
+      description={t(
+        isPublished
+          ? "fill.finished.publishedDescription"
+          : outcome === "archived"
+            ? "fill.finished.archivedDescription"
+            : "fill.finished.description",
+      )}
       actions={
         <>
           <p className="text-xs text-muted-foreground">{t("fill.savedNeedMore")}</p>

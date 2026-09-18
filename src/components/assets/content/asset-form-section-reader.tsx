@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { Edit3, Eye } from "lucide-react";
+import { Edit3, Eye, History } from "lucide-react";
 import { HuemulNumberedStatusCard } from "@/huemul/components/huemul-numbered-status-card";
 import { HuemulAnswersStatusBadge } from "@/huemul/components/huemul-answers-status-badge";
 import { HuemulButton } from "@/huemul/components/huemul-button";
@@ -21,6 +21,8 @@ interface AssetFormSectionReaderProps {
   onDoneAnswering?: () => void;
   /** Guardado en curso del flush final — loading/disabled del botón "Dejar de editar". */
   isSaving?: boolean;
+  /** Abre el sheet de historial de la sección — visible siempre, independiente de canAnswer. */
+  onOpenHistory?: () => void;
   /** Formulario rellenable (AssetFormSection), inyectado por assets-section.tsx. */
   children?: React.ReactNode;
   /** Estado de colapso controlado por assets-section.tsx (incluye el force-open al responder). */
@@ -50,15 +52,16 @@ export function AssetFormSectionReader({
   onStartAnswering,
   onDoneAnswering,
   isSaving = false,
+  onOpenHistory,
   children,
   open,
   onOpenChange,
 }: AssetFormSectionReaderProps) {
-  const { t } = useTranslation(["sections", "common"]);
+  const { t } = useTranslation(["sections", "common", "assets"]);
 
   const { fields, questions, answeredCount } = computeSectionStats(section as ContentSection);
 
-  const actions = canAnswer ? (
+  const answerAction = canAnswer ? (
     isAnswering ? (
       <HuemulButton
         variant="outline"
@@ -78,6 +81,21 @@ export function AssetFormSectionReader({
         onClick={onStartAnswering}
       />
     )
+  ) : undefined;
+
+  const actions = (answerAction || onOpenHistory) ? (
+    <>
+      {answerAction}
+      {onOpenHistory && (
+        <HuemulButton
+          variant="ghost"
+          size="xs"
+          icon={History}
+          tooltip={t("assets:section.viewHistory")}
+          onClick={onOpenHistory}
+        />
+      )}
+    </>
   ) : undefined;
 
   return (

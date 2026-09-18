@@ -477,13 +477,17 @@ function HuemulTableInner<T>(
 
   // ── Variant "detailed" ─────────────────────────────────────────────────
   // Grid CSS con estilo cerrado (checkbox custom, fila resaltada por `activeKey`,
-  // paginador a juego). No soporta `folders`/`resizable`/`sort`/`actions`/expand —
-  // pensado para listados simples seleccionables y paginados (ver `UserTable`).
+  // paginador a juego). Sí soporta `sort`, `resizable`/`columnsStorageKey` y
+  // `error`/`onRetry` (reusan los mismos hooks/helpers que el variant
+  // "default", calculados más arriba). No soporta `folders` ni expand.
+  // `actions` se renderiza siempre como menú desplegable, sin sub-`items` ni
+  // modo `inline` (aunque se pase `actionsMode="inline"`) — pensado para
+  // listados simples seleccionables y paginados (ver `UserTable`).
   if (variant === "detailed") {
     const checkboxClass = "size-[15px] rounded-[4px] border-[1.5px] border-[#cbd5e1] bg-white data-[state=checked]:bg-[#2563eb] data-[state=checked]:border-[#2563eb] data-[state=checked]:text-white"
     const gridTemplateColumns = [
       selectable ? "44px" : null,
-      ...columns.map((c) => c.width ?? "minmax(0,1fr)"),
+      ...columns.map((c) => (resizable ? `${getWidth(c.key)}px` : c.width ?? "minmax(0,1fr)")),
       hasActions ? "56px" : null,
     ]
       .filter(Boolean)
@@ -537,8 +541,16 @@ function HuemulTableInner<T>(
 
     return (
       <div className={cn("flex flex-1 min-h-0 flex-col overflow-hidden bg-white", className)}>
+        {/* Único contenedor de scroll (X e Y) para header + filas — el header
+            es `sticky top-0` dentro de él, así que viaja horizontalmente con
+            las filas (mismo eje de scroll) pero queda anclado arriba al
+            scrollear verticalmente. Antes eran dos `<div>` hermanos con scroll
+            propio cada uno, lo que desalineaba header y filas apenas las
+            columnas (con `resizable`) desbordaban el ancho visible. */}
+        <div className="flex-1 min-h-0 overflow-auto">
+        <div className="flex min-h-full flex-col">
         <div
-          className="grid border-b border-[#e5eaf0] bg-[#f7f9fb]"
+          className="sticky top-0 z-20 grid shrink-0 border-b border-[#e5eaf0] bg-[#f7f9fb]"
           style={{ gridTemplateColumns }}
         >
           {selectable && (
@@ -552,18 +564,46 @@ function HuemulTableInner<T>(
               />
             </div>
           )}
-          {columns.map((col) => (
-            <div
-              key={col.key}
-              className={cn(
-                "py-2.5 px-3 text-[11px] font-semibold tracking-[0.06em] text-[#64748b] uppercase whitespace-nowrap",
-                !selectable && col === columns[0] && "pl-4.5",
-                col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"
-              )}
-            >
-              {col.label}
-            </div>
-          ))}
+          {columns.map((col) => {
+            const canResize = resizable && col.resizable !== false
+            return (
+              <div
+                key={col.key}
+                className={cn(
+                  "relative py-2.5 px-3 text-[11px] font-semibold tracking-[0.06em] text-[#64748b] uppercase whitespace-nowrap",
+                  !selectable && col === columns[0] && "pl-4.5",
+                  col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"
+                )}
+              >
+                {col.sortKey && onSortChange ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSortClick(col.sortKey!)}
+                    className={cn(
+                      "inline-flex items-center gap-1 hover:cursor-pointer hover:text-[#334155] transition-colors",
+                      (sort === `${col.sortKey}_asc` || sort === `${col.sortKey}_desc`) && "text-[#334155]"
+                    )}
+                  >
+                    <span>{col.label}</span>
+                    <SortIcon sortKey={col.sortKey} />
+                  </button>
+                ) : (
+                  col.label
+                )}
+                {canResize && (
+                  <div
+                    role="separator"
+                    aria-orientation="vertical"
+                    onPointerDown={(e) => startResize(e, col.key, col.minWidth ?? MIN_COL_WIDTH)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="group/rz absolute right-0 top-0 z-10 flex h-full w-2 justify-end cursor-col-resize touch-none select-none"
+                  >
+                    <div className="h-full w-0.5 bg-transparent transition-colors group-hover/rz:bg-primary group-active/rz:bg-primary" />
+                  </div>
+                )}
+              </div>
+            )
+          })}
           {hasActions && (
             <div className="py-2.5 px-3 text-right text-[11px] font-semibold tracking-[0.06em] text-[#64748b] uppercase whitespace-nowrap">
               {t("actions")}
@@ -571,8 +611,31 @@ function HuemulTableInner<T>(
           )}
         </div>
 
-        <div className="flex flex-1 min-h-0 flex-col overflow-auto">
-          {isLoading
+        <div className="flex flex-1 flex-col">
+          {error
+            ? (() => {
+                const detail = (error as unknown as Record<string, unknown>).detail as string | undefined
+                return (
+                  <div className="flex flex-col items-center justify-center py-14 px-6 text-center gap-3">
+                    <AlertCircle className="w-9 h-9 text-destructive" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-foreground">{error.message}</p>
+                      {detail && <p className="text-xs text-muted-foreground max-w-sm">{detail}</p>}
+                    </div>
+                    {onRetry && (
+                      <button
+                        type="button"
+                        onClick={onRetry}
+                        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:cursor-pointer transition-colors"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        {t("retry")}
+                      </button>
+                    )}
+                  </div>
+                )
+              })()
+            : isLoading
             ? Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="grid items-center border-b border-[#f1f4f8]" style={{ gridTemplateColumns }}>
                   {selectable && (
@@ -612,11 +675,12 @@ function HuemulTableInner<T>(
                   <div
                     key={key}
                     className={cn(
-                      "grid items-center border-b border-[#f1f4f8] cursor-pointer",
+                      "grid items-center border-b border-[#f1f4f8]",
+                      onRowClick && "cursor-pointer",
                       isActive ? "bg-[#f4f7fd] shadow-[inset_3px_0_0_#2563eb]" : "bg-white hover:bg-[#f7f9fc]"
                     )}
                     style={{ gridTemplateColumns }}
-                    onClick={() => onRowClick?.(item)}
+                    onClick={onRowClick ? () => onRowClick(item) : undefined}
                   >
                     {selectable && (
                       <div className="py-3 pr-3 pl-4.5" onClick={(e) => e.stopPropagation()}>
@@ -645,6 +709,8 @@ function HuemulTableInner<T>(
                 )
               })}
           {!isLoading && !isEmpty && <div className="flex-1 bg-[#fcfdfe]" />}
+        </div>
+        </div>
         </div>
 
         {pagination && (

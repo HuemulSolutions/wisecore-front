@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.3.0] - 2026-09-18
+### Nuevo
+- rediseñar home con superficies unificadas y extender variant "detailed" de HuemulTable
+- explorar diagramas de un nodo asset+versión desde el canvas
+- agregar guías de alineación con snap al arrastrar nodos del diagrama
+### Arreglos
+- bloquear transiciones de etapa y edición de dependencias/contexto mientras corre la elaboración externa
+- renderizar archivos referenciados en el historial de sección
+- agregar acceso a historial de sección en formularios modo lector
+- mostrar tarjeta terminal dedicada para documentos archivados en workflow-fill
+- unificar carga de diagramas y agilizar el acceso a los recientes
+- mostrar diff de historial de sección en modo renderizado
+- mejorar jerarquía visual de los historiales (ciclo de vida, cambios, sección)
+- eliminar panel placeholder de respuesta en detalle de extensión
+- agregar changeType modify_ai_partial al historial de sección
+- formatNumber respeta idioma de la app, no el del navegador
+- restaurar pan del canvas — selección múltiple pasa a Shift+arrastrar
+- aumentar contraste de colores en nodos de inicio/fin/decisión del diagrama
+- revivir aviso de "sin acciones" en el wizard de workflow
+### Otros
+- unificar historial de sección y ciclo de vida con componentes huemul
+
 ## [1.2.0] - 2026-09-16
 ### Nuevo
 - acciones contextuales en el árbol y crear carpeta al clonar activo

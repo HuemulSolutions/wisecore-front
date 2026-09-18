@@ -62,7 +62,8 @@ export function HuemulLifecycleActions({
           iconClassName={iconClassName}
           className={`${isCompact ? "h-6 w-6" : "h-7 w-7"} p-0 text-gray-600 ${isCompact ? "" : "hover:bg-gray-100 hover:text-gray-800"} hover:cursor-pointer`}
           loading={controller.rejectMutation.isPending}
-          tooltip={t("lifecycle.tooltipReturn")}
+          disabled={elaborationLocked}
+          tooltip={elaborationLocked ? t("lifecycle.tooltipElaborationRunning") : t("lifecycle.tooltipReturn")}
           onClick={() => controller.setIsRejectDialogOpen(true)}
         />
       )}
@@ -76,8 +77,14 @@ export function HuemulLifecycleActions({
           iconClassName={iconClassName}
           className={`${sizeClass} ${isCompact ? "" : "bg-primary text-white hover:bg-primary/90 hover:text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed"} hover:cursor-pointer`}
           loading={controller.checkMutation.isPending}
-          disabled={controller.isBlockedByRequiredAnswers}
-          tooltip={controller.isBlockedByRequiredAnswers ? controller.advanceBlockersTooltip : controller.completeTooltip}
+          disabled={controller.isBlockedByRequiredAnswers || elaborationLocked}
+          tooltip={
+            elaborationLocked
+              ? t("lifecycle.tooltipElaborationRunning")
+              : controller.isBlockedByRequiredAnswers
+                ? controller.advanceBlockersTooltip
+                : controller.completeTooltip
+          }
           onClick={() => controller.setIsCheckDialogOpen(true)}
         />
       )}
@@ -92,7 +99,8 @@ export function HuemulLifecycleActions({
           // green-600 es el hue de "published" en lib/lifecycle-colors.ts — si ese hue cambia, actualizar acá también.
           className={`${sizeClass} bg-green-600 text-white hover:bg-green-700 hover:text-white ${isCompact ? "" : "rounded-md"} hover:cursor-pointer`}
           loading={controller.advanceMutation.isPending}
-          tooltip={t("lifecycle.tooltipPublish")}
+          disabled={elaborationLocked}
+          tooltip={elaborationLocked ? t("lifecycle.tooltipElaborationRunning") : t("lifecycle.tooltipPublish")}
           onClick={() => controller.setIsPublishDialogOpen(true)}
         />
       )}
@@ -106,7 +114,8 @@ export function HuemulLifecycleActions({
           iconClassName={iconClassName}
           className={`${sizeClass} text-gray-600 ${isCompact ? "" : "hover:bg-gray-100 hover:text-gray-800"} hover:cursor-pointer`}
           loading={controller.advanceMutation.isPending}
-          tooltip={t("lifecycle.tooltipArchive")}
+          disabled={elaborationLocked}
+          tooltip={elaborationLocked ? t("lifecycle.tooltipElaborationRunning") : t("lifecycle.tooltipArchive")}
           onClick={() => controller.setIsArchiveDialogOpen(true)}
         />
       )}
@@ -120,7 +129,8 @@ export function HuemulLifecycleActions({
           iconClassName={iconClassName}
           className={`${sizeClass} text-gray-600 ${isCompact ? "" : "hover:bg-gray-100 hover:text-gray-800"} hover:cursor-pointer`}
           loading={controller.restoreMutation.isPending}
-          tooltip={t("lifecycle.tooltipRestore")}
+          disabled={elaborationLocked}
+          tooltip={elaborationLocked ? t("lifecycle.tooltipElaborationRunning") : t("lifecycle.tooltipRestore")}
           onClick={() => controller.setIsRestoreDialogOpen(true)}
         />
       )}
@@ -134,6 +144,8 @@ export function HuemulLifecycleActions({
           iconClassName={iconClassName}
           className={`${sizeClass} text-gray-600 ${isCompact ? "" : "hover:bg-gray-100 hover:text-gray-800"} hover:cursor-pointer`}
           loading={controller.runExternalPublishMutation.isPending}
+          disabled={elaborationLocked}
+          tooltip={elaborationLocked ? t("lifecycle.tooltipElaborationRunning") : undefined}
           onClick={() => controller.runExternalPublishMutation.mutate()}
         />
       )}

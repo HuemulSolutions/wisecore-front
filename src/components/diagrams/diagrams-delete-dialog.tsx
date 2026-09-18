@@ -14,6 +14,8 @@ export interface DiagramsDeleteDialogProps {
   organizationId: string
   /** `diagram:d`. Obligatoria: sin default, olvidarse de pasarla rompe el build. */
   canDelete: boolean
+  /** Avisa al padre qué diagrama se borró — ej. para podarlo de "recientes". */
+  onDeleted?: (diagramId: string) => void
 }
 
 export function DiagramsDeleteDialog({
@@ -22,6 +24,7 @@ export function DiagramsDeleteDialog({
   diagram,
   organizationId,
   canDelete,
+  onDeleted,
 }: DiagramsDeleteDialogProps) {
   const { t } = useTranslation(['diagrams', 'common'])
   const mutations = useDiagramMutations(organizationId)
@@ -37,7 +40,11 @@ export function DiagramsDeleteDialog({
         return
       }
       mutations.deleteDiagram.mutate(diagram.id, {
-        onSuccess: () => { onOpenChange(false); resolve() },
+        onSuccess: () => {
+          onOpenChange(false)
+          onDeleted?.(diagram.id)
+          resolve()
+        },
         onError: (err) => {
           handleApiError(err)
           reject(err)

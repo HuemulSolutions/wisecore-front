@@ -4,18 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { cn } from '@/lib/utils';
+import type { SectionToneClasses } from '@/lib/lifecycle-colors';
+import { HOME_CARD, HOME_CARD_MUTED, HOME_CARD_TITLE, HOME_LINK } from './home-surface';
 import type { HomeWorkGroupCount, HomeWorkGroupRow as HomeWorkGroupRowData } from '@/types/home';
 
-export interface HomeWorkGroupAccent {
-  headerBg: string;
-  headerBorder: string;
-  /** Color del chevron y de la píldora de contador. */
-  accentText: string;
-  pillBg: string;
-}
-
 export interface HomeWorkGroupCardProps {
-  accent: HomeWorkGroupAccent;
+  accent: SectionToneClasses;
   title: string;
   /** "Ordenado por antigüedad" — se omite mientras carga. */
   meta?: string;
@@ -60,8 +54,8 @@ export function HomeWorkGroupCard({
   // card vacío grande (ver §3 "Grupo vacío" del diseño).
   if (!isLoading && !error && rows.length === 0 && emptyCollapsedLabel) {
     return (
-      <div className="flex h-9 items-center gap-2 rounded-[11px] border border-[#e2e7ee] bg-white px-[15px] text-[12.5px] text-[#64748b]">
-        <Check className="h-3.5 w-3.5 shrink-0 text-[#16a34a]" />
+      <div className={cn(HOME_CARD_MUTED, 'flex h-9 items-center gap-2 px-4 text-xs text-muted-foreground')}>
+        <Check className="h-3.5 w-3.5 shrink-0 text-green-600 dark:text-green-400" />
         {emptyCollapsedLabel}
       </div>
     );
@@ -71,39 +65,39 @@ export function HomeWorkGroupCard({
     <Collapsible
       open={!collapsed}
       onOpenChange={() => onToggleCollapse()}
-      className={cn('overflow-hidden rounded-[11px] border bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]', accent.headerBorder)}
+      className={cn(HOME_CARD, 'overflow-hidden border-l-[3px] transition-shadow hover:shadow-card-raised', accent.accentBorder)}
     >
-      <div className={cn('flex items-center justify-between gap-2 px-[15px] py-3', accent.headerBg)}>
+      <div className={cn('flex items-center justify-between gap-2 border-b px-4 py-2.5', accent.surface, accent.headerBorder)}>
         <CollapsibleTrigger asChild>
           <button type="button" className="flex min-w-0 items-center gap-2 hover:cursor-pointer">
             <ChevronDown
-              className={cn('h-3.5 w-3.5 shrink-0 transition-transform duration-200', collapsed && '-rotate-90', accent.accentText)}
+              className={cn('h-3.5 w-3.5 shrink-0 transition-transform duration-200', collapsed && '-rotate-90', accent.text)}
             />
-            <span className="truncate text-[13.5px] font-semibold">{title}</span>
+            <span className={HOME_CARD_TITLE}>{title}</span>
             {count && (
-              <span className={cn('rounded-full px-1.5 py-0.5 text-[11px] font-semibold', accent.pillBg, accent.accentText)}>
+              <span className={cn('shrink-0 rounded-full px-1.5 py-0.5 text-2xs font-semibold tabular-nums', accent.pill)}>
                 {count.exact ? count.value : t('workGroups.common.countApprox', { count: count.value })}
               </span>
             )}
           </button>
         </CollapsibleTrigger>
         <div className="flex shrink-0 items-center gap-2">
-          {meta && !isLoading && <span className="text-[12px] text-[#94a3b8]">{meta}</span>}
+          {meta && !isLoading && <span className="text-xs text-muted-foreground">{meta}</span>}
         </div>
       </div>
 
       <CollapsibleContent className="overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
         {error ? (
-          <div className="flex items-center justify-between gap-2 px-[15px] py-4">
-            <span className="text-[12.5px] text-[#64748b]">{t('workGroups.common.errorTitle')}</span>
+          <div className="flex items-center justify-between gap-2 px-4 py-4">
+            <span className="text-xs text-muted-foreground">{t('workGroups.common.errorTitle')}</span>
             {onRetry && <HuemulButton variant="outline" size="sm" label={t('common:retry')} onClick={onRetry} />}
           </div>
         ) : isLoading ? (
-          <div className="flex flex-col gap-3 px-[15px] py-3.5">
+          <div className="flex flex-col gap-3 px-4 py-3.5">
             {[0, 1].map((i) => (
               <div key={i} className="flex flex-col gap-1.5">
-                <div className="h-[9px] w-[78%] animate-pulse rounded-full bg-[#eef1f5]" />
-                <div className="h-[9px] w-[60%] animate-pulse rounded-full bg-[#eef1f5]" />
+                <div className="h-[9px] w-[78%] animate-pulse rounded-full bg-muted" />
+                <div className="h-[9px] w-[60%] animate-pulse rounded-full bg-muted" />
               </div>
             ))}
           </div>
@@ -114,7 +108,7 @@ export function HomeWorkGroupCard({
               <button
                 type="button"
                 onClick={footer.onClick}
-                className="block w-full px-[15px] py-2.5 text-left text-[12.5px] font-medium text-[#2563eb] hover:cursor-pointer hover:underline"
+                className={cn('block w-full border-t border-divider px-4 py-2.5 text-left', HOME_LINK)}
               >
                 {footer.label}
               </button>

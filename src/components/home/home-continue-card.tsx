@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useOrgNavigate } from '@/hooks/useOrgRouter';
 import { formatRelativeTime } from '@/lib/format-relative-time';
+import { HOME_CARD_MUTED, HOME_RAIL_TITLE } from './home-surface';
 import type { RecentAssetEntry } from '@/types/home';
 
 export interface HomeContinueCardProps {
@@ -19,9 +20,9 @@ export function HomeContinueCard({ recentAssets }: HomeContinueCardProps) {
   if (recentAssets.length === 0) return null;
 
   return (
-    <div className="rounded-[11px] border border-[#e2e7ee] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <div className="px-[15px] py-3 border-b border-[#f1f4f7]">
-        <span className="text-[13px] font-semibold">{t('rail.continue.title')}</span>
+    <div className={HOME_CARD_MUTED}>
+      <div className="border-b border-divider px-4 py-2.5">
+        <span className={HOME_RAIL_TITLE}>{t('rail.continue.title')}</span>
       </div>
       <div className="pb-1">
         {recentAssets.map((asset) => (
@@ -29,10 +30,10 @@ export function HomeContinueCard({ recentAssets }: HomeContinueCardProps) {
             key={asset.id}
             type="button"
             onClick={() => navigate(`/asset/${asset.id}`)}
-            className="flex w-full flex-col items-start gap-0.5 px-[14px] py-[10px] text-left border-b border-[#f6f8fa] last:border-b-0 hover:bg-[#fafbfd] hover:cursor-pointer"
+            className="flex w-full flex-col items-start gap-0.5 border-b border-divider px-4 py-2.5 text-left last:border-b-0 hover:cursor-pointer hover:bg-muted"
           >
-            <span className="truncate text-[12.5px] font-medium">{asset.name}</span>
-            <span className="text-[11.5px] text-[#94a3b8]">
+            <span className="w-full truncate text-xs font-medium text-foreground">{asset.name}</span>
+            <span className="text-2xs text-muted-foreground">
               {asset.lifecycleState
                 ? tAssets(`lifecycle.stateLabels.${asset.lifecycleState}`, { defaultValue: asset.lifecycleState })
                 : ''}
