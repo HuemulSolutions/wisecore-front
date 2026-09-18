@@ -22,7 +22,7 @@ export type ReviewStatus = 'editing' | 'reviewing' | 'finished' | 'rejected';
 /** Completitud de obligatorios de una sección form, resuelta por el backend en /content. */
 export type SectionAnswersStatus = 'completed' | 'pending';
 
-export type SectionHistoryChangeType = 'manual' | 'modify_ai' | 'run_ai' | 'modify_form';
+export type SectionHistoryChangeType = 'manual' | 'modify_ai' | 'run_ai' | 'modify_form' | 'modify_ai_partial';
 
 export interface SectionHistoryEntry {
   id: string;

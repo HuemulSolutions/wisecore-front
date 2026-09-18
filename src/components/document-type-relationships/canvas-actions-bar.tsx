@@ -16,27 +16,25 @@ import type { CanvasActionsBarProps } from "@/types/document-type-relationships"
 
 /**
  * Barra de acciones fija arriba a la derecha del canvas: siempre visible (nada
- * detrás de un dropdown salvo "Cargar diagrama"/"Limpiar canvas", que son
- * destructivas de trabajo no guardado). Presentacional pura — no conoce
- * permisos ni el modo del canvas: un handler `undefined` simplemente no se
- * renderiza (RBAC se resuelve en `relationships-canvas.tsx`).
+ * detrás de un dropdown salvo "Limpiar canvas", que es destructiva de trabajo
+ * no guardado). Presentacional pura — no conoce permisos ni el modo del
+ * canvas: un handler `undefined` simplemente no se renderiza (RBAC se
+ * resuelve en `relationships-canvas.tsx`).
  */
 export function CanvasActionsBar({
   diagramName,
   isDirty,
   isSaving,
-  isEmpty,
   compact,
   collapsed,
   onSaveChanges,
   onSaveAsNew,
   onEditMetadata,
-  onLoadDiagram,
   onClearCanvas,
 }: CanvasActionsBarProps) {
   const { t } = useTranslation("document-type-relationships")
 
-  const hasAnyAction = !!(onSaveChanges || onSaveAsNew || onEditMetadata || onLoadDiagram || onClearCanvas)
+  const hasAnyAction = !!(onSaveChanges || onSaveAsNew || onEditMetadata || onClearCanvas)
   if (!hasAnyAction && !diagramName) return null
 
   const statusText = isDirty ? t("canvas.actions.unsavedChanges") : t("canvas.actions.allChangesSaved")
@@ -66,30 +64,10 @@ export function CanvasActionsBar({
               onSaveChanges={onSaveChanges}
               onSaveAsNew={onSaveAsNew}
               onEditMetadata={onEditMetadata}
-              onLoadDiagram={onLoadDiagram}
               onClearCanvas={onClearCanvas}
             />
           </DropdownMenuContent>
         </DropdownMenu>
-      </Panel>
-    )
-  }
-
-  // Con el canvas vacío, "Cargar diagrama" es la única acción útil de la pantalla:
-  // se promueve a botón visible y el overflow queda solo con "Limpiar" (que no
-  // tiene sentido sobre un canvas ya vacío, así que ni se muestra).
-  if (isEmpty && onLoadDiagram) {
-    return (
-      <Panel position="top-right" style={{ margin: 12 }}>
-        <HuemulButton
-          variant="outline"
-          size="sm"
-          icon={Workflow}
-          label={compact ? undefined : t("canvas.loadDiagram")}
-          tooltip={compact ? t("canvas.loadDiagram") : undefined}
-          className="shadow-sm text-xs"
-          onClick={onLoadDiagram}
-        />
       </Panel>
     )
   }
@@ -148,7 +126,7 @@ export function CanvasActionsBar({
             onClick={onEditMetadata}
           />
         )}
-        {(onLoadDiagram || onClearCanvas) && (
+        {onClearCanvas && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <HuemulButton
@@ -163,7 +141,6 @@ export function CanvasActionsBar({
               <ActionItems
                 isDirty={isDirty}
                 isSaving={isSaving}
-                onLoadDiagram={onLoadDiagram}
                 onClearCanvas={onClearCanvas}
                 overflowOnly
               />
@@ -186,10 +163,9 @@ function ActionItems({
   onSaveChanges,
   onSaveAsNew,
   onEditMetadata,
-  onLoadDiagram,
   onClearCanvas,
   overflowOnly,
-}: Pick<CanvasActionsBarProps, "isDirty" | "isSaving" | "onSaveChanges" | "onSaveAsNew" | "onEditMetadata" | "onLoadDiagram" | "onClearCanvas"> & {
+}: Pick<CanvasActionsBarProps, "isDirty" | "isSaving" | "onSaveChanges" | "onSaveAsNew" | "onEditMetadata" | "onClearCanvas"> & {
   overflowOnly?: boolean
 }) {
   const { t } = useTranslation("document-type-relationships")
@@ -214,16 +190,9 @@ function ActionItems({
           {t("canvas.editDiagramData")}
         </DropdownMenuItem>
       )}
-      {!overflowOnly && (onSaveChanges || onSaveAsNew || onEditMetadata) && (onLoadDiagram || onClearCanvas) && (
+      {!overflowOnly && (onSaveChanges || onSaveAsNew || onEditMetadata) && onClearCanvas && (
         <DropdownMenuSeparator />
       )}
-      {onLoadDiagram && (
-        <DropdownMenuItem onSelect={onLoadDiagram} className="hover:cursor-pointer">
-          <Workflow className="mr-2 h-4 w-4" />
-          {t("canvas.loadDiagram")}
-        </DropdownMenuItem>
-      )}
-      {onLoadDiagram && onClearCanvas && <DropdownMenuSeparator />}
       {onClearCanvas && (
         <DropdownMenuItem onSelect={onClearCanvas} className="hover:cursor-pointer text-destructive focus:text-destructive">
           <Trash2 className="mr-2 h-4 w-4" />

@@ -22,7 +22,8 @@ export type HuemulContentAlign = "start" | "center";
 
 export interface HuemulDetailSurfaceTab {
   value: string;
-  label: string;
+  /** Acepta `ReactNode` (ej. `HuemulTabCount`) además de texto simple. */
+  label: ReactNode;
   content: ReactNode;
   /** Clase del `TabsContent`: cada tab decide su propio scroll y padding. */
   className?: string;

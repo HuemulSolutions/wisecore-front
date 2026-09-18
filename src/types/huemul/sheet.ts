@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 
-export type HuemulSheetSize = "sm" | "md" | "lg" | "xl" | "2xl" | "wide";
+/** `narrow` — 520px fijo, columna única de lectura (feed de historial angosto). */
+export type HuemulSheetSize = "sm" | "md" | "narrow" | "lg" | "xl" | "2xl" | "wide";
 
 /**
  * `plain` (default) — icono suelto junto al título, como siempre.

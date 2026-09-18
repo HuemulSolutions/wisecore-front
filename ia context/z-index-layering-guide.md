@@ -30,6 +30,7 @@ Fuente única: bloque `:root` de [`src/index.css`](../src/index.css). **Nunca es
 | `--z-editor-selection` | 10 | Rectángulo de selección de bloques por arrastre |
 | `--z-editor-menu` | 50 | Menús que el usuario abre a propósito: `/`, emoji, selects de nodo |
 | `--z-launcher-scrim` | 49 | Velo de contexto bajo el panel del lanzador de workflows (queda debajo del `Popover` base en `z-50`) |
+| `--z-feed-sticky` | 10 | Cabecera de grupo sticky dentro de un feed scrolleable (`HuemulGroupedFeed`, historial) |
 
 Sintaxis Tailwind v4: `className="z-(--z-page-header)"` (no `z-[var(--z-page-header)]`; el linter marca la forma larga).
 

@@ -31,6 +31,7 @@ import type { ExecutionLifecycleState, ExecutionPendingMyAction, ExecutionSearch
 import type { HomeWorkGroupCount, OnboardingStepId } from '@/types/home';
 import { ApiError } from '@/types/api-error';
 import { getBrowserDateLocale } from '@/lib/format-date-range';
+import { lifecycleStateHue } from '@/lib/lifecycle-colors';
 import {
   HomeHeader,
   HomeTabsList,
@@ -359,42 +360,45 @@ export default function Home() {
   const overviewRows: HomeOverviewRow[] = useMemo(
     () => [
       {
-        key: 'owned', label: t('kpis.owned.label'), value: stats?.owned_count ?? 0, dotClassName: 'bg-[#2563eb]',
+        key: 'owned', label: t('kpis.owned.label'), value: stats?.owned_count ?? 0, hue: 'slate',
         active: activeOverviewKey === 'owned',
         onClick: () => selectOverviewKpi('owned', () => { setValue('ownerValue', '__me__'); setSelectedLabel('ownerValue', t('filters.ownerMe')); }),
       },
       {
-        key: 'draft', label: t('kpis.draft.label'), value: stats?.draft_count ?? 0, dotClassName: 'bg-[#2563eb]',
+        key: 'draft', label: t('kpis.draft.label'), value: stats?.draft_count ?? 0, hue: lifecycleStateHue('draft'),
         active: activeOverviewKey === 'draft',
         onClick: () => selectOverviewKpi('draft', () => setValue('lifecycleState', 'draft')),
       },
       {
-        key: 'inReview', label: t('kpis.inReview.label'), value: stats?.in_review_count ?? 0, dotClassName: 'bg-[#f59e0b]',
+        key: 'inReview', label: t('kpis.inReview.label'), value: stats?.in_review_count ?? 0, hue: lifecycleStateHue('in_review'),
         active: activeOverviewKey === 'inReview',
         onClick: () => selectOverviewKpi('inReview', () => setValue('lifecycleState', 'in_review')),
       },
       {
-        key: 'inApproval', label: t('kpis.inApproval.label'), value: stats?.in_approval_count ?? 0, dotClassName: 'bg-[#7c3aed]',
+        key: 'inApproval', label: t('kpis.inApproval.label'), value: stats?.in_approval_count ?? 0, hue: lifecycleStateHue('in_approval'),
         active: activeOverviewKey === 'inApproval',
         onClick: () => selectOverviewKpi('inApproval', () => setValue('lifecycleState', 'in_approval')),
       },
       {
-        key: 'approved', label: t('kpis.approved.label'), value: stats?.approved_count ?? 0, dotClassName: 'bg-[#16a34a]',
+        // `teal` — antes usaba el mismo hex que `published`, indistinguibles.
+        key: 'approved', label: t('kpis.approved.label'), value: stats?.approved_count ?? 0, hue: lifecycleStateHue('approved'),
         active: activeOverviewKey === 'approved',
         onClick: () => selectOverviewKpi('approved', () => setValue('lifecycleState', 'approved')),
       },
       {
-        key: 'published', label: t('kpis.published.label'), value: stats?.published_count ?? 0, dotClassName: 'bg-[#16a34a]',
+        key: 'published', label: t('kpis.published.label'), value: stats?.published_count ?? 0, hue: lifecycleStateHue('published'),
         active: activeOverviewKey === 'published',
         onClick: () => selectOverviewKpi('published', () => setValue('lifecycleState', 'published')),
       },
       {
-        key: 'expiringSoon', label: t('kpis.expiringSoon.label'), value: stats?.expiring_soon_count ?? 0, dotClassName: 'bg-[#b45309]', valueClassName: 'text-[#b45309]',
+        // Rojo, no ámbar: el marrón-ámbar anterior colisionaba con `in_review`. `alert` pinta el valor en rojo aunque el filtro no esté aplicado.
+        key: 'expiringSoon', label: t('kpis.expiringSoon.label'), value: stats?.expiring_soon_count ?? 0, hue: 'red', alert: true,
         active: activeOverviewKey === 'expiringSoon',
         onClick: () => selectOverviewKpi('expiringSoon', () => setValue('expiringSoon', true)),
       },
       {
-        key: 'unresolvedComments', label: t('kpis.unresolvedComments.label'), value: stats?.unresolved_comments_count ?? 0, dotClassName: 'bg-[#db2777]',
+        // `fuchsia` — mismo hue que la celda de comentarios de la tabla (antes violeta, chocaba con `in_approval`).
+        key: 'unresolvedComments', label: t('kpis.unresolvedComments.label'), value: stats?.unresolved_comments_count ?? 0, hue: 'fuchsia',
         active: activeOverviewKey === 'unresolvedComments',
         onClick: () => selectOverviewKpi('unresolvedComments', () => setValue('hasUnresolvedComments', true)),
       },
@@ -409,17 +413,17 @@ export default function Home() {
   const personalOverviewRows: HomeOverviewRow[] = useMemo(
     () => [
       {
-        key: 'pendingMyReview', label: t('kpis.pendingMyReview.label'), value: stats?.pending_my_review_count ?? 0, dotClassName: 'bg-[#f59e0b]',
+        key: 'pendingMyReview', label: t('kpis.pendingMyReview.label'), value: stats?.pending_my_review_count ?? 0, hue: lifecycleStateHue('in_review'),
         active: activeOverviewKey === 'pendingMyReview',
         onClick: () => selectOverviewKpi('pendingMyReview', () => setValue('pendingMyAction', 'review')),
       },
       {
-        key: 'pendingMyApproval', label: t('kpis.pendingMyApproval.label'), value: stats?.pending_my_approval_count ?? 0, dotClassName: 'bg-[#7c3aed]',
+        key: 'pendingMyApproval', label: t('kpis.pendingMyApproval.label'), value: stats?.pending_my_approval_count ?? 0, hue: lifecycleStateHue('in_approval'),
         active: activeOverviewKey === 'pendingMyApproval',
         onClick: () => selectOverviewKpi('pendingMyApproval', () => setValue('pendingMyAction', 'approve')),
       },
       {
-        key: 'approvedOwnedByMe', label: t('kpis.approvedOwnedByMe.label'), value: stats?.approved_owned_by_me_count ?? 0, dotClassName: 'bg-[#16a34a]',
+        key: 'approvedOwnedByMe', label: t('kpis.approvedOwnedByMe.label'), value: stats?.approved_owned_by_me_count ?? 0, hue: lifecycleStateHue('approved'),
         active: activeOverviewKey === 'approvedOwnedByMe',
         onClick: () =>
           selectOverviewKpi('approvedOwnedByMe', () => {
@@ -521,6 +525,7 @@ export default function Home() {
         onDismiss={onboarding.dismiss}
         onResume={onboarding.resume}
         onStepAction={handleOnboardingStepAction}
+        variant="main"
       />
       <HomeMyWorkTab
         organizationId={orgId}
@@ -606,8 +611,7 @@ export default function Home() {
   return (
     <>
       <HuemulPageLayout
-        className="bg-gray-50"
-        headerClassName="border-b-0 bg-gray-50"
+        className="bg-surface-sunken"
         header={header}
         withHandle
         columns={[

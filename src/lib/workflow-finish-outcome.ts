@@ -2,12 +2,13 @@ import { lifecycleAllows, lifecycleStageAllowsEditing } from "@/hooks/useDocumen
 import type { LifecyclePermissions, LifecycleStatus } from "@/types/assets"
 import type { FinalLifecycleStage } from "@/types/document-types"
 
-export type WorkflowFinishOutcome = "answersSent" | "sentToApproval" | "approved" | "published"
+export type WorkflowFinishOutcome = "answersSent" | "sentToApproval" | "approved" | "published" | "archived"
 
 /** `lifecycle_status.state` → outcome terminal, para los estados en los que el
  *  usuario puede quedarse sin nada más por hacer (ver `resolveWorkflowFinishOutcome`).
- *  `archived` y cualquier otro estado no listado quedan fuera a propósito: archivar
- *  no es un cierre de ESTE flujo (responder/aprobar/publicar). */
+ *  `archived` también cierra este flujo cuando no queda ninguna acción de lifecycle
+ *  disponible (ej. restaurar): ese caso ya lo filtra `isFinished` con
+ *  `lifecycleActions.hasAny` en `workflow-detail-panel.tsx`, no hace falta excluirlo acá. */
 const STATE_TO_OUTCOME: Partial<Record<string, WorkflowFinishOutcome>> = {
   draft: "answersSent",
   in_review: "answersSent",
@@ -15,6 +16,7 @@ const STATE_TO_OUTCOME: Partial<Record<string, WorkflowFinishOutcome>> = {
   approved: "approved",
   published: "published",
   finalized: "published",
+  archived: "archived",
 }
 
 /**

@@ -2,32 +2,19 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useMyWork, type UseMyWorkGroupResult } from '@/hooks/useMyWork';
-import { HomeWorkGroupCard, type HomeWorkGroupAccent } from './home-work-group-card';
+import { lifecycleStateSectionTone } from '@/lib/lifecycle-colors';
+import { HomeWorkGroupCard } from './home-work-group-card';
 import { HomeWorkGroupRow } from './home-work-group-row';
 import { HomeApprovedRow } from './home-approved-row';
 import { HomeEmptyState } from './home-empty-state';
 import type { HomeWorkGroupRow as HomeWorkGroupRowData } from '@/types/home';
 
-const REVIEW_ACCENT: HomeWorkGroupAccent = {
-  headerBg: 'bg-[#fffbeb]',
-  headerBorder: 'border-[#faf1da]',
-  accentText: 'text-[#b45309]',
-  pillBg: 'bg-[#fef3c7]',
-};
-
-const APPROVAL_ACCENT: HomeWorkGroupAccent = {
-  headerBg: 'bg-[#f5f3ff]',
-  headerBorder: 'border-[#ece7fb]',
-  accentText: 'text-[#7c3aed]',
-  pillBg: 'bg-[#ede9fe]',
-};
-
-const APPROVED_ACCENT: HomeWorkGroupAccent = {
-  headerBg: 'bg-[#f6fdfa]',
-  headerBorder: 'border-[#e2f2ea]',
-  accentText: 'text-[#059669]',
-  pillBg: 'bg-[#d9f5e8]',
-};
+// Tono derivado de la fuente única de color de estado (`lifecycle-colors.ts`)
+// — antes eran 3 objetos con hex propios y "Aprobados" quedaba verde
+// (`#059669`), colisionando con `published`. `approved` es `teal`.
+const REVIEW_ACCENT = lifecycleStateSectionTone('in_review');
+const APPROVAL_ACCENT = lifecycleStateSectionTone('in_approval');
+const APPROVED_ACCENT = lifecycleStateSectionTone('approved');
 
 const VISIBLE_ROWS = 2;
 

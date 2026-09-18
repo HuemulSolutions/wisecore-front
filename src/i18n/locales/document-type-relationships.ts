@@ -46,6 +46,11 @@ const translations = {
       en: "Loaded {{count}} relationship(s)",
       es: "Se cargaron {{count}} relación(es)",
     },
+    exploreDiagrams: { en: "View diagrams for this version", es: "Ver diagramas de esta versión" },
+    exploreDiagramsDescription: {
+      en: "Opens an overlay with every diagram assigned to this asset's version",
+      es: "Abre un panel con todos los diagramas asignados a la versión de este activo",
+    },
   },
   sidebar: {
     title: { en: "Asset Types", es: "Tipos de Activo" },
@@ -89,7 +94,6 @@ const translations = {
     saveAsNewDiagram: { en: "Save as new diagram", es: "Guardar como nuevo diagrama" },
     saveChanges: { en: "Save changes", es: "Guardar cambios" },
     editDiagramData: { en: "Edit diagram details", es: "Editar datos del diagrama" },
-    loadDiagram: { en: "Load Diagram", es: "Cargar Diagrama" },
     editingDiagram: { en: "Editing: {{name}}", es: "Editando: {{name}}" },
     addContainer: { en: "Add Container", es: "Agregar Contenedor" },
     addText: { en: "Add Text", es: "Agregar Texto" },
@@ -107,14 +111,6 @@ const translations = {
       allChangesSaved: { en: "All changes saved", es: "Sin cambios pendientes" },
       saveAsNewShort: { en: "Save as new", es: "Guardar como nuevo" },
       more: { en: "More actions", es: "Más acciones" },
-    },
-    discardConfirm: {
-      loadTitle: { en: "Discard unsaved changes?", es: "¿Descartar los cambios sin guardar?" },
-      loadDescription: {
-        en: "Loading another diagram replaces everything on the canvas. Unsaved changes are lost.",
-        es: "Cargar otro diagrama reemplaza todo el contenido del canvas. Los cambios sin guardar se pierden.",
-      },
-      loadConfirmLabel: { en: "Load anyway", es: "Cargar de todos modos" },
     },
     roleEdgeExecutionOnly: {
       en: "Diagram connections are only available while editing a diagram",
@@ -140,14 +136,6 @@ const translations = {
       en: "Add at least one asset version, role, gateway or event node before saving",
       es: "Agregar al menos una versión de activo, un rol, una compuerta o un evento antes de guardar",
     },
-  },
-  loadDiagramSheet: {
-    title: { en: "Load Diagram", es: "Cargar Diagrama" },
-    diagramLabel: { en: "Diagram", es: "Diagrama" },
-    diagramPlaceholder: { en: "Search a diagram by name", es: "Buscar un diagrama por nombre" },
-    load: { en: "Load Diagram", es: "Cargar Diagrama" },
-    notFound: { en: "Diagram not found.", es: "Diagrama no encontrado." },
-    loadingError: { en: "Failed to load the diagram.", es: "Error al cargar el diagrama." },
   },
   saveAsDiagramDialog: {
     title: { en: "Save as Diagram", es: "Guardar como Diagrama" },
@@ -205,6 +193,7 @@ const translations = {
     assetType: { en: "Asset Type", es: "Tipo de Activo" },
     actions: { en: "Actions", es: "Acciones" },
     openAsset: { en: "Open Asset", es: "Abrir Activo" },
+    exploreDiagrams: { en: "View diagrams for this version", es: "Ver diagramas de esta versión" },
     loadRelationships: { en: "Expand Relationships and Child Nodes", es: "Expandir relaciones y todos sus nodos hijos" },
     loadRelationshipsDescription: {
       en: "Adds the node's direct children to the canvas, along with their connections to nodes already there",

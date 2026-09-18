@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { formatAbsoluteDate, formatRelativeTime } from '@/lib/format-relative-time';
 import { HomeAvatar } from './home-avatar';
+import { HOME_ROW, HOME_ROW_TITLE, HOME_ROW_META } from './home-surface';
 import type { HomeWorkGroupRow as HomeWorkGroupRowData } from '@/types/home';
 
 /** A partir de cuántos días detenido en el estado se resalta la razón temporal. */
@@ -51,24 +52,25 @@ export function HomeWorkGroupRow({ row, onOpen, actions, isExiting, commentExcer
   return (
     <div
       className={cn(
-        'flex items-center gap-3 border-b border-[#f1f4f7] px-[15px] py-3 last:border-b-0 hover:bg-[#fafbfd]',
+        'flex items-center gap-3',
+        HOME_ROW,
         isExiting && 'pointer-events-none animate-out fade-out slide-out-to-top-1 duration-150',
       )}
     >
-      {commentAuthorName && <HomeAvatar name={commentAuthorName} className="h-[26px] w-[26px] text-[11px]" />}
+      {commentAuthorName && <HomeAvatar name={commentAuthorName} className="h-6.5 w-6.5 text-2xs" />}
       <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left hover:cursor-pointer">
-        <p className="truncate text-[13.5px] font-medium">{row.documentName}</p>
-        <p className="truncate text-[12px] text-[#64748b]">
+        <p className={HOME_ROW_TITLE}>{row.documentName}</p>
+        <p className={HOME_ROW_META}>
           {[row.versionLabel, row.ownerName, row.stepName].filter(Boolean).join(' · ')}
           {temporalText && (
             <>
               {(row.versionLabel || row.ownerName || row.stepName) && ' · '}
-              <span className={temporalText.overdue ? 'font-semibold text-[#b45309]' : undefined}>{temporalText.text}</span>
+              <span className={temporalText.overdue ? 'font-semibold text-red-700 dark:text-red-400' : undefined}>{temporalText.text}</span>
             </>
           )}
         </p>
         {commentExcerpt && (
-          <p className="mt-1 line-clamp-2 text-[12.5px] text-[#334155]">&ldquo;{commentExcerpt}&rdquo;</p>
+          <p className="mt-1 line-clamp-2 text-xs text-foreground">&ldquo;{commentExcerpt}&rdquo;</p>
         )}
       </button>
       {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}

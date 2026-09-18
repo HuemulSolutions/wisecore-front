@@ -787,13 +787,16 @@ export function WorkflowDetailPanel({
           <WorkflowFinishedCard
             outcome={finishOutcome}
             workflowName={workflowName}
-            // Sin ninguna sección visible ahora mismo (backend no expone nada a
-            // este rol en este grupo/etapa, ni siquiera lo que ya respondió), no
-            // hay resumen al que volver — se oculta el botón en vez de caer en el
-            // bloque de "paso vacío" (waitingTitle), que confundiría al mostrar
-            // un mensaje que no aplica a alguien que ya completó su parte.
+            // Se oculta en dos casos: (1) sin ninguna sección visible ahora mismo
+            // (backend no expone nada a este rol en este grupo/etapa, ni siquiera
+            // lo que ya respondió) no hay resumen al que volver — evita caer en el
+            // bloque de "paso vacío" (waitingTitle), que confundiría al mostrar un
+            // mensaje que no aplica a alguien que ya completó su parte; (2) el
+            // documento está archivado — ver sus respuestas ya no es una acción
+            // disponible en este estado terminal (a diferencia de los otros
+            // outcomes), así que el botón nunca se ofrece.
             onViewAnswers={
-              formSections.length > 0
+              finishOutcome !== "archived" && formSections.length > 0
                 ? () => {
                     setViewingAnswers(true)
                     setStep(null)

@@ -150,9 +150,10 @@ export interface HuemulTableProps<T> {
   /**
    * `"default"` (implícito) es la tabla HTML actual. `"detailed"` renderiza un grid CSS
    * con estilo cerrado (checkbox custom, filas resaltadas por `activeKey`, paginador a
-   * juego) pensado para listados simples seleccionables y paginados — no soporta
-   * `folders`, `resizable` ni `sort`. Sí soporta `actions`: se renderiza como una
-   * columna final con un menú desplegable simple (sin sub-`items` ni modo `inline`).
+   * juego) pensado para listados simples seleccionables y paginados. No soporta
+   * `folders` ni expand de filas. Sí soporta `sort`, `resizable`/`columnsStorageKey`,
+   * `error`/`onRetry` y `actions` — estas últimas siempre como menú desplegable
+   * (sin sub-`items` ni modo `inline`, aunque se pase `actionsMode="inline"`).
    */
   variant?: "default" | "detailed"
   /** Solo `variant="detailed"`: click nativo de fila (fuera de la celda de checkbox). */

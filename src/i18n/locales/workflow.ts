@@ -211,6 +211,11 @@ const translations = {
       sentToApprovalTitle: { en: "{{name}} sent for approval", es: "{{name}} enviado a aprobación" },
       approvedTitle: { en: "{{name}} approved", es: "{{name}} aprobado" },
       publishedTitle: { en: "{{name}} published", es: "{{name}} publicado" },
+      archivedTitle: { en: "{{name}} archived", es: "{{name}} archivado" },
+      archivedDescription: {
+        en: "This asset was archived and no longer accepts actions. Its answers can't be viewed from this link anymore. You can close this tab now.",
+        es: "Este activo fue archivado y ya no admite ninguna acción. Tampoco es posible ver sus respuestas desde este link. Ya es posible cerrar esta pestaña.",
+      },
       description: { en: "You can close this tab now.", es: "Ya es posible cerrar esta pestaña." },
       publishedDescription: {
         en: "The data was submitted and the process has finished. You can close this tab now.",

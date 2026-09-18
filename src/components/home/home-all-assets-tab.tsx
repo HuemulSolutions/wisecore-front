@@ -1,9 +1,9 @@
 import { useTranslation } from 'react-i18next';
-import { GitBranch, ExternalLink, MessageCircle } from 'lucide-react';
-import { useMemo } from 'react';
+import { GitBranch, MessageCircle } from 'lucide-react';
+import { useCallback, useMemo } from 'react';
 import { DEFAULT_PAGE_SIZE } from '@/huemul/constants';
 import { HuemulTable } from '@/huemul/components/huemul-table';
-import type { HuemulTableColumn, HuemulTableAction } from '@/huemul/components/huemul-table';
+import type { HuemulTableColumn } from '@/huemul/components/huemul-table';
 import { HuemulFilterButton } from '@/huemul/components/huemul-filter-button';
 import { HuemulFilterChips } from '@/huemul/components/huemul-filter-chips';
 import { HuemulFilterInline } from '@/huemul/components/huemul-filter-inline';
@@ -12,7 +12,9 @@ import { HuemulAccessDenied } from '@/huemul/components/huemul-access-denied';
 import type { HuemulFilterDef, HuemulFilterValue, HuemulFilterChip } from '@/types/huemul';
 import type { Execution } from '@/types/execution';
 import { formatRelativeTime, formatAbsoluteDate } from '@/lib/format-relative-time';
+import { cn } from '@/lib/utils';
 import { HomeAvatar } from './home-avatar';
+import { HOME_CARD } from './home-surface';
 
 export interface HomeAllAssetsTabProps {
   organizationId: string;
@@ -80,22 +82,16 @@ export function HomeAllAssetsTab({
   const { t } = useTranslation('home');
   const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
-  const tableActions: HuemulTableAction<Execution>[] = useMemo(
-    () =>
-      canOpenAsset
-        ? [
-            {
-              key: 'openAsset',
-              label: t('executionsTable.actions.openAsset'),
-              icon: ExternalLink,
-              onClick: (item) => {
-                const url = `${window.location.origin}/${organizationId}/asset/${item.document_id}?execution=${item.id}`;
-                window.open(url, '_blank', 'noopener,noreferrer');
-              },
-            },
-          ]
-        : [],
-    [canOpenAsset, organizationId, t],
+  // Clic en la fila abre el activo — mismo patrón que el resto de las tablas
+  // `variant="detailed"` del repo (users/roles/organizations/global-admin):
+  // ninguna usa un menú de acciones por fila, todas abren/seleccionan al
+  // clickear la fila entera.
+  const handleOpenAsset = useCallback(
+    (item: Execution) => {
+      const url = `${window.location.origin}/${organizationId}/asset/${item.document_id}?execution=${item.id}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    },
+    [organizationId],
   );
 
   const columns: HuemulTableColumn<Execution>[] = useMemo(
@@ -105,7 +101,7 @@ export function HomeAllAssetsTab({
         label: t('executionsTable.columns.documentName'),
         sortKey: 'document_name',
         defaultWidth: 260,
-        render: (item) => <span className="font-medium">{item.document_name}</span>,
+        render: (item) => <span className="font-medium text-foreground">{item.document_name}</span>,
       },
       {
         key: 'unresolvedComments',
@@ -114,7 +110,10 @@ export function HomeAllAssetsTab({
         defaultWidth: 150,
         render: (item) =>
           item.unresolved_comments_count > 0 ? (
-            <span className="inline-flex items-center gap-1 text-violet-600 dark:text-violet-400">
+            // fuchsia, no violet: violet ya es `in_approval` en el badge de estado
+            // de esta misma fila. Mismo hue que el KPI "Comentarios sin resolver"
+            // del Panorama de home.
+            <span className="inline-flex items-center gap-1 font-medium tabular-nums text-fuchsia-600 dark:text-fuchsia-400">
               <MessageCircle className="h-3.5 w-3.5" />
               {item.unresolved_comments_count}
             </span>
@@ -126,8 +125,10 @@ export function HomeAllAssetsTab({
         key: 'version',
         label: t('executionsTable.columns.version'),
         defaultWidth: 120,
+        // Metadato, no estado: en azul competía con el badge `draft` de la
+        // columna de estado, dos azules distintos en la misma fila.
         render: (item) => (
-          <span className="text-blue-600 dark:text-blue-400">
+          <span className="tabular-nums text-muted-foreground">
             {item.version_major !== null && item.version_minor !== null && item.version_patch !== null
               ? `v${item.version_major}.${item.version_minor}.${item.version_patch}`
               : item.name}
@@ -169,7 +170,7 @@ export function HomeAllAssetsTab({
         sortKey: 'updated_at',
         defaultWidth: 150,
         render: (item) => (
-          <span className="text-muted-foreground" title={item.updated_at}>
+          <span className="tabular-nums text-muted-foreground" title={item.updated_at}>
             {formatRelativeTime(item.updated_at)}
           </span>
         ),
@@ -180,7 +181,7 @@ export function HomeAllAssetsTab({
         sortKey: 'expiration_date',
         defaultWidth: 150,
         render: (item) => (
-          <span className="text-muted-foreground" title={item.expiration_date ?? undefined}>
+          <span className="tabular-nums text-muted-foreground" title={item.expiration_date ?? undefined}>
             {item.expiration_date ? formatAbsoluteDate(item.expiration_date) : '—'}
           </span>
         ),
@@ -191,7 +192,7 @@ export function HomeAllAssetsTab({
         sortKey: 'estimated_publication_date',
         defaultWidth: 180,
         render: (item) => (
-          <span className="text-muted-foreground" title={item.estimated_publication_date ?? undefined}>
+          <span className="tabular-nums text-muted-foreground" title={item.estimated_publication_date ?? undefined}>
             {item.estimated_publication_date ? formatAbsoluteDate(item.estimated_publication_date) : '—'}
           </span>
         ),
@@ -202,7 +203,7 @@ export function HomeAllAssetsTab({
         sortKey: 'review_date',
         defaultWidth: 150,
         render: (item) => (
-          <span className="text-muted-foreground" title={item.review_date ?? undefined}>
+          <span className="tabular-nums text-muted-foreground" title={item.review_date ?? undefined}>
             {item.review_date ? formatAbsoluteDate(item.review_date) : '—'}
           </span>
         ),
@@ -213,7 +214,7 @@ export function HomeAllAssetsTab({
         sortKey: 'audit_date',
         defaultWidth: 150,
         render: (item) => (
-          <span className="text-muted-foreground" title={item.audit_date ?? undefined}>
+          <span className="tabular-nums text-muted-foreground" title={item.audit_date ?? undefined}>
             {item.audit_date ? formatAbsoluteDate(item.audit_date) : '—'}
           </span>
         ),
@@ -226,13 +227,13 @@ export function HomeAllAssetsTab({
     <div className="flex flex-col h-full overflow-hidden gap-4">
       {canListExecutions && (
         <>
-          <div className="shrink-0 flex items-center justify-between gap-2">
+          <div className={cn(HOME_CARD, 'shrink-0 flex items-center justify-between gap-2 px-3 py-2')}>
             <div className="flex items-center gap-2">
               <HuemulFilterButton count={activeCount} open={filtersOpen} onToggle={() => onFiltersOpenChange(!filtersOpen)} />
               <HuemulFilterInline filters={filterDefs} values={values} onChange={onFilterChange} onSelectedLabel={onSelectedLabel} />
             </div>
             {!isLoading && total != null && (
-              <p className="shrink-0 text-sm text-muted-foreground">{t('executionsTable.resultsCount', { count: total })}</p>
+              <p className="shrink-0 text-xs tabular-nums text-muted-foreground">{t('executionsTable.resultsCount', { count: total })}</p>
             )}
           </div>
           <HuemulFilterChips chips={chips} onRemove={onChipRemove} onClearAll={onClearAll} />
@@ -244,17 +245,16 @@ export function HomeAllAssetsTab({
           <HuemulAccessDenied variant="inline" />
         ) : (
           <HuemulTable
+            variant="detailed"
             data={data}
             columns={columns}
             getRowKey={(item) => item.id}
             isLoading={isLoading}
             isFetching={isFetching}
-            actions={tableActions}
-            actionsMode="inline"
+            onRowClick={canOpenAsset ? handleOpenAsset : undefined}
             resizable
             columnsStorageKey="wisecore:home-executions-col-widths"
-            className="h-full"
-            maxHeight=""
+            className="h-full shadow-card"
             sort={sort}
             onSortChange={(s) => {
               onSortChange(s);
