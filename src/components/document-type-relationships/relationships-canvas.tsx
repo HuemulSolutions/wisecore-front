@@ -69,6 +69,7 @@ import { CreateAssetSheet } from "@/components/assets/dialogs"
 import { getDocumentById } from "@/services/assets"
 import { getExecutionsByDocumentId } from "@/services/executions"
 import { AssetDiagramsExplorer } from "@/components/diagrams/asset-diagrams-explorer"
+import { NodeDiagramsPopover } from "@/components/diagrams/node-diagrams-popover"
 import type {
   DocumentTypeRelationship,
   InitialCanvasNode,
@@ -475,6 +476,9 @@ function RelationshipsCanvasFlow({
   const [exploringNodeId, setExploringNodeId] = useState<string | null>(null)
   // Diagrama abierto desde un nodo del overlay, mostrado en el visor read-only.
   const [viewingDiagramId, setViewingDiagramId] = useState<string | null>(null)
+  // Popup "diagramas del activo" abierto con doble clic — id del nodo + punto de pantalla
+  // del clic, o null si está cerrado.
+  const [diagramsPopover, setDiagramsPopover] = useState<{ nodeId: string; x: number; y: number } | null>(null)
 
   // Deriva qué nodos/edges "pertenecen" a la selección actual — usado por
   // `layeredNodes`/`layeredEdges` para atenuar el resto del canvas. `null` cuando no
@@ -667,15 +671,15 @@ function RelationshipsCanvasFlow({
     setSelectedEdgeId(null)
   }, [])
 
-  // Doble clic en un nodo assetType con versión elegida: abre el overlay "diagramas
-  // de esta versión" (ver AssetDiagramsExplorer más abajo). Es una lectura — sigue
-  // funcionando en `readOnly`. Sin efecto sobre role/text/container/gateway/etc., sobre
-  // un nodo sin versión, o en modo document-type (no hay Diagram detrás ahí).
-  const onNodeDoubleClick = useCallback((_: React.MouseEvent, node: Node) => {
+  // Doble clic en un nodo assetType: abre el popup con todos los diagramas donde aparece
+  // el activo (ver NodeDiagramsPopover más abajo), anclado al cursor. Es una lectura —
+  // sigue funcionando en `readOnly`. Sin efecto sobre role/text/container/gateway/etc.,
+  // sobre un nodo sin activo, o en modo document-type (no hay Diagram detrás ahí).
+  const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
     if (mode !== 'execution' || !canListDiagrams || node.type !== 'assetType') return
     const data = node.data as AssetTypeNodeData
-    if (!data.assetId || !data.executionId) return
-    setExploringNodeId(node.id)
+    if (!data.assetId) return
+    setDiagramsPopover({ nodeId: node.id, x: event.clientX, y: event.clientY })
   }, [mode, canListDiagrams])
 
   // Clic en el fondo del canvas: apaga la selección y, con ella, el dimming de
@@ -2647,6 +2651,23 @@ function RelationshipsCanvasFlow({
           )
         })()}
       </div>
+
+      {diagramsPopover && (() => {
+        const popoverNode = nodes.find((n) => n.id === diagramsPopover.nodeId)
+        const popoverData = popoverNode?.data as AssetTypeNodeData | undefined
+        if (!popoverData?.assetId) return null
+        return (
+          <NodeDiagramsPopover
+            organizationId={organizationId}
+            assetId={popoverData.assetId}
+            assetName={popoverData.name}
+            executionId={popoverData.executionId}
+            currentDiagramId={editingDiagram?.id}
+            anchor={{ x: diagramsPopover.x, y: diagramsPopover.y }}
+            onClose={() => setDiagramsPopover(null)}
+          />
+        )
+      })()}
 
       {viewingDiagramId && (
         <Suspense fallback={null}>

@@ -171,6 +171,20 @@ const translations = {
     createAction: { en: "New diagram", es: "Nuevo diagrama" },
     nodesCount: { en: "{{count}} node(s)", es: "{{count}} nodo(s)" },
   },
+  nodeDiagrams: {
+    count: { en: "{{count}} diagram(s)", es: "{{count}} diagrama(s)" },
+    meta: { en: "{{count}} node(s) · Edited {{date}}", es: "{{count}} nodo(s) · Editado {{date}}" },
+    emptyTitle: { en: "No diagrams for this asset", es: "Este activo no está en ningún diagrama" },
+    emptyDescription: {
+      en: "Diagrams that include this asset will show up here.",
+      es: "Los diagramas que incluyan este activo aparecerán aquí.",
+    },
+    createAction: { en: "New diagram", es: "Nuevo diagrama" },
+    loadingError: {
+      en: "Failed to load the diagrams for this asset.",
+      es: "Error al cargar los diagramas de este activo.",
+    },
+  },
   contentEmptyState: {
     errorTitle: { en: "Failed to load diagrams", es: "Error al cargar diagramas" },
     errorDescription: {
