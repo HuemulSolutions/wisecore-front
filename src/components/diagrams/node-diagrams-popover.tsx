@@ -2,7 +2,7 @@
 
 import { useMemo } from "react"
 import { useTranslation } from "react-i18next"
-import { AlertCircle, Plus, RefreshCw, Workflow } from "lucide-react"
+import { AlertCircle, ExternalLink, Plus, RefreshCw, Workflow } from "lucide-react"
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { Skeleton } from "@/components/ui/skeleton"
 import { HuemulButton } from "@/huemul/components/huemul-button"
@@ -34,8 +34,8 @@ const includesExecution = (diagram: Diagram, executionId?: string) =>
 
 /**
  * Popup flotante con todos los diagramas donde aparece un activo. Se abre con doble
- * clic sobre un nodo; clic en una fila abre ese diagrama en una pestaña nueva (no
- * arriesga los cambios sin guardar del canvas actual).
+ * clic sobre un nodo o con el badge "otros diagramas". Clic en una fila abre ese
+ * diagrama siempre en una pestaña nueva (no arriesga el canvas actual).
  */
 export function NodeDiagramsPopover({
   organizationId,
@@ -81,7 +81,11 @@ export function NodeDiagramsPopover({
   }
 
   return (
-    <Popover open onOpenChange={(open) => !open && onClose()}>
+    // `modal` es necesario sobre React Flow: un Popover no-modal difiere el cierre al `click`
+    // y lo cancela si el `mousedown` no llega a `document`, y d3-zoom/d3-drag (pane y nodos)
+    // le hacen `stopImmediatePropagation()`. Modal bloquea el `pointer-events` del body, así
+    // que el clic fuera lo consume la capa de Radix (igual que los menús modales del canvas).
+    <Popover open modal onOpenChange={(open) => !open && onClose()}>
       <PopoverAnchor asChild>
         <div
           aria-hidden
@@ -147,10 +151,13 @@ export function NodeDiagramsPopover({
                     type="button"
                     disabled={isCurrent}
                     aria-current={isCurrent ? "true" : undefined}
+                    title={isCurrent ? undefined : t("diagrams:nodeDiagrams.openNewTab")}
                     onClick={() => openInNewTab(new URLSearchParams({ diagram: diagram.id }).toString())}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors",
-                      isCurrent ? "bg-[#eef2ff]" : "hover:cursor-pointer hover:bg-[#f4f6f9]",
+                      "group flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-hidden",
+                      isCurrent
+                        ? "bg-[#eef2ff] disabled:cursor-default"
+                        : "hover:cursor-pointer hover:bg-[#f4f6f9]",
                     )}
                   >
                     <Workflow className="h-3.5 w-3.5 shrink-0 text-slate-400" />
@@ -166,10 +173,13 @@ export function NodeDiagramsPopover({
                         })}
                       </span>
                     </span>
-                    {isCurrent && (
+                    {isCurrent ? (
                       <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                        {t("diagrams:explorer.currentBadge")}
+                        {t("diagrams:nodeDiagrams.currentBadge")}
                       </span>
+                    ) : (
+                      // Pista visual: abre fuera de esta pantalla.
+                      <ExternalLink className="h-3 w-3 shrink-0 text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
                     )}
                   </button>
                 </li>

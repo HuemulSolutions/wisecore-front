@@ -1,6 +1,6 @@
 "use client"
 
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import {
   ReactFlow,
@@ -68,7 +68,6 @@ import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { CreateAssetSheet } from "@/components/assets/dialogs"
 import { getDocumentById } from "@/services/assets"
 import { getExecutionsByDocumentId } from "@/services/executions"
-import { AssetDiagramsExplorer } from "@/components/diagrams/asset-diagrams-explorer"
 import { NodeDiagramsPopover } from "@/components/diagrams/node-diagrams-popover"
 import type {
   DocumentTypeRelationship,
@@ -95,7 +94,7 @@ import {
   isFlowCanvasType,
   type CanvasNode,
 } from "@/lib/diagram-utils"
-import { useSaveDiagramGraph } from "@/hooks/useDiagrams"
+import { useSaveDiagramGraph, useDiagramIdsByAsset } from "@/hooks/useDiagrams"
 import { useDiagramDirtyState } from "@/hooks/useDiagramDirtyState"
 import { useOrgNavigate, useOrgPath } from "@/hooks/useOrgRouter"
 import { handleApiError } from "@/lib/error-utils"
@@ -113,14 +112,6 @@ const NODE_TYPES = {
 const EDGE_TYPES = {
   relationship: MemoizedRelationshipEdge,
 }
-
-// Import diferido: `DiagramViewSheet` → `DiagramCanvas` → `RelationshipsCanvas` (este
-// mismo archivo) — un import estático cerraría un ciclo. `lazy` lo saca del grafo de
-// módulos síncrono; solo se descarga cuando el overlay de exploración realmente abre
-// un diagrama.
-const LazyDiagramViewSheet = lazy(() =>
-  import("@/components/diagrams/diagram-view-sheet").then((m) => ({ default: m.DiagramViewSheet })),
-)
 
 const EDGE_MARKER = {
   type: MarkerType.ArrowClosed,
@@ -471,14 +462,25 @@ function RelationshipsCanvasFlow({
   // `layeredEdges` porque el resaltado de relaciones (abajo) depende de la selección.
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
-  // Overlay "diagramas de esta versión" — el id del nodo assetType explorado, o null
-  // si está cerrado. El canvas de fondo (nodes/edges) sigue montado e intacto debajo.
-  const [exploringNodeId, setExploringNodeId] = useState<string | null>(null)
-  // Diagrama abierto desde un nodo del overlay, mostrado en el visor read-only.
-  const [viewingDiagramId, setViewingDiagramId] = useState<string | null>(null)
   // Popup "diagramas del activo" abierto con doble clic — id del nodo + punto de pantalla
   // del clic, o null si está cerrado.
   const [diagramsPopover, setDiagramsPopover] = useState<{ nodeId: string; x: number; y: number } | null>(null)
+  // Handler que el badge de un nodo usa para abrir el popup en el punto del clic.
+  const handleShowDiagrams = useCallback((nodeId: string, point: { x: number; y: number }) => {
+    setDiagramsPopover({ nodeId, x: point.x, y: point.y })
+  }, [])
+  // Menú contextual / panel lateral: abre el mismo popup anclado al costado derecho del nodo
+  // (ninguno de los dos trae coordenadas del clic, así que se mide su elemento en el DOM).
+  const handleExploreDiagrams = useCallback((nodeId: string) => {
+    const el = document.querySelector(`.react-flow__node[data-id="${CSS.escape(nodeId)}"]`)
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    setDiagramsPopover({ nodeId, x: rect.right, y: rect.top })
+  }, [])
+  // Diagramas por activo, para el badge "otros diagramas" de cada nodo.
+  const diagramIdsByAsset = useDiagramIdsByAsset(organizationId, {
+    enabled: mode === 'execution' && canListDiagrams,
+  })
 
   // Deriva qué nodos/edges "pertenecen" a la selección actual — usado por
   // `layeredNodes`/`layeredEdges` para atenuar el resto del canvas. `null` cuando no
@@ -705,6 +707,33 @@ function RelationshipsCanvasFlow({
   const organizationIdRef = useRef(organizationId)
   useEffect(() => { docTypeMapRef.current = docTypeMap }, [docTypeMap])
   useEffect(() => { organizationIdRef.current = organizationId }, [organizationId])
+
+  // ─── Badge "otros diagramas" de cada nodo assetType ────────────────────────
+  // Cuenta los diagramas del activo EXCLUYENDO el que está abierto. `data` no entra en
+  // `buildCanvasSignature` para un nodo assetType, así que esto no ensucia el canvas.
+  // La clave por activo evita re-correr el effect en cada frame de un arrastre.
+  const currentDiagramId = editingDiagram?.id
+  const assetNodesKey = nodes
+    .filter((n) => n.type === 'assetType')
+    .map((n) => `${n.id}:${(n.data as AssetTypeNodeData).assetId ?? ''}`)
+    .join('|')
+  useEffect(() => {
+    if (mode !== 'execution') return
+    setNodes((nds) => {
+      let changed = false
+      const next = nds.map((n) => {
+        if (n.type !== 'assetType') return n
+        const data = n.data as AssetTypeNodeData
+        const ids = data.assetId ? diagramIdsByAsset.get(data.assetId) : undefined
+        const count = ids ? ids.size - (currentDiagramId && ids.has(currentDiagramId) ? 1 : 0) : 0
+        if ((data.otherDiagramsCount ?? 0) === count) return n
+        changed = true
+        return { ...n, data: { ...data, otherDiagramsCount: count } }
+      })
+      return changed ? next : nds
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, diagramIdsByAsset, currentDiagramId, assetNodesKey])
 
   // ─── Sync canvas node name/color when documentTypes data changes ───────────
   useEffect(() => {
@@ -1057,7 +1086,7 @@ function RelationshipsCanvasFlow({
             onLoadRelationships: (id: string) => handleLoadExecRelRef.current?.(id),
             onLoadRelationshipsCanvasOnly: (id: string) => handleLoadExecRelCanvasOnlyRef.current?.(id),
             onRemove: handleRemoveNode,
-            ...(canListDiagrams ? { onExploreDiagrams: setExploringNodeId } : {}),
+            ...(canListDiagrams ? { onExploreDiagrams: handleExploreDiagrams, onShowDiagrams: handleShowDiagrams } : {}),
           },
         },
       ])
@@ -1065,7 +1094,7 @@ function RelationshipsCanvasFlow({
       setSelectedEdgeId(null)
       return canvasNodeId
     },
-    [setNodes, handleRemoveNode, canListDiagrams],
+    [setNodes, handleRemoveNode, canListDiagrams, handleShowDiagrams, handleExploreDiagrams],
   )
 
   // ─── Free-standing text/container elements (not tied to an asset) ─────────
@@ -2194,8 +2223,10 @@ function RelationshipsCanvasFlow({
             onLoadRelationships: (id: string) => handleLoadExecRelRef.current?.(id),
             onLoadRelationshipsCanvasOnly: (id: string) => handleLoadExecRelCanvasOnlyRef.current?.(id),
             onRemove: handleRemoveNode,
-            ...(canListDiagrams ? { onExploreDiagrams: setExploringNodeId } : {}),
+            ...(canListDiagrams ? { onExploreDiagrams: handleExploreDiagrams } : {}),
           }),
+          // El badge es lectura: también vive en `readOnly` (visor).
+          ...(canListDiagrams ? { onShowDiagrams: handleShowDiagrams } : {}),
         },
       }
       return { canvasNodeId, seed: n, node }
@@ -2203,7 +2234,7 @@ function RelationshipsCanvasFlow({
 
     setNodes((nds) => [...nds, ...seeded.map((s) => s.node)])
     pendingEdgeSeedRef.current = { seeded, relationships }
-  }, [setNodes, handleRemoveNode, handleRequestRolePick, handleUpdateElementContent, readOnly, canListDiagrams])
+  }, [setNodes, handleRemoveNode, handleRequestRolePick, handleUpdateElementContent, readOnly, canListDiagrams, handleShowDiagrams, handleExploreDiagrams])
 
   // Flush any pending edge seed once react-flow reports the current nodes are
   // initialized (measured). Depends on `nodes` too (not just the boolean) so a
@@ -2612,8 +2643,8 @@ function RelationshipsCanvasFlow({
               nodeActions={nodeActions}
               onOpenAsset={mode === 'execution' && nodeData.assetId ? () => handleOpenAsset(nodeData.assetId!, nodeData.executionId) : undefined}
               onExploreDiagrams={
-                mode === 'execution' && canListDiagrams && nodeData.assetId && nodeData.executionId
-                  ? () => setExploringNodeId(nodeData.id)
+                mode === 'execution' && canListDiagrams && nodeData.assetId
+                  ? () => handleExploreDiagrams(nodeData.id)
                   : undefined
               }
               documentTypes={documentTypes}
@@ -2626,27 +2657,6 @@ function RelationshipsCanvasFlow({
               organizationId={organizationId}
               onSelectExecution={handleSelectExecution}
               readOnly={readOnly}
-            />
-          )
-        })()}
-
-        {/* Overlay "diagramas de esta versión" — cubre el ReactFlow de arriba sin
-            desmontarlo; nodes/edges del canvas en edición siguen intactos debajo. */}
-        {exploringNodeId && (() => {
-          const exploringNode = nodes.find((n) => n.id === exploringNodeId)
-          const exploringData = exploringNode?.data as AssetTypeNodeData | undefined
-          if (!exploringData?.assetId || !exploringData.executionId) return null
-          return (
-            <AssetDiagramsExplorer
-              organizationId={organizationId}
-              assetId={exploringData.assetId}
-              executionId={exploringData.executionId}
-              assetName={exploringData.name}
-              assetColor={exploringData.color}
-              executionName={exploringData.executionName}
-              currentDiagramId={editingDiagram?.id}
-              onOpenDiagram={setViewingDiagramId}
-              onClose={() => setExploringNodeId(null)}
             />
           )
         })()}
@@ -2668,17 +2678,6 @@ function RelationshipsCanvasFlow({
           />
         )
       })()}
-
-      {viewingDiagramId && (
-        <Suspense fallback={null}>
-          <LazyDiagramViewSheet
-            open={!!viewingDiagramId}
-            onOpenChange={(open) => !open && setViewingDiagramId(null)}
-            diagramId={viewingDiagramId}
-            organizationId={organizationId}
-          />
-        </Suspense>
-      )}
 
       {/* Create relationship dialog — document-type mode */}
       {pendingConnection && mode === 'document-type' && (

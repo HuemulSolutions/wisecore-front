@@ -154,24 +154,8 @@ const translations = {
       es: "Ocurrió un error al cargar los diagramas. Reintentar.",
     },
   },
-  explorer: {
-    title: { en: "Diagrams for this version", es: "Diagramas de esta versión" },
-    subtitle: { en: "{{asset}} — {{execution}}", es: "{{asset}} — {{execution}}" },
-    diagramsCount: { en: "{{count}} diagram(s)", es: "{{count}} diagrama(s)" },
-    back: { en: "Back to diagram", es: "Volver al diagrama" },
-    currentBadge: { en: "Current", es: "Actual" },
-    empty: {
-      en: "This version isn't assigned to any diagram yet.",
-      es: "Esta versión aún no está asignada a ningún diagrama.",
-    },
-    loadingError: {
-      en: "Failed to load the diagrams for this version.",
-      es: "Error al cargar los diagramas de esta versión.",
-    },
-    createAction: { en: "New diagram", es: "Nuevo diagrama" },
-    nodesCount: { en: "{{count}} node(s)", es: "{{count}} nodo(s)" },
-  },
   nodeDiagrams: {
+    currentBadge: { en: "Current", es: "Actual" },
     count: { en: "{{count}} diagram(s)", es: "{{count}} diagrama(s)" },
     meta: { en: "{{count}} node(s) · Edited {{date}}", es: "{{count}} nodo(s) · Editado {{date}}" },
     emptyTitle: { en: "No diagrams for this asset", es: "Este activo no está en ningún diagrama" },
@@ -180,6 +164,7 @@ const translations = {
       es: "Los diagramas que incluyan este activo aparecerán aquí.",
     },
     createAction: { en: "New diagram", es: "Nuevo diagrama" },
+    openNewTab: { en: "Open in a new tab", es: "Abrir en pestaña nueva" },
     loadingError: {
       en: "Failed to load the diagrams for this asset.",
       es: "Error al cargar los diagramas de este activo.",
