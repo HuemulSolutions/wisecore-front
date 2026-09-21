@@ -43,8 +43,9 @@ import { CanvasElementPalette } from "./canvas-element-palette"
 import { CanvasActionsBar, CanvasReadOnlyBadge } from "./canvas-actions-bar"
 import { CanvasEmptyState } from "./canvas-empty-state"
 import { DiagramEditorBar } from "./diagram-editor-bar"
-import { DiagramSearchPanel } from "./diagram-search-panel"
 import { CanvasEmptyPrompt } from "./diagram-canvas-states"
+import { CanvasViewControls } from "./canvas-view-controls"
+import { useDiagramPaletteCollapsed } from "@/hooks/useDiagramPaletteCollapsed"
 import { DiagramsDeleteDialog } from "@/components/diagrams/diagrams-delete-dialog"
 import { captureDiagramSnapshot } from "@/lib/diagram-snapshot"
 import { ElementPanel } from "./element-panel"
@@ -74,6 +75,7 @@ import type {
   InitialCanvasRelationship,
   InitialCanvasElement,
   CanvasElementKind,
+  CanvasTool,
   CanvasElementRole,
   FlowCanvasNodeType,
   PendingConnection,
@@ -82,7 +84,7 @@ import type {
   EditingDiagram,
 } from "@/types/document-type-relationships"
 import type { ExecutionRelationship, ExecutionRelationshipSubitem } from "@/types/execution-relationships"
-import type { Diagram, DiagramRelationshipEndpoint } from "@/types/diagrams"
+import type { Diagram, DiagramFlowNodeType, DiagramRelationshipEndpoint } from "@/types/diagrams"
 import {
   detailEndpointOf,
   DEFAULT_CANVAS_ELEMENT_COLOR,
@@ -366,9 +368,7 @@ function RelationshipsCanvasFlow({
   readOnly = false,
   chrome = 'default',
   onOpenAssetTree,
-  isSearchOpen = false,
-  onSearchOpenChange,
-  railFocusRef,
+  onOpenDiagramsList,
   onRefresh,
   isRefreshing,
   onDiagramDeleted,
@@ -582,9 +582,26 @@ function RelationshipsCanvasFlow({
   const [saveSheetMode, setSaveSheetMode] = useState<'new' | 'metadata' | null>(null)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [showDeleteDiagram, setShowDeleteDiagram] = useState(false)
-  // Herramienta Seleccionar (solo chrome="editor"): activa = arrastrar sobre el pane hace caja
-  // de selección y el pan pasa a botón medio/derecho; inactiva = pan con clic izquierdo.
-  const [selectMode, setSelectMode] = useState(true)
+  // Herramienta activa (solo chrome="editor"): move (por defecto) = pan con clic izquierdo;
+  // select = caja de selección al arrastrar y pan con botón medio/derecho. Shift + arrastrar
+  // hace caja de selección en ambos modos.
+  const [tool, setTool] = useState<CanvasTool>('move')
+  // Panel de elementos colapsable. La preferencia se persiste; el auto-colapso por alto
+  // (canvas < 420px) NUNCA la escribe, y el usuario puede expandirlo a mano (`autoOverride`).
+  const [collapsedPref, setCollapsedPref] = useDiagramPaletteCollapsed()
+  const [autoOverride, setAutoOverride] = useState(false)
+  const flowHeight = useStore((st) => st.height)
+  const autoCollapse = flowHeight > 0 && flowHeight < 420
+  useEffect(() => {
+    if (!autoCollapse) setAutoOverride(false)
+  }, [autoCollapse])
+  const paletteCollapsed = autoCollapse ? !autoOverride : collapsedPref
+  const togglePaletteCollapsed = useCallback(() => {
+    if (autoCollapse) setAutoOverride((v) => !v)
+    else setCollapsedPref(!collapsedPref)
+  }, [autoCollapse, collapsedPref, setCollapsedPref])
+  // Lienzo bloqueado (solo chrome="editor"): sin mover/conectar/seleccionar; pan y zoom siguen.
+  const [locked, setLocked] = useState(false)
   const [editingDiagram, setEditingDiagram] = useState(editingDiagramProp)
   const { saveDiagramGraph, isSaving: isSavingDiagram } = useSaveDiagramGraph(organizationId)
 
@@ -1139,10 +1156,11 @@ function RelationshipsCanvasFlow({
           onRemove: handleRemoveNode,
         },
       }
-      setNodes((nds) => [...nds, node])
+      const created = isEditorChrome ? { ...node, selected: true } : node
+      setNodes((nds) => [...(isEditorChrome ? nds.map((n) => (n.selected ? { ...n, selected: false } : n)) : nds), created])
       return id
     },
-    [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRequestRolePick, handleClearElementRole, handleRemoveNode, defaultContentFor],
+    [isEditorChrome, setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRequestRolePick, handleClearElementRole, handleRemoveNode, defaultContentFor],
   )
 
   // In-canvas toolbar entry point: adds the element at the current viewport's
@@ -1173,24 +1191,30 @@ function RelationshipsCanvasFlow({
     (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault()
 
-      const elementRaw = e.dataTransfer.getData("application/canvas-element")
+      // `application/diagram-element` (paleta del editor, `node_type` en snake_case) y
+      // `application/canvas-element` (paleta por defecto y sidebar de tipos): mismo destino.
+      const diagramElementRaw = e.dataTransfer.getData("application/diagram-element")
+      const elementRaw = diagramElementRaw || e.dataTransfer.getData("application/canvas-element")
       if (elementRaw) {
-        let element: { kind: CanvasElementKind | FlowCanvasNodeType }
+        let payload: { kind: string }
         try {
-          element = JSON.parse(elementRaw)
+          payload = JSON.parse(elementRaw)
         } catch {
           return
         }
+        const kind = (diagramElementRaw
+          ? CANVAS_TYPE_BY_FLOW_NODE_TYPE[payload.kind as DiagramFlowNodeType] ?? payload.kind
+          : payload.kind) as CanvasElementKind | FlowCanvasNodeType
         const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
         // A "role" element has no content until a role is picked — open the
         // dialog instead of creating the node directly (mirrors addElementAtCenter).
         // Ignores the actual drop point: role nodes always land in the dedicated
         // column, regardless of where they were dropped on the canvas.
-        if (element.kind === "role") {
+        if (kind === "role") {
           setPendingRolePick({ position: computeRoleColumnPosition(getNodes()) })
           return
         }
-        createElementNode(element.kind, position)
+        createElementNode(kind, position)
         return
       }
 
@@ -2350,16 +2374,6 @@ function RelationshipsCanvasFlow({
     }
   }, [containerRef, nodes, fitView, editingDiagram, tDiagrams])
 
-  const searchItems = useMemo(
-    () => nodes.map((n) => ({ id: n.id, label: nodeLabel(n), color: nodeColor(n) })),
-    [nodes],
-  )
-
-  const handleFocusSearchNode = useCallback((id: string) => {
-    setNodes((nds) => nds.map((n) => ((!!n.selected) === (n.id === id) ? n : { ...n, selected: n.id === id })))
-    void fitView({ nodes: [{ id }], duration: 300, maxZoom: 1.2, padding: 0.6 })
-  }, [setNodes, fitView])
-
   // Atajos de teclado de la paleta. Se ignoran con foco en un campo de texto, en un
   // nodo de texto en edición o dentro de un diálogo/menú (el canvas tiene ediciones inline).
   useEffect(() => {
@@ -2372,7 +2386,9 @@ function RelationshipsCanvasFlow({
         if (el.closest('[role="dialog"],[role="alertdialog"],[role="menu"]')) return
       }
       switch (e.key.toLowerCase()) {
-        case 'v': setSelectMode(true); break
+        case 'v': setTool('select'); break
+        case 'h': setTool('move'); break
+        case '[': togglePaletteCollapsed(); break
         case 'c': addElementAtCenter('container'); break
         case 't': addElementAtCenter('text'); break
         case 'r': if (canAddRoleNode) addElementAtCenter('role'); break
@@ -2385,7 +2401,7 @@ function RelationshipsCanvasFlow({
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [isEditorChrome, readOnly, addElementAtCenter, canAddRoleNode, canAddFlowNode])
+  }, [isEditorChrome, readOnly, addElementAtCenter, canAddRoleNode, canAddFlowNode, togglePaletteCollapsed])
 
   const handleClearCanvas = useCallback(() => {
     requestBaselineReset()
@@ -2436,15 +2452,16 @@ function RelationshipsCanvasFlow({
           edgeTypes={EDGE_TYPES}
           connectionMode={ConnectionMode.Loose}
           elevateNodesOnSelect={false}
-          nodesDraggable={!readOnly}
-          nodesConnectable={!readOnly}
+          nodesDraggable={!readOnly && !locked}
+          nodesConnectable={!readOnly && !locked}
+          elementsSelectable={!locked}
           // Selección múltiple por caja: Shift + arrastrar sobre el pane vacío (comporta-
           // miento nativo de React Flow, `selectionKeyCode` default 'Shift') — el click
           // izquierdo sin modificador sigue siendo pan. `Partial` selecciona un nodo si la
           // caja lo toca, no exige cubrirlo entero.
           selectionMode={SelectionMode.Partial}
-          selectionOnDrag={isEditorChrome && !readOnly && selectMode}
-          panOnDrag={isEditorChrome && !readOnly && selectMode ? [1, 2] : true}
+          selectionOnDrag={isEditorChrome && !readOnly && tool === 'select'}
+          panOnDrag={isEditorChrome && !readOnly && tool === 'select' ? [1, 2] : true}
           // Reanclar cambia solo el diagrama (no la execution_relationship/relación de
           // negocio detrás del edge), así que el permiso correcto es el de escritura
           // del diagrama — mismo criterio que la rama de rol de `deleteKeyCode` abajo.
@@ -2468,14 +2485,18 @@ function RelationshipsCanvasFlow({
               ? "Delete"
               : null
           }
-          className={isEditorChrome ? "flex-1 h-full bg-[#fafbfc]" : "flex-1 h-full bg-muted/10"}
+          className={isEditorChrome ? "flex-1 h-full bg-surface-sunken" : "flex-1 h-full bg-muted/10"}
         >
           {isEditorChrome ? (
-            <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#dfe3e9" />
+            <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#d5dce5" />
           ) : (
             <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
           )}
-          <Controls />
+          {isEditorChrome ? (
+            <CanvasViewControls locked={locked} onToggleLock={() => setLocked((v) => !v)} />
+          ) : (
+            <Controls />
+          )}
           {alignmentGuides && (
             <AlignmentGuides vertical={alignmentGuides.vertical} horizontal={alignmentGuides.horizontal} />
           )}
@@ -2494,9 +2515,11 @@ function RelationshipsCanvasFlow({
               canAddFlow={canAddFlowNode}
               onAdd={addElementAtCenter}
               compact={isNarrow}
-              iconOnly={isEditorChrome}
-              selectActive={selectMode}
-              onToggleSelect={() => setSelectMode((v) => !v)}
+              editor={isEditorChrome}
+              activeTool={tool}
+              onChangeTool={setTool}
+              collapsed={paletteCollapsed}
+              onToggleCollapsed={togglePaletteCollapsed}
             />
           )}
 
@@ -2521,9 +2544,17 @@ function RelationshipsCanvasFlow({
               diagramName={editingDiagram?.name}
               isDirty={isDirty}
               isSaving={isSavingDiagram}
-              onSave={canSaveChanges ? handleSaveChanges : undefined}
+              // Diagrama nuevo: "Guardar" abre el sheet de creación (sin pasar por el menú ⋯).
+              onSave={
+                canSaveChanges
+                  ? handleSaveChanges
+                  : !editingDiagram && canSaveAsNew
+                    ? () => setSaveSheetMode('new')
+                    : undefined
+              }
               onRename={canEditMetadata ? handleRenameDiagram : undefined}
-              onSaveAsNew={canSaveAsNew ? () => setSaveSheetMode('new') : undefined}
+              // Solo para un diagrama ya guardado: en uno nuevo sería repetir "Guardar".
+              onSaveAsNew={editingDiagram && canSaveAsNew ? () => setSaveSheetMode('new') : undefined}
               onEditMetadata={canEditMetadata ? () => setSaveSheetMode('metadata') : undefined}
               onDuplicate={canSaveAsNew && editingDiagram ? handleDuplicateDiagram : undefined}
               onExportImage={nodes.length > 0 ? handleExportImage : undefined}
@@ -2536,19 +2567,10 @@ function RelationshipsCanvasFlow({
 
           {nodes.length === 0 && (
             isEditorChrome
-              ? <CanvasEmptyPrompt onOpenTree={onOpenAssetTree} />
+              ? <CanvasEmptyPrompt onOpenTree={onOpenAssetTree} onOpenDiagrams={onOpenDiagramsList} />
               : <CanvasEmptyState mode={mode} />
           )}
         </ReactFlow>
-
-        {isEditorChrome && isSearchOpen && (
-          <DiagramSearchPanel
-            items={searchItems}
-            onFocusNode={handleFocusSearchNode}
-            onClose={() => onSearchOpenChange?.(false)}
-            onCloseFocusRef={railFocusRef}
-          />
-        )}
 
         {selectedEdgeId && (
           <RelationshipPanel

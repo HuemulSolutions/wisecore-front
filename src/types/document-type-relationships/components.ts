@@ -112,6 +112,9 @@ export interface EditingDiagram {
 // "role" is a free-floating circle labeled with an RBAC role's name.
 export type CanvasElementKind = 'text' | 'container' | 'role'
 
+/** Herramienta activa del cromo de editor: mover = pan con clic izquierdo, select = caja de selección. */
+export type CanvasTool = 'move' | 'select'
+
 // An RBAC role assigned to a canvas element. On a container (acting as a lane) it's
 // stashed inside `DiagramText.position` on save — see `buildDiagramGraphPayload` /
 // `save-as-diagram-sheet.tsx` — since the backend has no first-class role_id column on
@@ -187,11 +190,8 @@ export interface RelationshipsCanvasProps {
   chrome?: 'default' | 'editor'
   /** Solo `chrome="editor"`: abre el panel del árbol desde el estado de lienzo vacío. */
   onOpenAssetTree?: () => void
-  /** Solo `chrome="editor"`: el riel de la página controla el panel "Buscar en el diagrama". */
-  isSearchOpen?: boolean
-  onSearchOpenChange?: (open: boolean) => void
-  /** Solo `chrome="editor"`: botón del riel al que se devuelve el foco al cerrar el panel de búsqueda. */
-  railFocusRef?: React.RefObject<HTMLButtonElement | null>
+  /** Solo `chrome="editor"`: abre el panel de diagramas guardados desde el estado de lienzo vacío. */
+  onOpenDiagramsList?: () => void
   /** Solo `chrome="editor"`: refresca las queries de la página (ítem "Actualizar" del menú ⋯). */
   onRefresh?: () => void
   isRefreshing?: boolean
@@ -210,12 +210,16 @@ export interface CanvasElementPaletteProps {
   onAdd: (kind: CanvasElementKind | FlowCanvasNodeType) => void
   /** Canvas angosto: oculta el eyebrow y los labels, deja solo iconos con tooltip. */
   compact?: boolean
-  /** Cromo de editor: 44px, solo iconos, con el atajo de teclado en el tooltip. */
-  iconOnly?: boolean
-  /** Solo `iconOnly`: la herramienta Seleccionar está activa (caja de selección al arrastrar). */
-  selectActive?: boolean
-  /** Solo `iconOnly`: alterna la herramienta Seleccionar. */
-  onToggleSelect?: () => void
+  /** Cromo de editor: 156px, filas rotuladas con grupos y atajo de teclado visible. */
+  editor?: boolean
+  /** Solo `editor`: herramienta activa (siempre hay una). */
+  activeTool?: CanvasTool
+  /** Solo `editor`: cambia la herramienta activa. */
+  onChangeTool?: (tool: CanvasTool) => void
+  /** Solo `editor`: panel colapsado a tira de iconos. */
+  collapsed?: boolean
+  /** Solo `editor`: alterna el colapso (el estado y su persistencia viven en el canvas). */
+  onToggleCollapsed?: () => void
 }
 
 export interface CanvasActionsBarProps {

@@ -21,7 +21,7 @@ import { RelationshipsCanvas } from "@/components/document-type-relationships"
 import {
   DiagramCanvas,
   NewDiagramCanvas,
-  DiagramsListSheet,
+  DiagramsDeleteDialog,
   DiagramsListPanel,
   DiagramsRail,
   DiagramsRailPanel,
@@ -36,12 +36,13 @@ import type { Diagram } from "@/types/diagrams"
  * Editor de diagramas: el canvas de relaciones ocupa toda la pantalla y el resto
  * del cromo flota sobre él. Único elemento fijo: el riel de 52px, cuyos botones
  * abren paneles superpuestos de 300px (árbol de conocimiento —fuente de arrastre—,
- * diagramas guardados, recientes y búsqueda dentro del diagrama).
+ * diagramas guardados y recientes).
  *
  * Qué se edita lo decide `?diagram=`: un id carga el diagrama guardado, `new`
  * abre un canvas en blanco (opcionalmente sembrado con ?seedAsset=&seedExecution=,
- * ver AssetDiagramsSheet) y sin param se trabaja sobre el canvas libre. El listado
- * completo (filtro por ejecución, tabla paginada, eliminar) sigue en DiagramsListSheet.
+ * ver AssetDiagramsSheet) y sin param se trabaja sobre el canvas libre. El panel
+ * "Diagramas" del riel es la única fuente del listado (búsqueda, filtro por
+ * ejecución, paginación y eliminar).
  */
 function DiagramsContent() {
   const { t } = useTranslation("diagrams")
@@ -51,7 +52,7 @@ function DiagramsContent() {
   const { fileTreeRef } = useNavKnowledge()
   const queryClient = useQueryClient()
 
-  const [isListOpen, setIsListOpen] = useState(false)
+  const [deletingDiagram, setDeletingDiagram] = useState<Diagram | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [activePanel, setActivePanel] = useState<DiagramsRailPanelKey | null>(null)
   // Botón del riel del panel abierto: al cerrar con Esc/X el foco vuelve a él.
@@ -59,7 +60,6 @@ function DiagramsContent() {
   const { recents: recentDiagrams, addRecent, removeRecent } = useRecentDiagrams(selectedOrganizationId)
 
   const canList = can('listDiagrams')
-  const canView = can('viewDiagram')
   const canDelete = can('deleteDiagram')
   const canCreate = can('createDiagram')
   const canListExecutions = can('listExecutions')
@@ -114,6 +114,14 @@ function DiagramsContent() {
     }, { replace })
   }
 
+  // Primer guardado de un diagrama sin id (canvas libre o ?diagram=new): el canvas ya
+  // quedó en modo edición; la URL pasa a ?diagram=<id> (replace, no ensucia el historial)
+  // para que F5 y el deep-link lo recarguen desde el servidor en vez de perderlo.
+  const handleNewDiagramSaved = (diagram: Diagram) => {
+    openDiagram(diagram.id, true)
+    addRecent({ id: diagram.id, name: diagram.name })
+  }
+
   const closePanel = useCallback(() => setActivePanel(null), [])
   const togglePanel = useCallback((key: DiagramsRailPanelKey) => {
     setActivePanel((prev) => (prev === key ? null : key))
@@ -129,9 +137,7 @@ function DiagramsContent() {
   const chromeProps = {
     chrome: 'editor' as const,
     onOpenAssetTree: () => setActivePanel('tree'),
-    isSearchOpen: activePanel === 'search',
-    onSearchOpenChange: (open: boolean) => setActivePanel(open ? 'search' : null),
-    railFocusRef: railButtonRef,
+    onOpenDiagramsList: canList ? () => setActivePanel('list') : undefined,
     onRefresh: handleRefresh,
     isRefreshing,
     onDiagramDeleted: removeRecent,
@@ -169,13 +175,7 @@ function DiagramsContent() {
           organizationId={selectedOrganizationId}
           seedAssetId={diagramSeed.assetId}
           seedExecutionId={diagramSeed.executionId}
-          // Ya guardado: el canvas quedó en modo edición para este diagrama;
-          // sincronizamos la URL (replace, no ensucia el historial) para que el
-          // deep-link y F5 lo recarguen desde el servidor en vez de perderlo.
-          onDiagramSaved={(diagram) => {
-            openDiagram(diagram.id, true)
-            addRecent({ id: diagram.id, name: diagram.name })
-          }}
+          onDiagramSaved={handleNewDiagramSaved}
           onCanvasCleared={() => openDiagram(null, true)}
           {...chromeProps}
         />
@@ -189,6 +189,7 @@ function DiagramsContent() {
         organizationId={selectedOrganizationId}
         documentTypes={documentTypes}
         mode="execution"
+        onDiagramSaved={handleNewDiagramSaved}
         {...chromeProps}
       />
     )
@@ -199,10 +200,6 @@ function DiagramsContent() {
     addRecent({ id: diagram.id, name: diagram.name })
     setActivePanel(null)
   }
-
-  // "Buscar en el diagrama" solo aplica cuando hay un canvas editable montado.
-  const canSearch =
-    canListExecRelationships && (diagramId ? canList : isNewDiagram ? canCreate : true)
 
   return (
     <>
@@ -216,7 +213,6 @@ function DiagramsContent() {
                   active={activePanel}
                   onToggle={togglePanel}
                   canList={canList}
-                  canSearch={canSearch}
                   activeButtonRef={railButtonRef}
                 />
                 {/* onDropCapture no llama preventDefault: el handleDrop del canvas sigue
@@ -256,7 +252,10 @@ function DiagramsContent() {
                       activeDiagramId={diagramId}
                       onSelect={handleSelectDiagram}
                       onCreate={canCreate ? () => { openDiagram('new'); setActivePanel(null) } : undefined}
-                      onViewAll={() => { setActivePanel(null); setIsListOpen(true) }}
+                      onRequestDelete={setDeletingDiagram}
+                      canDelete={canDelete}
+                      canBrowseAssets={can('listAssets') && can('listFolders')}
+                      canListExecutions={canListExecutions}
                       onClose={closePanel}
                       onCloseFocusRef={railButtonRef}
                     />
@@ -280,23 +279,17 @@ function DiagramsContent() {
         ]}
       />
 
-      <DiagramsListSheet
-        open={isListOpen}
-        onOpenChange={setIsListOpen}
+      {/* Fuera del panel: el panel cierra con pointerdown fuera y desmontaría el diálogo. */}
+      <DiagramsDeleteDialog
+        open={!!deletingDiagram}
+        onOpenChange={(open) => { if (!open) setDeletingDiagram(null) }}
+        diagram={deletingDiagram}
         organizationId={selectedOrganizationId}
-        onSelect={(diagram: Diagram) => {
-          handleSelectDiagram(diagram)
-          setIsListOpen(false)
-        }}
-        onCreate={canCreate ? () => {
-          openDiagram('new')
-          setIsListOpen(false)
-        } : undefined}
-        onDiagramDeleted={removeRecent}
-        canList={canList}
-        canView={canView}
         canDelete={canDelete}
-        canListExecutions={canListExecutions}
+        onDeleted={(id) => {
+          removeRecent(id)
+          if (id === diagramId) openDiagram(null, true)
+        }}
       />
     </>
   )

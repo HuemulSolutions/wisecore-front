@@ -44,7 +44,7 @@ export function DiagramsRecentsPanel({
           icon={Clock}
           title={t("recentsPanel.emptyTitle")}
           description={t("recentsPanel.emptyDescription")}
-          action={{ label: t("listPanel.viewAll"), onClick: onViewAll }}
+          action={{ label: t("recentsPanel.viewList"), onClick: onViewAll }}
         />
       ) : (
         <ul className="overflow-y-auto p-1.5">

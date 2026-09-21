@@ -11,12 +11,18 @@ import { HuemulButton } from "@/huemul/components/huemul-button"
  */
 function StateOverlay({ children }: { children: ReactNode }) {
   return (
-    <div className="pointer-events-none absolute inset-0 z-1 grid place-items-center p-6">{children}</div>
+    <div className="pointer-events-none absolute inset-0 z-(--z-canvas-state) grid place-items-center p-6">{children}</div>
   )
 }
 
 /** Estado 1 — lienzo vacío (diagrama nuevo). */
-export function CanvasEmptyPrompt({ onOpenTree }: { onOpenTree?: () => void }) {
+export function CanvasEmptyPrompt({
+  onOpenTree,
+  onOpenDiagrams,
+}: {
+  onOpenTree?: () => void
+  onOpenDiagrams?: () => void
+}) {
   const { t } = useTranslation("diagrams")
   return (
     <StateOverlay>
@@ -24,9 +30,17 @@ export function CanvasEmptyPrompt({ onOpenTree }: { onOpenTree?: () => void }) {
         <GitMerge className="h-[34px] w-[34px] text-[#94a3b8]" strokeWidth={1.5} />
         <h2 className="text-[15px] font-semibold text-[#0f172a]">{t("canvasStates.emptyTitle")}</h2>
         <p className="text-[13px] leading-normal text-[#64748b]">{t("canvasStates.emptyDescription")}</p>
-        {onOpenTree && (
-          <div className="pointer-events-auto mt-1">
-            <HuemulButton size="sm" label={t("canvasStates.openTree")} onClick={onOpenTree} />
+        {(onOpenTree || onOpenDiagrams) && (
+          <div className="pointer-events-auto mt-1 flex flex-wrap items-center justify-center gap-2">
+            {onOpenTree && <HuemulButton size="sm" label={t("canvasStates.openTree")} onClick={onOpenTree} />}
+            {onOpenDiagrams && (
+              <HuemulButton
+                size="sm"
+                variant="outline"
+                label={t("canvasStates.openDiagram")}
+                onClick={onOpenDiagrams}
+              />
+            )}
           </div>
         )}
       </div>

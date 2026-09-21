@@ -105,6 +105,7 @@ const translations = {
     palette: {
       title: { en: "new", es: "nuevo" },
       select: { en: "Select", es: "Seleccionar" },
+      move: { en: "Move", es: "Mover" },
     },
     actions: {
       untitledDiagram: { en: "Untitled diagram", es: "Diagrama sin título" },

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Panel } from "@xyflow/react"
-import { Copy, Download, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2, Eraser } from "lucide-react"
+import { Copy, Download, Pencil, Plus, RefreshCw, Trash2, Eraser } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulTruncatedText } from "@/huemul/components/huemul-truncated-text"
+import { CANVAS_SURFACE_RAISED } from "./canvas-surface"
+import { cn } from "@/lib/utils"
 
 export interface DiagramEditorBarProps {
   diagramName?: string
@@ -84,7 +86,7 @@ export function DiagramEditorBar({
 
   return (
     <Panel position="top-center" style={{ margin: 16 }}>
-      <div className="flex h-11 items-center gap-2 rounded-xl border border-[#e3e8ee] bg-white pl-3.5 pr-2 shadow-[0_6px_20px_rgba(15,23,42,0.10)]">
+      <div className={cn("flex h-11 items-center gap-2 rounded-xl pl-3.5 pr-2", CANVAS_SURFACE_RAISED)}>
         {isRenaming ? (
           <input
             ref={inputRef}
@@ -99,7 +101,7 @@ export function DiagramEditorBar({
               // El canvas escucha atajos globales: escribir no debe crear nodos.
               e.stopPropagation()
             }}
-            className="h-7 w-[200px] rounded-md border border-[#dbe1e9] bg-white px-2 text-[13.5px] font-semibold text-[#0f172a] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="h-7 w-[200px] rounded-md border border-[#dbe1e9] bg-white px-2 text-[15px] font-semibold text-[#0f172a] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
         ) : (
           <div
@@ -107,11 +109,11 @@ export function DiagramEditorBar({
             onDoubleClick={startRename}
             title={onRename && diagramName ? t("bar.rename") : undefined}
           >
-            <HuemulTruncatedText text={displayName} className="text-[13.5px] font-semibold text-[#0f172a]" />
+            <HuemulTruncatedText text={displayName} className="text-[15px] font-semibold text-[#0f172a]" />
           </div>
         )}
 
-        <span className="flex shrink-0 items-center gap-1.5 text-[11.5px] text-slate-400">
+        <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-slate-400">
           {status === "unsaved" && <span className="h-1.5 w-1.5 rounded-full bg-[#f59e0b]" />}
           {status === "saved" && <span className="h-1.5 w-1.5 rounded-full bg-[#22c55e]" />}
           {t(`bar.${status}`)}
@@ -122,7 +124,7 @@ export function DiagramEditorBar({
         {onSave && (
           <HuemulButton
             size="sm"
-            className="h-[30px] rounded-lg bg-[#2563eb] px-3 text-[12.5px] font-semibold hover:bg-[#1d4ed8]"
+            className="h-[30px] rounded-lg border border-[#2563eb] bg-[#2563eb] px-3 font-[inherit] text-[12.5px] font-semibold text-white hover:bg-[#1d4ed8] disabled:cursor-default disabled:opacity-50"
             label={t("bar.save")}
             loading={isSaving}
             disabled={!isDirty || isSaving}
@@ -133,15 +135,19 @@ export function DiagramEditorBar({
         {hasMenu && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <HuemulButton
-                variant="ghost"
-                size="icon"
-                className="h-[30px] w-[30px]"
-                icon={MoreHorizontal}
-                tooltip={t("bar.more")}
+              <button
+                type="button"
+                title={t("bar.more")}
                 aria-label={t("bar.more")}
                 disabled={isSaving}
-              />
+                className="grid h-[30px] w-[30px] place-items-center rounded-lg border-0 bg-transparent font-[inherit] text-[#64748b] hover:cursor-pointer hover:bg-[#f4f6f9] hover:text-[#334155] disabled:opacity-50"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <circle cx="5" cy="12" r="1.6" />
+                  <circle cx="12" cy="12" r="1.6" />
+                  <circle cx="19" cy="12" r="1.6" />
+                </svg>
+              </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               {onSaveAsNew && (
@@ -192,9 +198,9 @@ export function DiagramEditorBar({
               {onDelete && (
                 <DropdownMenuItem
                   onSelect={onDelete}
-                  className="hover:cursor-pointer text-destructive focus:text-destructive"
+                  className="hover:cursor-pointer text-[#dc2626] focus:text-[#dc2626]"
                 >
-                  <Trash2 className="mr-2 h-4 w-4" />
+                  <Trash2 className="mr-2 h-4 w-4 text-[#dc2626]" />
                   {t("bar.delete")}
                 </DropdownMenuItem>
               )}

@@ -48,7 +48,8 @@ export function DiagramsRailPanel({
       onCloseFocusRef?.current?.focus()
     }
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close()
+      // Radix ya manejó (preventDefault) el Escape de un diálogo abierto desde el panel: no cerrar también el panel.
+      if (e.key === "Escape" && !e.defaultPrevented) close()
     }
     const onPointerDown = (e: PointerEvent) => {
       const target = e.target as Node | null
@@ -56,7 +57,7 @@ export function DiagramsRailPanel({
       // Clic en el propio riel: lo resuelve su onToggle (cierra al re-pulsar).
       if ((target as HTMLElement).closest?.("[data-diagrams-rail]")) return
       // Portales (dropdowns, dialogs) abiertos desde el panel.
-      if ((target as HTMLElement).closest?.("[data-radix-popper-content-wrapper],[role='dialog'],[role='menu']")) return
+      if ((target as HTMLElement).closest?.("[data-radix-popper-content-wrapper],[role='dialog'],[role='alertdialog'],[role='menu'],[data-slot*='overlay']")) return
       onCloseRef.current()
     }
     document.addEventListener("keydown", onKeyDown)

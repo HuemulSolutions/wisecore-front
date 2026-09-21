@@ -2,17 +2,15 @@
 
 import type { ComponentType, RefObject } from "react"
 import { useTranslation } from "react-i18next"
-import { Clock, FolderTree, Search, Workflow } from "lucide-react"
+import { Clock, FolderTree, Workflow } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-export type DiagramsRailPanelKey = "tree" | "list" | "recents" | "search"
+export type DiagramsRailPanelKey = "tree" | "list" | "recents"
 
 export interface DiagramsRailProps {
   active: DiagramsRailPanelKey | null
   onToggle: (key: DiagramsRailPanelKey) => void
   canList: boolean
-  /** "Buscar en el diagrama" solo tiene sentido con un diagrama (o canvas libre) abierto. */
-  canSearch: boolean
   /** Ref al botón activo para devolverle el foco al cerrar su panel. */
   activeButtonRef?: RefObject<HTMLButtonElement | null>
 }
@@ -28,14 +26,13 @@ interface RailItem {
  * panel superpuesto de 300px sobre el canvas (no empuja el layout). El botón
  * activo se vuelve a pulsar para cerrar.
  */
-export function DiagramsRail({ active, onToggle, canList, canSearch, activeButtonRef }: DiagramsRailProps) {
+export function DiagramsRail({ active, onToggle, canList, activeButtonRef }: DiagramsRailProps) {
   const { t } = useTranslation("diagrams")
 
   const items: RailItem[] = [
     { key: "tree", icon: FolderTree, visible: true },
     { key: "list", icon: Workflow, visible: canList },
     { key: "recents", icon: Clock, visible: canList },
-    { key: "search", icon: Search, visible: canSearch },
   ]
 
   const renderItem = ({ key, icon: Icon }: RailItem) => {
@@ -51,35 +48,28 @@ export function DiagramsRail({ active, onToggle, canList, canSearch, activeButto
         aria-pressed={isActive}
         onClick={() => onToggle(key)}
         className={cn(
-          "flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border transition-colors hover:cursor-pointer",
+          "flex w-full flex-col items-center gap-1 rounded-[9px] border px-1 py-1.5 transition-colors hover:cursor-pointer",
           "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
           isActive
-            ? "border-[#dbe1e9] bg-white text-slate-600"
+            ? "border-transparent bg-[#eef2ff] font-semibold text-[#1d4ed8]"
             : "border-transparent bg-transparent text-slate-500 hover:bg-[#f4f6f9] hover:text-[#1d4ed8]",
         )}
       >
-        <Icon className="h-4 w-4" />
+        <Icon className="h-[18px] w-[18px]" />
+        <span className="text-[10px] font-medium leading-none">{t(`rail.${key}Short`)}</span>
       </button>
     )
   }
 
   const visible = items.filter((i) => i.visible)
-  const top = visible.filter((i) => i.key !== "search")
-  const search = visible.find((i) => i.key === "search")
 
   return (
     <nav
       aria-label={t("rail.navLabel")}
       data-diagrams-rail
-      className="flex w-13 shrink-0 flex-col items-center gap-1.5 border-r border-[#e9edf2] bg-white py-2.5"
+      className="flex w-18 shrink-0 flex-col items-center gap-1.5 border-r border-[#e9edf2] bg-white px-1.5 py-2.5"
     >
-      {top.map(renderItem)}
-      {search && (
-        <>
-          <div className="my-1 h-px w-[22px] bg-[#e9edf2]" />
-          {renderItem(search)}
-        </>
-      )}
+      {visible.map(renderItem)}
     </nav>
   )
 }

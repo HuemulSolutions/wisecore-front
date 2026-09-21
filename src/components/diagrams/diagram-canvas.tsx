@@ -13,9 +13,7 @@ type EditorChromeProps = Pick<
   RelationshipsCanvasProps,
   | 'chrome'
   | 'onOpenAssetTree'
-  | 'isSearchOpen'
-  | 'onSearchOpenChange'
-  | 'railFocusRef'
+  | 'onOpenDiagramsList'
   | 'onRefresh'
   | 'isRefreshing'
   | 'onDiagramSaved'

@@ -26,9 +26,7 @@ export type NewDiagramCanvasProps = {
   RelationshipsCanvasProps,
   | 'chrome'
   | 'onOpenAssetTree'
-  | 'isSearchOpen'
-  | 'onSearchOpenChange'
-  | 'railFocusRef'
+  | 'onOpenDiagramsList'
   | 'onRefresh'
   | 'isRefreshing'
   | 'onDiagramDeleted'
