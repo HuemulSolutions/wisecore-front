@@ -10,7 +10,7 @@ import type { Diagram } from "@/types/diagrams"
 export interface DiagramsDeleteDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  diagram: Diagram | null
+  diagram: Pick<Diagram, 'id' | 'name'> | null
   organizationId: string
   /** `diagram:d`. Obligatoria: sin default, olvidarse de pasarla rompe el build. */
   canDelete: boolean

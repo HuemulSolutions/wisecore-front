@@ -4,14 +4,15 @@ import { useQuery } from "@tanstack/react-query"
 import { useDocumentTypes } from "@/hooks/useDocumentTypes"
 import { getDocumentById } from "@/services/assets"
 import { getExecutionsByDocumentId } from "@/services/executions"
-import { RelationshipsCanvas } from "@/components/document-type-relationships"
+import { RelationshipsCanvas, CanvasLoadingSkeleton, DOTTED_CANVAS_STYLE } from "@/components/document-type-relationships"
+import type { RelationshipsCanvasProps } from "@/types/document-type-relationships"
 import { executionLabel } from "@/components/document-type-relationships/execution-relationship-dialogs"
 import type { InitialCanvasNode } from "@/types/document-type-relationships"
 import type { Execution } from "@/types/execution"
 import type { Diagram } from "@/types/diagrams"
 import { cn } from "@/lib/utils"
 
-export interface NewDiagramCanvasProps {
+export type NewDiagramCanvasProps = {
   organizationId: string
   seedAssetId?: string
   seedExecutionId?: string
@@ -21,7 +22,17 @@ export interface NewDiagramCanvasProps {
   onDiagramSaved?: (diagram: Diagram) => void
   /** Fired after "Clear canvas" — lets the caller (e.g. the /diagrams page) sync the URL. */
   onCanvasCleared?: () => void
-}
+} & Pick<
+  RelationshipsCanvasProps,
+  | 'chrome'
+  | 'onOpenAssetTree'
+  | 'isSearchOpen'
+  | 'onSearchOpenChange'
+  | 'railFocusRef'
+  | 'onRefresh'
+  | 'isRefreshing'
+  | 'onDiagramDeleted'
+>
 
 // Fresh canvas for creating a Diagram from scratch (no editingDiagram → the
 // canvas shows "Save as Diagram" instead of "Save changes"). Once saved, the
@@ -29,7 +40,7 @@ export interface NewDiagramCanvasProps {
 // `RelationshipsCanvas.onDiagramSaved`), so "Save changes" appears right away.
 // When opened from the asset diagrams sheet, seeds the canvas with the asset
 // the user came from so they land already relating it instead of an empty board.
-export function NewDiagramCanvas({ organizationId, seedAssetId, seedExecutionId, className, onDiagramSaved, onCanvasCleared }: NewDiagramCanvasProps) {
+export function NewDiagramCanvas({ organizationId, seedAssetId, seedExecutionId, className, onDiagramSaved, onCanvasCleared, ...chromeProps }: NewDiagramCanvasProps) {
   const { data: docTypesResponse, isLoading: isLoadingDocTypes } = useDocumentTypes()
   const documentTypes = docTypesResponse?.data ?? []
 
@@ -63,6 +74,13 @@ export function NewDiagramCanvas({ organizationId, seedAssetId, seedExecutionId,
   const isReady = !isLoadingDocTypes && (!seedAssetId || !isLoadingSeed)
 
   if (!isReady) {
+    if (chromeProps.chrome === 'editor') {
+      return (
+        <div className={cn("relative h-full", className)} style={DOTTED_CANVAS_STYLE}>
+          <CanvasLoadingSkeleton />
+        </div>
+      )
+    }
     return null
   }
 
@@ -75,6 +93,7 @@ export function NewDiagramCanvas({ organizationId, seedAssetId, seedExecutionId,
         initialNodes={seed ? [seed] : undefined}
         onDiagramSaved={onDiagramSaved}
         onCanvasCleared={onCanvasCleared}
+        {...chromeProps}
       />
     </div>
   )

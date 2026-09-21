@@ -10,6 +10,11 @@ export interface HuemulPanelEmptyStateProps {
     label: string
     onClick: () => void
   }
+  /** Segunda acción (botón outline), junto al CTA primario. */
+  secondaryAction?: {
+    label: string
+    onClick: () => void
+  }
   /** Línea gris de ayuda secundaria, debajo del CTA. */
   hint?: string
   className?: string

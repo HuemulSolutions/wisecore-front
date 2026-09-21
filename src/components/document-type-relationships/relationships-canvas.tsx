@@ -42,6 +42,11 @@ import { AlignmentGuides } from "./alignment-guides"
 import { CanvasElementPalette } from "./canvas-element-palette"
 import { CanvasActionsBar, CanvasReadOnlyBadge } from "./canvas-actions-bar"
 import { CanvasEmptyState } from "./canvas-empty-state"
+import { DiagramEditorBar } from "./diagram-editor-bar"
+import { DiagramSearchPanel } from "./diagram-search-panel"
+import { CanvasEmptyPrompt } from "./diagram-canvas-states"
+import { DiagramsDeleteDialog } from "@/components/diagrams/diagrams-delete-dialog"
+import { captureDiagramSnapshot } from "@/lib/diagram-snapshot"
 import { ElementPanel } from "./element-panel"
 import { HuemulRolePickerDialog } from "@/huemul/components/huemul-role-picker"
 import { MemoizedRelationshipEdge, type RelationshipEdgeData } from "./relationship-edge"
@@ -359,8 +364,18 @@ function RelationshipsCanvasFlow({
   onDiagramSaved,
   onCanvasCleared,
   readOnly = false,
+  chrome = 'default',
+  onOpenAssetTree,
+  isSearchOpen = false,
+  onSearchOpenChange,
+  railFocusRef,
+  onRefresh,
+  isRefreshing,
+  onDiagramDeleted,
 }: RelationshipsCanvasProps) {
   const { t } = useTranslation("document-type-relationships")
+  const { t: tDiagrams } = useTranslation("diagrams")
+  const isEditorChrome = chrome === 'editor'
   const navigate = useOrgNavigate()
   const buildPath = useOrgPath()
   // Abre el asset detrás de un nodo "assetType" en su vista de pantalla completa (ver
@@ -401,6 +416,7 @@ function RelationshipsCanvasFlow({
 
   const canUpdateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:u'))
   const canCreateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:c'))
+  const canDeleteDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:d'))
   // Ver el explorador de "diagramas de esta versión" es una LECTURA, sin exigir
   // permiso de escritura.
   const canListDiagrams = isOrgAdmin || hasAnyPermission(['diagram:l', 'diagram:r'])
@@ -565,6 +581,10 @@ function RelationshipsCanvasFlow({
   // guardados y no hace falta reconfirmarlos.
   const [saveSheetMode, setSaveSheetMode] = useState<'new' | 'metadata' | null>(null)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [showDeleteDiagram, setShowDeleteDiagram] = useState(false)
+  // Herramienta Seleccionar (solo chrome="editor"): activa = arrastrar sobre el pane hace caja
+  // de selección y el pan pasa a botón medio/derecho; inactiva = pan con clic izquierdo.
+  const [selectMode, setSelectMode] = useState(true)
   const [editingDiagram, setEditingDiagram] = useState(editingDiagramProp)
   const { saveDiagramGraph, isSaving: isSavingDiagram } = useSaveDiagramGraph(organizationId)
 
@@ -2256,6 +2276,117 @@ function RelationshipsCanvasFlow({
     }
   }, [editingDiagram, saveDiagramGraph, nodes, edges, containerRef, fitView, handleDiagramSaved, markSaved, t, navigate])
 
+  // ─── Acciones de la barra del editor (chrome="editor") ──────────────────────
+
+  // Renombrar inline reusa el camino de "Editar datos" (PUT con skipSnapshot): reemplaza
+  // el grafo completo, así que también persiste lo pendiente — igual que el sheet de metadatos.
+  const handleRenameDiagram = useCallback(async (name: string) => {
+    if (!editingDiagram) return
+    if (!nodes.some((n) => detailEndpointOf(n as CanvasNode) !== null)) {
+      toast.warning(t('canvas.saveDetailsRequired'))
+      return
+    }
+    try {
+      const savedNodes = nodes as Node<AssetTypeNodeData | CanvasElementNodeData>[]
+      const savedEdges = edges as Edge<RelationshipEdgeData>[]
+      const saved = await saveDiagramGraph({
+        diagramId: editingDiagram.id,
+        name,
+        description: editingDiagram.description,
+        executionId: editingDiagram.executionId,
+        snapshotMediaId: editingDiagram.snapshotMediaId,
+        nodes: savedNodes,
+        edges: savedEdges,
+        containerRef,
+        fitView,
+        skipSnapshot: true,
+      })
+      handleDiagramSaved(saved)
+      markSaved(savedNodes as CanvasNode[], savedEdges)
+    } catch (err) {
+      handleApiError(err)
+    }
+  }, [editingDiagram, saveDiagramGraph, nodes, edges, containerRef, fitView, handleDiagramSaved, markSaved, t])
+
+  // Duplicar = POST del grafo actual (sin diagramId) con snapshot propio. No se llama
+  // `handleDiagramSaved`: este canvas sigue editando el original; la página navega a la copia.
+  const handleDuplicateDiagram = useCallback(async () => {
+    if (!editingDiagram) return
+    if (!nodes.some((n) => detailEndpointOf(n as CanvasNode) !== null)) {
+      toast.warning(t('canvas.saveDetailsRequired'))
+      return
+    }
+    try {
+      const saved = await saveDiagramGraph({
+        name: tDiagrams('bar.copyOf', { name: editingDiagram.name }),
+        description: editingDiagram.description,
+        executionId: editingDiagram.executionId,
+        nodes: nodes as Node<AssetTypeNodeData | CanvasElementNodeData>[],
+        edges: edges as Edge<RelationshipEdgeData>[],
+        containerRef,
+        fitView,
+      })
+      toast.success(tDiagrams('bar.duplicated'))
+      onDiagramSaved?.(saved)
+    } catch (err) {
+      handleApiError(err)
+    }
+  }, [editingDiagram, saveDiagramGraph, nodes, edges, containerRef, fitView, onDiagramSaved, t, tDiagrams])
+
+  const handleExportImage = useCallback(async () => {
+    try {
+      const file = await captureDiagramSnapshot(containerRef, nodes, fitView)
+      const url = URL.createObjectURL(file)
+      const a = document.createElement('a')
+      const baseName = (editingDiagram?.name ?? 'diagram').replace(/[\\/:*?"<>|]+/g, '-').trim() || 'diagram'
+      a.href = url
+      a.download = `${baseName}.png`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      toast.error(tDiagrams('bar.exportError'))
+    }
+  }, [containerRef, nodes, fitView, editingDiagram, tDiagrams])
+
+  const searchItems = useMemo(
+    () => nodes.map((n) => ({ id: n.id, label: nodeLabel(n), color: nodeColor(n) })),
+    [nodes],
+  )
+
+  const handleFocusSearchNode = useCallback((id: string) => {
+    setNodes((nds) => nds.map((n) => ((!!n.selected) === (n.id === id) ? n : { ...n, selected: n.id === id })))
+    void fitView({ nodes: [{ id }], duration: 300, maxZoom: 1.2, padding: 0.6 })
+  }, [setNodes, fitView])
+
+  // Atajos de teclado de la paleta. Se ignoran con foco en un campo de texto, en un
+  // nodo de texto en edición o dentro de un diálogo/menú (el canvas tiene ediciones inline).
+  useEffect(() => {
+    if (!isEditorChrome || readOnly) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return
+      const el = document.activeElement as HTMLElement | null
+      if (el) {
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable) return
+        if (el.closest('[role="dialog"],[role="alertdialog"],[role="menu"]')) return
+      }
+      switch (e.key.toLowerCase()) {
+        case 'v': setSelectMode(true); break
+        case 'c': addElementAtCenter('container'); break
+        case 't': addElementAtCenter('text'); break
+        case 'r': if (canAddRoleNode) addElementAtCenter('role'); break
+        case '1': if (canAddFlowNode) addElementAtCenter('startEvent'); break
+        case '2': if (canAddFlowNode) addElementAtCenter('gateway'); break
+        case '3': if (canAddFlowNode) addElementAtCenter('endEvent'); break
+        default: return
+      }
+      e.preventDefault()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [isEditorChrome, readOnly, addElementAtCenter, canAddRoleNode, canAddFlowNode])
+
   const handleClearCanvas = useCallback(() => {
     requestBaselineReset()
     setNodes([])
@@ -2312,6 +2443,8 @@ function RelationshipsCanvasFlow({
           // izquierdo sin modificador sigue siendo pan. `Partial` selecciona un nodo si la
           // caja lo toca, no exige cubrirlo entero.
           selectionMode={SelectionMode.Partial}
+          selectionOnDrag={isEditorChrome && !readOnly && selectMode}
+          panOnDrag={isEditorChrome && !readOnly && selectMode ? [1, 2] : true}
           // Reanclar cambia solo el diagrama (no la execution_relationship/relación de
           // negocio detrás del edge), así que el permiso correcto es el de escritura
           // del diagrama — mismo criterio que la rama de rol de `deleteKeyCode` abajo.
@@ -2335,9 +2468,13 @@ function RelationshipsCanvasFlow({
               ? "Delete"
               : null
           }
-          className="flex-1 h-full bg-muted/10"
+          className={isEditorChrome ? "flex-1 h-full bg-[#fafbfc]" : "flex-1 h-full bg-muted/10"}
         >
-          <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+          {isEditorChrome ? (
+            <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#dfe3e9" />
+          ) : (
+            <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+          )}
           <Controls />
           {alignmentGuides && (
             <AlignmentGuides vertical={alignmentGuides.vertical} horizontal={alignmentGuides.horizontal} />
@@ -2352,12 +2489,20 @@ function RelationshipsCanvasFlow({
 
           {/* Always available — not gated on the drag palette, which isn't mounted on every screen */}
           {!readOnly && (
-            <CanvasElementPalette canAddRole={canAddRoleNode} canAddFlow={canAddFlowNode} onAdd={addElementAtCenter} compact={isNarrow} />
+            <CanvasElementPalette
+              canAddRole={canAddRoleNode}
+              canAddFlow={canAddFlowNode}
+              onAdd={addElementAtCenter}
+              compact={isNarrow}
+              iconOnly={isEditorChrome}
+              selectActive={selectMode}
+              onToggleSelect={() => setSelectMode((v) => !v)}
+            />
           )}
 
           {readOnly && <CanvasReadOnlyBadge />}
 
-          {showActionsBar && (
+          {showActionsBar && !isEditorChrome && (
             <CanvasActionsBar
               diagramName={mode === 'execution' ? editingDiagram?.name : undefined}
               isDirty={isDirty}
@@ -2371,8 +2516,39 @@ function RelationshipsCanvasFlow({
             />
           )}
 
-          {nodes.length === 0 && <CanvasEmptyState mode={mode} />}
+          {isEditorChrome && !readOnly && (nodes.length > 0 || !!editingDiagram) && (
+            <DiagramEditorBar
+              diagramName={editingDiagram?.name}
+              isDirty={isDirty}
+              isSaving={isSavingDiagram}
+              onSave={canSaveChanges ? handleSaveChanges : undefined}
+              onRename={canEditMetadata ? handleRenameDiagram : undefined}
+              onSaveAsNew={canSaveAsNew ? () => setSaveSheetMode('new') : undefined}
+              onEditMetadata={canEditMetadata ? () => setSaveSheetMode('metadata') : undefined}
+              onDuplicate={canSaveAsNew && editingDiagram ? handleDuplicateDiagram : undefined}
+              onExportImage={nodes.length > 0 ? handleExportImage : undefined}
+              onRefresh={onRefresh}
+              isRefreshing={isRefreshing}
+              onClear={() => setShowClearConfirm(true)}
+              onDelete={canDeleteDiagram && editingDiagram ? () => setShowDeleteDiagram(true) : undefined}
+            />
+          )}
+
+          {nodes.length === 0 && (
+            isEditorChrome
+              ? <CanvasEmptyPrompt onOpenTree={onOpenAssetTree} />
+              : <CanvasEmptyState mode={mode} />
+          )}
         </ReactFlow>
+
+        {isEditorChrome && isSearchOpen && (
+          <DiagramSearchPanel
+            items={searchItems}
+            onFocusNode={handleFocusSearchNode}
+            onClose={() => onSearchOpenChange?.(false)}
+            onCloseFocusRef={railFocusRef}
+          />
+        )}
 
         {selectedEdgeId && (
           <RelationshipPanel
@@ -2633,6 +2809,20 @@ function RelationshipsCanvasFlow({
           handleClearCanvas()
         }}
       />
+
+      {isEditorChrome && (
+        <DiagramsDeleteDialog
+          open={showDeleteDiagram}
+          onOpenChange={setShowDeleteDiagram}
+          diagram={editingDiagram ? { id: editingDiagram.id, name: editingDiagram.name } : null}
+          organizationId={organizationId}
+          canDelete={canDeleteDiagram}
+          onDeleted={(id) => {
+            onDiagramDeleted?.(id)
+            onCanvasCleared?.()
+          }}
+        />
+      )}
 
       {/* Delete exec relationship dialog */}
       <HuemulAlertDialog

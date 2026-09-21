@@ -104,6 +104,7 @@ const translations = {
     readOnly: { en: "Read only", es: "Solo lectura" },
     palette: {
       title: { en: "new", es: "nuevo" },
+      select: { en: "Select", es: "Seleccionar" },
     },
     actions: {
       untitledDiagram: { en: "Untitled diagram", es: "Diagrama sin título" },

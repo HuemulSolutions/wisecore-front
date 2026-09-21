@@ -179,6 +179,24 @@ export interface RelationshipsCanvasProps {
   // just pan/zoom and the informational side panels. Used by the diagram viewer sheet;
   // real editing happens back on the assets page in relations mode.
   readOnly?: boolean
+  /**
+   * `"editor"` = cromo flotante de /diagrams (barra top-center, paleta icon-only,
+   * estados con acción, panel de búsqueda, atajos de teclado). `"default"` = barra
+   * top-right y paleta con labels, que usan las demás superficies del canvas.
+   */
+  chrome?: 'default' | 'editor'
+  /** Solo `chrome="editor"`: abre el panel del árbol desde el estado de lienzo vacío. */
+  onOpenAssetTree?: () => void
+  /** Solo `chrome="editor"`: el riel de la página controla el panel "Buscar en el diagrama". */
+  isSearchOpen?: boolean
+  onSearchOpenChange?: (open: boolean) => void
+  /** Solo `chrome="editor"`: botón del riel al que se devuelve el foco al cerrar el panel de búsqueda. */
+  railFocusRef?: React.RefObject<HTMLButtonElement | null>
+  /** Solo `chrome="editor"`: refresca las queries de la página (ítem "Actualizar" del menú ⋯). */
+  onRefresh?: () => void
+  isRefreshing?: boolean
+  /** Solo `chrome="editor"`: avisa que se borró el diagrama en edición (la página suelta `?diagram=`). */
+  onDiagramDeleted?: (diagramId: string) => void
 }
 
 // ─── Floating canvas toolbars ───────────────────────────────────────────────────
@@ -192,6 +210,12 @@ export interface CanvasElementPaletteProps {
   onAdd: (kind: CanvasElementKind | FlowCanvasNodeType) => void
   /** Canvas angosto: oculta el eyebrow y los labels, deja solo iconos con tooltip. */
   compact?: boolean
+  /** Cromo de editor: 44px, solo iconos, con el atajo de teclado en el tooltip. */
+  iconOnly?: boolean
+  /** Solo `iconOnly`: la herramienta Seleccionar está activa (caja de selección al arrastrar). */
+  selectActive?: boolean
+  /** Solo `iconOnly`: alterna la herramienta Seleccionar. */
+  onToggleSelect?: () => void
 }
 
 export interface CanvasActionsBarProps {
