@@ -7,6 +7,7 @@ import { useOrgPath } from "@/hooks/useOrgRouter"
 import { useElementWidth } from "@/hooks/useElementWidth"
 import { PopoverTrigger } from "@/components/ui/popover"
 import { HuemulSearchClearButton } from "@/huemul/components/huemul-search-clear-button"
+import { HuemulTruncatedText } from "@/huemul/components/huemul-truncated-text"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -224,7 +225,7 @@ export const WorkflowLauncherBar = forwardRef<HTMLDivElement, WorkflowLauncherBa
         {/* Línea 2 — riel de tarjetas-chip */}
         <div
           ref={railRef}
-          className="flex h-10 min-w-0 items-center gap-2 overflow-hidden"
+          className="flex h-14 min-w-0 items-center gap-2 overflow-hidden"
           style={{
             maskImage: "linear-gradient(to right, #000 0, #000 calc(100% - 48px), transparent 100%)",
             WebkitMaskImage: "linear-gradient(to right, #000 0, #000 calc(100% - 48px), transparent 100%)",
@@ -235,7 +236,7 @@ export const WorkflowLauncherBar = forwardRef<HTMLDivElement, WorkflowLauncherBa
         >
           {isLoading ? (
             Array.from({ length: visibleCount }).map((_, i) => (
-              <span key={i} className="h-10 w-60 shrink-0 animate-pulse rounded-[11px] bg-muted" />
+              <span key={i} className="h-14 w-60 shrink-0 animate-pulse rounded-[11px] bg-muted" />
             ))
           ) : error ? (
             <span className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-[11px] border border-destructive/30 bg-destructive/10 px-3 text-[12.5px] font-medium text-destructive">
@@ -271,11 +272,13 @@ export const WorkflowLauncherBar = forwardRef<HTMLDivElement, WorkflowLauncherBa
                   // identifica el chip.
                   key={`${item.id}-${item.document_type_id}-${item.relation_name ?? ""}`}
                   color={item.document_type_color || DEFAULT_TEMPLATE_COLOR}
-                  className="h-10 w-60 shrink-0 items-center gap-2 pr-2"
+                  className="h-14 w-60 shrink-0 items-center gap-2 pr-2"
                 >
-                  <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-foreground" title={title}>
-                    {title}
-                  </span>
+                  <HuemulTruncatedText
+                    text={title}
+                    lines={2}
+                    className="min-w-0 flex-1 text-[13px] font-semibold leading-tight text-foreground"
+                  />
                   <TemplateShareButton
                     label={t("launcher.shareTemplate", { name: title })}
                     onClick={() => onShare(item)}
