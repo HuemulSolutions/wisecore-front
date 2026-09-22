@@ -51,8 +51,9 @@ const MICROLABEL_CLASSNAME = "select-none text-[11px] font-bold uppercase tracki
 const ROOT_CLASSNAME =
   "flex shrink-0 flex-col gap-2.25 border-t border-border/60 border-b border-border bg-muted/40 px-4.5 pt-2.75 pb-3.25 shadow-[0_2px_4px_rgba(15,23,42,0.04)]"
 
-// Ancho fijo de cada tarjeta-chip (`w-60`) — todas iguales, sin importar el
-// largo del título. Con el gap del riel (`gap-2`) se calcula cuántas caben.
+// Ancho mínimo de cada tarjeta-chip (`basis-60`), usado para calcular cuántas
+// entran completas. Con `grow` los chips visibles se reparten el ancho sobrante
+// del riel, así nunca queda un hueco vacío ni un chip cortado a la mitad.
 const RAIL_CARD_WIDTH_PX = 240
 const RAIL_CARD_GAP_PX = 8
 // Antes de la primera medición del ResizeObserver (width === 0): evita que el
@@ -86,13 +87,13 @@ export const WorkflowLauncherBar = forwardRef<HTMLDivElement, WorkflowLauncherBa
     const { t } = useTranslation("workflow")
     const buildOrgPath = useOrgPath()
 
-    // Cuántas tarjetas de ancho fijo caben en el riel según su ancho medido.
-    // `+ 1`: deja entrar la tarjeta que la máscara de fade corta a la mitad,
-    // que es la señal visual de que hay más templates.
+    // Cuántas tarjetas de ancho fijo caben completas en el riel según su ancho medido.
+    // Si una tarjeta no entra entera, no se renderiza (sus botones de compartir/iniciar
+    // siempre deben quedar visibles).
     const { ref: railRef, width: railWidth } = useElementWidth<HTMLDivElement>()
     const visibleCount =
       railWidth > 0
-        ? Math.max(1, Math.floor((railWidth + RAIL_CARD_GAP_PX) / (RAIL_CARD_WIDTH_PX + RAIL_CARD_GAP_PX)) + 1)
+        ? Math.max(1, Math.floor((railWidth + RAIL_CARD_GAP_PX) / (RAIL_CARD_WIDTH_PX + RAIL_CARD_GAP_PX)))
         : RAIL_FALLBACK_COUNT
     const visibleItems = useMemo(() => items.slice(0, visibleCount), [items, visibleCount])
 
@@ -226,17 +227,13 @@ export const WorkflowLauncherBar = forwardRef<HTMLDivElement, WorkflowLauncherBa
         <div
           ref={railRef}
           className="flex h-14 min-w-0 items-center gap-2 overflow-hidden"
-          style={{
-            maskImage: "linear-gradient(to right, #000 0, #000 calc(100% - 48px), transparent 100%)",
-            WebkitMaskImage: "linear-gradient(to right, #000 0, #000 calc(100% - 48px), transparent 100%)",
-          }}
           role="toolbar"
           aria-label={t("launcher.title")}
           onKeyDown={handleRailKeyDown}
         >
           {isLoading ? (
             Array.from({ length: visibleCount }).map((_, i) => (
-              <span key={i} className="h-14 w-60 shrink-0 animate-pulse rounded-[11px] bg-muted" />
+              <span key={i} className="h-14 grow shrink-0 basis-60 max-w-72 animate-pulse rounded-[11px] bg-muted" />
             ))
           ) : error ? (
             <span className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-[11px] border border-destructive/30 bg-destructive/10 px-3 text-[12.5px] font-medium text-destructive">
@@ -272,7 +269,7 @@ export const WorkflowLauncherBar = forwardRef<HTMLDivElement, WorkflowLauncherBa
                   // identifica el chip.
                   key={`${item.id}-${item.document_type_id}-${item.relation_name ?? ""}`}
                   color={item.document_type_color || DEFAULT_TEMPLATE_COLOR}
-                  className="h-14 w-60 shrink-0 items-center gap-2 pr-2"
+                  className="h-14 grow shrink-0 basis-60 max-w-72 items-center gap-2 pr-2"
                 >
                   <HuemulTruncatedText
                     text={title}
