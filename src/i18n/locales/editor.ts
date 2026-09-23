@@ -6,6 +6,7 @@ const translations = {
     privateLabel: { en: "Only me", es: "Solo yo" },
     visibilityToggle: { en: "Change visibility", es: "Cambiar visibilidad" },
     privateBadge: { en: "PRIVATE", es: "PRIVADO" },
+    aiBadge: { en: "AI SUGGESTED", es: "SUGERIDO POR IA" },
     commentingOn: { en: "Commenting on", es: "Comentando" },
     newComment: { en: "New comment", es: "Nuevo comentario" },
     submit: { en: "Comment", es: "Comentar" },

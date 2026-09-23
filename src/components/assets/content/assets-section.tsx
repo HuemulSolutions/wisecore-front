@@ -2,8 +2,8 @@ import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitC
 import { cn } from '@/lib/utils';
 import { memo, useState, useEffect, useRef, useContext } from 'react';
 import { SectionCollapseContext } from '@/contexts/section-collapse-context';
-import { useQueryClient } from '@tanstack/react-query';
-import SectionPlateEditor from '@/components/plate-editor/section-plate-editor';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import SectionPlateEditor, { type SectionPlateEditorRef } from '@/components/plate-editor/section-plate-editor';
 import { Button } from "@/components/ui/button";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { executeSingleSection, executeFromSection } from '@/services/generate';
-import { deleteSectionExec, modifyContent, createAiSuggestion, acceptAiSuggestion, rejectAiSuggestion, updateReviewStatus, type ReviewStatus } from '@/services/section_execution';
+import { deleteSectionExec, modifyContent, createAiSuggestion, getAiSuggestion, rejectAiSuggestion, updateReviewStatus, type ReviewStatus } from '@/services/section_execution';
 import { HuemulField } from '@/huemul/components/huemul-field';
 import { AiSuggestionFeedback } from '@/components/execution/ai-suggestion-feedback';
 import { AiSuggestionDiffDialog } from '@/components/assets/dialogs/assets-ai-suggestion-diff-dialog';
@@ -31,6 +31,8 @@ import { handleApiError } from '@/lib/error-utils';
 import { isSectionPermissionDeniedError } from '@/lib/section-permission-errors';
 import { useInvalidateDocumentSectionAccess } from '@/hooks/useDocumentSectionAccess';
 import { logger } from '@/lib/logger';
+import { stripCommentMarkers } from '@/lib/plate-comment-markers';
+import { useAcceptAiSuggestion } from '@/hooks/useAcceptAiSuggestion';
 import { useTranslation } from 'react-i18next';
 import { AssetFormSection, type AssetFormSectionHandle } from '@/components/assets/content/asset-form-section';
 import { AssetFormSectionReader } from '@/components/assets/content/asset-form-section-reader';
@@ -108,6 +110,20 @@ function SectionExecutionInner({
     const [suggestionReadyLocally, setSuggestionReadyLocally] = useState(false);
     const [localSuggestionContent, setLocalSuggestionContent] = useState<string | null>(null);
     const [isDiffOpen, setIsDiffOpen] = useState(false);
+    const plateEditorRef = useRef<SectionPlateEditorRef>(null);
+    const acceptSuggestion = useAcceptAiSuggestion({
+        sectionExecutionId: sectionExecution.id,
+        documentId,
+        organizationId: selectedOrganizationId ?? undefined,
+        editorRef: plateEditorRef,
+    });
+    // Comentarios anclados que propone la IA: solo se leen mientras el diff está abierto.
+    const { data: diffSuggestion } = useQuery({
+        queryKey: ['ai-suggestion-detail', sectionExecution.id],
+        queryFn: () => getAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined),
+        enabled: isDiffOpen && !!selectedOrganizationId,
+        staleTime: 0,
+    });
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isHistorySheetOpen, setIsHistorySheetOpen] = useState(false);
     const [reviewStatus, setReviewStatus] = useState<ReviewStatus | null>(
@@ -462,7 +478,7 @@ function SectionExecutionInner({
     };
 
     const displayedContent = (aiPreview !== null && !isDiffOpen)
-        ? aiPreview
+        ? stripCommentMarkers(aiPreview)
         : sectionExecution.output.replace(/\\n/g, "\n");
 
     // Compartido entre secciones form y no-form: dónde deben quedar los archivos que
@@ -479,6 +495,7 @@ function SectionExecutionInner({
     // ver comentario de "no desmontar Plate" más abajo.
     const plateEditor = (
         <SectionPlateEditor
+            ref={plateEditorRef}
             sectionId={sectionExecution.id}
             content={displayedContent}
             plateContent={sectionExecution.plate_content}
@@ -906,7 +923,7 @@ function SectionExecutionInner({
                     <div className="flex gap-2">
                         <Button
                             size="sm"
-                            onClick={() => handleSave(sectionExecution.id, aiPreview || '')}
+                            onClick={() => handleSave(sectionExecution.id, stripCommentMarkers(aiPreview || ''))}
                             disabled={isSaving}
                             className="hover:cursor-pointer"
                         >
@@ -1166,6 +1183,7 @@ function SectionExecutionInner({
             sectionOutput={sectionExecution.output}
             aiSuggestionInstruction={sectionExecution.ai_suggestion_instruction}
             aiSuggestionContent={sectionExecution.ai_suggestion_content}
+            aiSuggestionComments={diffSuggestion?.comments}
             aiPreview={aiPreview}
             onReject={async () => {
                 try {
@@ -1182,7 +1200,7 @@ function SectionExecutionInner({
             }}
             onAccept={async () => {
                 try {
-                    await acceptAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
+                    await acceptSuggestion();
                     await queryClient.refetchQueries({ queryKey: ['document-content', documentId] });
                     setAiPreview(null);
                     setIsDiffOpen(false);

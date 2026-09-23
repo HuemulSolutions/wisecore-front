@@ -144,7 +144,7 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
   useImperativeHandle(ref, () => ({
     getMarkdown: () => editorRef.current?.getMarkdown() ?? content,
     getValue: () => editorRef.current?.getValue() ?? [],
-    resetContent: (markdown: string) => editorRef.current?.resetContent(markdown),
+    resetContent: (markdown, options) => editorRef.current?.resetContent(markdown, options),
     resetValue: (value: Value) => editorRef.current?.resetValue(value),
     ensureMermaidSnapshots: runEnsureMermaidSnapshots,
   }), [content, runEnsureMermaidSnapshots]);
