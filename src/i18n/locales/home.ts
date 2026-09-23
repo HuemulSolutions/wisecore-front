@@ -121,6 +121,8 @@
   },
 
   rail: {
+    collapse: { en: "Collapse", es: "Colapsar" },
+    expand: { en: "Expand", es: "Expandir" },
     overview: {
       title: { en: "Overview", es: "Panorama" },
       scopeOrganization: { en: "Organization", es: "Organización" },

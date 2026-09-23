@@ -3,7 +3,9 @@ import { AlertCircle, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getErrorMessage } from '@/lib/error-utils';
 import { toneDot, toneStyle, type ColorHue } from '@/lib/lifecycle-colors';
-import { HOME_CARD_MUTED, HOME_CARD_HEADER, HOME_RAIL_TITLE } from './home-surface';
+import { useHomeCardCollapsed } from '@/hooks/useHomeCardCollapsed';
+import { HOME_CARD_MUTED, HOME_RAIL_TITLE } from './home-surface';
+import { HomeCollapsibleHeader } from './home-collapsible-header';
 
 export interface HomeOverviewRow {
   key: string;
@@ -79,6 +81,7 @@ function OverviewRowButton({ row, isLoading, interactive }: { row: HomeOverviewR
 export function HomeOverviewCard({ rows, isLoading, personalRows, error, onRetry, interactive = true }: HomeOverviewCardProps) {
   const { t } = useTranslation('home');
   const { t: tCommon } = useTranslation('common');
+  const [collapsed, toggleCollapsed] = useHomeCardCollapsed('overview');
 
   // Hint del header: explica qué pasa al clickear según el estado actual.
   const hasActive = [...rows, ...(personalRows ?? [])].some((r) => r.active);
@@ -90,11 +93,13 @@ export function HomeOverviewCard({ rows, isLoading, personalRows, error, onRetry
 
   return (
     <div className={HOME_CARD_MUTED}>
-      <div className={cn(HOME_CARD_HEADER, 'items-start')}>
-        <span className={HOME_RAIL_TITLE}>{t('rail.overview.title')}</span>
-        <span className="max-w-[190px] text-right text-2xs text-muted-foreground">{hint}</span>
-      </div>
-      {error ? (
+      <HomeCollapsibleHeader collapsed={collapsed} onToggle={toggleCollapsed}>
+        <span className="flex items-start justify-between gap-2">
+          <span className={HOME_RAIL_TITLE}>{t('rail.overview.title')}</span>
+          {!collapsed && <span className="max-w-[170px] text-right text-2xs text-muted-foreground">{hint}</span>}
+        </span>
+      </HomeCollapsibleHeader>
+      {collapsed ? null : error ? (
         <div className="flex flex-col items-center gap-2 px-4 py-6 text-center">
           <AlertCircle className="h-6 w-6 text-destructive" />
           <p className="text-xs text-muted-foreground">{getErrorMessage(error, t('rail.overview.errorFallback'))}</p>

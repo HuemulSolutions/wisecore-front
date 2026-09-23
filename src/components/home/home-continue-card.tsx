@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { useOrgNavigate } from '@/hooks/useOrgRouter';
 import { formatRelativeTime } from '@/lib/format-relative-time';
+import { useHomeCardCollapsed } from '@/hooks/useHomeCardCollapsed';
+import { HomeCollapsibleHeader } from './home-collapsible-header';
 import { HOME_CARD_MUTED, HOME_LINK, HOME_RAIL_TITLE } from './home-surface';
 import type { RecentAssetEntry } from '@/types/home';
 
@@ -19,14 +21,18 @@ export function HomeContinueCard({ recentAssets, onViewAll }: HomeContinueCardPr
   const { t: tAssets } = useTranslation('assets');
   const navigate = useOrgNavigate();
 
+  const [collapsed, toggleCollapsed] = useHomeCardCollapsed('continue');
+
   if (recentAssets.length === 0) return null;
 
   return (
     <div className={HOME_CARD_MUTED}>
-      <div className="border-b border-divider px-4 py-2.5">
+      <HomeCollapsibleHeader collapsed={collapsed} onToggle={toggleCollapsed}>
         <span className={HOME_RAIL_TITLE}>{t('rail.continue.title')}</span>
         <p className="text-2xs text-muted-foreground">{t('rail.continue.subtitle')}</p>
-      </div>
+      </HomeCollapsibleHeader>
+      {!collapsed && (
+      <>
       <div className="pb-1">
         {recentAssets.map((asset) => (
           <button
@@ -52,6 +58,8 @@ export function HomeContinueCard({ recentAssets, onViewAll }: HomeContinueCardPr
             {t('rail.continue.viewAll')}
           </button>
         </div>
+      )}
+      </>
       )}
     </div>
   );
