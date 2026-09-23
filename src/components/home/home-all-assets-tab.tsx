@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Info, MessageCircle, Search } from 'lucide-react';
+import { Info, Search } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
 import { DEFAULT_PAGE_SIZE } from '@/huemul/constants';
 import { HuemulTable } from '@/huemul/components/huemul-table';
@@ -14,7 +14,9 @@ import type { HuemulFilterDef, HuemulFilterValue, HuemulFilterChip } from '@/typ
 import type { Execution } from '@/types/execution';
 import { formatRelativeTime, formatAbsoluteDate } from '@/lib/format-relative-time';
 import { cn } from '@/lib/utils';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { HomeAvatar } from './home-avatar';
+import { HomeCommentsPopover } from './home-comments-popover';
 import { HOME_CARD } from './home-surface';
 
 /** Aviso cuando `home.tsx` descartó un filtro incompatible (`pending_my_action` vs `query`). */
@@ -101,6 +103,8 @@ export function HomeAllAssetsTab({
 }: HomeAllAssetsTabProps) {
   const { t } = useTranslation('home');
   const PAGE_SIZE = DEFAULT_PAGE_SIZE;
+  const { canList } = useUserPermissions();
+  const canListDiscussions = canList('discussion');
 
   // Clic en la fila abre el activo — mismo patrón que el resto de las tablas
   // `variant="detailed"` del repo (users/roles/organizations/global-admin):
@@ -133,10 +137,15 @@ export function HomeAllAssetsTab({
             // fuchsia, no violet: violet ya es `in_approval` en el badge de estado
             // de esta misma fila. Mismo hue que el KPI "Comentarios sin resolver"
             // del Panorama de home.
-            <span className="inline-flex items-center gap-1 font-medium tabular-nums text-fuchsia-600 dark:text-fuchsia-400">
-              <MessageCircle className="h-3.5 w-3.5" />
-              {item.unresolved_comments_count}
-            </span>
+            <HomeCommentsPopover
+              organizationId={organizationId}
+              documentId={item.document_id}
+              executionId={item.id}
+              documentName={item.document_name}
+              count={item.unresolved_comments_count}
+              canList={canListDiscussions}
+              onOpenAsset={() => handleOpenAsset(item)}
+            />
           ) : (
             <span className="text-muted-foreground">—</span>
           ),
@@ -242,7 +251,7 @@ export function HomeAllAssetsTab({
         ),
       },
     ],
-    [t, currentUserId],
+    [t, currentUserId, organizationId, canListDiscussions, handleOpenAsset],
   );
 
   const query = typeof values.query === 'string' ? values.query.trim() : '';
