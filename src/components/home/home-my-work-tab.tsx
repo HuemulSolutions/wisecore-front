@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useMyWork, type UseMyWorkGroupResult } from '@/hooks/useMyWork';
-import { lifecycleStateSectionTone } from '@/lib/lifecycle-colors';
+import { HuemulButton } from '@/huemul/components/huemul-button';
+import { lifecycleStateHue, lifecycleStateSectionTone, toneDot } from '@/lib/lifecycle-colors';
 import { HomeWorkGroupCard } from './home-work-group-card';
 import { HomeWorkGroupRow } from './home-work-group-row';
 import { HomeApprovedRow } from './home-approved-row';
@@ -16,6 +17,10 @@ const REVIEW_ACCENT = lifecycleStateSectionTone('in_review');
 const APPROVAL_ACCENT = lifecycleStateSectionTone('in_approval');
 const APPROVED_ACCENT = lifecycleStateSectionTone('approved');
 
+const REVIEW_DOT = toneDot(lifecycleStateHue('in_review'));
+const APPROVAL_DOT = toneDot(lifecycleStateHue('in_approval'));
+const APPROVED_DOT = toneDot(lifecycleStateHue('approved'));
+
 const VISIBLE_ROWS = 2;
 
 type WorkGroupKind = 'review' | 'approval' | 'approved';
@@ -24,6 +29,8 @@ export interface HomeMyWorkTabProps {
   organizationId: string;
   canListExecutions: boolean;
   canTransitionAsset: boolean;
+  /** `can('openAsset')` — habilita el botón primario de las filas de revisión/aprobación (navega al activo). */
+  canOpenAsset: boolean;
   /** `firstTime` mientras el checklist de onboarding no esté completo; `noPending` si la organización ya opera pero el usuario no tiene nada propio. Decide `home.tsx`, que es quien conoce el estado del checklist. */
   emptyVariant: 'firstTime' | 'noPending';
   /** Pie "Ver las N restantes" de un grupo puntual — salta a "Todos los activos" ya filtrado por ese grupo. */
@@ -55,15 +62,13 @@ export function HomeMyWorkTab({
   organizationId,
   canListExecutions,
   canTransitionAsset,
+  canOpenAsset,
   emptyVariant,
   onViewGroupInAllAssets,
   onViewAllAssets,
   onCreateAsset,
 }: HomeMyWorkTabProps) {
   const { t } = useTranslation('home');
-  const [collapsedReview, setCollapsedReview] = useState(false);
-  const [collapsedApproval, setCollapsedApproval] = useState(false);
-  const [collapsedApproved, setCollapsedApproved] = useState(false);
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
 
   // Misma fuente que consume `home.tsx` para decidir `isFirstTimeState` y
@@ -97,9 +102,9 @@ export function HomeMyWorkTab({
   // revierte de verdad sería peor que no tenerlo, así que el toast queda sin
   // acción hasta que se resuelva.
   const handlePublished = useCallback(
-    (rowId: string) => {
+    (rowId: string, documentName: string) => {
       setExitingIds((prev) => new Set(prev).add(rowId));
-      toast.success(t('workGroups.common.undoUnavailable'));
+      toast.success(t('workGroups.common.published', { name: documentName }));
     },
     [t],
   );
@@ -119,54 +124,67 @@ export function HomeMyWorkTab({
     // Sin `listExecutions` no hay pestaña "Todos los activos" adonde saltar.
     if (!canListExecutions) return { label: t('workGroups.common.showingOf', { count: result.count.value }) };
     const remaining = result.count.value - VISIBLE_ROWS;
-    return { label: t('workGroups.common.viewRemaining', { count: remaining }), onClick: () => onViewGroupInAllAssets(group) };
+    return {
+      label: t(remaining === 1 ? 'workGroups.common.viewRemainingOne' : 'workGroups.common.viewRemaining', { count: remaining }),
+      onClick: () => onViewGroupInAllAssets(group),
+    };
   }
+
+  // Revisión/aprobación: el backend no entrega `lifecycle_status` por fila, así
+  // que la acción primaria navega al activo en vez de transicionar inline.
+  const renderNavigableRow = (row: HomeWorkGroupRowData, label: string) => (
+    <HomeWorkGroupRow
+      key={row.id}
+      row={row}
+      onOpen={() => handleOpen(row)}
+      actions={
+        canOpenAsset ? <HuemulButton size="sm" label={label} onClick={() => handleOpen(row)} /> : undefined
+      }
+    />
+  );
 
   return (
     <div className="flex flex-col gap-3.5">
       <HomeWorkGroupCard
         accent={REVIEW_ACCENT}
+        dotClass={REVIEW_DOT}
         title={t('workGroups.review.title')}
         meta={t('workGroups.review.meta')}
         count={review.count}
-        collapsed={collapsedReview}
-        onToggleCollapse={() => setCollapsedReview((c) => !c)}
         rows={review.rows}
         isLoading={review.isLoading || (review.isFetching && review.rows.length === 0)}
         error={review.error}
         onRetry={() => review.refetch()}
         footer={footerFor('review', review)}
-        emptyCollapsedLabel={t('workGroups.review.empty')}
-        renderRow={(row) => <HomeWorkGroupRow key={row.id} row={row} onOpen={() => handleOpen(row)} />}
+        emptyLabel={t('workGroups.review.empty')}
+        renderRow={(row) => renderNavigableRow(row, t('workGroups.review.actionPrimary'))}
       />
       <HomeWorkGroupCard
         accent={APPROVAL_ACCENT}
+        dotClass={APPROVAL_DOT}
         title={t('workGroups.approval.title')}
         meta={t('workGroups.approval.meta')}
         count={approval.count}
-        collapsed={collapsedApproval}
-        onToggleCollapse={() => setCollapsedApproval((c) => !c)}
         rows={approval.rows}
         isLoading={approval.isLoading || (approval.isFetching && approval.rows.length === 0)}
         error={approval.error}
         onRetry={() => approval.refetch()}
         footer={footerFor('approval', approval)}
-        emptyCollapsedLabel={t('workGroups.approval.empty')}
-        renderRow={(row) => <HomeWorkGroupRow key={row.id} row={row} onOpen={() => handleOpen(row)} />}
+        emptyLabel={t('workGroups.approval.empty')}
+        renderRow={(row) => renderNavigableRow(row, t('workGroups.approval.actionPrimary'))}
       />
       <HomeWorkGroupCard
         accent={APPROVED_ACCENT}
+        dotClass={APPROVED_DOT}
         title={t('workGroups.approved.title')}
         meta={t('workGroups.approved.meta')}
         count={approved.count}
-        collapsed={collapsedApproved}
-        onToggleCollapse={() => setCollapsedApproved((c) => !c)}
         rows={approved.rows}
         isLoading={approved.isLoading || (approved.isFetching && approved.rows.length === 0)}
         error={approved.error}
         onRetry={() => approved.refetch()}
         footer={footerFor('approved', approved)}
-        emptyCollapsedLabel={t('workGroups.approved.empty')}
+        emptyLabel={t('workGroups.approved.empty')}
         renderRow={(row) => (
           <HomeApprovedRow
             key={row.id}

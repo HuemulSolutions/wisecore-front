@@ -598,6 +598,7 @@ export default function Home() {
         organizationId={orgId}
         canListExecutions={canListExecutions}
         canTransitionAsset={can('transitionAsset')}
+        canOpenAsset={can('openAsset')}
         emptyVariant="firstTime"
         onViewGroupInAllAssets={() => setActiveTab('all')}
         onViewAllAssets={() => setActiveTab('all')}
@@ -618,6 +619,7 @@ export default function Home() {
               organizationId={orgId}
               canListExecutions={canListExecutions}
               canTransitionAsset={can('transitionAsset')}
+              canOpenAsset={can('openAsset')}
               emptyVariant={onboarding.allDone ? 'noPending' : 'firstTime'}
               onViewGroupInAllAssets={(group) => {
                 if (group === 'approved') {

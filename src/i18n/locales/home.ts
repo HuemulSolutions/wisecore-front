@@ -74,6 +74,9 @@
     },
     common: {
       viewRemaining: { en: "View the {{count}} remaining in All assets", es: "Ver los {{count}} restantes en Todos los activos" },
+      viewRemainingOne: { en: "View the remaining one in All assets", es: "Ver el restante en Todos los activos" },
+      open: { en: "Open", es: "Abrir" },
+      published: { en: "Published: {{name}}", es: "Publicado: {{name}}" },
       showingOf: { en: "Showing 2 of {{count}}", es: "Mostrando 2 de {{count}}" },
       viewAll: { en: "View all", es: "Ver todas" },
       countApprox: { en: "{{count}}+", es: "{{count}}+" },
@@ -103,10 +106,6 @@
         date: { en: "waiting since {{date}}", es: "en espera desde el {{date}}" },
       },
       publishesOn: { en: "publishes on {{date}}", es: "publica el {{date}}" },
-      undoUnavailable: {
-        en: "Done. This action can't be undone yet.",
-        es: "Listo. Esta acción todavía no se puede deshacer.",
-      },
     },
   },
 
