@@ -8,6 +8,7 @@ import { useLlmConfigurationStatus, llmConfigStatusQueryKey } from '@/hooks/useL
 import { HuemulPageLayout } from '@/huemul/components/huemul-page-layout'
 import { HuemulAccessDenied } from '@/huemul/components/huemul-access-denied'
 import { HuemulTabCount } from '@/huemul/components/huemul-tab-count'
+import { HUEMUL_UNDERLINE_TAB_TRIGGER_CLASS } from '@/huemul/components/huemul-detail-surface'
 import { DEFAULT_PAGE_SIZE } from '@/huemul/constants'
 import {
   getSupportedProviders,
@@ -438,64 +439,71 @@ export default function Models() {
 
   return (
     <>
+      {/* Un solo root de Tabs: la barra (TabsList) vive en el header y los TabsContent en la columna. */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as 'models' | 'embeddings')}
+        className="h-full gap-0"
+      >
       <HuemulPageLayout
-        header={<ModelsHeader onRefresh={handleRefresh} isLoading={isRefreshing || fetchingLLMs} />}
-        headerClassName="p-6 md:p-8 pb-0 md:pb-0"
+        header={
+          <div>
+            <div className="px-6 pt-6 md:px-8 md:pt-8">
+              <ModelsHeader onRefresh={handleRefresh} isLoading={isRefreshing || fetchingLLMs} />
+              <ModelsStatusCards
+                isLoading={loadingStatus && !configStatus}
+                defaultModel={defaultModel}
+                defaultProviderName={defaultModel?.provider?.name ?? defaultModel?.provider_name}
+                defaultConfigured={defaultConfigured}
+                defaultWorking={defaultWorking}
+                defaultTestState={defaultModel ? modelTests[defaultModel.id] : undefined}
+                hasProviders={allProvidersList.length > 0}
+                embeddingConfigured={embeddingConfigured}
+                embeddingWorking={embeddingWorking}
+                embeddingProviderName={embeddingActiveName}
+                canTest={canTestModel}
+                canCreateProvider={canCreateProvider}
+                canCreateModel={canCreateModel}
+                canConfigureEmbeddings={canListProviders && (embeddingConfigured || canCreateProvider)}
+                onTestDefault={() => defaultModel && runModelTest(defaultModel)}
+                onConnectProvider={openCreateProvider}
+                onAddModel={openAddModel}
+                onViewEmbeddings={() => setActiveTab('embeddings')}
+                onConfigureEmbeddings={() => {
+                  setActiveTab('embeddings')
+                  openEmbeddingSheet('openai')
+                }}
+              />
+            </div>
+
+            {/* La línea que separa el header del contenido es esta barra de tabs (de borde a borde). */}
+            <TabsList className="mt-5 h-auto w-full justify-start gap-6 rounded-none border-b border-border bg-transparent px-6 py-0 md:px-8">
+              {canListModels && (
+                <TabsTrigger value="models" className={HUEMUL_UNDERLINE_TAB_TRIGGER_CLASS}>
+                  <HuemulTabCount label={t('tabs.models')} count={allLlms.length} active={modelsTabActive} />
+                </TabsTrigger>
+              )}
+              {canListProviders && (
+                <TabsTrigger value="embeddings" className={HUEMUL_UNDERLINE_TAB_TRIGGER_CLASS}>
+                  <span className="inline-flex items-center gap-1.5">
+                    {t('tabs.embeddings')}
+                    <span
+                      title={embeddingConfigured ? t('tabs.embeddingsConfigured') : t('tabs.embeddingsNotConfigured')}
+                      className={cn('size-2 rounded-full', embeddingConfigured ? 'bg-[#22c55e]' : 'bg-[#f5b70a]')}
+                    />
+                  </span>
+                </TabsTrigger>
+              )}
+            </TabsList>
+          </div>
+        }
+        headerClassName="border-b-0 p-0"
         columns={[
           {
             content: (
-              <div className="flex flex-col gap-5">
-                <ModelsStatusCards
-                  isLoading={loadingStatus && !configStatus}
-                  defaultModel={defaultModel}
-                  defaultProviderName={defaultModel?.provider?.name ?? defaultModel?.provider_name}
-                  defaultConfigured={defaultConfigured}
-                  defaultWorking={defaultWorking}
-                  defaultTestState={defaultModel ? modelTests[defaultModel.id] : undefined}
-                  hasProviders={allProvidersList.length > 0}
-                  embeddingConfigured={embeddingConfigured}
-                  embeddingWorking={embeddingWorking}
-                  embeddingProviderName={embeddingActiveName}
-                  canTest={canTestModel}
-                  canCreateProvider={canCreateProvider}
-                  canCreateModel={canCreateModel}
-                  canConfigureEmbeddings={canListProviders && (embeddingConfigured || canCreateProvider)}
-                  onTestDefault={() => defaultModel && runModelTest(defaultModel)}
-                  onConnectProvider={openCreateProvider}
-                  onAddModel={openAddModel}
-                  onViewEmbeddings={() => setActiveTab('embeddings')}
-                  onConfigureEmbeddings={() => {
-                    setActiveTab('embeddings')
-                    openEmbeddingSheet('openai')
-                  }}
-                />
-
-                <Tabs
-                  value={activeTab}
-                  onValueChange={(v) => setActiveTab(v as 'models' | 'embeddings')}
-                  className="w-full flex-1 min-h-0"
-                >
-                  <TabsList className="shrink-0">
-                    {canListModels && (
-                      <TabsTrigger value="models" className="hover:cursor-pointer">
-                        <HuemulTabCount label={t('tabs.models')} count={allLlms.length} active={modelsTabActive} />
-                      </TabsTrigger>
-                    )}
-                    {canListProviders && (
-                      <TabsTrigger value="embeddings" className="hover:cursor-pointer">
-                        <span className="inline-flex items-center gap-1.5">
-                          {t('tabs.embeddings')}
-                          <span
-                            title={embeddingConfigured ? t('tabs.embeddingsConfigured') : t('tabs.embeddingsNotConfigured')}
-                            className={cn('size-2 rounded-full', embeddingConfigured ? 'bg-[#22c55e]' : 'bg-[#f5b70a]')}
-                          />
-                        </span>
-                      </TabsTrigger>
-                    )}
-                  </TabsList>
-
+              <>
                   {canListModels && (
-                    <TabsContent value="models" className="mt-4 flex min-h-0 flex-col gap-5">
+                    <TabsContent value="models" className="flex min-h-0 flex-col gap-5">
                       {hasError ? (
                         <ModelsContentEmptyState
                           type="error"
@@ -560,7 +568,7 @@ export default function Models() {
                   {!canListModels && !canListProviders && <HuemulAccessDenied />}
 
                   {canListProviders && (
-                    <TabsContent value="embeddings" className="mt-4 min-h-0">
+                    <TabsContent value="embeddings" className="min-h-0">
                       {hasEmbeddingError ? (
                         <ModelsContentEmptyState
                           type="error"
@@ -583,13 +591,13 @@ export default function Models() {
                       )}
                     </TabsContent>
                   )}
-                </Tabs>
-              </div>
+              </>
             ),
-            className: 'p-6 md:p-8 pt-0 md:pt-0',
+            className: 'p-6 md:p-8',
           },
         ]}
       />
+      </Tabs>
 
       <ModelSheet
         open={modelSheet.open}
