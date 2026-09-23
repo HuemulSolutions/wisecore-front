@@ -47,6 +47,8 @@ const translations = {
     managed: { en: "managed", es: "gestionado" },
     modelOne: { en: "{{count}} model", es: "{{count}} modelo" },
     modelMany: { en: "{{count}} models", es: "{{count}} modelos" },
+    showAll: { en: "View all ({{count}})", es: "Ver todos ({{count}})" },
+    close: { en: "Close", es: "Cerrar" },
     addTitle: { en: "Connect provider", es: "Conectar proveedor" },
     addSubtitle: { en: "You need an API key", es: "Necesitas una clave API" },
   },
