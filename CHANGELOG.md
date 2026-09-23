@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.5.0] - 2026-09-23
+### Nuevo
+- abrir panel al iniciar workflow y mostrar diálogo al compartir template
+
 ## [1.4.1] - 2026-09-23
 ### Arreglos
 - limitar título de chip del launcher de workflow a 2 líneas
