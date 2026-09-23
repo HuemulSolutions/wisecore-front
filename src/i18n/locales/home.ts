@@ -73,10 +73,25 @@
       collapse: { en: "Collapse", es: "Colapsar" },
       expand: { en: "Expand", es: "Expandir" },
       errorTitle: { en: "We couldn't load this group", es: "No pudimos cargar este grupo" },
-      updatedAgo: { en: "updated {{time}}", es: "hace {{time}}" },
+      // Una variante por cubo de `getRelativeTimeBucket` — la frase se arma
+      // entera acá (no se concatena `formatRelativeTime`, que ya trae
+      // "Ayer"/"hace 3m" redactado y daba "esperando hace Ayer").
+      updatedAgo: {
+        justNow: { en: "updated just now", es: "actualizado hace un momento" },
+        minutes: { en: "updated {{count}}m ago", es: "actualizado hace {{count}}m" },
+        hours: { en: "updated {{count}}h ago", es: "actualizado hace {{count}}h" },
+        yesterday: { en: "updated yesterday", es: "actualizado ayer" },
+        date: { en: "updated on {{date}}", es: "actualizado el {{date}}" },
+      },
       // `lifecycle_state_since` — entrada al estado actual, distinto de
       // `updatedAgo` (última edición de contenido). Ver spec Punto 6.
-      pendingSince: { en: "waiting {{time}}", es: "esperando hace {{time}}" },
+      pendingSince: {
+        justNow: { en: "waiting since just now", es: "en espera desde hace un momento" },
+        minutes: { en: "waiting for {{count}}m", es: "en espera desde hace {{count}}m" },
+        hours: { en: "waiting for {{count}}h", es: "en espera desde hace {{count}}h" },
+        yesterday: { en: "waiting since yesterday", es: "en espera desde ayer" },
+        date: { en: "waiting since {{date}}", es: "en espera desde el {{date}}" },
+      },
       publishesOn: { en: "publishes on {{date}}", es: "publica el {{date}}" },
       undoUnavailable: {
         en: "Done. This action can't be undone yet.",

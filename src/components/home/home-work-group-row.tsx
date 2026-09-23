@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
-import { formatAbsoluteDate, formatRelativeTime } from '@/lib/format-relative-time';
+import { formatAbsoluteDate, getRelativeTimeBucket } from '@/lib/format-relative-time';
 import { HomeAvatar } from './home-avatar';
 import { HOME_ROW, HOME_ROW_TITLE, HOME_ROW_META } from './home-surface';
 import type { HomeWorkGroupRow as HomeWorkGroupRowData } from '@/types/home';
@@ -25,6 +25,13 @@ export interface HomeWorkGroupRowProps {
 export function HomeWorkGroupRow({ row, onOpen, actions, isExiting, commentExcerpt, commentAuthorName }: HomeWorkGroupRowProps) {
   const { t } = useTranslation('home');
 
+  // La frase entera vive en i18n, una variante por cubo temporal — no se
+  // concatena `formatRelativeTime` ("Ayer", "hace 3m") dentro de otra frase.
+  const sinceText = (key: 'pendingSince' | 'updatedAgo', date: string) => {
+    const bucket = getRelativeTimeBucket(date);
+    return t(`workGroups.common.${key}.${bucket.kind}`, bucket);
+  };
+
   const temporalText = (() => {
     if (!row.temporalDate) return null;
     if (row.temporalKind === 'estimatedPublicationDate') {
@@ -36,7 +43,7 @@ export function HomeWorkGroupRow({ row, onOpen, actions, isExiting, commentExcer
       // spec Punto 6). El resalte de "detenido hace N días" ahora sí refleja
       // tiempo en el estado, no la última edición de contenido.
       return {
-        text: t('workGroups.common.pendingSince', { time: formatRelativeTime(row.temporalDate) }),
+        text: sinceText('pendingSince', row.temporalDate),
         overdue: days > OVERDUE_DAYS_THRESHOLD,
       };
     }
@@ -44,7 +51,7 @@ export function HomeWorkGroupRow({ row, onOpen, actions, isExiting, commentExcer
     // impreciso a propósito, se mueve con cualquier edición del documento, no
     // solo con la transición de estado.
     return {
-      text: t('workGroups.common.updatedAgo', { time: formatRelativeTime(row.temporalDate) }),
+      text: sinceText('updatedAgo', row.temporalDate),
       overdue: days > OVERDUE_DAYS_THRESHOLD,
     };
   })();
