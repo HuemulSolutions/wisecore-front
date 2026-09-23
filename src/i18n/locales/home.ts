@@ -45,13 +45,13 @@
     approved: {
       title: { en: "Yours, approved and ready to publish", es: "Tus aprobados, listos para publicar" },
       meta: { en: "Only publishing is left", es: "Solo falta publicarlos" },
-      empty: { en: "Nothing of yours approved and unpublished", es: "Nada tuyo aprobado sin publicar" },
+      empty: { en: "You have no assets pending publication", es: "No tienes activos pendientes de publicar" },
       actionPublish: { en: "Publish", es: "Publicar" },
     },
     review: {
       title: { en: "Awaiting your review", es: "Esperan tu revisión" },
       meta: { en: "Oldest first", es: "Más antiguos primero" },
-      empty: { en: "No pending reviews", es: "Sin revisiones pendientes" },
+      empty: { en: "You have no pending reviews", es: "No tienes revisiones pendientes" },
       // Sin botones inline todavía — backend entregó `lifecycle_permissions`
       // por fila pero no `lifecycle_status` (can_advance/can_rollback/
       // advance_blockers), que es lo que hace falta para decidir qué botón
@@ -63,7 +63,7 @@
     approval: {
       title: { en: "Awaiting your approval", es: "Esperan tu aprobación" },
       meta: { en: "By publication date", es: "Por fecha de publicación" },
-      empty: { en: "No pending approvals", es: "Sin aprobaciones pendientes" },
+      empty: { en: "You have no pending approvals", es: "No tienes aprobaciones pendientes" },
       actionSecondary: { en: "Reject", es: "Rechazar" },
       actionPrimary: { en: "Approve", es: "Aprobar" },
     },
