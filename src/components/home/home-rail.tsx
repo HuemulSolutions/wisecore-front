@@ -21,7 +21,7 @@ export interface HomeRailProps {
   showOverview: boolean;
   overviewRows: HomeOverviewRow[];
   overviewLoading: boolean;
-  /** Los 3 contadores personales del bloque "Solo lo mío" — ver `HomeOverviewCard`. */
+  /** Los contadores personales del bloque "Personal" — ver `HomeOverviewCard`. */
   overviewPersonalRows?: HomeOverviewRow[];
   /** `documents/statistics` falló — ver `HomeOverviewCard`. */
   overviewError?: unknown;

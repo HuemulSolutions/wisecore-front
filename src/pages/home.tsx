@@ -104,7 +104,7 @@ export default function Home() {
 
   // `scope=me` es superset de `scope=organization` (mismos 8 contadores +5
   // personales) — una sola request alimenta tanto el Panorama org-wide como
-  // el bloque "Solo lo mío" y el subtítulo del header.
+  // el bloque "Personal" y el subtítulo del header.
   const {
     data: stats,
     isLoading: statsLoading,
@@ -416,11 +416,6 @@ export default function Home() {
   const overviewRows: HomeOverviewRow[] = useMemo(
     () => [
       {
-        key: 'owned', label: t('kpis.owned.label'), value: stats?.owned_count ?? 0, hue: 'slate',
-        active: activeOverviewKey === 'owned',
-        onClick: () => selectOverviewKpi('owned', () => { setValue('ownerValue', '__me__'); setSelectedLabel('ownerValue', t('filters.ownerMe')); }),
-      },
-      {
         key: 'draft', label: t('kpis.draft.label'), value: stats?.draft_count ?? 0, hue: lifecycleStateHue('draft'),
         active: activeOverviewKey === 'draft',
         onClick: () => selectOverviewKpi('draft', () => setValue('lifecycleState', 'draft')),
@@ -462,8 +457,8 @@ export default function Home() {
     [stats, t, activeOverviewKey, selectOverviewKpi, setValue, setSelectedLabel],
   );
 
-  // Bloque "Solo lo mío" del Panorama — los 3 contadores relativos al
-  // usuario que sí trae `scope=me` (spec Punto 3, ya entregado).
+  // Bloque "Personal" del Panorama — los contadores relativos al usuario
+  // (los 3 de `scope=me`, spec Punto 3, + "Tus activos").
   // `my_mentions_count` no se pinta: el backend lo devuelve como placeholder
   // fijo en `0` (sin infraestructura de menciones a usuarios todavía).
   const personalOverviewRows: HomeOverviewRow[] = useMemo(
@@ -487,6 +482,11 @@ export default function Home() {
             setSelectedLabel('ownerValue', t('filters.ownerMe'));
             setValue('lifecycleState', 'approved');
           }),
+      },
+      {
+        key: 'owned', label: t('kpis.owned.label'), value: stats?.owned_count ?? 0, hue: 'slate',
+        active: activeOverviewKey === 'owned',
+        onClick: () => selectOverviewKpi('owned', () => { setValue('ownerValue', '__me__'); setSelectedLabel('ownerValue', t('filters.ownerMe')); }),
       },
     ],
     [stats, t, activeOverviewKey, selectOverviewKpi, setValue, setSelectedLabel, applyPendingAction],

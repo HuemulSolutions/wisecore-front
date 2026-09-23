@@ -124,7 +124,7 @@
     overview: {
       title: { en: "Overview", es: "Panorama" },
       scopeOrganization: { en: "Organization", es: "Organización" },
-      scopeMine: { en: "For you", es: "Para ti" },
+      scopeMine: { en: "Personal", es: "Personal" },
       hintDefault: { en: "Click an indicator to filter the table", es: "Clic en un indicador para filtrar la tabla" },
       hintActive: { en: "Filter applied · click again to remove it", es: "Filtro aplicado · clic de nuevo para quitarlo" },
       hintReadOnly: { en: "Read-only: you can't access the asset list", es: "Solo consulta: no tienes acceso a la lista de activos" },
@@ -314,30 +314,30 @@
 
   kpis: {
     owned: {
-      label: { en: "Assets you own", es: "Activos propios" },
+      label: { en: "Your assets", es: "Tus activos" },
     },
     draft: {
       label: { en: "In elaboration", es: "En elaboración" },
     },
     inReview: {
-      label: { en: "Awaiting review", es: "Esperando revisión" },
+      label: { en: "Awaiting review", es: "En espera de revisión" },
     },
     inApproval: {
-      label: { en: "Pending approval", es: "Pendientes de aprobación" },
+      label: { en: "Awaiting approval", es: "En espera de aprobación" },
     },
     approved: {
-      label: { en: "Approved, not yet published", es: "Aprobados, sin publicar" },
+      label: { en: "Approved, unpublished", es: "Aprobados sin publicar" },
     },
     published: {
-      label: { en: "Currently published", es: "Publicados actualmente" },
+      label: { en: "Published", es: "Publicados" },
     },
     expiringSoon: {
-      label: { en: "Expiring in the next 7 days", es: "Vencen en los próximos 7 días" },
+      label: { en: "Expiring soon (next 7 days)", es: "Por vencer (próximos 7 días)" },
     },
     unresolvedComments: {
-      label: { en: "With unresolved comments", es: "Con comentarios sin resolver" },
+      label: { en: "With pending comments", es: "Con comentarios pendientes" },
     },
-    // Bloque "Solo lo mío" — `scope=me` de `GET /documents/statistics`.
+    // Bloque "Personal" — `scope=me` de `GET /documents/statistics`.
     pendingMyReview: {
       label: { en: "Awaiting your review", es: "Esperan tu revisión" },
     },
@@ -345,7 +345,7 @@
       label: { en: "Awaiting your approval", es: "Esperan tu aprobación" },
     },
     approvedOwnedByMe: {
-      label: { en: "Approved, yours", es: "Aprobados tuyos" },
+      label: { en: "Approved by you", es: "Aprobados por ti" },
     },
   },
 
