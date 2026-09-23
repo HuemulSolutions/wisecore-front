@@ -61,9 +61,9 @@ export interface HomeAllAssetsTabProps {
 }
 
 /**
- * Contenido de la pestaña "Todos los activos" — es el Home original completo
- * (filtros inline + chips + tabla de ejecuciones), movido tal cual sin
- * cambios de lógica. El panel lateral de filtros vive en la columna
+ * Contenido de la pestaña "Todos los activos" — el Home original completo
+ * (filtros inline + chips + tabla de ejecuciones) en una sola card: toolbar,
+ * chips y aviso son franjas de la misma superficie que la tabla. El panel lateral de filtros vive en la columna
  * colapsable de `HuemulPageLayout` (en `home.tsx`), no acá — por eso el
  * estado de filtros llega como props en vez de construirse en este archivo.
  * Los 8 KPIs que antes vivían arriba de esta tabla ahora viven exclusivamente
@@ -259,7 +259,7 @@ export function HomeAllAssetsTab({
   const searchType = values.searchType;
 
   const emptyContent = !isEmptyResult ? null : activeCount > 0 ? (
-    <div className={cn(HOME_CARD, 'flex h-full flex-col items-center justify-center gap-2 p-9 text-center')}>
+    <div className="flex h-full flex-col items-center justify-center gap-2 p-9 text-center">
       <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-muted text-muted-foreground">
         <Search className="h-5 w-5" />
       </span>
@@ -275,7 +275,7 @@ export function HomeAllAssetsTab({
       </div>
     </div>
   ) : (
-    <div className={cn(HOME_CARD, 'flex h-full flex-col items-center justify-center gap-2 p-9 text-center')}>
+    <div className="flex h-full flex-col items-center justify-center gap-2 p-9 text-center">
       <p className="text-sm font-semibold text-foreground">{t('orgEmpty.title')}</p>
       <p className="max-w-[420px] text-xs text-muted-foreground">
         {canCreateAsset ? t('orgEmpty.descriptionCreate') : t('orgEmpty.descriptionReadOnly')}
@@ -290,10 +290,10 @@ export function HomeAllAssetsTab({
   );
 
   return (
-    <div className="flex flex-col h-full overflow-hidden gap-4">
+    <div className={cn(HOME_CARD, 'flex h-full flex-col overflow-hidden')}>
       {canListExecutions && (
         <>
-          <div className={cn(HOME_CARD, 'shrink-0 flex items-center justify-between gap-2 px-3 py-2')}>
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-divider px-3 py-2">
             <div className="flex items-center gap-2">
               <HuemulFilterButton count={activeCount} open={filtersOpen} onToggle={() => onFiltersOpenChange(!filtersOpen)} />
               <HuemulFilterInline filters={filterDefs} values={values} onChange={onFilterChange} onSelectedLabel={onSelectedLabel} />
@@ -302,9 +302,9 @@ export function HomeAllAssetsTab({
               <p className="shrink-0 text-xs tabular-nums text-muted-foreground">{t('executionsTable.resultsCount', { count: total })}</p>
             )}
           </div>
-          <HuemulFilterChips chips={chips} onRemove={onChipRemove} onClearAll={onClearAll} />
+          <HuemulFilterChips chips={chips} onRemove={onChipRemove} onClearAll={onClearAll} className="shrink-0 border-b border-divider px-3 py-2" />
           {notice && (
-            <div className="flex shrink-0 items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-foreground">
+            <div className="flex shrink-0 items-start gap-2 border-b border-divider bg-primary/5 px-3 py-2 text-xs text-foreground">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
               <p className="flex-1">
                 {notice.kind === 'droppedPending'
@@ -333,7 +333,7 @@ export function HomeAllAssetsTab({
             onRowClick={canOpenAsset ? handleOpenAsset : undefined}
             resizable
             columnsStorageKey="wisecore:home-executions-col-widths"
-            className="h-full shadow-card"
+            className="h-full"
             sort={sort}
             onSortChange={(s) => {
               onSortChange(s);
