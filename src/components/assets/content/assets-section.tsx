@@ -168,7 +168,7 @@ function SectionExecutionInner({
 
     // Reporta el estado de colapso de ESTA sección hacia AssetContent — sin esto, el botón
     // "colapsar/expandir todas" del toolbar sólo se entera de su propia última señal, no de un
-    // colapso hecho a mano (botón individual o clickeando el cuerpo en lector). Se desregistra
+    // colapso hecho a mano (botón individual o chevron de la columna del lector). Se desregistra
     // al desmontar.
     useEffect(() => {
         onCollapsedChange?.(sectionExecution.id, isCollapsed);
@@ -230,22 +230,6 @@ function SectionExecutionInner({
                 });
             }
         }, 100);
-    };
-
-    // Click en cualquier parte del cuerpo de una sección (lector, expandida) la colapsa — "desde
-    // donde empieza hasta donde termina", sin una fila de control visible compitiendo con el
-    // contenido. Se excluyen dos casos para no interceptar interacciones reales del contenido:
-    //   1. Elementos interactivos propios de Plate en modo lectura — links, menciones,
-    //      referencias, fechas, media, tablas de datos, toggles (todos se renderizan como nodos
-    //      "void" de Slate, con data-slate-void="true" en su wrapper), además de cualquier
-    //      <a>/<button>/[role]/[tabindex] genérico.
-    //   2. El click final de un arrastre de selección de texto (el usuario estaba seleccionando,
-    //      no pidiendo colapsar).
-    const handleSectionBodyClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        const target = e.target as HTMLElement;
-        if (target.closest('a, button, [role], [tabindex], [data-slate-void="true"]')) return;
-        if (window.getSelection()?.toString()) return;
-        setIsCollapsed(true);
     };
 
     /**
@@ -1056,42 +1040,77 @@ function SectionExecutionInner({
                     </div>
                 )
             ) : (
-                /* Editor y lector, no-form: MISMO árbol en ambos modos — el chevron del lector
-                   es un hermano CONDICIONAL (índice estable), nunca una rama alternativa. Si
-                   {plateEditor} cambiara de posición entre modos, React lo desmonta y remonta
-                   (reconstruye un Plate completo, ~25 plugin kits, por sección) en cada toggle
-                   Lector/Editor — ese remount síncrono en todas las secciones a la vez es lo que
-                   congelaba el cambio de modo. En editor el chevron vive en la barra sticky de
-                   arriba; en lector, EXPANDIDA, no hay ningún control visible — el contenido es
-                   lo primordial, sin chrome compitiendo con él — y clickear en cualquier parte
-                   del cuerpo la colapsa (ver handleSectionBodyClick). COLAPSADA sí se muestra el
-                   botón chevron + nombre: único indicio de qué sección es, dado que no hay
-                   contenido visible para mostrar en su lugar. */
-                <div>
-                    {!readyToEdit && isCollapsed && (
-                        <button
-                            type="button"
-                            onClick={() => setIsCollapsed(false)}
-                            className="group/section-toggle mb-1 flex w-full items-center gap-1.5 rounded border-b border-gray-100 py-1 pr-2 text-left hover:bg-gray-50"
-                            title={t('section.expand')}
-                        >
-                            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform duration-200 group-hover/section-toggle:text-gray-600" />
-                            {sectionName && (
-                                <span className="truncate text-xs text-gray-500 group-hover/section-toggle:text-gray-700">
-                                    {sectionName}
-                                </span>
-                            )}
-                        </button>
+                /* Editor y lector, no-form: MISMO árbol en ambos modos — la columna de controles
+                   del lector es un hermano CONDICIONAL (índice estable), nunca una rama
+                   alternativa. Si {plateEditor} cambiara de posición entre modos, React lo
+                   desmonta y remonta (reconstruye un Plate completo, ~25 plugin kits, por
+                   sección) en cada toggle Lector/Editor — ese remount síncrono en todas las
+                   secciones a la vez es lo que congelaba el cambio de modo. En editor el chevron
+                   vive en la barra sticky de arriba; en lector, una columna a la izquierda
+                   (menú ⋮ con historial + chevron, en fila) comparte fila con el contenido. COLAPSADA se
+                   muestra además el nombre de la sección: único indicio de cuál es. */
+                <div className={cn(!readyToEdit && 'flex items-start gap-1')}>
+                    {!readyToEdit && (
+                        <div className="flex shrink-0 items-center gap-0.5 pt-1">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button
+                                        type="button"
+                                        title={t('common:actions')}
+                                        className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-gray-100 hover:cursor-pointer"
+                                    >
+                                        <MoreVertical className="h-3.5 w-3.5 text-gray-400" />
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start">
+                                    <DropdownMenuItem
+                                        className="hover:cursor-pointer"
+                                        onSelect={() => {
+                                            setTimeout(() => setIsHistorySheetOpen(true), 0);
+                                        }}
+                                    >
+                                        <History className="h-4 w-4 mr-2" />
+                                        {t('section.viewHistoryMenu')}
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                            <HuemulButton
+                                variant="ghost"
+                                size="xs"
+                                icon={ChevronDown}
+                                iconClassName={cn(
+                                    'h-3.5 w-3.5 text-gray-400 transition-transform duration-200',
+                                    isCollapsed && '-rotate-90'
+                                )}
+                                className="h-6 w-6 hover:bg-gray-100"
+                                tooltip={isCollapsed ? t('section.expand') : t('section.collapse')}
+                                onClick={() => setIsCollapsed((prev) => !prev)}
+                            />
+                        </div>
                     )}
-                    <div
-                        onClick={!readyToEdit && !isCollapsed ? handleSectionBodyClick : undefined}
-                        className={cn(
-                            readyToEdit ? (isEditing ? 'pt-2 pr-0' : 'pt-4 pr-2 w-full') : 'pt-1 pr-2 w-full',
-                            !readyToEdit && !isCollapsed && 'cursor-pointer',
-                            !isEditing && isCollapsed && 'hidden'
+                    <div className="min-w-0 flex-1">
+                        {!readyToEdit && isCollapsed && (
+                            <button
+                                type="button"
+                                onClick={() => setIsCollapsed(false)}
+                                className="group/section-toggle mb-1 flex w-full items-center rounded border-b border-gray-100 py-1 pr-2 text-left hover:bg-gray-50"
+                                title={t('section.expand')}
+                            >
+                                {sectionName && (
+                                    <span className="truncate text-xs text-gray-500 group-hover/section-toggle:text-gray-700">
+                                        {sectionName}
+                                    </span>
+                                )}
+                            </button>
                         )}
-                    >
-                        {plateEditor}
+                        <div
+                            className={cn(
+                                readyToEdit ? (isEditing ? 'pt-2 pr-0' : 'pt-4 pr-2 w-full') : 'pt-1 pr-2 w-full',
+                                !isEditing && isCollapsed && 'hidden'
+                            )}
+                        >
+                            {plateEditor}
+                        </div>
                     </div>
                 </div>
             )}
