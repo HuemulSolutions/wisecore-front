@@ -23,7 +23,6 @@ import {
   WorkflowTable,
   WorkflowDetailPanel,
   WorkflowLauncher,
-  WorkflowExpressNameDialog,
   WorkflowShareDialog,
   WorkflowPageHeader,
   WorkflowAssetEditSheet,
@@ -69,8 +68,6 @@ export default function WorkflowPage() {
   const [mediaRow, setMediaRow] = useState<WorkflowItem | null>(null)
   const [editingRow, setEditingRow] = useState<WorkflowItem | null>(null)
 
-  // Template que exige nombre al iniciar: abre el diálogo de nombre.
-  const [nameTarget, setNameTarget] = useState<WorkflowTemplateItem | null>(null)
   // Cierra «Ver todos» desde acá cuando el express se crea con éxito.
   const [closeLauncherDialog, setCloseLauncherDialog] = useState(0)
 
@@ -88,21 +85,10 @@ export default function WorkflowPage() {
           body: { name, description },
         })
         .then((doc) => {
-          setNameTarget(null)
           setCloseLauncherDialog((n) => n + 1)
-          toast(t("launcher.created", { name: doc.name }), {
-            duration: TOAST_DURATION_MS,
-            position: "bottom-center",
-            style: TOAST_STYLE,
-            action: {
-              label: t("launcher.open"),
-              onClick: () => {
-                setSelectedRow(null)
-                setExpressTemplate(item)
-                setExpressDoc(doc)
-              },
-            },
-          })
+          setSelectedRow(null)
+          setExpressTemplate(item)
+          setExpressDoc(doc)
         })
         .catch(() => {
           toast.error(t("launcher.createError"), {
@@ -122,7 +108,11 @@ export default function WorkflowPage() {
     (item: WorkflowTemplateItem) => {
       if (!canCreateExpress) return
       if (item.require_name_on_express) {
-        setNameTarget(item)
+        // El panel pide el nombre (paso previo) y dispara `startExpress`.
+        setCloseLauncherDialog((n) => n + 1)
+        setSelectedRow(null)
+        setExpressTemplate(item)
+        setExpressDoc(null)
         return
       }
       startExpress(item, item.name)
@@ -130,24 +120,17 @@ export default function WorkflowPage() {
     [canCreateExpress, startExpress],
   )
 
-  // Copia el link de template al portapapeles; si el navegador lo bloquea se
-  // cae al diálogo con el link visible.
+  // Muestra siempre el diálogo con el link (copiar / abrir en pestaña nueva).
   const handleShareTemplate = useCallback(
-    async (item: WorkflowTemplateItem) => {
+    (item: WorkflowTemplateItem) => {
       if (!selectedOrganizationId) return
-      const url = buildTemplateShareUrl(selectedOrganizationId, item.document_type_id, item.id)
-      try {
-        await navigator.clipboard.writeText(url)
-        toast(t("launcher.shareCopied", { name: item.name }), {
-          duration: TOAST_DURATION_MS,
-          position: "bottom-center",
-          style: TOAST_STYLE,
-        })
-      } catch {
-        setSharing({ kind: "template", url, name: item.name })
-      }
+      setSharing({
+        kind: "template",
+        url: buildTemplateShareUrl(selectedOrganizationId, item.document_type_id, item.id),
+        name: item.name,
+      })
     },
-    [selectedOrganizationId, t],
+    [selectedOrganizationId],
   )
 
   // Misma ejecución en la página de assets, en pestaña nueva (paridad con el ícono del header del panel).
@@ -371,6 +354,10 @@ export default function WorkflowPage() {
                 row={selectedRow}
                 template={expressTemplate}
                 createdDoc={expressDoc}
+                isCreating={createExpress.isPending && createExpress.variables?.templateId === expressTemplate?.id}
+                onSubmitName={(name, description) =>
+                  expressTemplate && startExpress(expressTemplate, name, description)
+                }
                 onClose={() => {
                   setSelectedRow(null)
                   setExpressTemplate(null)
@@ -383,13 +370,6 @@ export default function WorkflowPage() {
             show: selectedRow != null || expressTemplate != null,
           },
         ]}
-      />
-
-      <WorkflowExpressNameDialog
-        template={nameTarget}
-        isCreating={createExpress.isPending}
-        onSubmit={(name, description) => nameTarget && startExpress(nameTarget, name, description)}
-        onClose={() => setNameTarget(null)}
       />
 
       <WorkflowShareDialog

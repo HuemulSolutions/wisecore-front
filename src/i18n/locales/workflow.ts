@@ -109,18 +109,7 @@ const translations = {
     loadMore: { en: "Load more", es: "Cargar más" },
     shownOfTotal: { en: "Showing {{shown}} of {{total}}", es: "Mostrando {{shown}} de {{total}}" },
     shown: { en: "Showing {{shown}}", es: "Mostrando {{shown}}" },
-    created: { en: "Created \"{{name}}\"", es: "Creado «{{name}}»" },
-    open: { en: "Open", es: "Abrir" },
     createError: { en: "Couldn't create the asset", es: "No se pudo crear el activo" },
-    shareCopied: { en: "Link for \"{{name}}\" copied", es: "Link de «{{name}}» copiado" },
-    nameDialog: {
-      title: { en: "New {{name}}", es: "Nuevo {{name}}" },
-      createdIn: { en: "Created in Workflows/{{relation}}", es: "Se crea en Workflows/{{relation}}" },
-      createdInRoot: { en: "Created in Workflows", es: "Se crea en Workflows" },
-      submit: { en: "Create and start", es: "Crear e iniciar" },
-      cancel: { en: "Cancel", es: "Cancelar" },
-      descriptionOptional: { en: "Description · optional", es: "Descripción · opcional" },
-    },
   },
   expressSheet: {
     welcomeTitle: { en: "General information", es: "Datos generales" },
