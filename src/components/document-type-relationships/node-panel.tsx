@@ -300,7 +300,7 @@ export function NodePanel({
                 <span className="text-xs font-medium">{t("nodePanel.openAsset")}</span>
               </button>
             )}
-            {/* Explorar los diagramas asignados a esta versión, en un overlay dentro del canvas */}
+            {/* Diagramas en los que aparece este activo (popup anclado al nodo) */}
             {onExploreDiagrams && (
               <button
                 onClick={onExploreDiagrams}

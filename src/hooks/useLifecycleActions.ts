@@ -448,7 +448,8 @@ export function useLifecycleActions({
     queryKey: ["execution-change-summary", executionId],
     queryFn: () => getExecutionById(executionId!, organizationId!),
     enabled: isCheckDialogOpen && isApprovalStep && !!executionId && !!organizationId,
-    refetchInterval: (query) => (query.state.data?.change_summary_status === "pending" ? 3000 : false),
+    refetchInterval: (query) =>
+      query.state.status !== "error" && query.state.data?.change_summary_status === "pending" ? 3000 : false,
   })
   const isSummaryLoading =
     isApprovalStep && (changeSummaryQuery.isLoading || changeSummaryQuery.data?.change_summary_status === "pending")

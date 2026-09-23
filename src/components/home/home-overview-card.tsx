@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getErrorMessage } from '@/lib/error-utils';
 import { toneDot, toneStyle, type ColorHue } from '@/lib/lifecycle-colors';
 import { HOME_CARD_MUTED, HOME_CARD_HEADER, HOME_RAIL_TITLE } from './home-surface';
 
@@ -21,6 +23,9 @@ export interface HomeOverviewCardProps {
   isLoading: boolean;
   /** Los 3 contadores personales (`scope=me`) — se pintan arriba, bajo su propio título. `undefined` mientras `useDocumentStatistics` no resolvió con ese scope, u oculto directamente si el caller no lo pide (ver `home.tsx`). */
   personalRows?: HomeOverviewRow[];
+  /** `documents/statistics` falló — en vez de pintar los 8+3 KPIs en `0` (un dato falso), se reemplaza toda la lista por este error state con reintento. */
+  error?: unknown;
+  onRetry?: () => void;
 }
 
 function OverviewRowButton({ row, isLoading }: { row: HomeOverviewRow; isLoading: boolean }) {
@@ -64,8 +69,9 @@ function OverviewRowButton({ row, isLoading }: { row: HomeOverviewRow; isLoading
  * (`scope=me`: pendientes de mi revisión/aprobación, aprobados míos); los 8
  * de abajo siguen etiquetados con el label estático "Organización".
  */
-export function HomeOverviewCard({ rows, isLoading, personalRows }: HomeOverviewCardProps) {
+export function HomeOverviewCard({ rows, isLoading, personalRows, error, onRetry }: HomeOverviewCardProps) {
   const { t } = useTranslation('home');
+  const { t: tCommon } = useTranslation('common');
 
   return (
     <div className={HOME_CARD_MUTED}>
@@ -73,19 +79,38 @@ export function HomeOverviewCard({ rows, isLoading, personalRows }: HomeOverview
         <span className={HOME_RAIL_TITLE}>{t('rail.overview.title')}</span>
         <span className="text-2xs text-muted-foreground">{t('rail.overview.scopeOrganization')}</span>
       </div>
-      {personalRows && personalRows.length > 0 && (
-        <div className="border-b border-divider pb-1">
-          <div className={cn('px-4 pt-2.5 pb-1', HOME_RAIL_TITLE)}>{t('rail.overview.scopeMine')}</div>
-          {personalRows.map((row) => (
-            <OverviewRowButton key={row.key} row={row} isLoading={isLoading} />
-          ))}
+      {error ? (
+        <div className="flex flex-col items-center gap-2 px-4 py-6 text-center">
+          <AlertCircle className="h-6 w-6 text-destructive" />
+          <p className="text-xs text-muted-foreground">{getErrorMessage(error, t('rail.overview.errorFallback'))}</p>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:cursor-pointer transition-colors"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              {tCommon('retry')}
+            </button>
+          )}
         </div>
+      ) : (
+        <>
+          {personalRows && personalRows.length > 0 && (
+            <div className="border-b border-divider pb-1">
+              <div className={cn('px-4 pt-2.5 pb-1', HOME_RAIL_TITLE)}>{t('rail.overview.scopeMine')}</div>
+              {personalRows.map((row) => (
+                <OverviewRowButton key={row.key} row={row} isLoading={isLoading} />
+              ))}
+            </div>
+          )}
+          <div className="pb-1">
+            {rows.map((row) => (
+              <OverviewRowButton key={row.key} row={row} isLoading={isLoading} />
+            ))}
+          </div>
+        </>
       )}
-      <div className="pb-1">
-        {rows.map((row) => (
-          <OverviewRowButton key={row.key} row={row} isLoading={isLoading} />
-        ))}
-      </div>
     </div>
   );
 }

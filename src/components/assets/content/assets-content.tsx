@@ -1018,12 +1018,17 @@ export function AssetContent({
     // otro banner poll-eando algo que dispare el refresh — el callback del sistema
     // externo llega en background, sin acción del usuario — así que acá sí hace
     // falta un self-poll, mientras dure el bloqueo, para que se libere solo.
-    refetchInterval: (query) =>
-      isExternalElaborationLocked(
+    refetchInterval: (query) => {
+      // Corta el poll si el último fetch falló — si no, un `data` stale que
+      // todavía dice "bloqueado" lo mantiene sondeando para siempre contra
+      // un endpoint que sigue devolviendo error.
+      if (query.state.status === "error") return false
+      return isExternalElaborationLocked(
         (query.state.data as { lifecycle_status?: LifecycleStatus } | undefined)?.lifecycle_status,
       )
         ? EXTERNAL_ELABORATION_POLL_MS
-        : false,
+        : false
+    },
     refetchOnWindowFocus: false,
     staleTime: 30000, // Cache for 30 seconds
     // TODO: la key no incluye selectedOrganizationId (preexistente, ver

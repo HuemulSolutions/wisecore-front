@@ -105,6 +105,7 @@ export default function Home() {
     data: stats,
     isLoading: statsLoading,
     isFetching: statsFetching,
+    error: statsError,
     refetch: refetchStats,
   } = useDocumentStatistics(orgId, !!orgId && !!organizationToken && canReadStatistics, 'me');
 
@@ -604,6 +605,8 @@ export default function Home() {
         overviewRows={overviewRows}
         overviewPersonalRows={personalOverviewRows}
         overviewLoading={statsLoading}
+        overviewError={statsError}
+        onOverviewRetry={() => void refetchStats()}
       />
     </div>
   );

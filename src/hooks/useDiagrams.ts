@@ -1,4 +1,4 @@
-import type { RefObject } from 'react'
+import { useMemo, type RefObject } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Edge, Node } from '@xyflow/react'
 import {
@@ -78,6 +78,32 @@ export function useDiagrams(organizationId: string, options: UseDiagramsOptions 
     placeholderData: (prev) => prev,
     retry: 0,
   })
+}
+
+// ─── Diagramas por activo ─────────────────────────────────────────────────────
+
+/**
+ * `Map<documentId, Set<diagramId>>` con los diagramas donde aparece cada activo, para
+ * anunciar en el canvas "este activo está en otros diagramas". Reusa el listado sin
+ * filtros (misma `queryKey`, así que comparte caché e invalidación con `handleRefresh`).
+ * Limitación: una sola página de 100 — es una pista visual; la lista real del popup sale
+ * de su propia query por `documentId`, que no tiene ese tope.
+ */
+export function useDiagramIdsByAsset(organizationId: string, options: { enabled?: boolean } = {}) {
+  const { data } = useDiagrams(organizationId, { enabled: options.enabled, pageSize: 100 })
+
+  return useMemo(() => {
+    const byAsset = new Map<string, Set<string>>()
+    for (const diagram of data?.data ?? []) {
+      for (const detail of diagram.details) {
+        if (detail.node_type !== 'execution') continue
+        const ids = byAsset.get(detail.document_id) ?? new Set<string>()
+        ids.add(diagram.id)
+        byAsset.set(detail.document_id, ids)
+      }
+    }
+    return byAsset
+  }, [data])
 }
 
 // ─── Detail query ─────────────────────────────────────────────────────────────

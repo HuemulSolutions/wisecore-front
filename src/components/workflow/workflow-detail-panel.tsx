@@ -1,43 +1,44 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, CheckCircle2, Clock, Edit3, ListChecks, RefreshCw, Paperclip, Eye } from "lucide-react"
+import { Check, ChevronRight, File } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { HuemulButton } from "@/huemul/components/huemul-button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { AssetFormSection, type AssetFormSectionHandle } from "@/components/assets/content/asset-form-section"
+import { type AssetFormSectionHandle } from "@/components/assets/content/asset-form-section"
 import { WorkflowAssetEditSheet } from "@/components/workflow/workflow-asset-edit-sheet"
 import { MediaListSheet } from "@/components/ui/media-list-sheet"
+import { WorkflowPanelHeader } from "@/components/workflow/workflow-panel-header"
+import { WorkflowPanelLifecycleRow } from "@/components/workflow/workflow-panel-lifecycle-row"
+import { WorkflowReadOnlyBanner, type WorkflowReadOnlyBannerReason } from "@/components/workflow/workflow-read-only-banner"
+import { WorkflowExpressNameForm } from "@/components/workflow/workflow-express-name-form"
+import { WorkflowSummarySkeleton } from "@/components/workflow/workflow-summary-skeleton"
+import { WorkflowPanelError } from "@/components/workflow/workflow-panel-error"
+import { WorkflowEmptyStepNotice } from "@/components/workflow/workflow-empty-step-notice"
 import { WorkflowSectionsSummary } from "@/components/workflow/workflow-sections-summary"
+import { WorkflowSectionView } from "@/components/workflow/workflow-section-view"
+import { WorkflowSectionFooter } from "@/components/workflow/workflow-section-footer"
 import { WorkflowFinishedCard } from "@/components/workflow/workflow-finished-card"
-import { WorkflowStatusCard } from "@/components/workflow/workflow-status-card"
-import { HuemulAnswersStatusBadge } from "@/huemul/components/huemul-answers-status-badge"
-import { HuemulLifecycleStageBadge } from "@/huemul/components/huemul-lifecycle-stage-badge"
-import { HuemulLifecycleActions } from "@/huemul/components/huemul-lifecycle-actions"
 import { HuemulLifecycleSheets } from "@/huemul/components/huemul-lifecycle-sheets"
 import { getDocumentContent } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
+import { useOrgPath } from "@/hooks/useOrgRouter"
+import { buildExecutionSharePath } from "@/lib/workflow-share-url"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
-import { lifecycleAllows, lifecycleStageAllowsEditing } from "@/hooks/useDocumentAccess"
-import { READ_ONLY_NOTICE_STATES, resolveLifecycleActionsVisibility, isExternalElaborationLocked, EXTERNAL_ELABORATION_POLL_MS } from "@/lib/lifecycle-access"
-import { resolveWorkflowFinishOutcome, type WorkflowFinishOutcome } from "@/lib/workflow-finish-outcome"
+import { isExternalElaborationLocked, EXTERNAL_ELABORATION_POLL_MS } from "@/lib/lifecycle-access"
 import { workflowQueryKeys } from "@/hooks/useWorkflows"
-import { useLifecycleActions } from "@/hooks/useLifecycleActions"
 import { invalidateExecutionLifecycleSteps } from "@/hooks/useLifecycle"
-import type { AssetContentResponse, ContentSection } from "@/types/assets"
+import type { AssetContentResponse } from "@/types/assets"
 import type { WorkflowRowRef } from "@/types/workflow"
 import type { WorkflowTemplateItem, CreateExpressResult } from "@/types/templates"
 import type { FormValuesSectionPayload } from "@/types/sections/core"
 import { applyFormValuesPatch } from "@/components/assets/content/utils/patch-document-content"
-import { isSectionAnswerable, isSectionApplicable } from "@/components/workflow/workflow-section-stats"
+import { isSectionApplicable } from "@/components/workflow/workflow-section-stats"
+import { useWorkflowPanelView } from "@/components/workflow/hooks/useWorkflowPanelView"
+import { useWorkflowPanelGating } from "@/components/workflow/hooks/useWorkflowPanelGating"
 import {
   useDocumentSectionAccess,
   useInvalidateDocumentSectionAccess,
   canViewSection,
-  resolveSectionCanEdit,
 } from "@/hooks/useDocumentSectionAccess"
 
 interface WorkflowDetailPanelProps {
@@ -62,6 +63,8 @@ interface WorkflowDetailPanelProps {
   showClose?: boolean
   /** Oculta el lápiz de editar nombre/código. Default true (se oculta para quien solo responde). */
   showAssetEdit?: boolean
+  /** Muestra «Abrir en Activos» (navega a /asset/:id). Default true; la vista fullscreen compartida lo oculta. */
+  showOpenAsset?: boolean
   /** Oculta el badge y las acciones de ciclo de vida. Default true. */
   showLifecycle?: boolean
   /**
@@ -94,11 +97,15 @@ interface WorkflowDetailPanelProps {
 }
 
 /**
- * Panel derecho: asistente por pasos (una sección form por vez) para responder el
- * formulario de un workflow, sin salir de la página. Cubre dos orígenes:
- * - `row`: fila ya existente en la tabla → se edita el documento/ejecución tal cual.
- * - `template`: tarjeta "Iniciar" → crea el documento express (pidiendo nombre acá
- *   mismo si el template lo requiere) y luego continúa con el mismo asistente.
+ * Panel derecho del detalle de workflow: dos vistas internas — resumen de solo lectura con
+ * todas las secciones form del documento (por defecto al abrir), y una vista por sección para
+ * responder/ver (ver workflow-sections-summary.tsx / workflow-section-view.tsx). Cubre dos
+ * orígenes:
+ * - `row`: fila ya existente en la tabla → se edita el documento/ejecución tal cual, abre en
+ *   el resumen.
+ * - `template`: tarjeta "Iniciar" → crea el documento express (pidiendo nombre acá mismo si el
+ *   template lo requiere) y entra directo a la primera sección (el resumen de un documento
+ *   recién creado es una lista de tarjetas todas vacías).
  */
 export function WorkflowDetailPanel({
   row,
@@ -110,6 +117,7 @@ export function WorkflowDetailPanel({
   variant = "panel",
   showClose = true,
   showAssetEdit = true,
+  showOpenAsset = true,
   showLifecycle = true,
   onContinueLater,
   onStartAnother,
@@ -123,6 +131,7 @@ export function WorkflowDetailPanel({
   const { can: canMedia } = usePageAccess("media")
   const { isOrgAdmin, hasPermission } = useUserPermissions()
   const queryClient = useQueryClient()
+  const buildPath = useOrgPath()
 
   // Eje RBAC del panel (grueso, `asset:*` — mismo criterio que useAssetContentPermissions).
   const canReadAsset = can("readAsset")
@@ -131,17 +140,16 @@ export function WorkflowDetailPanel({
   // — gatea la query que decide si se ofrece el botón de re-lanzar publicación externa.
   const canReadExternalPublishConfig = isOrgAdmin || hasPermission("lifecycle_external_publish_action:l")
 
-  // null = pantalla de resumen de secciones; number = paso del wizard (índice en formSections).
-  // Solo una fila ya existente (`row`) tiene algo que resumir — un express recién iniciado
-  // arranca directo en el paso 0.
-  const [step, setStep] = React.useState<number | null>(row ? null : 0)
-  const [nameValue, setNameValue] = React.useState("")
-  const [descriptionValue, setDescriptionValue] = React.useState("")
   const [isFormSaving, setIsFormSaving] = React.useState(false)
   const [isEditSheetOpen, setIsEditSheetOpen] = React.useState(false)
   const [isMediaSheetOpen, setIsMediaSheetOpen] = React.useState(false)
   const [editedAsset, setEditedAsset] = React.useState<{ name: string; internalCode?: string } | null>(null)
+  // Expansión por sección del resumen — vive acá (no en WorkflowSectionsSummary) para
+  // sobrevivir el ir-y-volver a la vista 2, que desmonta el resumen. Vacío = todas
+  // colapsadas (default al entrar al panel).
+  const [expandedSectionIds, setExpandedSectionIds] = React.useState<Set<string>>(() => new Set())
   const formSectionRef = React.useRef<AssetFormSectionHandle>(null)
+  const scrollRef = React.useRef<HTMLDivElement>(null)
 
   const documentId = row?.document_id ?? createdDoc?.id ?? null
   // Fija la ejecución a mostrar (fila ya existente). Para un express recién creado
@@ -155,22 +163,23 @@ export function WorkflowDetailPanel({
   const invalidateSectionAccess = useInvalidateDocumentSectionAccess()
 
   const nameRequired = !!template?.require_name_on_express
-  // Bloquea el resto del asistente hasta que se envíe el nombre (solo templates nuevos que lo exigen).
+  // Bloquea el resto del panel hasta que se envíe el nombre (solo templates nuevos que lo exigen).
   const needsNameStep = !row && !!template && nameRequired && !createdDoc
 
-  // Resetea el paso/formulario de nombre cada vez que cambia el origen (otra fila u otro template).
-  // La creación del documento (createdDoc) la controla el padre.
+  // Resetea el override optimista de nombre/código cada vez que cambia el origen (otra fila u
+  // otro template). La vista (resumen/sección) se resetea aparte, dentro de useWorkflowPanelView.
   React.useEffect(() => {
-    setStep(row ? null : 0)
-    setNameValue("")
-    setDescriptionValue("")
     setEditedAsset(null)
+    setExpandedSectionIds(new Set())
   }, [row?.execution_id, template?.id])
 
-  const handleCreateWithName = () => {
-    if (!can("createExpressAsset")) return
-    onSubmitName?.(nameValue.trim(), descriptionValue.trim() || undefined)
-  }
+  const handleCreateWithName = React.useCallback(
+    (name: string, description?: string) => {
+      if (!can("createExpressAsset")) return
+      onSubmitName?.(name, description)
+    },
+    [can, onSubmitName],
+  )
 
   const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ["document-content", documentId, executionId],
@@ -184,10 +193,15 @@ export function WorkflowDetailPanel({
     // Mientras haya un ElaborationRun bloqueando la execution, el callback del sistema
     // externo llega en background sin acción del usuario — se poll-ea para que el
     // wizard se desbloquee solo. Ver assets-content.tsx, misma regla.
-    refetchInterval: (query) =>
-      isExternalElaborationLocked((query.state.data as AssetContentResponse["data"] | undefined)?.lifecycle_status)
+    refetchInterval: (query) => {
+      // Corta el poll si el último fetch falló — si no, un `data` stale que
+      // todavía dice "bloqueado" lo mantiene sondeando para siempre contra
+      // un endpoint que sigue devolviendo error.
+      if (query.state.status === "error") return false
+      return isExternalElaborationLocked((query.state.data as AssetContentResponse["data"] | undefined)?.lifecycle_status)
         ? EXTERNAL_ELABORATION_POLL_MS
-        : false,
+        : false
+    },
   })
 
   const handleRefresh = React.useCallback(() => {
@@ -210,35 +224,37 @@ export function WorkflowDetailPanel({
       ),
     [data, sectionAccess],
   )
-  // step === null → pantalla de resumen (ver WorkflowSectionsSummary), sin sección "actual".
-  const currentSection = step !== null ? formSections[step] : undefined
-  const isLastStep = step !== null && step >= formSections.length - 1
+  const hasAnyFormSection = React.useMemo(
+    () => (data?.content ?? []).some((s) => s.section_type === "form"),
+    [data],
+  )
 
-  // Si la sección del paso actual deja de aplicar (una respuesta ocultó todas sus preguntas) u
-  // otra sección recién aplicable se inserta antes, formSections cambia de largo/orden y el
-  // índice numérico de `step` puede quedar apuntando a la sección equivocada o fuera de rango.
-  // Se ancla comparando contra la lista anterior: si la sección que estaba en `step` sigue
-  // presente (en otra posición), el paso se recalcula sobre su nueva posición; si desapareció,
-  // cae en la que ocupa su lugar (o al resumen si no queda ninguna sección aplicable).
-  const prevFormSectionsRef = React.useRef(formSections)
-  React.useEffect(() => {
-    const prevSections = prevFormSectionsRef.current
-    prevFormSectionsRef.current = formSections
-    if (prevSections === formSections || step === null) return
-    const anchorId = prevSections[step]?.id
-    const anchoredIndex = anchorId ? formSections.findIndex((s) => s.id === anchorId) : -1
-    const nextStep =
-      anchoredIndex !== -1
-        ? anchoredIndex
-        : formSections.length === 0
-          ? null
-          : Math.min(step, formSections.length - 1)
-    if (nextStep !== step) setStep(nextStep)
-  }, [formSections, step])
+  // Todos los campos del documento (no solo de formSections): el target de un depends_on de
+  // sección puede vivir en una sección filtrada. Solo para redactar el aviso de sección inactiva.
+  const allFormFields = React.useMemo(
+    () => (data?.content ?? []).flatMap((s) => s.form_fields ?? []),
+    [data],
+  )
+
+  const {
+    view,
+    activeSectionIndex,
+    activeSection,
+    isFirstSection,
+    isLastSection,
+    openSection,
+    goToSummary,
+    goNextSection,
+    goPrevSection,
+  } = useWorkflowPanelView({
+    formSections,
+    resetKey: row?.execution_id ?? template?.id,
+    startInSection: !row,
+  })
 
   // Autoguardado (PATCH /form_values): parchea en el caché solo la sección devuelta,
   // sin refetch de /content — mismo patrón que assets-content.tsx. También refresca
-  // section_name si vino no-null, para que el header del wizard quede al día.
+  // section_name si vino no-null, para que el header quede al día.
   const handleSectionUpdate = React.useCallback(
     (payload?: FormValuesSectionPayload[]) => {
       if (!payload?.length || !documentId) return
@@ -257,124 +273,32 @@ export function WorkflowDetailPanel({
   const documentName =
     editedAsset?.name ?? row?.document_name ?? createdDoc?.name ?? template?.name ?? data?.document_name
   const internalCode = editedAsset?.internalCode ?? row?.internal_code ?? data?.internal_code ?? undefined
-
-  // Cruce lifecycle × etapa × RBAC (AND, ver ia context/rbac-audit-guide.md): el
-  // lifecycle contesta "¿sos el editor DE ESTE documento?" (rol), la etapa contesta
-  // "¿este documento admite respuestas AHORA?" y RBAC "¿tu rol te permite escribir
-  // EN ABSOLUTO?". `lifecycle_permissions.edit` es un permiso de ROL, no de etapa:
-  // sin el factor de etapa, un aprobador que también es actor de un grupo de
-  // elaboración veía los campos habilitados en aprobación y el PATCH no persistía.
-  // Los `undefined` degradan a "solo RBAC decide", igual que en /asset. El cuarto
-  // factor (sin ElaborationRun bloqueando) es independiente de la etapa: el backend
-  // rechaza el PATCH con 409 EXECUTION_LOCKED_EXTERNAL_ELABORATION aunque la etapa
-  // siga siendo "edit" — ver ia context correspondiente.
-  const canAnswerForm =
-    canUpdateAssetContent &&
-    lifecycleAllows(data?.lifecycle_permissions, "edit") &&
-    lifecycleStageAllowsEditing(data?.lifecycle_status) &&
-    !isExternalElaborationLocked(data?.lifecycle_status)
-
-  // Resuelto contra sectionAccess (GET /documents/{id}/sections), no contra
-  // currentSection.can_edit (siempre undefined, /content no lo manda — ver
-  // resolveSectionCanEdit en src/hooks/useDocumentSectionAccess.ts). `null` = el flag
-  // no aplica a esta sección/documento — no degrada a solo lectura por eso solo,
-  // `can_answer` en cada form_field sigue siendo la autoridad. isSectionAnswerable
-  // cubre el depends_on propio de la sección: con show_when_inactive:true la
-  // sección sigue en el wizard (isSectionApplicable la deja pasar) pero inactiva,
-  // así que acá también degrada a solo lectura.
-  const canAnswerSpecificSection = React.useCallback(
-    (section: ContentSection) =>
-      canAnswerForm && resolveSectionCanEdit(section, sectionAccess) !== false && isSectionAnswerable(section),
-    [canAnswerForm, sectionAccess],
-  )
-
-  const canAnswerSection = currentSection ? canAnswerSpecificSection(currentSection) : canAnswerForm
-
-  // Al menos una sección del wizard es respondible AHORA por este usuario. Lo
-  // consume `finishOutcome` (ver más abajo) para distinguir "tengo permiso de
-  // rol para editar en general" de "hay algo puntual que pueda responder ya" —
-  // sin esto, el hand-off entre dos grupos secuenciales de la MISMA etapa
-  // `edit` (el que ya completó su grupo pero la etapa/estado del documento no
-  // cambia) se leía como "sigue pudiendo responder".
-  const hasAnswerableSection = React.useMemo(
-    () => formSections.some((s) => canAnswerSpecificSection(s)),
-    [formSections, canAnswerSpecificSection],
-  )
-
-  // Motivo del aviso de solo lectura: distingue "no tenés permiso/rol", "hay un
-  // ElaborationRun bloqueando la execution", "esta etapa ya no admite respuestas",
-  // "esta sección está inactiva según las respuestas dadas" y "esta sección es de
-  // solo lectura en esta etapa" — evita que el aviso de permiso confunda a alguien
-  // que sí puede responder el resto del formulario. externalElaboration va antes
-  // que stage/permission: es el motivo más específico y accionable para el usuario.
-  const readOnlyReason: "permission" | "externalElaboration" | "stage" | "sectionInactive" | "section" | null =
-    canAnswerSection
-      ? null
-      : isExternalElaborationLocked(data?.lifecycle_status)
-        ? "externalElaboration"
-        : !canUpdateAssetContent || !lifecycleAllows(data?.lifecycle_permissions, "edit")
-          ? "permission"
-          : !lifecycleStageAllowsEditing(data?.lifecycle_status)
-            ? "stage"
-            : currentSection && !isSectionAnswerable(currentSection)
-              ? "sectionInactive"
-              : "section"
-
-  // El bloqueo por ciclo de vida viene de lifecycleStageAllowsEditing: stage distinto de
-  // `edit` o estado terminal. En el caso terminal el `stage` miente (publish vs published),
-  // así que el aviso nombra el `state`; los que no encajan en la frase caen al genérico.
-  const stageNotice = React.useMemo(() => {
-    const state = data?.lifecycle_status?.state
-    if (!state || !READ_ONLY_NOTICE_STATES.has(state)) return t("fill.readOnlyLifecycleNotice")
-    return t("fill.readOnlyStateNotice", {
-      // En minúscula: el label va embebido en la frase, no como título.
-      state: t(`lifecycle.stateLabels.${state}`, { ns: "assets", defaultValue: state }).toLocaleLowerCase(),
-    })
-  }, [data?.lifecycle_status?.state, t])
-
-  // Se levanta justo antes de abrir el diálogo de "Completar" desde el botón de
-  // Finalizar del wizard, para distinguir esa apertura de la del botón "Completar"
-  // de HuemulLifecycleActions (mismo `isCheckDialogOpen` compartido) — solo la
-  // primera debe volver al resumen del wizard cuando la transición termine.
-  const finishAfterCompleteRef = React.useRef(false)
-
-  // Ciclo de vida del documento (completar/devolver, publicar, archivar, restaurar,
-  // asignar versión, re-lanzar publish externo) — mismo controlador que assets-content.tsx.
   const lifecycleExecutionId = executionId ?? data?.execution_id
-  const lifecycle = useLifecycleActions({
+
+  const gating = useWorkflowPanelGating({
+    isFullscreen,
+    showLifecycle,
     documentId,
-    executionId: lifecycleExecutionId,
+    lifecycleExecutionId,
     organizationId: selectedOrganizationId,
-    documentTypeId: data?.document_type?.id,
-    lifecycleStatus: data?.lifecycle_status,
-    lifecyclePermissions: data?.lifecycle_permissions,
-    rbac: { canTransition: canUpdateAssetContent },
-    extraRefreshKeys: () => [workflowQueryKeys.listBase()],
-    // Sin onOpenCustomFields: el panel de workflow no tiene tab de campos
-    // personalizados. El diálogo oculta el botón y queda solo con "Cerrar" +
-    // la lista de campos (que sigue siendo la información útil).
+    needsNameStep,
+    isLoading,
+    isSectionAccessLoading: sectionAccess.isLoading,
+    error,
+    data,
+    sectionAccess,
+    formSections,
+    activeSection,
+    isSectionView: view === "section",
+    isLastSection,
+    canUpdateAssetContent,
     canListCustomFields: can("listCustomFields"),
     canReadExternalPublishConfig,
-    // Mapea el section_execution_id que reporta un blocker al índice del wizard:
-    // ContentSection.id ES el section execution id. Si la sección no está en
-    // formSections (de otro step, o sin permiso de vista para este usuario), no
-    // hay a dónde navegar y el botón "Ir a la sección" del diálogo se omite.
-    onGoToSection: (sectionExecutionId) => {
-      const index = formSections.findIndex((s) => s.id === sectionExecutionId)
-      if (index !== -1) setStep(index)
-    },
-    onAfterComplete: () => {
-      if (!finishAfterCompleteRef.current) return
-      finishAfterCompleteRef.current = false
-      setStep(null)
-    },
+    documentName,
+    template,
+    openSection,
+    goToSummary,
   })
-
-  // Nombre del workflow para la tarjeta terminal (ver `finishOutcome` abajo):
-  // el nombre del TEMPLATE, no el del documento — `data.template_name` viene
-  // de /content, con fallback al template de origen (link de template) y al
-  // nombre del documento como último recurso.
-  const workflowName = data?.template_name ?? template?.name ?? documentName ?? ""
 
   // Notifica el origen REAL del documento en cuanto /content lo trae — a
   // diferencia de los query params `dt`/`tpl` que arma `anchorCreatedDocument`,
@@ -389,551 +313,313 @@ export function WorkflowDetailPanel({
     onDocumentOrigin?.(documentTypeId, templateId)
   }, [data?.document_type?.id, data?.template_id, onDocumentOrigin])
 
-  // Outcome terminal DECLARATIVO (ver src/lib/workflow-finish-outcome.ts): se
-  // recalcula en cada render a partir del estado actual del documento, no solo
-  // tras el onSuccess de una mutación — cubre tanto "acabo de completar mi
-  // parte en esta sesión" como "abrí el link cuando el documento YA estaba en
-  // este estado" (p. ej. otra persona con el mismo rol ya completó el grupo).
-  // Solo aplica en fullscreen: en el panel de /workflow el usuario sigue
-  // dentro de la app, no hay pestaña que cerrar. Cuando da un outcome, se
-  // renderiza `WorkflowFinishedCard` EN EL LUGAR del bloque "paso vacío"/
-  // resumen de secciones (ver más abajo) — no como pantalla aparte.
-  const finishOutcome = React.useMemo<WorkflowFinishOutcome | null>(() => {
-    if (!isFullscreen || !documentId || needsNameStep) return null
-    if (isLoading || sectionAccess.isLoading || !!error) return null
-    return resolveWorkflowFinishOutcome({
-      status: data?.lifecycle_status,
-      permissions: data?.lifecycle_permissions,
-      canTransition: canUpdateAssetContent,
-      finalLifecycleStage: lifecycle.finalLifecycleStage,
-      hasAnswerableSection,
-    })
-  }, [
-    isFullscreen,
-    documentId,
-    needsNameStep,
-    isLoading,
-    error,
-    sectionAccess.isLoading,
-    data?.lifecycle_status,
-    data?.lifecycle_permissions,
-    canUpdateAssetContent,
-    lifecycle.finalLifecycleStage,
-    hasAnswerableSection,
-  ])
-
-  // AssetFormSection ya validó (required/formato) y guardó antes de llamar esto.
-  // Solo se invoca mientras se está respondiendo un paso (step !== null). En el
-  // último paso, si el usuario puede avanzar el ciclo de vida, "Finalizar" no
-  // resuelve directo: abre el diálogo de confirmación de "Completar" y el paso
-  // siguiente (volver al resumen) queda encadenado a `onAfterComplete` (arriba)
-  // para no saltarse esa confirmación.
-  const goNext = React.useCallback(() => {
-    if (!isLastStep) {
-      setStep((s) => (s ?? -1) + 1)
-      return
-    }
-    if (lifecycle.canTransition && lifecycle.status?.can_advance) {
-      finishAfterCompleteRef.current = true
-      lifecycle.setIsCheckDialogOpen(true)
-    } else if (isFullscreen) {
-      // Fullscreen no tiene panel que cerrar: el equivalente de "cerrar" es
-      // volver al resumen de secciones (mismo destino que completar).
-      setStep(null)
-    } else {
-      handleClose()
-    }
-  }, [isLastStep, isFullscreen, handleClose, lifecycle])
-
-  // Solo para el label del botón: si el clic en "Finalizar" va a disparar la
-  // confirmación de "Completar" en vez de cerrar directo (misma condición de `goNext`).
-  // Incluye el caso bloqueado por respuestas obligatorias pendientes: el label
-  // debe nombrar la transición aunque el botón se muestre deshabilitado (ver
-  // `isBlockedLastStep` más abajo, que sí gatea el `disabled`).
-  const willAdvanceOnFinish =
-    isLastStep && lifecycle.canTransition && (!!lifecycle.status?.can_advance || lifecycle.isBlockedByRequiredAnswers)
-
-  // Sin secciones form para este paso/usuario (etapas de revisión/aprobación típicamente):
-  // mismo criterio que willAdvanceOnFinish pero sin depender de isLastStep, ya que acá no
-  // hay wizard de pasos que recorrer.
-  const canAdvanceEmptyStep =
-    lifecycle.canTransition && (!!lifecycle.status?.can_advance || lifecycle.isBlockedByRequiredAnswers)
-
-  // Texto y acción del bloque "sin secciones para este usuario" (arriba): se
-  // extraen para reutilizar el mismo shell visual que las tarjetas terminales
-  // en fullscreen (WorkflowStatusCard) sin duplicar la selección de texto. En
-  // el panel de /workflow (no fullscreen) siguen renderizándose en el bloque
-  // plano de siempre, sin envolver en Card — ver el branch de abajo.
-  const emptyStepTitleKey = lifecycle.isBlockedByRequiredAnswers
-    ? "wizard.emptyStep.blockedTitle"
-    : canAdvanceEmptyStep
-      ? "wizard.emptyStep.advanceTitle"
-      : "wizard.emptyStep.waitingTitle"
-  const emptyStepDescriptionKey = lifecycle.isBlockedByRequiredAnswers
-    ? "wizard.emptyStep.blockedDescription"
-    : canAdvanceEmptyStep
-      ? "wizard.emptyStep.advanceDescription"
-      : "wizard.emptyStep.waitingDescription"
-  const emptyStepButtonConfig = canAdvanceEmptyStep
-    ? {
-        label: lifecycle.completeLabel,
-        tooltip: lifecycle.isBlockedByRequiredAnswers ? lifecycle.advanceBlockersTooltip : lifecycle.completeTooltip,
-        loading: lifecycle.checkMutation.isPending,
-        disabled: lifecycle.isBlockedByRequiredAnswers,
-        onClick: () => {
-          finishAfterCompleteRef.current = true
-          lifecycle.setIsCheckDialogOpen(true)
-        },
-      }
-    : null
-
-  // Último paso del wizard bloqueado por respuestas obligatorias pendientes (en
-  // esta sección u otra): el botón "Finalizar" se deshabilita con tooltip en vez
-  // de degradar a un simple cierre — evita completar en falso mientras el
-  // backend seguiría rechazando con 409.
-  const isBlockedLastStep = isLastStep && lifecycle.canTransition && lifecycle.isBlockedByRequiredAnswers
-
-  // El wizard ya ofrece "Finalizar" (o el paso no es respondible por este
-  // usuario): no duplicar el botón "Completar" en la barra.
-  const hideComplete = willAdvanceOnFinish || (step !== null && !canAnswerSection)
-
-  // Misma tabla de verdad que usa HuemulLifecycleActions para pintarse: se
-  // consulta acá para saber si la fila quedaría vacía antes de renderizarla, y
-  // también para no dar por "terminado" (`isFinished` abajo) a quien todavía
-  // tiene una acción de ciclo de vida ofrecida (ej. Archivar) aunque no le
-  // quede nada por responder/avanzar.
-  const lifecycleActions = resolveLifecycleActionsVisibility({
-    status: data?.lifecycle_status,
-    permissions: data?.lifecycle_permissions,
-    canTransition: canUpdateAssetContent,
-    finalLifecycleStage: lifecycle.finalLifecycleStage,
-    isBlockedByRequiredAnswers: lifecycle.isBlockedByRequiredAnswers,
-    showRerunExternalPublish: true,
-    hasEnabledExternalPublishConfig: lifecycle.hasEnabledExternalPublishConfig,
-    hideComplete,
-  })
-
-  // Al usuario no le queda nada por hacer con este documento: ni respuesta/avance
-  // (`finishOutcome`, ver arriba) ni ninguna otra acción de ciclo de vida
-  // (archivar, restaurar, re-lanzar publicación externa...). Si queda una acción
-  // de lifecycle disponible, fullscreen sigue mostrando el resumen normal (como
-  // el panel) en vez de la tarjeta terminal — esa tarjeta es solo para cuando de
-  // verdad no hay ningún botón que ofrecer. No depende de `viewingAnswers`:
-  // mirar las respuestas ya enviadas no devuelve nada por hacer, así que la barra
-  // sigue oculta también ahí.
-  const isFinished = finishOutcome !== null && !lifecycleActions.hasAny
-
-  // ── Aviso de "no te toca nada AHORA" ──────────────────────────────────────
-  // El backend pasó a devolver SIEMPRE las secciones (con las respuestas ya
-  // dadas), así que `formSections.length === 0` dejó de cubrir este caso y
-  // todo caía en el resumen sin ninguna tarjeta clickeable. Factores, en orden:
-  //  - canAnswerForm: RBAC × rol `edit` × ETAPA de edición × sin lock externo.
-  //    La etapa es el factor crítico: sin él, un documento en aprobación/
-  //    aprobado/publicado abierto en el PANEL (donde `finishOutcome` es
-  //    siempre null, ver arriba) mostraría "pendiente de otro rol" —falso— en
-  //    vez del resumen + el aviso ámbar de etapa, que es lo correcto y lo que
-  //    se ve hoy.
-  //  - !hasAnswerableSection: ninguna sección concreta es respondible por mí
-  //    (hand-off entre grupos de la misma etapa, o secciones can_edit:false).
-  //  - !lifecycleActions.hasAny: si queda CUALQUIER acción (Completar,
-  //    Devolver, Publicar, Archivar...) el usuario sí tiene algo que hacer y
-  //    necesita el resumen para revisar antes de apretarla — mismo criterio
-  //    que `isFinished`. De paso deja fuera las variantes advance/blocked de
-  //    `wizard.emptyStep.*`: ambas implican can_advance/blockers ⇒
-  //    canComplete ⇒ hasAny.
-  const isWaitingForOthers = canAnswerForm && !hasAnswerableSection && !lifecycleActions.hasAny
-
-  // "Ver mis respuestas" / "Ver las respuestas": UN SOLO flag para la tarjeta
-  // terminal y para el aviso de abajo. Con dos flags separados, el botón de
-  // WorkflowFinishedCard llevaba al aviso en vez de al resumen (al ceder la
-  // tarjeta, `isWaitingForOthers` suele ser true en el mismo estado). Se
-  // resetea cuando CAMBIA el motivo por el que se ofreció: ambas deps son
-  // primitivas, así que un refetch con los mismos datos no expulsa al usuario
-  // del resumen que está leyendo.
+  // "Ver mis respuestas" / "Ver las respuestas": UN SOLO flag para la tarjeta terminal y para
+  // el aviso de solo lectura. Se resetea cuando CAMBIA el motivo por el que se ofreció.
   const [viewingAnswers, setViewingAnswers] = React.useState(false)
   React.useEffect(() => {
     setViewingAnswers(false)
-  }, [finishOutcome, isWaitingForOthers])
+  }, [gating.finishOutcome, gating.isWaitingForOthers])
 
-  // El aviso REEMPLAZA al resumen (comportamiento previo al cambio de
-  // backend), nunca al wizard: quien ya estaba dentro de una sección se queda
-  // ahí en solo lectura con su banner ámbar. Sin secciones visibles (rama
-  // vieja) el aviso es el único contenido posible — WorkflowSectionsSummary
-  // renderiría un div vacío.
+  // El aviso REEMPLAZA al resumen, nunca a la vista de sección: quien ya estaba respondiendo
+  // se queda ahí en solo lectura con su banner ámbar.
   const showEmptyStepNotice =
     formSections.length === 0 ||
-    (isWaitingForOthers && (step === null || !currentSection) && !viewingAnswers)
+    (gating.isWaitingForOthers && (view !== "section" || !activeSection) && !viewingAnswers)
 
-  // Sin secciones a la vista no hay resumen al que volver — misma regla que
-  // el `onViewAnswers` de WorkflowFinishedCard (ver más abajo).
   const emptyStepViewAnswersConfig =
     showEmptyStepNotice && formSections.length > 0
       ? {
           label: t("wizard.emptyStep.viewAnswers"),
           onClick: () => {
             setViewingAnswers(true)
-            setStep(null)
+            goToSummary()
           },
         }
       : null
 
-  // `showLifecycle` es `true` por default en ambos usos (panel de /workflow y
-  // link compartido, ver ia context/fullscreen-share-route-guide.md §4: el
-  // ciclo de vida completo queda habilitado también en fullscreen, filtrado
-  // por los mismos permisos). Cuando la fila existe, el badge de etapa sube
-  // bajo el título y la sección actual baja a esa fila; solo se oculta si
-  // algún llamador futuro pasa `showLifecycle={false}` explícitamente, o si
-  // el usuario ya terminó y no le queda ninguna acción de ciclo de vida (la
-  // fila sería una franja vacía sobre la tarjeta terminal).
-  const showLifecycleRow =
-    showLifecycle && !!data?.lifecycle_status && !needsNameStep && (!isFinished || lifecycleActions.hasAny)
+  // Cuerpo del wizard "sin secciones" — distingue "existen pero quedaron filtradas para este
+  // usuario/etapa" (aviso de siempre) de "el workflow directamente no tiene formularios" (nuevo).
+  const showNoFormsNotice = formSections.length === 0 && !hasAnyFormSection
 
-  // La etapa/grupo activo del documento es información de quien SIGUE en el
-  // flujo: a quien ya cerró su parte (hand-off a otro grupo de la misma etapa,
-  // típicamente) le mostraba una etapa ajena en la que no participa.
-  const showStageBadge = showLifecycleRow && !isFinished
+  // Botón "Siguiente ▸" de la vista 2: única puerta que valida obligatorias/formato y hace el
+  // flush final (AssetFormSectionHandle.exit → PATCH /form_values). «◂ Anterior» y las píldoras
+  // NO pasan por acá — retroceder no debe quedar bloqueado por un toast de obligatorias.
+  const handleLeaveSectionForward = React.useCallback(() => {
+    if (!isLastSection) {
+      goNextSection()
+      return
+    }
+    if (gating.lifecycle.canTransition && gating.lifecycle.status?.can_advance) {
+      gating.finishAfterCompleteRef.current = true
+      gating.lifecycle.setIsCheckDialogOpen(true)
+    } else {
+      goToSummary()
+    }
+  }, [isLastSection, goNextSection, gating.lifecycle, gating.finishAfterCompleteRef, goToSummary])
+
+  // Abre el mismo activo en /asset, en la ejecución que se está trabajando, en una pestaña nueva:
+  // el workflow queda intacto (fila seleccionada, scroll, sección abierta).
+  const handleOpenAsset = React.useCallback(() => {
+    if (!documentId) return
+    window.open(
+      buildPath(`/asset/${documentId}${executionId ? `?execution=${encodeURIComponent(executionId)}` : ""}`),
+      "_blank",
+      "noopener,noreferrer",
+    )
+  }, [buildPath, documentId, executionId])
+
+  // Abre la vista a pantalla completa de esta ejecución (la del link compartido) en pestaña nueva.
+  const handleOpenFullscreen = React.useCallback(() => {
+    if (!documentId) return
+    window.open(buildPath(buildExecutionSharePath(documentId, executionId)), "_blank", "noopener,noreferrer")
+  }, [buildPath, documentId, executionId])
+
+  const handleToggleSection = React.useCallback((sectionId: string, open: boolean) => {
+    setExpandedSectionIds((prev) => {
+      const next = new Set(prev)
+      if (open) next.add(sectionId)
+      else next.delete(sectionId)
+      return next
+    })
+  }, [])
+  const handleCollapseAll = React.useCallback(() => {
+    setExpandedSectionIds(new Set())
+  }, [])
+  const handleExpandAll = React.useCallback((sectionIds: string[]) => {
+    setExpandedSectionIds(new Set(sectionIds))
+  }, [])
+
+  const showTerminalCard = !!gating.finishOutcome && gating.isFinished && !viewingAnswers
+
+  const showBanner =
+    !needsNameStep &&
+    !!documentId &&
+    !isLoading &&
+    !error &&
+    formSections.length > 0 &&
+    (gating.readOnlyReason || (gating.isWaitingForOthers && viewingAnswers)) &&
+    (!gating.isFinished || viewingAnswers)
+  const bannerMessage = showBanner
+    ? gating.readOnlyReason
+      ? gating.readOnlyMessage
+      : t("wizard.emptyStep.waitingDescription")
+    : null
+  // Sin readOnlyReason el aviso es el de "esperando a otro rol" (ver showBanner).
+  const bannerReason: WorkflowReadOnlyBannerReason = gating.readOnlyReason ?? "waiting"
+
+  const mediaUploadTarget = lifecycleExecutionId
+    ? { level: "execution" as const, parentId: lifecycleExecutionId }
+    : documentId
+      ? { level: "document" as const, parentId: documentId }
+      : null
+
+  const showFooter =
+    !needsNameStep &&
+    !!documentId &&
+    !isLoading &&
+    !error &&
+    formSections.length > 0 &&
+    view === "section" &&
+    !!activeSection &&
+    !showEmptyStepNotice &&
+    !showTerminalCard
+
+  // Espejo del orden de la cascada de abajo (:421-493) — solo para decidir el padding del
+  // contenedor scrollable: resumen/skeleton/error traen su propio padding (14px 16px 18px),
+  // las demás ramas (vista de sección, tarjeta terminal, aviso de paso vacío, formulario
+  // express) conservan el p-4 de siempre.
+  const isSummaryBranch =
+    !needsNameStep &&
+    (!documentId || isLoading || sectionAccess.isLoading || isCreating
+      ? true
+      : error
+        ? true
+        : showTerminalCard && !!gating.finishOutcome
+          ? false
+          : showEmptyStepNotice
+            ? false
+            : view === "summary" || !activeSection)
+
+  // Vista de una sección: fondo blanco y padding propio (18px 22px 22px, ver WorkflowSectionView) —
+  // se trabaja sobre campos, no sobre tarjetas. Espejo de la misma cascada que isSummaryBranch.
+  const isSectionBranch =
+    !needsNameStep &&
+    !isSummaryBranch &&
+    !(showTerminalCard && !!gating.finishOutcome) &&
+    !showEmptyStepNotice
+
+  // Fullscreen: la tarjeta terminal y el aviso de paso vacío traen su propio padding
+  // (WorkflowStatusCard) — el contenedor va en p-0, igual que resumen/sección. En el panel lateral
+  // el aviso de paso vacío conserva su superficie con el p-4 de siempre.
+  const isStatusBranch = isFullscreen && !needsNameStep && !isSummaryBranch && !isSectionBranch
+
+  React.useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 })
+  }, [view, activeSectionIndex])
 
   return (
-    <div className="flex h-full flex-col">
-      <div
-        className={cn(
-          "flex items-center justify-between gap-2 border-b p-4 shrink-0",
-          isFullscreen && "px-4 py-4 sm:px-8",
-        )}
-      >
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{documentName}</p>
-          {internalCode && <p className="truncate text-xs font-mono text-muted-foreground">{internalCode}</p>}
-          {showStageBadge && data?.lifecycle_status ? (
-            <div className="mt-1 flex items-center gap-1.5">
-              <span className="shrink-0 text-xs text-muted-foreground">{t("panel.stageLabel")}</span>
-              <HuemulLifecycleStageBadge status={data.lifecycle_status} />
-            </div>
-          ) : (
-            // `!showLifecycleRow`: si la fila existe, la sección se muestra ahí
-            // (aunque el badge de etapa esté oculto) — no en los dos sitios.
-            !showLifecycleRow &&
-            currentSection?.section_name && (
-              <div className="flex items-center gap-1.5">
-                <span className="shrink-0 text-xs text-muted-foreground">{t("panel.sectionLabel")}</span>
-                <p className="truncate text-xs text-muted-foreground">{currentSection.section_name}</p>
-                <HuemulAnswersStatusBadge status={currentSection.answers_status} />
-              </div>
-            )
-          )}
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          {documentId && !needsNameStep && (
-            <HuemulButton
-              variant="ghost"
-              size="sm"
-              icon={RefreshCw}
-              tooltip={tCommon("refresh")}
-              loading={isFetching}
-              onClick={handleRefresh}
-              className="h-8 w-8 p-0"
-            />
-          )}
-          {documentId && !needsNameStep && canMedia("listMedia") && (
-            <HuemulButton
-              variant="ghost"
-              size="sm"
-              icon={Paperclip}
-              tooltip={t("panel.media")}
-              onClick={() => setIsMediaSheetOpen(true)}
-              className="h-8 w-8 p-0"
-            />
-          )}
-          {documentId && !needsNameStep && showAssetEdit && canUpdateAssetContent && (
-            <HuemulButton
-              variant="ghost"
-              size="sm"
-              icon={Edit3}
-              tooltip={t("panel.edit")}
-              onClick={() => setIsEditSheetOpen(true)}
-              className="h-8 w-8 p-0"
-            />
-          )}
-          {showClose && (
-            <HuemulButton
-              variant="ghost"
-              size="sm"
-              icon={X}
-              tooltip={tCommon("close")}
-              onClick={handleClose}
-              className="h-8 w-8 p-0"
-            />
-          )}
-        </div>
-      </div>
+    <div className="flex h-full flex-col bg-surface-sunken">
+      <WorkflowPanelHeader
+        documentName={documentName}
+        internalCode={internalCode}
+        templateName={data?.template_name}
+        isFullscreen={isFullscreen}
+        createdBy={data?.created_by_user}
+        updatedBy={data?.updated_by_user}
+        lastModifiedAt={row?.last_modified_at}
+        documentId={documentId}
+        needsNameStep={needsNameStep}
+        isFetching={isFetching}
+        onRefresh={handleRefresh}
+        canViewMedia={canMedia("listMedia")}
+        onOpenMedia={() => setIsMediaSheetOpen(true)}
+        showOpenAsset={showOpenAsset && canReadAsset}
+        onOpenAsset={handleOpenAsset}
+        showOpenFullscreen={!isFullscreen && canReadAsset}
+        onOpenFullscreen={handleOpenFullscreen}
+        showAssetEdit={showAssetEdit}
+        canEdit={canUpdateAssetContent}
+        onOpenEdit={() => setIsEditSheetOpen(true)}
+        showClose={showClose}
+        onClose={handleClose}
+      />
 
-      {showLifecycleRow && (
-        <div
-          className={cn(
-            "flex items-center justify-between gap-2 border-b px-4 py-2 shrink-0 flex-wrap",
-            isFullscreen && "sm:px-8",
-          )}
-        >
-          {currentSection?.section_name ? (
-            <div className="flex min-w-0 items-center gap-1.5">
-              <span className="shrink-0 text-xs text-muted-foreground">{t("panel.sectionLabel")}</span>
-              <p className="truncate text-xs text-muted-foreground">{currentSection.section_name}</p>
-              <HuemulAnswersStatusBadge status={currentSection.answers_status} />
-            </div>
-          ) : (
-            <div />
-          )}
-          <div className="flex items-center gap-1.5 flex-wrap shrink-0">
-            {/* Sin depender de canAnswerForm/hasAnswerableSection: debe verse en
-                cualquier etapa del ciclo de vida aunque no quede nada por
-                responder pero sí por hacer (aprobador, revisión, publicación).
-                `!isFinished` es el corte correcto: quien ya envió sus respuestas
-                y no participa en la etapa siguiente no tiene nada que continuar. */}
-            {onContinueLater && !isFinished && (
-              <HuemulButton
-                variant="outline"
-                size="sm"
-                icon={Clock}
-                iconPosition="left"
-                iconClassName="h-3.5 w-3.5"
-                label={t("fill.continueLater")}
-                className="h-7 px-2.5 text-xs font-medium"
-                onClick={onContinueLater}
-              />
-            )}
-            <HuemulLifecycleActions
-              controller={lifecycle}
-              variant="row"
-              showRerunExternalPublish
-              hideComplete={hideComplete}
-            />
-          </div>
-        </div>
+      {gating.showLifecycleRow && (
+        <WorkflowPanelLifecycleRow
+          isFullscreen={isFullscreen}
+          lifecycle={gating.lifecycle}
+          hideComplete={gating.hideComplete}
+          isFinished={gating.isFinished}
+          onContinueLater={onContinueLater}
+          showStageBadge={gating.showStageBadge}
+          lifecycleStatus={data?.lifecycle_status}
+        />
       )}
 
-      <div className={cn("flex-1 overflow-auto p-4", isFullscreen && "sm:px-8")}>
-        <div className={cn(isFullscreen && "mx-auto w-full max-w-3xl")}>
-        {!needsNameStep &&
-          documentId &&
-          !isLoading &&
-          !error &&
-          formSections.length > 0 &&
-          (readOnlyReason || (isWaitingForOthers && viewingAnswers)) &&
-          (!isFinished || viewingAnswers) && (
-          <div className="mb-4 flex items-center rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            {!readOnlyReason
-              ? t("wizard.emptyStep.waitingDescription")
-              : readOnlyReason === "externalElaboration"
-                ? t("fill.readOnlyExternalElaborationNotice")
-                : readOnlyReason === "stage"
-                  ? stageNotice
-                  : readOnlyReason === "sectionInactive"
-                    ? t("fill.readOnlyInactiveSectionNotice")
-                    : readOnlyReason === "section"
-                      ? t("fill.readOnlySectionNotice")
-                      : t("fill.readOnlyNotice")}
-          </div>
+      <div
+        ref={scrollRef}
+        className={cn(
+          "flex-1 overflow-auto",
+          isSectionBranch ? "bg-background" : "bg-[#f8fafc]",
+          isSummaryBranch || isSectionBranch || isStatusBranch ? "p-0" : "p-4",
+          isFullscreen && "sm:px-8",
         )}
-        {needsNameStep ? (
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-semibold text-foreground">
-                {t("expressSheet.welcomeTitle")}
-              </p>
-              <p className="text-xs text-muted-foreground">{t("expressSheet.welcomeDescription")}</p>
+      >
+        <div className={cn(isFullscreen && "mx-auto w-full max-w-3xl")}>
+          {/* Mismo gutter horizontal que el contenido de la rama (resumen 16px, sección 22px); en las
+              ramas p-4 el contenedor ya da el padding y solo hace falta la separación de abajo. */}
+          {/* En la vista de sección el aviso lo ubica WorkflowSectionView, entre el navegador de
+              secciones y el nombre de la sección (ver bannerMessage más abajo). */}
+          {bannerMessage && !isSectionBranch && (
+            <div className={isSummaryBranch || isStatusBranch ? "px-4 pt-[14px]" : "mb-4"}>
+              <WorkflowReadOnlyBanner message={bannerMessage} reason={bannerReason} />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="workflow-express-name" className="text-xs text-muted-foreground font-normal">
-                {t("expressSheet.name")}
-                <span className="text-destructive"> *</span>
-              </Label>
-              <Input
-                id="workflow-express-name"
-                value={nameValue}
-                onChange={(e) => setNameValue(e.target.value)}
-                placeholder={template?.name_placeholder ?? t("expressSheet.namePlaceholder")}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="workflow-express-description" className="text-xs text-muted-foreground font-normal">
-                {t("expressSheet.description")}
-              </Label>
-              <Textarea
-                id="workflow-express-description"
-                value={descriptionValue}
-                onChange={(e) => setDescriptionValue(e.target.value)}
-                placeholder={t("expressSheet.descriptionPlaceholder")}
-                rows={4}
-              />
-            </div>
-            <HuemulButton
-              label={tCommon("next")}
-              loading={isCreating}
-              disabled={nameValue.trim().length === 0}
-              onClick={handleCreateWithName}
-              className="self-end"
+          )}
+          {needsNameStep ? (
+            <WorkflowExpressNameForm
+              key={template?.id}
+              namePlaceholder={template?.name_placeholder ?? undefined}
+              isCreating={isCreating}
+              onSubmit={handleCreateWithName}
             />
-          </div>
-        ) : !documentId || isLoading || sectionAccess.isLoading || isCreating ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : error ? (
-          <div className="flex items-center gap-2 text-sm text-destructive">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            {t("panel.loadError")}
-          </div>
-        ) : finishOutcome && isFinished && !viewingAnswers ? (
-          <WorkflowFinishedCard
-            outcome={finishOutcome}
-            workflowName={workflowName}
-            // Se oculta en dos casos: (1) sin ninguna sección visible ahora mismo
-            // (backend no expone nada a este rol en este grupo/etapa, ni siquiera
-            // lo que ya respondió) no hay resumen al que volver — evita caer en el
-            // bloque de "paso vacío" (waitingTitle), que confundiría al mostrar un
-            // mensaje que no aplica a alguien que ya completó su parte; (2) el
-            // documento está archivado — ver sus respuestas ya no es una acción
-            // disponible en este estado terminal (a diferencia de los otros
-            // outcomes), así que el botón nunca se ofrece.
-            onViewAnswers={
-              finishOutcome !== "archived" && formSections.length > 0
-                ? () => {
-                    setViewingAnswers(true)
-                    setStep(null)
-                  }
-                : undefined
-            }
-            onStartAnother={onStartAnother}
-          />
-        ) : showEmptyStepNotice ? (
-          isFullscreen ? (
-            <WorkflowStatusCard
-              icon={CheckCircle2}
-              title={t(emptyStepTitleKey)}
-              description={t(emptyStepDescriptionKey)}
-              actions={
-                emptyStepButtonConfig || emptyStepViewAnswersConfig ? (
-                  <>
-                    {emptyStepButtonConfig && (
-                      <HuemulButton size="sm" icon={Check} iconPosition="left" className="w-full" {...emptyStepButtonConfig} />
-                    )}
-                    {emptyStepViewAnswersConfig && (
-                      <HuemulButton
-                        variant="outline"
-                        size="sm"
-                        icon={Eye}
-                        iconPosition="left"
-                        className="w-full"
-                        {...emptyStepViewAnswersConfig}
-                      />
-                    )}
-                  </>
-                ) : null // `actions` se chequea por truthiness: un fragment vacío pintaría el border-t solo
+          ) : !documentId || isLoading || sectionAccess.isLoading || isCreating ? (
+            <WorkflowSummarySkeleton />
+          ) : error ? (
+            <WorkflowPanelError onRetry={handleRefresh} />
+          ) : showTerminalCard && gating.finishOutcome ? (
+            <WorkflowFinishedCard
+              outcome={gating.finishOutcome}
+              workflowName={gating.workflowName}
+              // Se oculta si no hay ninguna sección visible ahora mismo (nada a lo que volver)
+              // o el documento está archivado (ver sus respuestas ya no es una acción disponible).
+              onViewAnswers={
+                gating.finishOutcome !== "archived" && formSections.length > 0
+                  ? () => {
+                      setViewingAnswers(true)
+                      goToSummary()
+                    }
+                  : undefined
               }
+              onStartAnother={onStartAnother}
+            />
+          ) : showEmptyStepNotice ? (
+            showNoFormsNotice ? (
+              <WorkflowEmptyStepNotice
+                isFullscreen={isFullscreen}
+                tone="gray"
+                icon={File}
+                title={t("summary.empty.title")}
+                description={t("summary.empty.description")}
+              />
+            ) : (
+              <WorkflowEmptyStepNotice
+                isFullscreen={isFullscreen}
+                tone={gating.emptyStepTone}
+                icon={gating.emptyStepIcon}
+                title={t(gating.emptyStepTitleKey)}
+                description={t(gating.emptyStepDescriptionKey)}
+                primaryAction={gating.emptyStepButtonConfig}
+                viewAnswersAction={emptyStepViewAnswersConfig}
+              />
+            )
+          ) : view === "summary" || !activeSection ? (
+            <WorkflowSectionsSummary
+              sections={formSections}
+              totalSections={data?.content?.length ?? 0}
+              sectionCanAnswer={gating.canAnswerSpecificSection}
+              onOpenSection={openSection}
+              expandedSectionIds={expandedSectionIds}
+              onToggleSection={handleToggleSection}
+              onCollapseAll={handleCollapseAll}
+              onExpandAll={handleExpandAll}
             />
           ) : (
-            <div className="flex flex-col items-center gap-2 py-8 text-center">
-              <CheckCircle2 className="h-8 w-8 text-muted-foreground" />
-              <p className="text-sm font-medium text-foreground">{t(emptyStepTitleKey)}</p>
-              <p className="max-w-sm text-xs text-muted-foreground">{t(emptyStepDescriptionKey)}</p>
-              {(emptyStepButtonConfig || emptyStepViewAnswersConfig) && (
-                <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-                  {emptyStepButtonConfig && (
-                    <HuemulButton size="sm" icon={Check} iconPosition="left" {...emptyStepButtonConfig} />
-                  )}
-                  {emptyStepViewAnswersConfig && (
-                    <HuemulButton variant="outline" size="sm" icon={Eye} iconPosition="left" {...emptyStepViewAnswersConfig} />
-                  )}
-                </div>
-              )}
-            </div>
-          )
-        ) : step === null || !currentSection ? (
-          <WorkflowSectionsSummary sections={formSections} onGoToSection={setStep} canGoToSection={canAnswerSpecificSection} />
-        ) : (
-          <AssetFormSection
-            key={currentSection.id}
-            ref={formSectionRef}
-            sectionExecutionId={currentSection.id}
-            formFields={currentSection.form_fields ?? []}
-            organizationId={selectedOrganizationId ?? undefined}
-            documentId={documentId}
-            mediaUploadTarget={
-              lifecycleExecutionId
-                ? { level: "execution", parentId: lifecycleExecutionId }
-                : documentId
-                  ? { level: "document", parentId: documentId }
-                  : null
-            }
-            canInteract={canAnswerSection}
-            isEditing={canAnswerSection}
-            onExitEditing={goNext}
-            onUpdate={handleSectionUpdate}
-            onSavingChange={setIsFormSaving}
-          />
-        )}
+            <WorkflowSectionView
+              ref={formSectionRef}
+              section={activeSection}
+              sections={formSections}
+              allFields={allFormFields}
+              activeIndex={activeSectionIndex}
+              onSelectSection={openSection}
+              sectionCanAnswer={gating.canAnswerSpecificSection}
+              onBackToSummary={goToSummary}
+              navDisabled={isFormSaving}
+              organizationId={selectedOrganizationId ?? undefined}
+              documentId={documentId}
+              mediaUploadTarget={mediaUploadTarget}
+              canInteract={gating.canAnswerSection}
+              onExitEditing={handleLeaveSectionForward}
+              onUpdate={handleSectionUpdate}
+              onSavingChange={setIsFormSaving}
+              bannerMessage={bannerMessage}
+              bannerReason={bannerReason}
+            />
+          )}
         </div>
       </div>
 
-      {!needsNameStep &&
-        documentId &&
-        !isLoading &&
-        !error &&
-        formSections.length > 0 &&
-        step !== null &&
-        !showEmptyStepNotice &&
-        !(finishOutcome && isFinished && !viewingAnswers) && (
-        <div
-          className={cn(
-            "flex flex-wrap items-center justify-between gap-2 border-t p-4 shrink-0",
-            isFullscreen && "px-4 py-4 sm:px-8",
-          )}
-        >
-          <div className="flex min-w-0 items-center gap-2">
-            <HuemulButton
-              variant="outline"
-              size="sm"
-              tooltip={t("wizard.summary.tooltip")}
-              disabled={isFormSaving}
-              onClick={() => setStep(null)}
-            >
-              <ListChecks />
-              <span className="hidden sm:inline">{t("wizard.summary.tooltip")}</span>
-            </HuemulButton>
-            {step > 0 && (
-              <HuemulButton
-                variant="outline"
-                size="sm"
-                tooltip={t("wizard.back")}
-                disabled={isFormSaving}
-                onClick={() => setStep((s) => Math.max(0, (s ?? 1) - 1))}
-              >
-                <ChevronLeft />
-                <span className="hidden sm:inline">{t("wizard.back")}</span>
-              </HuemulButton>
-            )}
-          </div>
-          <HuemulButton
-            size="sm"
-            icon={isLastStep ? Check : ChevronRight}
-            iconPosition="right"
-            label={
-              isLastStep
-                ? willAdvanceOnFinish
-                  ? lifecycle.completeLabel
-                  : t("wizard.finish")
-                : tCommon("next")
-            }
-            disabled={isFormSaving || isBlockedLastStep}
-            tooltip={isBlockedLastStep ? lifecycle.advanceBlockersTooltip : undefined}
-            // Sin permiso de escritura (documento, etapa o esta sección puntual) el
-            // wizard sigue navegable pero no pasa por `exit()`: ese handle guarda los
-            // cambios Y marca la sección como 'finished' (PATCH /review_status), dos
-            // escrituras que no consultan `canInteract`. En modo lectura se avanza de
-            // paso y nada más.
-            onClick={() => (canAnswerSection ? formSectionRef.current?.exit() : goNext())}
-          />
-        </div>
+      {showFooter && (
+        <WorkflowSectionFooter
+          showPrev={!isFirstSection}
+          navDisabled={isFormSaving}
+          onPrev={goPrevSection}
+          currentIndex={activeSectionIndex}
+          totalSections={formSections.length}
+          primaryLabel={
+            isLastSection
+              ? gating.willAdvanceOnFinish
+                ? gating.lifecycle.completeLabel
+                : t("summary.backLabel")
+              : tCommon("next")
+          }
+          primaryIcon={isLastSection ? Check : ChevronRight}
+          primaryDisabled={isFormSaving || gating.isBlockedLastSection}
+          primaryTooltip={gating.isBlockedLastSection ? gating.lifecycle.advanceBlockersTooltip : undefined}
+          // Sin permiso de escritura (documento, etapa o esta sección puntual) la vista sigue
+          // navegable pero no pasa por exit(): ese handle guarda y valida, dos escrituras que
+          // no consultan canInteract. En modo lectura se avanza de sección y nada más.
+          onPrimaryClick={() => (gating.canAnswerSection ? formSectionRef.current?.exit() : handleLeaveSectionForward())}
+        />
       )}
 
       {documentId && (
@@ -966,7 +652,7 @@ export function WorkflowDetailPanel({
       )}
 
       <HuemulLifecycleSheets
-        controller={lifecycle}
+        controller={gating.lifecycle}
         executionId={lifecycleExecutionId}
         organizationId={selectedOrganizationId}
         existingVersions={data?.executions?.map((e) => e.version).filter((v): v is string => !!v)}

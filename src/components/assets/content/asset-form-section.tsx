@@ -31,6 +31,7 @@ import {
   questionTypeLabel,
   readFieldConfig,
   readFieldOptions,
+  readFileUploadEntry,
   readFileUploadLimits,
 } from "@/components/sections/question-type-meta";
 import { SectionFieldSeparator } from "@/components/sections/section-field-separator";
@@ -426,9 +427,9 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     entries.map((entry, i) => {
       const preview = previews?.[i];
       if (preview) return { broken: false, meta: preview };
-      if (isMediaToken(entry)) return { broken: true, meta: null };
-      if (typeof entry === "string" && entry.startsWith("http")) return { broken: false, meta: { url: entry } };
-      return { broken: false, meta: null };
+      const meta = readFileUploadEntry(entry);
+      if (meta) return { broken: false, meta };
+      return { broken: isMediaToken(entry), meta: null };
     });
 
   // Sale del modo edición. La mayoría de los valores ya quedan persistidos por el

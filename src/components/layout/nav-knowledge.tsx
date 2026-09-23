@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, RefreshCw, Edit, Trash2, FileUp, FileJson, FolderUp, ShieldCheck, Sparkles } from "lucide-react"
+import { Plus, File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, RefreshCw, Edit, Trash2, FileUp, FileJson, FolderUp, ShieldCheck, Sparkles, SearchX } from "lucide-react"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { HuemulPanelHeader } from "@/huemul/components/huemul-panel-header"
+import { HuemulPanelEmptyState } from "@/huemul/components/huemul-panel-empty-state"
 import { FileTree } from "@/components/assets/content/assets-file-tree"
 import type { FileNode } from "@/types/assets"
 import { useLocation } from "react-router-dom"
@@ -204,7 +205,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
   const navigate = useOrgNavigate()
   const location = useLocation()
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, pendingFocusAssetIdRef, revealedNodeId, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleCreateFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage } = useNavKnowledge()
+  const { fileTreeRef, pendingFocusAssetIdRef, revealedNodeId, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleCreateFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, setCommittedSearch, setSearchTerm, rootPage, rootPageSize, setHasNextRootPage } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
   const [documentTypeIds, setDocumentTypeIds] = useState<Map<string, string>>(new Map())
@@ -817,9 +818,25 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
             <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
           </div>
         ) : searchResults.length === 0 ? (
-          <div className="px-4 py-3 text-center text-xs text-muted-foreground">
-            {t('knowledge.searchNoResults')}
-          </div>
+          diagramMode ? (
+            <HuemulPanelEmptyState
+              className="mx-3 my-3"
+              icon={SearchX}
+              title={t('knowledge.searchNoResultsTitle', { term: committedSearch })}
+              description={t('knowledge.searchNoResultsDescription')}
+              action={{
+                label: t('knowledge.searchClear'),
+                onClick: () => {
+                  setSearchTerm('')
+                  setCommittedSearch('')
+                },
+              }}
+            />
+          ) : (
+            <div className="px-4 py-3 text-center text-xs text-muted-foreground">
+              {t('knowledge.searchNoResults')}
+            </div>
+          )
         ) : (
           <div className="space-y-0.5">
             {(function renderSearchNodes(nodes: FileNode[], level: number): React.ReactNode {

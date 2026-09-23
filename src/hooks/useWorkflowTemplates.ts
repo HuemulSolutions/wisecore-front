@@ -12,6 +12,9 @@ export const workflowTemplateQueryKeys = {
   all: ["workflow-templates"] as const,
   listBase: () => [...workflowTemplateQueryKeys.all, "list"] as const,
   list: (organizationId: string) => [...workflowTemplateQueryKeys.listBase(), organizationId] as const,
+  // Catálogo con scroll infinito del diálogo «Ver todos». Vive bajo `listBase()`
+  // para que invalidar el listado del launcher también lo recargue.
+  catalog: (organizationId: string) => [...workflowTemplateQueryKeys.listBase(), "catalog", organizationId] as const,
 }
 
 // ─── List query ───────────────────────────────────────────────────────────────
@@ -73,7 +76,11 @@ export function useWorkflowTemplates(organizationId: string, params: UseWorkflow
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
-export function useCreateTemplateExpress(organizationId: string) {
+// `silent`: el call-site muestra sus propios toasts de éxito/error (p. ej. el
+// lanzador de /workflow, con «Abrir»/«Reintentar»), así que se apagan los
+// globales (mutationCache.onSuccess y defaultOptions.mutations.onError).
+export function useCreateTemplateExpress(organizationId: string, options: { silent?: boolean } = {}) {
+  const { silent = false } = options
   const queryClient = useQueryClient()
   const refreshFileTree = useNavKnowledgeRefresh()
   const { t } = useTranslation("workflow")
@@ -88,7 +95,8 @@ export function useCreateTemplateExpress(organizationId: string) {
       templateId: string
       body: CreateExpressBody
     }) => createTemplateExpress(documentTypeId, templateId, body, organizationId),
-    meta: { successMessage: t("expressSheet.success") },
+    meta: { successMessage: t("expressSheet.success"), showSuccessToast: !silent },
+    ...(silent ? { onError: () => {} } : {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: workflowQueryKeys.listBase() })
       // El backend crea el documento dentro de Workflows/<relación>, creando la

@@ -14,16 +14,16 @@ function readHiddenStored(): boolean {
 
 /**
  * Estado de UI del lanzador de workflows: texto en edición vs búsqueda aplicada
- * (solo `Enter` pega al backend), toggle de ocultar persistido y página del
- * panel. Los datos los pide la query del launcher: aquí no se filtra ni pagina
- * nada en cliente.
+ * de la franja (solo `Enter` pega al backend), franja contraída (persistida) y
+ * apertura del diálogo «Ver todos». Los datos los pide la query del launcher:
+ * aquí no se filtra ni pagina nada en cliente. El diálogo tiene su propia
+ * búsqueda (`useWorkflowTemplateCatalog`).
  */
 export function useWorkflowLauncherState() {
-  const [hidden, setHiddenState] = useState(readHiddenStored)
+  const [hidden, setHidden] = useState(readHiddenStored)
+  const [dialogOpen, setDialogOpen] = useState(false)
   const [query, setQueryState] = useState("")
   const [appliedQuery, setAppliedQuery] = useState("")
-  const [panelOpen, setPanelOpen] = useState(false)
-  const [page, setPage] = useState(1)
 
   useEffect(() => {
     try {
@@ -32,19 +32,6 @@ export function useWorkflowLauncherState() {
       // ignore storage failures (e.g. private mode)
     }
   }, [hidden])
-
-  // La paginación vive dentro del panel: cerrarlo lo deja en la primera página.
-  useEffect(() => {
-    if (!panelOpen) setPage(1)
-  }, [panelOpen])
-
-  // Otra búsqueda devuelve otro listado: la página vigente ya no significa lo
-  // mismo.
-  useEffect(() => {
-    setPage(1)
-  }, [appliedQuery])
-
-  const setHidden = (next: boolean) => setHiddenState(next)
 
   // Vaciar el input limpia la búsqueda al instante: quedarse con resultados
   // filtrados y el buscador en blanco se lee como un listado incompleto.
@@ -63,15 +50,13 @@ export function useWorkflowLauncherState() {
   return {
     hidden,
     setHidden,
+    dialogOpen,
+    setDialogOpen,
     query,
     setQuery,
     appliedQuery,
     submitQuery,
     clearSearch,
-    panelOpen,
-    setPanelOpen,
-    page,
-    setPage,
     hasQuery: appliedQuery.length > 0,
   }
 }

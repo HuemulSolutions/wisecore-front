@@ -238,6 +238,33 @@ export const readFileUploadLimits = (
   return { min, max };
 };
 
+// Metadatos de un archivo de carga_de_archivos, ya normalizados a camelCase.
+export interface FileUploadEntryMeta {
+  url: string;
+  name?: string;
+  contentType?: string;
+}
+
+// Decodifica UNA entrada de value de carga_de_archivos. El backend devuelve
+// {url, name, content_type} (mismo shape que CustomFieldValueFile); dato legado guardado
+// antes de ese cambio puede seguir siendo una URL firmada plana. Devuelve null cuando la
+// entrada no es un archivo mostrable: token {{MEDIA:...}} sin resolver (media borrada o sin
+// acceso, que el caller pinta como "archivo no disponible") o cualquier otra forma.
+export function readFileUploadEntry(entry: unknown): FileUploadEntryMeta | null {
+  if (typeof entry === "string") return entry.startsWith("http") ? { url: entry } : null;
+  if (entry && typeof entry === "object") {
+    const o = entry as Record<string, unknown>;
+    if (typeof o.url === "string" && o.url) {
+      return {
+        url: o.url,
+        name: typeof o.name === "string" ? o.name : undefined,
+        contentType: typeof o.content_type === "string" ? o.content_type : undefined,
+      };
+    }
+  }
+  return null;
+}
+
 // question_types de selección single / multi — usados para normalizar el value que
 // llega desde el backend (ver normalizeSelectionValue).
 export const SINGLE_SELECT_QUESTION_TYPES: string[] = [QUESTION_TYPE.multipleChoice, QUESTION_TYPE.dropdown];
@@ -346,9 +373,9 @@ export function formatFieldValueForCopy(field: FormFieldValue, t: TFunction): st
   if (field.question_type === QUESTION_TYPE.fileUpload) {
     const entries = Array.isArray(value) ? value : [value];
     const formatted = entries.map((entry) => {
-      if (isMediaToken(entry)) return t("sections:form.fill.fileUnavailable");
-      if (typeof entry === "string" && entry.startsWith("http")) return entry;
-      return null;
+      const meta = readFileUploadEntry(entry);
+      if (meta) return meta.name ?? meta.url;
+      return isMediaToken(entry) ? t("sections:form.fill.fileUnavailable") : null;
     }).filter((v): v is string => v !== null);
     return formatted.length > 0 ? formatted.join(", ") : t("sections:form.fill.noAnswer");
   }
