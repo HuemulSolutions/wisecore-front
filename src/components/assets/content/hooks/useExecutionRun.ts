@@ -192,6 +192,9 @@ export function useExecutionRun({
     enabled: baseEnabled,
     refetchInterval: (query) => {
       if (!baseEnabled) return false;
+      // Corta si el último fetch falló — si no, un `data` stale no-terminal
+      // lo mantendría sondeando para siempre contra un endpoint en error.
+      if (query.state.status === 'error') return false;
       // Mientras el status global no sea confiable para ESTA corrida, un
       // terminal leído acá puede ser el de la corrida anterior — no cortar
       // el polling todavía.
@@ -213,6 +216,9 @@ export function useExecutionRun({
     enabled: sectionsEnabled,
     refetchInterval: (query) => {
       if (!sectionsEnabled) return false;
+      // Corta si el último fetch falló — si no, un `data` stale no-terminal
+      // lo mantendría sondeando para siempre contra un endpoint en error.
+      if (query.state.status === 'error') return false;
       const elapsed = getElapsedMs();
       // Mientras sections_status no sea confiable para ESTA corrida, puede
       // seguir siendo el 'done' de la corrida anterior — no cortar el

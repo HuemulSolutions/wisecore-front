@@ -38,9 +38,12 @@ export interface WorkflowItem {
  * executionId) solo tiene el documentId — WorkflowDetailPanel ya resuelve la
  * ejecución por defecto cuando executionId es undefined (mismo camino que un
  * express recién creado con `row` en null). WorkflowItem lo satisface tal cual.
+ * `last_modified_at` es un proxy best-effort para el "editado hace X" del
+ * header del panel: viene del listado (no se refetchea con el panel abierto),
+ * ausente en workflow-fill.tsx, que no tiene el WorkflowItem completo.
  */
 export type WorkflowRowRef = Pick<WorkflowItem, "document_id"> &
-  Partial<Pick<WorkflowItem, "execution_id" | "document_name" | "internal_code">>
+  Partial<Pick<WorkflowItem, "execution_id" | "document_name" | "internal_code" | "last_modified_at">>
 
 export interface WorkflowsResponse {
   data: WorkflowItem[]

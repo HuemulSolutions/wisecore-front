@@ -20,6 +20,9 @@ export function useExecutionPolling({
     queryFn: () => getExecutionStatus(executionId!, selectedOrganizationId!),
     enabled: enabled && !!executionId && !!selectedOrganizationId,
     refetchInterval: (query) => {
+      // Corta si el último fetch falló — si no, un `data` stale no-terminal
+      // lo mantendría sondeando para siempre contra un endpoint en error.
+      if (query.state.status === 'error') return false;
       try {
         // Stop polling if execution is completed or failed
         const executionData = query.state.data as ExecutionPollingData;

@@ -1,28 +1,17 @@
-import { forwardRef, useEffect, useMemo, useRef, useState } from "react"
+import { useLayoutEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Link } from "react-router-dom"
-import { ChevronRight, MoreVertical, RefreshCw, Search } from "lucide-react"
+import { ChevronDown, ChevronUp, RefreshCw, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useOrgPath } from "@/hooks/useOrgRouter"
 import { useElementWidth } from "@/hooks/useElementWidth"
-import { PopoverTrigger } from "@/components/ui/popover"
+import { sortLaunchTemplates, templateKey, templateTitle } from "@/lib/launcher-templates"
 import { HuemulSearchClearButton } from "@/huemul/components/huemul-search-clear-button"
-import { HuemulTruncatedText } from "@/huemul/components/huemul-truncated-text"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { DEFAULT_TEMPLATE_COLOR, TemplateCardShell, TemplateShareButton, TemplateStartButton } from "./workflow-template-card"
+import { DEFAULT_TEMPLATE_COLOR, TemplateColorDot, TemplateShareButton, TemplateStartButton } from "./workflow-template-card"
 import type { WorkflowTemplateItem } from "@/types/templates"
 
 interface WorkflowLauncherBarProps {
   items: WorkflowTemplateItem[]
   /** Total del catálogo según el backend; no siempre viene en la respuesta. */
   total?: number
-  /** No hay ningún template que mostrar con los criterios actuales. */
-  isEmpty: boolean
   isLoading: boolean
   error: unknown
   onRetry: () => void
@@ -36,269 +25,237 @@ interface WorkflowLauncherBarProps {
   /** Búsqueda vigente, la que produjo este listado. */
   appliedQuery: string
   hasQuery: boolean
-  panelOpen: boolean
   hidden: boolean
   onToggleHidden: () => void
+  onSeeAll: () => void
   onStart: (item: WorkflowTemplateItem) => void
-  /** Abre el diálogo con el link público del template — nunca crea un activo. */
+  /** Copia el link de template — nunca crea un activo. */
   onShare: (item: WorkflowTemplateItem) => void
-  /** Id del template cuyo express está en vuelo: el chip pasa a spinner y se deshabilita. */
+  /** Id del template cuyo express está en vuelo: el chip pasa a «Creando…» y se deshabilita. */
   startingTemplateId: string | null
 }
 
-const MICROLABEL_CLASSNAME = "select-none text-[11px] font-bold uppercase tracking-[.08em] text-muted-foreground"
+const MICROLABEL_CLASSNAME = "select-none text-[11px] font-semibold uppercase tracking-[.08em] text-muted-foreground"
 
-const ROOT_CLASSNAME =
-  "flex shrink-0 flex-col gap-2.25 border-t border-border/60 border-b border-border bg-muted/40 px-4.5 pt-2.75 pb-3.25 shadow-[0_2px_4px_rgba(15,23,42,0.04)]"
+const ROOT_CLASSNAME = "relative flex shrink-0 flex-col gap-3 border-b border-border bg-muted/60 px-4 pt-3.5 pb-4"
 
-// Ancho mínimo de cada tarjeta-chip (`basis-60`), usado para calcular cuántas
-// entran completas. Con `grow` los chips visibles se reparten el ancho sobrante
-// del riel, así nunca queda un hueco vacío ni un chip cortado a la mitad.
-const RAIL_CARD_WIDTH_PX = 240
-const RAIL_CARD_GAP_PX = 8
-// Antes de la primera medición del ResizeObserver (width === 0): evita que el
-// riel se vea vacío en el primer render.
-const RAIL_FALLBACK_COUNT = 6
+// Espacio entre chips, igual al `gap-2.5` del riel.
+const CHIP_GAP_PX = 10
+// Antes de la primera medición (ancho del riel aún 0) se muestran unos pocos
+// para no ver la fila vacía; el layout effect re-mide antes del primer paint.
+const FALLBACK_COUNT = 4
 
-export const WorkflowLauncherBar = forwardRef<HTMLDivElement, WorkflowLauncherBarProps>(
-  function WorkflowLauncherBar(
-    {
-      items,
-      total,
-      isEmpty,
-      isLoading,
-      error,
-      onRetry,
-      query,
-      onQueryChange,
-      onSubmitQuery,
-      onClearSearch,
-      appliedQuery,
-      hasQuery,
-      panelOpen,
-      hidden,
-      onToggleHidden,
-      onStart,
-      onShare,
-      startingTemplateId,
-    },
-    ref,
-  ) {
-    const { t } = useTranslation("workflow")
-    const buildOrgPath = useOrgPath()
+const SKELETON_WIDTHS = [200, 240, 180, 220]
 
-    // Cuántas tarjetas de ancho fijo caben completas en el riel según su ancho medido.
-    // Si una tarjeta no entra entera, no se renderiza (sus botones de compartir/iniciar
-    // siempre deben quedar visibles).
-    const { ref: railRef, width: railWidth } = useElementWidth<HTMLDivElement>()
-    const visibleCount =
-      railWidth > 0
-        ? Math.max(1, Math.floor((railWidth + RAIL_CARD_GAP_PX) / (RAIL_CARD_WIDTH_PX + RAIL_CARD_GAP_PX)))
-        : RAIL_FALLBACK_COUNT
-    const visibleItems = useMemo(() => items.slice(0, visibleCount), [items, visibleCount])
+export function WorkflowLauncherBar({
+  items,
+  total,
+  isLoading,
+  error,
+  onRetry,
+  query,
+  onQueryChange,
+  onSubmitQuery,
+  onClearSearch,
+  appliedQuery,
+  hasQuery,
+  hidden,
+  onToggleHidden,
+  onSeeAll,
+  onStart,
+  onShare,
+  startingTemplateId,
+}: WorkflowLauncherBarProps) {
+  const { t } = useTranslation("workflow")
 
-    // Roving tabindex sobre el riel de chips: el `role="toolbar"` declarado
-    // exige que las flechas muevan el foco entre chips (contrato ARIA de
-    // toolbar); dentro del chip activo, `Tab` alcanza también "Compartir"
-    // porque ambos botones comparten tabIndex 0 mientras está activo.
-    const [activeChipIndex, setActiveChipIndex] = useState(0)
-    const startRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const sorted = useMemo(() => sortLaunchTemplates(items), [items])
+  const isEmpty = !isLoading && !error && sorted.length === 0
 
-    useEffect(() => {
-      setActiveChipIndex((prev) => Math.min(prev, Math.max(visibleItems.length - 1, 0)))
-    }, [visibleItems.length])
+  // Cuántos chips entran completos en el riel según su ancho medido. Los chips
+  // tienen ancho natural (los nombres varían), así que se miden en una réplica
+  // invisible y se acumulan contra el ancho del riel. `measureNode` es un
+  // callback ref en estado: la medición se repite cada vez que la réplica se
+  // monta (franja que se expande, fin de la carga), no solo al cambiar `sorted`.
+  // `useElementWidth` observa el riel, así que al abrir el panel lateral baja la
+  // cantidad. Un chip que no entra entero no se renderiza.
+  const { ref: railRef, width: railWidth } = useElementWidth<HTMLDivElement>()
+  const [measureNode, setMeasureNode] = useState<HTMLDivElement | null>(null)
+  const [chipWidths, setChipWidths] = useState<number[]>([])
 
-    const handleRailKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-      if (visibleItems.length === 0) return
-      let nextIndex = activeChipIndex
-      if (e.key === "ArrowRight") {
-        e.preventDefault()
-        nextIndex = Math.min(activeChipIndex + 1, visibleItems.length - 1)
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault()
-        nextIndex = Math.max(activeChipIndex - 1, 0)
-      } else if (e.key === "Home") {
-        e.preventDefault()
-        nextIndex = 0
-      } else if (e.key === "End") {
-        e.preventDefault()
-        nextIndex = visibleItems.length - 1
-      } else {
-        return
-      }
-      setActiveChipIndex(nextIndex)
-      startRefs.current[nextIndex]?.focus()
+  useLayoutEffect(() => {
+    if (!measureNode) return
+    setChipWidths(Array.from(measureNode.children).map((child) => (child as HTMLElement).getBoundingClientRect().width))
+  }, [measureNode, sorted])
+
+  const visibleCount = useMemo(() => {
+    if (railWidth === 0 || chipWidths.length !== sorted.length) return Math.min(FALLBACK_COUNT, sorted.length)
+    let used = 0
+    let count = 0
+    for (const width of chipWidths) {
+      const next = used + width + (count > 0 ? CHIP_GAP_PX : 0)
+      if (next > railWidth) break
+      used = next
+      count += 1
     }
+    return Math.max(1, count)
+  }, [railWidth, chipWidths, sorted.length])
 
-    if (hidden) {
-      return (
-        <div ref={ref} className={cn(ROOT_CLASSNAME, "flex-row items-center gap-2")}>
-          <p className={MICROLABEL_CLASSNAME}>{t("launcher.title")}</p>
+  const visibleItems = sorted.slice(0, visibleCount)
+
+  // «Ver todos» y el buscador solo tienen sentido con algo que buscar/abrir;
+  // con búsqueda activa siguen disponibles aunque no haya coincidencias.
+  const canBrowse = !isLoading && !error && (!isEmpty || hasQuery)
+
+  return (
+    <div className={cn(ROOT_CLASSNAME, hidden && "py-2.5")}>
+      <div className="flex items-center gap-2">
+        <p className={cn(MICROLABEL_CLASSNAME, "shrink-0")}>{t("launcher.title")}</p>
+
+        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+          {!hidden && canBrowse && (
+            <>
+              <div className="flex h-8 w-58 shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-2.5">
+                <Search className="size-3 shrink-0 text-muted-foreground/60" />
+                <input
+                  value={query}
+                  onChange={(e) => onQueryChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return
+                    e.preventDefault()
+                    onSubmitQuery()
+                  }}
+                  placeholder={t("launcher.searchPlaceholder")}
+                  aria-label={t("launcher.searchPlaceholder")}
+                  className="min-w-0 flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+                />
+                {query.length > 0 && (
+                  <HuemulSearchClearButton
+                    onClear={onClearSearch}
+                    label={t("launcher.clearSearch")}
+                    iconClassName="size-3"
+                  />
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={onSeeAll}
+                className="flex h-8 shrink-0 items-center rounded-lg border border-border bg-background px-3 text-[12.5px] font-semibold text-foreground transition-colors hover:cursor-pointer hover:bg-accent"
+              >
+                {total != null ? t("launcher.seeAllWithTotal", { total }) : t("launcher.seeAll")}
+              </button>
+            </>
+          )}
+
           <button
             type="button"
             onClick={onToggleHidden}
-            className="ml-auto text-xs font-medium text-muted-foreground hover:cursor-pointer hover:text-foreground transition-colors"
+            aria-label={hidden ? t("launcher.show") : t("launcher.hide")}
+            aria-expanded={!hidden}
+            title={hidden ? t("launcher.show") : t("launcher.hide")}
+            className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:cursor-pointer hover:bg-accent hover:text-foreground"
           >
-            {t("launcher.show")}
+            {hidden ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
           </button>
         </div>
-      )
-    }
+      </div>
 
-    // Solo la línea 2 varía entre estados: la línea 1 (rótulo + buscador +
-    // "Ver todos") se apaga cuando no hay nada que buscar/abrir, pero el alto
-    // de la banda no cambia (criterio: la tabla no debe saltar). Con búsqueda
-    // activa el buscador sigue disponible aunque no haya coincidencias.
-    const canBrowse = !isLoading && !error && (!isEmpty || hasQuery)
-
-    return (
-      <div ref={ref} className={ROOT_CLASSNAME}>
-        {/* Línea 1 */}
-        <div className="flex items-center gap-2">
-          <p className={cn(MICROLABEL_CLASSNAME, "shrink-0")}>{t("launcher.title")}</p>
-          {canBrowse && total != null && (
-            <p className="shrink-0 text-xs text-muted-foreground">{t("launcher.available", { count: total })}</p>
-          )}
-
-          <div className="ml-auto flex shrink-0 items-center gap-1.5">
-            {canBrowse && (
-              <>
-                <div className="flex h-8 w-58 shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/60 px-2.5">
-                  <Search className="size-3 shrink-0 text-muted-foreground/60" />
-                  <input
-                    value={query}
-                    onChange={(e) => onQueryChange(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key !== "Enter") return
-                      e.preventDefault()
-                      onSubmitQuery()
-                    }}
-                    placeholder={t("launcher.searchPlaceholder")}
-                    aria-label={t("launcher.searchPlaceholder")}
-                    className="min-w-0 flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
-                  />
-                  {query.length > 0 && (
-                    <HuemulSearchClearButton
-                      onClear={onClearSearch}
-                      label={t("launcher.clearSearch")}
-                      iconClassName="size-3"
-                    />
-                  )}
-                </div>
-
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    aria-expanded={panelOpen}
-                    className={cn(
-                      "flex h-8 shrink-0 items-center gap-1 rounded-lg border px-3 text-[12.5px] font-semibold transition-colors hover:cursor-pointer",
-                      panelOpen
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-muted text-accent-foreground hover:bg-accent",
-                    )}
-                  >
-                    {t("launcher.seeAll")}
-                    <ChevronRight className={cn("size-3 transition-transform", panelOpen && "rotate-90")} />
-                  </button>
-                </PopoverTrigger>
-              </>
-            )}
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={t("launcher.hide")}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:cursor-pointer hover:bg-accent hover:text-foreground"
-                >
-                  <MoreVertical className="size-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onToggleHidden} className="hover:cursor-pointer">
-                  {t("launcher.hide")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-
-        {/* Línea 2 — riel de tarjetas-chip */}
-        <div
-          ref={railRef}
-          className="flex h-14 min-w-0 items-center gap-2 overflow-hidden"
-          role="toolbar"
-          aria-label={t("launcher.title")}
-          onKeyDown={handleRailKeyDown}
-        >
+      {!hidden && (
+        <div ref={railRef} className="flex h-10 min-w-0 items-center gap-2.5 overflow-hidden whitespace-nowrap">
           {isLoading ? (
-            Array.from({ length: visibleCount }).map((_, i) => (
-              <span key={i} className="h-14 grow shrink-0 basis-60 max-w-72 animate-pulse rounded-[11px] bg-muted" />
+            SKELETON_WIDTHS.map((width, i) => (
+              <span
+                key={i}
+                style={{ width }}
+                className="h-10 shrink-0 animate-pulse rounded-full bg-muted"
+                aria-hidden="true"
+              />
             ))
           ) : error ? (
-            <span className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-[11px] border border-destructive/30 bg-destructive/10 px-3 text-[12.5px] font-medium text-destructive">
+            <span className="inline-flex items-center gap-2 text-[12.5px] text-muted-foreground">
               {t("launcher.error")}
               <button
                 type="button"
                 onClick={onRetry}
-                className="inline-flex items-center gap-1 font-semibold hover:cursor-pointer hover:underline"
+                className="inline-flex items-center gap-1 font-semibold text-accent-foreground hover:cursor-pointer hover:underline"
               >
                 <RefreshCw className="size-3" />
                 {t("launcher.retry")}
               </button>
             </span>
-          ) : hasQuery && items.length === 0 ? (
+          ) : hasQuery && sorted.length === 0 ? (
             <span className="text-xs text-muted-foreground">{t("launcher.noMatches", { query: appliedQuery })}</span>
           ) : isEmpty ? (
-            <div className="flex items-center gap-2">
-              <span className="text-[12.5px] text-muted-foreground">{t("launcher.empty")}</span>
-              <Link
-                to={buildOrgPath("/templates")}
-                className="text-[12.5px] font-medium text-accent-foreground hover:cursor-pointer hover:underline"
-              >
-                {t("launcher.createTemplate")}
-              </Link>
-            </div>
+            <span className="text-[12.5px] text-muted-foreground">{t("launcher.empty")}</span>
           ) : (
-            visibleItems.map((item, i) => {
-              const isStarting = startingTemplateId === item.id
-              const title = item.relation_name || item.name
-              return (
-                <TemplateCardShell
-                  // El mismo template se repite por relación: el id solo no
-                  // identifica el chip.
-                  key={`${item.id}-${item.document_type_id}-${item.relation_name ?? ""}`}
-                  color={item.document_type_color || DEFAULT_TEMPLATE_COLOR}
-                  className="h-14 grow shrink-0 basis-60 max-w-72 items-center gap-2 pr-2"
-                >
-                  <HuemulTruncatedText
-                    text={title}
-                    lines={2}
-                    className="min-w-0 flex-1 text-[13px] font-semibold leading-tight text-foreground"
-                  />
-                  <TemplateShareButton
-                    label={t("launcher.shareTemplate", { name: title })}
-                    onClick={() => onShare(item)}
-                    tabIndex={i === activeChipIndex ? 0 : -1}
-                    onFocus={() => setActiveChipIndex(i)}
-                  />
-                  <TemplateStartButton
-                    label={t("launcher.start")}
-                    ariaLabel={`${t("launcher.start")} ${title}`}
-                    isStarting={isStarting}
-                    onClick={() => onStart(item)}
-                    buttonRef={(el) => {
-                      startRefs.current[i] = el
-                    }}
-                    tabIndex={i === activeChipIndex ? 0 : -1}
-                    onFocus={() => setActiveChipIndex(i)}
-                  />
-                </TemplateCardShell>
-              )
-            })
+            visibleItems.map((item) => (
+              <LauncherChip
+                key={templateKey(item)}
+                item={item}
+                isStarting={startingTemplateId === item.id}
+                onStart={onStart}
+                onShare={onShare}
+              />
+            ))
           )}
         </div>
+      )}
+
+      {/* Réplica invisible de todos los chips, solo para medir su ancho natural. */}
+      {!hidden && !isLoading && !error && sorted.length > 0 && (
+        <div
+          ref={setMeasureNode}
+          aria-hidden="true"
+          className="pointer-events-none invisible absolute -z-10 flex h-0 gap-2.5 overflow-hidden whitespace-nowrap"
+        >
+          {sorted.map((item) => (
+            <LauncherChip key={templateKey(item)} item={item} isStarting={false} onStart={onStart} onShare={onShare} inert />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface LauncherChipProps {
+  item: WorkflowTemplateItem
+  isStarting: boolean
+  onStart: (item: WorkflowTemplateItem) => void
+  onShare: (item: WorkflowTemplateItem) => void
+  /** Réplica de medición: sin foco ni interacción. */
+  inert?: boolean
+}
+
+// Chip de tres zonas separadas por líneas verticales: nombre (no clickeable),
+// «Iniciar ›» y compartir.
+function LauncherChip({ item, isStarting, onStart, onShare, inert }: LauncherChipProps) {
+  const { t } = useTranslation("workflow")
+  const title = templateTitle(item)
+
+  return (
+    <div
+      {...(inert ? { inert: true } : {})}
+      className="inline-flex h-10 shrink-0 items-center rounded-full border border-border bg-background shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    >
+      <div className="flex items-center gap-2 pr-3 pl-3.5">
+        <TemplateColorDot color={item.document_type_color || DEFAULT_TEMPLATE_COLOR} />
+        <span className="whitespace-nowrap text-[13.5px] font-semibold text-foreground">{title}</span>
       </div>
-    )
-  },
-)
+      <span aria-hidden="true" className="h-5 w-px shrink-0 bg-border" />
+      <TemplateStartButton
+        label={t("launcher.start")}
+        ariaLabel={`${t("launcher.start")} ${title}`}
+        startingLabel={t("launcher.starting")}
+        isStarting={isStarting}
+        onClick={() => onStart(item)}
+        className="h-9.5 px-3 text-[12.5px]"
+      />
+      <span aria-hidden="true" className="h-5 w-px shrink-0 bg-border" />
+      <TemplateShareButton
+        label={t("launcher.shareTemplate")}
+        onClick={() => onShare(item)}
+        className="h-9.5 w-10 rounded-r-full"
+      />
+    </div>
+  )
+}

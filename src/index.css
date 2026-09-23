@@ -145,7 +145,6 @@
   --z-editor-floating-toolbar: 20; /* toolbar de selección de texto */
   --z-editor-selection: 10;        /* rectángulo de selección de bloques por arrastre */
   --z-editor-menu: 50;             /* menús invocados por el usuario: slash, emoji, selects */
-  --z-launcher-scrim: 49;          /* velo de contexto bajo el panel del lanzador de workflows */
   --z-feed-sticky: 10;             /* cabecera de grupo sticky dentro de un feed scrolleable */
   --z-canvas-overlay: 15;          /* overlay que cubre un canvas React Flow en edición sin desmontarlo (ej. explorador de diagramas de un nodo) */
   --z-canvas-state: 5;             /* overlay de estado (vacío) montado dentro de <ReactFlow>: debe superar al renderer (4) y queda al nivel de los Panel */

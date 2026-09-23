@@ -20,8 +20,12 @@ export function useUnreadNotificationsCount(organizationId: string | null | unde
     queryFn: () =>
       getNotifications(organizationId as string, { is_read: false, page_size: 100 }),
     enabled: !!organizationId && canListNotifications,
-    refetchInterval: 600000,
-    refetchOnWindowFocus: true,
+    // Cortar por error (ver ia context/refetch-interval-polling-guide.md):
+    // sin esto, un endpoint caído se sigue sondeando cada 10min/en cada
+    // refocus para siempre en vez de quedar quieto hasta el próximo éxito.
+    refetchInterval: (query) => (query.state.status === "error" ? false : 600000),
+    refetchOnWindowFocus: (query) => query.state.status !== "error",
+    retry: 0,
     staleTime: 30000,
   })
 

@@ -151,6 +151,9 @@ export function useExecutionState({
     },
     enabled: !!currentExecutionId && !!selectedOrganizationId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'),
     refetchInterval: (query) => {
+      // Corta si el último fetch falló — un `data` stale no-terminal lo
+      // mantendría sondeando para siempre contra un endpoint que sigue en error.
+      if (query.state.status === 'error') return false;
       const status = query.state.data?.status;
       if (status === 'completed' || status === 'failed' || status === 'cancelled') {
         return false;
