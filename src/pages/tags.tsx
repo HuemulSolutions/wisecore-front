@@ -98,7 +98,8 @@ export default function TagsPage() {
             ) : (
               <TagsTable
                 tags={tags}
-                onEdit={setEditingTag}
+                onSelectTag={setEditingTag}
+                selectedTagId={editingTag?.id ?? null}
                 onDelete={setDeletingTag}
                 canUpdate={canUpdate}
                 canDelete={canDelete}
@@ -119,7 +120,8 @@ export default function TagsPage() {
                 }}
               />
             ),
-            className: "p-4 md:p-6 pt-0 md:pt-0",
+            className: "flex flex-col",
+            minSize: 45,
           },
         ]}
       />

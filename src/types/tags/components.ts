@@ -15,7 +15,8 @@ export interface TagsPageHeaderProps {
 
 export interface TagsTableProps {
   tags: Tag[]
-  onEdit: (tag: Tag) => void
+  onSelectTag: (tag: Tag) => void
+  selectedTagId?: string | null
   onDelete: (tag: Tag) => void
   isLoading?: boolean
   isFetching?: boolean
