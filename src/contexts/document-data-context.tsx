@@ -7,6 +7,7 @@ import { resolveDataTables } from '@/services/data-tables';
 import { dataTableQueryKeys } from '@/hooks/useDataTables';
 import { labelForColumnId } from '@/lib/data-table-catalog-labels';
 import {
+  buildPreviewResolveTable,
   buildResolveTable,
   dataTableSpecHash,
   normalizeDataTableNode,
@@ -321,23 +322,36 @@ export function useResolvedDataTable(element: DataTableElement): ResolvedDataTab
   }, [documentId, results, key, isFetching, isError, normalized.snapshot]);
 }
 
+export interface DataTablePreviewResult {
+  /** Hay documento contra el cual resolver — `false` en el editor de plantillas. */
+  hasDocument: boolean;
+  /** La config está lista para pedir (fuente + al menos una columna). */
+  enabled: boolean;
+  table: DataTableResolvedTable | null;
+  resolvedAt: string | null;
+  isFetching: boolean;
+  /** Falló la request en sí (red/5xx) — distinto de `table.status === 'error'`. */
+  isError: boolean;
+  refetch: () => void;
+}
+
 /** Preview de una sola tabla para `DataTableConfigSheet` — query propia, debounceada, que NO
- * se une al batch del documento (cada tecleo del usuario no debe invalidar las demás tablas). */
-export function useDataTablePreview(element: DataTableElement): ResolvedDataTable {
-  const { t } = useTranslation(['editor', 'assets']);
+ * se une al batch del documento (cada tecleo del usuario no debe invalidar las demás tablas).
+ * Pide sin `label` de columnas (ver `buildPreviewResolveTable`): los nombres los pinta el sheet. */
+export function useDataTablePreview(element: DataTableElement): DataTablePreviewResult {
   const { documentId, organizationId, executionId } = useContext(DocumentDataContext);
 
   const normalized = useMemo(() => normalizeDataTableNode(element as AnyDataTableElement), [element]);
-  const requestTable = useMemo(
-    () => buildResolveTable(normalized, { labelFor: (id) => labelForColumnId(t, id) }),
-    [normalized, t],
-  );
+  const requestTable = useMemo(() => buildPreviewResolveTable(normalized), [normalized]);
+  const requestHash = useMemo(() => dataTableSpecHash([requestTable]), [requestTable]);
 
   const [debounced, setDebounced] = useState(requestTable);
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(requestTable), 400);
     return () => clearTimeout(timer);
-  }, [requestTable]);
+    // `requestHash` representa el contenido; `requestTable` se reconstruye en cada render de Slate.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestHash]);
 
   const specHash = useMemo(() => dataTableSpecHash([debounced]), [debounced]);
   const enabled = !!documentId && !!organizationId && normalized.source.length > 0 && normalized.columns.length > 0;
@@ -349,7 +363,7 @@ export function useDataTablePreview(element: DataTableElement): ResolvedDataTabl
         execution_id: executionId,
         tables: [debounced],
       });
-      return result.tables[0] ?? null;
+      return { table: result.tables[0] ?? null, resolvedAt: result.resolved_at };
     },
     enabled,
     staleTime: 30 * 1000,
@@ -358,14 +372,15 @@ export function useDataTablePreview(element: DataTableElement): ResolvedDataTabl
     placeholderData: (prev) => prev,
   });
 
-  return useMemo(() => {
-    const snapshot = normalized.snapshot;
-    if (!documentId) return snapshot ? fromSnapshot(snapshot) : emptyResolved('no-context');
-    if (!enabled) return emptyResolved('empty');
-    if (query.data) return fromResolved(query.data, query.isFetching);
-    if (query.isError) return emptyResolved('error');
-    return emptyResolved('loading');
-  }, [documentId, enabled, query.data, query.isError, query.isFetching, normalized.snapshot]);
+  return {
+    hasDocument: !!documentId,
+    enabled,
+    table: enabled ? (query.data?.table ?? null) : null,
+    resolvedAt: enabled ? (query.data?.resolvedAt ?? null) : null,
+    isFetching: enabled && query.isFetching,
+    isError: enabled && query.isError,
+    refetch: () => void query.refetch(),
+  };
 }
 
 /** Resolver de batch para congelar snapshots antes de guardar (`ensureDataTableSnapshots`).

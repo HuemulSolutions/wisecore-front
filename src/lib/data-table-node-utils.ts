@@ -140,6 +140,41 @@ export function buildResolveTable(
   };
 }
 
+/** Request de `/resolve` para la vista previa del sheet: sin `label` en las columnas, así renombrar
+ * un encabezado no cambia el hash de la query ni dispara otro request — los nombres se pintan en
+ * el cliente (`applyPreviewLabels`). */
+export function buildPreviewResolveTable(n: NormalizedDataTableNode): DataTableResolveTableRequest {
+  return {
+    node_id: n.node_id,
+    source: n.source,
+    scope: n.scope,
+    columns: n.columns.map((c) => ({ id: c.id })),
+    filters: Object.keys(n.filters).length ? n.filters : undefined,
+    limit: n.limit,
+    title: n.title,
+  };
+}
+
+/** Pinta en el cliente los nombres de columna de una tabla ya resuelta. `names[i]` es el nombre
+ * visible de `columns[i]`; las columnas en `omittedColumns` no vienen en `headers`/`rows` y se
+ * saltean. `keyValue`: cada columna es una fila y el nombre va en la celda 0. Si el largo no
+ * coincide (contrato inesperado) devuelve lo del backend sin tocar. */
+export function applyPreviewLabels(
+  table: { headers: string[]; rows: string[][] },
+  columns: { id: string }[],
+  names: string[],
+  omittedColumns: string[],
+  layout: 'rows' | 'keyValue',
+): { headers: string[]; rows: string[][] } {
+  const active = names.filter((_, i) => !omittedColumns.includes(columns[i]?.id));
+  if (layout === 'keyValue') {
+    if (table.rows.length !== active.length) return table;
+    return { headers: table.headers, rows: table.rows.map((row, i) => [active[i], ...row.slice(1)]) };
+  }
+  if (table.headers.length !== active.length) return table;
+  return { headers: active, rows: table.rows };
+}
+
 /** Devuelve los campos a persistir en el nodo Plate (setNodes / pre-save). `snapshot` es
  * explícito para no confundir "no tocar el snapshot" con "borrarlo" — pasar siempre el valor
  * final (el nuevo si /resolve dio `ok`, o `n.snapshot` sin cambios si falló o no corrió). */
