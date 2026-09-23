@@ -20,6 +20,7 @@ import { useUnreadNotificationsCount } from '@/hooks/useUnreadNotificationsCount
 import { useOnboardingChecklist } from '@/hooks/useOnboardingChecklist';
 import { useRecentAssets } from '@/hooks/useRecentAssets';
 import { useMyWork } from '@/hooks/useMyWork';
+import { readHomeLayoutHint, saveHomeLayoutHint } from '@/hooks/useHomeLayoutHint';
 import { NotificationsSheet } from '@/components/notifications/notifications-sheet';
 import { useOrganization } from '@/contexts/organization-context';
 import { useAuth } from '@/contexts/auth-context';
@@ -136,6 +137,12 @@ export default function Home() {
   // queda deshabilitada y nunca resolvería. Sin esto el header se pintaba sin
   // `pendingCount`/`dueSoonCount` y saltaba cuando llegaban.
   const isHomeReady = !isLoadingPermissions && orgReady && !onboarding.isLoading && !myWork.isResolving && !(canReadStatistics && statsLoading);
+
+  // Recuerda la variante pintada para que el skeleton de la próxima carga
+  // (F5) ya anticipe el diseño correcto — ver `useHomeLayoutHint`.
+  useEffect(() => {
+    if (isHomeReady) saveHomeLayoutHint(orgId, isFirstTimeState ? 'firstTime' : 'normal');
+  }, [isHomeReady, orgId, isFirstTimeState]);
 
   // Conteo total de "cosas por hacer" del usuario, para el subtítulo del
   // header y el badge de la pestaña "Mi trabajo" — suma de los 3 grupos.
@@ -538,7 +545,7 @@ export default function Home() {
   // de abajo es distinto: no es permisos, es "todavía no sé qué diseño
   // pintar" (ver `isHomeReady`).
   if (!isHomeReady) {
-    return <HomeSkeleton />;
+    return <HomeSkeleton variant={readHomeLayoutHint(orgId)} />;
   }
 
   // "Cosas por hacer" del usuario: preferimos `stats` (`scope=me`, ya resuelto
