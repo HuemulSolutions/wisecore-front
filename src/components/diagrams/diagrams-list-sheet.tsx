@@ -28,6 +28,8 @@ export interface DiagramsListSheetProps {
   onSelect: (diagram: Diagram) => void
   /** Abre un canvas en blanco. Omitir para ocultar el botón. */
   onCreate?: () => void
+  /** Avisa al padre qué diagrama se borró — ej. para podarlo de "recientes". */
+  onDiagramDeleted?: (diagramId: string) => void
   canList: boolean
   canView: boolean
   canDelete: boolean
@@ -45,6 +47,7 @@ export function DiagramsListSheet({
   organizationId,
   onSelect,
   onCreate,
+  onDiagramDeleted,
   canList,
   canView,
   canDelete,
@@ -252,6 +255,7 @@ export function DiagramsListSheet({
         diagram={deletingDiagram}
         organizationId={organizationId}
         canDelete={canDelete}
+        onDeleted={onDiagramDeleted}
       />
     </>
   )

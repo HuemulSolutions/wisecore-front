@@ -20,7 +20,6 @@ export * from './loading-overlay'
 
 export * from './content-error-state'
 export * from './name-description-fields'
-export * from './section-history-sheet'
 export * from './asset-version-compare-sheet'
 export * from './section-separator'
 

@@ -10,6 +10,12 @@
 /** Matches a full-string {{MEDIA:<uuid>}} token. */
 export const MEDIA_TOKEN_RE = /^\{\{MEDIA:([0-9a-f-]{36})\}\}$/i;
 
+/** Same token, but global/unanchored — for finding tokens embedded in free text
+ *  (e.g. a section history diff, or a `carga_de_archivos` answer serialized as
+ *  JSON: `archivo: ["{{MEDIA:<uuid>}}", ...]`), as opposed to MEDIA_TOKEN_RE's
+ *  full-string match on a single node's `url`/`previewUrl`. */
+export const MEDIA_TOKEN_GLOBAL_RE = /\{\{MEDIA:([0-9a-f-]{36})\}\}/gi;
+
 /** Whether `value` is (in full) an unresolved {{MEDIA:<uuid>}} token. */
 export function isMediaToken(value: unknown): value is string {
   return typeof value === 'string' && MEDIA_TOKEN_RE.test(value);

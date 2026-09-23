@@ -1,4 +1,4 @@
-export type ExecutionEventType = 'auto_advanced' | 'advanced' | 'step_completed' | 'rejected'
+export type ExecutionEventType = 'auto_advanced' | 'advanced' | 'step_completed' | 'rejected' | 'restored'
 export type LifecycleStepKind = 'edit' | 'review' | 'approve'
 
 /**

@@ -14,6 +14,7 @@ export function ContextSheet({
   documentName,
   lifecyclePermissions,
   stage,
+  isExternalElaborationLocked = false,
   showTrigger = true,
 }: ContextSheetProps) {
   const { t } = useTranslation('context')
@@ -27,8 +28,8 @@ export function ContextSheet({
     lifecyclePermissions?.edit
   );
 
-  // Can add/edit/delete contexts: only create or edit, and only in edit stage
-  const canEdit = !!(lifecyclePermissions?.create || lifecyclePermissions?.edit) && stage === 'edit';
+  // Can add/edit/delete contexts: only create or edit, only in edit stage, y no mientras el sistema externo está elaborando
+  const canEdit = !!(lifecyclePermissions?.create || lifecyclePermissions?.edit) && stage === 'edit' && !isExternalElaborationLocked;
 
   if (!canAccess) return null;
 

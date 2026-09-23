@@ -125,7 +125,7 @@ export function ChangeHistoryPanel() {
   return (
     <div className="flex flex-col h-full">
       {/* Search — fixed top */}
-      <div className="shrink-0 pb-4 flex items-end gap-2" onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}>
+      <div className="shrink-0 mb-4 flex items-end gap-2 rounded-lg border border-border bg-card p-2 shadow-card" onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}>
         <div className="flex-1">
           <HuemulField
             type="text"
@@ -203,7 +203,7 @@ export function ChangeHistoryPanel() {
               const executions = doc.pending_ai_suggestion_executions ?? []
 
               return (
-                <div key={doc.id} className="rounded-lg border overflow-hidden">
+                <div key={doc.id} className="rounded-lg border border-border bg-card overflow-hidden shadow-card">
                   {/* Document row — click to expand/collapse */}
                   <button
                     onClick={(e) => toggleExpanded(doc.id, e)}

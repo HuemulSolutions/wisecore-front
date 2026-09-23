@@ -58,9 +58,9 @@ export function HomeHeader({
   const { t: tCommon } = useTranslation('common');
 
   return (
-    <div className="flex flex-col gap-1 px-4 md:px-6 pt-4 pb-3">
+    <div className="flex flex-col gap-1.5 px-4 md:px-6 pt-5 pb-4">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-lg sm:text-xl font-semibold text-foreground tracking-[-0.015em]">
+        <h1 className="text-xl font-semibold text-foreground tracking-[-0.015em]">
           {isFirstTime ? t('greeting.welcome', { name: userName }) : t(`greeting.${greetingPeriod}`, { name: userName })}
         </h1>
         <div className="flex items-center gap-2">

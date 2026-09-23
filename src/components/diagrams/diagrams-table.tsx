@@ -1,7 +1,8 @@
-import { Eye, Trash2 } from "lucide-react"
+import { ChevronRight, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulTable } from "@/huemul/components/huemul-table"
-import type { HuemulTableColumn, HuemulTableAction, HuemulTablePagination } from "@/types/huemul"
+import { HuemulButton } from "@/huemul/components/huemul-button"
+import type { HuemulTableColumn, HuemulTablePagination } from "@/types/huemul"
 import type { Diagram } from "@/types/diagrams"
 
 export interface DiagramsTableProps {
@@ -69,31 +70,37 @@ export function DiagramsTable({
         </span>
       ),
     },
-  ]
-
-  const actions: HuemulTableAction<Diagram>[] = [
-    {
-      key: "view",
-      label: t('actions.view'),
-      icon: Eye,
-      onClick: onView,
-      show: () => canView,
-    },
-    {
+    ...(canDelete ? [{
       key: "delete",
-      label: t('actions.deleteDiagram'),
-      icon: Trash2,
-      onClick: onDelete,
-      destructive: true,
-      show: () => canDelete,
-    },
+      label: "",
+      align: "right" as const,
+      width: "48px",
+      render: (diagram: Diagram) => (
+        <HuemulButton
+          variant="ghost"
+          size="icon-sm"
+          icon={Trash2}
+          tooltip={t('actions.deleteDiagram')}
+          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+          onClick={(e) => { e.stopPropagation(); onDelete(diagram) }}
+        />
+      ),
+    }] : []),
+    ...(canView ? [{
+      key: "chevron",
+      label: "",
+      align: "right" as const,
+      width: "40px",
+      render: () => <ChevronRight className="ml-auto size-[15px] text-[#b6c0cd]" />,
+    }] : []),
   ]
 
   return (
     <HuemulTable
+      variant="detailed"
       data={items}
       columns={columns}
-      actions={actions}
+      onRowClick={canView ? onView : undefined}
       pagination={pagination}
       isLoading={isLoading}
       isFetching={isFetching}

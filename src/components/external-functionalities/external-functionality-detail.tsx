@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
-import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { JsonViewer } from "@/huemul/components/json-viewer"
 import { cn } from "@/lib/utils"
 import { usePageAccess } from "@/hooks/usePageAccess"
@@ -134,132 +133,97 @@ export function ExternalFunctionalityDetail({
         ))}
       </div>
 
-      {/* Vertical split via HuemulPageLayout: tab content (top) + response (bottom) */}
-      <HuemulPageLayout
-        direction="vertical"
-        className="flex-1 min-h-0"
-        columns={[
-          {
-            defaultSize: 55,
-            minSize: 15,
-            content: (
+      <div className="flex-1 min-h-0 overflow-auto">
+        {activeTab === "docs" && (
+          <div className="p-6 space-y-4">
+            {functionality.description ? (
+              <DetailField label={t("detail.description")} value={functionality.description} />
+            ) : (
+              <p className="text-xs text-muted-foreground">{t("detail.noDescription", "No description")}</p>
+            )}
+
+            <Separator />
+
+            <div className="grid grid-cols-2 gap-4">
+              <DetailField
+                label={t("detail.objective")}
+                value={t(`objective.${functionality.objective}`)}
+              />
+              <DetailField
+                label={t("detail.functionalityClass")}
+                value={t(`class.${functionality.functionality_class}`)}
+              />
+              <DetailField
+                label={t("detail.executionType")}
+                value={t(`executionType.${functionality.execution_type}`)}
+              />
+            </div>
+
+            {functionality.storage_url && (
               <>
-                {activeTab === "docs" && (
-                  <div className="p-6 space-y-4">
-                    {functionality.description ? (
-                      <DetailField label={t("detail.description")} value={functionality.description} />
-                    ) : (
-                      <p className="text-xs text-muted-foreground">{t("detail.noDescription", "No description")}</p>
-                    )}
-
-                    <Separator />
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <DetailField
-                        label={t("detail.objective")}
-                        value={t(`objective.${functionality.objective}`)}
-                      />
-                      <DetailField
-                        label={t("detail.functionalityClass")}
-                        value={t(`class.${functionality.functionality_class}`)}
-                      />
-                      <DetailField
-                        label={t("detail.executionType")}
-                        value={t(`executionType.${functionality.execution_type}`)}
-                      />
-                    </div>
-
-                    {functionality.storage_url && (
-                      <>
-                        <Separator />
-                        <DetailField label={t("detail.storageUrl")} value={functionality.storage_url} />
-                      </>
-                    )}
-
-                    {functionality.usage_example && (
-                      <>
-                        <Separator />
-                        <DetailField label={t("detail.usageExample")} value={functionality.usage_example} />
-                      </>
-                    )}
-
-                    <Separator />
-                    <div className="grid grid-cols-2 gap-4">
-                      <DetailField
-                        label={t("detail.createdAt")}
-                        value={new Date(functionality.created_at).toLocaleString()}
-                      />
-                      <DetailField
-                        label={t("detail.updatedAt")}
-                        value={new Date(functionality.updated_at).toLocaleString()}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === "params" && (
-                  <ExternalFunctionalityParamsTab
-                    organizationId={organizationId}
-                    systemId={systemId}
-                    functionalityId={functionality.id}
-                  />
-                )}
-
-                {activeTab === "body" && (
-                  <div className="p-4">
-                    {functionality.body ? (
-                      <JsonViewer
-                        value={functionality.body}
-                        maxHeight="100%"
-                        className="min-h-[120px]"
-                      />
-                    ) : (
-                      <EmptyTabState label={t("detail.tabs.body", "Body")} />
-                    )}
-                  </div>
-                )}
-
-                {activeTab === "logs" && (
-                  <ExternalFunctionalityLogsTab
-                    organizationId={organizationId}
-                    systemId={systemId}
-                    functionalityId={functionality.id}
-                  />
-                )}
-
-                {activeTab === "lifecycle" && (
-                  <ExternalFunctionalityPublishActionsTab
-                    organizationId={organizationId}
-                    functionality={functionality}
-                  />
-                )}
+                <Separator />
+                <DetailField label={t("detail.storageUrl")} value={functionality.storage_url} />
               </>
-            ),
-          },
-          {
-            defaultSize: 45,
-            minSize: 15,
-            className: "flex flex-col overflow-hidden",
-            content: (
+            )}
+
+            {functionality.usage_example && (
               <>
-                <div className="flex items-end gap-0 px-4 border-b bg-muted/30 shrink-0">
-                  <span className="px-3 py-2 text-xs font-medium text-muted-foreground border-b-2 border-transparent">
-                    {t("detail.response.label", "Response")}
-                  </span>
-                </div>
-                <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center px-6">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    {t("detail.response.empty", "No response yet")}
-                  </span>
-                  <span className="text-xs text-muted-foreground/60">
-                    {t("detail.response.hint", "Responses will appear here once the endpoint is called")}
-                  </span>
-                </div>
+                <Separator />
+                <DetailField label={t("detail.usageExample")} value={functionality.usage_example} />
               </>
-            ),
-          },
-        ]}
-      />
+            )}
+
+            <Separator />
+            <div className="grid grid-cols-2 gap-4">
+              <DetailField
+                label={t("detail.createdAt")}
+                value={new Date(functionality.created_at).toLocaleString()}
+              />
+              <DetailField
+                label={t("detail.updatedAt")}
+                value={new Date(functionality.updated_at).toLocaleString()}
+              />
+            </div>
+          </div>
+        )}
+
+        {activeTab === "params" && (
+          <ExternalFunctionalityParamsTab
+            organizationId={organizationId}
+            systemId={systemId}
+            functionalityId={functionality.id}
+          />
+        )}
+
+        {activeTab === "body" && (
+          <div className="p-4">
+            {functionality.body ? (
+              <JsonViewer
+                value={functionality.body}
+                maxHeight="100%"
+                className="min-h-[120px]"
+              />
+            ) : (
+              <EmptyTabState label={t("detail.tabs.body", "Body")} />
+            )}
+          </div>
+        )}
+
+        {activeTab === "logs" && (
+          <ExternalFunctionalityLogsTab
+            organizationId={organizationId}
+            systemId={systemId}
+            functionalityId={functionality.id}
+          />
+        )}
+
+        {activeTab === "lifecycle" && (
+          <ExternalFunctionalityPublishActionsTab
+            organizationId={organizationId}
+            functionality={functionality}
+          />
+        )}
+      </div>
     </div>
   )
 }

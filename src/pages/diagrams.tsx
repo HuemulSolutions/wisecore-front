@@ -7,6 +7,7 @@ import { useOrganization } from "@/contexts/organization-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { useDocumentTypes, documentTypeQueryKeys } from "@/hooks/useDocumentTypes"
 import { diagramQueryKeys } from "@/hooks/useDiagrams"
+import { useRecentDiagrams } from "@/hooks/useRecentDiagrams"
 import { executionRelationshipQueryKeys } from "@/hooks/useExecutionRelationships"
 import { useGlobalPanel } from "@/contexts/global-panel-context"
 import { ExpandedFoldersProvider } from "@/hooks/use-expanded-folders"
@@ -47,6 +48,7 @@ function DiagramsContent() {
 
   const [isListOpen, setIsListOpen] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const { recents: recentDiagrams, addRecent, removeRecent } = useRecentDiagrams(selectedOrganizationId)
 
   const canList = can('listDiagrams')
   const canView = can('viewDiagram')
@@ -121,6 +123,7 @@ function DiagramsContent() {
           key={diagramId}
           organizationId={selectedOrganizationId}
           diagramId={diagramId}
+          onCanvasCleared={() => openDiagram(null, true)}
         />
       ) : (
         <HuemulAccessDenied variant="inline" />
@@ -136,7 +139,11 @@ function DiagramsContent() {
           // Ya guardado: el canvas quedó en modo edición para este diagrama;
           // sincronizamos la URL (replace, no ensucia el historial) para que el
           // deep-link y F5 lo recarguen desde el servidor en vez de perderlo.
-          onDiagramSaved={(diagram) => openDiagram(diagram.id, true)}
+          onDiagramSaved={(diagram) => {
+            openDiagram(diagram.id, true)
+            addRecent({ id: diagram.id, name: diagram.name })
+          }}
+          onCanvasCleared={() => openDiagram(null, true)}
         />
       ) : (
         <HuemulAccessDenied variant="inline" />
@@ -164,6 +171,8 @@ function DiagramsContent() {
               isLoading={isRefreshing}
               canList={canList}
               canCreate={canCreate}
+              recentDiagrams={recentDiagrams}
+              onOpenRecent={(diagram) => openDiagram(diagram.id)}
             />
           }
           headerClassName="px-4 py-3 md:px-6 md:py-4"
@@ -219,12 +228,14 @@ function DiagramsContent() {
         organizationId={selectedOrganizationId}
         onSelect={(diagram: Diagram) => {
           openDiagram(diagram.id)
+          addRecent({ id: diagram.id, name: diagram.name })
           setIsListOpen(false)
         }}
         onCreate={canCreate ? () => {
           openDiagram('new')
           setIsListOpen(false)
         } : undefined}
+        onDiagramDeleted={removeRecent}
         canList={canList}
         canView={canView}
         canDelete={canDelete}

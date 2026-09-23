@@ -2,6 +2,7 @@ import { Check, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { cn } from '@/lib/utils';
+import { HOME_CARD, HOME_CARD_MUTED, HOME_CARD_HEADER, HOME_CARD_TITLE, HOME_RAIL_TITLE } from './home-surface';
 import type { OnboardingStepId, OnboardingStepState } from '@/types/home';
 
 export interface HomeGettingStartedCardProps {
@@ -10,6 +11,12 @@ export interface HomeGettingStartedCardProps {
   onDismiss: () => void;
   onResume: () => void;
   onStepAction: (stepId: OnboardingStepId) => void;
+  /**
+   * `rail` (default): se monta en el rail derecho, secundaria por peso.
+   * `main`: se monta en la columna principal (estado de primera vez,
+   * `home.tsx`), donde es la superficie primaria — necesita elevación real.
+   */
+  variant?: 'main' | 'rail';
 }
 
 const STEP_ORDER: OnboardingStepId[] = ['defaultLlm', 'embeddingProvider', 'assetType', 'firstAsset', 'inviteTeam'];
@@ -21,20 +28,21 @@ const STEP_ORDER: OnboardingStepId[] = ['defaultLlm', 'embeddingProvider', 'asse
  * decide si renderizar esto: la card no se monta si `allDone` (los pasos ya
  * están cumplidos de verdad, no por localStorage).
  */
-export function HomeGettingStartedCard({ steps, dismissed, onDismiss, onResume, onStepAction }: HomeGettingStartedCardProps) {
+export function HomeGettingStartedCard({ steps, dismissed, onDismiss, onResume, onStepAction, variant = 'rail' }: HomeGettingStartedCardProps) {
   const { t } = useTranslation('home');
   const doneCount = steps.filter((s) => s.done).length;
   // Calculado sobre STEP_ORDER, no sobre `steps` (el orden que devuelve el
   // hook) — son arrays potencialmente en orden distinto, comparar por índice
   // entre uno y otro daba falsos positivos de "paso actual".
   const firstPendingStepId = STEP_ORDER.find((id) => !steps.find((s) => s.id === id)?.done);
+  const isMain = variant === 'main';
 
   if (dismissed) {
     return (
       <button
         type="button"
         onClick={onResume}
-        className="w-full rounded-[8px] border border-[#e2e7ee] bg-white px-3 py-2 text-left text-[12px] text-[#475569] hover:bg-[#fafbfd] hover:cursor-pointer"
+        className={cn(HOME_CARD_MUTED, 'w-full px-3 py-2 text-left text-xs text-muted-foreground hover:cursor-pointer hover:bg-muted')}
       >
         {t('rail.gettingStarted.dismissBanner', { done: doneCount, total: steps.length })}
       </button>
@@ -42,11 +50,11 @@ export function HomeGettingStartedCard({ steps, dismissed, onDismiss, onResume, 
   }
 
   return (
-    <div className="rounded-[11px] border border-[#e2e7ee] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <div className="flex items-center justify-between px-[15px] py-3 border-b border-[#f1f4f7]">
-        <span className="text-[13.5px] font-semibold">{t('rail.gettingStarted.title')}</span>
+    <div className={isMain ? HOME_CARD : HOME_CARD_MUTED}>
+      <div className={HOME_CARD_HEADER}>
+        <span className={isMain ? HOME_CARD_TITLE : HOME_RAIL_TITLE}>{t('rail.gettingStarted.title')}</span>
         <div className="flex items-center gap-2">
-          <span className="text-[12px] text-[#64748b]">
+          <span className="text-2xs tabular-nums text-muted-foreground">
             {t('rail.gettingStarted.stepCount', { done: doneCount, total: steps.length })}
           </span>
           <HuemulButton
@@ -67,23 +75,23 @@ export function HomeGettingStartedCard({ steps, dismissed, onDismiss, onResume, 
           return (
             <div
               key={stepId}
-              className="flex items-start gap-3 px-4 py-3.5 border-b border-[#f1f4f7] last:border-b-0"
+              className="flex items-start gap-3 border-b border-divider px-4 py-3.5 last:border-b-0"
             >
               <span
                 className={cn(
-                  'flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[11px] font-semibold',
+                  'flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-2xs font-semibold',
                   isDone
-                    ? 'bg-[#2563eb] text-white'
+                    ? 'bg-primary text-primary-foreground'
                     : isCurrent
-                      ? 'border border-[#2563eb] text-[#2563eb]'
-                      : 'border border-[#cbd5e1] text-[#94a3b8]',
+                      ? 'border border-primary text-primary'
+                      : 'border border-border text-muted-foreground',
                 )}
               >
                 {isDone ? <Check className="h-3 w-3" /> : index + 1}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[13.5px] font-semibold">{t(`rail.gettingStarted.steps.${stepId}.title`)}</p>
-                <p className="text-[12px] text-[#64748b]">{t(`rail.gettingStarted.steps.${stepId}.description`)}</p>
+                <p className="text-sm font-semibold text-foreground">{t(`rail.gettingStarted.steps.${stepId}.title`)}</p>
+                <p className="text-xs text-muted-foreground">{t(`rail.gettingStarted.steps.${stepId}.description`)}</p>
               </div>
               <HuemulButton
                 variant={isCurrent ? 'default' : 'outline'}

@@ -19,6 +19,8 @@ export interface ContextSheetProps {
   documentName?: string
   lifecyclePermissions?: LifecyclePermissions
   stage?: string
+  /** `isExternalElaborationLocked(documentContent?.lifecycle_status)` del caller — ver ia context/elaboracion-externa-guide.md. */
+  isExternalElaborationLocked?: boolean
   showTrigger?: boolean
 }
 
@@ -39,6 +41,8 @@ export interface DependenciesSheetProps {
   documentName?: string
   lifecyclePermissions?: LifecyclePermissions
   stage?: string
+  /** `isExternalElaborationLocked(documentContent?.lifecycle_status)` del caller — ver ia context/elaboracion-externa-guide.md. */
+  isExternalElaborationLocked?: boolean
   showTrigger?: boolean
 }
 

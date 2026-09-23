@@ -37,6 +37,10 @@ export function useExecutionEvents(
     queryKey: executionLifecycleQueryKeys.events(organizationId, executionId, page, pageSize),
     queryFn: () => getExecutionEvents(organizationId, executionId, { page, page_size: pageSize }),
     enabled: enabled && !!organizationId && !!executionId,
+    // Sin esto, cada "Cargar más" (nueva `page` en la key) vuelve a
+    // `isLoading: true` y deja el panel en blanco mientras llega la página
+    // siguiente — mismo criterio que `useDocumentChangeLog`.
+    placeholderData: (prev) => prev,
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
     retry: 0,

@@ -49,6 +49,7 @@ interface LifecycleStatus {
   can_advance?: boolean;
   can_rollback?: boolean;
   current_group?: string | null;
+  is_locked_external_elaboration?: boolean;
 }
 
 interface LifecyclePermissions {
@@ -222,6 +223,8 @@ export function MoreOptionsDropdown({
     isRestorableLifecycleState(lifecycleStatus.state);
   const showRerunPublish =
     !!lifecyclePermissions?.publish && lifecycleStatus?.state === "published";
+  // Ausente ⇒ no bloqueado (payloads viejos); nunca comparar por truthiness. Ver lib/lifecycle-access.ts.
+  const elaborationLocked = lifecycleStatus?.is_locked_external_elaboration === true;
   const showLifecycleGroup =
     showReturn ||
     showComplete ||
@@ -283,6 +286,7 @@ export function MoreOptionsDropdown({
                 <DropdownMenuItem
                   onSelect={() => setTimeout(onRejectLifecycle, 0)}
                   className="hover:cursor-pointer"
+                  disabled={elaborationLocked}
                 >
                   <Undo2 className="h-4 w-4" />
                   {t("lifecycle.return")}
@@ -292,6 +296,7 @@ export function MoreOptionsDropdown({
                 <DropdownMenuItem
                   onSelect={() => setTimeout(onCheckLifecycle, 0)}
                   className="hover:cursor-pointer"
+                  disabled={elaborationLocked}
                 >
                   <Check className="h-4 w-4" />
                   {t("lifecycle.complete")}
@@ -301,6 +306,7 @@ export function MoreOptionsDropdown({
                 <DropdownMenuItem
                   onSelect={() => setTimeout(onPublish, 0)}
                   className="hover:cursor-pointer"
+                  disabled={elaborationLocked}
                 >
                   <Globe className="h-4 w-4" />
                   {t("lifecycle.publish")}
@@ -310,6 +316,7 @@ export function MoreOptionsDropdown({
                 <DropdownMenuItem
                   onSelect={() => setTimeout(onArchive, 0)}
                   className="hover:cursor-pointer"
+                  disabled={elaborationLocked}
                 >
                   <Archive className="h-4 w-4" />
                   {t("lifecycle.archive")}
@@ -319,6 +326,7 @@ export function MoreOptionsDropdown({
                 <DropdownMenuItem
                   onSelect={() => setTimeout(onRestore, 0)}
                   className="hover:cursor-pointer"
+                  disabled={elaborationLocked}
                 >
                   <RotateCcw className="h-4 w-4" />
                   {t("lifecycle.restore")}
@@ -328,7 +336,7 @@ export function MoreOptionsDropdown({
                 <DropdownMenuItem
                   onSelect={() => setTimeout(onRerunExternalPublish, 0)}
                   className="hover:cursor-pointer"
-                  disabled={isRerunningExternalPublish}
+                  disabled={isRerunningExternalPublish || elaborationLocked}
                 >
                   <RefreshCw className={`h-4 w-4 ${isRerunningExternalPublish ? "animate-spin" : ""}`} />
                   {t("lifecycle.rerunExternalPublish")}

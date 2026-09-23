@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
  */
 export function HomeSkeleton() {
   return (
-    <div className="flex h-full flex-col gap-3.5 overflow-hidden bg-gray-50 p-4 md:p-6">
+    <div className="flex h-full flex-col gap-3.5 overflow-hidden bg-surface-sunken p-4 md:p-6">
       <div className="flex shrink-0 flex-col gap-1 pb-1">
         <div className="flex items-center justify-between gap-2">
           <Skeleton className="h-6 w-56" />
@@ -18,7 +18,7 @@ export function HomeSkeleton() {
         </div>
         <Skeleton className="h-4 w-72" />
       </div>
-      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-card p-4">
+      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-card p-4 shadow-card">
         <div className="space-y-3">
           {Array.from({ length: 12 }).map((_, i) => (
             <Skeleton key={i} className="h-12 w-full" />
