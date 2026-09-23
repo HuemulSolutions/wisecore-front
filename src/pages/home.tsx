@@ -711,7 +711,9 @@ export default function Home() {
             maxSize: 35,
             collapsible: true,
           },
-          { content: mainContent },
+          // Con 2+ columnas el ResizablePanel fija `overflow: hidden` inline, así que
+          // la columna de contenido lleva su propio scroll (con 1 columna lo da el layout).
+          { content: <div className="h-full overflow-y-auto">{mainContent}</div> },
         ]}
       />
 
