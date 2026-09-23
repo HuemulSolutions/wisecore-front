@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Info, Search } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
-import { DEFAULT_PAGE_SIZE } from '@/huemul/constants';
+import { DEFAULT_PAGE_SIZE_OPTIONS } from '@/huemul/constants';
 import { HuemulTable } from '@/huemul/components/huemul-table';
 import type { HuemulTableColumn } from '@/huemul/components/huemul-table';
 import { HuemulFilterButton } from '@/huemul/components/huemul-filter-button';
@@ -48,6 +48,8 @@ export interface HomeAllAssetsTabProps {
   onRetry: () => void;
   page: number;
   onPageChange: (page: number) => void;
+  pageSize: number;
+  onPageSizeChange: (size: number) => void;
   sort: string | null;
   onSortChange: (sort: string | null) => void;
   /** Aviso de filtro descartado — barra bajo los chips hasta que el usuario lo cierra. */
@@ -92,6 +94,8 @@ export function HomeAllAssetsTab({
   onRetry,
   page,
   onPageChange,
+  pageSize,
+  onPageSizeChange,
   sort,
   onSortChange,
   notice,
@@ -102,7 +106,6 @@ export function HomeAllAssetsTab({
   onUploadAsset,
 }: HomeAllAssetsTabProps) {
   const { t } = useTranslation('home');
-  const PAGE_SIZE = DEFAULT_PAGE_SIZE;
   const { canList } = useUserPermissions();
   const canListDiscussions = canList('discussion');
 
@@ -341,7 +344,7 @@ export function HomeAllAssetsTab({
             }}
             error={error as Error | null}
             onRetry={onRetry}
-            pagination={{ page, pageSize: PAGE_SIZE, hasNext, hasPrevious: page > 1, onPageChange }}
+            pagination={{ page, pageSize, hasNext, hasPrevious: page > 1, onPageChange, onPageSizeChange, pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS }}
           />
         )}
       </div>

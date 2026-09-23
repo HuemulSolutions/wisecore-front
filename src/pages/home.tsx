@@ -99,6 +99,7 @@ export default function Home() {
   const [inviteUserDialogOpen, setInviteUserDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<HomeTabKey>('mine');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [sort, setSort] = useState<string | null>(null);
   // Aviso de un filtro que la UI descartó por incompatibilidad — ver `applyPendingAction`.
   const [filterNotice, setFilterNotice] = useState<HomeFilterNotice | null>(null);
@@ -381,7 +382,7 @@ export default function Home() {
   const { data, isLoading, isFetching, refetch, error } = useAllExecutions(orgId, {
     enabled: !!orgId && !!organizationToken && canListExecutions,
     page,
-    pageSize: DEFAULT_PAGE_SIZE,
+    pageSize,
     query: (values.query as string) || undefined,
     search_type: ((values.searchType as string) || undefined) as ExecutionSearchType | undefined,
     lifecycle_state: (values.lifecycleState && values.lifecycleState !== '__all__' ? values.lifecycleState : undefined) as ExecutionLifecycleState | undefined,
@@ -667,6 +668,8 @@ export default function Home() {
               }}
               page={page}
               onPageChange={setPage}
+              pageSize={pageSize}
+              onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
               sort={sort}
               onSortChange={setSort}
               notice={filterNotice}
