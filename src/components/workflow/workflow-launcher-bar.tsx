@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 import { useElementWidth } from "@/hooks/useElementWidth"
 import { sortLaunchTemplates, templateKey, templateTitle } from "@/lib/launcher-templates"
 import { HuemulSearchClearButton } from "@/huemul/components/huemul-search-clear-button"
+import { HuemulTruncatedText } from "@/huemul/components/huemul-truncated-text"
 import { DEFAULT_TEMPLATE_COLOR, TemplateColorDot, TemplateShareButton, TemplateStartButton } from "./workflow-template-card"
 import type { WorkflowTemplateItem } from "@/types/templates"
 
@@ -46,6 +47,10 @@ const CHIP_GAP_PX = 10
 const FALLBACK_COUNT = 4
 
 const SKELETON_WIDTHS = [200, 240, 180, 220]
+
+// Desde este largo el título ocupa 2 líneas en el chip y baja de tamaño para
+// que el bloque entre con aire en los 40px de alto.
+const LONG_TITLE_CHARS = 28
 
 export function WorkflowLauncherBar({
   items,
@@ -231,15 +236,23 @@ interface LauncherChipProps {
 function LauncherChip({ item, isStarting, onStart, onShare, inert }: LauncherChipProps) {
   const { t } = useTranslation("workflow")
   const title = templateTitle(item)
+  const isLongTitle = title.length > LONG_TITLE_CHARS
 
   return (
     <div
       {...(inert ? { inert: true } : {})}
       className="inline-flex h-10 shrink-0 items-center rounded-full border border-border bg-background shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
     >
-      <div className="flex items-center gap-2 pr-3 pl-3.5">
+      <div className="flex min-w-0 items-center gap-2 pr-3 pl-3.5">
         <TemplateColorDot color={item.document_type_color || DEFAULT_TEMPLATE_COLOR} />
-        <span className="whitespace-nowrap text-[13.5px] font-semibold text-foreground">{title}</span>
+        <HuemulTruncatedText
+          text={title}
+          lines={2}
+          className={cn(
+            "max-w-56 whitespace-normal break-words font-semibold text-foreground",
+            isLongTitle ? "text-xs leading-[1.25]" : "text-[13.5px] leading-[1.2]",
+          )}
+        />
       </div>
       <span aria-hidden="true" className="h-5 w-px shrink-0 bg-border" />
       <TemplateStartButton
