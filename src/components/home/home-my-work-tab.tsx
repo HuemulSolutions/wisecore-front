@@ -30,6 +30,8 @@ export interface HomeMyWorkTabProps {
   onViewGroupInAllAssets: (group: WorkGroupKind) => void;
   /** CTA del estado vacío "noPending" — salta a "Todos los activos" sin filtro. */
   onViewAllAssets: () => void;
+  /** CTA "Crear activo" del estado vacío "noPending" — se omite sin `createAsset`. */
+  onCreateAsset?: () => void;
 }
 
 /**
@@ -56,6 +58,7 @@ export function HomeMyWorkTab({
   emptyVariant,
   onViewGroupInAllAssets,
   onViewAllAssets,
+  onCreateAsset,
 }: HomeMyWorkTabProps) {
   const { t } = useTranslation('home');
   const [collapsedReview, setCollapsedReview] = useState(false);
@@ -89,9 +92,10 @@ export function HomeMyWorkTab({
     [organizationId],
   );
 
-  // Spec Punto 8 (semántica de "deshacer" una transición) sigue "a confirmar"
-  // con backend — un botón Deshacer que no revierte de verdad sería peor que
-  // no tenerlo, así que el toast queda sin acción hasta que se resuelva.
+  // La spec pide "Deshacer" 6 s, pero la semántica de revertir una transición
+  // sigue "a confirmar" con backend (Punto 8) — un botón Deshacer que no
+  // revierte de verdad sería peor que no tenerlo, así que el toast queda sin
+  // acción hasta que se resuelva.
   const handlePublished = useCallback(
     (rowId: string) => {
       setExitingIds((prev) => new Set(prev).add(rowId));
@@ -101,11 +105,19 @@ export function HomeMyWorkTab({
   );
 
   if (isEmpty) {
-    return <HomeEmptyState variant={emptyVariant} onViewAllAssets={emptyVariant === 'noPending' ? onViewAllAssets : undefined} />;
+    return (
+      <HomeEmptyState
+        variant={emptyVariant}
+        onViewAllAssets={emptyVariant === 'noPending' && canListExecutions ? onViewAllAssets : undefined}
+        onCreateAsset={emptyVariant === 'noPending' ? onCreateAsset : undefined}
+      />
+    );
   }
 
   function footerFor(group: WorkGroupKind, result: UseMyWorkGroupResult) {
     if (!result.count || result.count.value <= VISIBLE_ROWS) return undefined;
+    // Sin `listExecutions` no hay pestaña "Todos los activos" adonde saltar.
+    if (!canListExecutions) return { label: t('workGroups.common.showingOf', { count: result.count.value }) };
     const remaining = result.count.value - VISIBLE_ROWS;
     return { label: t('workGroups.common.viewRemaining', { count: remaining }), onClick: () => onViewGroupInAllAssets(group) };
   }

@@ -1,7 +1,8 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 import { useOrgNavigate } from '@/hooks/useOrgRouter';
 import { HuemulPageLayout } from '@/huemul/components/huemul-page-layout';
 import { DEFAULT_PAGE_SIZE } from '@/huemul/constants';
@@ -43,6 +44,7 @@ import {
   HomeSkeleton,
   type HomeOverviewRow,
 } from '@/components/home';
+import type { HomeFilterNotice } from '@/components/home/home-all-assets-tab';
 
 type HomeTabKey = 'mine' | 'all' | 'team';
 
@@ -97,6 +99,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<HomeTabKey>('mine');
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<string | null>(null);
+  // Aviso de un filtro que la UI descartó por incompatibilidad — ver `applyPendingAction`.
+  const [filterNotice, setFilterNotice] = useState<HomeFilterNotice | null>(null);
 
   // `scope=me` es superset de `scope=organization` (mismos 8 contadores +5
   // personales) — una sola request alimenta tanto el Panorama org-wide como
@@ -128,7 +132,10 @@ export default function Home() {
   const isFirstTimeState = !onboarding.allDone && myWork.isEmpty;
   // Único gate de carga: hasta que esto resuelva, se pinta `HomeSkeleton` —
   // evita que la primera pintura elija el diseño equivocado y luego salte.
-  const isHomeReady = !isLoadingPermissions && orgReady && !onboarding.isLoading && !myWork.isResolving;
+  // `stats` solo se espera si el usuario puede leerlas — sin ese permiso la query
+  // queda deshabilitada y nunca resolvería. Sin esto el header se pintaba sin
+  // `pendingCount`/`dueSoonCount` y saltaba cuando llegaban.
+  const isHomeReady = !isLoadingPermissions && orgReady && !onboarding.isLoading && !myWork.isResolving && !(canReadStatistics && statsLoading);
 
   // Conteo total de "cosas por hacer" del usuario, para el subtítulo del
   // header y el badge de la pestaña "Mi trabajo" — suma de los 3 grupos.
@@ -159,6 +166,10 @@ export default function Home() {
     [orgId],
   );
 
+  // Sin proveedor de embeddings configurado (y verificable) la búsqueda
+  // semántica no puede funcionar — se quita la opción en vez de dejarla elegible.
+  const embeddingReady = onboarding.steps.find((step) => step.id === 'embeddingProvider')?.done ?? true;
+
   const { t: tFilters } = useTranslation('huemul-filters');
 
   // Filtros de "Todos los activos" — viven acá (no en el componente de la
@@ -173,9 +184,9 @@ export default function Home() {
     return [
       {
         key: 'searchType', type: 'select', group: search, toolbar: true, label: t('filters.searchType'),
-        allValue: 'semantic', inputClassName: 'w-36',
+        allValue: embeddingReady ? 'semantic' : 'title', inputClassName: 'w-36',
         options: [
-          { value: 'semantic', label: t('filters.searchTypeSemantic') },
+          ...(embeddingReady ? [{ value: 'semantic', label: t('filters.searchTypeSemantic') }] : []),
           { value: 'title', label: t('filters.searchTypeTitle') },
           { value: 'code', label: t('filters.searchTypeCode') },
           { value: 'content', label: t('filters.searchTypeContent') },
@@ -233,7 +244,7 @@ export default function Home() {
       { key: 'hasUnresolvedComments', type: 'boolean', group: other, label: t('filters.unresolvedComments') },
       { key: 'expiringSoon', type: 'boolean', group: other, label: t('filters.expiringSoon') },
     ];
-  }, [t, tAssets, tFilters, fetchDocumentTypes, fetchUsers, canListAssetTypes, canListUsers, canListCustomFields]);
+  }, [t, tAssets, tFilters, fetchDocumentTypes, fetchUsers, canListAssetTypes, canListUsers, canListCustomFields, embeddingReady]);
 
   const {
     values, open: filtersOpen, setOpen: setFiltersOpen, setValue, clearValue, clearAll, chips, activeCount, setSelectedLabel,
@@ -242,20 +253,51 @@ export default function Home() {
   // `pending_my_action` no es combinable con `query` en el backend (400
   // PENDING_MY_ACTION_WITH_SEARCH_NOT_SUPPORTED) — se resuelve en la UI antes
   // de llegar a esa respuesta: activar uno limpia el otro.
+  const pendingActionLabel = useCallback(
+    (action: HuemulFilterValue) =>
+      t(action === 'approve' ? 'filters.pendingMyActionApprove' : action === 'any' ? 'filters.pendingMyActionAny' : 'filters.pendingMyActionReview'),
+    [t],
+  );
+
+  // Sin proveedor de embeddings, el tipo de búsqueda por defecto pasa a `title`.
+  useEffect(() => {
+    if (!onboarding.isLoading && !embeddingReady && values.searchType === 'semantic') setValue('searchType', 'title');
+  }, [onboarding.isLoading, embeddingReady, values.searchType, setValue]);
+
+  const currentQuery = typeof values.query === 'string' ? values.query.trim() : '';
+
+  // Aplica `pendingMyAction` descartando la búsqueda de texto si la hay (y
+  // avisando) — todos los caminos que lo activan (panel, KPIs, "Ver restantes")
+  // pasan por acá para que nunca lleguen juntos al backend.
+  const applyPendingAction = useCallback(
+    (action: HuemulFilterValue) => {
+      setValue('pendingMyAction', action);
+      if (action && currentQuery) {
+        setValue('query', '');
+        setFilterNotice({ kind: 'droppedQuery', label: pendingActionLabel(action), query: currentQuery });
+      }
+    },
+    [setValue, currentQuery, pendingActionLabel],
+  );
+
   const handleFilterChange = useCallback(
     (key: string, value: HuemulFilterValue) => {
-      setValue(key, value);
-      if (key === 'pendingMyAction' && value) {
-        setValue('query', '');
-      } else if (key === 'query' && typeof value === 'string' && value.trim() && values.pendingMyAction) {
-        setValue('pendingMyAction', '');
+      if (key === 'pendingMyAction') {
+        setFilterNotice(null);
+        applyPendingAction(value);
+      } else {
+        setValue(key, value);
+        if (key === 'query' && typeof value === 'string' && value.trim() && values.pendingMyAction) {
+          setValue('pendingMyAction', '');
+          setFilterNotice({ kind: 'droppedPending', label: pendingActionLabel(values.pendingMyAction) });
+        }
       }
       setPage(1);
     },
-    [setValue, values.pendingMyAction],
+    [setValue, applyPendingAction, values.pendingMyAction, pendingActionLabel],
   );
-  const handleChipRemove = useCallback((key: string) => { clearValue(key); setPage(1); }, [clearValue]);
-  const handleClearAll = useCallback(() => { clearAll(); setPage(1); }, [clearAll]);
+  const handleChipRemove = useCallback((key: string) => { clearValue(key); setFilterNotice(null); setPage(1); }, [clearValue]);
+  const handleClearAll = useCallback(() => { clearAll(); setFilterNotice(null); setPage(1); }, [clearAll]);
 
   // Abrir el panel de filtros desde "Mi trabajo" cambia a "Todos los
   // activos" — filtrar es explorar (ver respuestas/promp-diseno-home.md §2).
@@ -266,12 +308,13 @@ export default function Home() {
 
   const jumpToAllAssets = useCallback(
     (overrides: Record<string, HuemulFilterValue>, labels?: Record<string, string | undefined>) => {
-      Object.entries(overrides).forEach(([key, value]) => setValue(key, value));
+      setFilterNotice(null);
+      Object.entries(overrides).forEach(([key, value]) => (key === 'pendingMyAction' ? applyPendingAction(value) : setValue(key, value)));
       Object.entries(labels ?? {}).forEach(([key, label]) => setSelectedLabel(key, label));
       setPage(1);
       setActiveTab('all');
     },
-    [setValue, setSelectedLabel],
+    [setValue, setSelectedLabel, applyPendingAction],
   );
 
   // "Ver toda tu actividad reciente" — "Todos los activos" ordenada por última
@@ -314,6 +357,7 @@ export default function Home() {
   const selectOverviewKpi = useCallback(
     (key: string, apply: () => void) => {
       const wasActive = activeOverviewKey === key;
+      setFilterNotice(null);
       clearOverviewFilters();
       if (!wasActive) apply();
       setPage(1);
@@ -356,12 +400,15 @@ export default function Home() {
     pending_my_action: (values.pendingMyAction as ExecutionPendingMyAction) || undefined,
   });
 
-  const handleRefresh = useCallback(() => {
-    void refetch();
-    void refetchStats();
-    myWork.refetchAll();
-    void queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count', orgId] });
-  }, [refetch, refetchStats, myWork, queryClient, orgId]);
+  const handleRefresh = useCallback(async () => {
+    await Promise.allSettled([
+      canListExecutions ? refetch() : undefined,
+      canReadStatistics ? refetchStats() : undefined,
+      myWork.refetchAll(),
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count', orgId] }),
+    ]);
+    toast.success(t('refreshed'));
+  }, [refetch, refetchStats, myWork, queryClient, orgId, canListExecutions, canReadStatistics, t]);
 
   // ── Panorama (rail): 8 KPIs fijos, un solo filtro activo a la vez —
   // clickear otro reemplaza al anterior en vez de combinarse (ver
@@ -400,8 +447,8 @@ export default function Home() {
         onClick: () => selectOverviewKpi('published', () => setValue('lifecycleState', 'published')),
       },
       {
-        // Rojo, no ámbar: el marrón-ámbar anterior colisionaba con `in_review`. `alert` pinta el valor en rojo aunque el filtro no esté aplicado.
-        key: 'expiringSoon', label: t('kpis.expiringSoon.label'), value: stats?.expiring_soon_count ?? 0, hue: 'red', alert: true,
+        // Ámbar (`alert`): el valor se pinta en ámbar cuando es > 0, aunque el filtro no esté aplicado.
+        key: 'expiringSoon', label: t('kpis.expiringSoon.label'), value: stats?.expiring_soon_count ?? 0, hue: 'amber', alert: true,
         active: activeOverviewKey === 'expiringSoon',
         onClick: () => selectOverviewKpi('expiringSoon', () => setValue('expiringSoon', true)),
       },
@@ -424,12 +471,12 @@ export default function Home() {
       {
         key: 'pendingMyReview', label: t('kpis.pendingMyReview.label'), value: stats?.pending_my_review_count ?? 0, hue: lifecycleStateHue('in_review'),
         active: activeOverviewKey === 'pendingMyReview',
-        onClick: () => selectOverviewKpi('pendingMyReview', () => setValue('pendingMyAction', 'review')),
+        onClick: () => selectOverviewKpi('pendingMyReview', () => applyPendingAction('review')),
       },
       {
         key: 'pendingMyApproval', label: t('kpis.pendingMyApproval.label'), value: stats?.pending_my_approval_count ?? 0, hue: lifecycleStateHue('in_approval'),
         active: activeOverviewKey === 'pendingMyApproval',
-        onClick: () => selectOverviewKpi('pendingMyApproval', () => setValue('pendingMyAction', 'approve')),
+        onClick: () => selectOverviewKpi('pendingMyApproval', () => applyPendingAction('approve')),
       },
       {
         key: 'approvedOwnedByMe', label: t('kpis.approvedOwnedByMe.label'), value: stats?.approved_owned_by_me_count ?? 0, hue: lifecycleStateHue('approved'),
@@ -442,11 +489,21 @@ export default function Home() {
           }),
       },
     ],
-    [stats, t, activeOverviewKey, selectOverviewKpi, setValue, setSelectedLabel],
+    [stats, t, activeOverviewKey, selectOverviewKpi, setValue, setSelectedLabel, applyPendingAction],
   );
 
   const canCreateAssetType = can('createAssetType');
   const canCreateUser = can('createUser');
+
+  // Qué pasos del checklist puede resolver este usuario — los demás muestran
+  // "Lo configura un administrador" en vez de un botón.
+  const stepPermissions: Record<OnboardingStepId, boolean> = {
+    defaultLlm: can('listModels'),
+    embeddingProvider: can('listModels'),
+    assetType: canCreateAssetType,
+    firstAsset: canCreateAsset,
+    inviteTeam: canCreateUser,
+  };
 
   // Los 3 pasos se resuelven sin salir de Home: mismos sheets que ya usan
   // /asset-types y /users, montados como siblings más abajo (ver
@@ -510,7 +567,7 @@ export default function Home() {
       pendingCount={pendingCount}
       dueSoonCount={dueSoonCount}
       isRefreshing={isFetching || statsFetching}
-      onRefresh={handleRefresh}
+      onRefresh={() => void handleRefresh()}
       canUpload={canCreateAsset}
       onUpload={() => setImportDialogOpen(true)}
       canCreate={canCreateAsset}
@@ -534,6 +591,7 @@ export default function Home() {
         onDismiss={onboarding.dismiss}
         onResume={onboarding.resume}
         onStepAction={handleOnboardingStepAction}
+        stepPermissions={stepPermissions}
         variant="main"
       />
       <HomeMyWorkTab
@@ -543,13 +601,18 @@ export default function Home() {
         emptyVariant="firstTime"
         onViewGroupInAllAssets={() => setActiveTab('all')}
         onViewAllAssets={() => setActiveTab('all')}
+        onCreateAsset={canCreateAsset ? () => setCreateDialogOpen(true) : undefined}
       />
     </div>
   ) : (
     <div className="flex h-full min-h-0 gap-5 p-4 md:p-6">
       <div className="flex min-w-0 flex-1 flex-col gap-3.5 overflow-hidden">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as HomeTabKey)} className="flex min-h-0 flex-1 flex-col gap-3.5">
-          <HomeTabsList myWorkCount={myWorkTotalCount} showAllAssetsTab={canListExecutions} />
+        <Tabs value={activeTab} onValueChange={(v) => { setFilterNotice(null); setActiveTab(v as HomeTabKey); }} className="flex min-h-0 flex-1 flex-col gap-3.5">
+          <HomeTabsList
+            myWorkCount={pendingCount}
+            showAllAssetsTab={canListExecutions}
+            allAssetsCount={activeCount === 0 && !currentQuery ? (data?.total ?? null) : null}
+          />
           <TabsContent value="mine" className="min-h-0 flex-1 overflow-y-auto">
             <HomeMyWorkTab
               organizationId={orgId}
@@ -566,6 +629,7 @@ export default function Home() {
                 }
               }}
               onViewAllAssets={() => setActiveTab('all')}
+              onCreateAsset={canCreateAsset ? () => setCreateDialogOpen(true) : undefined}
             />
           </TabsContent>
           <TabsContent value="all" className="min-h-0 flex-1 overflow-hidden">
@@ -596,6 +660,12 @@ export default function Home() {
               onPageChange={setPage}
               sort={sort}
               onSortChange={setSort}
+              notice={filterNotice}
+              onDismissNotice={() => setFilterNotice(null)}
+              currentUserId={user?.id}
+              canCreateAsset={canCreateAsset}
+              onCreateAsset={() => setCreateDialogOpen(true)}
+              onUploadAsset={() => setImportDialogOpen(true)}
             />
           </TabsContent>
           <TabsContent value="team" className="min-h-0 flex-1 overflow-hidden">
@@ -616,6 +686,8 @@ export default function Home() {
         overviewLoading={statsLoading}
         overviewError={statsError}
         onOverviewRetry={() => void refetchStats()}
+        overviewInteractive={canListExecutions}
+        stepPermissions={stepPermissions}
       />
     </div>
   );

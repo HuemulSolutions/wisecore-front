@@ -22,7 +22,8 @@ export interface HomeWorkGroupCardProps {
   isLoading: boolean;
   error?: unknown;
   onRetry?: () => void;
-  footer?: { label: string; onClick: () => void };
+  /** Pie del grupo: link si hay `onClick`, texto plano si no (sin `listExecutions` no hay adónde saltar). */
+  footer?: { label: string; onClick?: () => void };
   /** Grupo en 0 pero otros grupos sí tienen datos — colapsa a una línea con check verde. */
   emptyCollapsedLabel?: string;
 }
@@ -74,10 +75,14 @@ export function HomeWorkGroupCard({
               className={cn('h-3.5 w-3.5 shrink-0 transition-transform duration-200', collapsed && '-rotate-90', accent.text)}
             />
             <span className={HOME_CARD_TITLE}>{title}</span>
-            {count && (
-              <span className={cn('shrink-0 rounded-full px-1.5 py-0.5 text-2xs font-semibold tabular-nums', accent.pill)}>
-                {count.exact ? count.value : t('workGroups.common.countApprox', { count: count.value })}
-              </span>
+            {error ? (
+              <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-2xs font-semibold text-muted-foreground">—</span>
+            ) : (
+              count && (
+                <span className={cn('shrink-0 rounded-full px-1.5 py-0.5 text-2xs font-semibold tabular-nums', accent.pill)}>
+                  {count.exact ? count.value : t('workGroups.common.countApprox', { count: count.value })}
+                </span>
+              )
             )}
           </button>
         </CollapsibleTrigger>
@@ -104,15 +109,18 @@ export function HomeWorkGroupCard({
         ) : (
           <>
             {rows.map((row) => renderRow(row))}
-            {footer && (
-              <button
-                type="button"
-                onClick={footer.onClick}
-                className={cn('block w-full border-t border-divider px-4 py-2.5 text-left', HOME_LINK)}
-              >
-                {footer.label}
-              </button>
-            )}
+            {footer &&
+              (footer.onClick ? (
+                <button
+                  type="button"
+                  onClick={footer.onClick}
+                  className={cn('block w-full border-t border-divider px-4 py-2.5 text-left', HOME_LINK)}
+                >
+                  {footer.label}
+                </button>
+              ) : (
+                <p className="border-t border-divider px-4 py-2.5 text-xs text-muted-foreground">{footer.label}</p>
+              ))}
           </>
         )}
       </CollapsibleContent>

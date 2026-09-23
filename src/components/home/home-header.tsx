@@ -73,6 +73,7 @@ export function HomeHeader({
             loading={isRefreshing}
             onClick={onRefresh}
           />
+          {isRefreshing && <span className="text-xs text-muted-foreground">{t('actions.refreshing')}</span>}
           {/* En primera vez duplican el paso 2 del checklist ("Crear") — se ocultan para no repetir la misma acción dos veces en la misma pantalla. */}
           {!isFirstTime && canUpload && <HuemulButton variant="outline" icon={FileUp} label={t('actions.uploadDocument')} onClick={onUpload} />}
           {!isFirstTime && canCreate && <HuemulButton icon={Plus} label={t('actions.createAsset')} onClick={onCreate} />}
@@ -80,30 +81,32 @@ export function HomeHeader({
       </div>
       <p className="text-sm text-muted-foreground">
         {isFirstTime ? (
-          t('rail.gettingStarted.subtitle', { count: onboardingStepsCount })
+          t('subtitle.firstTime', { count: onboardingStepsCount })
         ) : (
           <>
             {pendingCount && (
               <>
-                {pendingCount.exact ? (
+                {pendingCount.value === 0 ? (
+                  <span className="font-semibold text-foreground">{t('subtitle.upToDate')}</span>
+                ) : (
                   <>
-                    {t('subtitle.pendingPrefix')} <span className="font-semibold text-foreground">{pendingCount.value}</span>{' '}
-                    {t('subtitle.pendingSuffix')}
-                    {dueSoonCount !== null && dueSoonCount > 0 && (
+                    <span className="font-semibold text-foreground">
+                      {t('subtitle.pendingPrefix')} {pendingCount.value}
+                      {pendingCount.exact ? ` ${t('subtitle.pendingSuffix')}` : t('subtitle.pendingApproxSuffix')}
+                    </span>
+                    {pendingCount.exact && dueSoonCount !== null && dueSoonCount > 0 && (
                       <>
                         {', '}
-                        <span className="font-semibold text-foreground">{dueSoonCount}</span> {t('subtitle.dueSoonSuffix')}
+                        {dueSoonCount} {t('subtitle.dueSoonSuffix')}
                       </>
                     )}
                   </>
-                ) : (
-                  t('subtitle.pendingUnknown')
                 )}
                 {' · '}
               </>
             )}
             {formattedDate}
-            {canListNotifications && (
+            {canListNotifications && unreadNotificationsCount > 0 && (
               <>
                 {' · '}
                 <button
