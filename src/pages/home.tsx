@@ -274,6 +274,14 @@ export default function Home() {
     [setValue, setSelectedLabel],
   );
 
+  // "Ver toda tu actividad reciente" — "Todos los activos" ordenada por última
+  // edición (más reciente primero), filtros existentes intactos.
+  const handleViewRecentActivity = useCallback(() => {
+    setSort('updated_at_desc');
+    setPage(1);
+    setActiveTab('all');
+  }, []);
+
   // ── Panorama: qué KPI está aplicado ahora mismo (para resaltarlo) y
   // mecanismo de selección excluyente (clickear otro reemplaza, no combina) ──
   const activeOverviewKey = useMemo(() => {
@@ -601,6 +609,7 @@ export default function Home() {
         onboarding={onboarding}
         onOnboardingStepAction={handleOnboardingStepAction}
         recentAssets={recentAssets}
+        onViewAllRecent={canListExecutions ? handleViewRecentActivity : undefined}
         showOverview={canReadStatistics}
         overviewRows={overviewRows}
         overviewPersonalRows={personalOverviewRows}

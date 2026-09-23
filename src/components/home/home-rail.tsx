@@ -15,6 +15,8 @@ export interface HomeRailProps {
   onboarding: UseOnboardingChecklistResult;
   onOnboardingStepAction: (stepId: OnboardingStepId) => void;
   recentAssets: RecentAssetEntry[];
+  /** Pie de "Continuar donde quedaste" — ver `HomeContinueCard`. */
+  onViewAllRecent?: () => void;
   showOverview: boolean;
   overviewRows: HomeOverviewRow[];
   overviewLoading: boolean;
@@ -32,6 +34,7 @@ export function HomeRail({
   onboarding,
   onOnboardingStepAction,
   recentAssets,
+  onViewAllRecent,
   showOverview,
   overviewRows,
   overviewLoading,
@@ -50,7 +53,7 @@ export function HomeRail({
           onStepAction={onOnboardingStepAction}
         />
       )}
-      {!isFirstTime && <HomeContinueCard recentAssets={recentAssets} />}
+      {!isFirstTime && <HomeContinueCard recentAssets={recentAssets} onViewAll={onViewAllRecent} />}
       {!isFirstTime && showOverview && (
         <HomeOverviewCard
           rows={overviewRows}

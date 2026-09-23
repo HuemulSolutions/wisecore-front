@@ -94,6 +94,8 @@
     },
     continue: {
       title: { en: "Continue where you left off", es: "Continuar donde quedaste" },
+      subtitle: { en: "Latest assets you edited", es: "Últimos activos que editaste" },
+      viewAll: { en: "View all your recent activity", es: "Ver toda tu actividad reciente" },
     },
     gettingStarted: {
       title: { en: "Getting started", es: "Puesta en marcha" },
