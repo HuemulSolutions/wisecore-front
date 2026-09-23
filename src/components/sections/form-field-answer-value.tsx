@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { HuemulFilePreview } from "@/huemul/components/huemul-file-preview";
 import { isMediaToken } from "@/lib/plate-media-utils";
-import { formatNumber } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
 import type { FormFieldValue } from "@/types/sections/core";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
@@ -15,18 +15,16 @@ import {
   isCalculatedField,
   normalizeSelectionValue,
   readFieldOptions,
+  readFileUploadEntry,
   readFileUploadLimits,
   resolveOptionLabels,
+  type FileUploadEntryMeta,
 } from "@/components/sections/question-type-meta";
 
 // Metadatos reales (nombre/mime) de un archivo subido en la sesión actual — solo
 // disponibles mientras la sección sigue montada (filePreviews de AssetFormSection).
 // Sin esto, un {{MEDIA:id}} sin resolver se muestra como "archivo no disponible".
-export interface FormFieldFilePreview {
-  url: string;
-  name?: string;
-  contentType?: string;
-}
+export type FormFieldFilePreview = FileUploadEntryMeta;
 
 interface FormFieldAnswerValueProps {
   field: FormFieldValue;
@@ -36,6 +34,11 @@ interface FormFieldAnswerValueProps {
   /** Metadatos de archivo(s) subido(s) en la sesión actual, en el mismo orden que el
    *  array de tokens de `value`/`field.value` (siempre array, de 0 o más elementos). */
   filePreviews?: FormFieldFilePreview[];
+  /** Override de clases del texto plano (tamaño/color) — se mergea sobre "text-sm text-gray-800"
+   *  con tailwind-merge. No aplica a rating (HuemulField) ni a fileUpload (grilla de previews),
+   *  cuyo render no es texto. Pensado para superficies con paleta propia (ver
+   *  workflow-summary-answers.tsx). */
+  textClassName?: string;
 }
 
 // Badge "Calculado" con tooltip — marca visualmente los campos campo_calculado_formula/
@@ -54,7 +57,7 @@ function CalculatedBadge({ t }: { t: ReturnType<typeof useTranslation>["t"] }) {
 // Render de solo lectura de la respuesta de un form field, según su question_type.
 // Extraído de asset-form-section.tsx para reutilizarse también en paneles de consulta
 // (ej. respuestas de secciones anteriores del wizard) sin depender de su estado local.
-export function FormFieldAnswerValue({ field, value, filePreviews }: FormFieldAnswerValueProps) {
+export function FormFieldAnswerValue({ field, value, filePreviews, textClassName }: FormFieldAnswerValueProps) {
   const { t } = useTranslation("sections");
   const calculated = isCalculatedField(field);
 
@@ -85,7 +88,7 @@ export function FormFieldAnswerValue({ field, value, filePreviews }: FormFieldAn
 
   if (field.question_type === QUESTION_TYPE.yesNo) {
     return (
-      <span className="text-sm text-gray-800">
+      <span className={cn("text-sm text-gray-800", textClassName)}>
         {resolved ? t("form.formFields.previewYes") : t("form.formFields.previewNo")}
       </span>
     );
@@ -104,7 +107,7 @@ export function FormFieldAnswerValue({ field, value, filePreviews }: FormFieldAn
   }
 
   if (field.question_type === QUESTION_TYPE.paragraph) {
-    return <p className="whitespace-pre-wrap text-sm text-gray-800">{String(resolved)}</p>;
+    return <p className={cn("whitespace-pre-wrap text-sm text-gray-800", textClassName)}>{String(resolved)}</p>;
   }
 
   if (
@@ -112,12 +115,20 @@ export function FormFieldAnswerValue({ field, value, filePreviews }: FormFieldAn
     field.question_type === QUESTION_TYPE.dropdown
   ) {
     const options = readFieldOptions(field);
-    return <span className="text-sm text-gray-800">{resolveOptionLabels(resolved, options).join(", ")}</span>;
+    return (
+      <span className={cn("text-sm text-gray-800", textClassName)}>
+        {resolveOptionLabels(resolved, options).join(", ")}
+      </span>
+    );
   }
 
   if (field.question_type === QUESTION_TYPE.dropdownMultiple) {
     const options = readFieldOptions(field);
-    return <span className="text-sm text-gray-800">{resolveOptionLabels(resolved, options).join(", ")}</span>;
+    return (
+      <span className={cn("text-sm text-gray-800", textClassName)}>
+        {resolveOptionLabels(resolved, options).join(", ")}
+      </span>
+    );
   }
 
   if (field.question_type === QUESTION_TYPE.fileUpload) {
@@ -126,9 +137,10 @@ export function FormFieldAnswerValue({ field, value, filePreviews }: FormFieldAn
     const entries = Array.isArray(resolved) ? resolved : [resolved];
     const rows = entries.map((entry, i) => {
       const preview = filePreviews?.[i];
-      if (!preview && isMediaToken(entry)) return { broken: true as const };
-      const meta = preview ?? (typeof entry === "string" && entry.startsWith("http") ? { url: entry } : null);
-      return meta ? { broken: false as const, meta } : null;
+      if (preview) return { broken: false as const, meta: preview };
+      const meta = readFileUploadEntry(entry);
+      if (meta) return { broken: false as const, meta };
+      return isMediaToken(entry) ? { broken: true as const } : null;
     }).filter((row): row is NonNullable<typeof row> => row !== null);
 
     if (rows.length === 0) {
@@ -215,14 +227,18 @@ export function FormFieldAnswerValue({ field, value, filePreviews }: FormFieldAn
     if (field.data_type === "bool") {
       const isYes = resolved === true || resolved === "true" || resolved === 1;
       return (
-        <span className="text-sm text-gray-800">
+        <span className={cn("text-sm text-gray-800", textClassName)}>
           {isYes ? t("form.formFields.previewYes") : t("form.formFields.previewNo")}
         </span>
       );
     }
     if (field.data_type === "list") {
       const options = readFieldOptions(field);
-      return <span className="text-sm text-gray-800">{resolveOptionLabels(resolved, options).join(", ")}</span>;
+      return (
+        <span className={cn("text-sm text-gray-800", textClassName)}>
+          {resolveOptionLabels(resolved, options).join(", ")}
+        </span>
+      );
     }
     // date / time / string → caen al manejo genérico de abajo (numéricos se manejan arriba)
   }
@@ -234,7 +250,7 @@ export function FormFieldAnswerValue({ field, value, filePreviews }: FormFieldAn
   ) {
     const num = typeof resolved === "number" ? resolved : Number(resolved);
     if (!Number.isNaN(num)) {
-      return <span className="text-sm text-gray-800">{formatNumber(num)}</span>;
+      return <span className={cn("text-sm text-gray-800", textClassName)}>{formatNumber(num)}</span>;
     }
   }
 
@@ -250,7 +266,7 @@ export function FormFieldAnswerValue({ field, value, filePreviews }: FormFieldAn
       month: "2-digit",
       year: "numeric",
     });
-    return <span className="text-sm text-gray-800">{formatted}</span>;
+    return <span className={cn("text-sm text-gray-800", textClassName)}>{formatted}</span>;
   }
 
   if (
@@ -258,9 +274,9 @@ export function FormFieldAnswerValue({ field, value, filePreviews }: FormFieldAn
     typeof resolved === "string"
   ) {
     // Mostrar HH:MM (sin segundos)
-    return <span className="text-sm text-gray-800">{resolved.slice(0, 5)}</span>;
+    return <span className={cn("text-sm text-gray-800", textClassName)}>{resolved.slice(0, 5)}</span>;
   }
 
-  return <span className="text-sm text-gray-800">{String(resolved)}</span>;
+  return <span className={cn("text-sm text-gray-800", textClassName)}>{String(resolved)}</span>;
   }
 }

@@ -47,6 +47,8 @@ interface ExecutionItem {
 }
 
 export interface AssetPickerSelectMeta {
+  /** Qué se eligió: el activo en sí o una de sus versiones (modo `document-with-version`). */
+  kind?: "document" | "execution"
   color?: string | null
   documentId?: string
   documentName?: string
@@ -164,7 +166,7 @@ function AssetRow({
 
   const canPick = isDocumentMode(mode) && !disabled
   const isDocActive = isDocumentMode(mode) && activeId === asset.id
-  const docMeta: AssetPickerSelectMeta = { color: asset.document_type?.color }
+  const docMeta: AssetPickerSelectMeta = { color: asset.document_type?.color, kind: "document" }
 
   return (
     <div>
@@ -202,7 +204,7 @@ function AssetRow({
       </div>
 
       {isExecutionMode(mode) && expanded && executions && executions.map((exec) => {
-        const execMeta: AssetPickerSelectMeta = { color: asset.document_type?.color, documentId: asset.id, documentName: asset.name }
+        const execMeta: AssetPickerSelectMeta = { color: asset.document_type?.color, documentId: asset.id, documentName: asset.name, kind: "execution" }
         return (
           <div
             key={exec.id}

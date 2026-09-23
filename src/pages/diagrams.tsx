@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useSearchParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import { useOrganization } from "@/contexts/organization-context"
@@ -9,7 +10,6 @@ import { useDocumentTypes, documentTypeQueryKeys } from "@/hooks/useDocumentType
 import { diagramQueryKeys } from "@/hooks/useDiagrams"
 import { useRecentDiagrams } from "@/hooks/useRecentDiagrams"
 import { executionRelationshipQueryKeys } from "@/hooks/useExecutionRelationships"
-import { useGlobalPanel } from "@/contexts/global-panel-context"
 import { ExpandedFoldersProvider } from "@/hooks/use-expanded-folders"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { HuemulPagination } from "@/huemul/components/huemul-pagination"
@@ -21,37 +21,45 @@ import { RelationshipsCanvas } from "@/components/document-type-relationships"
 import {
   DiagramCanvas,
   NewDiagramCanvas,
-  DiagramsListSheet,
-  DiagramsPageHeader,
+  DiagramsDeleteDialog,
+  DiagramsListPanel,
+  DiagramsRail,
+  DiagramsRailPanel,
+  DiagramsRecentsPanel,
   DiagramsPageSkeleton,
   DiagramsPageEmptyState,
 } from "@/components/diagrams"
+import type { DiagramsRailPanelKey } from "@/components/diagrams"
 import type { Diagram } from "@/types/diagrams"
 
 /**
- * Editor de diagramas: árbol de conocimiento a la izquierda (fuente de arrastre)
- * y canvas de relaciones a la derecha. Antes esta página era solo la tabla y la
- * edición vivía en /asset detrás del "modo relaciones"; el listado ahora se abre
- * en un sheet (DiagramsListSheet).
+ * Editor de diagramas: el canvas de relaciones ocupa toda la pantalla y el resto
+ * del cromo flota sobre él. Único elemento fijo: el riel de 52px, cuyos botones
+ * abren paneles superpuestos de 300px (árbol de conocimiento —fuente de arrastre—,
+ * diagramas guardados y recientes).
  *
  * Qué se edita lo decide `?diagram=`: un id carga el diagrama guardado, `new`
  * abre un canvas en blanco (opcionalmente sembrado con ?seedAsset=&seedExecution=,
- * ver AssetDiagramsSheet) y sin param se trabaja sobre el canvas libre.
+ * ver AssetDiagramsSheet) y sin param se trabaja sobre el canvas libre. El panel
+ * "Diagramas" del riel es la única fuente del listado (búsqueda, filtro por
+ * ejecución, paginación y eliminar).
  */
 function DiagramsContent() {
+  const { t } = useTranslation("diagrams")
   const { selectedOrganizationId, organizationToken } = useOrganization()
   const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('diagrams')
-  const { isOpen: isWisyOpen } = useGlobalPanel()
   const { page, pageSize, hasNext, hasPrevious, setPage } = useNavKnowledgePagination()
   const { fileTreeRef } = useNavKnowledge()
   const queryClient = useQueryClient()
 
-  const [isListOpen, setIsListOpen] = useState(false)
+  const [deletingDiagram, setDeletingDiagram] = useState<Diagram | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [activePanel, setActivePanel] = useState<DiagramsRailPanelKey | null>(null)
+  // Botón del riel del panel abierto: al cerrar con Esc/X el foco vuelve a él.
+  const railButtonRef = useRef<HTMLButtonElement>(null)
   const { recents: recentDiagrams, addRecent, removeRecent } = useRecentDiagrams(selectedOrganizationId)
 
   const canList = can('listDiagrams')
-  const canView = can('viewDiagram')
   const canDelete = can('deleteDiagram')
   const canCreate = can('createDiagram')
   const canListExecutions = can('listExecutions')
@@ -75,9 +83,9 @@ function DiagramsContent() {
   const documentTypes = docTypesResponse?.data ?? []
 
   /**
-   * Refresh único de la página: recarga el árbol (fuente de arrastre) y las
-   * queries que alimentan el canvas. El árbol ya no trae su propio botón aquí
-   * para no ofrecer dos refrescos a 40px de distancia.
+   * Refresh del canvas (ítem "Actualizar" del menú ⋯ de la barra): recarga el
+   * árbol (fuente de arrastre) y las queries que alimentan el canvas. El árbol
+   * y el listado tienen además su propio botón dentro de su panel.
    */
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -106,11 +114,34 @@ function DiagramsContent() {
     }, { replace })
   }
 
+  // Primer guardado de un diagrama sin id (canvas libre o ?diagram=new): el canvas ya
+  // quedó en modo edición; la URL pasa a ?diagram=<id> (replace, no ensucia el historial)
+  // para que F5 y el deep-link lo recarguen desde el servidor en vez de perderlo.
+  const handleNewDiagramSaved = (diagram: Diagram) => {
+    openDiagram(diagram.id, true)
+    addRecent({ id: diagram.id, name: diagram.name })
+  }
+
+  const closePanel = useCallback(() => setActivePanel(null), [])
+  const togglePanel = useCallback((key: DiagramsRailPanelKey) => {
+    setActivePanel((prev) => (prev === key ? null : key))
+  }, [])
+
   if (isLoadingPermissions) return <DiagramsPageSkeleton />
 
   if (!canAccessPage) return <DiagramsPageEmptyState type="access-denied" />
 
   if (!selectedOrganizationId || !organizationToken) return <DiagramsPageEmptyState type="no-organization" />
+
+  // Props del cromo flotante que comparten los tres canvas de la página.
+  const chromeProps = {
+    chrome: 'editor' as const,
+    onOpenAssetTree: () => setActivePanel('tree'),
+    onOpenDiagramsList: canList ? () => setActivePanel('list') : undefined,
+    onRefresh: handleRefresh,
+    isRefreshing,
+    onDiagramDeleted: removeRecent,
+  }
 
   const renderCanvas = () => {
     // El canvas en modo execution lee relaciones de ejecución: sin ese permiso
@@ -123,7 +154,15 @@ function DiagramsContent() {
           key={diagramId}
           organizationId={selectedOrganizationId}
           diagramId={diagramId}
+          fallbackName={recentDiagrams.find((r) => r.id === diagramId)?.name}
+          onViewDiagrams={() => setActivePanel('list')}
           onCanvasCleared={() => openDiagram(null, true)}
+          // Guardar (mismo id) reemplaza la entrada; "Duplicar" navega a la copia.
+          onDiagramSaved={(diagram) => {
+            openDiagram(diagram.id, diagram.id === diagramId)
+            addRecent({ id: diagram.id, name: diagram.name })
+          }}
+          {...chromeProps}
         />
       ) : (
         <HuemulAccessDenied variant="inline" />
@@ -136,14 +175,9 @@ function DiagramsContent() {
           organizationId={selectedOrganizationId}
           seedAssetId={diagramSeed.assetId}
           seedExecutionId={diagramSeed.executionId}
-          // Ya guardado: el canvas quedó en modo edición para este diagrama;
-          // sincronizamos la URL (replace, no ensucia el historial) para que el
-          // deep-link y F5 lo recarguen desde el servidor en vez de perderlo.
-          onDiagramSaved={(diagram) => {
-            openDiagram(diagram.id, true)
-            addRecent({ id: diagram.id, name: diagram.name })
-          }}
+          onDiagramSaved={handleNewDiagramSaved}
           onCanvasCleared={() => openDiagram(null, true)}
+          {...chromeProps}
         />
       ) : (
         <HuemulAccessDenied variant="inline" />
@@ -155,91 +189,107 @@ function DiagramsContent() {
         organizationId={selectedOrganizationId}
         documentTypes={documentTypes}
         mode="execution"
+        onDiagramSaved={handleNewDiagramSaved}
+        {...chromeProps}
       />
     )
   }
 
+  const handleSelectDiagram = (diagram: { id: string; name: string }) => {
+    openDiagram(diagram.id)
+    addRecent({ id: diagram.id, name: diagram.name })
+    setActivePanel(null)
+  }
+
   return (
     <>
-      <div className="relative h-full">
-        <HuemulPageLayout
-          header={
-            <DiagramsPageHeader
-              onBrowseDiagrams={() => setIsListOpen(true)}
-              onCreateDiagram={() => openDiagram('new')}
-              onRefresh={handleRefresh}
-              isLoading={isRefreshing}
-              canList={canList}
-              canCreate={canCreate}
-              recentDiagrams={recentDiagrams}
-              onOpenRecent={(diagram) => openDiagram(diagram.id)}
-            />
-          }
-          headerClassName="px-4 py-3 md:px-6 md:py-4"
-          columns={[
-            {
-              content: (
-                <div className="flex flex-col h-full bg-white border-r">
-                  <div className="py-2">
-                    {/* El refresh de esta página vive en el PageHeader */}
-                    <NavKnowledgeHeader showRefresh={false} />
-                  </div>
-                  <ScrollArea className="flex-1 min-h-0" type="hover">
-                    <NavKnowledgeContent diagramMode />
-                  </ScrollArea>
-                </div>
-              ),
-              defaultSize: isWisyOpen ? 15 : 20,
-              minSize: isWisyOpen ? 10 : 12,
-              collapsible: true,
-              collapsedSize: 0,
-              className: "overflow-hidden [scrollbar-gutter:auto]",
-              footer: {
-                content: (
-                  <HuemulPagination
-                    page={page}
-                    pageSize={pageSize}
-                    hasNext={hasNext}
-                    hasPrevious={hasPrevious}
-                    onPageChange={setPage}
-                  />
-                ),
-              },
-            },
-            {
-              content: (
-                <div className="flex flex-col h-full bg-white">
-                  <div className="flex-1 min-h-0">
-                    {renderCanvas()}
-                  </div>
-                </div>
-              ),
-              defaultSize: 80,
-              minSize: 50,
-              className: "overflow-hidden",
-            },
-          ]}
-        />
-      </div>
+      <HuemulPageLayout
+        showHeader={false}
+        columns={[
+          {
+            content: (
+              <div className="flex h-full min-h-0">
+                <DiagramsRail
+                  active={activePanel}
+                  onToggle={togglePanel}
+                  canList={canList}
+                  activeButtonRef={railButtonRef}
+                />
+                {/* onDropCapture no llama preventDefault: el handleDrop del canvas sigue
+                    recibiendo el evento; solo cierra el panel del árbol al soltar el activo. */}
+                <div
+                  className="relative min-w-0 flex-1"
+                  onDropCapture={() => setActivePanel((prev) => (prev === 'tree' ? null : prev))}
+                >
+                  {renderCanvas()}
 
-      <DiagramsListSheet
-        open={isListOpen}
-        onOpenChange={setIsListOpen}
+                  {activePanel === 'tree' && (
+                    <DiagramsRailPanel
+                      title={t('rail.tree')}
+                      hideHeader
+                      onClose={closePanel}
+                      onCloseFocusRef={railButtonRef}
+                    >
+                      <div className="py-2">
+                        <NavKnowledgeHeader />
+                      </div>
+                      <ScrollArea className="min-h-0 flex-1" type="hover">
+                        <NavKnowledgeContent diagramMode />
+                      </ScrollArea>
+                      <HuemulPagination
+                        page={page}
+                        pageSize={pageSize}
+                        hasNext={hasNext}
+                        hasPrevious={hasPrevious}
+                        onPageChange={setPage}
+                      />
+                    </DiagramsRailPanel>
+                  )}
+
+                  {activePanel === 'list' && canList && (
+                    <DiagramsListPanel
+                      organizationId={selectedOrganizationId}
+                      activeDiagramId={diagramId}
+                      onSelect={handleSelectDiagram}
+                      onCreate={canCreate ? () => { openDiagram('new'); setActivePanel(null) } : undefined}
+                      onRequestDelete={setDeletingDiagram}
+                      canDelete={canDelete}
+                      canBrowseAssets={can('listAssets') && can('listFolders')}
+                      canListExecutions={canListExecutions}
+                      onClose={closePanel}
+                      onCloseFocusRef={railButtonRef}
+                    />
+                  )}
+
+                  {activePanel === 'recents' && canList && (
+                    <DiagramsRecentsPanel
+                      recents={recentDiagrams}
+                      activeDiagramId={diagramId}
+                      onOpen={handleSelectDiagram}
+                      onViewAll={() => setActivePanel('list')}
+                      onClose={closePanel}
+                      onCloseFocusRef={railButtonRef}
+                    />
+                  )}
+                </div>
+              </div>
+            ),
+            className: "overflow-hidden",
+          },
+        ]}
+      />
+
+      {/* Fuera del panel: el panel cierra con pointerdown fuera y desmontaría el diálogo. */}
+      <DiagramsDeleteDialog
+        open={!!deletingDiagram}
+        onOpenChange={(open) => { if (!open) setDeletingDiagram(null) }}
+        diagram={deletingDiagram}
         organizationId={selectedOrganizationId}
-        onSelect={(diagram: Diagram) => {
-          openDiagram(diagram.id)
-          addRecent({ id: diagram.id, name: diagram.name })
-          setIsListOpen(false)
-        }}
-        onCreate={canCreate ? () => {
-          openDiagram('new')
-          setIsListOpen(false)
-        } : undefined}
-        onDiagramDeleted={removeRecent}
-        canList={canList}
-        canView={canView}
         canDelete={canDelete}
-        canListExecutions={canListExecutions}
+        onDeleted={(id) => {
+          removeRecent(id)
+          if (id === diagramId) openDiagram(null, true)
+        }}
       />
     </>
   )

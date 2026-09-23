@@ -16,6 +16,7 @@ export function HuemulPanelEmptyState({
   title,
   description,
   action,
+  secondaryAction,
   hint,
   className,
 }: HuemulPanelEmptyStateProps) {
@@ -37,15 +38,29 @@ export function HuemulPanelEmptyState({
         <p className="text-sm font-medium text-foreground">{title}</p>
         <p className="text-xs leading-snug text-muted-foreground">{description}</p>
       </div>
-      {action && (
-        <Button
-          size="sm"
-          onClick={action.onClick}
-          className="hover:cursor-pointer"
-          style={{ backgroundColor: "var(--adp-accent-fg, var(--primary))" }}
-        >
-          {action.label}
-        </Button>
+      {(action || secondaryAction) && (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {action && (
+            <Button
+              size="sm"
+              onClick={action.onClick}
+              className="hover:cursor-pointer"
+              style={{ backgroundColor: "var(--adp-accent-fg, var(--primary))" }}
+            >
+              {action.label}
+            </Button>
+          )}
+          {secondaryAction && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={secondaryAction.onClick}
+              className="hover:cursor-pointer"
+            >
+              {secondaryAction.label}
+            </Button>
+          )}
+        </div>
       )}
       {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
     </div>

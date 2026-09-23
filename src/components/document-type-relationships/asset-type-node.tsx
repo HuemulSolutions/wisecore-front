@@ -23,9 +23,14 @@ export interface AssetTypeNodeData {
   color: string
   onLoadRelationships?: (documentTypeId: string) => Promise<void> | void
   onLoadRelationshipsCanvasOnly?: (documentTypeId: string) => Promise<void> | void
-  // Abre el overlay "diagramas de esta versión" (ver AssetDiagramsExplorer) — solo se
+  // Abre el popup de diagramas del activo (NodeDiagramsPopover) anclado al nodo — solo se
   // setea cuando el usuario tiene permiso de listar diagramas (diagram:l/r).
   onExploreDiagrams?: (id: string) => void
+  // Cuántos diagramas DISTINTOS del abierto incluyen este activo, y el handler que abre
+  // el popup de navegación en el punto del clic. Alimentan el badge del nodo; se
+  // setean solo con permiso de listar diagramas y siguen activos en `readOnly` (lectura).
+  otherDiagramsCount?: number
+  onShowDiagrams?: (id: string, point: { x: number; y: number }) => void
   onRemove?: (id: string) => void
   // View-only mode: hides the context menu. Connection handles stay mounted
   // (just invisible/inert) — ReactFlow needs their handleBounds to position
@@ -46,6 +51,8 @@ export function AssetTypeNode({ data, selected }: NodeProps<AssetTypeNodeType>) 
 
   // In execution mode (documentTypeId is set) warn when no version is selected yet
   const needsVersion = !!data.documentTypeId && !data.executionId
+  const hasVersionLine = needsVersion || (!!data.executionId && !!data.executionName)
+  const showDiagramsChip = !!data.otherDiagramsCount && !!data.onShowDiagrams
 
   const nodeContent = (
     <div
@@ -94,15 +101,39 @@ export function AssetTypeNode({ data, selected }: NodeProps<AssetTypeNodeType>) 
         )}
         <span className="text-xs font-semibold truncate">{data.name}</span>
       </div>
-      {data.executionId && data.executionName && (
-        <p className="text-[10px] text-muted-foreground mt-1 truncate" title={data.executionName}>
-          {data.executionName}
-        </p>
-      )}
-      {needsVersion && (
-        <p className="text-[10px] text-amber-500 mt-1 leading-tight">
-          {t("nodePanel.versionRequired")}
-        </p>
+      {(hasVersionLine || showDiagramsChip) && (
+        <div className="mt-1 flex items-center gap-1">
+          {data.executionId && data.executionName && (
+            <p className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground" title={data.executionName}>
+              {data.executionName}
+            </p>
+          )}
+          {needsVersion && (
+            <p className="min-w-0 flex-1 truncate text-[10px] leading-tight text-amber-500" title={t("nodePanel.versionRequired")}>
+              {t("nodePanel.versionRequired")}
+            </p>
+          )}
+          {/* Chip "otros diagramas": dentro del nodo (no flotando sobre el borde) para no
+              pelearse con los handles de conexión. */}
+          {showDiagramsChip && (
+            <button
+              type="button"
+              className="nodrag ml-auto inline-flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-muted px-1 text-[10px] font-semibold text-muted-foreground transition-colors hover:cursor-pointer hover:bg-primary/10 hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-hidden"
+              title={t("node.otherDiagramsTooltip", { count: data.otherDiagramsCount })}
+              aria-label={t("node.otherDiagramsTooltip", { count: data.otherDiagramsCount })}
+              // El doble clic del chip no debe llegar al `onNodeDoubleClick` del canvas
+              // (abriría un segundo popup en otro punto).
+              onDoubleClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation()
+                data.onShowDiagrams?.(data.id, { x: e.clientX, y: e.clientY })
+              }}
+            >
+              <Workflow className="h-2.5 w-2.5" />
+              {data.otherDiagramsCount}
+            </button>
+          )}
+        </div>
       )}
     </div>
   )

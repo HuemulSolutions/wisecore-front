@@ -68,7 +68,8 @@ function ExecutionDetail({
     queryFn: () => getExecutionById(executionId, organizationId),
     enabled: !!executionId && !!organizationId,
     staleTime: 30000,
-    refetchInterval: (query) => (query.state.data?.summary_status === 'pending' ? 3000 : false),
+    refetchInterval: (query) =>
+      query.state.status !== 'error' && query.state.data?.summary_status === 'pending' ? 3000 : false,
   });
 
   const [form, setForm] = useState<EditFormState>({

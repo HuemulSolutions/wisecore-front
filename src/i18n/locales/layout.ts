@@ -88,6 +88,12 @@ const translations = {
     rootFolder: { en: "Root", es: "Raíz" },
     searchPlaceholder: { en: "Search assets...", es: "Buscar activos..." },
     searchNoResults: { en: "No results found", es: "No se encontraron resultados" },
+    searchNoResultsTitle: { en: "No matches for “{{term}}”", es: "Sin coincidencias para “{{term}}”" },
+    searchNoResultsDescription: {
+      en: "The search covers document, folder and workflow names in this organization.",
+      es: "La búsqueda recorre nombres de documentos, carpetas y workflows de esta organización.",
+    },
+    searchClear: { en: "Clear search", es: "Limpiar búsqueda" },
     errors: {
       folderNotAccessible: {
         en: "You don't have access to this folder",
