@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.4.1] - 2026-09-23
+### Arreglos
+- limitar título de chip del launcher de workflow a 2 líneas
+
 ## [1.4.0] - 2026-09-23
 ### Nuevo
 - rediseñar pantalla de workflow con launcher en diálogo, panel de detalle modular y guía de polling
