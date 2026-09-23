@@ -33,6 +33,7 @@ import { useInvalidateDocumentSectionAccess } from '@/hooks/useDocumentSectionAc
 import { logger } from '@/lib/logger';
 import { stripCommentMarkers } from '@/lib/plate-comment-markers';
 import { useAcceptAiSuggestion } from '@/hooks/useAcceptAiSuggestion';
+import { useMarkSectionViewed } from '@/hooks/useMarkSectionViewed';
 import { useTranslation } from 'react-i18next';
 import { AssetFormSection, type AssetFormSectionHandle } from '@/components/assets/content/asset-form-section';
 import { AssetFormSectionReader } from '@/components/assets/content/asset-form-section-reader';
@@ -96,6 +97,15 @@ function SectionExecutionInner({
     useEffect(() => {
         if (readyToEdit) setIsAnsweringInReader(false);
     }, [readyToEdit]);
+
+    // Empezar a responder/editar el formulario = "la vio" (mark_viewed): las tarjetas del lector
+    // se renderizan expandidas, así que el render inicial no es señal de apertura.
+    const markSectionViewed = useMarkSectionViewed(documentId);
+    useEffect(() => {
+        if (sectionType === 'form' && (isEditing || isAnsweringInReader)) {
+            markSectionViewed(sectionExecution);
+        }
+    }, [sectionType, isEditing, isAnsweringInReader, sectionExecution, markSectionViewed]);
     const [isAiEditDialogOpen, setIsAiEditDialogOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     // Ref al form de la sección: el botón Enviar/Cancelar vive en la barra de acciones de acá

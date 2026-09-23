@@ -74,6 +74,13 @@ export function computeSectionStats(section: ContentSection): SectionStats {
   return { fields, questions, answeredCount, missingRequired };
 }
 
+// ¿La sección tiene al menos una pregunta obligatoria visible? Es la misma distinción que usa el
+// backend para cambiar el significado de `missing_required`/`answers_status`: sin obligatorias,
+// cuenta las opcionales sin responder y queda "pending" hasta responderlas o hasta mark_viewed.
+export function hasRequiredQuestions(section: ContentSection): boolean {
+  return computeSectionStats(section).questions.some((f) => f.required);
+}
+
 // Espejo cliente de la regla del backend: una sección "no aplica" por dos motivos
 // independientes — (a) depends_on propio de la sección no se cumple (is_visible:false),
 // o (b) es tipo form y ninguna de sus preguntas quedó visible. El backend ya no la
