@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { AlertCircle, RefreshCw, Inbox, MoreVertical, Sparkles, Trash2 } from "lucide-react"
 import { formatRelativeTime } from "@/lib/format-relative-time"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -62,6 +63,37 @@ function MediaActionsMenu({
   )
 }
 
+// ─── Miniatura con fallback (blob inexistente / URL caducada) ───────────────
+
+function MediaThumb({
+  contentType,
+  url,
+  alt,
+  imgClassName,
+  iconClassName,
+}: {
+  contentType?: string | null
+  url?: string | null
+  alt: string
+  imgClassName?: string
+  iconClassName?: string
+}) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
+
+  if (isImage(contentType) && url && failedUrl !== url) {
+    return (
+      <img
+        src={url}
+        alt={alt}
+        className={imgClassName}
+        loading="lazy"
+        onError={() => setFailedUrl(url)}
+      />
+    )
+  }
+  return <MediaIcon contentType={contentType} className={iconClassName} />
+}
+
 // ─── Gallery card ─────────────────────────────────────────────────────────────
 
 function MediaCard({
@@ -94,16 +126,13 @@ function MediaCard({
       className="group flex flex-col rounded-lg border bg-card overflow-hidden hover:shadow-md transition-shadow hover:cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div className="relative aspect-square bg-muted flex items-center justify-center overflow-hidden">
-        {isImage(contentType) && version?.download_url ? (
-          <img
-            src={version.download_url}
-            alt={name}
-            className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-200"
-            loading="lazy"
-          />
-        ) : (
-          <MediaIcon contentType={contentType} className="h-12 w-12 opacity-40" />
-        )}
+        <MediaThumb
+          contentType={contentType}
+          url={version?.download_url}
+          alt={name}
+          imgClassName="object-cover w-full h-full group-hover:scale-105 transition-transform duration-200"
+          iconClassName="h-12 w-12 opacity-40"
+        />
         {version && (
           <span className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[10px] font-mono px-1.5 py-0.5 rounded">
             v{version.version_number}
@@ -179,11 +208,13 @@ function MediaRow({
       className="group flex min-w-0 items-center gap-2 @[400px]/media:gap-3 rounded-lg border bg-card px-3 py-2 hover:shadow-sm transition-shadow hover:cursor-pointer hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div className="relative h-10 w-10 shrink-0 rounded-md bg-muted flex items-center justify-center overflow-hidden">
-        {isImage(contentType) && version?.download_url ? (
-          <img src={version.download_url} alt={name} className="object-cover w-full h-full" loading="lazy" />
-        ) : (
-          <MediaIcon contentType={contentType} className="h-5 w-5 opacity-50" />
-        )}
+        <MediaThumb
+          contentType={contentType}
+          url={version?.download_url}
+          alt={name}
+          imgClassName="object-cover w-full h-full"
+          iconClassName="h-5 w-5 opacity-50"
+        />
       </div>
 
       <p className="flex-1 min-w-0 truncate text-sm font-medium" title={name}>
@@ -309,9 +340,11 @@ export function HuemulMediaGallery({
   }
 
   return (
+    // El container y la grilla deben ser elementos distintos: las variantes
+    // `@[..]/media:` solo aplican a descendientes del contenedor, no a él mismo.
+    <div className="@container/media">
     <div
       className={cn(
-        "@container/media",
         gridClassName ?? "grid grid-cols-2 @[380px]/media:grid-cols-3 @[500px]/media:grid-cols-4 @[760px]/media:grid-cols-5 @[1000px]/media:grid-cols-6 gap-4",
         isFetching && "opacity-60 pointer-events-none",
       )}
@@ -335,6 +368,7 @@ export function HuemulMediaGallery({
               deleteLabel={deleteLabel}
             />
           ))}
+    </div>
     </div>
   )
 }

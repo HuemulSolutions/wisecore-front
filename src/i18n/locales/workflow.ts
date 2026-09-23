@@ -1,6 +1,7 @@
 const translations = {
   header: {
     title: { en: "Workflow", es: "Workflow" },
+    workflowsCount: { en: "{{count}} workflows", es: "{{count}} workflows" },
   },
   filters: {
     search: { en: "Search", es: "Búsqueda" },
@@ -48,6 +49,8 @@ const translations = {
   },
   actions: {
     share: { en: "Share", es: "Compartir" },
+    openAsset: { en: "Open in Assets", es: "Abrir en Activos" },
+    openFullscreen: { en: "Open full screen", es: "Abrir en pantalla completa" },
   },
   deleteDialog: {
     title: { en: "Delete workflow item", es: "Eliminar elemento de workflow" },
@@ -66,40 +69,58 @@ const translations = {
     media: { en: "Resources", es: "Recursos" },
     stageLabel: { en: "Stage:", es: "Etapa:" },
     sectionLabel: { en: "Section:", es: "Sección:" },
+    sectionsHeading: { en: "SECTIONS", es: "SECCIONES" },
+    collapseSection: { en: "Collapse section", es: "Colapsar sección" },
+    expandSection: { en: "Expand section", es: "Expandir sección" },
+    otherSectionsNotice: {
+      en: "Showing {{shown}} of {{total}} sections in this asset; the rest aren't forms.",
+      es: "Se muestran {{shown}} de {{total}} secciones del documento; las demás no son formularios.",
+    },
+    meta: {
+      createdBy: { en: "Created by {{name}}", es: "Creado por {{name}}" },
+      editedBy: { en: "Edited by {{name}}", es: "Editado por {{name}}" },
+      editedByAt: { en: "Edited by {{name}} {{when}}", es: "Editado por {{name}} {{when}}" },
+    },
   },
   launcher: {
     label: { en: "START", es: "INICIAR" },
     title: { en: "START WORKFLOW", es: "INICIAR WORKFLOW" },
-    available: { en: "{{count}} available for your role", es: "{{count}} disponibles para el rol" },
-    searchPlaceholder: { en: "Search workflow...", es: "Buscar workflow…" },
+    searchPlaceholder: { en: "Search workflow...", es: "Buscar workflow..." },
     noMatches: { en: "No workflow matches \"{{query}}\"", es: "Ningún workflow coincide con «{{query}}»" },
-    empty: { en: "No workflows published yet", es: "Aún no hay workflows publicados" },
-    createTemplate: { en: "Create template", es: "Crear template" },
-    loadError: { en: "Couldn't load the workflows", es: "No se pudieron cargar los workflows" },
-    error: { en: "Couldn't load the workflows", es: "No se pudieron cargar los workflows" },
+    empty: { en: "No templates available to start", es: "No hay plantillas disponibles para iniciar" },
+    error: { en: "Couldn't load the templates", es: "No pudimos cargar las plantillas" },
     retry: { en: "Retry", es: "Reintentar" },
     seeAll: { en: "View all", es: "Ver todos" },
+    seeAllWithTotal: { en: "View all ({{total}})", es: "Ver todos ({{total}})" },
     hide: { en: "Hide", es: "Ocultar" },
     show: { en: "Show", es: "Mostrar" },
-    panelTitle: { en: "Available workflows", es: "Workflows disponibles" },
-    panelSubtitle: {
-      en: "{{count}} templates you can start",
-      es: "{{count}} templates con permiso para iniciar",
-    },
     close: { en: "Close", es: "Cerrar" },
-    matches: { en: "MATCHES FOR \"{{query}}\"", es: "COINCIDENCIAS CON «{{query}}»" },
-    rest: { en: "ALL", es: "TODOS" },
     start: { en: "Start", es: "Iniciar" },
-    share: { en: "Share", es: "Compartir" },
-    shareTemplate: { en: "Share {{name}}", es: "Compartir {{name}}" },
+    starting: { en: "Creating…", es: "Creando…" },
+    shareTemplate: { en: "Share link", es: "Compartir link" },
     clearSearch: { en: "Clear search", es: "Limpiar búsqueda" },
-    requiresName: { en: "Asks for a name", es: "Pide nombre al iniciar" },
-    updatedAt: { en: "Updated {{when}}", es: "Actualizado {{when}}" },
-    keyboardHint: {
-      en: "Press Enter to search. Esc closes the panel.",
-      es: "Enter para buscar. Esc cierra el panel.",
+    dialogTitle: { en: "All templates", es: "Todas las plantillas" },
+    featured: { en: "★ Featured", es: "★ Destacado" },
+    noResultsTitle: { en: "No results for \"{{query}}\"", es: "Sin resultados para «{{query}}»" },
+    noResultsHint: {
+      en: "Try another name or document type.",
+      es: "Probar con otro nombre o tipo de documento.",
     },
-    resultsCount: { en: "{{shown}} of {{total}}", es: "{{shown}} de {{total}}" },
+    loadMore: { en: "Load more", es: "Cargar más" },
+    shownOfTotal: { en: "Showing {{shown}} of {{total}}", es: "Mostrando {{shown}} de {{total}}" },
+    shown: { en: "Showing {{shown}}", es: "Mostrando {{shown}}" },
+    created: { en: "Created \"{{name}}\"", es: "Creado «{{name}}»" },
+    open: { en: "Open", es: "Abrir" },
+    createError: { en: "Couldn't create the asset", es: "No se pudo crear el activo" },
+    shareCopied: { en: "Link for \"{{name}}\" copied", es: "Link de «{{name}}» copiado" },
+    nameDialog: {
+      title: { en: "New {{name}}", es: "Nuevo {{name}}" },
+      createdIn: { en: "Created in Workflows/{{relation}}", es: "Se crea en Workflows/{{relation}}" },
+      createdInRoot: { en: "Created in Workflows", es: "Se crea en Workflows" },
+      submit: { en: "Create and start", es: "Crear e iniciar" },
+      cancel: { en: "Cancel", es: "Cancelar" },
+      descriptionOptional: { en: "Description · optional", es: "Descripción · opcional" },
+    },
   },
   expressSheet: {
     welcomeTitle: { en: "General information", es: "Datos generales" },
@@ -112,7 +133,6 @@ const translations = {
   },
   wizard: {
     back: { en: "Back", es: "Atrás" },
-    finish: { en: "Finish", es: "Finalizar" },
     emptyStep: {
       advanceTitle: { en: "Nothing to complete here", es: "Nada que completar aquí" },
       advanceDescription: {
@@ -138,13 +158,71 @@ const translations = {
       viewAnswers: { en: "View the answers", es: "Ver las respuestas" },
     },
     summary: {
-      tooltip: { en: "Back to summary", es: "Volver al resumen" },
       // answeredCount vive en sections:form.fill.answeredCount (compartido con el modo lector del asset).
       missingRequired: { en: "{{count}} required pending", es: "{{count}} obligatorias pendientes" },
-      goToSection: { en: "Go to section", es: "Ir a la sección" },
       noAnswers: { en: "No answers in this section yet", es: "Esta sección aún no tiene respuestas" },
-      sectionsAnswered: { en: "{{answered}} of {{total}} sections answered", es: "{{answered}} de {{total}} secciones respondidas" },
-      questionsCount: { en: "{{answered}}/{{total}} questions", es: "{{answered}}/{{total}} preguntas" },
+    },
+  },
+  // Vista 1 (resumen) del panel de detalle — ver workflow-sections-summary.tsx /
+  // workflow-summary-section-card.tsx.
+  summary: {
+    backLabel: { en: "Summary", es: "Resumen" },
+    card: {
+      view: { en: "View", es: "Ver" },
+      viewTooltip: { en: "View this section's answers", es: "Ver las respuestas de esta sección" },
+      inactive: {
+        en: "Inactive section — it doesn't apply with the current answers",
+        es: "Sección inactiva — no aplica con las respuestas actuales",
+      },
+      pendingOthers: {
+        en: "Pending — you can't answer this section",
+        es: "Pendiente — no puedes responder esta sección",
+      },
+      allAnswered: { en: "All answered", es: "Todo respondido" },
+      optionalPending: { en: "{{count}} optional pending", es: "{{count}} opcionales sin responder" },
+    },
+    empty: {
+      title: { en: "This workflow has no forms", es: "Este workflow no tiene formularios" },
+      description: {
+        en: "There are no form sections to answer in this asset.",
+        es: "No hay secciones de formulario que responder en este activo.",
+      },
+    },
+  },
+  // Vista 2 (sección) del panel de detalle — ver workflow-section-view.tsx / workflow-section-pills.tsx.
+  section: {
+    counter: { en: "Section {{current}} of {{total}}", es: "Sección {{current}} de {{total}}" },
+    pillTooltip: { en: "Go to \"{{name}}\"", es: "Ir a \"{{name}}\"" },
+    indexLabel: { en: "Sections of this asset", es: "Secciones de este activo" },
+    questionsCount: { en: "{{count}} questions", es: "{{count}} preguntas" },
+    readOnlyStep: { en: "Read-only at this step", es: "Solo lectura en este paso" },
+    inactiveNotice: {
+      en: "{{condition}} Meanwhile it is shown without being able to answer.",
+      es: "{{condition}} Mientras tanto se muestra sin poder responder.",
+    },
+    dependency: {
+      prefix: { en: "It activates when {{condition}}.", es: "Se activa cuando {{condition}}." },
+      and: { en: " and ", es: " y " },
+      unknown: {
+        en: "It activates based on the answers of another section.",
+        es: "Se activa según las respuestas de otra sección.",
+      },
+      // Redactados como frase (««Monto» supera 200.000»), no como etiqueta de un select: por eso no
+      // se reusan los de sections:form.formFields.dependency.operators.
+      operators: {
+        eq: { en: "equals", es: "es igual a" },
+        neq: { en: "is different from", es: "es distinto de" },
+        gt: { en: "is greater than", es: "supera" },
+        gte: { en: "is at least", es: "es como mínimo" },
+        lt: { en: "is less than", es: "es menor que" },
+        lte: { en: "is at most", es: "es como máximo" },
+        in: { en: "is one of", es: "es uno de" },
+        not_in: { en: "is not one of", es: "no es uno de" },
+        contains: { en: "includes", es: "incluye" },
+        not_contains: { en: "does not include", es: "no incluye" },
+        is_empty: { en: "is empty", es: "está vacía" },
+        is_not_empty: { en: "is not empty", es: "no está vacía" },
+      },
     },
   },
   share: {
@@ -163,6 +241,7 @@ const translations = {
     openInNewTab: { en: "Open in new tab", es: "Abrir en pestaña nueva" },
   },
   fill: {
+    readOnlyTitle: { en: "Read only", es: "Solo lectura" },
     readOnlyNotice: {
       en: "You don't have permission to answer this form — you can only view it.",
       es: "No hay permiso para responder este formulario — solo puede verse.",

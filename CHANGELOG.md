@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.4.1] - 2026-09-23
+### Arreglos
+- limitar título de chip del launcher de workflow a 2 líneas
+
+## [1.4.0] - 2026-09-23
+### Nuevo
+- rediseñar pantalla de workflow con launcher en diálogo, panel de detalle modular y guía de polling
+- agregar chip de otros diagramas en nodos y reemplazar el overlay radial por el popup
+- abrir popup con los diagramas del activo al hacer doble clic en un nodo
+- refinar /diagrams con paleta colapsable, panel único de listado y jerarquía visual
+- rediseñar /diagrams con canvas prioritario, riel de paneles y estados con acción
+- agregar meta tags Open Graph y Twitter Card al index.html
+### Arreglos
+- Mostrar nombre en 2 lineas de chips y ajustar visualizacion
+- limitar título de chip de workflow a 2 líneas con elipsis
+- corregir columnas de la galería de media y agregar fallback de miniatura
+
 ## [1.3.0] - 2026-09-18
 ### Nuevo
 - rediseñar home con superficies unificadas y extender variant "detailed" de HuemulTable

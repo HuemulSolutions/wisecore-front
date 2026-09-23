@@ -117,27 +117,30 @@ export function useOnboardingChecklist({
   const steps: OnboardingStepState[] = [
     {
       id: 'defaultLlm' as OnboardingStepId,
-      done: !canCheckAiConfig || (!!aiConfigQuery.data?.default_llm.is_configured && !!aiConfigQuery.data?.default_llm.is_working),
+      done: !canCheckAiConfig || !!aiConfigQuery.error || (!!aiConfigQuery.data?.default_llm.is_configured && !!aiConfigQuery.data?.default_llm.is_working),
     },
     {
       id: 'embeddingProvider' as OnboardingStepId,
-      done: !canCheckAiConfig || (!!aiConfigQuery.data?.embedding.is_configured && !!aiConfigQuery.data?.embedding.is_working),
+      done: !canCheckAiConfig || !!aiConfigQuery.error || (!!aiConfigQuery.data?.embedding.is_configured && !!aiConfigQuery.data?.embedding.is_working),
     },
     {
       id: 'assetType' as OnboardingStepId,
       // "Más de 1" — el default preseedeado ya ocupa 1 lugar, así que 1 solo
       // resultado significa "todavía no hay nada propio". `has_next` cubre
       // el caso borde de que la página de 2 venga completa pero haya más.
-      done: !canCheckAssetType || (assetTypeQuery.data?.data.length ?? 0) > 1 || !!assetTypeQuery.data?.has_next,
+      // Fail-open también ante error de la query (mismo criterio que la
+      // falta de permiso, arriba): un 500 acá no debe empujar a Home al
+      // diseño de "primera vez" en una organización que ya tiene datos.
+      done: !canCheckAssetType || !!assetTypeQuery.error || (assetTypeQuery.data?.data.length ?? 0) > 1 || !!assetTypeQuery.data?.has_next,
     },
     {
       id: 'firstAsset' as OnboardingStepId,
-      done: !canCheckFirstAsset || (firstAssetQuery.data?.data.length ?? 0) > 0,
+      done: !canCheckFirstAsset || !!firstAssetQuery.error || (firstAssetQuery.data?.data.length ?? 0) > 0,
     },
     {
       id: 'inviteTeam' as OnboardingStepId,
       // yo + al menos 1 invitado.
-      done: !canCheckInviteTeam || (inviteTeamQuery.data?.data.length ?? 0) >= 2,
+      done: !canCheckInviteTeam || !!inviteTeamQuery.error || (inviteTeamQuery.data?.data.length ?? 0) >= 2,
     },
   ];
 

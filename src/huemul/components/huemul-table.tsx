@@ -488,7 +488,7 @@ function HuemulTableInner<T>(
     const gridTemplateColumns = [
       selectable ? "44px" : null,
       ...columns.map((c) => (resizable ? `${getWidth(c.key)}px` : c.width ?? "minmax(0,1fr)")),
-      hasActions ? "56px" : null,
+      hasActions ? `${ACTIONS_COL_WIDTH}px` : null,
     ]
       .filter(Boolean)
       .join(" ")
@@ -496,11 +496,18 @@ function HuemulTableInner<T>(
 
     // Menú de acciones por fila — subconjunto simple (sin sub-`items` ni modo `inline`)
     // de lo que ya soporta la variante "default", ver huemul-table.tsx más abajo.
-    const renderActionsCell = (item: T) => {
+    // Celda sticky: fondo SIEMPRE opaco (nunca alpha) para tapar las columnas
+    // que pasan por debajo al scrollear en horizontal — mismos hex que la fila
+    // (`:684`) para que el escalón de color sea invisible.
+    const renderActionsCell = (item: T, isActive: boolean) => {
+      const stickyClass = cn(
+        "sticky right-0 z-10 border-l border-[#e5eaf0]",
+        isActive ? "bg-[#f4f7fd]" : "bg-white group-hover:bg-[#f7f9fc]",
+      )
       const visibleActions = actions?.filter((a) => !a.show || a.show(item)) ?? []
-      if (visibleActions.length === 0) return <div className="py-3 px-3" />
+      if (visibleActions.length === 0) return <div className={cn("py-3 px-3", stickyClass)} />
       return (
-        <div className="flex items-center justify-end py-3 px-3" onClick={(e) => e.stopPropagation()}>
+        <div className={cn("flex items-center justify-end py-3 px-3", stickyClass)} onClick={(e) => e.stopPropagation()}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <HuemulButton
@@ -548,7 +555,11 @@ function HuemulTableInner<T>(
             propio cada uno, lo que desalineaba header y filas apenas las
             columnas (con `resizable`) desbordaban el ancho visible. */}
         <div className="flex-1 min-h-0 overflow-auto">
-        <div className="flex min-h-full flex-col">
+        {/* `min-w-fit`: sin esto el wrapper mide el ancho visible y los fondos
+            (header, hover, fila activa) se cortan cuando las columnas desbordan.
+            Resuelve a min-content — la suma de los mínimos de los tracks — solo
+            cuando falta espacio; con espacio de sobra no ensancha nada. */}
+        <div className="flex min-h-full min-w-fit flex-col">
         <div
           className="sticky top-0 z-20 grid shrink-0 border-b border-[#e5eaf0] bg-[#f7f9fb]"
           style={{ gridTemplateColumns }}
@@ -570,7 +581,7 @@ function HuemulTableInner<T>(
               <div
                 key={col.key}
                 className={cn(
-                  "relative py-2.5 px-3 text-[11px] font-semibold tracking-[0.06em] text-[#64748b] uppercase whitespace-nowrap",
+                  "relative min-w-0 truncate py-2.5 px-3 text-[11px] font-semibold tracking-[0.06em] text-[#64748b] uppercase",
                   !selectable && col === columns[0] && "pl-4.5",
                   col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"
                 )}
@@ -580,11 +591,11 @@ function HuemulTableInner<T>(
                     type="button"
                     onClick={() => handleSortClick(col.sortKey!)}
                     className={cn(
-                      "inline-flex items-center gap-1 hover:cursor-pointer hover:text-[#334155] transition-colors",
+                      "inline-flex min-w-0 max-w-full items-center gap-1 hover:cursor-pointer hover:text-[#334155] transition-colors",
                       (sort === `${col.sortKey}_asc` || sort === `${col.sortKey}_desc`) && "text-[#334155]"
                     )}
                   >
-                    <span>{col.label}</span>
+                    <span className="truncate">{col.label}</span>
                     <SortIcon sortKey={col.sortKey} />
                   </button>
                 ) : (
@@ -605,7 +616,7 @@ function HuemulTableInner<T>(
             )
           })}
           {hasActions && (
-            <div className="py-2.5 px-3 text-right text-[11px] font-semibold tracking-[0.06em] text-[#64748b] uppercase whitespace-nowrap">
+            <div className="sticky right-0 z-10 whitespace-nowrap border-l border-[#e5eaf0] bg-[#f7f9fb] py-2.5 px-3 text-right text-[11px] font-semibold tracking-[0.06em] text-[#64748b] uppercase">
               {t("actions")}
             </div>
           )}
@@ -649,7 +660,7 @@ function HuemulTableInner<T>(
                     </div>
                   ))}
                   {hasActions && (
-                    <div className="flex justify-end py-3 px-3">
+                    <div className="sticky right-0 z-10 flex justify-end border-l border-[#e5eaf0] bg-white py-3 px-3">
                       <Skeleton className="h-7 w-7 rounded" />
                     </div>
                   )}
@@ -675,7 +686,7 @@ function HuemulTableInner<T>(
                   <div
                     key={key}
                     className={cn(
-                      "grid items-center border-b border-[#f1f4f8]",
+                      "group grid items-center border-b border-[#f1f4f8]",
                       onRowClick && "cursor-pointer",
                       isActive ? "bg-[#f4f7fd] shadow-[inset_3px_0_0_#2563eb]" : "bg-white hover:bg-[#f7f9fc]"
                     )}
@@ -696,7 +707,7 @@ function HuemulTableInner<T>(
                       <div
                         key={col.key}
                         className={cn(
-                          "py-3 px-3 text-sm",
+                          "min-w-0 overflow-hidden py-3 px-3 text-sm",
                           !selectable && col === columns[0] && "pl-4.5",
                           col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"
                         )}
@@ -704,7 +715,7 @@ function HuemulTableInner<T>(
                         {col.render(item)}
                       </div>
                     ))}
-                    {hasActions && renderActionsCell(item)}
+                    {hasActions && renderActionsCell(item, isActive)}
                   </div>
                 )
               })}
@@ -779,7 +790,7 @@ function HuemulTableInner<T>(
   }
 
   return (
-    <div className={cn("rounded-lg border border-border bg-card overflow-hidden flex flex-col flex-1 min-h-0", className)}>
+    <div className={cn("rounded-lg border border-border bg-card overflow-hidden flex flex-col flex-1 min-h-0 shadow-sm", className)}>
       {/* Refetch indicator */}
       <div
         className={cn(
@@ -814,7 +825,7 @@ function HuemulTableInner<T>(
           )}
           {/* ── Header ── */}
           <TableHeader className="sticky top-0 z-20 bg-muted">
-            <TableRow className="border-b border-border hover:bg-transparent">
+            <TableRow className="border-b-2 border-border hover:bg-transparent">
               {hasExpand && <TableHead aria-hidden className="h-auto px-1 py-3 w-[1%]" />}
               {selectable && (
                 <TableHead className="h-auto px-4 py-3 w-[1%] whitespace-nowrap">
@@ -1102,7 +1113,7 @@ function HuemulTableInner<T>(
                     <TableRow
                       className={cn(
                         "group",
-                        rowExtraClass || "bg-background hover:bg-muted/30",
+                        rowExtraClass || "bg-background hover:bg-muted/50",
                         !isChild && folders && gapLineClass(drag.dropTarget, row.topIndex),
                         isDragCursor && "cursor-grab active:cursor-grabbing",
                         drag.dragKey === key && "opacity-35",

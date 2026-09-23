@@ -23,7 +23,6 @@ import type {
 import type { AssetTypeNodeData } from "@/components/document-type-relationships/asset-type-node"
 import type { CanvasElementNodeData } from "@/components/document-type-relationships/text-node"
 import type { RelationshipEdgeData } from "@/components/document-type-relationships/relationship-edge"
-import type { DiagramCardNodeData } from "@/components/diagrams/diagram-card-node"
 import { logger } from "@/lib/logger"
 
 // The canvas mixes asset nodes with free-standing text/container/role elements; both
@@ -492,100 +491,4 @@ export function buildCanvasSignature(
     .sort()
 
   return `${nodeParts.join(";")}\n${edgeParts.join(";")}`
-}
-
-// ─── Asset diagrams explorer (overlay dentro del canvas) ──────────────────────
-
-/** Id fijo del nodo central — nunca colisiona con un id de diagrama real (UUID). */
-export const ASSET_DIAGRAMS_EXPLORER_CENTER_ID = "center"
-
-const EXPLORER_BASE_RADIUS = 280
-const EXPLORER_RADIUS_STEP = 24
-const EXPLORER_RADIUS_STEP_AFTER = 8
-
-/** De qué lado del nodo central sale el edge — el más cercano al ángulo del nodo
- * satélite, para que las 4 líneas radien limpio en vez de cruzarse en un solo punto. */
-function nearestHandleSide(angleRad: number): "top" | "right" | "bottom" | "left" {
-  // Ángulo 0 = arriba (ver cálculo de posición abajo), sentido horario.
-  const deg = ((angleRad * 180) / Math.PI + 360) % 360
-  if (deg < 45 || deg >= 315) return "top"
-  if (deg < 135) return "right"
-  if (deg < 225) return "bottom"
-  return "left"
-}
-
-export interface AssetDiagramsExplorerCenter {
-  assetId: string
-  executionId: string
-  name: string
-  color: string
-  executionName?: string
-}
-
-/**
- * Layout radial puro para `AssetDiagramsExplorer`: un nodo `assetType` (readOnly) al
- * centro y un nodo `diagramCard` por cada diagrama asignado a esa versión, distribuidos
- * en círculo. Separado de `buildInitialCanvasGraph` porque este grafo nunca se persiste
- * — es una vista de solo lectura sobre datos que ya viven en otros diagramas.
- */
-export function buildAssetDiagramsExplorerGraph(
-  center: AssetDiagramsExplorerCenter,
-  diagrams: Diagram[],
-  currentDiagramId?: string,
-): { nodes: Node[]; edges: Edge[] } {
-  const centerNode: Node<AssetTypeNodeData> = {
-    id: ASSET_DIAGRAMS_EXPLORER_CENTER_ID,
-    type: "assetType",
-    position: { x: 0, y: 0 },
-    draggable: false,
-    selectable: false,
-    data: {
-      id: ASSET_DIAGRAMS_EXPLORER_CENTER_ID,
-      assetId: center.assetId,
-      executionId: center.executionId,
-      executionName: center.executionName,
-      name: center.name,
-      color: center.color,
-      readOnly: true,
-    },
-  }
-
-  const n = diagrams.length
-  // Continuo en n=8: los primeros 8 abren el radio más rápido (STEP), de ahí en más
-  // se sigue ensanchando más despacio (STEP_AFTER) en vez de amontonarse.
-  const radius = EXPLORER_BASE_RADIUS + Math.min(n, 8) * EXPLORER_RADIUS_STEP + Math.max(0, n - 8) * EXPLORER_RADIUS_STEP_AFTER
-
-  const satelliteNodes: Node<DiagramCardNodeData>[] = diagrams.map((d, i) => {
-    // Empieza arriba (ángulo 0 = -90° matemático) y avanza en sentido horario.
-    const angle = (2 * Math.PI * i) / n
-    const x = Math.round(radius * Math.sin(angle))
-    const y = Math.round(-radius * Math.cos(angle))
-    return {
-      id: d.id,
-      type: "diagramCard",
-      position: { x, y },
-      draggable: false,
-      data: {
-        id: d.id,
-        name: d.name,
-        createdAt: d.created_at,
-        detailsCount: d.details.length,
-        isCurrent: d.id === currentDiagramId,
-      },
-    }
-  })
-
-  const edges: Edge[] = diagrams.map((d, i) => {
-    const angle = (2 * Math.PI * i) / n
-    return {
-      id: `${ASSET_DIAGRAMS_EXPLORER_CENTER_ID}-${d.id}`,
-      source: ASSET_DIAGRAMS_EXPLORER_CENTER_ID,
-      sourceHandle: nearestHandleSide(angle),
-      target: d.id,
-      selectable: false,
-      style: { stroke: "var(--diagram-edge)" },
-    }
-  })
-
-  return { nodes: [centerNode, ...satelliteNodes], edges }
 }

@@ -3,20 +3,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useSearchParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import { Loader2, RotateCcw, AlertCircle } from "lucide-react"
+import { Loader2, RotateCcw, AlertCircle, Link2Off, Lock, type LucideIcon } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { useWorkflowTemplates, useCreateTemplateExpress } from "@/hooks/useWorkflowTemplates"
-import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
-import { HuemulButton } from "@/huemul/components/huemul-button"
-import { WorkflowDetailPanel, WorkflowSavedLaterCard } from "@/components/workflow"
+import { WorkflowDetailPanel, WorkflowSavedLaterCard, WorkflowStatusCard } from "@/components/workflow"
 import { cn } from "@/lib/utils"
 import { WORKFLOW_SHARE_EXECUTION_PATH, WORKFLOW_SHARE_TEMPLATE_PATH } from "@/lib/workflow-share-url"
 import type { WorkflowTemplateItem } from "@/types/templates"
 import type { WorkflowRowRef } from "@/types/workflow"
 
 type ShareMode = "template" | "execution"
+
+/**
+ * Bloqueo de página (antes de montar el panel): mismo contenedor de estado que el resto de los
+ * mensajes del wizard, sin header del documento. Al ancho del cuerpo del panel en fullscreen
+ * (max-w-3xl).
+ */
+function BlockedScreen({ icon, title, description }: { icon: LucideIcon; title: string; description: string }) {
+  return (
+    <div className="mx-auto h-full w-full max-w-3xl">
+      <WorkflowStatusCard icon={icon} tone="gray" title={title} description={description} className="h-full" />
+    </div>
+  )
+}
 
 /**
  * Vista compartida a pantalla completa (ver ia context/fullscreen-share-route-guide.md).
@@ -217,15 +228,11 @@ export default function WorkflowFillPage() {
   }
 
   if (!canAccessPage) {
-    return <HuemulAccessDenied variant="inline" />
+    return <BlockedScreen icon={Lock} title={t("common:accessDenied")} description={t("common:noPermission")} />
   }
 
-  if (mode === "execution" && !row) {
-    return <HuemulAccessDenied variant="inline" description={t("fill.notFound")} />
-  }
-
-  if (mode === "template" && !params.documentTypeId) {
-    return <HuemulAccessDenied variant="inline" description={t("fill.notFound")} />
+  if ((mode === "execution" && !row) || (mode === "template" && !params.documentTypeId)) {
+    return <BlockedScreen icon={Link2Off} title={t("common:accessDenied")} description={t("fill.notFound")} />
   }
 
   // Crear el express exige asset:c (ver useCreateTemplateExpress). Sin este
@@ -234,7 +241,9 @@ export default function WorkflowFillPage() {
   // sin salida (mismo criterio que canCreate en pages/workflow.tsx, que ahí
   // oculta directamente las tarjetas de "Iniciar").
   if (mode === "template" && !canCreateExpress) {
-    return <HuemulAccessDenied variant="inline" description={t("fill.noCreatePermission")} />
+    return (
+      <BlockedScreen icon={Lock} title={t("common:accessDenied")} description={t("fill.noCreatePermission")} />
+    )
   }
 
   if (mode === "template" && stillResolvingTemplate) {
@@ -252,21 +261,14 @@ export default function WorkflowFillPage() {
   // el motivo; esto evita que la pantalla se quede en el spinner sin salida.
   if (mode === "template" && autoCreateError && template && !template.require_name_on_express) {
     return (
-      <div className="flex h-full items-center justify-center p-6">
-        <div className="flex max-w-sm flex-col items-center gap-3 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-            <AlertCircle className="h-6 w-6 text-red-600" />
-          </div>
-          <p className="text-sm font-semibold text-foreground">{t("fill.createError")}</p>
-          <HuemulButton
-            variant="outline"
-            size="sm"
-            icon={RotateCcw}
-            label={t("common:retry")}
-            onClick={handleRetryAutoCreate}
-            className="mt-2"
-          />
-        </div>
+      <div className="mx-auto h-full w-full max-w-3xl">
+        <WorkflowStatusCard
+          icon={AlertCircle}
+          tone="red"
+          title={t("fill.createError")}
+          primaryAction={{ label: t("common:retry"), icon: RotateCcw, onClick: handleRetryAutoCreate, style: "retry" }}
+          className="h-full"
+        />
       </div>
     )
   }
@@ -282,6 +284,7 @@ export default function WorkflowFillPage() {
           variant="fullscreen"
           showClose={false}
           showAssetEdit={false}
+          showOpenAsset={false}
           row={row}
           template={mode === "template" ? (template ?? undefined) : undefined}
           isCreating={createExpress.isPending}

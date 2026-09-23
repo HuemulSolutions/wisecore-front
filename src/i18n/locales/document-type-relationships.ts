@@ -47,9 +47,13 @@ const translations = {
       es: "Se cargaron {{count}} relación(es)",
     },
     exploreDiagrams: { en: "View diagrams for this version", es: "Ver diagramas de esta versión" },
+    otherDiagramsTooltip: {
+      en: "This asset is in {{count}} other diagram(s)",
+      es: "Este activo está en {{count}} diagrama(s) más",
+    },
     exploreDiagramsDescription: {
-      en: "Opens an overlay with every diagram assigned to this asset's version",
-      es: "Abre un panel con todos los diagramas asignados a la versión de este activo",
+      en: "Shows the diagrams this asset appears in",
+      es: "Muestra los diagramas en los que aparece este activo",
     },
   },
   sidebar: {
@@ -104,6 +108,8 @@ const translations = {
     readOnly: { en: "Read only", es: "Solo lectura" },
     palette: {
       title: { en: "new", es: "nuevo" },
+      select: { en: "Select", es: "Seleccionar" },
+      move: { en: "Move", es: "Mover" },
     },
     actions: {
       untitledDiagram: { en: "Untitled diagram", es: "Diagrama sin título" },

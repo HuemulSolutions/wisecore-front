@@ -21,6 +21,14 @@ export function buildTemplateShareUrl(
 }
 
 /**
+ * Path (sin origin ni orgId) de la vista a pantalla completa de una ejecución. Sin
+ * `executionId` la ruta resuelve la ejecución por defecto. Para `useOrgPath` + `window.open`.
+ */
+export function buildExecutionSharePath(documentId: string, executionId?: string | null): string {
+  return `/${WORKFLOW_SHARE_EXECUTION_PATH}/${documentId}${executionId ? `/${executionId}` : ""}`
+}
+
+/**
  * Link a compartir para responder una ejecución ya existente (fila de la
  * tabla). Todos los que lo abren responden el MISMO documento.
  */
@@ -29,5 +37,5 @@ export function buildExecutionShareUrl(
   documentId: string,
   executionId: string,
 ): string {
-  return `${window.location.origin}/${organizationId}/${WORKFLOW_SHARE_EXECUTION_PATH}/${documentId}/${executionId}`
+  return `${window.location.origin}/${organizationId}${buildExecutionSharePath(documentId, executionId)}`
 }

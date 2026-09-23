@@ -1,6 +1,6 @@
 "use client"
 
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import {
   ReactFlow,
@@ -42,6 +42,12 @@ import { AlignmentGuides } from "./alignment-guides"
 import { CanvasElementPalette } from "./canvas-element-palette"
 import { CanvasActionsBar, CanvasReadOnlyBadge } from "./canvas-actions-bar"
 import { CanvasEmptyState } from "./canvas-empty-state"
+import { DiagramEditorBar } from "./diagram-editor-bar"
+import { CanvasEmptyPrompt } from "./diagram-canvas-states"
+import { CanvasViewControls } from "./canvas-view-controls"
+import { useDiagramPaletteCollapsed } from "@/hooks/useDiagramPaletteCollapsed"
+import { DiagramsDeleteDialog } from "@/components/diagrams/diagrams-delete-dialog"
+import { captureDiagramSnapshot } from "@/lib/diagram-snapshot"
 import { ElementPanel } from "./element-panel"
 import { HuemulRolePickerDialog } from "@/huemul/components/huemul-role-picker"
 import { MemoizedRelationshipEdge, type RelationshipEdgeData } from "./relationship-edge"
@@ -62,13 +68,14 @@ import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { CreateAssetSheet } from "@/components/assets/dialogs"
 import { getDocumentById } from "@/services/assets"
 import { getExecutionsByDocumentId } from "@/services/executions"
-import { AssetDiagramsExplorer } from "@/components/diagrams/asset-diagrams-explorer"
+import { NodeDiagramsPopover } from "@/components/diagrams/node-diagrams-popover"
 import type {
   DocumentTypeRelationship,
   InitialCanvasNode,
   InitialCanvasRelationship,
   InitialCanvasElement,
   CanvasElementKind,
+  CanvasTool,
   CanvasElementRole,
   FlowCanvasNodeType,
   PendingConnection,
@@ -77,7 +84,7 @@ import type {
   EditingDiagram,
 } from "@/types/document-type-relationships"
 import type { ExecutionRelationship, ExecutionRelationshipSubitem } from "@/types/execution-relationships"
-import type { Diagram, DiagramRelationshipEndpoint } from "@/types/diagrams"
+import type { Diagram, DiagramFlowNodeType, DiagramRelationshipEndpoint } from "@/types/diagrams"
 import {
   detailEndpointOf,
   DEFAULT_CANVAS_ELEMENT_COLOR,
@@ -87,7 +94,7 @@ import {
   isFlowCanvasType,
   type CanvasNode,
 } from "@/lib/diagram-utils"
-import { useSaveDiagramGraph } from "@/hooks/useDiagrams"
+import { useSaveDiagramGraph, useDiagramIdsByAsset } from "@/hooks/useDiagrams"
 import { useDiagramDirtyState } from "@/hooks/useDiagramDirtyState"
 import { useOrgNavigate, useOrgPath } from "@/hooks/useOrgRouter"
 import { handleApiError } from "@/lib/error-utils"
@@ -105,14 +112,6 @@ const NODE_TYPES = {
 const EDGE_TYPES = {
   relationship: MemoizedRelationshipEdge,
 }
-
-// Import diferido: `DiagramViewSheet` → `DiagramCanvas` → `RelationshipsCanvas` (este
-// mismo archivo) — un import estático cerraría un ciclo. `lazy` lo saca del grafo de
-// módulos síncrono; solo se descarga cuando el overlay de exploración realmente abre
-// un diagrama.
-const LazyDiagramViewSheet = lazy(() =>
-  import("@/components/diagrams/diagram-view-sheet").then((m) => ({ default: m.DiagramViewSheet })),
-)
 
 const EDGE_MARKER = {
   type: MarkerType.ArrowClosed,
@@ -359,8 +358,16 @@ function RelationshipsCanvasFlow({
   onDiagramSaved,
   onCanvasCleared,
   readOnly = false,
+  chrome = 'default',
+  onOpenAssetTree,
+  onOpenDiagramsList,
+  onRefresh,
+  isRefreshing,
+  onDiagramDeleted,
 }: RelationshipsCanvasProps) {
   const { t } = useTranslation("document-type-relationships")
+  const { t: tDiagrams } = useTranslation("diagrams")
+  const isEditorChrome = chrome === 'editor'
   const navigate = useOrgNavigate()
   const buildPath = useOrgPath()
   // Abre el asset detrás de un nodo "assetType" en su vista de pantalla completa (ver
@@ -401,6 +408,7 @@ function RelationshipsCanvasFlow({
 
   const canUpdateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:u'))
   const canCreateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:c'))
+  const canDeleteDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:d'))
   // Ver el explorador de "diagramas de esta versión" es una LECTURA, sin exigir
   // permiso de escritura.
   const canListDiagrams = isOrgAdmin || hasAnyPermission(['diagram:l', 'diagram:r'])
@@ -454,11 +462,25 @@ function RelationshipsCanvasFlow({
   // `layeredEdges` porque el resaltado de relaciones (abajo) depende de la selección.
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
-  // Overlay "diagramas de esta versión" — el id del nodo assetType explorado, o null
-  // si está cerrado. El canvas de fondo (nodes/edges) sigue montado e intacto debajo.
-  const [exploringNodeId, setExploringNodeId] = useState<string | null>(null)
-  // Diagrama abierto desde un nodo del overlay, mostrado en el visor read-only.
-  const [viewingDiagramId, setViewingDiagramId] = useState<string | null>(null)
+  // Popup "diagramas del activo" abierto con doble clic — id del nodo + punto de pantalla
+  // del clic, o null si está cerrado.
+  const [diagramsPopover, setDiagramsPopover] = useState<{ nodeId: string; x: number; y: number } | null>(null)
+  // Handler que el badge de un nodo usa para abrir el popup en el punto del clic.
+  const handleShowDiagrams = useCallback((nodeId: string, point: { x: number; y: number }) => {
+    setDiagramsPopover({ nodeId, x: point.x, y: point.y })
+  }, [])
+  // Menú contextual / panel lateral: abre el mismo popup anclado al costado derecho del nodo
+  // (ninguno de los dos trae coordenadas del clic, así que se mide su elemento en el DOM).
+  const handleExploreDiagrams = useCallback((nodeId: string) => {
+    const el = document.querySelector(`.react-flow__node[data-id="${CSS.escape(nodeId)}"]`)
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    setDiagramsPopover({ nodeId, x: rect.right, y: rect.top })
+  }, [])
+  // Diagramas por activo, para el badge "otros diagramas" de cada nodo.
+  const diagramIdsByAsset = useDiagramIdsByAsset(organizationId, {
+    enabled: mode === 'execution' && canListDiagrams,
+  })
 
   // Deriva qué nodos/edges "pertenecen" a la selección actual — usado por
   // `layeredNodes`/`layeredEdges` para atenuar el resto del canvas. `null` cuando no
@@ -565,6 +587,27 @@ function RelationshipsCanvasFlow({
   // guardados y no hace falta reconfirmarlos.
   const [saveSheetMode, setSaveSheetMode] = useState<'new' | 'metadata' | null>(null)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [showDeleteDiagram, setShowDeleteDiagram] = useState(false)
+  // Herramienta activa (solo chrome="editor"): move (por defecto) = pan con clic izquierdo;
+  // select = caja de selección al arrastrar y pan con botón medio/derecho. Shift + arrastrar
+  // hace caja de selección en ambos modos.
+  const [tool, setTool] = useState<CanvasTool>('move')
+  // Panel de elementos colapsable. La preferencia se persiste; el auto-colapso por alto
+  // (canvas < 420px) NUNCA la escribe, y el usuario puede expandirlo a mano (`autoOverride`).
+  const [collapsedPref, setCollapsedPref] = useDiagramPaletteCollapsed()
+  const [autoOverride, setAutoOverride] = useState(false)
+  const flowHeight = useStore((st) => st.height)
+  const autoCollapse = flowHeight > 0 && flowHeight < 420
+  useEffect(() => {
+    if (!autoCollapse) setAutoOverride(false)
+  }, [autoCollapse])
+  const paletteCollapsed = autoCollapse ? !autoOverride : collapsedPref
+  const togglePaletteCollapsed = useCallback(() => {
+    if (autoCollapse) setAutoOverride((v) => !v)
+    else setCollapsedPref(!collapsedPref)
+  }, [autoCollapse, collapsedPref, setCollapsedPref])
+  // Lienzo bloqueado (solo chrome="editor"): sin mover/conectar/seleccionar; pan y zoom siguen.
+  const [locked, setLocked] = useState(false)
   const [editingDiagram, setEditingDiagram] = useState(editingDiagramProp)
   const { saveDiagramGraph, isSaving: isSavingDiagram } = useSaveDiagramGraph(organizationId)
 
@@ -630,15 +673,15 @@ function RelationshipsCanvasFlow({
     setSelectedEdgeId(null)
   }, [])
 
-  // Doble clic en un nodo assetType con versión elegida: abre el overlay "diagramas
-  // de esta versión" (ver AssetDiagramsExplorer más abajo). Es una lectura — sigue
-  // funcionando en `readOnly`. Sin efecto sobre role/text/container/gateway/etc., sobre
-  // un nodo sin versión, o en modo document-type (no hay Diagram detrás ahí).
-  const onNodeDoubleClick = useCallback((_: React.MouseEvent, node: Node) => {
+  // Doble clic en un nodo assetType: abre el popup con todos los diagramas donde aparece
+  // el activo (ver NodeDiagramsPopover más abajo), anclado al cursor. Es una lectura —
+  // sigue funcionando en `readOnly`. Sin efecto sobre role/text/container/gateway/etc.,
+  // sobre un nodo sin activo, o en modo document-type (no hay Diagram detrás ahí).
+  const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
     if (mode !== 'execution' || !canListDiagrams || node.type !== 'assetType') return
     const data = node.data as AssetTypeNodeData
-    if (!data.assetId || !data.executionId) return
-    setExploringNodeId(node.id)
+    if (!data.assetId) return
+    setDiagramsPopover({ nodeId: node.id, x: event.clientX, y: event.clientY })
   }, [mode, canListDiagrams])
 
   // Clic en el fondo del canvas: apaga la selección y, con ella, el dimming de
@@ -664,6 +707,33 @@ function RelationshipsCanvasFlow({
   const organizationIdRef = useRef(organizationId)
   useEffect(() => { docTypeMapRef.current = docTypeMap }, [docTypeMap])
   useEffect(() => { organizationIdRef.current = organizationId }, [organizationId])
+
+  // ─── Badge "otros diagramas" de cada nodo assetType ────────────────────────
+  // Cuenta los diagramas del activo EXCLUYENDO el que está abierto. `data` no entra en
+  // `buildCanvasSignature` para un nodo assetType, así que esto no ensucia el canvas.
+  // La clave por activo evita re-correr el effect en cada frame de un arrastre.
+  const currentDiagramId = editingDiagram?.id
+  const assetNodesKey = nodes
+    .filter((n) => n.type === 'assetType')
+    .map((n) => `${n.id}:${(n.data as AssetTypeNodeData).assetId ?? ''}`)
+    .join('|')
+  useEffect(() => {
+    if (mode !== 'execution') return
+    setNodes((nds) => {
+      let changed = false
+      const next = nds.map((n) => {
+        if (n.type !== 'assetType') return n
+        const data = n.data as AssetTypeNodeData
+        const ids = data.assetId ? diagramIdsByAsset.get(data.assetId) : undefined
+        const count = ids ? ids.size - (currentDiagramId && ids.has(currentDiagramId) ? 1 : 0) : 0
+        if ((data.otherDiagramsCount ?? 0) === count) return n
+        changed = true
+        return { ...n, data: { ...data, otherDiagramsCount: count } }
+      })
+      return changed ? next : nds
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, diagramIdsByAsset, currentDiagramId, assetNodesKey])
 
   // ─── Sync canvas node name/color when documentTypes data changes ───────────
   useEffect(() => {
@@ -1016,7 +1086,7 @@ function RelationshipsCanvasFlow({
             onLoadRelationships: (id: string) => handleLoadExecRelRef.current?.(id),
             onLoadRelationshipsCanvasOnly: (id: string) => handleLoadExecRelCanvasOnlyRef.current?.(id),
             onRemove: handleRemoveNode,
-            ...(canListDiagrams ? { onExploreDiagrams: setExploringNodeId } : {}),
+            ...(canListDiagrams ? { onExploreDiagrams: handleExploreDiagrams, onShowDiagrams: handleShowDiagrams } : {}),
           },
         },
       ])
@@ -1024,7 +1094,7 @@ function RelationshipsCanvasFlow({
       setSelectedEdgeId(null)
       return canvasNodeId
     },
-    [setNodes, handleRemoveNode, canListDiagrams],
+    [setNodes, handleRemoveNode, canListDiagrams, handleShowDiagrams, handleExploreDiagrams],
   )
 
   // ─── Free-standing text/container elements (not tied to an asset) ─────────
@@ -1119,10 +1189,11 @@ function RelationshipsCanvasFlow({
           onRemove: handleRemoveNode,
         },
       }
-      setNodes((nds) => [...nds, node])
+      const created = isEditorChrome ? { ...node, selected: true } : node
+      setNodes((nds) => [...(isEditorChrome ? nds.map((n) => (n.selected ? { ...n, selected: false } : n)) : nds), created])
       return id
     },
-    [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRequestRolePick, handleClearElementRole, handleRemoveNode, defaultContentFor],
+    [isEditorChrome, setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRequestRolePick, handleClearElementRole, handleRemoveNode, defaultContentFor],
   )
 
   // In-canvas toolbar entry point: adds the element at the current viewport's
@@ -1153,24 +1224,30 @@ function RelationshipsCanvasFlow({
     (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault()
 
-      const elementRaw = e.dataTransfer.getData("application/canvas-element")
+      // `application/diagram-element` (paleta del editor, `node_type` en snake_case) y
+      // `application/canvas-element` (paleta por defecto y sidebar de tipos): mismo destino.
+      const diagramElementRaw = e.dataTransfer.getData("application/diagram-element")
+      const elementRaw = diagramElementRaw || e.dataTransfer.getData("application/canvas-element")
       if (elementRaw) {
-        let element: { kind: CanvasElementKind | FlowCanvasNodeType }
+        let payload: { kind: string }
         try {
-          element = JSON.parse(elementRaw)
+          payload = JSON.parse(elementRaw)
         } catch {
           return
         }
+        const kind = (diagramElementRaw
+          ? CANVAS_TYPE_BY_FLOW_NODE_TYPE[payload.kind as DiagramFlowNodeType] ?? payload.kind
+          : payload.kind) as CanvasElementKind | FlowCanvasNodeType
         const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
         // A "role" element has no content until a role is picked — open the
         // dialog instead of creating the node directly (mirrors addElementAtCenter).
         // Ignores the actual drop point: role nodes always land in the dedicated
         // column, regardless of where they were dropped on the canvas.
-        if (element.kind === "role") {
+        if (kind === "role") {
           setPendingRolePick({ position: computeRoleColumnPosition(getNodes()) })
           return
         }
-        createElementNode(element.kind, position)
+        createElementNode(kind, position)
         return
       }
 
@@ -2146,8 +2223,10 @@ function RelationshipsCanvasFlow({
             onLoadRelationships: (id: string) => handleLoadExecRelRef.current?.(id),
             onLoadRelationshipsCanvasOnly: (id: string) => handleLoadExecRelCanvasOnlyRef.current?.(id),
             onRemove: handleRemoveNode,
-            ...(canListDiagrams ? { onExploreDiagrams: setExploringNodeId } : {}),
+            ...(canListDiagrams ? { onExploreDiagrams: handleExploreDiagrams } : {}),
           }),
+          // El badge es lectura: también vive en `readOnly` (visor).
+          ...(canListDiagrams ? { onShowDiagrams: handleShowDiagrams } : {}),
         },
       }
       return { canvasNodeId, seed: n, node }
@@ -2155,7 +2234,7 @@ function RelationshipsCanvasFlow({
 
     setNodes((nds) => [...nds, ...seeded.map((s) => s.node)])
     pendingEdgeSeedRef.current = { seeded, relationships }
-  }, [setNodes, handleRemoveNode, handleRequestRolePick, handleUpdateElementContent, readOnly, canListDiagrams])
+  }, [setNodes, handleRemoveNode, handleRequestRolePick, handleUpdateElementContent, readOnly, canListDiagrams, handleShowDiagrams, handleExploreDiagrams])
 
   // Flush any pending edge seed once react-flow reports the current nodes are
   // initialized (measured). Depends on `nodes` too (not just the boolean) so a
@@ -2256,6 +2335,109 @@ function RelationshipsCanvasFlow({
     }
   }, [editingDiagram, saveDiagramGraph, nodes, edges, containerRef, fitView, handleDiagramSaved, markSaved, t, navigate])
 
+  // ─── Acciones de la barra del editor (chrome="editor") ──────────────────────
+
+  // Renombrar inline reusa el camino de "Editar datos" (PUT con skipSnapshot): reemplaza
+  // el grafo completo, así que también persiste lo pendiente — igual que el sheet de metadatos.
+  const handleRenameDiagram = useCallback(async (name: string) => {
+    if (!editingDiagram) return
+    if (!nodes.some((n) => detailEndpointOf(n as CanvasNode) !== null)) {
+      toast.warning(t('canvas.saveDetailsRequired'))
+      return
+    }
+    try {
+      const savedNodes = nodes as Node<AssetTypeNodeData | CanvasElementNodeData>[]
+      const savedEdges = edges as Edge<RelationshipEdgeData>[]
+      const saved = await saveDiagramGraph({
+        diagramId: editingDiagram.id,
+        name,
+        description: editingDiagram.description,
+        executionId: editingDiagram.executionId,
+        snapshotMediaId: editingDiagram.snapshotMediaId,
+        nodes: savedNodes,
+        edges: savedEdges,
+        containerRef,
+        fitView,
+        skipSnapshot: true,
+      })
+      handleDiagramSaved(saved)
+      markSaved(savedNodes as CanvasNode[], savedEdges)
+    } catch (err) {
+      handleApiError(err)
+    }
+  }, [editingDiagram, saveDiagramGraph, nodes, edges, containerRef, fitView, handleDiagramSaved, markSaved, t])
+
+  // Duplicar = POST del grafo actual (sin diagramId) con snapshot propio. No se llama
+  // `handleDiagramSaved`: este canvas sigue editando el original; la página navega a la copia.
+  const handleDuplicateDiagram = useCallback(async () => {
+    if (!editingDiagram) return
+    if (!nodes.some((n) => detailEndpointOf(n as CanvasNode) !== null)) {
+      toast.warning(t('canvas.saveDetailsRequired'))
+      return
+    }
+    try {
+      const saved = await saveDiagramGraph({
+        name: tDiagrams('bar.copyOf', { name: editingDiagram.name }),
+        description: editingDiagram.description,
+        executionId: editingDiagram.executionId,
+        nodes: nodes as Node<AssetTypeNodeData | CanvasElementNodeData>[],
+        edges: edges as Edge<RelationshipEdgeData>[],
+        containerRef,
+        fitView,
+      })
+      toast.success(tDiagrams('bar.duplicated'))
+      onDiagramSaved?.(saved)
+    } catch (err) {
+      handleApiError(err)
+    }
+  }, [editingDiagram, saveDiagramGraph, nodes, edges, containerRef, fitView, onDiagramSaved, t, tDiagrams])
+
+  const handleExportImage = useCallback(async () => {
+    try {
+      const file = await captureDiagramSnapshot(containerRef, nodes, fitView)
+      const url = URL.createObjectURL(file)
+      const a = document.createElement('a')
+      const baseName = (editingDiagram?.name ?? 'diagram').replace(/[\\/:*?"<>|]+/g, '-').trim() || 'diagram'
+      a.href = url
+      a.download = `${baseName}.png`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      toast.error(tDiagrams('bar.exportError'))
+    }
+  }, [containerRef, nodes, fitView, editingDiagram, tDiagrams])
+
+  // Atajos de teclado de la paleta. Se ignoran con foco en un campo de texto, en un
+  // nodo de texto en edición o dentro de un diálogo/menú (el canvas tiene ediciones inline).
+  useEffect(() => {
+    if (!isEditorChrome || readOnly) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return
+      const el = document.activeElement as HTMLElement | null
+      if (el) {
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable) return
+        if (el.closest('[role="dialog"],[role="alertdialog"],[role="menu"]')) return
+      }
+      switch (e.key.toLowerCase()) {
+        case 'v': setTool('select'); break
+        case 'h': setTool('move'); break
+        case '[': togglePaletteCollapsed(); break
+        case 'c': addElementAtCenter('container'); break
+        case 't': addElementAtCenter('text'); break
+        case 'r': if (canAddRoleNode) addElementAtCenter('role'); break
+        case '1': if (canAddFlowNode) addElementAtCenter('startEvent'); break
+        case '2': if (canAddFlowNode) addElementAtCenter('gateway'); break
+        case '3': if (canAddFlowNode) addElementAtCenter('endEvent'); break
+        default: return
+      }
+      e.preventDefault()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [isEditorChrome, readOnly, addElementAtCenter, canAddRoleNode, canAddFlowNode, togglePaletteCollapsed])
+
   const handleClearCanvas = useCallback(() => {
     requestBaselineReset()
     setNodes([])
@@ -2305,13 +2487,16 @@ function RelationshipsCanvasFlow({
           edgeTypes={EDGE_TYPES}
           connectionMode={ConnectionMode.Loose}
           elevateNodesOnSelect={false}
-          nodesDraggable={!readOnly}
-          nodesConnectable={!readOnly}
+          nodesDraggable={!readOnly && !locked}
+          nodesConnectable={!readOnly && !locked}
+          elementsSelectable={!locked}
           // Selección múltiple por caja: Shift + arrastrar sobre el pane vacío (comporta-
           // miento nativo de React Flow, `selectionKeyCode` default 'Shift') — el click
           // izquierdo sin modificador sigue siendo pan. `Partial` selecciona un nodo si la
           // caja lo toca, no exige cubrirlo entero.
           selectionMode={SelectionMode.Partial}
+          selectionOnDrag={isEditorChrome && !readOnly && tool === 'select'}
+          panOnDrag={isEditorChrome && !readOnly && tool === 'select' ? [1, 2] : true}
           // Reanclar cambia solo el diagrama (no la execution_relationship/relación de
           // negocio detrás del edge), así que el permiso correcto es el de escritura
           // del diagrama — mismo criterio que la rama de rol de `deleteKeyCode` abajo.
@@ -2335,10 +2520,18 @@ function RelationshipsCanvasFlow({
               ? "Delete"
               : null
           }
-          className="flex-1 h-full bg-muted/10"
+          className={isEditorChrome ? "flex-1 h-full bg-surface-sunken" : "flex-1 h-full bg-muted/10"}
         >
-          <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
-          <Controls />
+          {isEditorChrome ? (
+            <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#d5dce5" />
+          ) : (
+            <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+          )}
+          {isEditorChrome ? (
+            <CanvasViewControls locked={locked} onToggleLock={() => setLocked((v) => !v)} />
+          ) : (
+            <Controls />
+          )}
           {alignmentGuides && (
             <AlignmentGuides vertical={alignmentGuides.vertical} horizontal={alignmentGuides.horizontal} />
           )}
@@ -2352,12 +2545,22 @@ function RelationshipsCanvasFlow({
 
           {/* Always available — not gated on the drag palette, which isn't mounted on every screen */}
           {!readOnly && (
-            <CanvasElementPalette canAddRole={canAddRoleNode} canAddFlow={canAddFlowNode} onAdd={addElementAtCenter} compact={isNarrow} />
+            <CanvasElementPalette
+              canAddRole={canAddRoleNode}
+              canAddFlow={canAddFlowNode}
+              onAdd={addElementAtCenter}
+              compact={isNarrow}
+              editor={isEditorChrome}
+              activeTool={tool}
+              onChangeTool={setTool}
+              collapsed={paletteCollapsed}
+              onToggleCollapsed={togglePaletteCollapsed}
+            />
           )}
 
           {readOnly && <CanvasReadOnlyBadge />}
 
-          {showActionsBar && (
+          {showActionsBar && !isEditorChrome && (
             <CanvasActionsBar
               diagramName={mode === 'execution' ? editingDiagram?.name : undefined}
               isDirty={isDirty}
@@ -2371,7 +2574,37 @@ function RelationshipsCanvasFlow({
             />
           )}
 
-          {nodes.length === 0 && <CanvasEmptyState mode={mode} />}
+          {isEditorChrome && !readOnly && (nodes.length > 0 || !!editingDiagram) && (
+            <DiagramEditorBar
+              diagramName={editingDiagram?.name}
+              isDirty={isDirty}
+              isSaving={isSavingDiagram}
+              // Diagrama nuevo: "Guardar" abre el sheet de creación (sin pasar por el menú ⋯).
+              onSave={
+                canSaveChanges
+                  ? handleSaveChanges
+                  : !editingDiagram && canSaveAsNew
+                    ? () => setSaveSheetMode('new')
+                    : undefined
+              }
+              onRename={canEditMetadata ? handleRenameDiagram : undefined}
+              // Solo para un diagrama ya guardado: en uno nuevo sería repetir "Guardar".
+              onSaveAsNew={editingDiagram && canSaveAsNew ? () => setSaveSheetMode('new') : undefined}
+              onEditMetadata={canEditMetadata ? () => setSaveSheetMode('metadata') : undefined}
+              onDuplicate={canSaveAsNew && editingDiagram ? handleDuplicateDiagram : undefined}
+              onExportImage={nodes.length > 0 ? handleExportImage : undefined}
+              onRefresh={onRefresh}
+              isRefreshing={isRefreshing}
+              onClear={() => setShowClearConfirm(true)}
+              onDelete={canDeleteDiagram && editingDiagram ? () => setShowDeleteDiagram(true) : undefined}
+            />
+          )}
+
+          {nodes.length === 0 && (
+            isEditorChrome
+              ? <CanvasEmptyPrompt onOpenTree={onOpenAssetTree} onOpenDiagrams={onOpenDiagramsList} />
+              : <CanvasEmptyState mode={mode} />
+          )}
         </ReactFlow>
 
         {selectedEdgeId && (
@@ -2410,8 +2643,8 @@ function RelationshipsCanvasFlow({
               nodeActions={nodeActions}
               onOpenAsset={mode === 'execution' && nodeData.assetId ? () => handleOpenAsset(nodeData.assetId!, nodeData.executionId) : undefined}
               onExploreDiagrams={
-                mode === 'execution' && canListDiagrams && nodeData.assetId && nodeData.executionId
-                  ? () => setExploringNodeId(nodeData.id)
+                mode === 'execution' && canListDiagrams && nodeData.assetId
+                  ? () => handleExploreDiagrams(nodeData.id)
                   : undefined
               }
               documentTypes={documentTypes}
@@ -2427,39 +2660,24 @@ function RelationshipsCanvasFlow({
             />
           )
         })()}
-
-        {/* Overlay "diagramas de esta versión" — cubre el ReactFlow de arriba sin
-            desmontarlo; nodes/edges del canvas en edición siguen intactos debajo. */}
-        {exploringNodeId && (() => {
-          const exploringNode = nodes.find((n) => n.id === exploringNodeId)
-          const exploringData = exploringNode?.data as AssetTypeNodeData | undefined
-          if (!exploringData?.assetId || !exploringData.executionId) return null
-          return (
-            <AssetDiagramsExplorer
-              organizationId={organizationId}
-              assetId={exploringData.assetId}
-              executionId={exploringData.executionId}
-              assetName={exploringData.name}
-              assetColor={exploringData.color}
-              executionName={exploringData.executionName}
-              currentDiagramId={editingDiagram?.id}
-              onOpenDiagram={setViewingDiagramId}
-              onClose={() => setExploringNodeId(null)}
-            />
-          )
-        })()}
       </div>
 
-      {viewingDiagramId && (
-        <Suspense fallback={null}>
-          <LazyDiagramViewSheet
-            open={!!viewingDiagramId}
-            onOpenChange={(open) => !open && setViewingDiagramId(null)}
-            diagramId={viewingDiagramId}
+      {diagramsPopover && (() => {
+        const popoverNode = nodes.find((n) => n.id === diagramsPopover.nodeId)
+        const popoverData = popoverNode?.data as AssetTypeNodeData | undefined
+        if (!popoverData?.assetId) return null
+        return (
+          <NodeDiagramsPopover
             organizationId={organizationId}
+            assetId={popoverData.assetId}
+            assetName={popoverData.name}
+            executionId={popoverData.executionId}
+            currentDiagramId={editingDiagram?.id}
+            anchor={{ x: diagramsPopover.x, y: diagramsPopover.y }}
+            onClose={() => setDiagramsPopover(null)}
           />
-        </Suspense>
-      )}
+        )
+      })()}
 
       {/* Create relationship dialog — document-type mode */}
       {pendingConnection && mode === 'document-type' && (
@@ -2633,6 +2851,20 @@ function RelationshipsCanvasFlow({
           handleClearCanvas()
         }}
       />
+
+      {isEditorChrome && (
+        <DiagramsDeleteDialog
+          open={showDeleteDiagram}
+          onOpenChange={setShowDeleteDiagram}
+          diagram={editingDiagram ? { id: editingDiagram.id, name: editingDiagram.name } : null}
+          organizationId={organizationId}
+          canDelete={canDeleteDiagram}
+          onDeleted={(id) => {
+            onDiagramDeleted?.(id)
+            onCanvasCleared?.()
+          }}
+        />
+      )}
 
       {/* Delete exec relationship dialog */}
       <HuemulAlertDialog

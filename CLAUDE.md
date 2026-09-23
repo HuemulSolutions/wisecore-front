@@ -44,6 +44,7 @@ Existe una carpeta `ia context/` en la raíz del proyecto con guías de arquitec
 | Redactar un pedido de cambio o reporte de bug para el equipo de backend | `ia context/backend-change-request-guide.md` |
 | Configurar, disparar o auditar la elaboración externa del ciclo de vida (step `edit` procesado por un sistema externo) | `ia context/elaboracion-externa-guide.md` |
 | Agregar un tooltip, ayuda contextual al pasar el mouse, o texto recortado (`truncate`/`line-clamp`) que deba mostrar su contenido completo | `ia context/tooltip-guide.md` |
+| Agregar/tocar un `refetchInterval` (polling), o diagnosticar un endpoint que se sigue llamando sin parar tras fallar (5xx/network error) | `ia context/refetch-interval-polling-guide.md` |
 
 Cuando una tarea involucra varias guías, leerlas todas antes de empezar.
 

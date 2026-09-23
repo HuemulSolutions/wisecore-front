@@ -1,92 +1,74 @@
-import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowRight } from "lucide-react";
-import { HuemulButton } from "@/huemul/components/huemul-button";
-import { HuemulAnswersStatusBadge } from "@/huemul/components/huemul-answers-status-badge";
-import { HuemulNumberedStatusCard } from "@/huemul/components/huemul-numbered-status-card";
-import { FormAnswersList } from "@/components/sections/form-answers-list";
-import { computeSectionStats, isSectionAnswerable, isSectionAnswersCompleted } from "@/components/workflow/workflow-section-stats";
+import { WorkflowSummarySectionCard } from "@/components/workflow/workflow-summary-section-card";
 import type { ContentSection } from "@/types/assets";
 
 export interface WorkflowSectionsSummaryProps {
-  /** Secciones form del documento, en el orden del wizard (formSections). */
+  /** Secciones form del documento, en el orden de la vista 2 (formSections). */
   sections: ContentSection[];
-  /** Entrar al wizard en ese índice de paso. */
-  onGoToSection: (stepIndex: number) => void;
-  /** Permiso de edición para ESA sección puntual (canAnswerSpecificSection en
-   *  workflow-detail-panel.tsx): cruza el permiso del documento completo, el permiso de esa
-   *  sección por ciclo de vida (section_lifecycle_access) y si la sección está activa. Si da
-   *  false para una sección, se oculta "Ir a la sección" solo en su tarjeta — el único modo de
-   *  ver sus respuestas queda ser expandirla acá mismo. */
-  canGoToSection: (section: ContentSection) => boolean;
+  /** data.content.length — para la línea final "se muestran X de Y secciones". */
+  totalSections: number;
+  /** canAnswerSpecificSection(section) del panel, para cada tarjeta. */
+  sectionCanAnswer: (section: ContentSection) => boolean;
+  /** Entra a la vista 2 en ese índice (Responder/Editar/Ver). */
+  onOpenSection: (index: number) => void;
+  /** Ids de sección expandidas — vive en el panel para sobrevivir el ir-y-volver a la vista 2
+   *  (este componente se desmonta al cambiar de vista). Vacío = todas colapsadas (default). */
+  expandedSectionIds: Set<string>;
+  onToggleSection: (sectionId: string, open: boolean) => void;
+  onCollapseAll: () => void;
+  onExpandAll: (sectionIds: string[]) => void;
 }
 
 /**
- * Pantalla de resumen mostrada antes de entrar al wizard de respuesta (ver
- * workflow-detail-panel.tsx): una tarjeta colapsable por sección form del documento, con su
- * estado y progreso. Al desplegarla se ven las respuestas inline (misma lista que el modo
- * lector del asset, ver asset-form-section-reader.tsx). "Ir a la sección" entra al wizard en
- * ese paso sin afectar el estado de expansión; solo se muestra si `canGoToSection` es true.
+ * Vista 1 (resumen) del panel de detalle de workflow: una tarjeta colapsable por sección form
+ * del documento, con su estado y sus respuestas — ver workflow-summary-section-card.tsx. El
+ * pie de cada tarjeta (estado + acción) queda visible aunque esté colapsada.
  */
-export function WorkflowSectionsSummary({ sections, onGoToSection, canGoToSection }: WorkflowSectionsSummaryProps) {
-  const { t } = useTranslation(["workflow", "sections"]);
-  const [openIds, setOpenIds] = React.useState<Set<string>>(() => new Set());
-
-  const setSectionOpen = React.useCallback((id: string, open: boolean) => {
-    setOpenIds((prev) => {
-      const next = new Set(prev);
-      if (open) {
-        next.add(id);
-      } else {
-        next.delete(id);
-      }
-      return next;
-    });
-  }, []);
+export function WorkflowSectionsSummary({
+  sections,
+  totalSections,
+  sectionCanAnswer,
+  onOpenSection,
+  expandedSectionIds,
+  onToggleSection,
+  onCollapseAll,
+  onExpandAll,
+}: WorkflowSectionsSummaryProps) {
+  const { t } = useTranslation(["workflow", "assets"]);
+  const hasOpenCard = sections.some((s) => expandedSectionIds.has(s.id));
 
   return (
-    <div className="flex flex-col gap-3">
-      {sections.map((section, index) => {
-        const { fields, questions, answeredCount } = computeSectionStats(section);
-        const isInactive = !isSectionAnswerable(section);
-        return (
-          <HuemulNumberedStatusCard
-            key={section.id}
-            collapsible
-            open={openIds.has(section.id)}
-            onOpenChange={(open) => setSectionOpen(section.id, open)}
-            number={index + 1}
-            title={section.section_name ?? ""}
-            tone={isSectionAnswersCompleted(section) ? "success" : "warning"}
-            className={isInactive ? "opacity-70" : undefined}
-            headerExtra={
-              <>
-                <HuemulAnswersStatusBadge status={section.answers_status} />
-                {isInactive && (
-                  <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                    {t("sections:form.fill.sectionInactive")}
-                  </span>
-                )}
-              </>
-            }
-            subtitle={t("sections:form.fill.answeredCount", { answered: answeredCount, total: questions.length })}
-            actions={
-              canGoToSection(section) ? (
-                <HuemulButton
-                  size="xs"
-                  icon={ArrowRight}
-                  iconPosition="right"
-                  label={t("wizard.summary.goToSection")}
-                  onClick={() => onGoToSection(index)}
-                  variant="outline"
-                />
-              ) : undefined
-            }
-          >
-            <FormAnswersList fields={fields} emptyLabel={t("wizard.summary.noAnswers")} />
-          </HuemulNumberedStatusCard>
-        );
-      })}
+    <div className="flex flex-col gap-[10px] p-[14px_16px_18px]">
+      <div className="flex items-center justify-between px-[4px]">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#94a3b8]">
+          {t("panel.sectionsHeading")}
+        </p>
+        <button
+          type="button"
+          className="text-[12px] font-medium text-[#1d4ed8] hover:underline"
+          onClick={() => (hasOpenCard ? onCollapseAll() : onExpandAll(sections.map((s) => s.id)))}
+        >
+          {hasOpenCard ? t("assets:content.collapseAllSections") : t("assets:content.expandAllSections")}
+        </button>
+      </div>
+
+      {sections.map((section, index) => (
+        <WorkflowSummarySectionCard
+          key={section.id}
+          section={section}
+          index={index + 1}
+          canAnswer={sectionCanAnswer(section)}
+          open={expandedSectionIds.has(section.id)}
+          onOpenChange={(open) => onToggleSection(section.id, open)}
+          onOpenSection={() => onOpenSection(index)}
+        />
+      ))}
+
+      {totalSections > sections.length && (
+        <p className="px-[4px] pt-0 text-[12px] text-[#64748b]">
+          {t("panel.otherSectionsNotice", { shown: sections.length, total: totalSections })}
+        </p>
+      )}
     </div>
   );
 }

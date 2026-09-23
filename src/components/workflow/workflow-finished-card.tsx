@@ -2,8 +2,11 @@
 
 import { Archive, CheckCircle2, Eye, Globe, Plus } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { HuemulButton } from "@/huemul/components/huemul-button"
-import { WorkflowStatusCard } from "@/components/workflow/workflow-status-card"
+import {
+  WorkflowStatusCard,
+  type WorkflowStatusAction,
+  type WorkflowStatusTone,
+} from "@/components/workflow/workflow-status-card"
 import type { WorkflowFinishOutcome } from "@/lib/workflow-finish-outcome"
 
 interface WorkflowFinishedCardProps {
@@ -52,10 +55,17 @@ export function WorkflowFinishedCard({ outcome, workflowName, onViewAnswers, onS
 
   const isPublished = outcome === "published"
   const Icon = isPublished ? Globe : outcome === "archived" ? Archive : CheckCircle2
+  const tone: WorkflowStatusTone = isPublished ? "blue" : outcome === "archived" ? "gray" : "green"
+
+  const buttons: WorkflowStatusAction[] = [
+    ...(onStartAnother ? [{ label: t("fill.savedStartAnother"), icon: Plus, onClick: onStartAnother }] : []),
+    ...(onViewAnswers ? [{ label: t("fill.finished.viewAnswers"), icon: Eye, onClick: onViewAnswers }] : []),
+  ]
 
   return (
     <WorkflowStatusCard
       icon={Icon}
+      tone={tone}
       title={t(titleKey, { name: workflowName })}
       description={t(
         isPublished
@@ -64,31 +74,7 @@ export function WorkflowFinishedCard({ outcome, workflowName, onViewAnswers, onS
             ? "fill.finished.archivedDescription"
             : "fill.finished.description",
       )}
-      actions={
-        <>
-          <p className="text-xs text-muted-foreground">{t("fill.savedNeedMore")}</p>
-          {onStartAnother && (
-            <HuemulButton
-              variant="outline"
-              icon={Plus}
-              iconPosition="left"
-              label={t("fill.savedStartAnother")}
-              className="w-full"
-              onClick={onStartAnother}
-            />
-          )}
-          {onViewAnswers && (
-            <HuemulButton
-              variant="outline"
-              icon={Eye}
-              iconPosition="left"
-              label={t("fill.finished.viewAnswers")}
-              className="w-full"
-              onClick={onViewAnswers}
-            />
-          )}
-        </>
-      }
+      needMore={{ label: t("fill.savedNeedMore"), buttons }}
     />
   )
 }

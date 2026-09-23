@@ -90,6 +90,7 @@
       title: { en: "Overview", es: "Panorama" },
       scopeOrganization: { en: "Organization", es: "Organización" },
       scopeMine: { en: "Just mine", es: "Solo lo mío" },
+      errorFallback: { en: "Couldn't load the overview", es: "No se pudo cargar el panorama" },
     },
     continue: {
       title: { en: "Continue where you left off", es: "Continuar donde quedaste" },
