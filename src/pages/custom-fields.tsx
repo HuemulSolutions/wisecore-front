@@ -72,7 +72,6 @@ export default function CustomFieldsPage() {
   }
 
   const customFields = customFieldsResponse?.data || []
-  const filteredCustomFields = customFields
 
   // State update helpers
   const updateState = (updates: Partial<CustomFieldPageState>) => {
@@ -98,19 +97,16 @@ export default function CustomFieldsPage() {
     updateState({ editingCustomField: customField })
   }
 
-  const handleClearFilters = () => {
-    updateState({ searchTerm: "" })
-  }
-
   return (
     <>
       <HuemulPageLayout
         header={
           <CustomFieldPageHeader
-            customFieldCount={filteredCustomFields.length}
+            customFieldCount={customFields.length}
             onCreateCustomField={() => updateState({ showCreateDialog: true })}
             onRefresh={handleRefresh}
             isLoading={isRefreshing || isFetching}
+            hasError={!!error}
             searchTerm={state.searchTerm}
             onSearchChange={(value: string) => {
               updateState({ searchTerm: value })
@@ -119,7 +115,7 @@ export default function CustomFieldsPage() {
             canCreate={canCreate}
           />
         }
-        headerClassName="p-6 md:p-8 pb-0 md:pb-0"
+        headerClassName="p-4 md:p-6 pb-0 md:pb-0"
         columns={[
           {
             content: error ? (
@@ -128,20 +124,16 @@ export default function CustomFieldsPage() {
                 message={error.message} 
                 onRetry={handleRefresh}
               />
-            ) : filteredCustomFields.length === 0 && customFields.length === 0 ? (
+            ) : !isTableLoading && !isTableFetching && customFields.length === 0 ? (
               <CustomFieldContentEmptyState
                 type="empty"
                 onCreateFirst={canCreate ? () => updateState({ showCreateDialog: true }) : undefined}
               />
-            ) : filteredCustomFields.length === 0 && customFields.length > 0 ? (
-              <CustomFieldContentEmptyState 
-                type="no-results"
-                onClearFilters={handleClearFilters}
-              />
             ) : (
               <CustomFieldTable
-                customFields={filteredCustomFields}
-                onEditCustomField={handleEditCustomField}
+                customFields={customFields}
+                onSelectCustomField={handleEditCustomField}
+                selectedCustomFieldId={state.editingCustomField?.id ?? null}
                 canUpdate={canUpdate}
                 canDelete={canDelete}
                 isLoading={isTableLoading}
@@ -160,7 +152,8 @@ export default function CustomFieldsPage() {
                 }}
               />
             ),
-            className: "p-6 md:p-8 pt-0 md:pt-0",
+            className: "flex flex-col",
+            minSize: 45,
           },
         ]}
       />
