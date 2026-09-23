@@ -66,7 +66,7 @@ export function EmbeddingsTab({
 
       {configured && active ? (
         <>
-          <section className="overflow-hidden rounded-[14px] border border-[#e3e9f1] bg-white">
+          <section className="overflow-hidden rounded-[12px] border border-[#e1e6ed] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)]">
             <div className="flex flex-wrap items-center justify-between gap-3 p-[18px]">
               <div className="flex min-w-0 items-center gap-3">
                 <ModelsProviderAvatar type={active.name} />
@@ -126,7 +126,7 @@ export function EmbeddingsTab({
               )}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#eef2f7] bg-[#f7f9fb] px-[18px] py-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#eef1f5] bg-[#f7f9fb] px-[18px] py-2.5">
               <span className="text-xs text-[#7c8798]">{t('embeddings.encryptedNote')}</span>
               {canDelete &&
                 (confirmingDisconnect ? (
@@ -165,11 +165,11 @@ export function EmbeddingsTab({
           {canCreate && others.length > 0 && (
             <section className="flex flex-col gap-2.5">
               <h2 className="text-[14px] font-semibold text-[#0f172a]">{t('embeddings.switchTitle')}</h2>
-              <div className="overflow-hidden rounded-[14px] border border-[#e3e9f1] bg-white">
+              <div className="flex flex-col gap-2">
                 {others.map((option) => (
                   <div
                     key={option.name}
-                    className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eef2f7] px-[18px] py-3 last:border-b-0"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-[11px] border border-[#e1e6ed] bg-white px-[18px] py-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)]"
                   >
                     <div className="flex min-w-0 items-center gap-3">
                       <ModelsProviderAvatar type={option.name} size="sm" />
@@ -196,7 +196,7 @@ export function EmbeddingsTab({
           <HuemulNotice tone="amber">{t('embeddings.notConfiguredBanner')}</HuemulNotice>
           <div className="grid grid-cols-1 gap-[14px] md:grid-cols-2">
             {options.map((option) => (
-              <div key={option.name} className="flex flex-col gap-3 rounded-[14px] border border-[#e3e9f1] bg-white p-[18px]">
+              <div key={option.name} className="flex flex-col gap-3 rounded-[12px] border border-[#e1e6ed] bg-white p-[18px] shadow-[0_1px_2px_rgba(15,23,42,0.05)]">
                 <div className="flex items-center gap-3">
                   <ModelsProviderAvatar type={option.name} />
                   <span className="text-[14px] font-semibold text-[#0f172a]">{option.display}</span>

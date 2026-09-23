@@ -1,62 +1,66 @@
 import type { ReactNode } from "react"
-import { Check, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
-import { HuemulButton } from "@/huemul/components/huemul-button"
 import type { ModelsStatusCardsProps } from "@/types/models"
 export type { ModelsStatusCardsProps } from "@/types/models"
 
-type Pill = "working" | "failing" | "pending"
+type StatusTone = "working" | "failing" | "pending"
 
-const PILL_CLASSES: Record<Pill, string> = {
-  working: "border-[#cdefd7] bg-[#eefbf1] text-[#15803d]",
-  failing: "border-[#fecdca] bg-[#fef3f2] text-[#b42318]",
-  pending: "border-[#fbe3a6] bg-[#fff6dc] text-[#8a5a00]",
+// Paleta cerrada por estado: `dot` = color del punto y del texto del pill; `pill` = fondo del pill
+// (y halo del punto). "Con errores" conserva el borde/fondo de "Funcionando".
+const TONES: Record<StatusTone, { border: string; background: string; dot: string; pill: string }> = {
+  working: { border: "#d7eedf", background: "#f5fbf7", dot: "#15803d", pill: "#eaf8ee" },
+  failing: { border: "#d7eedf", background: "#f5fbf7", dot: "#b42318", pill: "#fdecea" },
+  pending: { border: "#fbe3a6", background: "#fffcf3", dot: "#b45309", pill: "#fef3e2" },
 }
 
-interface StatusCardProps {
-  number: number
-  configured: boolean
-  failing?: boolean
-  title: string
+interface StatusRowProps {
+  tone: StatusTone
+  label: string
+  value: string
+  pillLabel: string
+  /** Descripción larga: solo en tooltip, no se muestra en pantalla. */
   description: string
-  pill: { tone: Pill; label: string }
-  children?: ReactNode
-  actions?: ReactNode
+  cta?: { label: string; primary: boolean; disabled?: boolean; onClick: () => void }
 }
 
-/** Tarjeta de estado: configurada (blanca, ✓) o pendiente (ámbar, número del paso). */
-function StatusCard({ number, configured, failing = false, title, description, pill, children, actions }: StatusCardProps) {
+function StatusRow({ tone, label, value, pillLabel, description, cta }: StatusRowProps) {
+  const colors = TONES[tone]
+
   return (
     <div
-      className={cn(
-        "flex flex-col gap-3 rounded-[14px] border p-[18px]",
-        configured ? "border-[#e3e9f1] bg-white" : "border-[#fbe3a6] bg-[#fffcf3]",
-      )}
+      title={description}
+      className="flex h-11 min-w-0 items-center gap-2.5 rounded-[10px] border pl-3 pr-2"
+      style={{ borderColor: colors.border, backgroundColor: colors.background }}
     >
-      <div className="flex items-start gap-3">
-        <span
+      <span
+        className="size-2 shrink-0 rounded-full"
+        style={{ backgroundColor: colors.dot, boxShadow: `0 0 0 3px ${colors.pill}` }}
+      />
+      <span className="whitespace-nowrap text-[12.5px] text-[#64748b]">{label}</span>
+      <span className="min-w-0 truncate text-[13px] font-semibold text-[#0f172a]">{value}</span>
+      <span
+        className="whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold"
+        style={{ color: colors.dot, backgroundColor: colors.pill }}
+      >
+        {pillLabel}
+      </span>
+      <span className="flex-1" />
+      {cta && (
+        <button
+          type="button"
+          disabled={cta.disabled}
+          onClick={cta.onClick}
           className={cn(
-            "flex size-7 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold",
-            !configured && "bg-[#fbe3a6] text-[#8a5a00]",
-            configured && !failing && "bg-[#dcfce7] text-[#15803d]",
-            configured && failing && "bg-[#fee4e2] text-[#b42318]",
+            "h-7 whitespace-nowrap rounded-[7px] border px-2.5 text-[12.5px] font-semibold transition-colors hover:cursor-pointer disabled:cursor-wait disabled:opacity-70",
+            cta.primary
+              ? "border-[#2563eb] bg-[#2563eb] text-white hover:border-[#1d4ed8] hover:bg-[#1d4ed8]"
+              : "border-[#dfe4ec] bg-white text-[#334155] hover:border-[#93b4f5] hover:bg-[#f9fbff]",
           )}
         >
-          {configured ? (failing ? <X className="size-3.5" /> : <Check className="size-3.5" />) : number}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-[14px] font-semibold text-[#0f172a]">{title}</h3>
-            <span className={cn("rounded-full border px-2.5 py-0.5 text-[11px] font-semibold", PILL_CLASSES[pill.tone])}>
-              {pill.label}
-            </span>
-          </div>
-          <p className="mt-0.5 text-[12.5px] leading-snug text-[#64748b]">{description}</p>
-        </div>
-      </div>
-      {children}
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+          {cta.label}
+        </button>
+      )}
     </div>
   )
 }
@@ -75,107 +79,80 @@ export function ModelsStatusCards({
   canTest,
   canCreateProvider,
   canCreateModel,
-  canConfigureEmbeddings,
+  canViewEmbeddings,
   onTestDefault,
   onConnectProvider,
   onAddModel,
-  onViewEmbeddings,
-  onConfigureEmbeddings,
+  onGoToEmbeddings,
 }: ModelsStatusCardsProps) {
   const { t } = useTranslation('models')
 
+  const grid = (children: ReactNode) => (
+    <div className="grid grid-cols-1 gap-[10px] md:grid-cols-2">{children}</div>
+  )
+
   if (isLoading) {
-    return (
-      <div className="grid grid-cols-1 gap-[14px] md:grid-cols-2">
-        {[0, 1].map((i) => (
-          <div key={i} className="h-[132px] animate-pulse rounded-[14px] border border-[#e3e9f1] bg-[#f7f9fb]" />
-        ))}
-      </div>
+    return grid(
+      [0, 1].map((i) => <div key={i} className="h-11 animate-pulse rounded-[10px] bg-[#f1f4f8]" />),
     )
   }
 
+  const isTesting = defaultTestState === 'testing'
   const defaultFailing = !defaultWorking || defaultTestState === 'error'
+  const defaultTone: StatusTone = !defaultConfigured ? 'pending' : defaultFailing ? 'failing' : 'working'
+  const embeddingTone: StatusTone = !embeddingConfigured ? 'pending' : embeddingWorking ? 'working' : 'failing'
 
-  const defaultCta = !hasProviders ? (
-    canCreateProvider ? (
-      <HuemulButton size="sm" label={t('status.default.connectProvider')} onClick={onConnectProvider} className="h-8 text-xs" />
-    ) : null
-  ) : canCreateModel ? (
-    <HuemulButton size="sm" label={t('status.default.addModel')} onClick={onAddModel} className="h-8 text-xs" />
-  ) : null
+  const pillLabel = (tone: StatusTone) =>
+    tone === 'working' ? t('status.working') : tone === 'failing' ? t('status.failing') : t('status.notConfigured')
 
-  return (
-    <div className="grid grid-cols-1 gap-[14px] md:grid-cols-2">
-      <StatusCard
-        number={1}
-        configured={defaultConfigured}
-        failing={defaultFailing}
-        title={t('status.default.title')}
+  const defaultValue =
+    defaultConfigured && defaultModel
+      ? [defaultModel.name, defaultProviderName].filter(Boolean).join(' · ')
+      : t('status.default.none')
+
+  const defaultCta: StatusRowProps['cta'] = defaultConfigured
+    ? canTest && defaultModel
+      ? {
+          label: isTesting ? t('status.default.testing') : t('status.default.test'),
+          primary: false,
+          disabled: isTesting,
+          onClick: onTestDefault,
+        }
+      : undefined
+    : !hasProviders
+      ? canCreateProvider
+        ? { label: t('status.default.connectProvider'), primary: true, onClick: onConnectProvider }
+        : undefined
+      : canCreateModel
+        ? { label: t('status.default.addModel'), primary: true, onClick: onAddModel }
+        : undefined
+
+  return grid(
+    <>
+      <StatusRow
+        tone={defaultTone}
+        label={t('status.default.label')}
+        value={defaultValue}
+        pillLabel={pillLabel(defaultTone)}
         description={t('status.default.description')}
-        pill={
-          defaultConfigured
-            ? defaultFailing
-              ? { tone: 'failing', label: t('status.failing') }
-              : { tone: 'working', label: t('status.working') }
-            : { tone: 'pending', label: t('status.notConfigured') }
-        }
-        actions={
-          defaultConfigured ? (
-            canTest && defaultModel && (
-              <HuemulButton
-                size="sm"
-                variant="outline"
-                label={defaultTestState === 'testing' ? t('status.default.testing') : t('status.default.testConnection')}
-                loading={defaultTestState === 'testing'}
-                onClick={onTestDefault}
-                className="h-8 text-xs"
-              />
-            )
-          ) : (
-            defaultCta
-          )
-        }
-      >
-        {defaultConfigured && defaultModel && (
-          <div className="min-w-0">
-            <p className="truncate text-[13.5px] font-semibold text-[#0f172a]">{defaultModel.name}</p>
-            {defaultProviderName && <p className="truncate text-xs text-[#7c8798]">{defaultProviderName}</p>}
-          </div>
-        )}
-      </StatusCard>
-
-      <StatusCard
-        number={2}
-        configured={embeddingConfigured}
-        failing={!embeddingWorking}
-        title={t('status.search.title')}
+        cta={defaultCta}
+      />
+      <StatusRow
+        tone={embeddingTone}
+        label={t('status.search.label')}
+        value={embeddingConfigured ? (embeddingProviderName ?? '—') : t('status.search.off')}
+        pillLabel={pillLabel(embeddingTone)}
         description={t('status.search.description')}
-        pill={
-          embeddingConfigured
-            ? embeddingWorking
-              ? { tone: 'working', label: t('status.working') }
-              : { tone: 'failing', label: t('status.failing') }
-            : { tone: 'pending', label: t('status.notConfigured') }
+        cta={
+          canViewEmbeddings
+            ? {
+                label: embeddingConfigured ? t('status.search.view') : t('status.search.configure'),
+                primary: !embeddingConfigured,
+                onClick: onGoToEmbeddings,
+              }
+            : undefined
         }
-        actions={
-          canConfigureEmbeddings &&
-          (embeddingConfigured ? (
-            <HuemulButton
-              size="sm"
-              variant="outline"
-              label={t('status.search.viewDetail')}
-              onClick={onViewEmbeddings}
-              className="h-8 text-xs"
-            />
-          ) : (
-            <HuemulButton size="sm" label={t('status.search.configure')} onClick={onConfigureEmbeddings} className="h-8 text-xs" />
-          ))
-        }
-      >
-        {embeddingConfigured && embeddingProviderName && (
-          <p className="truncate text-[13.5px] font-semibold text-[#0f172a]">{embeddingProviderName}</p>
-        )}
-      </StatusCard>
-    </div>
+      />
+    </>,
   )
 }

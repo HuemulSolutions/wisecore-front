@@ -30,12 +30,11 @@ export interface ModelsStatusCardsProps {
   canTest: boolean
   canCreateProvider: boolean
   canCreateModel: boolean
-  canConfigureEmbeddings: boolean
+  canViewEmbeddings: boolean
   onTestDefault: () => void
   onConnectProvider: () => void
   onAddModel: () => void
-  onViewEmbeddings: () => void
-  onConfigureEmbeddings: () => void
+  onGoToEmbeddings: () => void
 }
 
 export interface ModelsProvidersStripProps {

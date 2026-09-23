@@ -134,7 +134,7 @@ export function ModelsTable({
   }
 
   return (
-    <section className="overflow-hidden rounded-[14px] border border-[#e3e9f1] bg-white">
+    <section className="overflow-hidden rounded-[12px] border border-[#e1e6ed] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)]">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e5eaf0] px-[18px] py-3.5">
         <div className="min-w-0">
           <h2 className="text-[14px] font-semibold text-[#0f172a]">{t('table.title')}</h2>
@@ -180,7 +180,7 @@ export function ModelsTable({
         <div className={cn("overflow-x-auto transition-opacity", isFetching && "opacity-70")}>
           <div className="min-w-[1010px]">
             <div
-              className="grid items-center gap-3 border-b border-[#e5eaf0] bg-[#f7f9fb] px-[18px] py-2.5 text-[11px] font-semibold uppercase tracking-wide text-[#7c8798]"
+              className="grid items-center gap-3 border-b border-[#e1e6ed] bg-[#f1f4f8] px-[18px] py-2.5 text-[11px] font-semibold uppercase tracking-wide text-[#7c8798]"
               style={{ gridTemplateColumns: GRID_COLUMNS }}
             >
               <span>{t('table.columns.model')}</span>
@@ -200,7 +200,7 @@ export function ModelsTable({
               return (
                 <div key={model.id} className="border-b border-[#eef2f7] last:border-b-0">
                   <div
-                    className={cn("grid items-center gap-3 px-[18px] py-3", model.is_default && "bg-[#fffdf6]")}
+                    className={cn("grid items-center gap-3 px-[18px] py-3", model.is_default ? "bg-[#fffdf6]" : "bg-white")}
                     style={{ gridTemplateColumns: GRID_COLUMNS }}
                   >
                     {/* Modelo */}

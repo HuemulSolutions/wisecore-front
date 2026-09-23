@@ -85,8 +85,8 @@ export function ModelsProvidersStrip({
             disabled={!canEdit}
             onClick={() => onEdit(provider)}
             className={cn(
-              "flex w-[236px] items-center gap-2.5 rounded-[12px] border border-[#e3e9f1] bg-white p-3 text-left transition-colors",
-              canEdit ? "hover:cursor-pointer hover:border-[#93b4f5]" : "cursor-default",
+              "flex w-[236px] items-center gap-2.5 rounded-[11px] border border-[#e1e6ed] bg-white p-3 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] transition-colors",
+              canEdit ? "hover:cursor-pointer hover:border-[#93b4f5] hover:bg-[#f9fbff]" : "cursor-default",
             )}
           >
             <ModelsProviderAvatar type={provider.type} />
@@ -102,7 +102,7 @@ export function ModelsProvidersStrip({
             type="button"
             onClick={onCreate}
             className={cn(
-              "flex w-[236px] items-center gap-2.5 rounded-[12px] border border-dashed bg-white p-3 text-left transition-colors hover:cursor-pointer",
+              "flex w-[236px] items-center gap-2.5 rounded-[11px] border border-dashed bg-white p-3 text-left transition-colors hover:cursor-pointer",
               providers.length === 0
                 ? "border-[#2563eb] bg-[#f5f9ff]"
                 : "border-[#c3ccd8] hover:border-[#93b4f5]",

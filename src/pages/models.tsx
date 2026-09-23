@@ -446,10 +446,13 @@ export default function Models() {
         className="h-full gap-0"
       >
       <HuemulPageLayout
+        className="bg-[#f3f5f8]"
         header={
           <div>
-            <div className="px-6 pt-6 md:px-8 md:pt-8">
+            <div className="bg-white px-7 pt-7">
               <ModelsHeader onRefresh={handleRefresh} isLoading={isRefreshing || fetchingLLMs} />
+            </div>
+            <div className="bg-white px-7 pb-4">
               <ModelsStatusCards
                 isLoading={loadingStatus && !configStatus}
                 defaultModel={defaultModel}
@@ -464,20 +467,20 @@ export default function Models() {
                 canTest={canTestModel}
                 canCreateProvider={canCreateProvider}
                 canCreateModel={canCreateModel}
-                canConfigureEmbeddings={canListProviders && (embeddingConfigured || canCreateProvider)}
-                onTestDefault={() => defaultModel && runModelTest(defaultModel)}
+                canViewEmbeddings={canListProviders}
+                onTestDefault={() => {
+                  if (!defaultModel) return
+                  if (canListModels) setActiveTab('models')
+                  runModelTest(defaultModel)
+                }}
                 onConnectProvider={openCreateProvider}
                 onAddModel={openAddModel}
-                onViewEmbeddings={() => setActiveTab('embeddings')}
-                onConfigureEmbeddings={() => {
-                  setActiveTab('embeddings')
-                  openEmbeddingSheet('openai')
-                }}
+                onGoToEmbeddings={() => setActiveTab('embeddings')}
               />
             </div>
 
             {/* La línea que separa el header del contenido es esta barra de tabs (de borde a borde). */}
-            <TabsList className="mt-5 h-auto w-full justify-start gap-6 rounded-none border-b border-border bg-transparent px-6 py-0 md:px-8">
+            <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-b border-[#e1e6ed] bg-white px-7 py-0">
               {canListModels && (
                 <TabsTrigger value="models" className={HUEMUL_UNDERLINE_TAB_TRIGGER_CLASS}>
                   <HuemulTabCount label={t('tabs.models')} count={allLlms.length} active={modelsTabActive} />
@@ -593,7 +596,7 @@ export default function Models() {
                   )}
               </>
             ),
-            className: 'p-6 md:p-8',
+            className: 'p-7',
           },
         ]}
       />
