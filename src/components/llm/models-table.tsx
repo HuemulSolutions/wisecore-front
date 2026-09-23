@@ -134,8 +134,8 @@ export function ModelsTable({
   }
 
   return (
-    <section className="overflow-hidden rounded-[12px] border border-[#e1e6ed] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)]">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e5eaf0] px-[18px] py-3.5">
+    <section className="flex min-h-0 flex-col overflow-hidden rounded-[12px] border border-[#e1e6ed] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)]">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#e5eaf0] px-[18px] py-3.5">
         <div className="min-w-0">
           <h2 className="text-[14px] font-semibold text-[#0f172a]">{t('table.title')}</h2>
           <p className="text-[12.5px] text-[#7c8798]">{t('table.help')}</p>
@@ -177,10 +177,10 @@ export function ModelsTable({
       ) : models.length === 0 ? (
         renderEmpty()
       ) : (
-        <div className={cn("overflow-x-auto transition-opacity", isFetching && "opacity-70")}>
+        <div className={cn("min-h-0 overflow-auto transition-opacity", isFetching && "opacity-70")}>
           <div className="min-w-[1010px]">
             <div
-              className="grid items-center gap-3 border-b border-[#e1e6ed] bg-[#f1f4f8] px-[18px] py-2.5 text-[11px] font-semibold uppercase tracking-wide text-[#7c8798]"
+              className="sticky top-0 z-(--z-feed-sticky) grid items-center gap-3 border-b border-[#e1e6ed] bg-[#f1f4f8] px-[18px] py-2.5 text-[11px] font-semibold uppercase tracking-wide text-[#7c8798]"
               style={{ gridTemplateColumns: GRID_COLUMNS }}
             >
               <span>{t('table.columns.model')}</span>
@@ -358,6 +358,7 @@ export function ModelsTable({
       {!error && !isLoading && (models.length > 0 || pagination.page > 1) && (
         <HuemulPagination
           variant="detailed"
+          className="shrink-0"
           page={pagination.page}
           pageSize={pagination.pageSize}
           hasNext={pagination.hasNext}

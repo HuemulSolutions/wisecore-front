@@ -59,7 +59,7 @@ export function ModelsProvidersStrip({
   }
 
   return (
-    <section className="flex flex-col gap-2.5">
+    <section className="flex shrink-0 flex-col gap-2.5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-[14px] font-semibold text-[#0f172a]">{t('providers.title')}</h2>

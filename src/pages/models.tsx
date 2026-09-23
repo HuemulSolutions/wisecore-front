@@ -506,7 +506,7 @@ export default function Models() {
             content: (
               <>
                   {canListModels && (
-                    <TabsContent value="models" className="flex min-h-0 flex-col gap-5">
+                    <TabsContent value="models" className="flex min-h-0 flex-1 flex-col gap-5">
                       {hasError ? (
                         <ModelsContentEmptyState
                           type="error"
@@ -571,7 +571,7 @@ export default function Models() {
                   {!canListModels && !canListProviders && <HuemulAccessDenied />}
 
                   {canListProviders && (
-                    <TabsContent value="embeddings" className="min-h-0">
+                    <TabsContent value="embeddings" className="min-h-0 flex-1 overflow-y-auto">
                       {hasEmbeddingError ? (
                         <ModelsContentEmptyState
                           type="error"
@@ -596,7 +596,7 @@ export default function Models() {
                   )}
               </>
             ),
-            className: 'p-7',
+            className: 'overflow-hidden p-7',
           },
         ]}
       />
