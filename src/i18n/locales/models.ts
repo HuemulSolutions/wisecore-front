@@ -152,6 +152,7 @@ const translations = {
       en: "The account this model runs through.",
       es: "La cuenta desde la que se usa este modelo.",
     },
+    providerPlaceholder: { en: "Select a provider", es: "Seleccionar un proveedor" },
     noProviders: {
       en: "You need to connect a provider before adding a model.",
       es: "Necesitas conectar un proveedor antes de agregar un modelo.",

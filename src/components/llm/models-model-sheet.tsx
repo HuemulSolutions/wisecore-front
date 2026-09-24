@@ -7,7 +7,7 @@ import { modelIdentifierPlaceholder } from "@/lib/llm-provider-ui"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulNotice } from "@/huemul/components/huemul-notice"
 import { HuemulSheetField, HuemulSheetInput } from "@/huemul/components/huemul-sheet-field"
-import { ModelsProviderAvatar } from "@/components/llm/models-provider-avatar"
+import { HuemulCombobox } from "@/huemul/components/huemul-combobox"
 import type { ModelSheetProps } from "@/types/models"
 export type { ModelSheetProps } from "@/types/models"
 
@@ -143,38 +143,16 @@ export function ModelSheet({
               {t('modelSheet.noProviders')}
             </HuemulNotice>
           ) : (
-            <div role="radiogroup" className="flex flex-col gap-1.5">
-              {providers.map((provider) => {
-                const active = provider.id === providerId
-                return (
-                  <button
-                    key={provider.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => setProviderId(provider.id)}
-                    className={cn(
-                      "flex items-center gap-2.5 rounded-[10px] border px-3 py-2 text-left transition-colors hover:cursor-pointer",
-                      active ? "border-[#2563eb] bg-[#f5f9ff]" : errors.provider ? "border-[#f3a19a]" : "border-[#dfe4ec] hover:border-[#93b4f5]",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "flex size-4 shrink-0 items-center justify-center rounded-full border",
-                        active ? "border-[#2563eb]" : "border-[#c3ccd8]",
-                      )}
-                    >
-                      {active && <span className="size-2 rounded-full bg-[#2563eb]" />}
-                    </span>
-                    <ModelsProviderAvatar type={provider.type} size="sm" />
-                    <span className="flex min-w-0 flex-col">
-                      <span className="truncate text-[13px] font-semibold text-[#0f172a]">{provider.name}</span>
-                      <span className="truncate text-[11.5px] text-[#7c8798]">{provider.display_name}</span>
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+            // Desplegable de una línea: la lista (larga) solo aparece al abrirlo.
+            <HuemulCombobox
+              id="model-provider"
+              value={providerId}
+              onValueChange={(v) => setProviderId(String(v))}
+              options={providers.map((p) => ({ value: p.id, label: p.name, description: p.display_name }))}
+              placeholder={t('modelSheet.providerPlaceholder')}
+              error={!!errors.provider}
+              className="h-[38px]"
+            />
           )}
         </HuemulSheetField>
 
