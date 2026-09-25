@@ -18,13 +18,14 @@ import {
   writeFieldConfig,
   type FormFieldDraft,
 } from "./question-type-meta";
-import { SectionCalculatedFieldEditor } from "./section-calculated-field-editor";
+import { SectionCalculatedFieldEditor, type FormulaPickerSource } from "./section-calculated-field-editor";
 
 interface SectionQuestionTypeFieldsProps {
   field: FormFieldDraft;
   // Preguntas anteriores disponibles para referenciar (mismos targets que depends_on) —
   // solo lo consume el editor de campo_calculado_formula/campo_calculado_condicional.
   availableDependencyFields: SectionFormField[];
+  formulaPicker?: FormulaPickerSource;
   fetchCustomFieldOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
   isPending?: boolean;
   onUpdate: (patch: Partial<SectionFormField>) => void;
@@ -108,6 +109,7 @@ function SectionCustomFieldQuestionEditor({
 export function SectionQuestionTypeFields({
   field,
   availableDependencyFields,
+  formulaPicker,
   fetchCustomFieldOptions,
   isPending,
   onUpdate,
@@ -380,6 +382,7 @@ export function SectionQuestionTypeFields({
         <SectionCalculatedFieldEditor
           field={field}
           availableFields={availableDependencyFields}
+          formulaPicker={formulaPicker}
           isPending={isPending}
           onUpdate={onUpdate}
         />

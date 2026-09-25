@@ -35,17 +35,45 @@ export interface SectionDependencyConfig {
 export type CalculationMode = "formula" | "conditional";
 export type FormulaTermOperator = "add" | "subtract";
 
+// Formato LEGADO (terms[]/constant) — solo se mantiene para convertirlo a `expression` al
+// abrir el editor (ver normalizeFormulaConfig). El backend ya no lo acepta al guardar.
 export interface FormulaTerm {
-  field_id: string;              // pregunta numérica (int|decimal) anterior; puede repetirse
+  field_id: string;
   operator: FormulaTermOperator;
   multiplier?: number;           // default 1
 }
 
-export interface FormulaCalculationConfig {
+export interface LegacyFormulaCalculationConfig {
   mode: "formula";
   terms: FormulaTerm[];
   constant?: number;             // default 0
   round_decimals?: number | null;
+}
+
+// `expression` conserva los tokens `@field_id` tal cual (el backend los guarda literal);
+// `fields` = field_id únicos usados en la expresión, consistentes con ella.
+export interface FormulaCalculationConfig {
+  mode: "formula";
+  expression: string;
+  fields: string[];
+  round_decimals?: number | null;
+}
+
+// Dónde se está armando la fórmula: define qué endpoint `available_fields` consultar.
+export interface CalculationPickerContext {
+  level: "template" | "document";
+  parentId: string;              // template_id o document_id
+  order: number;                 // order de la sección donde se arma la fórmula
+  excludeSectionId?: string;     // la propia sección al editarla
+}
+
+// Fila de GET .../available_fields: campos numéricos de secciones anteriores.
+export interface AvailableCalculationField {
+  field_id: string;
+  field_name: string;
+  data_type: string;
+  question_type: string;
+  section_order: number;
 }
 
 // `if` reusa FieldDependencyCondition: mismo shape y mismos operadores que depends_on.
