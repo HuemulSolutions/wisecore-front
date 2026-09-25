@@ -27,6 +27,8 @@ Siempre en `respuestas/`, kebab-case, con uno de estos 3 prefijos (son los que y
 | `backend-` | Pedido de feature/cambio chico o mediano | `backend-hijos-carpeta.md`, `backend-arbol-expansion-persistente.md` |
 | `spec-` | Contrato grande de un endpoint/recurso nuevo | `spec-data-table-backend.md` |
 
+**Excepción — optimizaciones:** los pedidos cuyo único objetivo es reducir requests o mejorar performance (consolidar llamados, endpoints agregados, evitar N+1) van en la subcarpeta `respuestas/optimizaciones/`, con el mismo prefijo y la misma plantilla. Ejemplo: `respuestas/optimizaciones/backend-home-mi-trabajo-agregado.md`.
+
 Un archivo por pedido. No mezclar un bug con un pedido de feature en el mismo documento aunque estén relacionados — son ciclos de vida distintos (un bug se cierra al arreglarse, un pedido puede tener puntos que se entregan en momentos distintos).
 
 ## 2. Metadata obligatoria al tope
