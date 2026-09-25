@@ -438,6 +438,16 @@
   }
 }
 
+/* Zoom lento del fondo del login (AuthShell); solo con motion-safe */
+@keyframes login-ken-burns {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+
 /* Nav item entrance animation */
 @keyframes nav-slide-in {
   from {

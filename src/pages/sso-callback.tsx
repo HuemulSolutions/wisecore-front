@@ -15,7 +15,6 @@ import { useTranslation } from 'react-i18next'
 import { AlertTriangle, ArrowLeft, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { WisecoreLogo } from '@/components/ui/wisecore-logo'
 import { FieldDescription } from '@/components/ui/field'
 import { HuemulButton } from '@/huemul/components/huemul-button'
 import { useAuth } from '@/contexts/auth-context'
@@ -26,7 +25,7 @@ import { ApiError } from '@/types/api-error'
 import { consumeReturnUrl, pathBelongsToOtherOrg, sanitizeReturnPath } from '@/lib/return-url'
 import { consumePendingSsoState } from '@/lib/sso-redirect'
 import { logger } from '@/lib/logger'
-import { AuthLegalFooter } from '@/components/auth/auth-legal-footer'
+import { AuthShell } from '@/components/auth/auth-shell'
 import type { SsoErrorCode } from '@/types/auth'
 
 export const SSO_CALLBACK_PATH = '/auth/sso/callback'
@@ -163,40 +162,36 @@ export function SsoCallbackPage() {
   const goToLogin = () => navigate(isAuthenticated ? '/' : '/login', { replace: true })
 
   return (
-    <div className="bg-background flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-      <div className="w-full max-w-sm flex flex-col gap-6">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <WisecoreLogo size="lg" className="text-[#4464f7]" />
-          {state.status === 'working' && (
-            <>
-              <Loader2 className="h-6 w-6 animate-spin text-[#4464f7]" aria-hidden />
-              <FieldDescription className="text-gray-600">{t('ssoCallback.exchanging')}</FieldDescription>
-            </>
-          )}
-          {state.status === 'error' && (
-            <>
-              <AlertTriangle className="h-8 w-8 text-red-600" aria-hidden />
-              <h1 className="text-2xl font-bold text-gray-900">{t('ssoCallback.errorTitle')}</h1>
-              <FieldDescription className="text-red-600" role="alert">
-                {t(`ssoErrors.${state.code}`, { defaultValue: t('ssoErrors.generic') })}
-              </FieldDescription>
-              <HuemulButton icon={ArrowLeft} label={t('ssoCallback.backToLogin')} onClick={goToLogin} className="w-full" />
-            </>
-          )}
-          {state.status === 'step-up' && (
-            <>
-              <AlertTriangle className="h-8 w-8 text-amber-600" aria-hidden />
-              <h1 className="text-2xl font-bold text-gray-900">{t('stepUp.title')}</h1>
-              <FieldDescription className="text-gray-600" role="alert">
-                {t('stepUp.stillRequired')}
-              </FieldDescription>
-              <HuemulButton label={t('stepUp.chooseAnotherOrganization')} onClick={() => navigate('/', { replace: true })} className="w-full" />
-            </>
-          )}
-        </div>
-        <AuthLegalFooter />
+    <AuthShell>
+      <div className="flex flex-col items-center gap-4 text-center">
+        {state.status === 'working' && (
+          <>
+            <Loader2 className="h-6 w-6 animate-spin text-[#4464f7]" aria-hidden />
+            <FieldDescription className="text-gray-600">{t('ssoCallback.exchanging')}</FieldDescription>
+          </>
+        )}
+        {state.status === 'error' && (
+          <>
+            <AlertTriangle className="h-8 w-8 text-red-600" aria-hidden />
+            <h1 className="text-2xl font-bold text-gray-900">{t('ssoCallback.errorTitle')}</h1>
+            <FieldDescription className="text-red-600" role="alert">
+              {t(`ssoErrors.${state.code}`, { defaultValue: t('ssoErrors.generic') })}
+            </FieldDescription>
+            <HuemulButton icon={ArrowLeft} label={t('ssoCallback.backToLogin')} onClick={goToLogin} className="w-full" />
+          </>
+        )}
+        {state.status === 'step-up' && (
+          <>
+            <AlertTriangle className="h-8 w-8 text-amber-600" aria-hidden />
+            <h1 className="text-2xl font-bold text-gray-900">{t('stepUp.title')}</h1>
+            <FieldDescription className="text-gray-600" role="alert">
+              {t('stepUp.stillRequired')}
+            </FieldDescription>
+            <HuemulButton label={t('stepUp.chooseAnotherOrganization')} onClick={() => navigate('/', { replace: true })} className="w-full" />
+          </>
+        )}
       </div>
-    </div>
+    </AuthShell>
   )
 }
 

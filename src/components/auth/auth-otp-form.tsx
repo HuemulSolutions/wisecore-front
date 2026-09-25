@@ -4,7 +4,6 @@ import { useMutation } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 
 import { cn } from "@/lib/utils"
-import { WisecoreLogo } from "@/components/ui/wisecore-logo"
 import {
   Field,
   FieldDescription,
@@ -20,7 +19,6 @@ import {
 } from "@/components/ui/input-otp"
 import { authService } from "@/services/auth"
 import { isStatusCode } from "@/lib/error-utils"
-import { AuthLegalFooter } from "@/components/auth/auth-legal-footer"
 import type { OTPFormProps } from "@/types/auth"
 
 export type { OTPFormProps } from "@/types/auth"
@@ -122,7 +120,6 @@ export function OTPForm({
             </div>
           )}
           <div className="flex flex-col items-center gap-4 text-center">
-            <WisecoreLogo size="lg" className="text-[#4464f7]" />
             <h1 className="text-2xl font-bold text-gray-900">
               {variant === 'preauth' ? t('otp.preauthTitle') : t('otp.title')}
             </h1>
@@ -197,7 +194,6 @@ export function OTPForm({
           )}
         </HuemulFieldGroup>
       </form>
-      <AuthLegalFooter />
     </div>
   )
 }

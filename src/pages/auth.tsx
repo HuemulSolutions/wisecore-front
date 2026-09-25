@@ -1,9 +1,11 @@
 import { useEffect } from "react"
 import { useNavigate } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 import { LoginForm } from "@/components/auth/auth-login-form"
 import { OTPForm } from "@/components/auth/auth-otp-form"
 import { AuthOrganizationPicker } from "@/components/auth/auth-organization-picker"
 import { AuthSsoRedirect } from "@/components/auth/auth-sso-redirect"
+import { AuthShell } from "@/components/auth/auth-shell"
 import { useAuth } from "@/contexts/auth-context"
 import { useLoginFlow } from "@/hooks/useLoginFlow"
 import { logger } from "@/lib/logger"
@@ -17,6 +19,7 @@ import { consumeReturnUrl } from "@/lib/return-url"
  */
 export function AuthPage({ initialEmail = '' }: { initialEmail?: string } = {}) {
   const { isAuthenticated } = useAuth()
+  const { t } = useTranslation('auth')
   const navigate = useNavigate()
   const flow = useLoginFlow({
     initialEmail,
@@ -40,35 +43,40 @@ export function AuthPage({ initialEmail = '' }: { initialEmail?: string } = {}) 
   const { step } = flow
 
   return (
-    <div className="bg-background flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-      <div className="w-full max-w-sm">
-        {step.kind === 'email' && (
+    <AuthShell>
+      {step.kind === 'email' && (
+        <>
+          {/* El saludo vive aquí y no en LoginForm: el diálogo de step-up también usa LoginForm. */}
+          <div className="mb-6 text-center">
+            <h1 className="text-2xl font-semibold tracking-tight text-gray-900">{t('login.welcomeTitle')}</h1>
+            <p className="mt-1 text-sm text-gray-500">{t('login.welcomeSubtitle')}</p>
+          </div>
           <LoginForm initialEmail={flow.email} onCodeRequested={flow.onCodeRequested} />
-        )}
-        {step.kind === 'otp' && (
-          <OTPForm
-            key={`${step.variant}:${step.email}`}
-            email={step.email}
-            variant={step.variant}
-            onBack={flow.back}
-            onVerified={flow.onVerified}
-            onResend={step.resend}
-          />
-        )}
-        {step.kind === 'choose-organization' && (
-          <AuthOrganizationPicker
-            preauthToken={step.preauthToken}
-            organizations={step.organizations}
-            onBack={flow.back}
-            onSelected={(result, organization) =>
-              flow.onOrganizationSelected(result, organization, step.preauthToken, step.email)
-            }
-          />
-        )}
-        {step.kind === 'sso-redirect' && (
-          <AuthSsoRedirect sso={step.sso} onContinue={flow.retryIdpRedirect} onBack={flow.back} />
-        )}
-      </div>
-    </div>
+        </>
+      )}
+      {step.kind === 'otp' && (
+        <OTPForm
+          key={`${step.variant}:${step.email}`}
+          email={step.email}
+          variant={step.variant}
+          onBack={flow.back}
+          onVerified={flow.onVerified}
+          onResend={step.resend}
+        />
+      )}
+      {step.kind === 'choose-organization' && (
+        <AuthOrganizationPicker
+          preauthToken={step.preauthToken}
+          organizations={step.organizations}
+          onBack={flow.back}
+          onSelected={(result, organization) =>
+            flow.onOrganizationSelected(result, organization, step.preauthToken, step.email)
+          }
+        />
+      )}
+      {step.kind === 'sso-redirect' && (
+        <AuthSsoRedirect sso={step.sso} onContinue={flow.retryIdpRedirect} onBack={flow.back} />
+      )}
+    </AuthShell>
   )
 }

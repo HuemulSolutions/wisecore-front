@@ -8,12 +8,10 @@ import { useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 
 import { cn } from '@/lib/utils'
-import { WisecoreLogo } from '@/components/ui/wisecore-logo'
 import { FieldDescription } from '@/components/ui/field'
 import { HuemulFieldGroup } from '@/huemul/components/huemul-field'
 import { HuemulButton } from '@/huemul/components/huemul-button'
 import { AuthMethodBadge } from '@/components/auth/auth-method-badge'
-import { AuthLegalFooter } from '@/components/auth/auth-legal-footer'
 import { authService } from '@/services/auth'
 import { isStatusCode } from '@/lib/error-utils'
 import type { LoginOrganizationOption, SelectOrganizationResult } from '@/types/auth'
@@ -59,7 +57,6 @@ export function AuthOrganizationPicker({
           </div>
         )}
         <div className="flex flex-col items-center gap-4 text-center">
-          <WisecoreLogo size="lg" className="text-[#4464f7]" />
           <h1 className="text-2xl font-bold text-gray-900">{t('chooseOrganization.title')}</h1>
           <FieldDescription className="text-gray-600">{t('chooseOrganization.description')}</FieldDescription>
         </div>
@@ -94,7 +91,6 @@ export function AuthOrganizationPicker({
           </FieldDescription>
         )}
       </HuemulFieldGroup>
-      <AuthLegalFooter />
     </div>
   )
 }

@@ -8,6 +8,17 @@ const translations = {
     and: { en: "and", es: "y" },
     privacyPolicy: { en: "Privacy Policy", es: "Política de Privacidad" },
     version: { en: "Version", es: "Versión" },
+    welcomeTitle: { en: "Welcome", es: "Te damos la bienvenida" },
+    welcomeSubtitle: { en: "Sign in to continue", es: "Iniciar sesión para continuar" },
+  },
+  hero: {
+    titleLead: { en: "Your organization's memory and", es: "La memoria y el conocimiento de tu" },
+    titleHighlight: { en: "knowledge.", es: "organización." },
+    subtitle: {
+      en: "One place where people and AI agents look up, collaborate on and keep information official and up to date.",
+      es: "Un solo lugar donde personas y agentes de IA consultan, colaboran y mantienen la información siempre oficial y actualizada.",
+    },
+    poweredBy: { en: "Huemul Solutions", es: "Huemul Solutions" },
   },
   otp: {
     back: { en: "Back", es: "Volver" },

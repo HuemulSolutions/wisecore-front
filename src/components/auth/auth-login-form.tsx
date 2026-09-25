@@ -3,13 +3,11 @@ import { useMutation } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 
 import { cn } from "@/lib/utils"
-import { WisecoreLogo } from "@/components/ui/wisecore-logo"
 import { FieldDescription } from "@/components/ui/field"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { authService } from "@/services/auth"
 import { isStatusCode } from "@/lib/error-utils"
-import { AuthLegalFooter } from "@/components/auth/auth-legal-footer"
 import type { LoginFormProps } from "@/types/auth"
 
 export type { LoginFormProps } from "@/types/auth"
@@ -54,10 +52,6 @@ export function LoginForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <form onSubmit={handleSubmit}>
         <HuemulFieldGroup>
-          <div className="flex flex-col items-center gap-4 text-center">
-            <WisecoreLogo size="lg" className="text-[#4464f7]" />
-
-          </div>
           <HuemulField
             type="email"
             label={t('common:email')}
@@ -73,7 +67,7 @@ export function LoginForm({
             type="submit"
             label={requestCodeMutation.isPending ? t('login.sendingCode') : t('login.continueWithEmail')}
             loading={requestCodeMutation.isPending}
-            className="w-full bg-[#4464f7] hover:bg-[#3451e6] text-white font-medium py-2.5 transition-colors"
+            className="w-full h-11 bg-gradient-to-r from-[#4464f7] to-[#2f6bff] hover:from-[#3451e6] hover:to-[#2459f0] text-white font-medium shadow-lg shadow-blue-500/30 transition-all"
           />
           {requestCodeError && (
             <FieldDescription className="text-red-600 text-center">
@@ -82,7 +76,6 @@ export function LoginForm({
           )}
         </HuemulFieldGroup>
       </form>
-      <AuthLegalFooter />
     </div>
   )
 }

@@ -6,12 +6,10 @@ import { ArrowLeft, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { cn } from '@/lib/utils'
-import { WisecoreLogo } from '@/components/ui/wisecore-logo'
 import { FieldDescription } from '@/components/ui/field'
 import { HuemulFieldGroup } from '@/huemul/components/huemul-field'
 import { HuemulButton } from '@/huemul/components/huemul-button'
 import { AuthMethodIcon } from '@/components/auth/auth-method-badge'
-import { AuthLegalFooter } from '@/components/auth/auth-legal-footer'
 import type { SsoFlowPayload } from '@/types/auth'
 
 export interface AuthSsoRedirectProps extends React.ComponentProps<'div'> {
@@ -31,7 +29,6 @@ export function AuthSsoRedirect({ className, sso, onContinue, onBack, ...props }
           </div>
         )}
         <div className="flex flex-col items-center gap-4 text-center" role="status">
-          <WisecoreLogo size="lg" className="text-[#4464f7]" />
           <span className="flex items-center gap-2 text-lg font-semibold text-gray-900">
             <AuthMethodIcon type={sso.type} className="h-5 w-5" />
             {t('sso.redirecting', { name: sso.name })}
@@ -46,7 +43,6 @@ export function AuthSsoRedirect({ className, sso, onContinue, onBack, ...props }
           className="w-full bg-[#4464f7] hover:bg-[#3451e6] text-white font-medium py-2.5 transition-colors"
         />
       </HuemulFieldGroup>
-      <AuthLegalFooter />
     </div>
   )
 }
