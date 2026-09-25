@@ -19,6 +19,10 @@ import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useTranslation } from 'react-i18next';
 import ProtectedComponent from '../protected-component';
 import { logger } from '@/lib/logger';
+import { authStepUpStore } from '@/lib/auth-step-up-store';
+import { isErrorCode, parseErrorDetail } from '@/lib/error-utils';
+import { AUTH_METHOD_REQUIRED } from '@/hooks/useCompleteLogin';
+import type { AuthMethodRequiredDetail } from '@/types/auth';
 import type { UserOrganization } from '@/types/users';
 import type { OrganizationSelectionDialogProps } from '@/types/organizations';
 export type { OrganizationSelectionDialogProps } from '@/types/organizations';
@@ -83,6 +87,15 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
       // Navigation to /${orgId}/home is handled by the context→URL sync
       // in app-layout.tsx. We intentionally don't navigate here to avoid
       // a double-navigation flash.
+    },
+    onError: (error, organizationId) => {
+      // Step-up (docs/sso-frontend.md §2): la organización exige otro método de
+      // acceso. Se abre el diálogo global; el resto de errores sigue al toast.
+      if (!isErrorCode(error, AUTH_METHOD_REQUIRED)) return;
+      const detail = parseErrorDetail<AuthMethodRequiredDetail>(error);
+      if (!detail?.required_auth_flow) return;
+      const organizationName = organizationsData?.find((org: UserOrganization) => org.id === organizationId)?.name ?? null;
+      authStepUpStore.open({ organizationId, organizationName, required: detail.required_auth_flow, source: 'dialog' });
     },
   });
 

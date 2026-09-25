@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import UserFormFields from "./users-form-fields"
+import { UserAuthMethodField } from "./users-auth-method-field"
 import { formatDate, getStatusColor } from "./users-table"
 import type { User, UserProfileFormApi } from "@/types/users"
 import type { useUserMutations } from "@/hooks/useUsers"
@@ -18,6 +19,11 @@ export interface UsersDetailProfileTabProps {
   userMutations: ReturnType<typeof useUserMutations>
   canUpdate: boolean
   canManageRootAdmin: boolean
+  /** Método de inicio de sesión en la organización activa; ver `UserAuthMethodField`. */
+  authMethod?: {
+    organizationId: string
+    canEdit: boolean
+  }
 }
 
 const MONTH_KEYS = [
@@ -48,6 +54,7 @@ export function UsersDetailProfileTab({
   userMutations,
   canUpdate,
   canManageRootAdmin,
+  authMethod,
 }: UsersDetailProfileTabProps) {
   const { t } = useTranslation(["users", "common"])
   const birthday = user.birth_day && user.birth_month
@@ -98,6 +105,17 @@ export function UsersDetailProfileTab({
           value={user.activated_at ? formatDate(user.activated_at) : "—"}
         />
       </div>
+
+      {/* Acción inmediata (PATCH de la membresía), fuera del formulario del
+          perfil: no pasa por `PUT /users/{id}` ni por la barra de guardado. */}
+      {authMethod && (
+        <UserAuthMethodField
+          user={user}
+          organizationId={authMethod.organizationId}
+          canEdit={authMethod.canEdit}
+          withLabel
+        />
+      )}
 
       {user.status === "pending" && canUpdate && (
         <div className="flex gap-2">

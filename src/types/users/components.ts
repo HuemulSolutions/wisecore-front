@@ -94,6 +94,13 @@ export interface UserTableProps {
    * color de fallback de `roleRowSwatch` — no se ocultan.
    */
   canListRoles?: boolean
+  /**
+   * Organización activa: habilita la columna "Método de inicio de sesión"
+   * (método de la membresía, docs/sso-frontend.md Fase 6). Sin ella no se muestra.
+   */
+  organizationId?: string
+  /** Root admin o admin de la organización activa: la columna pasa de badge a select. */
+  canEditAuthMethod?: boolean
   pagination?: HuemulTablePagination
   isLoading?: boolean
   isFetching?: boolean

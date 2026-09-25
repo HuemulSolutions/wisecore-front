@@ -40,6 +40,24 @@ export function isTokenExpired(token: string): boolean {
 }
 
 /**
+ * Organización que el backend fijó en el login (`login_org_id`), leída de un
+ * token dado (no del httpClient) para poder usarla justo después de `login()`.
+ */
+export function getLoginOrgIdFromToken(token: string | null | undefined): string | null {
+  if (!token) return null;
+  const payload = decodeJWT<LoginTokenPayload>(token);
+  const value = payload?.login_org_id;
+  return typeof value === 'string' && value ? value : null;
+}
+
+/** Conexión (`auth_type_id`) con la que se emitió el token de login dado. */
+export function getAuthTypeIdFromToken(token: string | null | undefined): string | null {
+  if (!token) return null;
+  const payload = decodeJWT<LoginTokenPayload>(token);
+  return typeof payload?.auth_type_id === 'string' ? payload.auth_type_id : null;
+}
+
+/**
  * Obtiene la información del token de login
  */
 export function getLoginTokenInfo(): LoginTokenPayload | null {

@@ -51,7 +51,7 @@ export default function Organizations() {
   // Asignar/quitar usuarios de una organización (membership, distinto de
   // "Hacer admin") es cross-org y root-admin-only — mismo eje que
   // `canManageRootAdmin` en /users, no una feature RBAC nueva.
-  const { isRootAdmin } = useUserPermissions()
+  const { isRootAdmin, isOrgAdmin } = useUserPermissions()
   const { selectedOrganizationId, organizationToken } = useOrganization()
 
   // Permisos específicos
@@ -91,7 +91,8 @@ export default function Organizations() {
 
   // Form del tab Detalles: vive en la página (no en el panel), espejo de
   // `detailsForm` en roles.tsx — así el estado sucio sobrevive al cambio de tab.
-  const detailsForm = useOrganizationDetailsForm(selectedOrganization, canUpdateOrg)
+  // El método por defecto solo lo edita el root admin (PATCH root-only).
+  const detailsForm = useOrganizationDetailsForm(selectedOrganization, canUpdateOrg, false, isRootAdmin)
 
   // Guard de descarte: registrado por el panel (ver
   // ia context/sheet-footer-batch-save-guide.md), consultado acá antes de
@@ -241,6 +242,11 @@ export default function Organizations() {
         // Los límites de sistema (max_users/token_limit) solo se editan desde
         // /global-admin — esta página no los expone.
         canManageSystemLimits={false}
+        // Método de autenticación por miembro (docs/sso-frontend.md, Fase 6): root
+        // admin sobre cualquier organización; el org admin solo sobre la activa,
+        // porque su token de organización es el que autoriza el PATCH.
+        canEditAuthMethod={isRootAdmin || (isOrgAdmin && !!selectedOrganization && selectedOrganization.id === selectedOrganizationId)}
+        canManageDefaultAuthMethod={isRootAdmin}
         onRegisterGuard={onRegisterGuard}
       />
 

@@ -1,3 +1,5 @@
+import type { MembershipAuthType } from '@/types/organizations/core'
+
 export interface UserRole {
   id: string
   name: string
@@ -14,7 +16,14 @@ export interface User {
   status: 'active' | 'inactive' | 'pending'
   activated_at: string | null
   external_id: string | null
-  auth_type_id: string
+  /**
+   * En `GET /user_roles/users_with_roles` (SSO): método de la membresía en la
+   * organización de `X-Org-Id`, `null` si no tiene. En `GET /users` y
+   * `GET /users/{id}`: la columna legacy del usuario, que ya no es el método de login.
+   */
+  auth_type_id: string | null
+  /** Solo en `GET /user_roles/users_with_roles`: conexión de la membresía. Ausente en el resto. */
+  auth_type?: MembershipAuthType | null
   updated_at: string
   created_at: string
   birthdate: string | null
@@ -45,6 +54,9 @@ export interface UserOrganization {
   token_limit: number | null
   tier: "starter" | "pro" | "enterprise"
   member: boolean
+  /** Método de la membresía (docs/sso-frontend.md, Fase 6). Ausente en backends viejos; `null` si no es miembro. */
+  auth_type_id?: string | null
+  auth_type?: MembershipAuthType | null
 }
 
 export interface UserOrganizationsResponse {
@@ -58,6 +70,8 @@ export interface UserOrganizationsResponse {
 
 export interface AssignUserToOrganizationData {
   user_id: string
+  /** Método de la membresía nueva; omitido = `default_auth_type_id` de la org o código por email. */
+  auth_type_id?: string
 }
 
 export interface UpdateUserData {

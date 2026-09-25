@@ -50,7 +50,7 @@ export default function UsersPage() {
   // (PATCH /users/{id}/root-admin), no un bypass de los permisos org-scoped.
   // También gatea el tab "Organizaciones" (asignar/quitar organizaciones,
   // cross-org y root-admin-only — ver users-detail-organizations-tab.tsx).
-  const { isRootAdmin } = useUserPermissions()
+  const { isRootAdmin, isOrgAdmin } = useUserPermissions()
   const { selectedOrganizationId, organizationToken } = useOrganization()
 
   // El set de tabs depende de `isRootAdmin`, que resuelve después del primer
@@ -82,6 +82,10 @@ export default function UsersPage() {
   const canAssignRoles = can('assignRoles')
   const canListRoles = can('listRoles')
   const canCreateRole = can('createRole')
+  // Método de inicio de sesión de la membresía: el backend
+  // (PATCH /organizations/{org}/users/{user}/auth-method) lo permite al root
+  // admin y al admin de la organización activa — no depende de `user:u`.
+  const canEditAuthMethod = isRootAdmin || isOrgAdmin
 
   // Fetch users and mutations - solo si tiene permisos de listar
   const { data: usersResponse, isLoading, isFetching, isError, refetch } = useUsers(
@@ -274,6 +278,8 @@ export default function UsersPage() {
                 onSelectUser={handleSelectUser}
                 selectedUserId={selectedUserId}
                 canListRoles={canListRoles}
+                organizationId={selectedOrganizationId}
+                canEditAuthMethod={canEditAuthMethod}
                 isLoading={isTableLoading}
                 isFetching={isTableFetching}
                 pagination={{
@@ -332,6 +338,7 @@ export default function UsersPage() {
         onRegisterGuard={onRegisterGuard}
         staging={staging}
         organizationsTab={isRootAdmin ? { canManageMembers: true } : undefined}
+        authMethod={{ organizationId: selectedOrganizationId, canEdit: canEditAuthMethod }}
       />
 
       {/* Dialogs and Sheets */}

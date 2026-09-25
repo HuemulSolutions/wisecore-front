@@ -53,11 +53,13 @@ export async function addOrganization({ name, description }: { name: string; des
 
 export async function updateOrganization(
   organizationId: string, 
-  { name, description, max_users, token_limit }: { 
-    name: string; 
+  { name, description, max_users, token_limit, default_auth_type_id }: {
+    name: string;
     description?: string;
     max_users?: number | null;
     token_limit?: number | null;
+    /** `null` limpia (vuelve a código por email); `undefined` no lo toca. */
+    default_auth_type_id?: string | null;
   }
 ) {
   const body: Record<string, unknown> = {
@@ -71,6 +73,9 @@ export async function updateOrganization(
   }
   if (token_limit !== undefined) {
     body.token_limit = token_limit;
+  }
+  if (default_auth_type_id !== undefined) {
+    body.default_auth_type_id = default_auth_type_id;
   }
 
   const response = await httpClient.patch(`${backendUrl}/organizations/${organizationId}`, body);
@@ -125,4 +130,23 @@ export async function setOrganizationAdmin(
     }
   );
   return response.json();
+}
+
+/**
+ * Cambia el método de autenticación de una membresía (docs/sso-frontend.md, Fase 6).
+ * `X-Org-Id` es la organización del path (no la activa): el backend exige que
+ * coincidan y que el token sea root admin o admin de ESA organización.
+ */
+export async function setMembershipAuthMethod(
+  organizationId: string,
+  userId: string,
+  authTypeId: string,
+): Promise<{ user_id: string; organization_id: string; auth_type_id: string; auth_type: { id: string; name: string; type: string } }> {
+  const response = await httpClient.patch(
+    `${backendUrl}/organizations/${organizationId}/users/${userId}/auth-method`,
+    { auth_type_id: authTypeId },
+    { headers: { 'X-Org-Id': organizationId } },
+  );
+  const data = await response.json();
+  return data.data;
 }

@@ -86,6 +86,8 @@ export const httpClient = {
     const isTokenEndpoint = url.includes('/users/') && url.includes('/token');
     const isUserRolesTokenEndpoint = url.includes('/user_roles/user_token');
     const isUserOrganizationsEndpoint = url.includes('/users/organizations');
+    // OJO: `/auth-sso/` y `/auth_types/` NO matchean a propósito — necesitan el token de
+    // organización porque el backend lee `is_org_admin` de ese JWT (docs/sso-frontend.md).
     const isAuthEndpoint = url.includes('/auth/');
     const isOrganizationsEndpoint = url.includes('/organizations') && !url.includes('/users/organizations');
     
@@ -103,8 +105,9 @@ export const httpClient = {
     logger.log(`[httpClient] ${options.method || 'GET'} ${url}`);
     logger.log(`[httpClient] Using ${shouldUseLoginToken ? 'login' : 'organization'} token:`, tokenToUse?.substring(0, 10) + '...');
     
-    // Add auth token if available
-    if (tokenToUse) {
+    // Add auth token if available. Un servicio puede forzar otro token pasando
+    // `Authorization` explícito (p. ej. el token de org en una URL /organizations/...).
+    if (tokenToUse && !headers.has('Authorization')) {
       headers.set('Authorization', `Bearer ${tokenToUse}`);
     }
 

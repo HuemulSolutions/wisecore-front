@@ -94,7 +94,7 @@ Context-aware, expandable assistant available across the app.
 
 ### Developer Experience
 - **ESLint** + **typescript-eslint**
-- No automated test suite exists yet — CI runs `npm run test --if-present`, but no `test` script is defined in `package.json`.
+- **Vitest** + **Testing Library** + **msw** (`npm run test`). CI runs `npm run test --if-present`, so a failing test blocks the deploy. Conventions in `ia context/testing-guide.md`; the auth/SSO test plan lives in `docs/sso-frontend.md`.
 
 ## Getting Started
 

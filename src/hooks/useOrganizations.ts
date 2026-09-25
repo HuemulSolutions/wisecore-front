@@ -8,7 +8,9 @@ import {
   deleteOrganization,
   getOrganizationUsers,
   setOrganizationAdmin,
+  setMembershipAuthMethod,
 } from "@/services/organizations"
+import { userQueryKeys } from "@/hooks/useUsers"
 import type { Organization } from "@/types/organizations"
 
 // Query keys for organizations
@@ -107,7 +109,7 @@ export function useOrganizationMutations() {
   const updateOrganizationMutation = useMutation({
     mutationFn: ({ id, data }: {
       id: string
-      data: { name: string; description?: string; max_users?: number | null; token_limit?: number | null }
+      data: { name: string; description?: string; max_users?: number | null; token_limit?: number | null; default_auth_type_id?: string | null }
     }) => updateOrganization(id, data),
     meta: { successMessage: t('toasts.updated') },
     onSuccess: invalidateList,
@@ -148,6 +150,28 @@ export function useOrganizationUsers(
 }
 
 // Hook for setting organization admin mutation
+/**
+ * Cambia el método de autenticación de un miembro (docs/sso-frontend.md, Fase 6).
+ * Invalida el listado de miembros de la organización y las organizaciones del
+ * usuario (`/users` → tab Organizaciones), que exponen el mismo dato.
+ */
+export function useSetMembershipAuthMethod() {
+  const queryClient = useQueryClient()
+  const { t } = useTranslation('organizations')
+
+  return useMutation({
+    mutationFn: ({ organizationId, userId, authTypeId }: { organizationId: string; userId: string; authTypeId: string }) =>
+      setMembershipAuthMethod(organizationId, userId, authTypeId),
+    meta: { successMessage: t('toasts.authMethodUpdated') },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: organizationQueryKeys.usersBase(variables.organizationId) })
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.organizations(variables.userId) })
+      // Lista de /users (`users_with_roles`), que muestra el método de la membresía.
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
+    },
+  })
+}
+
 export function useSetOrganizationAdmin() {
   const queryClient = useQueryClient()
   const { t } = useTranslation('organizations')

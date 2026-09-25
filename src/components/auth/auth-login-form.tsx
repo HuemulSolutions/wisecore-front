@@ -17,16 +17,20 @@ export type { LoginFormProps } from "@/types/auth"
 export function LoginForm({
   className,
   onCodeRequested,
+  initialEmail,
+  lockedEmail = false,
   ...props
 }: LoginFormProps) {
-  const [email, setEmail] = useState("")
+  const [email, setEmail] = useState(initialEmail ?? "")
   const { t } = useTranslation(['auth', 'common'])
 
   const requestCodeMutation = useMutation({
     mutationFn: (email: string) =>
       authService.requestCode({ email, purpose: "login" }),
-    onSuccess: () => {
-      onCodeRequested?.(email)
+    onSuccess: (result, requestedEmail) => {
+      // El paso siguiente (OTP, selector de organización o redirección al IdP)
+      // lo decide `useLoginFlow` según `auth_flow` (docs/sso-frontend.md §2).
+      onCodeRequested?.(result, requestedEmail)
     },
   })
 
@@ -63,6 +67,7 @@ export function LoginForm({
             onChange={(v) => setEmail(v as string)}
             required
             autoComplete="email"
+            disabled={lockedEmail}
           />
           <HuemulButton
             type="submit"

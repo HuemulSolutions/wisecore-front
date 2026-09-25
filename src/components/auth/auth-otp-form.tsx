@@ -19,7 +19,6 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp"
 import { authService } from "@/services/auth"
-import { useAuth } from "@/contexts/auth-context"
 import { isStatusCode } from "@/lib/error-utils"
 import { AuthLegalFooter } from "@/components/auth/auth-legal-footer"
 import type { OTPFormProps } from "@/types/auth"
@@ -34,14 +33,14 @@ const RESEND_COOLDOWN_SECONDS = 60
 export function OTPForm({
   className,
   email,
-  purpose,
+  variant = 'login',
   onBack,
-  onSuccess,
+  onVerified,
+  onResend,
   ...props
 }: OTPFormProps) {
   const [code, setCode] = useState("")
   const [resendCooldown, setResendCooldown] = useState(RESEND_COOLDOWN_SECONDS)
-  const { login } = useAuth()
   const { t } = useTranslation('auth')
 
   const verifyMutation = useMutation({
@@ -49,8 +48,8 @@ export function OTPForm({
       return authService.verifyCode({ email, code: otpCode })
     },
     onSuccess: (data) => {
-      login(data.token, data.user)
-      onSuccess?.()
+      // Token (caso B) o lista de organizaciones (caso C): lo decide `useLoginFlow`.
+      onVerified(data)
     },
     onError: () => {
       setCode("") // Clear the code on error
@@ -58,7 +57,7 @@ export function OTPForm({
   })
 
   const resendMutation = useMutation({
-    mutationFn: () => authService.requestCode({ email, purpose }),
+    mutationFn: () => onResend(),
     onSuccess: () => {
       setResendCooldown(RESEND_COOLDOWN_SECONDS)
     },
@@ -124,9 +123,12 @@ export function OTPForm({
           )}
           <div className="flex flex-col items-center gap-4 text-center">
             <WisecoreLogo size="lg" className="text-[#4464f7]" />
-            <h1 className="text-2xl font-bold text-gray-900">{t('otp.title')}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {variant === 'preauth' ? t('otp.preauthTitle') : t('otp.title')}
+            </h1>
             <FieldDescription className="text-gray-600">
-              {t('otp.description')} <span className="font-medium text-gray-900">{email}</span>
+              {variant === 'preauth' ? t('otp.preauthDescription') : t('otp.description')}{" "}
+              <span className="font-medium text-gray-900">{email}</span>
             </FieldDescription>
           </div>
           <Field>
