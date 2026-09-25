@@ -14,13 +14,14 @@ import { updateSectionFormValues } from "@/services/section_execution";
 import { uploadMedia } from "@/services/media";
 import type { EditorMediaUploadTarget } from "@/contexts/media-reference-context";
 import type { FormFieldValue, FormValuesSectionPayload } from "@/types/sections/core";
-import { isMediaToken } from "@/lib/plate-media-utils";
+import { mediaTokenFor } from "@/lib/plate-media-utils";
 import { AlertTriangle, Check, FileX, Info, Loader2, X } from "lucide-react";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
   MULTI_SELECT_QUESTION_TYPES,
   QUESTION_TYPE,
   SINGLE_SELECT_QUESTION_TYPES,
+  fileUploadEntryToToken,
   getQuestionTypePlaceholder,
   hasAnswer,
   isCalculatedField,
@@ -33,6 +34,7 @@ import {
   readFieldOptions,
   readFileUploadEntry,
   readFileUploadLimits,
+  resolveFileUploadRow,
 } from "@/components/sections/question-type-meta";
 import { SectionFieldSeparator } from "@/components/sections/section-field-separator";
 import { FormFieldAnswerValue, type FormFieldFilePreview } from "@/components/sections/form-field-answer-value";
@@ -85,13 +87,35 @@ function valuesEqual(a: unknown, b: unknown): boolean {
 // (las opciones de config) en campos sin responder, y algunos guardados legacy quedaron con
 // esas opciones mezcladas junto a los ids reales — normalizeSelectionValue descarta el ruido
 // de config y deja solo los ids realmente seleccionados.
+// carga_de_archivos: el backend lee objetos {url,name,content_type[,media_id]} pero al guardar
+// solo acepta tokens {{MEDIA:id}} — se guarda en answers el token (no el objeto resuelto);
+// lo que se muestra sale de fileMetaByToken (ver buildInitialFileMeta).
 function buildInitialAnswers(fields: FormFieldValue[]): AnswerMap {
   const map: AnswerMap = {};
   for (const f of fields) {
     const isMulti = MULTI_SELECT_QUESTION_TYPES.includes(f.question_type ?? "");
     const isSingle = SINGLE_SELECT_QUESTION_TYPES.includes(f.question_type ?? "");
-    const value = isMulti || isSingle ? normalizeSelectionValue(f.value, isMulti) : f.value;
+    let value = isMulti || isSingle ? normalizeSelectionValue(f.value, isMulti) : f.value;
+    if (f.question_type === QUESTION_TYPE.fileUpload && Array.isArray(value)) {
+      // Sin media_id el objeto no es convertible: se deja tal cual (nunca se reenvía si el
+      // usuario no toca el campo; si lo toca, validateFormFieldValue lo frena antes del PATCH).
+      value = value.map((e) => fileUploadEntryToToken(e) ?? e);
+    }
     map[f.id] = hasAnswer(value) ? value : null;
+  }
+  return map;
+}
+
+// Meta (nombre/mime/url) de los archivos ya guardados, indexado por su token — solo los
+// que traen media_id (los demás se pintan directo desde su propio objeto).
+function buildInitialFileMeta(fields: FormFieldValue[]): Record<string, FormFieldFilePreview> {
+  const map: Record<string, FormFieldFilePreview> = {};
+  for (const f of fields) {
+    if (f.question_type !== QUESTION_TYPE.fileUpload || !Array.isArray(f.value)) continue;
+    for (const entry of f.value) {
+      const meta = readFileUploadEntry(entry);
+      if (meta?.mediaId) map[mediaTokenFor(meta.mediaId)] = meta;
+    }
   }
   return map;
 }
@@ -140,13 +164,14 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingFields, setUploadingFields] = useState<Set<string>>(new Set());
-  // Metadatos de archivos recién subidos en esta sesión (para previsualizar; el
-  // placeholder {{MEDIA:id}} guardado como respuesta no es una URL). name/contentType
-  // vienen del archivo real elegido por el usuario, no de field.data_type — ese último
-  // siempre es "image" para carga_de_archivos en el catálogo de question_types.
-  // Un elemento por token, en el mismo orden que el array `value` guardado (siempre array,
-  // de 0 o más elementos, incluso cuando el campo permite un solo archivo).
-  const [filePreviews, setFilePreviews] = useState<Record<string, FormFieldFilePreview[]>>({});
+  // Metadatos de archivos para previsualizar, indexados por token {{MEDIA:id}} (la respuesta
+  // guardada en `answers` es el token, no una URL). Se siembra con los archivos ya guardados
+  // (los que traen media_id) y crece con las subidas de esta sesión. name/contentType vienen
+  // del archivo real elegido por el usuario, no de field.data_type — ese último siempre es
+  // "image" para carga_de_archivos en el catálogo de question_types.
+  const [fileMetaByToken, setFileMetaByToken] = useState<Record<string, FormFieldFilePreview>>(
+    () => buildInitialFileMeta(sortedFields),
+  );
   // ids de campos con un auto-guardado en curso — pinta el loader junto al campo respectivo
   // (en vez de un spinner global en una barra) mientras se espera la respuesta del PATCH.
   const [savingFieldIds, setSavingFieldIds] = useState<Set<string>>(new Set());
@@ -415,22 +440,11 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     }
   };
 
-  // Construye, para un campo de archivo, una fila por token/URL guardado: la subida nueva
-  // (filePreviews, con nombre/mime reales) o solo la URL original del backend (recarga de
-  // página — el backend únicamente resuelve el token a una URL firmada, sin metadatos), o
-  // "roto" cuando el backend dejó el placeholder {{MEDIA:...}} sin resolver (media borrado
-  // o sin acceso) y no hay preview en paralelo de una subida de esta sesión.
-  const buildFileRows = (
-    entries: unknown[],
-    previews: FormFieldFilePreview[] | undefined,
-  ): Array<{ broken: boolean; meta: FormFieldFilePreview | null }> =>
-    entries.map((entry, i) => {
-      const preview = previews?.[i];
-      if (preview) return { broken: false, meta: preview };
-      const meta = readFileUploadEntry(entry);
-      if (meta) return { broken: false, meta };
-      return { broken: isMediaToken(entry), meta: null };
-    });
+  // Construye, para un campo de archivo, una fila por entrada guardada: el meta del token
+  // (fileMetaByToken), el del propio objeto resuelto, o "roto" cuando el backend dejó el
+  // placeholder {{MEDIA:...}} sin resolver (media borrado o sin acceso) y no hay meta.
+  const buildFileRows = (entries: unknown[]): Array<{ broken: boolean; meta: FormFieldFilePreview | null }> =>
+    entries.map((entry) => resolveFileUploadRow(entry, fileMetaByToken) ?? { broken: false, meta: null });
 
   // Sale del modo edición. La mayoría de los valores ya quedan persistidos por el
   // auto-guardado (al blur de un campo de texto, al cambiar un widget atómico, o por la red
@@ -600,16 +614,16 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
 
             // value siempre es un array (contrato de backend) — con maxFiles === 1 un
             // archivo nuevo reemplaza al anterior en vez de agregarse.
-            if (isMulti) {
-              setAnswer(field.id, [...existingTokens, ...uploaded.map((u) => u.token)], { commit: true });
-              setFilePreviews((prev) => ({
-                ...prev,
-                [field.id]: [...(prev[field.id] ?? []), ...uploaded.map((u) => u.preview)],
-              }));
-            } else {
-              setAnswer(field.id, [uploaded[0].token], { commit: true });
-              setFilePreviews((prev) => ({ ...prev, [field.id]: [uploaded[0].preview] }));
-            }
+            const kept = isMulti ? uploaded : [uploaded[0]];
+            setFileMetaByToken((prev) => ({
+              ...prev,
+              ...Object.fromEntries(kept.map((u) => [u.token, u.preview])),
+            }));
+            setAnswer(
+              field.id,
+              isMulti ? [...existingTokens, ...kept.map((u) => u.token)] : [uploaded[0].token],
+              { commit: true },
+            );
           } catch {
             setFieldErrors((prev) => ({ ...prev, [field.id]: t("form.fill.fileUploadError") }));
           } finally {
@@ -621,14 +635,9 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
           const tokens = [...existingTokens];
           tokens.splice(index, 1);
           setAnswer(field.id, tokens, { commit: true });
-          setFilePreviews((prev) => {
-            const list = [...(prev[field.id] ?? [])];
-            list.splice(index, 1);
-            return { ...prev, [field.id]: list };
-          });
         };
 
-        const rows = buildFileRows(existingTokens, filePreviews[field.id]);
+        const rows = buildFileRows(existingTokens);
         // Single-file (comportamiento histórico): el input de reemplazo siempre está
         // visible. Multi-file: se oculta al llegar al máximo — hay que quitar uno primero.
         const canAddMore = !isMulti || existingTokens.length < maxFiles;
@@ -720,7 +729,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
 
       case CUSTOM_FIELD_QUESTION_TYPE:
         // Solo lectura: el valor se gestiona en los custom fields del documento
-        return <FormFieldAnswerValue field={field} value={value} filePreviews={filePreviews[field.id]} />;
+        return <FormFieldAnswerValue field={field} value={value} fileMetaByToken={fileMetaByToken} />;
 
       default:
         return (
@@ -834,7 +843,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
                       // el mapa local — si no, un valor recalculado se vería obsoleto durante
                       // toda la sesión de edición aunque la caché ya se haya refrescado.
                       value={isCalculatedField(field) ? field.value : answers[field.id]}
-                      filePreviews={filePreviews[field.id]}
+                      fileMetaByToken={fileMetaByToken}
                     />
                   )}
               {isTriggerField && (

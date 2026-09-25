@@ -2,30 +2,30 @@
 
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronUp, RefreshCw, Table2, Undo2, X } from 'lucide-react';
+import { Table2 } from 'lucide-react';
 
 import { useOrganization } from '@/contexts/organization-context';
 import { HuemulSheet } from '@/huemul/components/huemul-sheet';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { HuemulButton } from '@/huemul/components/huemul-button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useDataTableSources, dataTableQueryKeys } from '@/hooks/useDataTables';
-import {
-  labelForSource,
-  labelForField,
-  labelForFilter,
-  labelForFilterOption,
-  hintForFilter,
-} from '@/lib/data-table-catalog-labels';
+import { useDataTableSources } from '@/hooks/useDataTables';
+import { labelForSource } from '@/lib/data-table-catalog-labels';
 import { DATA_TABLE_KEY } from '@/lib/plate-data-table-utils';
-import { normalizeDataTableNode, type AnyDataTableElement } from '@/lib/data-table-node-utils';
-import { DataTableNodeBody } from '@/components/ui/data-table-node-grid';
+import {
+  buildPreviewResolveTable,
+  dataTableSpecHash,
+  normalizeDataTableNode,
+  type AnyDataTableElement,
+} from '@/lib/data-table-node-utils';
 import { useDataTablePreview } from '@/contexts/document-data-context';
-import type { DataTableColumnSpec, DataTableFieldDef, DataTableSourceDef } from '@/types/data-table-resolve';
-import type { DataTableConfig, DataTableElement } from '@/types/data-table-node';
+import { ColumnsStep } from '@/components/ui/data-table-config/columns-step';
+import { FiltersStep } from '@/components/ui/data-table-config/filters-step';
+import { PresentationStep } from '@/components/ui/data-table-config/presentation-step';
+import { buildDisplayTable } from '@/components/ui/data-table-config/build-display-table';
+import { PreviewPanel } from '@/components/ui/data-table-config/preview-panel';
+import { SourceStep } from '@/components/ui/data-table-config/source-step';
+import { StepHeader } from '@/components/ui/data-table-config/step-header';
+import { moveItem } from '@/components/ui/data-table-config/use-reorder-dnd';
+import type { DataTableColumnSpec, DataTableSourceDef } from '@/types/data-table-resolve';
+import type { DataTableConfig, DataTableElement, DataTableSnapshot } from '@/types/data-table-node';
 
 export interface DataTableConfigSheetProps {
   open: boolean;
@@ -34,27 +34,29 @@ export interface DataTableConfigSheetProps {
    * Se normaliza al abrir (`normalizeDataTableNode`) para aceptar tanto el shape nuevo como
    * nodos legacy (`columns: string[]`, `filters` camelCase). */
   initial?: DataTableElement | DataTableConfig | null;
-  onConfirm: (config: DataTableConfig) => void;
+  /** `snapshot` viene de la última respuesta `ok` de la vista previa (o `null` si no hubo). */
+  onConfirm: (config: DataTableConfig, snapshot: DataTableSnapshot | null) => void;
 }
 
-function parseLimit(raw: string): number | null {
-  if (!raw.trim()) return null;
-  const parsed = Math.max(1, Number.parseInt(raw, 10));
-  return Number.isNaN(parsed) ? null : parsed;
+const DEFAULT_LIMIT = 10;
+
+interface PreviousConfig {
+  source: string;
+  columns: DataTableColumnSpec[];
+  filters: Record<string, string[]>;
+  limit: number | null;
 }
 
 /**
  * Sheet único para insertar o reconfigurar un nodo `data_table` — mismo componente en ambos
- * casos (ver `data-table-toolbar-button.tsx` y `data-table-node.tsx`). Dos columnas: config a
- * la izquierda y previsualización en vivo a la derecha (armada con el mismo `DataTableNodeBody`
- * que pinta el nodo ya insertado, vía `useDataTablePreview` — una query propia debounceada que
- * no se une al batch del resto del documento).
+ * casos (ver `data-table-toolbar-button.tsx` y `data-table-node.tsx`). Izquierda: cuatro pasos
+ * numerados. Derecha: vista previa con datos reales (`useDataTablePreview`, query propia
+ * debounceada) que además permite reordenar/quitar/agregar columnas directamente.
  *
  * El catálogo (fuentes/columnas/filtros) viene de `/data-table/sources` — nada hardcodeado acá.
  */
 export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }: DataTableConfigSheetProps) {
   const { t } = useTranslation(['editor', 'assets']);
-  const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
   const sourcesQuery = useDataTableSources(selectedOrganizationId || undefined);
   const sources = React.useMemo(() => sourcesQuery.data ?? [], [sourcesQuery.data]);
@@ -69,76 +71,94 @@ export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }:
     [sources],
   );
 
-  const [source, setSource] = React.useState<string>(normalizedInitial?.source || 'document_versions');
+  const [source, setSource] = React.useState<string>(normalizedInitial?.source ?? '');
   const [columns, setColumns] = React.useState<DataTableColumnSpec[]>(normalizedInitial?.columns ?? []);
   const [filters, setFilters] = React.useState<Record<string, string[]>>(normalizedInitial?.filters ?? {});
-  const [limit, setLimit] = React.useState<string>(normalizedInitial?.limit ? String(normalizedInitial.limit) : '');
+  const [limit, setLimit] = React.useState<number | null>(normalizedInitial ? normalizedInitial.limit : DEFAULT_LIMIT);
   const [title, setTitle] = React.useState<string>(normalizedInitial?.title ?? '');
   const [refreshOnApproval, setRefreshOnApproval] = React.useState<boolean>(
     normalizedInitial?.refresh_on_approval ?? false,
   );
+  const [previousConfig, setPreviousConfig] = React.useState<PreviousConfig | null>(null);
 
   // Reset del formulario a lo que trae el nodo (normalizado) cada vez que se abre.
   React.useEffect(() => {
     if (!open) return;
-    const nextSource = normalizedInitial?.source || 'document_versions';
-    setSource(nextSource);
-    setColumns(
-      normalizedInitial?.columns.length
-        ? normalizedInitial.columns
-        : (getSourceDef(nextSource)?.default_columns ?? []).map((id) => ({ id })),
-    );
+    setSource(normalizedInitial?.source ?? '');
+    setColumns(normalizedInitial?.columns ?? []);
     setFilters(normalizedInitial?.filters ?? {});
-    setLimit(normalizedInitial?.limit ? String(normalizedInitial.limit) : '');
+    setLimit(normalizedInitial ? normalizedInitial.limit : DEFAULT_LIMIT);
     setTitle(normalizedInitial?.title ?? '');
     setRefreshOnApproval(normalizedInitial?.refresh_on_approval ?? false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setPreviousConfig(null);
   }, [open, normalizedInitial]);
 
   const sourceDef = getSourceDef(source);
-  const filterDefs = (sourceDef?.filters ?? []).filter((f) => f.kind === 'multi_enum');
+  const filterDefs = sourceDef?.filters ?? [];
+  const supportsLimit = sourceDef?.supports_limit ?? true;
+  const effectiveLimit = supportsLimit ? limit : null;
+
+  // ── Handlers de config ─────────────────────────────────────────────
 
   const handleSourceChange = (next: string) => {
+    if (next === source) return;
+    const nextDef = getSourceDef(next);
+    if (source) setPreviousConfig({ source, columns, filters, limit });
     setSource(next);
-    setColumns((getSourceDef(next)?.default_columns ?? []).map((id) => ({ id })));
+    setColumns((nextDef?.default_columns ?? []).map((id) => ({ id })));
     setFilters({});
   };
 
-  const moveColumn = (index: number, offset: -1 | 1) => {
-    setColumns((prev) => {
-      const next = [...prev];
-      const target = index + offset;
-      if (target < 0 || target >= next.length) return prev;
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
+  const handleUndoSource = () => {
+    if (!previousConfig) return;
+    setSource(previousConfig.source);
+    setColumns(previousConfig.columns);
+    setFilters(previousConfig.filters);
+    setLimit(previousConfig.limit);
+    setPreviousConfig(null);
+  };
+
+  const reorderColumns = (from: number, to: number) => {
+    setPreviousConfig(null);
+    setColumns((prev) => moveItem(prev, from, to));
   };
 
   const removeColumn = (id: string) => {
+    setPreviousConfig(null);
     setColumns((prev) => prev.filter((c) => c.id !== id));
   };
 
   const addColumn = (id: string) => {
+    setPreviousConfig(null);
     setColumns((prev) => (prev.some((c) => c.id === id) ? prev : [...prev, { id }]));
   };
 
-  const renameColumn = (id: string, label: string) => {
-    setColumns((prev) => prev.map((c) => (c.id === id ? { ...c, label: label.trim() || undefined } : c)));
+  const renameColumn = (id: string, label: string | undefined) => {
+    setColumns((prev) => prev.map((c) => (c.id === id ? { id: c.id, ...(label !== undefined ? { label } : {}) } : c)));
   };
 
-  const toggleFilterValue = (filterId: string, value: string, checked: boolean) => {
+  const resetColumns = () => {
+    setColumns((sourceDef?.default_columns ?? []).map((id) => ({ id })));
+  };
+
+  const setFilterValues = (filterId: string, values: string[]) => {
+    setPreviousConfig(null);
     setFilters((prev) => {
-      const current = new Set(prev[filterId] ?? []);
-      if (checked) current.add(value);
-      else current.delete(value);
       const next = { ...prev };
-      if (current.size) next[filterId] = [...current];
-      else delete next[filterId];
+      if (values.every((v) => v === '')) delete next[filterId];
+      else next[filterId] = values;
       return next;
     });
   };
 
-  const parsedLimit = React.useMemo(() => parseLimit(limit), [limit]);
+  const activeFilterCount = Object.keys(filters).length;
+
+  const columnsDiffer =
+    !!sourceDef &&
+    (columns.length !== sourceDef.default_columns.length ||
+      columns.some((c, i) => c.id !== sourceDef.default_columns[i] || !!c.label));
+
+  // ── Vista previa y guardado ─────────────────────────────────────────
 
   const draftElement = React.useMemo<DataTableElement>(
     () => ({
@@ -147,45 +167,70 @@ export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }:
       source,
       columns,
       filters,
-      limit: parsedLimit,
+      limit: effectiveLimit,
       title: title.trim() || null,
       refresh_on_approval: refreshOnApproval,
       children: [{ text: '' }],
     }),
-    [source, columns, filters, parsedLimit, title, refreshOnApproval],
+    [source, columns, filters, effectiveLimit, title, refreshOnApproval],
   );
-  const resolved = useDataTablePreview(draftElement);
+  const preview = useDataTablePreview(draftElement);
 
-  const handleRefreshPreview = React.useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: dataTableQueryKeys.previewBase() });
-  }, [queryClient]);
+  const hasSource = !!sourceDef;
+  const hasColumns = columns.length > 0;
+  const canConfirm = hasSource && hasColumns;
+  const disabledReason = !hasSource ? t('editor:dataTable.sheet.missingSource') : t('editor:dataTable.sheet.missingColumns');
 
   const handleConfirm = React.useCallback(() => {
     if (!sourceDef || columns.length === 0) return;
-    onConfirm({
+
+    const cleanColumns = columns.map((c) => {
+      const label = c.label?.trim();
+      return label ? { id: c.id, label } : { id: c.id };
+    });
+    const config: DataTableConfig = {
       source,
-      columns,
+      columns: cleanColumns,
       filters,
-      limit: parsedLimit,
+      limit: effectiveLimit,
       title: title.trim() || null,
       refresh_on_approval: refreshOnApproval,
-    });
-  }, [sourceDef, columns, source, filters, parsedLimit, title, refreshOnApproval, onConfirm]);
+    };
 
-  const orphanColumnIds = React.useMemo(() => {
-    const ids = new Set(resolved.omittedColumns);
-    for (const col of columns) {
-      if (!sourceDef?.fields.some((f) => f.id === col.id)) ids.add(col.id);
+    let snapshot: DataTableSnapshot | null = null;
+    const display = buildDisplayTable(preview.table, sourceDef, cleanColumns, t as unknown as (key: string) => string);
+    if (display && preview.resolvedAt) {
+      snapshot = { headers: display.headers, rows: display.rows, captured_at: preview.resolvedAt };
+    } else if (normalizedInitial?.snapshot) {
+      // Sin preview `ok` (p. ej. fuera de un documento): se conserva la copia previa solo si la
+      // config de datos no cambió; si cambió, `null` y el pre-save recompone el snapshot.
+      const draftHash = dataTableSpecHash([
+        buildPreviewResolveTable({ ...normalizedInitial, source, columns: cleanColumns, filters, limit: effectiveLimit }),
+      ]);
+      const initialHash = dataTableSpecHash([buildPreviewResolveTable(normalizedInitial)]);
+      if (draftHash === initialHash) snapshot = normalizedInitial.snapshot;
     }
-    return ids;
-  }, [columns, sourceDef, resolved.omittedColumns]);
 
-  const chosenFields = columns.map((col) => ({
-    col,
-    field: sourceDef?.fields.find((f) => f.id === col.id) ?? null,
-    isOrphan: orphanColumnIds.has(col.id),
-  }));
-  const availableFields = (sourceDef?.fields ?? []).filter((f: DataTableFieldDef) => !columns.some((c) => c.id === f.id));
+    onConfirm(config, snapshot);
+  }, [
+    sourceDef,
+    columns,
+    source,
+    filters,
+    effectiveLimit,
+    title,
+    refreshOnApproval,
+    preview,
+    normalizedInitial,
+    onConfirm,
+    t,
+  ]);
+
+  // ── Render ─────────────────────────────────────────────────────────
+
+  const isEditing = !!initial;
+  const isKeyValue = sourceDef?.layout === 'keyValue';
+  const orphanIds = React.useMemo(() => new Set(preview.table?.omitted_columns ?? []), [preview.table]);
 
   return (
     <HuemulSheet
@@ -193,193 +238,118 @@ export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }:
       onOpenChange={onOpenChange}
       icon={Table2}
       iconVariant="tile"
-      title={t('dataTable.sheet.title')}
-      description={t('dataTable.sheet.description')}
+      title={isEditing ? t('editor:dataTable.sheet.title') : t('editor:dataTable.sheet.titleInsert')}
+      description={t('editor:dataTable.sheet.description')}
       size="wide"
       bodyClassName="flex min-h-0 flex-1 flex-col overflow-y-auto p-0 lg:flex-row lg:overflow-hidden"
       onOpenAutoFocus={(e) => e.preventDefault()}
-      cancelLabel={t('dataTable.sheet.cancel')}
+      cancelLabel={t('editor:dataTable.sheet.cancel')}
+      footerLeft={
+        <p className="text-xs text-[#64748b]">
+          {isEditing ? t('editor:dataTable.sheet.footerNoteConfigure') : t('editor:dataTable.sheet.footerNoteInsert')}
+        </p>
+      }
       saveAction={{
-        label: initial ? t('dataTable.sheet.apply') : t('dataTable.sheet.insert'),
+        label: isEditing ? t('editor:dataTable.sheet.apply') : t('editor:dataTable.sheet.insert'),
         onClick: handleConfirm,
-        disabled: columns.length === 0,
+        disabled: !canConfirm,
+        title: canConfirm ? undefined : disabledReason,
       }}
     >
       {/* ── Config ─────────────────────────────────────────────────────── */}
-      <aside className="flex w-full shrink-0 flex-col gap-4 overflow-y-auto border-b p-6 lg:w-100 lg:min-h-0 lg:border-b-0 lg:border-r">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="data-table-title">{t('dataTable.sheet.titleLabel')}</Label>
-          <Input
-            id="data-table-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={t('dataTable.sheet.titlePlaceholder')}
+      <aside className="flex w-full shrink-0 flex-col gap-[26px] overflow-y-auto border-b border-[#eef1f5] px-7 pt-[22px] pb-7 lg:min-h-0 lg:w-[470px] lg:border-r lg:border-b-0">
+        <section className="flex flex-col gap-3">
+          <StepHeader number={1} title={t('editor:dataTable.sheet.steps.source')} done={hasSource} />
+          <SourceStep
+            sources={sources}
+            isLoading={sourcesQuery.isPending}
+            value={source}
+            onChange={handleSourceChange}
+            changedNotice={previousConfig && sourceDef ? { sourceLabel: labelForSource(t, sourceDef) } : null}
+            onUndo={handleUndoSource}
           />
-        </div>
+        </section>
 
-        <div className="flex flex-col gap-1.5">
-          <Label>{t('dataTable.sheet.sourceLabel')}</Label>
-          <Select value={source} onValueChange={handleSourceChange} disabled={sourcesQuery.isPending}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {sources.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {labelForSource(t, s)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {sourceDef && (
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>{t('dataTable.sheet.columnsChosen')}</Label>
-              <div className="flex flex-col gap-1 rounded-md border p-2">
-                {chosenFields.length === 0 && (
-                  <p className="px-1 py-1 text-xs text-muted-foreground">{t('dataTable.sheet.columnsRequired')}</p>
-                )}
-                {chosenFields.map(({ col, field, isOrphan }, index) => (
-                  <div key={col.id} className="flex items-center gap-1 rounded px-1 py-1 text-sm hover:bg-accent/40">
-                    <Input
-                      value={col.label ?? ''}
-                      onChange={(e) => renameColumn(col.id, e.target.value)}
-                      placeholder={field ? labelForField(t, field) : col.id}
-                      disabled={isOrphan}
-                      title={isOrphan ? t('dataTable.sheet.orphanColumn') : t('dataTable.sheet.renamePlaceholder')}
-                      className={`h-7 flex-1 border-0 bg-transparent px-1 shadow-none focus-visible:ring-1 ${
-                        isOrphan ? 'italic text-muted-foreground' : ''
-                      }`}
-                    />
-                    {col.label && !isOrphan && (
-                      <HuemulButton
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        icon={Undo2}
-                        iconClassName="h-3.5 w-3.5"
-                        tooltip={t('dataTable.sheet.resetColumnLabel')}
-                        onClick={() => renameColumn(col.id, '')}
-                      />
-                    )}
-                    <HuemulButton
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      icon={ChevronUp}
-                      iconClassName="h-3.5 w-3.5"
-                      tooltip={t('dataTable.sheet.moveColumnUp')}
-                      disabled={index === 0}
-                      onClick={() => moveColumn(index, -1)}
-                    />
-                    <HuemulButton
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      icon={ChevronDown}
-                      iconClassName="h-3.5 w-3.5"
-                      tooltip={t('dataTable.sheet.moveColumnDown')}
-                      disabled={index === chosenFields.length - 1}
-                      onClick={() => moveColumn(index, 1)}
-                    />
-                    <HuemulButton
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      icon={X}
-                      iconClassName="h-3.5 w-3.5"
-                      tooltip={t('dataTable.sheet.removeColumn')}
-                      onClick={() => removeColumn(col.id)}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {availableFields.length > 0 && (
-              <div className="flex flex-col gap-1.5">
-                <Label>{t('dataTable.sheet.columnsAvailable')}</Label>
-                <div className="grid max-h-40 grid-cols-2 gap-x-3 gap-y-2 overflow-y-auto rounded-md border p-2.5">
-                  {availableFields.map((field) => (
-                    <label key={field.id} className="flex items-center gap-2 text-sm hover:cursor-pointer">
-                      <Checkbox checked={false} onCheckedChange={() => addColumn(field.id)} />
-                      {labelForField(t, field)}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {filterDefs.map((filterDef) => (
-          <div key={filterDef.id} className="flex flex-col gap-1.5">
-            <Label>{labelForFilter(t, filterDef)}</Label>
-            <div className="flex flex-wrap gap-x-3 gap-y-2 rounded-md border p-2.5">
-              {(filterDef.options ?? []).map((option) => (
-                <label key={option.value} className="flex items-center gap-1.5 text-sm hover:cursor-pointer">
-                  <Checkbox
-                    checked={(filters[filterDef.id] ?? []).includes(option.value)}
-                    onCheckedChange={(checked) => toggleFilterValue(filterDef.id, option.value, checked === true)}
-                  />
-                  {labelForFilterOption(t, filterDef.id, option)}
-                </label>
-              ))}
-            </div>
-            {hintForFilter(t, filterDef) && (
-              <p className="text-xs text-muted-foreground">{hintForFilter(t, filterDef)}</p>
-            )}
-          </div>
-        ))}
-
-        {sourceDef?.supports_limit && (
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="data-table-limit">{t('dataTable.sheet.limitLabel')}</Label>
-            <Input
-              id="data-table-limit"
-              type="number"
-              min={1}
-              value={limit}
-              onChange={(e) => setLimit(e.target.value)}
-              placeholder={t('dataTable.sheet.limitPlaceholder')}
-              className="max-w-32"
+        <section className="flex flex-col gap-3">
+          <StepHeader
+            number={2}
+            title={isKeyValue ? t('editor:dataTable.sheet.steps.columnsKeyValue') : t('editor:dataTable.sheet.steps.columns')}
+            done={hasColumns}
+            ghost={!hasSource}
+            actionLabel={columnsDiffer ? t('editor:dataTable.sheet.reset') : undefined}
+            onAction={resetColumns}
+          />
+          {hasSource && (
+            <ColumnsStep
+              sourceDef={sourceDef}
+              columns={columns}
+              orphanIds={orphanIds}
+              onReorder={reorderColumns}
+              onRename={renameColumn}
+              onRemove={removeColumn}
+              onAdd={addColumn}
             />
-          </div>
-        )}
+          )}
+        </section>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="flex items-start gap-2 text-sm hover:cursor-pointer">
-            <Checkbox
-              checked={refreshOnApproval}
-              onCheckedChange={(checked) => setRefreshOnApproval(checked === true)}
-              className="mt-0.5"
+        <section className="flex flex-col gap-3">
+          <StepHeader
+            number={3}
+            title={t('editor:dataTable.sheet.steps.filters')}
+            done={hasSource}
+            ghost={!hasSource}
+            summary={
+              filterDefs.length > 0
+                ? activeFilterCount > 0
+                  ? t('editor:dataTable.sheet.filtersActive', { n: activeFilterCount })
+                  : t('editor:dataTable.sheet.filtersNone')
+                : undefined
+            }
+            actionLabel={activeFilterCount > 0 ? t('editor:dataTable.sheet.clearAll') : undefined}
+            onAction={() => setFilters({})}
+          />
+          {hasSource && <FiltersStep filterDefs={filterDefs} filters={filters} onChange={setFilterValues} />}
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <StepHeader
+            number={4}
+            title={t('editor:dataTable.sheet.steps.presentation')}
+            done={hasSource}
+            ghost={!hasSource}
+            summary={t('editor:dataTable.sheet.optional')}
+          />
+          {hasSource && (
+            <PresentationStep
+              title={title}
+              onTitleChange={setTitle}
+              supportsLimit={supportsLimit}
+              limit={limit}
+              onLimitChange={setLimit}
+              refreshOnApproval={refreshOnApproval}
+              onRefreshOnApprovalChange={setRefreshOnApproval}
             />
-            <span>
-              {t('dataTable.sheet.refreshOnApproval')}
-              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                {t('dataTable.sheet.refreshOnApprovalHint')}
-              </span>
-            </span>
-          </label>
-        </div>
+          )}
+        </section>
+
+        {!hasSource && <p className="text-xs text-[#64748b]">{t('editor:dataTable.sheet.ghostNote')}</p>}
       </aside>
 
       {/* ── Preview ────────────────────────────────────────────────────── */}
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-auto bg-muted/40 p-6">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-semibold">{t('dataTable.preview.title')}</Label>
-          <HuemulButton
-            variant="ghost"
-            size="icon"
-            icon={RefreshCw}
-            iconClassName="h-3.5 w-3.5"
-            tooltip={t('dataTable.preview.refresh')}
-            onClick={handleRefreshPreview}
-          />
-        </div>
-        <DataTableNodeBody resolved={resolved} title={title.trim() || null} />
+      <section className="min-h-0 min-w-0 flex-1 overflow-auto bg-[#f6f7f9] px-[26px] py-[22px] lg:border-l lg:border-[#eef1f5]">
+        <PreviewPanel
+          sourceDef={sourceDef}
+          columns={columns}
+          title={title}
+          limit={effectiveLimit}
+          activeFilterCount={activeFilterCount}
+          refreshOnApproval={refreshOnApproval}
+          preview={preview}
+          onReorder={reorderColumns}
+          onRemoveColumn={removeColumn}
+          onAddColumn={addColumn}
+          onClearFilters={() => setFilters({})}
+        />
       </section>
     </HuemulSheet>
   );

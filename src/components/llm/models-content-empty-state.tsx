@@ -30,8 +30,8 @@ export function ModelsContentEmptyState({ type, message, onRetry }: ModelsConten
     <Card className="border border-border bg-card">
       <div className="text-center py-8">
         <Settings className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
-        <h3 className="text-sm font-medium text-foreground mb-1">{t('emptyState.noProviders')}</h3>
-        <p className="text-xs text-muted-foreground">{t('emptyState.noProvidersDesc')}</p>
+        <h3 className="text-sm font-medium text-foreground mb-1">{t('empty.noProviders.title')}</h3>
+        <p className="text-xs text-muted-foreground">{t('empty.noProviders.text')}</p>
       </div>
     </Card>
   )

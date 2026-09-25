@@ -2,6 +2,7 @@ import type { ColorHue } from "@/lib/lifecycle-colors";
 import type { WorkflowSummaryActionKind } from "@/components/workflow/workflow-summary-styles";
 import {
   computeSectionStats,
+  hasRequiredQuestions,
   isSectionAnswerable,
   isSectionAnswersCompleted,
 } from "@/components/workflow/workflow-section-stats";
@@ -48,8 +49,8 @@ export interface WorkflowSectionCardState {
  * Estado visual de una tarjeta de sección del resumen (y de su píldora en la vista 2) —
  * fuente única, sin React. Primera fila que matchea gana. Ver
  * "ia context" del rediseño del panel de workflow para las cuatro reglas y por qué NO existe
- * un quinto estado "azul = en progreso" (missing_required === 0 ⇔ answers_status === 'completed'
- * es un invariante del backend, ver patch-document-content.ts).
+ * un quinto estado "azul = en progreso" (en secciones con obligatorias, missing_required === 0
+ * ⇔ answers_status === 'completed'; las secciones sin obligatorias tienen su propio caso 2b).
  *
  * `canAnswer` es `canAnswerSpecificSection(section)` del panel — cruza permiso de documento,
  * permiso de sección por ciclo de vida (section_lifecycle_access) y si la sección está activa.
@@ -111,6 +112,28 @@ export function resolveSectionCardState(
       missingRequired: 0,
       footerTextKey: "summary.card.allAnswered",
       action,
+    };
+  }
+
+  // 2b — sin ninguna obligatoria y aún pendiente: `missing_required` cuenta opcionales (ver
+  // ContentSection.missing_required), así que no es "faltan obligatorias" (rojo) sino opcionales
+  // sin responder, hasta responderlas o hasta que se abra la sección (mark_viewed).
+  if (!hasRequiredQuestions(section)) {
+    return {
+      tone: "info",
+      footerTone: "muted",
+      showCheckIcon: false,
+      isInactive: false,
+      answeredCount,
+      totalQuestions,
+      missingRequired: 0,
+      footerTextKey: "summary.card.optionalPending",
+      footerTextParams: { count: totalQuestions - answeredCount },
+      action: !canAnswer
+        ? { labelKey: "summary.card.view", kind: "view" }
+        : answeredCount > 0
+          ? { labelKey: "sections:form.fill.editResponses", kind: "edit" }
+          : { labelKey: "sections:form.fill.answer", kind: "answer" },
     };
   }
 

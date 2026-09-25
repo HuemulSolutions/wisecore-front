@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.6.0] - 2026-09-25
+### Nuevo
+- selector de proveedor compacto en el sheet de agregar modelo
+- capas de color y filas de estado compactas en modelos de IA
+- mover tarjetas de estado y tabs al header de modelos de IA
+- limitar proveedores conectados a una fila con opción de ver todos
+- rediseñar página de modelos de IA con tarjetas de estado y sheets laterales
+- aplicar estilo de usuarios a campos personalizados y tags
+- aplicar estilo de usuarios a la página de campos personalizados
+- selector de tamaño de página en todos los activos igual a usuarios
+- marcar secciones form como vistas (mark_viewed) al abrirlas
+- comentarios de IA anclados a fragmentos al aceptar sugerencias de sección
+- cards "Continuar donde quedaste" y "Panorama" colapsables con estado persistido
+- renombrar indicadores del Panorama y mover "Tus activos" al bloque Personal
+- popover de comentarios sin resolver en la tabla "Todos los activos" del Home
+- estilo de tarjetas de Mi trabajo (cabecera con punto, fila clicable, pie y estados)
+- alinear estados del Home con la spec (avisos, vacíos, checklist con permisos, panorama)
+- link "Ver toda tu actividad reciente" en Continuar donde quedaste
+- rediseñar configuración de tabla de datos en pasos con vista previa
+- columna de controles (más opciones + colapsar) a la izquierda de secciones en modo lector
+### Arreglos
+- limitar el scroll de modelos de IA a la tabla y ocupar todo el alto de la página
+- unificar toolbar, chips y tabla de todos los activos en una sola card
+- skeleton de home replica el diseño real y anticipa la variante por org
+- carga_de_archivos guarda solo tokens {{MEDIA}} y pinta desde meta por token
+- filtro "Pendientes de tu acción" y opciones en segunda persona
+- unificar copy de estados vacíos de Mi trabajo ("No tienes X pendientes")
+- scroll vertical del contenido de Home con panel de filtros abierto
+- copy temporal de filas de Mi trabajo ("en espera desde ayer")
+### Otros
+- historial de sección usa media ya resuelta por backend
+- aclarar que dependencias form también cuentan en missing dependency
+
 ## [1.5.0] - 2026-09-23
 ### Nuevo
 - abrir panel al iniciar workflow y mostrar diálogo al compartir template

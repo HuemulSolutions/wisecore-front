@@ -240,6 +240,10 @@ const translations = {
       tooManyFilesSelected: { en: "You can upload at most {{max}} files", es: "Se pueden subir como máximo {{max}} archivos" },
       tooFewFiles: { en: "Upload at least {{min}} files", es: "Subir al menos {{min}} archivos" },
       tooManyFiles: { en: "Upload at most {{max}} files", es: "Subir como máximo {{max}} archivos" },
+      invalidFileReference: {
+        en: "Previous files in this field can't be saved. Remove them and upload them again.",
+        es: "No se pueden guardar los archivos previos de este campo. Quítalos y vuelve a subirlos.",
+      },
       sectionInactive: {
         en: "This section is inactive based on the answers given.",
         es: "Esta sección está inactiva según las respuestas dadas.",

@@ -1,7 +1,7 @@
 "use client"
 
-import { Card, CardContent } from "@/components/ui/card"
-import { AlertTriangle, RefreshCw, Plus, Search } from "lucide-react"
+import { Card } from "@/components/ui/card"
+import { Plus, RefreshCw, Settings2 } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { useTranslation } from "react-i18next"
 import type { CustomFieldContentEmptyStateProps } from '@/types/custom-fields'
@@ -13,79 +13,46 @@ export function CustomFieldContentEmptyState({
   message,
   onRetry,
   onCreateFirst,
-  onClearFilters,
 }: CustomFieldContentEmptyStateProps) {
-  const { t } = useTranslation('custom-fields')
+  const { t } = useTranslation(['custom-fields', 'common'])
 
   if (type === "error") {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-            <AlertTriangle className="h-6 w-6 text-red-600" />
-          </div>
-          <h3 className="mt-4 text-lg font-medium">{t('contentEmptyState.errorTitle')}</h3>
-          <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-            {message || t('contentEmptyState.errorDescription')}
-          </p>
-          {onRetry && (
-            <HuemulButton
-              onClick={onRetry}
-              variant="outline"
-              icon={RefreshCw}
-              label={t('common:tryAgain', 'Try Again')}
-              className="mt-4"
-            />
-          )}
-        </CardContent>
-      </Card>
-    )
-  }
-
-  if (type === "no-results") {
-    return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-            <Search className="h-6 w-6 text-gray-600" />
-          </div>
-          <h3 className="mt-4 text-lg font-medium">{t('contentEmptyState.noResultsTitle')}</h3>
-          <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-            {t('contentEmptyState.noResultsDescription')}
-          </p>
-          {onClearFilters && (
-            <HuemulButton
-              onClick={onClearFilters}
-              variant="outline"
-              label={t('actions.clearFilters')}
-              className="mt-4"
-            />
-          )}
-        </CardContent>
-      </Card>
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center rounded-lg border border-dashed bg-muted/50 p-8">
+        <p className="text-red-600 mb-4 font-medium">
+          {message || t('custom-fields:contentEmptyState.errorTitle')}
+        </p>
+        <p className="text-sm text-muted-foreground mb-6">
+          {t('custom-fields:contentEmptyState.errorDescription')}
+        </p>
+        {onRetry && (
+          <HuemulButton
+            label={t('common:tryAgain')}
+            icon={RefreshCw}
+            onClick={onRetry}
+            variant="outline"
+          />
+        )}
+      </div>
     )
   }
 
   // type === "empty"
   return (
-    <Card>
-      <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-          <Plus className="h-6 w-6 text-blue-600" />
-        </div>
-        <h3 className="mt-4 text-lg font-medium">{t('contentEmptyState.emptyTitle')}</h3>
-        <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-          {t('contentEmptyState.emptyDescription')}
-        </p>
-        {onCreateFirst && (
-          <HuemulButton
-            onClick={onCreateFirst}
-            icon={Plus}
-            label={t('actions.createFirstCustomField')}
-            className="mt-4"
-          />
-        )}
-      </CardContent>
+    <Card className="p-8 text-center">
+      <Settings2 className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+      <h3 className="text-lg font-semibold mb-2">{t('custom-fields:contentEmptyState.emptyTitle')}</h3>
+      <p className="text-muted-foreground">
+        {t('custom-fields:contentEmptyState.emptyDescription')}
+      </p>
+      {onCreateFirst && (
+        <HuemulButton
+          onClick={onCreateFirst}
+          icon={Plus}
+          label={t('custom-fields:actions.createFirstCustomField')}
+          className="mt-4"
+        />
+      )}
     </Card>
   )
 }

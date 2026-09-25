@@ -28,7 +28,7 @@ export function DataTableNodeBody({
   };
 
   return (
-    <div className="rounded-md border border-border bg-background p-3">
+    <div>
       {title && (
         <div className="mb-2 flex items-center gap-1.5">
           <p className="text-sm font-semibold">{title}</p>
@@ -43,33 +43,33 @@ export function DataTableNodeBody({
 
       {resolved.state === 'ok' ? (
         <>
+          {/* Mismo diseño que la tabla normal del editor (`table-node.tsx`): cabecera oscura,
+              celdas `p-0` con contenido en `px-3 py-2`, solo borde inferior por fila. */}
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
+            <table className="my-4 mr-0 ml-px table h-px min-w-full table-auto border-collapse border border-gray-300 text-sm">
+              <tbody>
                 <tr>
                   {resolved.headers.map((header, i) => (
                     <th
                       key={i}
-                      className={`border border-border bg-muted/50 px-2 py-1 font-medium ${
-                        resolved.aligns[i] === 'right' ? 'text-right' : 'text-left'
-                      }`}
+                      className="h-full min-w-[120px] max-w-[240px] bg-gray-900 p-0 text-left font-semibold text-white"
                     >
-                      {header}
+                      <div className={`px-3 py-2 ${resolved.aligns[i] === 'right' ? 'text-right' : 'text-left'}`}>
+                        {header}
+                      </div>
                     </th>
                   ))}
                 </tr>
-              </thead>
-              <tbody>
                 {resolved.rows.map((row, ri) => (
                   <tr key={ri}>
                     {row.map((cell, ci) => (
                       <td
                         key={ci}
-                        className={`border border-border px-2 py-1 align-top ${
-                          resolved.aligns[ci] === 'right' ? 'text-right' : 'text-left'
-                        }`}
+                        className="h-full min-w-[120px] max-w-[240px] border-b border-gray-200 bg-background p-0 align-top"
                       >
-                        {cell || '—'}
+                        <div className={`px-3 py-2 ${resolved.aligns[ci] === 'right' ? 'text-right' : 'text-left'}`}>
+                          {cell || '—'}
+                        </div>
                       </td>
                     ))}
                   </tr>

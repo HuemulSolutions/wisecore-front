@@ -47,7 +47,7 @@ function ActionButton({
   const ActionIcon = action.icon;
   const loading = action.loading || isLoading;
 
-  return (
+  const button = (
     <Button
       variant={action.variant ?? defaultVariant}
       disabled={action.disabled || loading}
@@ -62,6 +62,9 @@ function ActionButton({
       {action.label}
     </Button>
   );
+
+  // Un botón disabled no recibe hover: el `title` va en un span envolvente (ver tooltip-guide §6).
+  return action.title ? <span title={action.title}>{button}</span> : button;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────

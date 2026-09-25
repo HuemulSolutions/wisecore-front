@@ -123,7 +123,9 @@ export function applyFormValuesPatch(
         // no los devuelve en PATCH /form_values. Misma regla que aplica ahí (missingRequired
         // 0 ⇒ completed), para que el badge no se quede en 'pending' hasta el próximo
         // /content. El refetch por cruce de umbral (más abajo) la confirma con el valor real;
-        // no es una segunda fuente de verdad.
+        // no es una segunda fuente de verdad. En una sección sin obligatorias, el backend además
+        // exige responder todas las opcionales o haberla abierto (mark_viewed); quien guarda ya
+        // la abrió, y el próximo /content corrige cualquier diferencia.
         const { missingRequired } = computeSectionStats({ ...s, form_fields: group.form_fields });
         return {
           ...s,

@@ -1,10 +1,11 @@
 import type { Value } from 'platejs'
 import type { EditorMediaUploadTarget } from '@/contexts/media-reference-context'
+import type { ResetContentOptions } from '@/types/plate-editor'
 
 export interface SectionPlateEditorRef {
   getMarkdown: () => string;
   getValue: () => Value;
-  resetContent: (markdown: string) => void;
+  resetContent: (markdown: string, options?: ResetContentOptions) => void;
   resetValue: (value: Value) => void;
   /**
    * Renders + uploads a fresh snapshot for every Mermaid diagram whose code changed

@@ -24,7 +24,7 @@ import { DataTableConfigSheet } from '@/components/ui/data-table-config-sheet';
 import { DataTableNodeBody } from '@/components/ui/data-table-node-grid';
 import { useResolvedDataTable } from '@/contexts/document-data-context';
 import { dataTableQueryKeys } from '@/hooks/useDataTables';
-import type { DataTableConfig, DataTableElement } from '@/types/data-table-node';
+import type { DataTableConfig, DataTableElement, DataTableSnapshot } from '@/types/data-table-node';
 
 export function DataTableElementNode(props: PlateElementProps<DataTableElement>) {
   const editor = useEditorRef();
@@ -51,15 +51,15 @@ export function DataTableElementNode(props: PlateElementProps<DataTableElement>)
   }, [queryClient]);
 
   const handleConfirmConfig = React.useCallback(
-    (config: DataTableConfig) => {
+    (config: DataTableConfig, snapshot: DataTableSnapshot | null) => {
       const path = editor.api.findPath(element);
-      if (path) editor.tf.setNodes(config, { at: path });
+      if (path) editor.tf.setNodes({ ...config, snapshot }, { at: path });
     },
     [editor, element],
   );
 
   const content = (
-    <PlateElement {...props} className="py-2.5">
+    <PlateElement {...props} className="max-w-full overflow-x-auto py-5">
       <div contentEditable={false}>
         <DataTableNodeBody resolved={resolved} title={element.title} />
       </div>

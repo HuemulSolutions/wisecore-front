@@ -68,7 +68,7 @@ export interface UseMyWorkGroupResult {
    */
   isResolving: boolean;
   error: unknown;
-  refetch: () => void;
+  refetch: () => Promise<void>;
 }
 
 function useMyWorkGroup(
@@ -99,7 +99,9 @@ function useMyWorkGroup(
     isFetching,
     isResolving: enabled && (isLoading || isPlaceholderData),
     error,
-    refetch: () => void refetch(),
+    refetch: async () => {
+      await refetch();
+    },
   };
 }
 
@@ -111,7 +113,7 @@ export interface UseMyWorkResult {
   isEmpty: boolean;
   /** Alguno de los 3 grupos todavía no resolvió para sus parámetros actuales. */
   isResolving: boolean;
-  refetchAll: () => void;
+  refetchAll: () => Promise<void>;
 }
 
 /**
@@ -149,10 +151,8 @@ export function useMyWork(organizationId: string, enabled: boolean): UseMyWorkRe
     approved,
     isEmpty,
     isResolving,
-    refetchAll: () => {
-      review.refetch();
-      approval.refetch();
-      approved.refetch();
+    refetchAll: async () => {
+      await Promise.allSettled([review.refetch(), approval.refetch(), approved.refetch()]);
     },
   };
 }

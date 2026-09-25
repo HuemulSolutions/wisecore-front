@@ -16,6 +16,8 @@ export interface HuemulSheetAction {
   onClick?: () => void | Promise<void>;
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   disabled?: boolean;
+  /** Tooltip nativo del botón — útil para explicar por qué está deshabilitado. */
+  title?: string;
   loading?: boolean;
   icon?: LucideIcon;
   closeOnSuccess?: boolean;

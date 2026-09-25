@@ -1,21 +1,5 @@
 import type { LLM } from './core'
-
-export interface ModelCapabilitiesDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  model: LLM | null
-  isUpdating: boolean
-  onSubmit: (model: LLM, capabilities: string[]) => void
-  canUpdate: boolean
-}
-
-export interface DeleteModelDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  model: LLM | null
-  onAction: () => Promise<void>
-  canDelete: boolean
-}
+import type { LLMProvider } from '../llm-provider'
 
 export interface ModelDialogSubmitData {
   name: string
@@ -27,14 +11,16 @@ export interface ModelDialogSubmitData {
   output_price_per_1m_tokens?: number | null
 }
 
-export interface ModelDialogProps {
+export interface ModelSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  model?: LLM | null
-  providerName?: string
-  providers?: { id: string; name: string; type?: string }[]
-  isCreating: boolean
-  isUpdating: boolean
+  /** Modelo a editar; `null` para agregar uno nuevo. */
+  model: LLM | null
+  providers: LLMProvider[]
+  /** true si todavía no hay ningún modelo: el nuevo quedará como predeterminado. */
+  isFirstModel: boolean
+  isSaving: boolean
   onSubmit: (data: ModelDialogSubmitData) => void
+  onConnectProvider: () => void
   canSave: boolean
 }

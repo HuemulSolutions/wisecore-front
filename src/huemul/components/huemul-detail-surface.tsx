@@ -28,7 +28,7 @@ export type {
  * gris, así que se neutraliza y el estado activo se dibuja con un inset shadow.
  * Movido desde `assets-types-config-sheet.tsx`, que era su única definición.
  */
-const TAB_TRIGGER_CLASS =
+export const HUEMUL_UNDERLINE_TAB_TRIGGER_CLASS =
   "flex-none rounded-none border-0 bg-transparent px-0 pb-2.5 text-[13px] font-medium text-[#64748b] shadow-none hover:cursor-pointer hover:text-[#334155] data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-[#1d4ed8] data-[state=active]:shadow-[inset_0_-2px_0_#1d4ed8]"
 
 /**
@@ -95,7 +95,7 @@ export function HuemulDetailSurface({
       <div className={cn("flex items-center gap-2", isPage ? "px-4 md:px-6" : "px-6")}>
         <TabsList className="h-auto flex-1 justify-start gap-6 rounded-none border-b border-[#e9edf2] bg-transparent p-0">
           {tabs.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value} className={TAB_TRIGGER_CLASS}>
+            <TabsTrigger key={tab.value} value={tab.value} className={HUEMUL_UNDERLINE_TAB_TRIGGER_CLASS}>
               {tab.label}
             </TabsTrigger>
           ))}

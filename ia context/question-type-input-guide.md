@@ -69,6 +69,13 @@ form-fields-only concept, custom fields can't be created as `etiqueta`).
 - Form runtime (`asset-form-section.tsx`): `uploadMedia` → stores a `{{MEDIA:id}}` token, with preview/broken-file handling.
 - Custom fields (`custom-field-value-field.tsx`): a dedicated blob endpoint per entity (`uploadCustomFieldTemplateValueBlob` / `uploadCustomFieldDocumentValueBlob`), **images only** — there is no generic file-upload endpoint for custom fields today, so a custom field configured with `carga_de_archivos` but a non-`image` `data_type` has no real upload widget (pre-existing limitation, not something this component should paper over).
 
+**Regla de valor para `carga_de_archivos` (form runtime):** el backend LEE cada archivo como objeto `{url, name, content_type[, media_id]}` (o el token `{{MEDIA:id}}` sin resolver si el media está roto), pero al GUARDAR (`PATCH form_values`/`form_answer`) solo acepta tokens `{{MEDIA:<uuid>}}` — cualquier otra cosa devuelve 400 `INVALID_FILE_UPLOAD_VALUE`. Por eso `asset-form-section.tsx`:
+
+- guarda en `answers` solo tokens (`buildInitialAnswers` convierte con `fileUploadEntryToToken`, que necesita `media_id`);
+- pinta desde `fileMetaByToken` (token → `{url, name, contentType}`), sembrado con `buildInitialFileMeta` y ampliado con cada subida — nunca desde `answers`;
+- `resolveFileUploadRow` (`question-type-meta.ts`) es el único resolver de "qué se pinta por entrada", compartido con `FormFieldAnswerValue`;
+- `validateFormFieldValue` frena con `invalidFileReference` un campo que aún tenga entradas no-token (objeto sin `media_id`), en vez de mandar un PATCH que el backend rechaza.
+
 Pattern for a new consumer:
 
 ```tsx
@@ -138,5 +145,6 @@ automatically (default `commit: true` path in `renderInput`).
 [ ] Consumer's value/onChange match HuemulQuestionInput's typed contract (adapt at the boundary if not)
 [ ] question-type-preview.tsx and the relevant builder(s) updated if a new question_type was added
 [ ] New question_type classified in FREE_TEXT_QUESTION_TYPES (or left atomic) per §5b
+[ ] Value de carga_de_archivos enviado al backend = solo tokens {{MEDIA:id}}, nunca el objeto/URL resuelto de una lectura (§3b)
 [ ] tsc --noEmit passes
 ```

@@ -309,6 +309,7 @@ control ahí en vez de dejarla sin UI.
 | `mention-trail` | **No** vía `useUserPreference` — `localStorage` simple, `wisecore:mention-trail:<orgId>` (`useMentionTrailStorage.ts`). El popover `@` del editor no es un árbol expandible sino un navegador de un nivel con breadcrumb; lo persistido es el trail de navegación, no un set de expandidas |
 | `media-view-mode` | Migrada — `useMediaViewMode.ts`, misma firma `[mode, setMode]` que antes |
 | `language` | Migrada — `useLanguagePreference.ts`, montado en `app-layout.tsx` (no solo en el sheet) para aplicar sin que el usuario lo abra. Requirió agregar `'localStorage'` al **inicio** de `detection.order` en `src/i18n/index.ts` — antes solo estaba en `caches`, así que `navigator` le ganaba siempre al idioma elegido en el próximo arranque |
+| `home-layout` | Solo `localStorage`, `wisecore:home-layout:<orgId>` (`useHomeLayoutHint.ts`). Última variante de Home pintada (`normal`/`firstTime`), usada como pronóstico por `HomeSkeleton` para no saltar de diseño en F5 |
 | `table-column-widths` | Pendiente, sigue solo en `localStorage` |
 
 **Candidata futura, sin persistencia hoy:** las carpetas expandidas de la

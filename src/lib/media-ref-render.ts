@@ -3,12 +3,14 @@
  * show up inside a section-history diff (see history-section-detail.tsx) as actual
  * thumbnails/file cards, instead of the raw reference.
  *
- * GET /section_executions/{id}/history does not resolve media the way
- * GET /documents/{id}/content does, so previous_text/new_text can contain any of:
- *   - a bare token:        {{MEDIA:<uuid>}}
- *   - a markdown image:    ![alt]({{MEDIA:<uuid>}})  or  ![alt](https://...)
+ * GET /section_executions/{id}/history resolves {{MEDIA:<uuid>}} to a signed URL
+ * (same as GET /documents/{id}/content), with one stable signature per media in a
+ * response. previous_text/new_text can still contain any of:
  *   - an already-resolved  https://<account>.blob.core.windows.net/... SAS URL
- *     (legacy entries, and what backend will emit once it resolves this endpoint)
+ *     (what backend emits now, plus legacy entries)
+ *   - a bare token:        {{MEDIA:<uuid>}} — backend leaves it unresolved when the
+ *     media was deleted or is inaccessible (rendered as "archivo no disponible")
+ *   - a markdown image:    ![alt]({{MEDIA:<uuid>}})  or  ![alt](https://...)
  *
  * Two-phase approach (see normalizeMediaRefs / buildMediaRefHtmlTransformer):
  *   1. Before diffing: replace every reference with a `{{MEDIAREF:<key>}}` sentinel
@@ -217,8 +219,8 @@ function renderRef(
   freshUrls: Record<string, string> | null,
   labels: { unavailable: string; download: string },
 ): string {
-  // Same priority as useResolvedMediaUrl: the live map by mediaId first, the
-  // reference's own URL as fallback (legacy/backend-resolved text).
+  // Same priority as useResolvedMediaUrl: the live map by mediaId first (optional
+  // signature refresh), the reference's own URL (backend-resolved text) otherwise.
   const resolvedUrl = (ref?.mediaId && freshUrls?.[ref.mediaId]) || ref?.url || '';
   if (!ref || !resolvedUrl) return renderUnavailable(labels.unavailable);
 

@@ -471,7 +471,10 @@ export interface ContentSection {
    * Ver isSectionAnswersCompleted en workflow-section-stats.ts.
    */
   answers_status?: import('../sections/execution-core').SectionAnswersStatus | null;
-  /** Obligatorios visibles y respondibles sin valor, según el backend. */
+  /**
+   * Obligatorios visibles y respondibles sin valor, según el backend. Si la sección no tiene
+   * ninguna obligatoria, cuenta en cambio las opcionales sin responder.
+   */
   missing_required?: number;
 }
 
