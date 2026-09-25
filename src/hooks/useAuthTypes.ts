@@ -8,7 +8,6 @@ import {
   deleteAuthType,
   type UpdateAuthTypeRequest 
 } from "@/services/auth-types"
-import { toast } from "sonner"
 
 // Query keys
 export const authTypeQueryKeys = {
@@ -57,26 +56,26 @@ export function useAuthTypeMutations() {
 
   const createAuthTypeMutation = useMutation({
     mutationFn: createAuthType,
+    meta: { successMessage: 'Authentication type created successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: authTypeQueryKeys.list() })
-      toast.success('Authentication type created successfully')
     },
   })
 
   const updateAuthTypeMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateAuthTypeRequest }) => 
       updateAuthType(id, data),
+    meta: { successMessage: 'Authentication type updated successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: authTypeQueryKeys.list() })
-      toast.success('Authentication type updated successfully')
     },
   })
 
   const deleteAuthTypeMutation = useMutation({
     mutationFn: deleteAuthType,
+    meta: { successMessage: 'Authentication type deleted successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: authTypeQueryKeys.list() })
-      toast.success('Authentication type deleted successfully')
     },
   })
 

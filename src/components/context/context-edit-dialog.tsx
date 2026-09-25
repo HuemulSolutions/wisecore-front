@@ -3,22 +3,9 @@ import { Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { HuemulDialog } from "@/huemul/components/huemul-dialog";
+import type { EditContextDialogProps } from '@/types/context';
 
-
-interface ContextItem {
-  id: string;
-  name: string;
-  content: string;
-  context_type?: string;
-}
-
-interface EditContextDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  context: ContextItem | null;
-  onConfirm: (id: string, name: string, content: string) => void;
-  isProcessing: boolean;
-}
+export type { EditContextDialogProps } from '@/types/context';
 
 export function EditContextDialog({
   open,
@@ -30,20 +17,22 @@ export function EditContextDialog({
   const { t } = useTranslation('context')
   const [name, setName] = useState("");
   const [content, setContent] = useState("");
+  const [required, setRequired] = useState(false);
 
   useEffect(() => {
     if (context && open) {
       setName(context.name);
-      setContent(context.content);
+      setContent(context.content ?? "");
+      setRequired(!!context.required);
     }
   }, [context, open]);
 
   const handleConfirm = () => {
-    if (!context || !name.trim() || !content.trim()) return;
-    onConfirm(context.id, name.trim(), content.trim());
+    if (!context || !name.trim() || (!required && !content.trim())) return;
+    onConfirm(context.id, { name: name.trim(), content: content.trim() || undefined, required });
   };
 
-  const isSaveDisabled = !name.trim() || !content.trim();
+  const isSaveDisabled = !name.trim() || (!required && !content.trim());
 
   return (
     <HuemulDialog
@@ -73,6 +62,17 @@ export function EditContextDialog({
           value={name}
           onChange={(val) => setName(String(val))}
           disabled={isProcessing}
+        />
+        <HuemulField
+          type="switch"
+          label={t('editDialog.required')}
+          id="edit-required"
+          value={required}
+          onChange={(val) => setRequired(Boolean(val))}
+          description={t('editDialog.requiredDescription')}
+          disabled={isProcessing}
+          labelFirst
+          className="px-4 py-3.5 border rounded-[10px]"
         />
         <HuemulField
           type="textarea"

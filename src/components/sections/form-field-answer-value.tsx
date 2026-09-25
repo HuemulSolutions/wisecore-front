@@ -1,0 +1,282 @@
+import { useTranslation } from "react-i18next";
+import { Calculator, FileX } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { HuemulField } from "@/huemul/components/huemul-field";
+import { HuemulFilePreview } from "@/huemul/components/huemul-file-preview";
+import { isMediaToken } from "@/lib/plate-media-utils";
+import { cn, formatNumber } from "@/lib/utils";
+import type { FormFieldValue } from "@/types/sections/core";
+import {
+  CUSTOM_FIELD_QUESTION_TYPE,
+  MULTI_SELECT_QUESTION_TYPES,
+  QUESTION_TYPE,
+  SINGLE_SELECT_QUESTION_TYPES,
+  hasAnswer,
+  isCalculatedField,
+  normalizeSelectionValue,
+  readFieldOptions,
+  readFileUploadEntry,
+  readFileUploadLimits,
+  resolveOptionLabels,
+  type FileUploadEntryMeta,
+} from "@/components/sections/question-type-meta";
+
+// Metadatos reales (nombre/mime) de un archivo subido en la sesión actual — solo
+// disponibles mientras la sección sigue montada (filePreviews de AssetFormSection).
+// Sin esto, un {{MEDIA:id}} sin resolver se muestra como "archivo no disponible".
+export type FormFieldFilePreview = FileUploadEntryMeta;
+
+interface FormFieldAnswerValueProps {
+  field: FormFieldValue;
+  /** Valor a mostrar. Si se omite, usa field.value (snapshot del backend). AssetFormSection
+   *  pasa answers[field.id], que puede tener ediciones aún no persistidas. */
+  value?: unknown;
+  /** Metadatos de archivo(s) subido(s) en la sesión actual, en el mismo orden que el
+   *  array de tokens de `value`/`field.value` (siempre array, de 0 o más elementos). */
+  filePreviews?: FormFieldFilePreview[];
+  /** Override de clases del texto plano (tamaño/color) — se mergea sobre "text-sm text-gray-800"
+   *  con tailwind-merge. No aplica a rating (HuemulField) ni a fileUpload (grilla de previews),
+   *  cuyo render no es texto. Pensado para superficies con paleta propia (ver
+   *  workflow-summary-answers.tsx). */
+  textClassName?: string;
+}
+
+// Badge "Calculado" con tooltip — marca visualmente los campos campo_calculado_formula/
+// campo_calculado_condicional en toda superficie de solo lectura (esta función es el único
+// punto de render de una respuesta, así que agregarlo acá alcanza para todas: FormAnswersList,
+// AssetFormSectionReader, WorkflowSectionsSummary y la propia vista de edición).
+function CalculatedBadge({ t }: { t: ReturnType<typeof useTranslation>["t"] }) {
+  return (
+    <Badge variant="secondary" title={t("form.fill.calculatedTooltip")} className="gap-1 shrink-0 font-normal">
+      <Calculator className="size-3" />
+      {t("form.fill.calculatedBadge")}
+    </Badge>
+  );
+}
+
+// Render de solo lectura de la respuesta de un form field, según su question_type.
+// Extraído de asset-form-section.tsx para reutilizarse también en paneles de consulta
+// (ej. respuestas de secciones anteriores del wizard) sin depender de su estado local.
+export function FormFieldAnswerValue({ field, value, filePreviews, textClassName }: FormFieldAnswerValueProps) {
+  const { t } = useTranslation("sections");
+  const calculated = isCalculatedField(field);
+
+  const rendered = renderValue();
+  return calculated
+    ? <span className="inline-flex flex-wrap items-center gap-1.5">{rendered}<CalculatedBadge t={t} /></span>
+    : rendered;
+
+  function renderValue() {
+  // El valor puede venir crudo del caché (field.value): normalizar selects igual que
+  // buildInitialAnswers, porque el backend inicializa value = default_value (las opciones
+  // de config) en campos de selección sin responder — sin esto se verían todas las
+  // opciones como si estuvieran elegidas. Idempotente sobre un valor ya normalizado.
+  const raw = value !== undefined ? value : field.value;
+  const isMulti = MULTI_SELECT_QUESTION_TYPES.includes(field.question_type ?? "");
+  const isSingle = SINGLE_SELECT_QUESTION_TYPES.includes(field.question_type ?? "");
+  const resolved = isMulti || isSingle ? normalizeSelectionValue(raw, isMulti) : raw;
+
+  if (!hasAnswer(resolved)) {
+    // Un calculado sin valor significa "falta una respuesta de la que depende", no "nadie
+    // respondió esta pregunta" — mensaje distinto para no confundir al usuario.
+    return (
+      <span className="text-sm italic text-gray-400">
+        {calculated ? t("form.fill.calculatedPending") : t("form.fill.noAnswer")}
+      </span>
+    );
+  }
+
+  if (field.question_type === QUESTION_TYPE.yesNo) {
+    return (
+      <span className={cn("text-sm text-gray-800", textClassName)}>
+        {resolved ? t("form.formFields.previewYes") : t("form.formFields.previewNo")}
+      </span>
+    );
+  }
+
+  if (field.question_type === QUESTION_TYPE.rating) {
+    return (
+      <HuemulField
+        type="rating"
+        label=""
+        max={typeof field.max_value === "number" ? field.max_value : 5}
+        value={resolved as number}
+        disabled
+      />
+    );
+  }
+
+  if (field.question_type === QUESTION_TYPE.paragraph) {
+    return <p className={cn("whitespace-pre-wrap text-sm text-gray-800", textClassName)}>{String(resolved)}</p>;
+  }
+
+  if (
+    field.question_type === QUESTION_TYPE.multipleChoice ||
+    field.question_type === QUESTION_TYPE.dropdown
+  ) {
+    const options = readFieldOptions(field);
+    return (
+      <span className={cn("text-sm text-gray-800", textClassName)}>
+        {resolveOptionLabels(resolved, options).join(", ")}
+      </span>
+    );
+  }
+
+  if (field.question_type === QUESTION_TYPE.dropdownMultiple) {
+    const options = readFieldOptions(field);
+    return (
+      <span className={cn("text-sm text-gray-800", textClassName)}>
+        {resolveOptionLabels(resolved, options).join(", ")}
+      </span>
+    );
+  }
+
+  if (field.question_type === QUESTION_TYPE.fileUpload) {
+    // resolved es siempre un array de tokens/URLs, en el mismo orden que filePreviews.
+    // Dato legado (guardado antes de este cambio) puede seguir siendo un string escalar.
+    const entries = Array.isArray(resolved) ? resolved : [resolved];
+    const rows = entries.map((entry, i) => {
+      const preview = filePreviews?.[i];
+      if (preview) return { broken: false as const, meta: preview };
+      const meta = readFileUploadEntry(entry);
+      if (meta) return { broken: false as const, meta };
+      return isMediaToken(entry) ? { broken: true as const } : null;
+    }).filter((row): row is NonNullable<typeof row> => row !== null);
+
+    if (rows.length === 0) {
+      return <span className="text-sm italic text-gray-400">{t("form.fill.noAnswer")}</span>;
+    }
+
+    // Varios archivos (max_files > 1): grilla de miniaturas compactas en vez de una
+    // columna de imágenes grandes (ver asset-form-section.tsx, mismo criterio en edición).
+    const isMulti = readFileUploadLimits(field).max > 1;
+
+    if (isMulti) {
+      return (
+        <div className="flex flex-wrap gap-2">
+          {rows.map((row, i) =>
+            row.broken ? (
+              <div key={i} className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded border border-gray-200 bg-gray-50 p-1 text-center">
+                <FileX className="h-4 w-4 text-gray-400" />
+                <span className="text-[10px] italic leading-tight text-gray-400">
+                  {t("form.fill.fileUnavailable")}
+                </span>
+              </div>
+            ) : (
+              <HuemulFilePreview
+                key={i}
+                url={row.meta.url}
+                fileName={row.meta.name}
+                contentType={row.meta.contentType}
+                alt={field.field_name}
+                downloadLabel={t("form.fill.fileDownload")}
+                size="sm"
+              />
+            ),
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-1.5">
+        {rows.map((row, i) =>
+          row.broken ? (
+            <span key={i} className="flex items-center gap-1.5 text-sm italic text-gray-400">
+              <FileX className="h-3.5 w-3.5" />
+              {t("form.fill.fileUnavailable")}
+            </span>
+          ) : (
+            <HuemulFilePreview
+              key={i}
+              url={row.meta.url}
+              fileName={row.meta.name}
+              contentType={row.meta.contentType}
+              alt={field.field_name}
+              downloadLabel={t("form.fill.fileDownload")}
+            />
+          ),
+        )}
+      </div>
+    );
+  }
+
+  if (field.question_type === CUSTOM_FIELD_QUESTION_TYPE) {
+    if (field.data_type === "image") {
+      return (
+        <HuemulFilePreview
+          url={String(resolved)}
+          alt={field.field_name}
+          downloadLabel={t("form.fill.fileDownload")}
+        />
+      );
+    }
+    if (field.data_type === "url") {
+      const url = String(resolved);
+      return (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-sm text-blue-600 underline underline-offset-2 hover:text-blue-800 break-all"
+        >
+          {url}
+        </a>
+      );
+    }
+    if (field.data_type === "bool") {
+      const isYes = resolved === true || resolved === "true" || resolved === 1;
+      return (
+        <span className={cn("text-sm text-gray-800", textClassName)}>
+          {isYes ? t("form.formFields.previewYes") : t("form.formFields.previewNo")}
+        </span>
+      );
+    }
+    if (field.data_type === "list") {
+      const options = readFieldOptions(field);
+      return (
+        <span className={cn("text-sm text-gray-800", textClassName)}>
+          {resolveOptionLabels(resolved, options).join(", ")}
+        </span>
+      );
+    }
+    // date / time / string → caen al manejo genérico de abajo (numéricos se manejan arriba)
+  }
+
+  if (
+    field.question_type === QUESTION_TYPE.number ||
+    field.question_type === QUESTION_TYPE.decimal ||
+    (field.question_type === CUSTOM_FIELD_QUESTION_TYPE && (field.data_type === "int" || field.data_type === "decimal"))
+  ) {
+    const num = typeof resolved === "number" ? resolved : Number(resolved);
+    if (!Number.isNaN(num)) {
+      return <span className={cn("text-sm text-gray-800", textClassName)}>{formatNumber(num)}</span>;
+    }
+  }
+
+  if (
+    field.question_type === QUESTION_TYPE.date ||
+    (typeof resolved === "string" && /^\d{4}-\d{2}-\d{2}(T|$)/.test(resolved))
+  ) {
+    const dateOnly = (resolved as string).split("T")[0];
+    const [year, month, day] = dateOnly.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+    const formatted = date.toLocaleDateString(navigator.language || "es-ES", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+    return <span className={cn("text-sm text-gray-800", textClassName)}>{formatted}</span>;
+  }
+
+  if (
+    (field.question_type === QUESTION_TYPE.time || field.data_type === "time") &&
+    typeof resolved === "string"
+  ) {
+    // Mostrar HH:MM (sin segundos)
+    return <span className={cn("text-sm text-gray-800", textClassName)}>{resolved.slice(0, 5)}</span>;
+  }
+
+  return <span className={cn("text-sm text-gray-800", textClassName)}>{String(resolved)}</span>;
+  }
+}

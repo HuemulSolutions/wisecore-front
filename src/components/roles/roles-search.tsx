@@ -1,17 +1,8 @@
 import { useTranslation } from "react-i18next"
-import { Shield, Plus } from "lucide-react"
+import { Shield, Plus, Download, Upload } from "lucide-react"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
-
-interface RolesSearchProps {
-  searchTerm: string
-  onSearchChange: (value: string) => void
-  rolesCount: number
-  isRefreshing: boolean
-  onRefresh: () => void
-  onCreateRole: () => void
-  hasError?: boolean
-  canManage?: boolean
-}
+import type { RolesSearchProps } from '@/types/roles'
+export type { RolesSearchProps } from '@/types/roles'
 
 export function RolesSearch({
   searchTerm,
@@ -21,7 +12,13 @@ export function RolesSearch({
   onRefresh,
   onCreateRole,
   hasError,
-  canManage = false
+  canCreate,
+  onExport,
+  onImport,
+  canExport,
+  canImport,
+  exportSelectedCount = 0,
+  isExporting = false,
 }: RolesSearchProps) {
   const { t } = useTranslation('roles')
   return (
@@ -34,7 +31,16 @@ export function RolesSearch({
       onRefresh={onRefresh}
       isLoading={isRefreshing}
       hasError={hasError}
-      primaryAction={canManage ? {
+      additionalActions={[
+        ...(canExport && onExport ? [{
+          label: exportSelectedCount > 0 ? `${t('exportImport.exportButton')} (${exportSelectedCount})` : t('exportImport.exportButton'),
+          icon: Upload,
+          onClick: onExport,
+          disabled: exportSelectedCount === 0 || isExporting,
+        }] : []),
+        ...(canImport && onImport ? [{ label: t('exportImport.importButton'), icon: Download, onClick: onImport }] : []),
+      ]}
+      primaryAction={canCreate ? {
         label: t('header.createRole'),
         icon: Plus,
         onClick: onCreateRole

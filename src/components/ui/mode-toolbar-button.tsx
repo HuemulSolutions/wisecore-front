@@ -9,6 +9,7 @@ import {
 } from '@radix-ui/react-dropdown-menu';
 import { CheckIcon, EyeIcon, PencilLineIcon, PenIcon } from 'lucide-react';
 import { useEditorRef, usePlateState, usePluginOption } from 'platejs/react';
+import { useTranslation } from 'react-i18next';
 
 import {
   DropdownMenu,
@@ -26,6 +27,7 @@ export function ModeToolbarButton(props: DropdownMenuProps) {
   const [open, setOpen] = React.useState(false);
 
   const isSuggesting = usePluginOption(SuggestionPlugin, 'isSuggesting');
+  const { t } = useTranslation('editor');
 
   let value = 'editing';
 
@@ -36,22 +38,22 @@ export function ModeToolbarButton(props: DropdownMenuProps) {
   const item: Record<string, { icon: React.ReactNode; label: string }> = {
     editing: {
       icon: <PenIcon />,
-      label: 'Editing',
+      label: t('mode.editing'),
     },
     suggestion: {
       icon: <PencilLineIcon />,
-      label: 'Suggestion',
+      label: t('mode.suggestion'),
     },
     viewing: {
       icon: <EyeIcon />,
-      label: 'Viewing',
+      label: t('mode.viewing'),
     },
   };
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen} modal={false} {...props}>
       <DropdownMenuTrigger asChild>
-        <ToolbarButton pressed={open} tooltip="Editing mode" isDropdown>
+        <ToolbarButton pressed={open} tooltip={t('toolbar.editingMode')} isDropdown>
           {item[value].icon}
           <span className="hidden lg:inline">{item[value].label}</span>
         </ToolbarButton>

@@ -1,29 +1,22 @@
 import { Badge } from "@/components/ui/badge"
-import { Edit2, Trash2, FileText } from "lucide-react"
-import type { CustomField } from "@/types/custom-fields"
-import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
+import { Edit, FileText } from "lucide-react"
+import type { CustomField, CustomFieldTableProps } from '@/types/custom-fields'
+export type { CustomFieldTableProps } from '@/types/custom-fields'
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import { useTranslation } from "react-i18next"
-
-interface CustomFieldTableProps {
-  customFields: CustomField[]
-  onEditCustomField: (customField: CustomField) => void
-  onDeleteCustomField: (customField: CustomField) => void
-  pagination?: HuemulTablePagination
-  canManage?: boolean
-  isLoading?: boolean
-  isFetching?: boolean
-}
+import { questionTypeLabel } from "@/components/sections/question-type-meta"
 
 export function CustomFieldTable({
   customFields,
   onEditCustomField,
-  onDeleteCustomField,
   pagination,
-  canManage = false,
+  canUpdate = false,
+  canDelete = false,
   isLoading = false,
   isFetching = false
 }: CustomFieldTableProps) {
-  const { t, i18n } = useTranslation('custom-fields')
+  const { t, i18n } = useTranslation(['custom-fields', 'common'])
+  const { t: tSections } = useTranslation('sections')
 
   const formatDataType = (dataType: string) => {
     const key = dataType as keyof object
@@ -34,7 +27,7 @@ export function CustomFieldTable({
   const columns: HuemulTableColumn<CustomField>[] = [
     {
       key: "name",
-      label: t('columns.name'),
+      label: t('common:name'),
       render: (customField) => (
         <div className="flex flex-col">
           <span className="text-xs font-medium text-foreground">{customField.name}</span>
@@ -54,11 +47,13 @@ export function CustomFieldTable({
       )
     },
     {
-      key: "dataType",
-      label: t('columns.dataType'),
+      key: "fieldType",
+      label: t('columns.fieldType'),
       render: (customField) => (
         <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-          {formatDataType(customField.data_type)}
+          {customField.question_type
+            ? questionTypeLabel(customField.question_type, tSections)
+            : formatDataType(customField.data_type)}
         </Badge>
       )
     },
@@ -73,7 +68,7 @@ export function CustomFieldTable({
     },
     {
       key: "created",
-      label: t('columns.created'),
+      label: t('common:created'),
       render: (customField) => (
         <span className="text-xs text-foreground">
           {new Date(customField.created_at).toLocaleDateString(i18n.language, {
@@ -86,21 +81,16 @@ export function CustomFieldTable({
     }
   ]
 
-  // Define actions - solo si es admin
-  const actions: HuemulTableAction<CustomField>[] = canManage ? [
+  // El único punto de entrada para borrar es este mismo sheet de edición
+  // (custom-fields-create-edit-sheet.tsx), así que la fila se abre con
+  // canUpdate O canDelete — restringirla solo a canUpdate le quitaría a un
+  // rol con únicamente custom_fields:d toda forma de eliminar.
+  const actions: HuemulTableAction<CustomField>[] = (canUpdate || canDelete) ? [
     {
       key: "edit",
       label: t('actions.editCustomField'),
-      icon: Edit2,
+      icon: Edit,
       onClick: onEditCustomField,
-      separator: true
-    },
-    {
-      key: "delete",
-      label: t('actions.deleteCustomField'),
-      icon: Trash2,
-      onClick: onDeleteCustomField,
-      destructive: true
     }
   ] : []
 
@@ -109,6 +99,7 @@ export function CustomFieldTable({
       data={customFields}
       columns={columns}
       actions={actions}
+      actionsMode="inline"
       getRowKey={(customField) => customField.id}
       emptyState={{
         icon: FileText,

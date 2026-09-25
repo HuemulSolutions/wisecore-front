@@ -1,11 +1,14 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, List, PlusCircle, Sparkles, BetweenHorizontalStart, ChevronDown } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { useOrganization } from "@/contexts/organization-context";
-import type { LifecyclePermissions } from "@/types/assets";
+import { usePageAccess } from "@/hooks/usePageAccess";
+import { useInvalidateDocumentSectionAccess } from "@/hooks/useDocumentSectionAccess";
+import type { SectionSheetProps, SectionsConfigExecution, SectionsConfigResponse } from '@/types/assets';
+export type { SectionSheetProps } from '@/types/assets';
 import {
   Select,
   SelectContent,
@@ -21,78 +24,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { HuemulDialog } from "@/huemul/components/huemul-dialog";
+import { AddSectionDialog } from "@/components/assets/dialogs/assets-add-section-dialog";
 import SortableSectionSheet from "@/components/sections/sortable_section_sheet";
-import { AddSectionFormSheet } from "@/components/sections/sections-add-form-sheet";
 import { createSection, updateSection, updateSectionsOrder, deleteSection } from "@/services/section";
 import { linkSectionToExecution } from "@/services/section_execution";
 import { generateDocumentStructure, getDocumentSectionsConfig, syncDocumentsFromTemplate, syncTemplateFromDocument } from "@/services/assets";
 import { toast } from "sonner";
+import { withRefresh } from "@/lib/query-utils";
 import { handleApiError } from "@/lib/error-utils";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
-interface SectionSheetProps {
-  selectedFile: {
-    id: string;
-    name: string;
-    type: "folder" | "document";
-    access_levels?: string[];
-  } | null;
-  fullDocument?: any;
-  documentName?: string;
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  isMobile?: boolean;
-  executionId?: string | null;
-  executionInfo?: {
-    id: string;
-    name: string;
-    status: string;
-    created_at: string;
-    formattedDate?: string;
-    isLatest?: boolean;
-  } | null;
-  lifecyclePermissions?: LifecyclePermissions;
-  stage?: string;
-  showTrigger?: boolean;
-}
-
-interface SectionsConfigExecution {
-  id: string;
-  name?: string;
-  status?: string;
-  created_at?: string;
-}
-
-interface SectionsConfigSection {
-  id: string;
-  name: string;
-  type?: "ai" | "manual" | "reference";
-  prompt?: string;
-  order?: number;
-  dependencies?: Array<{ id: string; name: string }>;
-  manual_input?: string;
-  reference_section_id?: string;
-  reference_mode?: "latest" | "specific";
-  reference_execution_id?: string;
-  not_in_execution?: boolean | null;
-}
-
-interface SectionsConfigResponse {
-  template_id?: string | null;
-  document?: {
-    id: string;
-    name: string;
-    description?: string;
-    template_id?: string | null;
-  };
-  executions?: {
-    active?: SectionsConfigExecution | null;
-    others?: SectionsConfigExecution[];
-  };
-  sections?: SectionsConfigSection[];
-}
+const DOCUMENT_OPTION_VALUE = "__document__";
 
 export function SectionSheet({
   selectedFile,
@@ -105,24 +48,31 @@ export function SectionSheet({
   executionInfo,
   lifecyclePermissions,
   stage,
+  isExternalElaborationLocked = false,
   showTrigger = true,
 }: SectionSheetProps) {
-  const { t } = useTranslation('sections');
+  const { t } = useTranslation(['sections', 'common']);
   const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
+  const { can } = usePageAccess('asset');
+  const invalidateSectionAccess = useInvalidateDocumentSectionAccess();
   const [isAddingSectionDialogOpen, setIsAddingSectionDialogOpen] = useState(false);
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
-  const [isFormValid, setIsFormValid] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [linkingSectionId, setLinkingSectionId] = useState<string | null>(null);
   const [selectedConfigExecutionId, setSelectedConfigExecutionId] = useState<string | null>(executionInfo?.id || executionId || null);
+  const autoSelectedActiveRef = useRef(false);
 
-  // Whether the current user can edit (add / update / delete / reorder) sections
-  // Requires edit/create permission AND the document must be in the 'edit' stage
-  const canEditSections = !!(lifecyclePermissions?.edit || lifecyclePermissions?.create) && stage === 'edit';
+  // Whether the current user can edit (add / update / delete / reorder) sections.
+  // Requires edit/create permission AND the document must be in the 'edit' stage AND
+  // RBAC de escritura sobre el asset (antes faltaba este tercer eje — ver
+  // computeFrontendPermissions en src/hooks/useDocumentAccess.ts, misma regla AND)
+  // AND que no haya un ElaborationRun bloqueando la execution (el backend rechaza
+  // crear/renombrar/borrar/reordenar sección con el mismo 409 mientras dura).
+  const canEditSections = !!(lifecyclePermissions?.edit || lifecyclePermissions?.create) && stage === 'edit' && can('updateAssetContent') && !isExternalElaborationLocked;
 
   useEffect(() => {
     setSelectedConfigExecutionId(executionInfo?.id || executionId || null);
+    autoSelectedActiveRef.current = false;
   }, [selectedFile?.id, executionInfo?.id, executionId]);
 
   const { data: sectionsConfig } = useQuery<SectionsConfigResponse>({
@@ -158,9 +108,10 @@ export function SectionSheet({
   }, [sectionsConfig?.executions]);
 
   useEffect(() => {
-    if (selectedConfigExecutionId || !sectionsConfig?.executions?.active?.id) {
+    if (autoSelectedActiveRef.current || selectedConfigExecutionId || !sectionsConfig?.executions?.active?.id) {
       return;
     }
+    autoSelectedActiveRef.current = true;
     setSelectedConfigExecutionId(sectionsConfig.executions.active.id);
   }, [sectionsConfig?.executions?.active?.id, selectedConfigExecutionId]);
 
@@ -186,20 +137,19 @@ export function SectionSheet({
 
   // Mutations for sections management
   const addSectionMutation = useMutation({
-    mutationFn: (sectionData: any) => {
-      const payload = selectedConfigExecutionId
-        ? { ...sectionData, execution_id: selectedConfigExecutionId }
-        : sectionData;
+    mutationFn: withRefresh(
+      (sectionData: any) => {
+        const payload = selectedConfigExecutionId
+          ? { ...sectionData, execution_id: selectedConfigExecutionId }
+          : sectionData;
 
-      return createSection(payload, selectedOrganizationId!);
-    },
+        return createSection(payload, selectedOrganizationId!);
+      },
+      queryClient,
+      () => [['document', selectedFile?.id], ['document-content', selectedFile?.id], ['document-sections-config', selectedFile?.id], ['document-section-access', selectedFile?.id]],
+    ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
       setIsAddingSectionDialogOpen(false);
-      setIsFormValid(false);
-      setIsGenerating(false);
       toast.success(t('toast.sectionCreated'));
     },
   });
@@ -212,6 +162,7 @@ export function SectionSheet({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
+      invalidateSectionAccess(selectedFile?.id);
     },
   });
 
@@ -223,6 +174,7 @@ export function SectionSheet({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
+      invalidateSectionAccess(selectedFile?.id);
     },
   });
 
@@ -233,6 +185,7 @@ export function SectionSheet({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
+      invalidateSectionAccess(selectedFile?.id);
     },
   });
 
@@ -357,7 +310,7 @@ export function SectionSheet({
           icon={BetweenHorizontalStart}
           iconClassName={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"}
           label={isMobile ? undefined : t('button.label')}
-          title={t('button.title')}
+          tooltip={t('button.title')}
           className={isMobile
             ? "h-7 w-7 p-0 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors rounded-full"
             : "h-7 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs"
@@ -392,13 +345,13 @@ export function SectionSheet({
                     variant="outline"
                     className="h-8 hover:cursor-pointer text-gray-700"
                   >
-                    {t('update.label')}
+                    {t('common:update')}
                     <ChevronDown className="h-4 w-4 ml-1.5" />
                   </HuemulButton>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64 p-0">
                   <DropdownMenuLabel className="text-sm font-semibold px-4 py-3">
-                    {t('update.label')}
+                    {t('common:update')}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -443,8 +396,6 @@ export function SectionSheet({
               className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer h-8"
               onClick={() => {
                 setIsAddingSectionDialogOpen(true);
-                setIsFormValid(false);
-                setIsGenerating(false);
               }}
             >
               <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
@@ -487,13 +438,18 @@ export function SectionSheet({
                 <div className="flex items-center gap-2">
                   <span className="font-medium whitespace-nowrap">{t('assetInfo.version')}</span>
                   <Select
-                    value={selectedConfigExecutionId || undefined}
-                    onValueChange={(value) => setSelectedConfigExecutionId(value)}
+                    value={selectedConfigExecutionId || DOCUMENT_OPTION_VALUE}
+                    onValueChange={(value) =>
+                      setSelectedConfigExecutionId(value === DOCUMENT_OPTION_VALUE ? null : value)
+                    }
                   >
-                    <SelectTrigger className="h-8 w-[240px] text-xs bg-white hover:border-[#4464f7] focus:border-[#4464f7] focus:ring-2 focus:ring-[#4464f7]/20 transition-colors">
+                    <SelectTrigger className="h-8 w-60 text-xs bg-white hover:border-[#4464f7] focus:border-[#4464f7] focus:ring-2 focus:ring-[#4464f7]/20 transition-colors">
                       <SelectValue placeholder={t('assetInfo.selectVersion')} />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value={DOCUMENT_OPTION_VALUE} className="cursor-pointer">
+                        {t('assetInfo.documentOption')}
+                      </SelectItem>
                       {availableExecutions.map((execution, index) => (
                         <SelectItem key={execution.id} value={execution.id} className="cursor-pointer">
                           {execution.name || t('assetInfo.versionNumber', { number: availableExecutions.length - index })}
@@ -513,14 +469,23 @@ export function SectionSheet({
               <DndContext sensors={canEditSections ? sensors : []} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={orderedSections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
                   <div className="space-y-3">
-                    {orderedSections.map((section: any) => (
+                    {orderedSections.map((section: any) => {
+                      // Sin fila propia (`can_edit` ausente/null) => sigue el permiso general
+                      // del sheet. Con `can_edit: false` => de solo lectura acá aunque el resto
+                      // de la lista sea editable (ver ContentSection.can_edit).
+                      const sectionCanEdit = section.can_edit !== false;
+                      return (
                       <div key={section.id} className="border rounded-lg bg-white">
                         <SortableSectionSheet
                           item={section}
                           existingSections={orderedSections}
-                          onSave={(sectionId: string, sectionData: object) =>
-                            updateSectionMutation.mutate({ sectionId, sectionData })
-                          }
+                          onSave={(sectionId: string, sectionData: any) => {
+                            const canPropagateToExecution = sectionData?.type === 'manual' || sectionData?.type === 'form';
+                            const payload = selectedConfigExecutionId && canPropagateToExecution
+                              ? { ...sectionData, propagate_to_executions: true, execution_id: selectedConfigExecutionId }
+                              : sectionData;
+                            updateSectionMutation.mutate({ sectionId, sectionData: payload });
+                          }}
                           onDelete={async (sectionId: string, options?: { executionId?: string }) => {
                             await deleteSectionMutation.mutateAsync({
                               sectionId,
@@ -528,11 +493,14 @@ export function SectionSheet({
                             });
                           }}
                           currentExecutionId={selectedConfigExecutionId}
+                          documentId={selectedFile?.id}
+                          templateId={templateId || undefined}
                           useExecutionDeleteDialog={true}
-                          hasTemplate={!!fullDocument?.template_id}
+                          hasTemplate={hasTemplateId}
                           isDisabledSection={section.not_in_execution === true}
-                          canUpdate={canEditSections}
-                          canDelete={canEditSections}
+                          canUpdate={canEditSections && sectionCanEdit}
+                          canDelete={canEditSections && sectionCanEdit}
+                          hasOwnLifecycleRule={canEditSections && !sectionCanEdit}
                           isAddToCurrentVersionPending={linkingSectionId === section.id && linkSectionToCurrentVersionMutation.isPending}
                           onAddToCurrentVersion={(sectionId: string) => {
                             if (!executionInfo?.id && !executionId) {
@@ -544,7 +512,8 @@ export function SectionSheet({
                           }}
                         />
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </SortableContext>
               </DndContext>
@@ -560,45 +529,23 @@ export function SectionSheet({
               </p>
             </div>
           )}
+
+          {/* Add Section Dialog — rendered inside the sheet so Radix treats it
+              as a nested layer and closing it does not dismiss this sheet */}
+          <AddSectionDialog
+            open={isAddingSectionDialogOpen}
+            onOpenChange={setIsAddingSectionDialogOpen}
+            documentId={selectedFile!.id}
+            templateId={templateId || undefined}
+            executionId={selectedConfigExecutionId || undefined}
+            existingSections={fullDocument?.sections || []}
+            onSubmit={(values) => {
+              addSectionMutation.mutate(values);
+            }}
+            isPending={addSectionMutation.isPending}
+          />
         </div>
       </HuemulSheet>
-
-      {/* Add Section Dialog */}
-      <HuemulDialog
-        open={isAddingSectionDialogOpen}
-        onOpenChange={(open) => {
-          setIsAddingSectionDialogOpen(open);
-          if (!open) {
-            setIsFormValid(false);
-            setIsGenerating(false);
-          }
-        }}
-          title={t('addDialog.title')}
-        description={t('addDialog.description')}
-        icon={PlusCircle}
-        maxWidth="sm:max-w-3xl"
-        maxHeight="max-h-[90vh]"
-        saveAction={{
-          label: addSectionMutation.isPending ? t('addDialog.adding') : isGenerating ? t('addDialog.generating') : t('addDialog.save'),
-          disabled: !isFormValid || addSectionMutation.isPending || isGenerating,
-          loading: addSectionMutation.isPending,
-          closeOnSuccess: false,
-          onClick: () => {
-            (document.getElementById("add-section-form") as HTMLFormElement)?.requestSubmit();
-          },
-        }}
-      >
-        <AddSectionFormSheet
-          documentId={selectedFile!.id}
-          onSubmit={(values) => {
-            addSectionMutation.mutate(values);
-          }}
-          isPending={addSectionMutation.isPending}
-          existingSections={fullDocument?.sections || []}
-          onValidationChange={setIsFormValid}
-          onGeneratingChange={setIsGenerating}
-        />
-      </HuemulDialog>
     </>
   );
 }

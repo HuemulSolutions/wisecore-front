@@ -1,5 +1,6 @@
 import * as React from "react";
-import { type LucideIcon, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,77 +13,25 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-export interface HuemulSheetAction {
-  /** Button label */
-  label: string;
-  /** Click handler — can be async; the button will show a loader until it resolves */
-  onClick?: () => void | Promise<void>;
-  /** Button variant (defaults to "default") */
-  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-  /** Disable the button */
-  disabled?: boolean;
-  /** Show a loading spinner / disable while loading (external control) */
-  loading?: boolean;
-  /** Optional icon to render inside the button */
-  icon?: LucideIcon;
-  /** Auto-close the sheet after a successful async click (default: true for saveAction, false for extraActions) */
-  closeOnSuccess?: boolean;
-  /** Where to render the button: "header" or "footer" (default: "footer") */
-  position?: "header" | "footer";
-}
-
-export interface HuemulSheetProps {
-  /** Controlled open state */
-  open: boolean;
-  /** Called when the sheet requests to open or close */
-  onOpenChange: (open: boolean) => void;
-
-  // ── Header ──────────────────────────────────────────────────────────────
-  /** Sheet title (required) */
-  title: string;
-  /** Optional description below the title */
-  description?: string;
-  /** Optional icon rendered to the left of the title */
-  icon?: LucideIcon;
-  /** Icon className overrides (e.g. size, color) */
-  iconClassName?: string;
-
-  // ── Loading ─────────────────────────────────────────────────────────────
-  /** Show a skeleton loader in the body while content is loading (default: false) */
-  bodyLoading?: boolean;
-
-  // ── Footer ──────────────────────────────────────────────────────────────
-  /** Show the sticky footer (default: true) */
-  showFooter?: boolean;
-  /** Show a Cancel button in the footer (default: true when footer visible) */
-  showCancelButton?: boolean;
-  /** Label for the cancel button (default: "Cancel") */
-  cancelLabel?: string;
-  /** Primary save / confirm action */
-  saveAction?: HuemulSheetAction;
-  /** Extra action buttons — each can specify its position ("header" | "footer") */
-  extraActions?: HuemulSheetAction[];
-
-  /** Delay in ms before auto-closing the sheet after a successful async action (default: 500) */
-  closeDelay?: number;
-
-  // ── Layout ──────────────────────────────────────────────────────────────
-  /** Side from which the sheet slides in (default: "right") */
-  side?: "top" | "right" | "bottom" | "left";
-  /** Width class override (default: "sm:max-w-md") */
-  maxWidth?: string;
-  /** Additional className on SheetContent */
-  className?: string;
-  /** Custom React node rendered in the header row (right-aligned, after title) */
-  headerExtra?: React.ReactNode;
-  /** Body content */
-  children: React.ReactNode;
-}
+import type {
+  HuemulSheetAction,
+  HuemulSheetIconVariant,
+  HuemulSheetProps,
+  HuemulSheetSize,
+} from "@/types/huemul"
+export type { HuemulSheetAction, HuemulSheetIconVariant, HuemulSheetProps, HuemulSheetSize }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+const SHEET_SIZE_CLASSES: Record<HuemulSheetSize, string> = {
+  sm: "sm:max-w-sm",
+  md: "sm:max-w-md",
+  narrow: "w-full sm:w-[520px] sm:max-w-none",
+  lg: "sm:max-w-2xl",
+  xl: "sm:max-w-4xl",
+  "2xl": "sm:max-w-5xl",
+  wide: "w-[90vw] sm:max-w-none",
+};
 
 function ActionButton({
   action,
@@ -121,22 +70,36 @@ export function HuemulSheet({
   open,
   onOpenChange,
   title,
+  eyebrow,
   description,
   icon: Icon,
   iconClassName,
+  iconVariant = "plain",
   bodyLoading = false,
   showFooter = true,
   showCancelButton = true,
-  cancelLabel = "Cancel",
+  cancelLabel,
+  onCancel,
   saveAction,
   extraActions,
   closeDelay = 500,
   side = "right",
   maxWidth = "sm:max-w-md",
+  size,
   className,
+  bodyClassName,
+  hideHeaderBorder = false,
   headerExtra,
+  footerLeft,
+  headerContent,
+  footerContent,
+  onOpenAutoFocus,
   children,
 }: HuemulSheetProps) {
+  // Default traducido del botón de cancelar: sin esto los sheets que no pasan
+  // `cancelLabel` mostraban "Cancel" hardcodeado aun con la UI en español.
+  const { t } = useTranslation("common");
+
   // Shared helper — all close paths go through Radix's onOpenChange
   const closeDialog = React.useCallback(() => {
     onOpenChange(false);
@@ -196,75 +159,130 @@ export function HuemulSheet({
   const saveInHeader = saveAction?.position === "header";
   const saveInFooter = saveAction && !saveInHeader;
 
+  const widthClass = size ? SHEET_SIZE_CLASSES[size] : maxWidth;
+  const isTile = iconVariant === "tile";
+
   // Determine if footer has any content
-  const hasFooterContent = showFooter && (showCancelButton || saveInFooter || footerActions.length > 0);
+  const hasFooterContent = footerContent != null || (showFooter && (showCancelButton || saveInFooter || footerActions.length > 0 || !!footerLeft));
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side={side}
+        onOpenAutoFocus={onOpenAutoFocus}
         {...(!description && { "aria-describedby": undefined })}
         className={cn(
           "flex flex-col gap-0 p-0",
-          maxWidth,
+          widthClass,
           className,
         )}
       >
         {/* ── Header ─────────────────────────────────────────────────── */}
-        <SheetHeader className="px-6 pt-6 pb-4 space-y-1.5">
-          <div className="flex items-center gap-2">
-            {Icon && (
-              <Icon
-                className={cn("size-5 shrink-0 text-blue-600", iconClassName)}
-              />
-            )}
-            <SheetTitle>{title}</SheetTitle>
-
-            {/* Header-positioned actions (right-aligned) */}
-            {(headerActions.length > 0 || saveInHeader || headerExtra) && (
-              <div className="ml-auto flex items-center gap-2 pr-6">
-                {headerExtra}
-                {headerActions.map((action, _index) => {
-                  const globalIndex = extraActions!.indexOf(action);
-                  return (
-                    <ActionButton
-                      key={action.label}
-                      action={action}
-                      isLoading={extraLoading[globalIndex] ?? false}
-                      defaultVariant="outline"
-                      onClickAction={() =>
-                        handleActionClick(
-                          action,
-                          (v) =>
-                            setExtraLoading((prev) => ({
-                              ...prev,
-                              [globalIndex]: v,
-                            })),
-                          false,
-                        )
-                      }
+        <SheetHeader
+          className={cn(
+            headerContent
+              ? "p-0"
+              : cn(
+                  "px-6 pt-6 pb-4 space-y-1.5",
+                  !hideHeaderBorder && "border-b",
+                  isTile && "space-y-1 pb-3",
+                ),
+          )}
+        >
+          {headerContent ? (
+            <>
+              {/* Radix exige un Dialog.Title en el árbol — se mantiene oculto
+                  visualmente porque `headerContent` ya muestra el título a su manera. */}
+              <SheetTitle className="sr-only">{title}</SheetTitle>
+              {headerContent}
+            </>
+          ) : (
+            <>
+              {eyebrow && (
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  {eyebrow}
+                </p>
+              )}
+              <div className={cn("flex gap-2", isTile ? "items-start gap-3" : "items-center")}>
+                {Icon &&
+                  (isTile ? (
+                    <span className="flex size-7.5 shrink-0 items-center justify-center rounded-xl bg-[#eef2ff]">
+                      <Icon className={cn("size-4 text-[#4f46e5]", iconClassName)} />
+                    </span>
+                  ) : (
+                    <Icon
+                      className={cn("size-5 shrink-0 text-blue-600", iconClassName)}
                     />
-                  );
-                })}
+                  ))}
+                {isTile ? (
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <SheetTitle className="text-[16px] font-semibold leading-tight text-[#0f172a]">
+                      {title}
+                    </SheetTitle>
+                    {description && (
+                      <SheetDescription className="text-[13px] leading-tight text-[#64748b]">
+                        {description}
+                      </SheetDescription>
+                    )}
+                  </div>
+                ) : (
+                  <SheetTitle>{title}</SheetTitle>
+                )}
 
-                {saveInHeader && saveAction && (
-                  <ActionButton
-                    action={saveAction}
-                    isLoading={saveLoading}
-                    defaultVariant="default"
-                    onClickAction={() =>
-                      handleActionClick(saveAction, setSaveLoading, true)
-                    }
-                  />
+                {/* Header-positioned actions (right-aligned) */}
+                {(headerActions.length > 0 || saveInHeader || headerExtra) && (
+                  <div className="ml-auto flex items-center gap-2 pr-6">
+                    {headerExtra}
+                    {headerActions.map((action, _index) => {
+                      const globalIndex = extraActions!.indexOf(action);
+                      return (
+                        <ActionButton
+                          key={action.label}
+                          action={action}
+                          isLoading={extraLoading[globalIndex] ?? false}
+                          defaultVariant="outline"
+                          onClickAction={() =>
+                            handleActionClick(
+                              action,
+                              (v) =>
+                                setExtraLoading((prev) => ({
+                                  ...prev,
+                                  [globalIndex]: v,
+                                })),
+                              false,
+                            )
+                          }
+                        />
+                      );
+                    })}
+
+                    {saveInHeader && saveAction && (
+                      <ActionButton
+                        action={saveAction}
+                        isLoading={saveLoading}
+                        defaultVariant="default"
+                        onClickAction={() =>
+                          handleActionClick(saveAction, setSaveLoading, true)
+                        }
+                      />
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-          {description && <SheetDescription>{description}</SheetDescription>}
+              {!isTile && description && (
+                <SheetDescription>{description}</SheetDescription>
+              )}
+            </>
+          )}
         </SheetHeader>
 
         {/* ── Body ───────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-6 py-2">
+        <div
+          className={cn(
+            "flex-1 overflow-y-auto px-6 py-2 scrollbar-gutter-stable",
+            bodyClassName,
+          )}
+        >
           {bodyLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-4 w-3/4" />
@@ -280,53 +298,61 @@ export function HuemulSheet({
         </div>
 
         {/* ── Footer (sticky) ────────────────────────────────────────── */}
-        {hasFooterContent && (
-          <div className="sticky bottom-0 border-t bg-background px-6 py-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            {showCancelButton && (
-              <SheetClose asChild>
-                <Button
-                  variant="outline"
-                  className="hover:cursor-pointer"
-                  onClick={closeDialog}
-                >
-                  {cancelLabel}
-                </Button>
-              </SheetClose>
+        {footerContent != null ? (
+          footerContent
+        ) : hasFooterContent && (
+          <div className="sticky bottom-0 border-t bg-background px-6 py-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            {footerLeft && (
+              <div className="flex items-center gap-2">{footerLeft}</div>
             )}
 
-            {footerActions.map((action) => {
-              const globalIndex = extraActions!.indexOf(action);
-              return (
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:ml-auto">
+              {showCancelButton && (
+                <SheetClose asChild>
+                  <Button
+                    variant="outline"
+                    className="hover:cursor-pointer"
+                    onClick={() => onCancel?.()}
+                  >
+                    {cancelLabel ?? t("cancel")}
+                  </Button>
+                </SheetClose>
+              )}
+
+              {footerActions.map((action) => {
+                const globalIndex = extraActions!.indexOf(action);
+                return (
+                  <ActionButton
+                    key={action.label}
+                    action={action}
+                    isLoading={extraLoading[globalIndex] ?? false}
+                    defaultVariant="secondary"
+                    onClickAction={() =>
+                      handleActionClick(
+                        action,
+                        (v) =>
+                          setExtraLoading((prev) => ({
+                            ...prev,
+                            [globalIndex]: v,
+                          })),
+                        false,
+                      )
+                    }
+                  />
+                );
+              })}
+
+              {saveInFooter && (
                 <ActionButton
-                  key={action.label}
-                  action={action}
-                  isLoading={extraLoading[globalIndex] ?? false}
-                  defaultVariant="secondary"
+                  action={saveAction!}
+                  isLoading={saveLoading}
+                  defaultVariant="default"
                   onClickAction={() =>
-                    handleActionClick(
-                      action,
-                      (v) =>
-                        setExtraLoading((prev) => ({
-                          ...prev,
-                          [globalIndex]: v,
-                        })),
-                      false,
-                    )
+                    handleActionClick(saveAction!, setSaveLoading, true)
                   }
                 />
-              );
-            })}
-
-            {saveInFooter && (
-              <ActionButton
-                action={saveAction!}
-                isLoading={saveLoading}
-                defaultVariant="default"
-                onClickAction={() =>
-                  handleActionClick(saveAction!, setSaveLoading, true)
-                }
-              />
-            )}
+              )}
+            </div>
           </div>
         )}
       </SheetContent>

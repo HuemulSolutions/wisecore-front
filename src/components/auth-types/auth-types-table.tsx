@@ -1,29 +1,21 @@
 import { Edit2, Trash2, Shield } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import type { AuthType } from "@/services/auth-types"
-import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
+import type { AuthTypesTableProps } from '@/types/auth-types'
 
-interface AuthTypesTableProps {
-  authTypes: AuthType[]
-  onEdit: (authType: AuthType) => void
-  onDelete: (authType: AuthType) => void
-  isLoading?: boolean
-  isFetching?: boolean
-  pagination?: HuemulTablePagination
-}
+export type { AuthTypesTableProps } from '@/types/auth-types'
 
-
-export function AuthTypesTable({ 
-  authTypes, 
-  onEdit, 
+export function AuthTypesTable({
+  authTypes,
+  onEdit,
   onDelete,
   isLoading = false,
   isFetching = false,
   pagination,
+  canManage = false,
 }: AuthTypesTableProps) {
   const { t } = useTranslation(['auth-types', 'common'])
-  const { isRootAdmin } = useUserPermissions()
 
   const columns: HuemulTableColumn<AuthType>[] = [
     {
@@ -44,7 +36,7 @@ export function AuthTypesTable({
     },
     {
       key: "created",
-      label: t('columns.created'),
+      label: t('common:created'),
       render: (authType) => (
         <span className="text-xs text-foreground">
           {new Date(authType.created_at).toLocaleDateString()}
@@ -53,7 +45,7 @@ export function AuthTypesTable({
     },
     {
       key: "updated",
-      label: t('columns.updated'),
+      label: t('common:updated'),
       render: (authType) => (
         <span className="text-xs text-foreground">
           {new Date(authType.updated_at).toLocaleDateString()}
@@ -62,7 +54,7 @@ export function AuthTypesTable({
     }
   ]
 
-  const actions: HuemulTableAction<AuthType>[] = isRootAdmin ? [
+  const actions: HuemulTableAction<AuthType>[] = canManage ? [
     {
       key: "edit",
       label: t('actions.editAuthType'),
@@ -90,7 +82,6 @@ export function AuthTypesTable({
         title: t('emptyState.empty'),
         description: t('emptyState.noResults'),
       }}
-      maxHeight="max-h-[70vh]"
       isLoading={isLoading}
       isFetching={isFetching}
       pagination={pagination}

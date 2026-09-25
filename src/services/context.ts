@@ -1,5 +1,7 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import { logger } from "@/lib/logger";
+import type { AddTextContextBody, EditTextContextBody } from "@/types/context";
 
 export async function getContext(documentId: string, organizationId: string) {
   const response = await httpClient.get(`${backendUrl}/context/${documentId}/get_context`, {
@@ -8,25 +10,22 @@ export async function getContext(documentId: string, organizationId: string) {
     }
   });
   const data = await response.json();
-  console.log('Document context fetched:', data.data);
+  logger.log('Document context fetched:', data.data);
   return data.data;
 }
 
-export async function addTextContext(documentId: string, name: string, content: string, organizationId: string) {
-  const response = await httpClient.post(`${backendUrl}/context/${documentId}/add_text`, 
-    {
-      name,
-      content,
-    },
+export async function addTextContext(documentId: string, body: AddTextContextBody, organizationId: string) {
+  const response = await httpClient.post(`${backendUrl}/context/${documentId}/add_text`,
+    body,
     {
       headers: {
         'X-Org-Id': organizationId
       }
     }
   );
-  
+
   const data = await response.json();
-  console.log('Text context added:', data.data);
+  logger.log('Text context added:', data.data);
   return data.data;
 }
 
@@ -43,25 +42,22 @@ export async function addDocumentContext(documentId: string, file: File, organiz
   });
   
   const data = await response.json();
-  console.log('Document context added:', data.data);
+  logger.log('Document context added:', data.data);
   return data.data;
 }
 
-export async function editTextContext(contextId: string, name: string, content: string, organizationId: string) {
-  const response = await httpClient.patch(`${backendUrl}/context/${contextId}/text`, 
-    {
-      name,
-      content,
-    },
+export async function editTextContext(contextId: string, body: EditTextContextBody, organizationId: string) {
+  const response = await httpClient.patch(`${backendUrl}/context/${contextId}/text`,
+    body,
     {
       headers: {
         'X-Org-Id': organizationId
       }
     }
   );
-  
+
   const data = await response.json();
-  console.log('Text context updated:', data.data);
+  logger.log('Text context updated:', data.data);
   return data.data;
 }
 
@@ -81,7 +77,7 @@ export async function editFileContext(contextId: string, file: File, organizatio
   });
   
   const data = await response.json();
-  console.log('File context updated:', data.data);
+  logger.log('File context updated:', data.data);
   return data.data;
 }
 
@@ -93,6 +89,6 @@ export async function deleteContext(contextId: string, organizationId: string) {
   });
   
   const data = await response.json();
-  console.log('Context deleted:', data.data);
+  logger.log('Context deleted:', data.data);
   return data.data;
 }

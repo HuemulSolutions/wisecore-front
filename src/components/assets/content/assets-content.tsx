@@ -1,23 +1,47 @@
-import { useMemo, useEffect, useState, useRef } from "react";
+﻿import { useMemo, useEffect, useState, useRef, useCallback, useDeferredValue } from "react";
 import { handleApiError } from "@/lib/error-utils";
+import { resolveCannotGenerateReason, isContextRelatedReason } from "@/lib/generation-gating";
+import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, MoreVertical, Check, Undo2, Lock, Tag, Globe, Archive, Link2, Users } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell, Sparkles, MessageSquareText, BookOpen, Maximize, Minimize, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { SectionCollapseContext, type CollapseAllSignal } from "@/contexts/section-collapse-context";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import type { ImperativePanelHandle } from "react-resizable-panels";
 import { createSectionExecution, type AddSectionExecutionRequest } from "@/services/section_execution";
 import { OtherVersionExecutionBanner } from "@/components/execution/other-version-execution-banner";
 import { ExecutionStatusBanner } from "@/components/execution/execution-status-banner";
 import { ChatbotContextSync } from "@/components/chatbot/chatbot-context-sync";
 import { DependenciesSheet, ContextSheet, TemplateConfigSheet, ExecuteSheet, SectionSheet } from "@/components/assets/content";
+import { VersionManagementSheet } from "@/components/assets/content/assets-version-management-sheet";
+import { AssetVersionCompareSheet } from "@/components/assets/content/asset-version-compare-sheet";
+import { AssetsInfoSheet } from "@/components/assets/content/assets-info-sheet";
+import AssetLifecycleSheet from "@/components/assets/dialogs/assets-lifecycle-sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useElementWidth } from "@/hooks/useElementWidth";
+import { useAuth } from "@/contexts/auth-context";
+import { useRecentAssets } from "@/hooks/useRecentAssets";
 import { DocumentAccessControl } from "@/components/assets/content/assets-access-control";
 import { HuemulButton } from "@/huemul/components/huemul-button";
+import { HuemulExpandableText } from "@/huemul/components/huemul-expandable-text";
+import { HuemulTruncatedText } from "@/huemul/components/huemul-truncated-text";
+import { AssetsNotificationsSheet } from "@/components/assets/content/assets-notifications-sheet";
+import { AssetsDiscussionsSheet } from "@/components/assets/content/assets-discussions-sheet";
+import { DiscussionFocusProvider, useDiscussionFocus } from "@/contexts/discussion-focus-context";
+import { useDiscussions } from "@/hooks/useDiscussions";
+import { AssetHistorySheet } from "@/components/assets/content/history/asset-history-sheet";
+import { AssetDiagramsSheet } from "@/components/assets/content/asset-diagrams-sheet";
+import { MediaListSheet } from "@/components/ui/media-list-sheet";
+import type { MediaScope, MediaScopeExecutionOption } from "@/types/media";
+import type { AssetHistoryTab } from "@/types/assets";
+import { AssetsDetailPanel } from "@/components/assets/content/detail-panel/assets-detail-panel";
+import { AssetsRelatedDocumentsBlock } from "@/components/assets/content/assets-related-documents-block";
 
 import {
   DropdownMenu,
@@ -26,61 +50,89 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog";
-import { LifecycleCommentDialog } from "@/components/ui/lifecycle-comment-dialog";
-import { LifecycleRollbackDialog } from "@/components/ui/lifecycle-rollback-dialog";
-
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { getDocumentContent, deleteDocument, getDocumentById } from "@/services/assets";
-import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, updateExecutionName } from "@/services/executions";
+import { getDocumentContent, deleteDocument, getDocumentById, exportDocuments } from "@/services/assets";
+import { useDocumentMediaUrls } from "@/hooks/useDocumentMediaUrls";
+import { MediaUrlProvider } from "@/contexts/media-url-context";
+import { MentionRefsProvider } from "@/contexts/mention-refs-context";
+import { RoleRefsProvider } from "@/contexts/role-refs-context";
+import { DocumentDataProvider } from "@/contexts/document-data-context";
+import { collectMentionAssetIds, hasAnyRoleReference } from "@/lib/plate-mention-utils";
+import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, updateExecutionName } from "@/services/executions";
+import { useExecutionRun } from './hooks/useExecutionRun';
+import { ExecutionRunProgressBanner } from '@/components/execution/execution-run-progress-banner';
 import { getDefaultLLM } from "@/services/llms";
+import { useLifecycleActions } from "@/hooks/useLifecycleActions";
+import { HuemulLifecycleStageBadge } from "@/huemul/components/huemul-lifecycle-stage-badge";
+import { HuemulLifecycleActions } from "@/huemul/components/huemul-lifecycle-actions";
+import { HuemulLifecycleSheets } from "@/huemul/components/huemul-lifecycle-sheets";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { getTemplateById } from "@/services/templates";
 import { getCustomFieldDocumentsByDocument, createCustomFieldDocument, updateCustomFieldDocument, deleteCustomFieldDocument } from "@/services/custom-fieldds-documents";
-import type { CustomFieldDocument } from "@/types/custom-fields-documents";
-import { AddCustomFieldDocumentDialog } from "@/components/assets-custom-fields/assets-add-custom-field-dialog";
-import { EditCustomFieldAssetDialog } from "@/components/assets-custom-fields/assets-edit-custom-field-dialog";
+import type { CustomFieldDocument } from '@/types/custom-fields';
+import { AddCustomFieldDocumentSheet } from "@/components/assets-custom-fields/assets-add-custom-field-sheet";
+import { EditCustomFieldAssetSheet } from "@/components/assets-custom-fields/assets-edit-custom-field-sheet";
 import { AddSectionDialog } from "@/components/assets/dialogs/assets-add-section-dialog";
-import { AddSectionExecutionDialog } from "@/components/assets/dialogs/assets-add-section-execution-dialog";
+import { AddSectionExecutionSheet } from "@/components/assets/dialogs/assets-add-section-execution-sheet";
 import { CreateTemplateDialog } from "@/components/templates/templates-create-dialog";
 import { CreateTemplateFromDocumentDialog } from "@/components/assets/dialogs/assets-create-template-from-document-dialog";
-import { AssignVersionDialog } from "@/components/assets/dialogs/assets-assign-version-dialog";
 import { RenameVersionDialog } from "@/components/assets/dialogs/assets-rename-version-dialog";
+import { CloneToNewDocumentSheet } from "@/components/assets/dialogs/assets-clone-to-new-document-sheet";
+import { DeleteDocumentDialog } from "@/components/assets/dialogs/assets-delete-dialog";
+import { CloneExecutionDialog } from "@/components/assets/dialogs/assets-clone-execution-dialog";
+import { ApproveExecutionDialog } from "@/components/assets/dialogs/assets-approve-execution-dialog";
+import { DisapproveExecutionDialog } from "@/components/assets/dialogs/assets-disapprove-execution-dialog";
+import { DeleteCustomFieldDialog } from "@/components/assets/dialogs/assets-delete-custom-field-dialog";
 import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import Markdown from "@/components/ui/markdown";
-import { TableOfContents } from "@/components/assets/content/assets-table-of-contents";
 import { toast } from "sonner";
 import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
-import SectionExecution from "./assets-section";
-import { formatApiDateTime, parseApiDate } from "@/lib/utils";
+import { useDataTableSources } from "@/hooks/useDataTables";
+import { AssetsSectionsList } from "./assets-sections-list";
+import { formatApiDateTime, cn } from "@/lib/utils";
 import { CustomWordExportDialog } from "@/components/assets/dialogs/assets-export-custom.word-dialog";
-import { useNavKnowledgeActions } from "@/components/layout/nav-knowledge";
+import { useNavKnowledgeActions, useNavKnowledgeRefresh } from "@/contexts/nav-knowledge-context";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
-import { computeFrontendPermissions } from '@/hooks/useDocumentAccess';
-import type { ContentSection, FrontendPermissions, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
-import { CustomFieldsList } from './assets-custom-fields-list';
-import { SectionIndexContext } from '@/contexts/section-index-context';
+import { useAssetContentPermissions } from '@/hooks/useDocumentAccess';
+import { isExternalElaborationLocked, EXTERNAL_ELABORATION_POLL_MS } from '@/lib/lifecycle-access';
+import { ExternalElaborationLockBanner } from '@/components/assets/content/external-elaboration-lock-banner';
+import {
+  useDocumentSectionAccess,
+  useInvalidateDocumentSectionAccess,
+} from '@/hooks/useDocumentSectionAccess';
+import { usePageAccess } from '@/hooks/usePageAccess';
+import { invalidateExecutionLifecycleSteps } from '@/hooks/useLifecycle';
+import type { AssetDetailPanelTab, ContentSection, LibraryContentProps, LifecyclePermissions, LifecycleStatus } from '@/types/assets';
+import type { FormValuesSectionPayload } from '@/types/sections/core';
+import { applyFormValuesPatch } from '@/components/assets/content/utils/patch-document-content';
+import { isSectionApplicable } from '@/components/workflow/workflow-section-stats';
 import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
+import { useGlobalPanel } from '@/contexts/global-panel-context';
 
 // Utilities and hooks
-import { extractHeadingsFromSections, extractHeadings } from './utils/heading-utils';
-import { SectionSeparator } from './components/SectionSeparator';
+import { withRefresh } from '@/lib/query-utils';
+import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
 import { ContentErrorState } from './content-error-state';
 // TODO: Integrate these hooks gradually to replace inline mutations
 // import { useDocumentMutations } from './hooks/useDocumentMutations';
 // import { useCustomFieldMutations } from './hooks/useCustomFieldMutations';
 // import { useExecutionState } from './hooks/useExecutionState';
 
-/** Return the best display label for an execution: version first, then name. */
-function getExecutionDisplayLabel(execution: { version?: string | null; name?: string } | null | undefined): string {
-  if (!execution) return '';
-  if (execution.version) return `v${execution.version}`;
-  return execution.name || '';
-}
+import { getExecutionDisplayLabel, getExecutionCompactLabel } from './utils/version-utils';
+import { VersionSelectorDropdown } from './assets-version-selector';
+import { ViewModeToggle } from './assets-view-mode-toggle';
+import { MoreOptionsDropdown } from './assets-more-options-dropdown';
+import { CUSTOM_FIELD_DOCUMENTS_PAGE_SIZE, customFieldDocumentsQueryKeys } from '@/hooks/useCustomFieldDocuments';
+
+// Tamaño de página del listado de campos personalizados en el panel lateral (angosto).
+// Compartido con la validación preventiva del lifecycle (useCustomFieldDocuments) —
+// misma query key, un solo fetch. También es el tamaño del paginado CLIENTE del tab
+// "Campos" del panel de detalle (mismo número, un solo fetch cubre ambos usos).
+const CUSTOM_FIELDS_PAGE_SIZE = CUSTOM_FIELD_DOCUMENTS_PAGE_SIZE;
 
 /** Recursively extract all text from a Plate JSON node. */
 function extractPlateText(node: unknown): string {
@@ -110,43 +162,56 @@ function isSectionContentEmpty(section: ContentSection): boolean {
 
 
 
-const STAGE_COLORS: Record<string, string> = {
-  create: 'bg-purple-100 text-purple-700',
-  edit: 'bg-blue-100 text-blue-700',
-  review: 'bg-amber-100 text-amber-700',
-  approve: 'bg-orange-100 text-orange-700',
-  publish: 'bg-green-100 text-green-700',
-  archive: 'bg-gray-100 text-gray-600',
-  view: 'bg-slate-100 text-slate-600',
-};
+// Constante a nivel de módulo (no array literal inline): una referencia
+// estable evita recrear el array de tabs en cada render del sheet de historial.
+const ASSET_HISTORY_TABS: AssetHistoryTab[] = ['lifecycle', 'changes'];
 
 /**
  * AssetContent Component
- * 
+ *
  * Main component for displaying and managing document/template content.
  * Handles content rendering, version management, executions, and user interactions.
  */
-export function AssetContent({ 
-  selectedFile, 
-  selectedExecutionId, 
-  setSelectedExecutionId, 
+export function AssetContent({
+  selectedFile,
+  selectedExecutionId,
+  setSelectedExecutionId,
+  selectedSectionId,
+  setSelectedSectionId,
   setSelectedFile,
   onRefresh,
   currentFolderId,
   onToggleSidebar,
-  onPreserveScroll
+  onPreserveScroll,
+  variant = "panel",
+  onOpenFullscreen,
+  onExitFullscreen,
 }: LibraryContentProps) {
+  // "panel": columna derecha de /asset (default). "fullscreen": vista dedicada sin
+  // header/nav/árbol (pages/asset-fullscreen.tsx) — ver
+  // ia context/fullscreen-share-route-guide.md. Mismo componente, mismas acciones;
+  // solo cambia el ancho del contenido y el botón Maximize/Minimize del header.
+  const isFullscreen = variant === "fullscreen";
   // ============================================================================
   // HOOKS AND CONTEXT
   // ============================================================================
-  const { t } = useTranslation('assets');
+  const { t } = useTranslation(["assets", "common"]);
   const queryClient = useQueryClient();
   const navigate = useOrgNavigate();
   const isMobile = useIsMobile();
+  // Ancho real del header desktop (no del viewport): se angosta con el panel de Wisy o el
+  // TOC abiertos aunque la ventana no cambie — ahí el ViewModeToggle pasa a solo-icono.
+  const { ref: desktopHeaderRef, width: desktopHeaderWidth } = useElementWidth<HTMLDivElement>();
+  const isDesktopHeaderNarrow = desktopHeaderWidth > 0 && desktopHeaderWidth < 640;
   const { selectedOrganizationId } = useOrganization();
-  const { canCreate, canAccessTemplates, canAccessAssets } = useUserPermissions();
+  const { canCreate, canList, canUpdate, canDelete, canAccessTemplates, canAccessAssets, canAccessDiagrams, isOrgAdmin, hasPermission } = useUserPermissions();
+  const { can } = usePageAccess('asset');
+  const { can: canMedia } = usePageAccess('media');
   const { handleCreateAsset: openCreateAssetDialog } = useNavKnowledgeActions();
+  const refreshFileTree = useNavKnowledgeRefresh();
   const { guardedAction } = useOptionalEditingGuard();
+  const { isOpen: isGlobalPanelOpen } = useGlobalPanel();
+  const { requestFocus } = useDiscussionFocus();
   
   // Scroll restoration hook - maintains scroll position across re-renders
   const scrollRestoration = useScrollRestoration(
@@ -226,11 +291,14 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['library'] });
-      
+      // Nueva sección → puede tener sus propias filas de acceso configuradas más tarde;
+      // refresca la lista de secciones con `view` (ver useDocumentSectionAccess).
+      invalidateSectionAccess(selectedFile?.id);
+
       setIsDirectSectionDialogOpen(false);
       setSectionInsertPosition(undefined);
-      toast.success(t('mutations.sectionCreated'));
     },
+    meta: { successMessage: t('mutations.sectionCreated') },
   });
 
   // Mutation for section execution creation
@@ -247,11 +315,12 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
-      
+      invalidateSectionAccess(selectedFile?.id);
+
       setIsSectionExecutionDialogOpen(false);
       setAfterFromSectionId(null);
-      toast.success(t('mutations.sectionAdded'));
     },
+    meta: { successMessage: t('mutations.sectionAdded') },
   });
 
   // Mutation para ejecutar documento directamente
@@ -271,7 +340,6 @@ export function AssetContent({
       });
     },
     onSuccess: (executionData) => {
-      toast.success(t('mutations.executionStarted'));
       setCurrentExecutionId(executionData.id);
       
       // Update selected execution to show the new one
@@ -282,6 +350,7 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
     },
+    meta: { successMessage: t('mutations.executionStarted') },
   });
 
   // Mutation for approve execution
@@ -325,12 +394,12 @@ export function AssetContent({
       return disapproveExecution(selectedExecutionId, selectedOrganizationId);
     },
     onSuccess: () => {
-      toast.success(t('mutations.executionDisapproved'));
       // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
     },
+    meta: { successMessage: t('mutations.executionDisapproved') },
   });
 
   // Mutation for deleting execution
@@ -345,8 +414,6 @@ export function AssetContent({
       return deleteExecution(selectedExecutionId, selectedOrganizationId);
     },
     onSuccess: () => {
-      toast.success(t('mutations.executionDeleted'));
-      
       // Clear selected execution and switch to most recent remaining execution
       const executions = documentContent?.executions || documentExecutions;
       const remainingExecutions = executions?.filter((exec: any) => exec.id !== selectedExecutionId);
@@ -361,6 +428,7 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
     },
+    meta: { successMessage: t('mutations.executionDeleted') },
   });
 
   // Mutation for clone execution
@@ -375,7 +443,6 @@ export function AssetContent({
       return cloneExecution(selectedExecutionId, selectedOrganizationId);
     },
     onSuccess: (clonedExecution) => {
-      toast.success(t('mutations.executionCloned'));
       // Switch to the new cloned execution
       setSelectedExecutionId(clonedExecution.id);
       
@@ -384,6 +451,42 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
     },
+    meta: { successMessage: t('mutations.executionCloned') },
+  });
+
+  // Mutation for clone execution to new document
+  const cloneToNewDocumentMutation = useMutation({
+    mutationFn: async (options: { name?: string; internal_code?: string; description?: string; folder_id?: string }) => {
+      preserveScrollPosition();
+      if (!selectedExecutionId || !selectedOrganizationId) {
+        throw new Error('Missing execution ID or organization ID');
+      }
+      return cloneExecutionToNewDocument(selectedExecutionId, selectedOrganizationId, options);
+    },
+    onSuccess: (clonedExecution) => {
+      closeCloneToNewDocumentSheet();
+      queryClient.invalidateQueries({ queryKey: ['library'] });
+
+      const newDocumentId = clonedExecution?.document_id;
+      if (!newDocumentId) return;
+
+      // Mismo patrón que nav-knowledge-provider.tsx al crear un asset: se espera
+      // la animación de salida del sheet (Radix, 200ms) antes de disparar la
+      // cascada de re-render de la navegación.
+      setTimeout(() => {
+        refreshFileTree();
+        navigate(`/asset/${newDocumentId}`, {
+          state: {
+            selectedDocumentId: newDocumentId,
+            selectedDocumentName: clonedExecution.document_name,
+            selectedDocumentType: 'document',
+            selectedExecutionId: clonedExecution.id,
+            fromFileTree: true,
+          },
+        });
+      }, 300);
+    },
+    meta: { successMessage: t('mutations.assetCloned') },
   });
 
   // Mutation for creating custom field document
@@ -397,9 +500,9 @@ export function AssetContent({
       if (createdField.data_type !== 'image') {
         queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
         setIsAddCustomFieldDocumentDialogOpen(false);
-        toast.success(t('mutations.customFieldCreated'));
       }
     },
+    meta: { successMessage: t('mutations.customFieldCreated') },
   });
 
   // Mutation for updating custom field document
@@ -412,8 +515,8 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
       setIsEditCustomFieldDocumentDialogOpen(false);
       setSelectedCustomFieldDocument(null);
-      toast.success(t('mutations.customFieldUpdated'));
     },
+    meta: { successMessage: t('mutations.customFieldUpdated') },
   });
 
   // Mutation for deleting custom field document
@@ -426,114 +529,33 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
       setIsDeleteCustomFieldDocumentDialogOpen(false);
       setCustomFieldDocumentToDelete(null);
-      toast.success(t('mutations.customFieldDeleted'));
     },
-  });
-
-  // Mutation for checking (advancing) execution lifecycle
-  const checkLifecycleMutation = useMutation({
-    mutationFn: async (comment?: string) => {
-      const executionId = selectedExecutionId || documentContent?.execution_id;
-      const stepId = documentContent?.lifecycle_status?.current_step_id;
-      if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-      if (!stepId) throw new Error('Missing step ID');
-      return completeExecutionLifecycleStep(executionId, stepId, selectedOrganizationId, comment);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-      setIsCheckLifecycleDialogOpen(false);
-      toast.success(t('lifecycle.successComplete'));
-    },
-    onError: (error) => {
-      setIsCheckLifecycleDialogOpen(false);
-      handleApiError(error, { fallbackMessage: t('lifecycle.errorComplete') });
-    },
-  });
-
-  // Mutation for assigning a semantic version to the execution
-  const assignVersionMutation = useMutation({
-    mutationFn: async (version: { major: number; minor: number; patch: number }) => {
-      const executionId = selectedExecutionId || documentContent?.execution_id;
-      if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-      return assignExecutionVersion(executionId, version, selectedOrganizationId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
-      setIsAssignVersionDialogOpen(false);
-      toast.success(t('mutations.versionAssigned'));
-    },
-    onError: (error) => {
-      setIsAssignVersionDialogOpen(false);
-      handleApiError(error, { fallbackMessage: t('mutations.failedAssignVersion') });
-    },
-  });
-
-  // Mutation for rejecting (going back) execution lifecycle
-  const rejectLifecycleMutation = useMutation({
-    mutationFn: async (options?: { comment: string; target_state?: string; target_step_id?: string }) => {
-      const executionId = selectedExecutionId || documentContent?.execution_id;
-      if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-      return rejectExecutionLifecycle(executionId, selectedOrganizationId, options);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['rollback-targets'] });
-      setIsRejectLifecycleDialogOpen(false);
-      toast.success(t('lifecycle.successReturn'));
-    },
-    onError: (error) => {
-      setIsRejectLifecycleDialogOpen(false);
-      handleApiError(error, { fallbackMessage: t('lifecycle.errorReturn') });
-    },
-  });
-
-  // Mutation for advancing lifecycle (publish / archive)
-  const advanceLifecycleMutation = useMutation({
-    mutationFn: async (options?: { comment?: string; skip_published?: boolean }) => {
-      preserveScrollPosition();
-      const executionId = selectedExecutionId || documentContent?.execution_id;
-      if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-      return advanceExecutionLifecycle(executionId, selectedOrganizationId, options);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-      setIsPublishDialogOpen(false);
-      setIsArchiveDialogOpen(false);
-      toast.success(t('lifecycle.successAdvance'));
-    },
-    onError: (error) => {
-      setIsPublishDialogOpen(false);
-      setIsArchiveDialogOpen(false);
-      handleApiError(error, { fallbackMessage: t('lifecycle.errorAdvance') });
-    },
+    meta: { successMessage: t('mutations.customFieldDeleted') },
   });
 
   // Helper function to preserve scroll position
-  const preserveScrollPosition = () => {
+  const preserveScrollPosition = useCallback(() => {
     scrollRestoration.saveScrollPosition();
-  };
+  }, [scrollRestoration.saveScrollPosition]);
 
   // Mutation for renaming an execution version
   const renameVersionMutation = useMutation({
-    mutationFn: async ({ executionId, name }: { executionId: string; name: string }) => {
-      if (!selectedOrganizationId) throw new Error('Missing organization');
-      return updateExecutionName(executionId, name, selectedOrganizationId);
-    },
+    mutationFn: withRefresh(
+      async ({ executionId, name }: { executionId: string; name: string }) => {
+        if (!selectedOrganizationId) throw new Error('Missing organization');
+        // Renombrar una versión es escritura sobre el asset: sin asset:u no se
+        // muta (el botón ya está oculto, esto cubre el permiso revocado en vivo).
+        if (!can('updateAssetContent')) throw new Error('Missing permission');
+        return updateExecutionName(executionId, name, selectedOrganizationId);
+      },
+      queryClient,
+      () => [['document-content', selectedFile?.id], ['executions', selectedFile?.id], ['document', selectedFile?.id], ['library']],
+    ),
     onSuccess: () => {
-      // Use refetchQueries to force immediate refetch regardless of staleTime
-      queryClient.refetchQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.refetchQueries({ queryKey: ['executions', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['library'] });
       setIsRenameVersionDialogOpen(false);
       setExecutionToRename(null);
-      toast.success(t('mutations.versionRenamed'));
     },
+    meta: { successMessage: t('mutations.versionRenamed') },
     onError: (error) => {
       handleApiError(error, { fallbackMessage: t('mutations.failedRenameVersion') });
     },
@@ -547,23 +569,62 @@ export function AssetContent({
   const [deleteType, setDeleteType] = useState<'document' | 'execution' | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
+  const [isCloneToNewDocumentSheetOpen, setIsCloneToNewDocumentSheetOpen] = useState(false);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isDisapproveDialogOpen, setIsDisapproveDialogOpen] = useState(false);
-  const [isCheckLifecycleDialogOpen, setIsCheckLifecycleDialogOpen] = useState(false);
-  const [isRejectLifecycleDialogOpen, setIsRejectLifecycleDialogOpen] = useState(false);
-  const [isAssignVersionDialogOpen, setIsAssignVersionDialogOpen] = useState(false);
-  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
-  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isRenameVersionDialogOpen, setIsRenameVersionDialogOpen] = useState(false);
   const [executionToRename, setExecutionToRename] = useState<{ id: string; name: string } | null>(null);
+  const [isNotificationsSheetOpen, setIsNotificationsSheetOpen] = useState(false);
+  const [isDiscussionsSheetOpen, setIsDiscussionsSheetOpen] = useState(false);
+  const [isLifecycleHistorySheetOpen, setIsLifecycleHistorySheetOpen] = useState(false);
+  const [isDiagramsSheetOpen, setIsDiagramsSheetOpen] = useState(false);
+  const [isMediaSheetOpen, setIsMediaSheetOpen] = useState(false);
+  // Alcance con el que se abrió el sheet desde el panel de detalle (documento completo
+  // o una versión puntual) — null cuando se abrió desde el header, que usa la versión actual.
+  const [mediaSheetScope, setMediaSheetScope] = useState<MediaScope | null>(null);
 
-  // Sidebar and sheets
-  const [activeTab, setActiveTab] = useState<'toc' | 'custom-fields'>('toc');
+  // Sidebar and sheets — rail Índice/Campos/Archivos/Vínculos del panel de detalle.
+  const [activeTab, setActiveTab] = useState<AssetDetailPanelTab>('index');
+  const [isDetailPanelCollapsed, setIsDetailPanelCollapsed] = useState(false);
+  const detailPanelRef = useRef<ImperativePanelHandle>(null);
+  // Los custom fields son un recurso propio (custom_fields), no del asset: el tab
+  // y su query exigen el permiso de listarlos.
+  const canListCustomFields = can('listCustomFields');
+  // Recurso propio sin feature en RBAC_PAGES (mismo criterio que
+  // `lifecycle_external_review_action` en assets-types-lifecycle-review-actions.tsx)
+  // — gatea la query que decide si se ofrece el botón de disparo manual de elaboración.
+  const canReadElaborationConfig = isOrgAdmin || hasPermission('lifecycle_elaboration_config:l') || hasPermission('lifecycle_elaboration_config:r');
+  // Idem, para gatear la query que resuelve si hay publicación externa habilitada
+  // en el step de publish (decide si se ofrece "Ejecutar publicación por extensión").
+  const canReadExternalPublishConfig = isOrgAdmin || hasPermission('lifecycle_external_publish_action:l');
+  const canCreateCustomField = can('createCustomField');
+  const canListNotifications = can('listNotifications');
+  const canListDiscussions = canList('discussion');
+  const canListExecutionRelationships = can('listExecutionRelationships');
+  // El tab activo no puede quedar apuntando a un tab que el usuario no puede ver.
+  useEffect(() => {
+    if (activeTab === 'fields' && !canListCustomFields) setActiveTab('index');
+    if (activeTab === 'links' && !canListExecutionRelationships) setActiveTab('index');
+  }, [activeTab, canListCustomFields, canListExecutionRelationships]);
   const [isTocSidebarOpen, setIsTocSidebarOpen] = useState(true);
   const [isSectionSheetOpen, setIsSectionSheetOpen] = useState(false);
   const [isDependenciesSheetOpen, setIsDependenciesSheetOpen] = useState(false);
+
+  // Close TOC when Wisy panel opens
+  useEffect(() => {
+    if (isGlobalPanelOpen) {
+      setIsTocSidebarOpen(false);
+    }
+  }, [isGlobalPanelOpen]);
   const [isContextSheetOpen, setIsContextSheetOpen] = useState(false);
-  
+  const [isInfoSheetOpen, setIsInfoSheetOpen] = useState(false);
+  const [isVersionManagementSheetOpen, setIsVersionManagementSheetOpen] = useState(false);
+  const [isVersionCompareSheetOpen, setIsVersionCompareSheetOpen] = useState(false);
+  const [versionCompareOverride, setVersionCompareOverride] = useState<{ left?: string; right?: string } | null>(null);
+  const [isPermissionsSheetOpen, setIsPermissionsSheetOpen] = useState(false);
+  const canViewTags = can('viewTags');
+  const canManageTags = can('manageTags');
+
   // Effects to trigger on-demand loading
   useEffect(() => {
     // Load full document when section sheet is opened
@@ -576,6 +637,7 @@ export function AssetContent({
   useEffect(() => {
     setNeedsFullDocument(false);
     setNeedsDefaultLLM(false);
+    setCustomFieldsPage(1);
   }, [selectedFile?.id]);
   
   // ============================================================================
@@ -584,8 +646,22 @@ export function AssetContent({
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
   const [currentExecutionMode, setCurrentExecutionMode] = useState<'full' | 'single' | 'from' | 'full-single'>('full');
   const [currentSectionIndex, setCurrentSectionIndex] = useState<number | undefined>(undefined);
+  // epoch ms del click que disparó currentExecutionId — arma la ventana de
+  // "arming" en useExecutionRun (ver ese archivo para el porqué).
+  const [executionStartedAt, setExecutionStartedAt] = useState<number | null>(null);
+  // Identifica ESTA corrida — el backend reutiliza el mismo currentExecutionId
+  // al re-ejecutar una sección ya terminada, así que currentExecutionId por sí
+  // solo no alcanza para distinguir "la corrida anterior" de "la nueva". Las
+  // queryKeys del flujo single/from (ver useExecutionRun) incluyen este token,
+  // para que el caché arranque en blanco en cada disparo y no pueda arrastrar
+  // el resultado ya reconciliado de la corrida previa (causa del banner
+  // "completado" apareciendo de inmediato al re-ejecutar la misma sección).
+  const [executionRunToken, setExecutionRunToken] = useState<string | null>(null);
+  // Ejecución de versión nueva (full/full-single) recién creada: se banner-ea
+  // de inmediato como "otra versión generando" sin esperar a que /content
+  // devuelva la lista de ejecuciones actualizada (ver A4 en el plan).
+  const [newVersionExecutionId, setNewVersionExecutionId] = useState<string | null>(null);
   const [dismissedExecutionBanners, setDismissedExecutionBanners] = useState<Set<string>>(new Set());
-  const [, setSectionExecutionId] = useState<string | null>(null);
   const [approvingExecutionId, setApprovingExecutionId] = useState<string | null>(null);
   
   // ============================================================================
@@ -623,6 +699,36 @@ export function AssetContent({
   // Tracks which document has had its initial mode set, so re-fetches don't override the user's choice
   const hasSetInitialModeRef = useRef<string | null>(null);
 
+  // Señal de "colapsar/expandir todas las secciones" (botón del toolbar, ver más abajo). El
+  // estado de colapso de cada sección vive en assets-section.tsx — acá sólo se emite el evento
+  // (ver section-collapse-context.ts sobre por qué no se levanta un Set<id> hasta acá).
+  const [collapseAllSignal, setCollapseAllSignal] = useState<CollapseAllSignal | null>(null);
+
+  // Estado REAL de colapso, agregado desde cada sección vía onCollapsedChange (ver
+  // assets-section.tsx) — a diferencia de collapseAllSignal (la última señal que ESTE botón
+  // emitió), refleja colapsos hechos a mano (botón individual o clickeando el cuerpo en lector).
+  // No se pasa como prop a AssetsSectionsList (memoizada): actualizarlo no re-renderiza las N
+  // secciones, sólo el botón del toolbar que lo lee.
+  const [collapsedSections, setCollapsedSections] = useState<Map<string, boolean>>(() => new Map());
+  const handleSectionCollapsedChange = useCallback((sectionId: string, collapsed: boolean | undefined) => {
+    setCollapsedSections((prev) => {
+      const next = new Map(prev);
+      if (collapsed === undefined) next.delete(sectionId);
+      else next.set(sectionId, collapsed);
+      return next;
+    });
+  }, []);
+  // "Todas colapsadas" sólo si hay al menos una sección registrada y ninguna quedó expandida.
+  const areAllSectionsCollapsed = collapsedSections.size > 0 &&
+    Array.from(collapsedSections.values()).every(Boolean);
+
+  const handleToggleCollapseAll = () => {
+    // Antes: `!(prev?.collapsed ?? false)` — dependía de la última señal propia, no del estado
+    // real. Si el usuario ya había colapsado todo a mano, el botón seguía "listo para colapsar"
+    // y un click volvía a emitir collapsed:true (no-op) en vez de expandir.
+    setCollapseAllSignal((prev) => ({ collapsed: !areAllSectionsCollapsed, version: (prev?.version ?? 0) + 1 }));
+  };
+
   // ============================================================================
   // STATE - EXPORT
   // ============================================================================
@@ -640,15 +746,11 @@ export function AssetContent({
   const [isDeletingCustomFieldDocument, setIsDeletingCustomFieldDocument] = useState(false);
   const [uploadingImageFieldId, setUploadingImageFieldId] = useState<string | null>(null);
   const [isRefreshingCustomFields, setIsRefreshingCustomFields] = useState(false);
-  
-  // Restore scroll position after mode toggle causes layout shifts (sections/separators appear or disappear)
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      scrollRestoration.restoreScrollPosition();
-    }, 50);
-    return () => clearTimeout(timeoutId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isViewMode]);
+  const [customFieldsPage, setCustomFieldsPage] = useState(1);
+
+  // Restore scroll position after mode toggle causes layout shifts (sections/separators appear or
+  // disappear). Movido después de `deferredViewChrome` (más abajo) y colgado de esa dependencia en
+  // vez de `isViewMode` directo — ver comentario junto a esa declaración.
 
   // Clear created template when component unmounts or selectedFile changes
   useEffect(() => {
@@ -664,69 +766,153 @@ export function AssetContent({
       setCurrentExecutionId(null);
       setCurrentExecutionMode('full');
       setCurrentSectionIndex(undefined);
-      setSectionExecutionId(null);
+      setExecutionStartedAt(null);
+      setExecutionRunToken(null);
+      setNewVersionExecutionId(null);
       setDismissedExecutionBanners(new Set());
       setExecutionContext(null);
+      doneSnapshotRef.current.clear();
+      refreshedOrdersRef.current.clear();
+      terminalInvalidatedRunTokenRef.current = null;
+      if (pendingContentInvalidateRef.current !== null) {
+        clearTimeout(pendingContentInvalidateRef.current);
+        pendingContentInvalidateRef.current = null;
+      }
     }
   }, [selectedFile?.id, selectedExecutionId]);
 
+  // Compartido entre handleExecutionCreated (Execute Sheet) y el disparo desde
+  // el menú de una sección: registra la corrida en curso. `startedAt` arma la
+  // ventana de "arming" en useExecutionRun; `runToken` (nuevo en cada llamada,
+  // incluso reutilizando el mismo executionId) es lo que le da a esa corrida
+  // una identidad propia frente al caché — ya no hace falta resetQueries.
+  const armExecutionTracking = useCallback((
+    executionId: string,
+    mode: 'full' | 'single' | 'from' | 'full-single',
+    sectionIndex?: number,
+  ) => {
+    isCreatingExecutionRef.current = false;
+    setCurrentExecutionId(executionId);
+    setCurrentExecutionMode(mode);
+    setCurrentSectionIndex(sectionIndex);
+    setExecutionStartedAt(Date.now());
+    setExecutionRunToken(`${executionId}:${Date.now()}`);
+    doneSnapshotRef.current.clear();
+    refreshedOrdersRef.current.clear();
+    terminalInvalidatedRunTokenRef.current = null;
+  }, []);
 
+  // Disparado desde el menú de una sección ("Ejecutar sección" / "Ejecutar
+  // desde esta sección"), no desde el ExecuteSheet — sin esto, isSectionInScope()
+  // daba false y ese camino nunca mostraba banner ni skeleton. Currificada por
+  // índice y memoizada (deps estables: armExecutionTracking y
+  // preserveScrollPosition ya son useCallback) para no romper el memo de
+  // AssetsSectionsList en cada render.
+  const handleSectionExecutionStart = useCallback((index: number) => (
+    executionIdForSection: string,
+    mode: 'single' | 'from',
+  ) => {
+    preserveScrollPosition();
+    armExecutionTracking(executionIdForSection, mode, index);
+  }, [armExecutionTracking, preserveScrollPosition]);
 
   // Handle execution created from Execute Sheet
   const handleExecutionCreated = (executionId: string, mode: 'full' | 'single' | 'from' | 'full-single', sectionIndex?: number) => {
     // Preserve scroll position before any changes
     preserveScrollPosition();
-    
-    console.log('📥 Asset Content - Execution created received:', {
+
+    logger.log('📥 Asset Content - Execution created received:', {
       executionId,
       mode,
       sectionIndex,
       willShowSectionFeedback: mode === 'single' || mode === 'from'
     });
-    
-    // CRITICAL: Set tracking variables FIRST, before any query operations
-    // Mark that we're done creating the execution
-    isCreatingExecutionRef.current = false;
-    
-    setCurrentExecutionId(executionId);
-    setCurrentExecutionMode(mode);
-    setCurrentSectionIndex(sectionIndex);
-    
-    // Force reset of execution status queries to ensure fresh data for new execution
-    // resetQueries will refetch immediately for any mounted components with these queries
-    queryClient.resetQueries({ queryKey: ['execution-status', executionId] });
-    queryClient.resetQueries({ queryKey: ['execution-sections-status', executionId] });
-    
+
+    armExecutionTracking(executionId, mode, sectionIndex);
+
     // Determine behavior based on execution mode:
     // - full/full-single: Creates NEW version, user stays on current version
     // - single/from: Modifies EXISTING version, user stays to see the changes
     if (mode === 'full' || mode === 'full-single') {
       // NEW VERSION: Don't automatically switch to the new execution
       // The user decides if they want to switch to the new version
-      console.log('New version created:', executionId, 'User stays on current version:', selectedExecutionId);
-      
-      // Just invalidate queries to refresh execution list and show banners
+      logger.log('New version created:', executionId, 'User stays on current version:', selectedExecutionId);
+
+      // Banner-ear de inmediato (no depende del snapshot de /content, que
+      // puede llegar antes de que el backend registre la ejecución como
+      // activa — ver A4 en el plan).
+      setNewVersionExecutionId(executionId);
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
     } else if (mode === 'single' || mode === 'from') {
-      // EDIT EXISTING: Stay on the same version but refresh its content
-      console.log('Existing version modified:', executionId, 'Refreshing current version:', selectedExecutionId);
-      
-      // Invalidate all related queries to refresh content
-      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      // EDIT EXISTING: el contenido todavía no cambió — se refresca solo
+      // cuando el efecto `newlyDone` ve cada sección terminar de verdad (B3).
+      logger.log('Existing version modified:', executionId, 'Refreshing current version:', selectedExecutionId);
     }
   };
 
-  // Handle execution complete from Execute Sheet
-  const handleExecutionComplete = () => {
-    // Refresh document content and executions (automatic refetch will occur)
-    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-    queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
-    queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+  // State for refresh animation
+  const [isRefreshingContent, setIsRefreshingContent] = useState(false);
+
+  // Handle manual refresh of all asset content
+  const handleRefreshContent = async () => {
+    if (isRefreshingContent) return;
+    setIsRefreshingContent(true);
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] }),
+        queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] }),
+        queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] }),
+        queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] }),
+        queryClient.invalidateQueries({ queryKey: ['document-section-access', selectedFile?.id] }),
+        // Steps de ciclo de vida filtrados por `depends_on` de esta ejecución
+        // (panel "N de M" del sheet de Completar) — ver patch-document-content.ts.
+        invalidateExecutionLifecycleSteps(queryClient),
+      ]);
+    } finally {
+      setIsRefreshingContent(false);
+    }
   };
 
+  // Stable callback for section onUpdate — invalidates document content.
+  // Memoized so React.memo on SectionExecution can skip re-renders.
+  const selectedFileIdRef = useRef(selectedFile?.id);
+  selectedFileIdRef.current = selectedFile?.id;
 
+  // Con payload (autoguardado de formularios): parchea en el caché solo las secciones
+  // form devueltas por el PATCH /form_values, sin refetch de /documents/{id}/content
+  // (que traería también las secciones ai/manual/reference sin necesidad). También
+  // refresca section_name si vino no-null, para que TOC/headers queden al día sin
+  // refetch. Nota: si el PATCH devuelve una sección que no está en el caché, se ignora
+  // (solo reemplaza, nunca agrega) — limitación conocida.
+  // Sin payload (resto de ediciones de sección): comportamiento previo, invalida y refetch.
+  const handleSectionUpdate = useCallback((payload?: FormValuesSectionPayload[]) => {
+    const fileId = selectedFileIdRef.current;
+    if (payload?.length && fileId) {
+      applyFormValuesPatch(queryClient, fileId, payload);
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ['document-content', fileId] });
+  }, [queryClient]);
+
+  // Al cerrar el sheet de secciones, refrescar el contenido del asset.
+  // La edición de secciones propaga a la versión de forma asíncrona en el
+  // backend; el invalidate inmediato del sheet corre una carrera contra esa
+  // propagación y puede recachear contenido viejo como "fresh". Forzar un
+  // refetch al cerrar (cuando la propagación ya terminó) evita tener que
+  // recargar toda la página con Ctrl+F5.
+  const handleSectionSheetOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      preserveScrollPosition();
+      const fileId = selectedFileIdRef.current;
+      queryClient.invalidateQueries({ queryKey: ['document-content', fileId] });
+      queryClient.invalidateQueries({ queryKey: ['document', fileId] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', fileId] });
+      // El sheet pudo crear/editar/borrar/reordenar secciones — refresca la lista de
+      // secciones con `view` (ver useDocumentSectionAccess).
+      invalidateSectionAccess(fileId);
+    }
+    setIsSectionSheetOpen(open);
+  }, [queryClient]);
 
   // Handle add section
   const handleAddSection = () => {
@@ -736,37 +922,8 @@ export function AssetContent({
     }
   };
 
-  // Handle add section at specific position
-  const handleAddSectionAtPosition = (afterIndex?: number) => {
-    if (selectedFile && selectedFile.type === 'document') {
-      // Si hay contenido de documento (execution exists), crear section_execution
-      if (documentContent?.content && Array.isArray(documentContent.content) && selectedExecutionId) {
-        console.log(`Adding section execution after index: ${afterIndex}`);
-        setNeedsFullDocument(true);
-        
-        // Determinar el after_from ID basado en el índice
-        let afterFromId: string | null = null;
-        if (afterIndex === -1) {
-          // Insert at beginning - no pasar after_from para que se agregue al principio
-          afterFromId = null;
-        } else if (afterIndex !== undefined && afterIndex >= 0 && afterIndex < documentContent.content.length) {
-          // Insert after specific section
-          afterFromId = documentContent.content[afterIndex].id;
-        } else {
-          // Default to last section
-          afterFromId = documentContent.content[documentContent.content.length - 1]?.id || null;
-        }
-        
-        setAfterFromSectionId(afterFromId);
-        setIsSectionExecutionDialogOpen(true);
-      } else {
-        // Si no hay execution, crear sección normal
-        console.log(`Adding section after index: ${afterIndex}`);
-        setSectionInsertPosition(afterIndex);
-        setIsDirectSectionDialogOpen(true);
-      }
-    }
-  };
+  // handleAddSectionAtPosition: definida más abajo, después de la query de
+  // documentContent (necesita leerla en sus deps de useCallback — ver ese punto).
 
   // Handle direct section creation submission
   const handleDirectSectionSubmit = (values: any) => {
@@ -783,7 +940,7 @@ export function AssetContent({
       }
     }
     
-    console.log('Creating section with position:', sectionInsertPosition, 'calculated order:', order);
+    logger.log('Creating section with position:', sectionInsertPosition, 'calculated order:', order);
     // Ensure we have the required fields for document sections
     const sectionData = {
       ...values,
@@ -840,22 +997,188 @@ export function AssetContent({
   // Fetch document content when a document is selected
   // Note: The backend automatically returns the approved execution or the latest one if none is approved
   // When selectedExecutionId is provided, it fetches that specific historical version
-  const { 
-    data: documentContent, 
+  const {
+    data: documentContent,
     isLoading: isLoadingContent,
+    isFetching: isFetchingContent,
+    dataUpdatedAt: contentUpdatedAt,
     isError: isContentError,
     error: contentError,
     refetch: refetchContent
   } = useQuery({
-    queryKey: selectedExecutionId 
-      ? ['document-content', selectedFile?.id, selectedExecutionId] 
+    queryKey: selectedExecutionId
+      ? ['document-content', selectedFile?.id, selectedExecutionId]
       : ['document-content', selectedFile?.id],
     queryFn: () => getDocumentContent(selectedFile!.id, selectedOrganizationId!, selectedExecutionId || undefined),
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
-    // Remove automatic polling - let the ExecutionStatusBanner handle status updates
-    // and trigger refresh through query invalidation
+    // No self-poll. The ExecutionStatusBanner polls /execution/{id}/status and,
+    // on completion, refreshes content via onExecutionComplete + query invalidation.
+    // This prevents /documents/.../content being re-hit on every status tick during import.
+    // Única excepción: mientras is_locked_external_elaboration === true no hay ningún
+    // otro banner poll-eando algo que dispare el refresh — el callback del sistema
+    // externo llega en background, sin acción del usuario — así que acá sí hace
+    // falta un self-poll, mientras dure el bloqueo, para que se libere solo.
+    refetchInterval: (query) => {
+      // Corta el poll si el último fetch falló — si no, un `data` stale que
+      // todavía dice "bloqueado" lo mantiene sondeando para siempre contra
+      // un endpoint que sigue devolviendo error.
+      if (query.state.status === "error") return false
+      return isExternalElaborationLocked(
+        (query.state.data as { lifecycle_status?: LifecycleStatus } | undefined)?.lifecycle_status,
+      )
+        ? EXTERNAL_ELABORATION_POLL_MS
+        : false
+    },
     refetchOnWindowFocus: false,
     staleTime: 30000, // Cache for 30 seconds
+    // TODO: la key no incluye selectedOrganizationId (preexistente, ver
+    // "ia context/rbac-audit-guide.md"). No se toca en este cambio.
+  });
+
+  // Único punto de verdad para el bloqueo de ElaborationRun en esta pantalla —
+  // ver ia context correspondiente.
+  const isAssetLockedByExternalElaboration = isExternalElaborationLocked(documentContent?.lifecycle_status);
+
+  // "Continuar donde quedaste" (rail del Home) — se registra acá, no en
+  // useAssetNavigation, porque ahí `selectedFile.name` es un placeholder tipo
+  // "Document 9a1c2e3d..." hasta que este contenido resuelve; acá ya se tiene
+  // el nombre real del documento.
+  const { user: currentUser } = useAuth();
+  const { recordRecentAsset } = useRecentAssets(selectedOrganizationId, currentUser?.id);
+  useEffect(() => {
+    if (!documentContent) return;
+    recordRecentAsset({
+      id: documentContent.document_id,
+      name: documentContent.document_name,
+      lifecycleState: documentContent.lifecycle_status?.state,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentContent?.document_id, documentContent?.document_name, documentContent?.lifecycle_status?.state]);
+
+  // Handle add section at specific position.
+  // useCallback: se pasa como prop a AssetsSectionsList (memoizado) — sin esto
+  // tendría una referencia nueva en cada render de AssetContent, anulando ese memo.
+  // Definida acá (no junto al resto de handlers de sección más arriba) porque
+  // depende de `documentContent`, declarado recién arriba.
+  const handleAddSectionAtPosition = useCallback((afterIndex?: number) => {
+    if (selectedFile && selectedFile.type === 'document') {
+      // Si hay contenido de documento (execution exists), crear section_execution
+      if (documentContent?.content && Array.isArray(documentContent.content) && selectedExecutionId) {
+        logger.log(`Adding section execution after index: ${afterIndex}`);
+        setNeedsFullDocument(true);
+
+        // Determinar el after_from ID basado en el índice
+        let afterFromId: string | null = null;
+        if (afterIndex === -1) {
+          // Insert at beginning - no pasar after_from para que se agregue al principio
+          afterFromId = null;
+        } else if (afterIndex !== undefined && afterIndex >= 0 && afterIndex < documentContent.content.length) {
+          // Insert after specific section
+          afterFromId = documentContent.content[afterIndex].id;
+        } else {
+          // Default to last section
+          afterFromId = documentContent.content[documentContent.content.length - 1]?.id || null;
+        }
+
+        setAfterFromSectionId(afterFromId);
+        setIsSectionExecutionDialogOpen(true);
+      } else {
+        // Si no hay execution, crear sección normal
+        logger.log(`Adding section after index: ${afterIndex}`);
+        setSectionInsertPosition(afterIndex);
+        setIsDirectSectionDialogOpen(true);
+      }
+    }
+  }, [selectedFile, documentContent?.content, selectedExecutionId]);
+
+  // Gate de generación con IA (context_required / can_generate del backend).
+  // Fuente única: documentContent, porque es la única query siempre cargada
+  // cuando hay un activo abierto (fullDocument es lazy y llega tarde).
+  // can_generate ausente (backend viejo, /content aún cargando o en error) =>
+  // fail-open, nunca bloquea. Ver src/lib/generation-gating.ts.
+  const canGenerate = documentContent?.can_generate !== false;
+  const cannotGenerateReason = canGenerate
+    ? undefined
+    : resolveCannotGenerateReason(documentContent?.cannot_generate_reason, t);
+  const isCannotGenerateContextRelated = !canGenerate && isContextRelatedReason(documentContent?.cannot_generate_reason);
+
+  // Contenido diferido para la lista de secciones: banners, toolbar y el resto
+  // del encabezado siguen leyendo `documentContent` directo (necesitan
+  // reaccionar al instante — es el feedback de progreso de la corrida), pero
+  // reconstruir los N editores Plate de la lista es lo caro. `useDeferredValue`
+  // deja que React renderice ESE árbol en baja prioridad e interrumpible: el
+  // scroll y los clicks siguen respondiendo mientras se arma, en vez de
+  // bloquear el hilo principal hasta que termine (ver AssetsSectionsList).
+  //
+  // El valor diferido va etiquetado con el documento y la execution a los que
+  // pertenece: al cambiar de asset (p. ej. tras clonar, o al saltar a otro
+  // activo desde el árbol) React conserva el valor anterior durante la
+  // transición, y sin este chequeo la lista renderizaba el contenido del asset
+  // previo —o el [] de un primer fetch sin execution_id— mientras `tocItems`,
+  // que lee documentContent directo, ya mostraba las secciones nuevas.
+  const contentSnapshot = useMemo(
+    () => ({ docId: selectedFile?.id, execId: selectedExecutionId, content: documentContent?.content }),
+    [selectedFile?.id, selectedExecutionId, documentContent?.content],
+  );
+  const deferredSnapshot = useDeferredValue(contentSnapshot);
+  const deferredContent =
+    deferredSnapshot.docId === selectedFile?.id && deferredSnapshot.execId === selectedExecutionId
+      ? deferredSnapshot.content
+      : undefined;
+
+  // Emptiness por sección (índice a índice con deferredContent — el mismo
+  // array que se le pasa a AssetsSectionsList, para no desalinear índices
+  // durante la transición diferida), usada en modo lector para ocultar
+  // secciones sin contenido. Antes esto se recalculaba —con un JSON.parse +
+  // walk recursivo de TODO el plate_content de la sección— dentro del .map de
+  // render, en CADA render de AssetContent (abrir un dropdown, un tick de
+  // polling, cualquier cosa). Memoizado acá, solo se vuelve a calcular cuando
+  // el contenido realmente cambia.
+  const sectionEmptiness = useMemo(() => {
+    if (!Array.isArray(deferredContent)) return [] as boolean[];
+    return deferredContent.map((section: ContentSection) =>
+      section.section_type === 'form' ? !isSectionApplicable(section) : isSectionContentEmpty(section)
+    );
+  }, [deferredContent]);
+
+  // Permiso de sección por ciclo de vida (view/can_edit) — /content no lo trae, así que
+  // se resuelve aparte contra GET /documents/{id}/sections. Ver
+  // "ia context/permisos-seccion-lifecycle-guide.md" y src/hooks/useDocumentSectionAccess.ts.
+  const sectionAccess = useDocumentSectionAccess(
+    selectedFile?.type === 'document' ? selectedFile?.id : undefined,
+    selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
+  );
+  const invalidateSectionAccess = useInvalidateDocumentSectionAccess();
+
+  // Ids de todos los assets referenciados por menciones (@) en el contenido, para
+  // resolverlos en un solo lote (asset_ids + include_executions) en vez de confiar
+  // en el snapshot que cada chip trae guardado en su propio nodo Plate. También se
+  // detecta si hay al menos una referencia a un rol, para gatear el fetch de
+  // useRolesMap (trae TODOS los roles de la org) solo cuando hace falta.
+  const { mentionAssetIds, hasRoleReferences } = useMemo(() => {
+    if (!Array.isArray(documentContent?.content)) return { mentionAssetIds: [] as string[], hasRoleReferences: false };
+    const ids = new Set<string>();
+    let hasRoles = false;
+    for (const section of documentContent.content) {
+      for (const raw of section.plate_content ?? []) {
+        try {
+          const parsed = JSON.parse(raw);
+          collectMentionAssetIds(parsed, ids);
+          if (!hasRoles) hasRoles = hasAnyRoleReference(parsed);
+        } catch {
+          // Contenido plate_content malformado — se ignora, la chip cae al snapshot.
+        }
+      }
+    }
+    return { mentionAssetIds: Array.from(ids), hasRoleReferences: hasRoles };
+  }, [documentContent?.content]);
+
+  // Lightweight periodic refresh of media download URLs (images/files embedded in
+  // the content), so a tab left open longer than the backend's SAS TTL doesn't end
+  // up with broken media. Cadence is derived from the backend's own ttl_seconds.
+  const { data: mediaUrlsData } = useDocumentMediaUrls(selectedFile?.id, selectedOrganizationId ?? undefined, {
+    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
+    executionId: selectedExecutionId || undefined,
   });
 
   // Fetch full document details only when needed (sections management, sheet operations)
@@ -882,36 +1205,131 @@ export function AssetContent({
     staleTime: 300000, // Cache for 5 minutes
   });
 
-  // Fetch custom fields for the document
+  // Fetch custom fields for the document. Página y tamaño fijos en 1/100 (no
+  // `customFieldsPage`, que ahora es solo el paginado CLIENTE de 4 por página del
+  // panel de detalle) — así la query key coincide con la de `useCustomFieldDocuments`
+  // (validación preventiva del lifecycle) y comparten un solo fetch.
   const { data: customFieldsData, isLoading: isLoadingCustomFields } = useQuery({
-    queryKey: ['custom-field-documents', selectedFile?.id],
+    queryKey: customFieldDocumentsQueryKeys.byDocument(selectedFile?.id, 1, CUSTOM_FIELDS_PAGE_SIZE),
     queryFn: () => getCustomFieldDocumentsByDocument({
       document_id: selectedFile!.id,
       page: 1,
-      page_size: 100
+      page_size: CUSTOM_FIELDS_PAGE_SIZE
     }),
-    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && activeTab === 'custom-fields',
+    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && canListCustomFields,
     staleTime: 60000, // Cache for 1 minute
+    placeholderData: (prev) => prev,
   });
 
-  // Poll current execution status for 'single' and 'from' modes to detect completion
-  const { data: currentExecutionStatus } = useQuery({
-    queryKey: ['execution-status', currentExecutionId],
-    queryFn: async () => {
-      const { getExecutionStatus } = await import('@/services/executions');
-      return getExecutionStatus(currentExecutionId!, selectedOrganizationId!);
-    },
-    enabled: !!currentExecutionId && !!selectedOrganizationId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'),
-    refetchInterval: (query) => {
-      // Stop polling if execution is in a terminal state
-      const status = query.state.data?.status;
-      if (status === 'completed' || status === 'done' || status === 'failed' || status === 'cancelled') {
-        return false;
-      }
-      return 2000; // Poll every 2 seconds
-    },
-    refetchOnWindowFocus: false,
+  // Dueño único del polling de estado para la corrida single/from en curso —
+  // combina /status y /sections_status detrás de una máquina de estados
+  // (phase). Ver useExecutionRun.ts para el porqué del runToken.
+  const executionRun = useExecutionRun({
+    executionId: currentExecutionId,
+    executionMode: currentExecutionMode,
+    startSectionIndex: currentSectionIndex,
+    runToken: executionRunToken,
+    startedAt: executionStartedAt,
   });
+
+  // Botón "refrescar" del ExecutionRunProgressBanner: además de repetir el
+  // polling de la corrida vigente (executionRun.refetch), invalida
+  // document-content y executions — es la acción con la que hoy el usuario
+  // destraba a mano un banner/skeleton que quedó colgado por estado stale de
+  // la corrida anterior (ver terminalInvalidatedRunTokenRef más abajo, que
+  // cubre el mismo caso automáticamente al terminar la corrida).
+  const handleRefreshExecutionRun = useCallback(() => {
+    executionRun.refetch();
+    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+    queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+  }, [executionRun.refetch, queryClient, selectedFile?.id]);
+
+  // Snapshot of contentUpdatedAt taken the instant a section is first seen as 'done'.
+  // Until document-content refetches with data NEWER than that snapshot, the cached
+  // body for that section is still the old/empty one — keep its skeleton up to avoid
+  // a flash of stale content between the "done" banner and the real regenerated text.
+  const doneSnapshotRef = useRef<Map<number, number>>(new Map());
+  // Orders already invalidated for the current execution, so a tick where several
+  // sections finish together triggers a single document-content refetch, not one per section.
+  const refreshedOrdersRef = useRef<Set<number>>(new Set());
+  // Debounce del invalidate de abajo: en modo `from`, varias secciones pueden
+  // llegar a 'done' en ticks de polling distintos (2s cada uno) — sin esto,
+  // cada una dispara su propio invalidateQueries + refetch + commit pesado
+  // (ver assets-section.tsx: cada refetch reconstruye N editores Plate en
+  // paralelo). Agrupar en una sola ventana corta reduce eso a un solo refetch
+  // por tanda de secciones que terminan casi juntas.
+  const pendingContentInvalidateRef = useRef<number | null>(null);
+  const CONTENT_INVALIDATE_DEBOUNCE_MS = 500;
+
+  useEffect(() => {
+    // Mientras sections_status no sea confiable para ESTA corrida, un 'done'
+    // puede ser el de la corrida anterior (el backend reutiliza el mismo
+    // executionId y todavía no mutó estado) — no lo tratamos como "recién
+    // terminada" hasta que useExecutionRun confirme actividad real.
+    if (!executionRun.sectionsTrusted) return;
+    if (!executionRun.sections?.length) return;
+    const newlyDone = executionRun.sections.filter(
+      (s) => s.status === 'done'
+        && executionRun.isSectionInScope(s.order - 1)
+        && !refreshedOrdersRef.current.has(s.order),
+    );
+    if (!newlyDone.length) return;
+
+    newlyDone.forEach((s) => {
+      refreshedOrdersRef.current.add(s.order);
+      if (!doneSnapshotRef.current.has(s.order)) {
+        doneSnapshotRef.current.set(s.order, contentUpdatedAt);
+      }
+    });
+
+    preserveScrollPosition();
+
+    if (pendingContentInvalidateRef.current !== null) {
+      clearTimeout(pendingContentInvalidateRef.current);
+    }
+    const fileId = selectedFile?.id;
+    pendingContentInvalidateRef.current = window.setTimeout(() => {
+      pendingContentInvalidateRef.current = null;
+      queryClient.invalidateQueries({ queryKey: ['document-content', fileId] });
+    }, CONTENT_INVALIDATE_DEBOUNCE_MS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [executionRun.sections, executionRun.sectionsTrusted, executionRun.isSectionInScope, selectedFile?.id, queryClient]);
+
+  // Ejecuta el invalidate pendiente (si lo hubiera) al desmontar, en vez de
+  // perderlo — evita quedar con contenido stale si el componente se desmonta
+  // justo dentro de la ventana de debounce (p. ej. navegación rápida).
+  useEffect(() => {
+    return () => {
+      if (pendingContentInvalidateRef.current !== null) {
+        clearTimeout(pendingContentInvalidateRef.current);
+        pendingContentInvalidateRef.current = null;
+      }
+    };
+  }, []);
+
+  const isAwaitingFreshContent = useCallback((index: number) => {
+    const snapshot = doneSnapshotRef.current.get(index + 1);
+    if (snapshot === undefined) return false;
+    return isFetchingContent || contentUpdatedAt <= snapshot;
+  }, [isFetchingContent, contentUpdatedAt]);
+
+  // El contenido regenerado puede tardar un tick más que el 'done' de la
+  // sección en llegar al caché de document-content — mientras eso pasa,
+  // seguir mostrando el skeleton en vez de destaparlo con contenido viejo.
+  const getDisplaySectionStatus = useCallback((index: number) => {
+    if (isAwaitingFreshContent(index)) return 'running';
+    return executionRun.getSectionStatus(index);
+  }, [isAwaitingFreshContent, executionRun.getSectionStatus]);
+
+  // El banner de progreso solo espera contenido fresco en las secciones que
+  // ya llegaron a 'done' — las demás (en cola o generando) todavía no tienen
+  // nada que refrescar.
+  const isRunAwaitingFreshContent = useMemo(() => {
+    if (!executionRun.sections?.length) return false;
+    return executionRun.sections.some(
+      (s) => executionRun.isSectionInScope(s.order - 1) && isAwaitingFreshContent(s.order - 1),
+    );
+  }, [executionRun.sections, executionRun.isSectionInScope, isAwaitingFreshContent]);
 
   // Poll approving execution status to detect when approval completes
   const { data: approvingExecutionStatus } = useQuery({
@@ -932,29 +1350,42 @@ export function AssetContent({
     refetchOnWindowFocus: false,
   });
 
-  // Effect to refresh content when 'single' or 'from' execution completes
-  // BUT keep tracking states so feedback can still display
+  // Effect to mark the current single/from execution's banner as dismissed
+  // once it reaches a terminal state (ExecutionStatusBanner no debe mostrarse
+  // para esta ejecución — ExecutionRunProgressBanner ya cubre ese feedback).
+  // NO clear tracking states here so feedback can still display.
   useEffect(() => {
-    if (currentExecutionStatus && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) {
-      const status = currentExecutionStatus.status;
-      if (status === 'completed' || status === 'done' || status === 'failed' || status === 'cancelled') {
-        console.log(`🎯 Section execution finished with status: ${status}, refreshing content but keeping feedback visible`);
-        
-        // Preserve scroll position before refreshing content
-        preserveScrollPosition();
-        
-        // Add to dismissed banners to prevent ExecutionStatusBanner from showing for this execution
-        if (currentExecutionId) {
-          setDismissedExecutionBanners(prev => new Set([...prev, currentExecutionId]));
-        }
-        
-        // Refresh content - but DON'T clear tracking states
-        // The SectionExecutionFeedback needs these states to continue showing the feedback
-        queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-        queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-      }
+    if (currentExecutionMode !== 'single' && currentExecutionMode !== 'from') return;
+    if (executionRun.phase !== 'succeeded' && executionRun.phase !== 'failed' && executionRun.phase !== 'cancelled') return;
+    if (!currentExecutionId) return;
+    logger.log(`🎯 Section execution finished with phase: ${executionRun.phase}, keeping feedback visible`);
+    setDismissedExecutionBanners(prev => new Set([...prev, currentExecutionId]));
+  }, [executionRun.phase, currentExecutionMode, currentExecutionId]);
+
+  // Red de seguridad al cerrar la corrida: `newlyDone` (arriba) ya invalida
+  // document-content sección por sección a medida que cada una llega a
+  // 'done' de verdad (B7), pero eso depende de que sections_status haya sido
+  // confiable en algún momento antes del cierre. Este efecto garantiza, una
+  // sola vez por runToken, que al terminar la corrida (éxito, falla o
+  // cancelación) el contenido y la lista de executions queden al día — sin
+  // esto, `documentContent.executions[].status` podía quedar congelado en
+  // 'running' y los botones de generar del header seguían bloqueados aunque
+  // la corrida ya hubiera terminado (hasExecutionInProcess más abajo).
+  const terminalInvalidatedRunTokenRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (currentExecutionMode !== 'single' && currentExecutionMode !== 'from') return;
+    if (executionRun.phase !== 'succeeded' && executionRun.phase !== 'failed' && executionRun.phase !== 'cancelled') return;
+    if (!executionRunToken) return;
+    if (terminalInvalidatedRunTokenRef.current === executionRunToken) return;
+    terminalInvalidatedRunTokenRef.current = executionRunToken;
+
+    if (pendingContentInvalidateRef.current !== null) {
+      clearTimeout(pendingContentInvalidateRef.current);
+      pendingContentInvalidateRef.current = null;
     }
-  }, [currentExecutionStatus?.status, currentExecutionMode, selectedFile?.id, queryClient, currentExecutionId]);
+    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+    queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+  }, [executionRun.phase, currentExecutionMode, executionRunToken, selectedFile?.id, queryClient]);
 
   // Effect to detect when approval process completes
   useEffect(() => {
@@ -962,7 +1393,7 @@ export function AssetContent({
       const status = approvingExecutionStatus.status;
       
       if (status === 'approved') {
-        console.log(`✅ Execution approved successfully: ${approvingExecutionId}`);
+        logger.log(`✅ Execution approved successfully: ${approvingExecutionId}`);
         
         // Preserve scroll position
         preserveScrollPosition();
@@ -979,7 +1410,7 @@ export function AssetContent({
         queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       } else if (status !== 'approving') {
         // If status changed to something other than 'approving' or 'approved' (e.g., error state)
-        console.log(`⚠️ Approval process ended with unexpected status: ${status}`);
+        logger.log(`⚠️ Approval process ended with unexpected status: ${status}`);
         setApprovingExecutionId(null);
         
         // Refresh data anyway to reflect current state
@@ -1013,6 +1444,14 @@ export function AssetContent({
   // Unified executions source: prefer documentContent (always fresh after refetch) over separate query
   const allExecutions = documentContent?.executions || documentExecutions;
 
+  // Usado por AssetsRelatedDocumentsBlock más abajo (su propia query de relaciones).
+  const relatedExecutionId = selectedExecutionId || documentContent?.execution_id;
+
+  // Prefetch del catálogo del nodo `data_table` (cache infinita, ver useDataTableSources) — así
+  // el slash command (transforms.ts, síncrono, fuera de React) lo encuentra ya en cache al
+  // insertar una tabla nueva.
+  useDataTableSources(selectedOrganizationId || undefined);
+
   // Check if there's any execution in process - optimized with memoization
   const hasExecutionInProcess = useMemo(() => {
     // Use executions from documentContent first (preferred), then fallback to separate query
@@ -1041,7 +1480,11 @@ export function AssetContent({
     );
     if (!pendingExecution) return false;
     // Check if any section has generated content (output)
-    return !pendingExecution.sections?.some((section: any) => 
+    // `pendingExecution.sections` viene embebido acá (no de `GET /execution/{id}`,
+    // que sí filtra por `view` — ver "ia context/permisos-seccion-lifecycle-guide.md" §5).
+    // Si esta lista empezara a filtrarse también, un usuario sin acceso a todas
+    // las secciones podría dar un falso negativo — no confirmado hoy.
+    return !pendingExecution.sections?.some((section: any) =>
       section.output && section.output.trim().length > 0
     );
   }, [documentContent?.executions, documentExecutions]);
@@ -1051,79 +1494,83 @@ export function AssetContent({
   // Lifecycle permissions from the document content response
   const lifecyclePermissions = documentContent?.lifecycle_permissions as LifecyclePermissions | undefined;
 
-  // Whether the user can see the asset content: at least one permission must be true.
-  // If permissions haven't loaded yet (undefined), default to allowing access.
-  const canViewContent = useMemo(() => {
-    if (!lifecyclePermissions) return true;
-    return (
-      lifecyclePermissions.view ||
-      lifecyclePermissions.create ||
-      lifecyclePermissions.edit ||
-      lifecyclePermissions.review ||
-      lifecyclePermissions.approve ||
-      lifecyclePermissions.publish ||
-      lifecyclePermissions.archive
-    );
-  }, [lifecyclePermissions]);
+  // Permisos del panel: cruza lifecycle_permissions + lifecycle_status.stage con
+  // las capacidades RBAC globales (regla AND — ver useAssetContentPermissions).
+  // canViewContent / isViewOnly / canSwitchToEditorMode viven ahí y no acá para
+  // que la política de "sin lifecycle configurado" se decida en un solo lugar.
+  const {
+    frontendPermissions,
+    rbac: assetRbac,
+    canViewContent,
+    isViewOnly,
+    canSwitchToEditorMode,
+  } = useAssetContentPermissions(lifecyclePermissions, documentContent?.lifecycle_status);
 
-  // Computed frontend permissions: combines lifecycle_permissions + lifecycle_status.stage
-  // to express high-level UI capabilities (e.g. canEditSections, canExecuteAI)
-  const frontendPermissions = useMemo<FrontendPermissions>(
-    () => computeFrontendPermissions(lifecyclePermissions, documentContent?.lifecycle_status),
-    [lifecyclePermissions, documentContent?.lifecycle_status]
-  );
+  // Execution lifecycle transitions (complete/return, publish, archive, restore,
+  // assign version, re-run external publish) — shared controller also used by
+  // WorkflowDetailPanel, see useLifecycleActions.
+  const lifecycle = useLifecycleActions({
+    documentId: selectedFile?.id,
+    executionId: selectedExecutionId || documentContent?.execution_id,
+    organizationId: selectedOrganizationId,
+    documentTypeId: documentContent?.document_type?.id,
+    lifecycleStatus: documentContent?.lifecycle_status,
+    lifecyclePermissions,
+    rbac: { canTransition: assetRbac.updateAssetContent },
+    extraRefreshKeys: () => [['document', selectedFile?.id], ['executions', selectedFile?.id]],
+    onBeforeAdvance: () => preserveScrollPosition(),
+    onViewChanges: (previousExecutionId, currentExecutionId) => {
+      setVersionCompareOverride({ left: previousExecutionId, right: currentExecutionId });
+      setIsVersionCompareSheetOpen(true);
+    },
+    canListCustomFields,
+    onOpenCustomFields: canListCustomFields
+      ? () => {
+          setActiveTab('fields');
+          setIsTocSidebarOpen(true);
+          // El panel se remonta sin colapsar (defaultSize) — este flag no persiste
+          // solo, hay que resincronizarlo para que no quede mostrando el rail.
+          setIsDetailPanelCollapsed(false);
+        }
+      : undefined,
+    canReadElaborationConfig,
+    canReadExternalPublishConfig,
+  });
 
-  // Whether the reader/editor toggle is available: only in "edit" stage with create/edit permissions.
-  // In all other stages (review, approve, publish, archive) the user stays in reader mode.
-  const canSwitchToEditorMode = useMemo(() => {
-    const isEditStage = documentContent?.lifecycle_status?.stage === 'edit';
-    return isEditStage && !!(
-      lifecyclePermissions?.create ||
-      lifecyclePermissions?.edit
-    );
-  }, [lifecyclePermissions, documentContent?.lifecycle_status?.stage]);
-
-  // Whether the user has no content-editing permissions (view-only).
-  // View-only users can only see the title, version info, and version selector.
-  const isViewOnly = useMemo(() => {
-    if (!lifecyclePermissions) return false;
-    return (
-      !lifecyclePermissions.create &&
-      !lifecyclePermissions.edit &&
-      !lifecyclePermissions.review &&
-      !lifecyclePermissions.approve &&
-      !lifecyclePermissions.publish &&
-      !lifecyclePermissions.archive
-    );
-  }, [lifecyclePermissions]);
-
-  // Set initial view mode based on lifecycle permissions (once per document):
+  // Set initial view mode based on lifecycle permissions (once per document+execution):
   // - view only  → reader mode, no toggle
   // - has edit permission in edit stage → editor mode directly
   // - other stages → reader mode
+  // Uses a composite key so switching executions within the same document also re-evaluates.
   useEffect(() => {
     if (!selectedFile?.id) return;
 
-    // New document opened: reset the initialization flag and go back to reader as safe default
-    if (hasSetInitialModeRef.current !== selectedFile.id) {
+    const modeKey = `${selectedFile.id}::${selectedExecutionId ?? ''}`;
+
+    // Already initialized for this document+execution combo
+    if (hasSetInitialModeRef.current === modeKey) return;
+
+    // Ensure the loaded data corresponds to the currently selected execution
+    // to avoid setting the mode based on stale permissions from the previous version.
+    const dataMatchesSelection =
+      !selectedExecutionId || documentContent?.execution_id === selectedExecutionId;
+
+    if (!lifecyclePermissions || !dataMatchesSelection) {
+      // Data not ready yet – default to reader mode as a safe fallback
       setIsViewMode(true);
-
-      // As soon as permissions are available, set the definitive initial mode
-      if (lifecyclePermissions) {
-        const isEditStage = documentContent?.lifecycle_status?.stage === 'edit';
-        const hasEdit = !!(lifecyclePermissions.edit || lifecyclePermissions.create);
-
-        // Any user with edit permission in edit stage opens directly in editor mode
-        if (hasEdit && isEditStage) {
-          setIsViewMode(false);
-        }
-
-        // Mark this document as initialized so subsequent re-fetches don't override the user's choice
-        hasSetInitialModeRef.current = selectedFile.id;
-      }
+      return;
     }
+
+    const isEditStage = documentContent?.lifecycle_status?.stage === 'edit';
+    const hasEdit = !!(lifecyclePermissions.edit || lifecyclePermissions.create);
+
+    // Set editor mode directly when user has edit permission in edit stage
+    setIsViewMode(!(hasEdit && isEditStage));
+
+    // Mark this document+execution as initialized so re-fetches don't override the user's choice
+    hasSetInitialModeRef.current = modeKey;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFile?.id, lifecyclePermissions, documentContent?.lifecycle_status?.stage]);
+  }, [selectedFile?.id, selectedExecutionId, lifecyclePermissions, documentContent?.lifecycle_status?.stage, documentContent?.execution_id]);
 
   // Force reader mode when stage moves away from "edit" (e.g. lifecycle advances)
   useEffect(() => {
@@ -1137,44 +1584,128 @@ export function AssetContent({
   // Non-edit stages always stay in reader mode, so editor actions are never shown.
   const showEditorActions = canSwitchToEditorMode && !isViewMode;
 
+  // Todo el chrome que depende del modo (toolbar strip, botón de editar título, paddings, bloque
+  // de documentos relacionados y la lista de secciones) cuelga de ESTE valor diferido, no de
+  // `isViewMode` directo. Dos motivos, en este orden:
+  //   1. Atomicidad: si una parte del chrome lee el valor inmediato y otra el diferido, cambian
+  //      en commits distintos de React y se ve un estado mixto — p.ej. el toolbar de editor
+  //      (Secciones/Dependencias/Contexto) ya puesto mientras las secciones siguen en lector.
+  //   2. Rendimiento: React pinta el botón del toggle en su nuevo estado antes de armar el árbol
+  //      pesado de N secciones, en vez de bloquear el frame hasta terminarlo.
+  // Un solo objeto (no dos useDeferredValue sueltos) para que ambos flags viajen siempre
+  // coherentes y la identidad de la prop no rompa el memo de AssetsSectionsList.
+  // Único consumidor que se queda con el valor inmediato: ViewModeToggle (feedback del click).
+  const viewChromeFlags = useMemo(
+    () => ({ isViewMode, showEditorActions }),
+    [isViewMode, showEditorActions],
+  );
+  const deferredViewChrome = useDeferredValue(viewChromeFlags);
+
+  // El ícono del botón "colapsar/expandir todas" (`areAllSectionsCollapsed`, más abajo) sigue
+  // leyendo `collapseAllSignal` inmediato — feedback del click. El Provider de contexto recibe
+  // la versión diferida: un cambio de valor de contexto re-renderiza TODOS los consumidores
+  // (cada SectionExecution, bypaseando React.memo) en el mismo commit que lo dispara: sin
+  // diferir, el ícono no pinta hasta que terminan de re-renderizarse las N secciones — mismo
+  // síntoma que el toggle Lector/Editor antes de diferir `viewChromeFlags`.
+  const deferredCollapseSignal = useDeferredValue(collapseAllSignal);
+
+  // Cualquier transición del árbol de secciones en curso (cambio de modo O colapsar/expandir
+  // todas) — gatea la atenuación compartida del contenedor de contenido, más abajo.
+  const isModeSwitching = deferredViewChrome !== viewChromeFlags;
+  const isCollapseSwitching = deferredCollapseSignal !== collapseAllSignal;
+  const isSectionsTreeSwitching = isModeSwitching || isCollapseSwitching;
+
+  // Restore scroll position after mode toggle causes layout shifts (sections/separators appear or
+  // disappear). Colgado de `deferredViewChrome` (no de `isViewMode` directo): ese es el valor que
+  // efectivamente gobierna el chrome que se re-arma — restaurar contra `isViewMode` corría un tick
+  // antes de que ese layout diferido terminara de asentarse.
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      scrollRestoration.restoreScrollPosition();
+    }, 50);
+    return () => clearTimeout(timeoutId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deferredViewChrome]);
+
+  // Versión efectivamente en pantalla: la elegida a mano, o si el usuario
+  // nunca eligió, la que el backend devolvió como actual. Sin este fallback,
+  // ninguno de los dos banners de abajo se muestra hasta la primera selección manual.
+  const effectiveSelectedExecutionId = selectedExecutionId ?? documentContent?.execution_id ?? null;
+
   // Get active executions on other versions (not currently viewed)
   const otherVersionActiveExecutions = useMemo(() => {
     const executions = documentContent?.executions || documentExecutions;
-    
-    if (!executions || !selectedExecutionId) {
+
+    if (!executions || !effectiveSelectedExecutionId) {
       return [];
     }
 
     return executions.filter((execution: any) => {
       // Exclude the currently selected version
-      if (execution.id === selectedExecutionId) return false;
-      
+      if (execution.id === effectiveSelectedExecutionId) return false;
+
       // For single/from modes, also exclude the currentExecutionId (same as selected)
       if (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) {
         if (execution.id === currentExecutionId) return false;
       }
-      
-      // Only show running/pending executions that haven't been dismissed
-      return ['running', 'pending'].includes(execution.status) &&
+
+      // Only show active executions that haven't been dismissed — mismo set de
+      // estados que hasExecutionInProcess (arriba), para no perder banners que
+      // ese chequeo sí considera "en proceso".
+      return ['running', 'pending', 'queued', 'processing'].includes(execution.status) &&
              !dismissedExecutionBanners.has(execution.id);
     });
-  }, [documentContent?.executions, documentExecutions, selectedExecutionId, dismissedExecutionBanners, currentExecutionId, currentExecutionMode]);
+  }, [documentContent?.executions, documentExecutions, effectiveSelectedExecutionId, dismissedExecutionBanners, currentExecutionId, currentExecutionMode]);
+
+  // Une la ejecución de versión nueva recién creada (setNewVersionExecutionId en
+  // handleExecutionCreated) con las que /content ya reporta como activas,
+  // deduplicando por id — así el banner "otra versión generando" aparece en el
+  // instante del click, sin esperar a que /content refresque la lista de
+  // ejecuciones (que puede tardar más que el propio backend en registrar la
+  // ejecución como activa).
+  const bannerExecutions = useMemo(() => {
+    if (
+      !newVersionExecutionId ||
+      dismissedExecutionBanners.has(newVersionExecutionId) ||
+      newVersionExecutionId === effectiveSelectedExecutionId ||
+      otherVersionActiveExecutions.some((e: any) => e.id === newVersionExecutionId)
+    ) {
+      return otherVersionActiveExecutions;
+    }
+    const known = allExecutions?.find((e: any) => e.id === newVersionExecutionId);
+    // Si ya apareció en /content pero con un status que no es "activo" (p.ej.
+    // completó entre el click y este refetch), no la forzamos: mismo criterio
+    // de estados que usa otherVersionActiveExecutions arriba, para no dejar un
+    // banner de "completado" pegado para siempre.
+    if (known && !['running', 'pending', 'queued', 'processing'].includes(known.status)) {
+      return otherVersionActiveExecutions;
+    }
+    // Todavía no está en /content ni en la lista de ejecuciones — nombre
+    // provisorio traducido en vez del "Version {id}" que usa el fallback de
+    // más abajo para ejecuciones sin nombre ya conocidas.
+    const placeholder = known ?? {
+      id: newVersionExecutionId,
+      name: t('execute:otherVersionBanner.newVersionFallback'),
+      status: 'running',
+    };
+    return [placeholder, ...otherVersionActiveExecutions];
+  }, [otherVersionActiveExecutions, newVersionExecutionId, dismissedExecutionBanners, effectiveSelectedExecutionId, allExecutions, t]);
 
   // Check if the currently selected version is actively executing
   const isSelectedVersionExecuting = useMemo(() => {
     const executions = documentContent?.executions || documentExecutions;
-    
-    if (!executions || !selectedExecutionId) {
+
+    if (!executions || !effectiveSelectedExecutionId) {
       return null;
     }
 
-    const selectedExecution = executions.find((execution: any) => 
-      execution.id === selectedExecutionId && 
+    const selectedExecution = executions.find((execution: any) =>
+      execution.id === effectiveSelectedExecutionId &&
       ['running', 'pending', 'importing', 'import_failed'].includes(execution.status)
     );
 
     return selectedExecution || null;
-  }, [documentContent?.executions, documentExecutions, selectedExecutionId]);
+  }, [documentContent?.executions, documentExecutions, effectiveSelectedExecutionId]);
 
   // Get selected execution details for displaying version info (optimized)
   const selectedExecutionInfo = useMemo(() => {
@@ -1218,52 +1749,55 @@ export function AssetContent({
     };
   }, [documentContent?.executions, documentContent?.execution_id, documentExecutions, selectedExecutionId]);
 
-  // Initialize selected execution ID when a document is selected (optimized to prevent unnecessary calls)
+  // Reset initialization tracking when the selected document changes.
+  // selectedExecutionId is managed by useAssetNavigation (it resets to null on file-tree
+  // navigation and preserves the URL-provided execution on direct URL access) so we must
+  // NOT call setSelectedExecutionId(null) here, otherwise the URL-supplied execution would
+  // be wiped out before the document query has a chance to use it.
   useEffect(() => {
-    // Only reset selectedExecutionId when switching to a different document or to non-document
-    if (selectedFile?.type !== 'document') {
-      if (selectedExecutionId) {
-        setSelectedExecutionId(null);
-      }
-      hasInitializedExecutionRef.current = null; // Reset ref when leaving document
-      return;
-    }
-
-    // Reset selectedExecutionId when switching to a different document
-    // This allows the default call (without execution_id) to return the approved/latest execution
-    if (selectedExecutionId) {
-      setSelectedExecutionId(null);
-    }
-    
-    // Reset the initialization ref when document changes
     hasInitializedExecutionRef.current = null;
   }, [selectedFile?.id]);
 
   // Sync selectedExecutionId with the execution that was loaded by the backend
   // This only happens ONCE per document to set the initial state, preventing duplicate API calls
   useEffect(() => {
+    // Also handle the case where execution_id is null but there is an importing execution
+    // (import-from-file sets execution_id = null until the import finishes)
+    const importingExecution = documentContent?.executions?.find(
+      (e: any) => e.status === 'importing'
+    );
+    const resolvedExecutionId = documentContent?.execution_id || importingExecution?.id;
+
     // Only sync if:
-    // 1. We have document content with an execution_id
+    // 1. We have document content with an execution_id OR an importing execution
     // 2. selectedExecutionId is currently null (no manual selection yet)
     // 3. We haven't already initialized for this document
+    // isFetchingContent: espera a que termine un refetch en curso antes de sembrar.
+    // En un remonte con caché stale (refetchOnMount dispara un refetch en background),
+    // este efecto corre primero con el dato viejo — sin este guard, sembraba esa key
+    // como si fuera fresca y el refetch de la key sin ejecución nunca la actualizaba.
     if (
       selectedFile?.type === 'document' &&
-      documentContent?.execution_id &&
+      resolvedExecutionId &&
       !selectedExecutionId &&
+      !isFetchingContent &&
       hasInitializedExecutionRef.current !== selectedFile.id
     ) {
-      console.log('🔄 Syncing selectedExecutionId with loaded execution:', documentContent.execution_id);
-      
-      // Copy the already-loaded data to the new queryKey to prevent duplicate API call
+      logger.log('🔄 Syncing selectedExecutionId with loaded execution:', resolvedExecutionId);
+
+      // Copy the already-loaded data to the new queryKey to prevent duplicate API call.
+      // updatedAt preserva el timestamp real del fetch (contentUpdatedAt) en vez de
+      // "ahora" — si este dato ya estaba stale, la key sembrada hereda esa staleness.
       queryClient.setQueryData(
-        ['document-content', selectedFile.id, documentContent.execution_id],
-        documentContent
+        ['document-content', selectedFile.id, resolvedExecutionId],
+        documentContent,
+        { updatedAt: contentUpdatedAt }
       );
-      
-      setSelectedExecutionId(documentContent.execution_id);
+
+      setSelectedExecutionId(resolvedExecutionId);
       hasInitializedExecutionRef.current = selectedFile.id;
     }
-  }, [selectedFile?.id, selectedFile?.type, documentContent?.execution_id, selectedExecutionId, queryClient]);
+  }, [selectedFile?.id, selectedFile?.type, documentContent?.execution_id, documentContent?.executions, selectedExecutionId, isFetchingContent, contentUpdatedAt, queryClient]);
   
   // Removed invalidation useEffect - React Query automatically handles query key changes
 
@@ -1288,7 +1822,7 @@ export function AssetContent({
           ['completed', 'approved', 'failed'].includes(mostRecentExecution.status) &&
           parseApiDate(mostRecentExecution.created_at) > parseApiDate(currentSelectedExecution.created_at)) {
         
-        console.log(`Auto-switching to latest completed execution: ${mostRecentExecution.id}`);
+        logger.log(`Auto-switching to latest completed execution: ${mostRecentExecution.id}`);
         setSelectedExecutionId(mostRecentExecution.id);
         
         // Force refresh of document content with the new execution
@@ -1302,22 +1836,123 @@ export function AssetContent({
 
 
 
-  // Extract headings for table of contents
+  // Build table of contents from section names
   const tocItems = useMemo(() => {
-    if (!documentContent?.content) return [];
-    
-    // Check if content is in new format (array of sections)
-    if (Array.isArray(documentContent.content)) {
-      return extractHeadingsFromSections(documentContent.content);
-    }
-    
-    // Fallback for old format (single string)
-    if (typeof documentContent.content === 'string') {
-      return extractHeadings(documentContent.content);
-    }
-    
-    return [];
+    if (!documentContent?.content || !Array.isArray(documentContent.content)) return [];
+    return (documentContent.content as ContentSection[]).map((section, index) => ({
+      id: `section-${index}`,
+      title: section.section_name || `Section ${index + 1}`,
+      level: 1,
+      hasPendingSuggestion: section.ai_suggestion_status === 'completed',
+    }));
   }, [documentContent?.content]);
+
+  // Scroll to section when selectedSectionId is set (e.g. from a shared URL)
+  const hasScrolledToSectionRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      !selectedSectionId ||
+      !documentContent?.content ||
+      !Array.isArray(documentContent.content) ||
+      hasScrolledToSectionRef.current === selectedSectionId
+    ) return;
+
+    // Find the index of the section with the matching section_id
+    const sectionIndex = (documentContent.content as ContentSection[]).findIndex(
+      (section) => section.section_id === selectedSectionId || section.id === selectedSectionId
+    );
+
+    if (sectionIndex === -1) return;
+
+    // Mark as handled so we don't re-scroll on every re-render
+    hasScrolledToSectionRef.current = selectedSectionId;
+
+    // Wait for DOM to render the section elements
+    const timeoutId = setTimeout(() => {
+      const element = document.getElementById(`section-${sectionIndex}`);
+      if (element) {
+        const SCROLL_OFFSET = 40;
+        const viewport = element.closest('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+        if (viewport) {
+          const elementTop = element.getBoundingClientRect().top - viewport.getBoundingClientRect().top + viewport.scrollTop;
+          viewport.scrollTo({ top: elementTop - SCROLL_OFFSET, behavior: 'smooth' });
+        } else {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        // Clear section from URL after scrolling so it doesn't persist
+        setSelectedSectionId?.(null);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [selectedSectionId, documentContent?.content]);
+
+  // Reset scroll tracking when the document changes
+  useEffect(() => {
+    hasScrolledToSectionRef.current = null;
+  }, [selectedFile?.id]);
+
+  // Discussions badge count — same query key as each section's DiscussionSync,
+  // so this dedupes against the editor's own fetch instead of adding one.
+  // Filtered client-side to the version currently on screen.
+  const { discussionsForExecution: discussionsForBadge } = useDiscussions(
+    canListDiscussions ? selectedFile?.id : undefined,
+    undefined,
+    effectiveSelectedExecutionId ?? undefined
+  );
+  const openDiscussionsCount = useMemo(
+    () => discussionsForBadge.filter((d) => !d.isResolved).length,
+    [discussionsForBadge]
+  );
+
+  // Navigate from the discussions panel to the thread's section and activate it.
+  const handleFocusDiscussion = useCallback(
+    (discussionId: string, sectionExecutionId: string | null | undefined) => {
+      setIsDiscussionsSheetOpen(false);
+
+      if (!sectionExecutionId) {
+        toast.info(t('content.discussions.threadNoSection'));
+        return;
+      }
+
+      const sectionList = documentContent?.content;
+      const index = Array.isArray(sectionList)
+        ? (sectionList as ContentSection[]).findIndex((s) => s.id === sectionExecutionId)
+        : -1;
+
+      if (index === -1) {
+        toast.info(t('content.discussions.sectionNotInVersion'));
+        return;
+      }
+
+      const element = document.getElementById(`section-${index}`);
+      if (!element) {
+        toast.info(t('content.discussions.sectionHidden'));
+        return;
+      }
+
+      requestFocus(discussionId, sectionExecutionId);
+
+      const SCROLL_OFFSET = 40;
+      const viewport = element.closest('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+      if (viewport) {
+        const elementTop = element.getBoundingClientRect().top - viewport.getBoundingClientRect().top + viewport.scrollTop;
+        viewport.scrollTo({ top: elementTop - SCROLL_OFFSET, behavior: 'smooth' });
+      } else {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    },
+    [documentContent?.content, requestFocus, t]
+  );
+
+  const handleDiscussionFocusResolved = useCallback(
+    (outcome: 'activated' | 'mark-missing') => {
+      if (outcome === 'mark-missing') {
+        toast.info(t('content.discussions.threadNotHighlighted'));
+      }
+    },
+    [t]
+  );
 
   const sectionOptionsForExecutionDialog = useMemo(() => {
     const optionsById = new Map<string, string>();
@@ -1348,13 +1983,22 @@ export function AssetContent({
     return Array.from(optionsById.entries()).map(([id, name]) => ({ id, name }));
   }, [documentContent?.content, fullDocument?.sections]);
 
+  // Handle copy section link to clipboard
+  const handleCopySectionLink = useCallback((sectionId: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('section', sectionId);
+    navigator.clipboard.writeText(url.toString()).then(() => {
+      toast.success(t('section.linkCopied'));
+    });
+  }, [t]);
+
   // Handle export to markdown
   const handleExportMarkdown = async () => {
     if (documentContent?.execution_id) {
       try {
         await exportExecutionToMarkdown(documentContent.execution_id, selectedOrganizationId!);
       } catch (error) {
-        console.error('Error exporting to markdown:', error);
+        handleApiError(error, { fallbackMessage: t('mutations.exportFailed') });
       }
     }
   };
@@ -1365,7 +2009,7 @@ export function AssetContent({
       try {
         await exportExecutionToWord(documentContent.execution_id, selectedOrganizationId!);
       } catch (error) {
-        console.error('Error exporting to word:', error);
+        handleApiError(error, { fallbackMessage: t('mutations.exportFailed') });
       }
     }
   };
@@ -1381,8 +2025,19 @@ export function AssetContent({
       try {
         await exportExecutionToExcel(documentContent.execution_id, selectedOrganizationId!);
       } catch (error) {
-        console.error('Error exporting to excel:', error);
+        handleApiError(error, { fallbackMessage: t('mutations.exportFailed') });
       }
+    }
+  };
+
+  // Handle export version configuration (JSON) — reusable via import-config
+  const handleExportVersion = async () => {
+    const executionId = selectedExecutionId || documentContent?.execution_id;
+    if (!executionId || !selectedOrganizationId) return;
+    try {
+      await exportDocuments(selectedOrganizationId, { execution_ids: [executionId] });
+    } catch (error) {
+      handleApiError(error, { fallbackMessage: t('mutations.exportFailed') });
     }
   };
 
@@ -1396,7 +2051,6 @@ export function AssetContent({
     setIsRefreshingCustomFields(true);
     try {
       await queryClient.refetchQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
-      toast.success(t('mutations.customFieldsRefreshed'));
     } finally {
       setIsRefreshingCustomFields(false);
     }
@@ -1481,7 +2135,9 @@ export function AssetContent({
 
   function closeDeleteDialog() {
     setIsDeleteDialogOpen(false);
-    setDeleteType(null);
+    // Deferir la limpieza de deleteType para que el título/descripción no
+    // cambien mientras el diálogo se desvanece (animación de salida de Radix).
+    setTimeout(() => setDeleteType(null), 300);
   }
 
   const handleDeleteDialogChange = (open: boolean) => {
@@ -1507,6 +2163,23 @@ export function AssetContent({
     } else {
       onPreserveScroll?.();
       closeCloneDialog();
+    }
+  };
+
+  function openCloneToNewDocumentSheet() {
+    preserveScrollPosition();
+    setIsCloneToNewDocumentSheetOpen(true);
+  }
+
+  function closeCloneToNewDocumentSheet() {
+    setIsCloneToNewDocumentSheetOpen(false);
+  }
+
+  const handleCloneToNewDocumentSheetChange = (open: boolean) => {
+    if (open) {
+      openCloneToNewDocumentSheet();
+    } else {
+      closeCloneToNewDocumentSheet();
     }
   };
 
@@ -1546,21 +2219,11 @@ export function AssetContent({
     }
   };
 
-  // Handle delete confirmation
-  const handleDeleteConfirm = () => {
-    if (deleteType === 'document') {
-      handleDeleteDocument();
-    } else if (deleteType === 'execution') {
-      deleteExecutionMutation.mutate();
-    }
-    closeDeleteDialog();
-  };
-
   const handleDeleteDocument = async () => {
     if (selectedFile) {
       try {
         await deleteDocument(selectedFile.id, selectedOrganizationId!);
-        console.log('Document deleted successfully:', selectedFile.id);
+        logger.log('Document deleted successfully:', selectedFile.id);
         toast.success(t('mutations.documentDeletedNamed', { name: selectedFile.name }));
         
         // Clear selected file
@@ -1577,28 +2240,11 @@ export function AssetContent({
           queryClient.invalidateQueries({ queryKey: ['document-content'] });
         }, 300);
       } catch (error) {
-        console.error('Error deleting document:', error);
+        logger.error('Error deleting document:', error);
         toast.error(t('mutations.documentDeleteFailed'));
+        throw error; // deja el diálogo abierto en "idle" en vez de mostrar "Listo"
       }
     }
-  };
-
-  // Handle clone confirmation
-  const handleCloneConfirm = () => {
-    cloneMutation.mutate();
-    closeCloneDialog();
-  };
-
-  // Handle approve confirmation
-  const handleApproveConfirm = () => {
-    approveMutation.mutate();
-    closeApproveDialog();
-  };
-
-  // Handle disapprove confirmation
-  const handleDisapproveConfirm = () => {
-    disapproveMutation.mutate();
-    closeDisapproveDialog();
   };
 
   // Open edit dialog and prefill values
@@ -1645,7 +2291,7 @@ export function AssetContent({
                       onPreserveScroll?.();
                       openCreateAssetDialog(currentFolderId);
                     }}
-                    className="bg-[#4464f7] hover:bg-[#3451e6]"
+                    className="bg-primary hover:bg-primary/90"
                     icon={FileText}
                     iconClassName="h-4 w-4"
                     label={t('content.createAsset')}
@@ -1692,25 +2338,29 @@ export function AssetContent({
   }
 
   return (
-    <>
+    <DiscussionFocusProvider onResolve={handleDiscussionFocusResolved}>
     <ResizablePanelGroup direction="horizontal" className=" bg-gray-50">
       {/* Document Content */}
       <ResizablePanel defaultSize={80}>
         <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* Mobile Header with Toggle */}
         {isMobile && !isContentError && (
-          <div className="bg-white border-b border-gray-200 shadow-sm py-2 px-4 z-20 shrink-0 min-h-20" data-mobile-header>
+          <div className="bg-white border-b border-gray-200 shadow-sm py-2 px-4 z-(--z-page-header) shrink-0 min-h-20" data-mobile-header>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <HuemulButton
-                  onClick={onToggleSidebar}
-                  variant="ghost"
-                  size="sm"
-                  icon={FolderTree}
-                  iconClassName="h-5 w-5"
-                  className="h-8 w-8 p-0 hover:bg-gray-100"
-                  tooltip={t('content.showFileTree')}
-                />
+                {/* Sin árbol en fullscreen (pages/asset-fullscreen.tsx no lo monta):
+                    el toggle no tendría a dónde apuntar. */}
+                {!isFullscreen && (
+                  <HuemulButton
+                    onClick={onToggleSidebar}
+                    variant="ghost"
+                    size="sm"
+                    icon={FolderTree}
+                    iconClassName="h-5 w-5"
+                    className="h-8 w-8 p-0 hover:bg-gray-100"
+                    tooltip={t('content.showFileTree')}
+                  />
+                )}
                 {isLoadingContent && !documentContent ? (
                   <div className="flex flex-col gap-1.5 flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -1730,7 +2380,7 @@ export function AssetContent({
                         <span className="text-sm font-medium text-gray-900">
                           {documentContent?.document_name || selectedFile.name}
                         </span>
-                        {showEditorActions && (
+                        {deferredViewChrome.showEditorActions && (
                           <HuemulButton
                             requiredAccess="edit"
                             checkGlobalPermissions={true}
@@ -1751,8 +2401,6 @@ export function AssetContent({
                     <div className="flex items-center gap-1 text-xs text-gray-500 min-h-4.5">
                       {selectedExecutionInfo && (
                         <>
-                          <span className="text-xs">{getExecutionDisplayLabel(selectedExecutionInfo)}</span>
-                          <span>•</span>
                           <span className="text-xs">{selectedExecutionInfo.formattedDate}</span>
                           {selectedExecutionInfo.isLatest && (
                             <span className="inline-flex items-center px-1 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
@@ -1764,87 +2412,8 @@ export function AssetContent({
                     </div>
                     {documentContent?.lifecycle_status && (
                       <div className="flex items-center gap-1.5 flex-wrap bg-gray-50 px-2 py-1 rounded-lg">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLORS[documentContent.lifecycle_status.stage] ?? 'bg-gray-100 text-gray-600'}`}>
-                          {t(`lifecycle.stageLabels.${documentContent.lifecycle_status.stage}`, { defaultValue: documentContent.lifecycle_status.stage })}
-                        </span>
-                        {documentContent.lifecycle_status.current_group && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                            {documentContent.lifecycle_status.current_group}
-                          </span>
-                        )}
-                        <div className="flex items-center gap-1.5">
-                          {lifecyclePermissions?.approve && (documentContent.lifecycle_status.version_required || documentContent.lifecycle_status.state === 'in_approval') && !documentContent.lifecycle_status.version && (
-                            <HuemulButton
-                              variant="outline"
-                              size="sm"
-                              label={t('content.assignVersion')}
-                              icon={Tag}
-                              iconPosition="left"
-                              iconClassName="h-3 w-3"
-                              className="h-6 text-xs px-2 text-[#4464f7] border-[#4464f7] hover:bg-blue-50 hover:cursor-pointer"
-                              loading={assignVersionMutation.isPending}
-                              tooltip={t('content.assignVersionTooltip')}
-                              onClick={() => setIsAssignVersionDialogOpen(true)}
-                            />
-                          )}
-                          {documentContent.lifecycle_status.can_check && (
-                            <>
-                              <HuemulButton
-                                variant="outline"
-                                size="sm"
-                                label={t('lifecycle.return')}
-                                icon={Undo2}
-                                iconPosition="left"
-                                iconClassName="h-3 w-3"
-                                className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
-                                loading={rejectLifecycleMutation.isPending}
-                                tooltip={t('lifecycle.tooltipReturn')}
-                                onClick={() => setIsRejectLifecycleDialogOpen(true)}
-                              />
-                              <HuemulButton
-                                variant="default"
-                                size="sm"
-                                label={t('lifecycle.complete')}
-                                icon={Check}
-                                iconPosition="left"
-                                iconClassName="h-3 w-3"
-                                className="h-6 text-xs px-2 hover:cursor-pointer"
-                                loading={checkLifecycleMutation.isPending}
-                                disabled={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version}
-                                tooltip={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version ? t('content.assignVersionBeforeComplete') : documentContent.lifecycle_status.will_advance_phase ? t('lifecycle.tooltipCompletePhase') : t('lifecycle.tooltipComplete')}
-                                onClick={() => setIsCheckLifecycleDialogOpen(true)}
-                              />
-                            </>
-                          )}
-                          {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'approved' && (
-                            <HuemulButton
-                              variant="default"
-                              size="sm"
-                              label={t('lifecycle.publish')}
-                              icon={Globe}
-                              iconPosition="left"
-                              iconClassName="h-3 w-3"
-                              className="h-6 text-xs px-2 bg-green-600 hover:bg-green-700 hover:cursor-pointer"
-                              loading={advanceLifecycleMutation.isPending}
-                              tooltip={t('lifecycle.tooltipPublish')}
-                              onClick={() => setIsPublishDialogOpen(true)}
-                            />
-                          )}
-                          {lifecyclePermissions?.archive && (documentContent.lifecycle_status.state === 'approved' || documentContent.lifecycle_status.state === 'published') && (
-                            <HuemulButton
-                              variant="outline"
-                              size="sm"
-                              label={t('lifecycle.archive')}
-                              icon={Archive}
-                              iconPosition="left"
-                              iconClassName="h-3 w-3"
-                              className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
-                              loading={advanceLifecycleMutation.isPending}
-                              tooltip={t('lifecycle.tooltipArchive')}
-                              onClick={() => setIsArchiveDialogOpen(true)}
-                            />
-                          )}
-                        </div>
+                        <HuemulLifecycleStageBadge status={documentContent.lifecycle_status} />
+                        <HuemulLifecycleActions controller={lifecycle} variant="compact" showRerunExternalPublish showRunElaboration />
                       </div>
                     )}
                   </div>
@@ -1875,40 +2444,20 @@ export function AssetContent({
               </div>
             ) : (
             <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 animate-in fade-in duration-300">
-              {/* Mode Toggle - Mobile */}
+              {/* Mode Toggle - Mobile: siempre compact (solo icono), poco espacio disponible */}
               {canSwitchToEditorMode && (
-                <div className="flex items-center bg-gray-100 p-0.5 rounded-lg gap-0.5">
-                  <HuemulButton
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => { preserveScrollPosition(); setIsViewMode(true); }}
-                    icon={Eye}
-                    iconClassName="h-3.5 w-3.5"
-                    className={`h-7 w-7 p-0 rounded-md transition-all ${
-                      isViewMode
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                    tooltip={t('content.readerMode')}
-                  />
-                  <HuemulButton
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => { preserveScrollPosition(); setIsViewMode(false); }}
-                    icon={Pencil}
-                    iconClassName="h-3.5 w-3.5"
-                    className={`h-7 w-7 p-0 rounded-md transition-all ${
-                      !isViewMode
-                        ? 'bg-white text-[#4464f7] shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                    tooltip={t('content.editorMode')}
-                  />
-                </div>
+                <ViewModeToggle
+                  isViewMode={isViewMode}
+                  onSwitchToReader={() => { preserveScrollPosition(); setIsViewMode(true); }}
+                  onSwitchToEditor={() => { preserveScrollPosition(); setIsViewMode(false); }}
+                  compact
+                />
               )}
 
-              {/* Mobile action: create new version (always visible if user has create permission) */}
-              {(!lifecyclePermissions || lifecyclePermissions.create) && (
+              {/* Mobile action: create new version. El propio HuemulButton hace el
+                  AND lifecycle × RBAC (requiredAccess + checkGlobalPermissions +
+                  resource), así que no hace falta repetir la condición afuera
+                  — y repetirla con `!lifecyclePermissions ||` la abría de más. */}
               <HuemulButton
                 requiredAccess={["create"]}
                 requireAll={false}
@@ -1917,14 +2466,16 @@ export function AssetContent({
                 lifecyclePermissions={lifecyclePermissions}
                 size="sm"
                 onClick={handleCreateExecutionFromHeader}
-                disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
-                className={executeDocumentMutation.isPending || hasExecutionInProcess
-                  ? "h-8 w-8 p-0 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm rounded-full" 
-                  : "h-8 w-8 p-0 bg-[#4464f7] hover:bg-[#3451e6] text-white border-none hover:cursor-pointer shadow-sm rounded-full"
+                disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate}
+                className={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate
+                  ? "h-8 w-8 p-0 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm rounded-full"
+                  : "h-8 w-8 p-0 bg-primary hover:bg-primary/90 text-white border-none hover:cursor-pointer shadow-sm rounded-full"
                 }
-                title={executeDocumentMutation.isPending || hasExecutionInProcess 
+                title={executeDocumentMutation.isPending || hasExecutionInProcess
                   ? t('content.cannotExecuteInProgress')
-                  : t('content.executeNewVersion')
+                  : !canGenerate
+                    ? cannotGenerateReason
+                    : t('content.executeNewVersion')
                 }
               >
                 {executeDocumentMutation.isPending ? (
@@ -1933,7 +2484,6 @@ export function AssetContent({
                   <Play className="h-4 w-4" />
                 )}
               </HuemulButton>
-              )}
               
               {frontendPermissions.canAccessSectionSheet && (
                 <SectionSheet
@@ -1941,18 +2491,16 @@ export function AssetContent({
                   fullDocument={fullDocument}
                   documentName={documentContent?.document_name}
                   isOpen={isSectionSheetOpen}
-                  onOpenChange={(open: boolean | ((prevState: boolean) => boolean)) => {
-                    if (!open) preserveScrollPosition();
-                    setIsSectionSheetOpen(open);
-                  }}
+                  onOpenChange={handleSectionSheetOpenChange}
                   isMobile={isMobile}
                   executionId={selectedExecutionId}
                   executionInfo={selectedExecutionInfo}
                   lifecyclePermissions={lifecyclePermissions}
                   stage={documentContent?.lifecycle_status?.stage}
+                  isExternalElaborationLocked={isAssetLockedByExternalElaboration}
                 />
               )}
-              
+
               {frontendPermissions.canAccessSectionSheet && (
                 <DependenciesSheet
                   selectedFile={selectedFile}
@@ -1965,9 +2513,10 @@ export function AssetContent({
                   documentName={documentContent?.document_name}
                   lifecyclePermissions={lifecyclePermissions}
                   stage={documentContent?.lifecycle_status?.stage}
+                  isExternalElaborationLocked={isAssetLockedByExternalElaboration}
                 />
               )}
-              
+
               {frontendPermissions.canAccessSectionSheet && (
                 <ContextSheet
                   selectedFile={selectedFile}
@@ -1979,6 +2528,7 @@ export function AssetContent({
                   isMobile={isMobile}
                   documentName={documentContent?.document_name}
                   lifecyclePermissions={lifecyclePermissions}
+                  isExternalElaborationLocked={isAssetLockedByExternalElaboration}
                   stage={documentContent?.lifecycle_status?.stage}
                 />
               )}
@@ -1989,107 +2539,68 @@ export function AssetContent({
                 <DocumentAccessControl
                   requiredAccess="read"
                 >
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <HuemulButton
-                        requiredAccess="read"
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
-                        title={t('content.switchVersion')}
-                      >
-                        <span className="font-medium">
-                          {(() => {
-                            if (!allExecutions) return 'v1';
-                            // Use selectedExecutionId if available, otherwise use documentContent.execution_id (the default loaded execution)
-                            const targetId = selectedExecutionId || documentContent?.execution_id;
-                            const selectedExecution = allExecutions.find((exec: any) => exec.id === targetId);
-                            const label = getExecutionDisplayLabel(selectedExecution);
-                            if (label) {
-                              return label.length > 15 ? `${label.substring(0, 15)}...` : label;
-                            }
-                            // Fallback to version number if no name
-                            const sortedExecutions = [...allExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
-                              parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
-                            );
-                            const index = sortedExecutions.findIndex((exec: any) => exec.id === targetId);
-                            return index !== -1 ? `v${sortedExecutions.length - index}` : 'v1';
-                          })()
-                          }
-                        </span>
-                      </HuemulButton>
-                    </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-80">
-                    <div className="px-3 py-2 border-b border-gray-100">
-                      <p className="text-xs font-medium text-gray-900">{t('content.documentVersions')}</p>
-                      <p className="text-xs text-gray-500">{t('content.selectVersion')}</p>
-                    </div>
-                    <div className="overflow-y-auto max-h-64">
-                    {allExecutions
-                      .sort((a: { created_at: string }, b: { created_at: string }) => 
-                        parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
-                      )
-                      .map((execution: { id: string; created_at: string; name: string; status: string; version?: string | null }, index: number) => {
-                        // Determine if this execution is the currently selected/displayed one
-                        const currentExecutionId = selectedExecutionId || documentContent?.execution_id;
-                        const isSelected = execution.id === currentExecutionId;
-                        const isApproved = execution.status === 'approved';
-                        const isLatest = index === 0;
-                        
-                        return (
-                          <DropdownMenuItem 
-                            key={execution.id} 
-                            className={`hover:cursor-pointer p-2 transition-colors ${
-                              isSelected ? 'bg-blue-50 border-l-2 border-[#4464f7]' : 'hover:bg-gray-50'
-                            }`}
-                            onClick={() => guardedAction(() => {
-                              // Preserve scroll position before changing execution
-                              preserveScrollPosition();
-                              setSelectedExecutionId(execution.id);
-                              // Invalidate all document-content queries and refetch with new execution ID
-                              queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
-                              queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
-                            })}
-                          >
-                            <div className="flex items-center justify-between w-full">
-                              <div className="flex items-center gap-2">
-                                <span className={`text-sm font-medium ${
-                                  isSelected ? 'text-[#4464f7]' : 'text-gray-900'
-                                }`}>
-                                  {getExecutionDisplayLabel(execution)}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                {isLatest && (
-                                  <div className="flex items-center gap-1 bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
-                                    <Clock className="w-3 h-3" />
-                                    {t('content.latest')}
-                                  </div>
-                                )}
-                                {isApproved && (
-                                  <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
-                                    <CheckCircle className="w-3 h-3" />
-                                    {t('content.approved')}
-                                  </div>
-                                )}
-                                {isSelected && (
-                                  <div className="flex items-center gap-1 text-[#4464f7] text-xs font-medium">
-                                    <Eye className="w-3 h-3" />
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </DropdownMenuItem>
-                        );
-                      })}
-                    </div>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  <VersionSelectorDropdown
+                    allExecutions={allExecutions}
+                    selectedExecutionId={selectedExecutionId}
+                    documentExecutionId={documentContent?.execution_id}
+                    lifecyclePermissions={lifecyclePermissions}
+                    isCreatingPending={executeDocumentMutation.isPending}
+                    hasExecutionInProcess={hasExecutionInProcess}
+                    canGenerate={canGenerate}
+                    cannotGenerateReason={cannotGenerateReason}
+                    onCreateExecution={handleCreateExecutionFromHeader}
+                    onSelectExecution={(id) => guardedAction(() => {
+                      preserveScrollPosition();
+                      setSelectedExecutionId(id);
+                      queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
+                      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, id] });
+                    })}
+                    onOpenVersionManagement={() => setIsVersionManagementSheetOpen(true)}
+                    onRenameVersion={frontendPermissions.canEditSections ? (exec) => {
+                      setExecutionToRename({ id: exec.id, name: exec.name });
+                      setTimeout(() => setIsRenameVersionDialogOpen(true), 0);
+                    } : undefined}
+                    dropdownAlign="start"
+                    isLatest={!!selectedExecutionInfo?.isLatest}
+                    showTriggerCreateButton={false}
+                  />
                 </DocumentAccessControl>
               )}
               
-              {/* Clone Button - create permission only */}
-              {lifecyclePermissions?.create && selectedExecutionId && (
+              {/* Discussions Button - Mobile */}
+              {canListDiscussions && (
+                <div className="relative">
+                  <HuemulButton
+                    size="sm"
+                    variant="ghost"
+                    icon={MessageSquareText}
+                    iconClassName="h-4 w-4"
+                    className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors rounded-full"
+                    tooltip={t('content.discussions.commentsTooltip')}
+                    onClick={() => setIsDiscussionsSheetOpen(true)}
+                  />
+                  {openDiscussionsCount > 0 && (
+                    <span className="-top-0.5 -right-0.5 absolute inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 font-medium text-[10px] text-white">
+                      {openDiscussionsCount}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Refresh Button - Mobile */}
+              <HuemulButton
+                size="sm"
+                variant="ghost"
+                onClick={handleRefreshContent}
+                disabled={isRefreshingContent || isLoadingContent}
+                className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors rounded-full"
+                title={t('content.refreshContent')}
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshingContent ? 'animate-spin' : ''}`} />
+              </HuemulButton>
+              
+              {/* Clone Button - create permission only (lifecycle × RBAC) */}
+              {lifecyclePermissions?.create && can('createVersion') && selectedExecutionId && (
                 <HuemulButton
                   onClick={() => void setTimeout(() => openCloneDialog(), 0)}
                   size="sm"
@@ -2101,8 +2612,8 @@ export function AssetContent({
                 </HuemulButton>
               )}
               
-              {/* Export Dropdown - available to any user with lifecycle permissions */}
-              {!isViewOnly && (lifecyclePermissions?.view || lifecyclePermissions?.create || lifecyclePermissions?.edit || lifecyclePermissions?.review || lifecyclePermissions?.approve || lifecyclePermissions?.publish || lifecyclePermissions?.archive) && (
+              {/* Export Dropdown - available to any user with lifecycle permissions + RBAC de lectura */}
+              {!isViewOnly && can('exportVersion') && (lifecyclePermissions?.view || lifecyclePermissions?.create || lifecyclePermissions?.edit || lifecyclePermissions?.review || lifecyclePermissions?.approve || lifecyclePermissions?.publish || lifecyclePermissions?.archive) && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <HuemulButton
@@ -2147,8 +2658,8 @@ export function AssetContent({
                 </DropdownMenu>
               )}
               
-              {/* Delete Options - edit or create permission + edit stage only */}
-              {(lifecyclePermissions?.edit || lifecyclePermissions?.create) && documentContent?.lifecycle_status?.stage === 'edit' && (
+              {/* Delete Options - edit or create permission + edit stage + asset:d */}
+              {(lifecyclePermissions?.edit || lifecyclePermissions?.create) && can('deleteVersion') && documentContent?.lifecycle_status?.stage === 'edit' && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <HuemulButton
@@ -2188,7 +2699,7 @@ export function AssetContent({
         
         {/* Header Section */}
         {!isMobile && !isContentError && (
-        <div className="bg-white border-b border-gray-200 shadow-sm py-3 px-5 md:px-6 z-10 shrink-0" data-desktop-header>
+        <div ref={desktopHeaderRef} className="bg-white border-b border-gray-200 shadow-sm py-3 px-5 md:px-6 z-(--z-page-header) shrink-0" data-desktop-header>
           <div className="space-y-2.5">
             {/* Title and Type Section */}
             {!isMobile && (
@@ -2198,22 +2709,31 @@ export function AssetContent({
                     <div className="flex items-center justify-between gap-2.5">
                       <Skeleton className="h-6 w-52" />
                       <div className="flex items-center gap-2">
-                        <Skeleton className="h-5 w-20 rounded-full" />
-                        <Skeleton className="h-5 w-24 rounded-full" />
+                        <Skeleton className="h-7 w-7 rounded-full" />
+                        <Skeleton className="h-7 w-7 rounded-full" />
+                        <Skeleton className="h-7 w-24 rounded-lg" />
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-3.5 w-20" />
-                      <Skeleton className="h-3.5 w-1" />
-                      <Skeleton className="h-3.5 w-28" />
-                      <Skeleton className="h-4 w-14 rounded" />
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-3.5 w-28" />
+                        <Skeleton className="h-7 w-24 rounded-lg" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-3.5 w-20" />
+                        <Skeleton className="h-4 w-14 rounded" />
+                      </div>
                     </div>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-1.5 flex-1 min-w-0 animate-in fade-in duration-300">
-                    <div className="flex items-center justify-between gap-2.5 flex-wrap">
-                      <div className="flex items-center gap-1.5">
-                        <h1 className="text-lg font-semibold text-gray-900 wrap-break-word">{documentContent?.document_name || selectedFile.name}</h1>
+                    <div className="flex items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                        <HuemulTruncatedText
+                          as="h1"
+                          text={documentContent?.document_name || selectedFile.name}
+                          className="text-lg font-semibold text-gray-900 cursor-default"
+                        />
                         <HuemulButton
                           requiredAccess="edit"
                           checkGlobalPermissions={true}
@@ -2225,130 +2745,192 @@ export function AssetContent({
                           icon={Pencil}
                           iconClassName="h-3.5 w-3.5"
                           tooltip={t('content.editDocument')}
-                          tooltipSide="right"
                           className="h-7 w-7 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
                         />
+
+                      </div>
+                      {/* Notifications/menu + mode toggle — always in the same position for muscle memory. Version selector lives in the metadata row below. */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {canSwitchToEditorMode && (
+                          <ViewModeToggle
+                            isViewMode={isViewMode}
+                            onSwitchToReader={() => { preserveScrollPosition(); setIsViewMode(true); }}
+                            onSwitchToEditor={() => { preserveScrollPosition(); setIsViewMode(false); }}
+                            compact={isDesktopHeaderNarrow}
+                          />
+                        )}
+                        {canSwitchToEditorMode && (canListDiscussions || canListNotifications || !isViewOnly || !!(onOpenFullscreen || onExitFullscreen)) && (
+                          <div className="h-5 w-px bg-gray-200 mx-0.5" aria-hidden="true" />
+                        )}
+                        {canListDiscussions && (
+                          <div className="relative">
+                            <HuemulButton
+                              size="sm"
+                              variant="ghost"
+                              icon={MessageSquareText}
+                              iconClassName="h-4 w-4"
+                              className="h-7 w-7 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                              tooltip={t('content.discussions.commentsTooltip')}
+                              onClick={() => setIsDiscussionsSheetOpen(true)}
+                            />
+                            {openDiscussionsCount > 0 && (
+                              <span className="-top-0.5 -right-0.5 absolute inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 font-medium text-[10px] text-white">
+                                {openDiscussionsCount}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {canListNotifications && (
+                          <HuemulButton
+                            size="sm"
+                            variant="ghost"
+                            icon={Bell}
+                            iconClassName="h-4 w-4"
+                            className="h-7 w-7 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                            tooltip={t('content.notificationsTooltip')}
+                            onClick={() => setIsNotificationsSheetOpen(true)}
+                          />
+                        )}
+                        {!isViewOnly && (
+                          <MoreOptionsDropdown
+                            isViewMode={isViewMode}
+                            dropdownAlign="end"
+                            lifecyclePermissions={lifecyclePermissions}
+                            frontendPermissions={frontendPermissions}
+                            lifecycleStatus={documentContent?.lifecycle_status}
+                            finalLifecycleStage={lifecycle.finalLifecycleStage}
+                            selectedExecutionId={selectedExecutionId}
+                            selectedVersionLabel={getExecutionCompactLabel(selectedExecutionInfo)}
+                            hasTemplateName={!!documentContent?.template_name}
+                            canCreateTemplate={canCreate('template')}
+                            canManageGrants={can('manageAssetLifecycleGrants')}
+                            canCloneVersion={can('createVersion')}
+                            canExportVersion={can('exportVersion')}
+                            canDeleteVersion={can('deleteVersion')}
+                            isRefreshing={isRefreshingContent}
+                            isLoadingContent={isLoadingContent}
+                            hasTocItems={!!documentContent?.content}
+                            isDocumentType={selectedFile.type === 'document'}
+                            hasDocumentContent={!!documentContent?.content}
+                            isTocSidebarOpen={isTocSidebarOpen}
+                            canCompareVersions={selectedFile.type === 'document' && allExecutions?.length > 1}
+                            onCompareVersions={() => setIsVersionCompareSheetOpen(true)}
+                            onRejectLifecycle={() => lifecycle.setIsRejectDialogOpen(true)}
+                            onCheckLifecycle={() => lifecycle.setIsCheckDialogOpen(true)}
+                            onPublish={() => lifecycle.setIsPublishDialogOpen(true)}
+                            onArchive={() => lifecycle.setIsArchiveDialogOpen(true)}
+                            onRestore={() => lifecycle.setIsRestoreDialogOpen(true)}
+                            onRefresh={handleRefreshContent}
+                            onToggleToc={() => setIsTocSidebarOpen((prev) => !prev)}
+                            onOpenInfo={() => setIsInfoSheetOpen(true)}
+                            onOpenLifecycleHistory={() => setIsLifecycleHistorySheetOpen(true)}
+                            isFullscreen={isFullscreen}
+                            onOpenFullscreen={isFullscreen ? onExitFullscreen : onOpenFullscreen}
+                            canAccessDiagrams={canAccessDiagrams}
+                            onOpenDiagrams={() => setIsDiagramsSheetOpen(true)}
+                            canAccessMedia={canMedia('listMedia')}
+                            onOpenMedia={() => { setMediaSheetScope(null); setIsMediaSheetOpen(true); }}
+                            onOpenPermissions={() => setIsPermissionsSheetOpen(true)}
+                            onOpenSections={() => setIsSectionSheetOpen(true)}
+                            onOpenDependencies={() => setIsDependenciesSheetOpen(true)}
+                            onOpenContext={() => setIsContextSheetOpen(true)}
+                            onClone={() => openCloneDialog()}
+                            onCloneToNew={() => openCloneToNewDocumentSheet()}
+                            onCreateTemplate={() => setIsCreateTemplateFromDocumentDialogOpen(true)}
+                            onExportMarkdown={handleExportMarkdown}
+                            onExportWord={handleExportWord}
+                            onExportCustomWord={handleExportCustomWord}
+                            onExportExcel={handleExportExcel}
+                            onExportVersion={handleExportVersion}
+                            onDeleteVersion={() => openDeleteDialog('execution')}
+                            onDeleteDocument={() => openDeleteDialog('document')}
+                            isRerunningExternalPublish={lifecycle.runExternalPublishMutation.isPending}
+                            onRerunExternalPublish={() => lifecycle.runExternalPublishMutation.mutate()}
+                          />
+                        )}
+                        {/* Botón de pantalla completa: en modo Editor vive en el toolbar de
+                            TOC (RIGHT GROUP), acá sólo se muestra en modo Lector — es el único
+                            camino de entrada cuando el dropdown de arriba no se renderiza
+                            (isViewOnly) — ver ia context/fullscreen-share-route-guide.md */}
+                        {deferredViewChrome.isViewMode && (onOpenFullscreen || onExitFullscreen) && (
+                          <HuemulButton
+                            size="sm"
+                            variant="ghost"
+                            icon={isFullscreen ? Minimize : Maximize}
+                            iconClassName="h-4 w-4"
+                            className="h-7 w-7 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                            tooltip={isFullscreen ? t('content.exitFullscreen') : t('content.openFullscreen')}
+                            onClick={isFullscreen ? onExitFullscreen : onOpenFullscreen}
+                          />
+                        )}
                       </div>
                     </div>
-                    
-                    {/* Metadata Row - Combined */}
-                    <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600">
-                      {selectedExecutionInfo && (
-                        <>
-                          <span>
-                            {getExecutionDisplayLabel(selectedExecutionInfo) || `Version ${selectedExecutionInfo.status}`}
-                          </span>
-                          <span className="text-gray-400">•</span>
-                          <span>{selectedExecutionInfo.formattedDate}</span>
-                          {selectedExecutionInfo.isLatest && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
-                              Latest
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </div>
-                    {documentContent?.lifecycle_status && (
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLORS[documentContent.lifecycle_status.stage] ?? 'bg-gray-100 text-gray-600'}`}>
-                          {t(`lifecycle.stageLabels.${documentContent.lifecycle_status.stage}`, { defaultValue: documentContent.lifecycle_status.stage })}
-                        </span>
-                        {documentContent.lifecycle_status.current_group && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                            {documentContent.lifecycle_status.current_group}
+
+                    {/* Metadata Row - date + version selector left, stage + lifecycle buttons right (both modes) */}
+                    <div className="flex items-center justify-between gap-2">
+                      {/* Left: date + version selector */}
+                      <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600 min-w-0">
+                        {selectedExecutionInfo && (
+                          <span className="inline-flex h-7 items-center gap-1.5 shrink-0">
+                            <Clock className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                            {selectedExecutionInfo.formattedDate}
                           </span>
                         )}
-                        <div className="flex items-center gap-1.5">
-                          {lifecyclePermissions?.approve && (documentContent.lifecycle_status.version_required || documentContent.lifecycle_status.state === 'in_approval') && !documentContent.lifecycle_status.version && (
-                            <HuemulButton
-                              variant="outline"
-                              size="sm"
-                              label={t('content.assignVersion')}
-                              icon={Tag}
-                              iconPosition="left"
-                              iconClassName="h-3 w-3"
-                              className="h-6 text-xs px-2 text-[#4464f7] border-[#4464f7] hover:bg-blue-50 hover:cursor-pointer"
-                              loading={assignVersionMutation.isPending}
-                              tooltip={t('content.assignVersionTooltip')}
-                              onClick={() => setIsAssignVersionDialogOpen(true)}
-                            />
-                          )}
-                          {documentContent.lifecycle_status.can_check && (
-                            <>
-                              <HuemulButton
-                                variant="outline"
-                                size="sm"
-                                label={t('lifecycle.return')}
-                                icon={Undo2}
-                                iconPosition="left"
-                                iconClassName="h-3 w-3"
-                                className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
-                                loading={rejectLifecycleMutation.isPending}
-                                tooltip={t('lifecycle.tooltipReturn')}
-                                onClick={() => setIsRejectLifecycleDialogOpen(true)}
-                              />
-                              <HuemulButton
-                                variant="default"
-                                size="sm"
-                                label={t('lifecycle.complete')}
-                                icon={Check}
-                                iconPosition="left"
-                                iconClassName="h-3 w-3"
-                                className="h-6 text-xs px-2 hover:cursor-pointer"
-                                loading={checkLifecycleMutation.isPending}
-                                disabled={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version}
-                                tooltip={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version ? t('content.assignVersionBeforeComplete') : documentContent.lifecycle_status.will_advance_phase ? t('lifecycle.tooltipCompletePhase') : t('lifecycle.tooltipComplete')}
-                                onClick={() => setIsCheckLifecycleDialogOpen(true)}
-                              />
-                            </>
-                          )}
-                          {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'approved' && (
-                            <HuemulButton
-                              variant="default"
-                              size="sm"
-                              label={t('lifecycle.publish')}
-                              icon={Globe}
-                              iconPosition="left"
-                              iconClassName="h-3 w-3"
-                              className="h-6 text-xs px-2 bg-green-600 hover:bg-green-700 hover:cursor-pointer"
-                              loading={advanceLifecycleMutation.isPending}
-                              tooltip={t('lifecycle.tooltipPublish')}
-                              onClick={() => setIsPublishDialogOpen(true)}
-                            />
-                          )}
-                          {lifecyclePermissions?.archive && (documentContent.lifecycle_status.state === 'approved' || documentContent.lifecycle_status.state === 'published') && (
-                            <HuemulButton
-                              variant="outline"
-                              size="sm"
-                              label={t('lifecycle.archive')}
-                              icon={Archive}
-                              iconPosition="left"
-                              iconClassName="h-3 w-3"
-                              className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
-                              loading={advanceLifecycleMutation.isPending}
-                              tooltip={t('lifecycle.tooltipArchive')}
-                              onClick={() => setIsArchiveDialogOpen(true)}
-                            />
-                          )}
-                        </div>
+                        {selectedFile.type === 'document' && allExecutions?.length > 0 && (
+                          <VersionSelectorDropdown
+                            allExecutions={allExecutions}
+                            selectedExecutionId={selectedExecutionId}
+                            documentExecutionId={documentContent?.execution_id}
+                            lifecyclePermissions={lifecyclePermissions}
+                            isCreatingPending={executeDocumentMutation.isPending}
+                            hasExecutionInProcess={hasExecutionInProcess}
+                            canGenerate={canGenerate}
+                            cannotGenerateReason={cannotGenerateReason}
+                            onCreateExecution={handleCreateExecutionFromHeader}
+                            onSelectExecution={(id) => guardedAction(() => {
+                              onPreserveScroll?.();
+                              setSelectedExecutionId(id);
+                              queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
+                              queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, id] });
+                            })}
+                            onOpenVersionManagement={() => setIsVersionManagementSheetOpen(true)}
+                            onRenameVersion={frontendPermissions.canEditSections ? (exec) => {
+                              setExecutionToRename({ id: exec.id, name: exec.name });
+                              setTimeout(() => setIsRenameVersionDialogOpen(true), 0);
+                            } : undefined}
+                            dropdownAlign="start"
+                            isLatest={!!selectedExecutionInfo?.isLatest}
+                          />
+                        )}
                       </div>
-                    )}
+                      {/* Right: stage label + lifecycle action buttons in a shaded box — mismo patrón
+                          que el header móvil (bg-gray-50) y que ViewModeToggle / el selector de versiones. */}
+                      {documentContent?.lifecycle_status && (
+                        <div className="flex items-center gap-2 shrink-0 bg-gray-50 px-2 py-1 rounded-lg">
+                          <HuemulLifecycleStageBadge status={documentContent.lifecycle_status} className="h-7" />
+                          <HuemulLifecycleActions controller={lifecycle} variant="row" showRunElaboration />
+                        </div>
+                      )}
+                    </div>
+
                   </div>
                 )}
               </div>
             )}
-            
-            {/* Action Buttons Section */}
-            {isLoadingContent && !documentContent ? (
+
+            {/* Action Buttons Section - editor mode only. Cuelga de `deferredViewChrome` (no de
+                `isViewMode` directo) para que aparezca/desaparezca en el mismo commit que la
+                lista de secciones — ver comentario junto a la declaración de `deferredViewChrome`. */}
+            {!deferredViewChrome.isViewMode && (isLoadingContent && !documentContent ? (
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
+                <div className="flex items-center gap-1.5">
                   <Skeleton className="h-7 w-10 rounded-md" />
                   <Skeleton className="h-7 w-20 rounded-md" />
                   <Skeleton className="h-7 w-24 rounded-md" />
                   <Skeleton className="h-7 w-18 rounded-md" />
                 </div>
-                <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
-                  <Skeleton className="h-7 w-[106px] rounded-md" />
+                <div className="flex items-center gap-1.5">
+                  <Skeleton className="h-7 w-26.5 rounded-md" />
                   <Skeleton className="h-7 w-8 rounded-md" />
                   <Skeleton className="h-7 w-8 rounded-md" />
                   <Skeleton className="h-7 w-8 rounded-md" />
@@ -2357,177 +2939,21 @@ export function AssetContent({
               </div>
             ) : (
             <div className="flex items-center justify-between gap-2 animate-in fade-in duration-300">
-              {/* LEFT GROUP - Version, Sections, Dependencies, Context */}
-              <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg min-w-0">
-                {/* Execution / Version Dropdown with Create button */}
-                {selectedFile.type === 'document' && allExecutions?.length > 0 && (
-                  <div className="flex items-center">
-                    {/* Create new version button - integrated left of version dropdown */}
-                    {(!lifecyclePermissions || lifecyclePermissions.create) && (
-                      <HuemulButton
-                        size="sm"
-                        variant="ghost"
-                        onClick={handleCreateExecutionFromHeader}
-                        disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
-                        className={`h-7 w-7 p-0 rounded-r-none transition-colors ${
-                          executeDocumentMutation.isPending || hasExecutionInProcess
-                            ? 'text-gray-400 cursor-not-allowed'
-                            : 'text-[#4464f7] hover:bg-blue-50 hover:text-[#3451e6] hover:cursor-pointer'
-                        }`}
-                        tooltip={executeDocumentMutation.isPending || hasExecutionInProcess 
-                          ? t('content.cannotExecuteInProgress')
-                          : t('content.executeNewVersion')
-                        }
-                      >
-                        {executeDocumentMutation.isPending ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Plus className="h-3.5 w-3.5" />
-                        )}
-                      </HuemulButton>
-                    )}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <HuemulButton
-                          size="sm"
-                          variant="ghost"
-                          className={`h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors text-xs ${
-                            (!lifecyclePermissions || lifecyclePermissions.create) ? 'rounded-l-none' : ''
-                          }`}
-                          tooltip={t('content.switchVersion')}
-                        >
-                        <span className="font-medium">
-                          {(() => {
-                            if (!allExecutions) return 'v1';
-                            // Use selectedExecutionId if available, otherwise use documentContent.execution_id (the default loaded execution)
-                            const targetId = selectedExecutionId || documentContent?.execution_id;
-                            const selectedExecution = allExecutions.find((exec: any) => exec.id === targetId);
-                            // Show semantic version if available
-                            const label = getExecutionDisplayLabel(selectedExecution);
-                            if (label) {
-                              return label.length > 20 ? `${label.substring(0, 20)}...` : label;
-                            }
-                            // Fallback to version number if no name
-                            const sortedExecutions = [...allExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
-                              parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
-                            );
-                            const index = sortedExecutions.findIndex((exec: any) => exec.id === targetId);
-                            return index !== -1 ? `v${sortedExecutions.length - index}` : 'v1';
-                          })()} 
-                        </span>
-                      </HuemulButton>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-80">
-                      <div className="px-3 py-2 border-b border-gray-100">
-                        <p className="text-xs font-medium text-gray-900">{t('content.documentVersions')}</p>
-                        <p className="text-xs text-gray-500">{t('content.selectVersion')}</p>
-                      </div>
-                      {(!lifecyclePermissions || lifecyclePermissions.create) && (
-                        <>
-                          <DropdownMenuItem
-                            className="hover:cursor-pointer p-2 gap-2 text-[#4464f7] hover:bg-blue-50 hover:text-[#3451e6]"
-                            onSelect={() => setTimeout(() => handleCreateExecutionFromHeader(), 0)}
-                            disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
-                          >
-                            <div className="flex h-6 w-6 items-center justify-center rounded-md border border-dashed border-[#4464f7]">
-                              <Plus className="h-3.5 w-3.5" />
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-xs font-medium">{t('content.newVersion')}</span>
-                              <span className="text-xs text-gray-400">{t('content.createNewVersion')}</span>
-                            </div>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                        </>
-                      )}
-                      <div className="overflow-y-auto max-h-64">
-                      {allExecutions
-                        .sort((a: { created_at: string }, b: { created_at: string }) => 
-                          parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
-                        )
-                        .map((execution: { id: string; created_at: string; name: string; status: string; version?: string | null }, index: number) => {
-                          const isSelected = selectedExecutionId === execution.id;
-                          const isApproved = execution.status === 'approved';
-                          const isLatest = index === 0;
-                          const displayName = getExecutionDisplayLabel(execution);
-                          
-                          return (
-                            <DropdownMenuItem 
-                              key={execution.id} 
-                              className={`hover:cursor-pointer p-2 transition-colors ${
-                                isSelected ? 'bg-blue-50 border-l-2 border-[#4464f7]' : 'hover:bg-gray-50'
-                              }`}
-                              onClick={() => guardedAction(() => {
-                                // Preserve scroll position before changing execution
-                                onPreserveScroll?.();
-                                setSelectedExecutionId(execution.id);
-                                // Invalidate all document-content queries and refetch with new execution ID
-                                queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
-                                queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
-                              })}
-                            >
-                              <div className="flex items-center justify-between w-full">
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-sm font-medium ${
-                                    isSelected ? 'text-[#4464f7]' : 'text-gray-900'
-                                  }`}>
-                                    {displayName}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  {lifecyclePermissions?.create && lifecyclePermissions?.edit && !execution.version && (
-                                    <button
-                                      className="p-0.5 rounded hover:bg-gray-200 hover:cursor-pointer text-gray-400 hover:text-gray-600 transition-colors"
-                                      title={t('content.renameVersion')}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setExecutionToRename({ id: execution.id, name: execution.name || '' });
-                                        setTimeout(() => setIsRenameVersionDialogOpen(true), 0);
-                                      }}
-                                    >
-                                      <Pencil className="w-3 h-3" />
-                                    </button>
-                                  )}
-                                  {isLatest && (
-                                    <div className="flex items-center gap-1 bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
-                                      <Clock className="w-3 h-3" />
-                                      {t('content.latest')}
-                                    </div>
-                                  )}
-                                  {isApproved && (
-                                    <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
-                                      <CheckCircle className="w-3 h-3" />
-                                      {t('content.approved')}
-                                    </div>
-                                  )}
-                                  {isSelected && (
-                                    <div className="flex items-center gap-1 text-[#4464f7] text-xs font-medium">
-                                      <Eye className="w-3 h-3" />
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </DropdownMenuItem>
-                          );
-                        })}
-                      </div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  </div>
-                )}
-
+              {/* LEFT GROUP - Sections, Dependencies, Context */}
+              <div className="flex items-center gap-1.5 min-w-0">
                 {/* Sections sheet */}
                 {frontendPermissions.canAccessSectionSheet && (
                   <SectionSheet
                     selectedFile={selectedFile}
                     fullDocument={fullDocument}
                     isOpen={isSectionSheetOpen}
-                    onOpenChange={setIsSectionSheetOpen}
+                    onOpenChange={handleSectionSheetOpenChange}
                     executionId={selectedExecutionId}
                     executionInfo={selectedExecutionInfo}
                     lifecyclePermissions={lifecyclePermissions}
                     stage={documentContent?.lifecycle_status?.stage}
-                    showTrigger={frontendPermissions.canEditSections && !isViewMode}
+                    isExternalElaborationLocked={isAssetLockedByExternalElaboration}
+                    showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
                   />
                 )}
 
@@ -2540,7 +2966,8 @@ export function AssetContent({
                     documentName={documentContent?.document_name}
                     lifecyclePermissions={lifecyclePermissions}
                     stage={documentContent?.lifecycle_status?.stage}
-                    showTrigger={frontendPermissions.canEditSections && !isViewMode}
+                    isExternalElaborationLocked={isAssetLockedByExternalElaboration}
+                    showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
                   />
                 )}
 
@@ -2552,162 +2979,73 @@ export function AssetContent({
                     documentName={documentContent?.document_name}
                     lifecyclePermissions={lifecyclePermissions}
                     stage={documentContent?.lifecycle_status?.stage}
-                    showTrigger={frontendPermissions.canEditSections && !isViewMode}
+                    isExternalElaborationLocked={isAssetLockedByExternalElaboration}
+                    showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
                   />
                 )}
               </div>
 
-              {/* RIGHT GROUP - Mode Toggle, Approve/Disapprove, Create Template, More Options */}
-              <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg min-w-0">
-                {/* Mode Toggle - Reader / Editor */}
-                {canSwitchToEditorMode && (
-                  <div className="flex items-center bg-gray-100 p-0.5 rounded-md gap-0.5">
-                    <HuemulButton
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => { preserveScrollPosition(); setIsViewMode(true); }}
-                      icon={Eye}
-                      iconClassName="h-3 w-3"
-                      label={t('content.reader')}
-                      className={`h-7 px-2 gap-1 text-xs font-medium rounded transition-all hover:cursor-pointer ${
-                        isViewMode
-                          ? 'bg-white text-gray-900 shadow-sm'
-                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                      }`}
-                    />
-                    <HuemulButton
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => { preserveScrollPosition(); setIsViewMode(false); }}
-                      icon={Pencil}
-                      iconClassName="h-3 w-3"
-                      label={t('content.editor')}
-                      className={`h-7 px-2 gap-1 text-xs font-medium rounded transition-all hover:cursor-pointer ${
-                        !isViewMode
-                          ? 'bg-white text-[#4464f7] shadow-sm'
-                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                      }`}
-                    />
-                  </div>
+              {/* RIGHT GROUP - Refresh, TOC Toggle */}
+              <div className="flex items-center gap-1.5 min-w-0">
+                <HuemulButton
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleRefreshContent}
+                  disabled={isRefreshingContent || isLoadingContent}
+                  icon={RefreshCw}
+                  iconClassName={`h-3.5 w-3.5 ${isRefreshingContent ? 'animate-spin' : ''}`}
+                  className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors hover:cursor-pointer"
+                  tooltip={t('content.refreshContent')}
+                />
+
+                {/* Collapse/expand all sections - only applies to the new (array) content format */}
+                {selectedFile.type === 'document' && Array.isArray(documentContent?.content) &&
+                 (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
+                  <HuemulButton
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleToggleCollapseAll}
+                    icon={areAllSectionsCollapsed ? ChevronsUpDown : ChevronsDownUp}
+                    iconClassName="h-3.5 w-3.5"
+                    label={areAllSectionsCollapsed ? t('common:expand') : t('common:collapse')}
+                    className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors hover:cursor-pointer"
+                  />
                 )}
 
-                {/* More Options Dropdown - only render when at least one item is available and user is not view-only */}
-                {!isViewOnly &&
-                 (!isViewMode || !canSwitchToEditorMode || frontendPermissions.canAccessSectionSheet) &&
-                 ((lifecyclePermissions?.create && !!selectedExecutionId) ||
-                  (!documentContent?.template_name && canCreate('template')) ||
-                  lifecyclePermissions?.view ||
-                  lifecyclePermissions?.create ||
-                  lifecyclePermissions?.edit ||
-                  lifecyclePermissions?.review ||
-                  lifecyclePermissions?.approve ||
-                  lifecyclePermissions?.publish ||
-                  lifecyclePermissions?.archive ||
-                  (frontendPermissions.canAccessSectionSheet && (!frontendPermissions.canEditSections || isViewMode))) && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <HuemulButton
-                      size="sm"
-                      variant="ghost"
-                      icon={MoreVertical}
-                      iconClassName="h-3.5 w-3.5"
-                      className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors"
-                      tooltip={t('content.moreOptions')}
-                    />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-52">
-                    {frontendPermissions.canAccessSectionSheet && (!frontendPermissions.canEditSections || isViewMode) && (
-                      <>
-                        <DropdownMenuItem
-                          onSelect={() => setTimeout(() => setIsSectionSheetOpen(true), 0)}
-                          className="hover:cursor-pointer"
-                        >
-                          <BetweenHorizontalStart className="mr-2 h-4 w-4" />
-                          {t('content.sectionsLabel')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => setTimeout(() => setIsDependenciesSheetOpen(true), 0)}
-                          className="hover:cursor-pointer"
-                        >
-                          <Link2 className="mr-2 h-4 w-4" />
-                          {t('content.dependenciesLabel')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => setTimeout(() => setIsContextSheetOpen(true), 0)}
-                          className="hover:cursor-pointer"
-                        >
-                          <Users className="mr-2 h-4 w-4" />
-                          {t('content.contextLabel')}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                      </>
-                    )}
-                    {lifecyclePermissions?.create && selectedExecutionId && (
-                      <DropdownMenuItem
-                        onSelect={() => setTimeout(() => openCloneDialog(), 0)}
-                        className="hover:cursor-pointer"
-                      >
-                        <Copy className="mr-2 h-4 w-4" />
-                        {t('content.cloneVersion')}
-                      </DropdownMenuItem>
-                    )}
-                    {!documentContent?.template_name && canCreate('template') && (
-                      <DropdownMenuItem
-                        onSelect={() => setTimeout(() => setIsCreateTemplateFromDocumentDialogOpen(true), 0)}
-                        className="hover:cursor-pointer"
-                      >
-                        <FileCode className="mr-2 h-4 w-4" />
-                        {t('content.createTemplateFromAsset')}
-                      </DropdownMenuItem>
-                    )}
-                    {((lifecyclePermissions?.create && !!selectedExecutionId) || (!documentContent?.template_name && canCreate('template'))) && (lifecyclePermissions?.view || lifecyclePermissions?.create || lifecyclePermissions?.edit || lifecyclePermissions?.review || lifecyclePermissions?.approve || lifecyclePermissions?.publish || lifecyclePermissions?.archive) && <DropdownMenuSeparator />}
-                    {(lifecyclePermissions?.view || lifecyclePermissions?.create || lifecyclePermissions?.edit || lifecyclePermissions?.review || lifecyclePermissions?.approve || lifecyclePermissions?.publish || lifecyclePermissions?.archive) && (
-                      <>
-                        <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportMarkdown}>
-                          <FileText className="mr-2 h-4 w-4" />
-                          {t('content.exportAsMarkdown')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportWord}>
-                          <Download className="mr-2 h-4 w-4" />
-                          {t('content.exportAsWord')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="hover:cursor-pointer" onSelect={() => setTimeout(() => handleExportCustomWord(), 0)}>
-                          <FileCode className="mr-2 h-4 w-4" />
-                          {t('content.exportAsCustomWord')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportExcel}>
-                          <FileSpreadsheet className="mr-2 h-4 w-4" />
-                          {t('content.exportAsExcel')}
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                    {(lifecyclePermissions?.edit || lifecyclePermissions?.create) && documentContent?.lifecycle_status?.stage === 'edit' && (
-                      <>
-                        <DropdownMenuSeparator />
-                        {selectedExecutionId && (
-                          <DropdownMenuItem
-                            onSelect={() => setTimeout(() => openDeleteDialog('execution'), 0)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            {t('content.deleteVersion')}
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem
-                          onSelect={() => setTimeout(() => openDeleteDialog('document'), 0)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
-                        >
-                          <FileX className="mr-2 h-4 w-4" />
-                          {t('content.deleteDocumentLabel')}
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {/* TOC Toggle button - desktop only */}
+                {selectedFile.type === 'document' && documentContent?.content &&
+                 (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
+                  <HuemulButton
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setIsTocSidebarOpen((prev) => !prev)}
+                    icon={List}
+                    iconClassName="h-3.5 w-3.5"
+                    className={`h-7 px-2 transition-colors hover:cursor-pointer ${
+                      isTocSidebarOpen
+                        ? 'bg-gray-200 text-gray-900 hover:bg-gray-300'
+                        : 'text-gray-600 hover:bg-gray-200 hover:text-gray-800'
+                    }`}
+                    tooltip={isTocSidebarOpen ? t('content.hideSidebar') : t('content.showSidebar')}
+                  />
                 )}
+
+                {/* Fullscreen toggle — en modo Lector vive en el header, acá sólo en modo Editor */}
+                {(onOpenFullscreen || onExitFullscreen) && (
+                  <HuemulButton
+                    size="sm"
+                    variant="ghost"
+                    onClick={isFullscreen ? onExitFullscreen : onOpenFullscreen}
+                    icon={isFullscreen ? Minimize : Maximize}
+                    iconClassName="h-3.5 w-3.5"
+                    className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors hover:cursor-pointer"
+                    tooltip={isFullscreen ? t('content.exitFullscreen') : t('content.openFullscreen')}
+                  />
+                )}
+
               </div>
             </div>
-            )}
+            ))}
             
           </div>
         </div>
@@ -2716,22 +3054,49 @@ export function AssetContent({
         {/* Content Section - Now with ScrollArea and scroll restoration */}
         <div className="flex-1 bg-white min-w-0 overflow-hidden px-1">
           <ScrollArea className="h-full max-w-full">
-            <div 
+            <div
               ref={scrollRestoration.viewportRef}
-              className="py-4 md:py-5 px-4 md:px-6 [contain:inline-size]"
+              aria-busy={isSectionsTreeSwitching}
+              className={cn(
+                deferredViewChrome.isViewMode ? 'pt-2 md:pt-3 pb-4 md:pb-5' : 'py-4 md:py-5',
+                'px-4 md:px-6 contain-[inline-size]',
+                // Señal de "árbol de secciones cambiando" (modo Lector/Editor o colapsar/expandir
+                // todas) con retardo: si el commit diferido llega antes de los 100ms (el caso
+                // normal tras el fix de remount del Plate) el usuario no llega a ver ninguna
+                // atenuación. Las clases de transición viven en cada rama, no en la base, para
+                // que la vuelta a normal sea instantánea (duration-0) y nunca se lea como un
+                // segundo parpadeo. pointer-events-none evita clicks sobre controles que están
+                // por desaparecer (toolbar/separadores del modo anterior).
+                isSectionsTreeSwitching
+                  ? 'opacity-55 pointer-events-none transition-opacity duration-150 delay-100'
+                  : 'opacity-100 transition-opacity duration-0',
+                'motion-reduce:transition-none',
+                // En fullscreen el panel de la izquierda (árbol) y el header global ya
+                // no compiten por ancho — sin este tope el texto queda incómodo de leer.
+                isFullscreen && 'mx-auto w-full max-w-4xl',
+              )}
             >
             {selectedFile.type === 'document' ? (
               <>
+                {/* Bloqueo por ElaborationRun en curso — antes que cualquier otro banner,
+                    es el aviso más específico sobre por qué no se puede editar ahora mismo. */}
+                {isAssetLockedByExternalElaboration && (
+                  <div className="sticky top-0 z-(--z-page-sticky-elevated) mb-4">
+                    <ExternalElaborationLockBanner />
+                  </div>
+                )}
+
                 {/* Other Version Execution Banners - includes full/full-single modes */}
-                {otherVersionActiveExecutions.length > 0 && (
-                  <div className="sticky top-0 z-50 mb-4 space-y-2">
-                    {otherVersionActiveExecutions.map((execution: any) => (
+                {bannerExecutions.length > 0 && (
+                  <div className="sticky top-0 z-(--z-page-sticky-elevated) mb-4 space-y-2">
+                    {bannerExecutions.map((execution: any) => (
                       <OtherVersionExecutionBanner
                         key={execution.id}
                         executionId={execution.id}
                         executionName={execution.name || `Version ${execution.id.substring(0, 8)}`}
                         onDismiss={() => {
                           setDismissedExecutionBanners(prev => new Set(prev).add(execution.id));
+                          if (execution.id === newVersionExecutionId) setNewVersionExecutionId(null);
                         }}
                         onViewVersion={() => {
                           // Preserve scroll position before changing execution
@@ -2751,11 +3116,11 @@ export function AssetContent({
                 {isSelectedVersionExecuting && 
                  !dismissedExecutionBanners.has(isSelectedVersionExecuting.id) && 
                  !(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) && (
-                  <div className="sticky top-0 z-50 mb-4">
+                  <div className="sticky top-0 z-(--z-page-sticky-elevated) mb-4">
                     <ExecutionStatusBanner
                       executionId={isSelectedVersionExecuting.id}
                       onExecutionComplete={() => {
-                        console.log('🔄 Current version execution completed, refreshing content...');
+                        logger.log('🔄 Current version execution completed, refreshing content...');
                         
                         // Invalidate and refetch all relevant queries
                         queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -2763,15 +3128,50 @@ export function AssetContent({
                         queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
                         queryClient.invalidateQueries({ queryKey: ['execution-status', isSelectedVersionExecuting.id] });
                         
-                        // Refetch immediately
-                        queryClient.refetchQueries({ queryKey: ['document-content', selectedFile?.id, selectedExecutionId] });
+                        // When an import finishes the backend now has a real execution_id.
+                        // Reset the initialization ref so the sync effect can pick the real
+                        // execution_id on the next refetch, then refetch without an execution_id
+                        // so the response carries the updated execution_id.
+                        if (isSelectedVersionExecuting.status === 'importing' || !selectedExecutionId) {
+                          hasInitializedExecutionRef.current = null;
+                          setSelectedExecutionId(null);
+                          queryClient.refetchQueries({ queryKey: ['document-content', selectedFile?.id] });
+                        } else {
+                          // Refetch immediately
+                          queryClient.refetchQueries({ queryKey: ['document-content', selectedFile?.id, selectedExecutionId] });
+                        }
                       }}
                     />
                   </div>
                 )}
-                
-                {isLoadingContent ? (
-                  // Show skeleton loader with consistent height to prevent layout shift
+
+                {/* Single/from progress banner — un único banner por corrida (no uno por
+                    sección, ver ia context del rediseño de feedback de ejecución).
+                    `key={executionRunToken}` fuerza un remount limpio en cada disparo,
+                    incluso re-ejecutando la misma sección: sin esto, el estado local del
+                    banner (toast ya mostrado, dismiss) sobrevivía a la corrida nueva y el
+                    banner de "completado" aparecía de inmediato. */}
+                {currentExecutionId && executionRunToken && (currentExecutionMode === 'single' || currentExecutionMode === 'from') &&
+                 executionRun.phase !== 'idle' && (
+                  <div className="sticky top-0 z-(--z-page-sticky-elevated) mb-4">
+                    <ExecutionRunProgressBanner
+                      key={executionRunToken}
+                      runToken={executionRunToken}
+                      phase={executionRun.phase}
+                      progress={executionRun.progress}
+                      executionMode={currentExecutionMode}
+                      currentSectionName={executionRun.currentSectionName}
+                      failureMessage={executionRun.failureMessage}
+                      isAwaitingFreshContent={isRunAwaitingFreshContent}
+                      onRefresh={handleRefreshExecutionRun}
+                    />
+                  </div>
+                )}
+
+                {isLoadingContent || sectionAccess.isLoading ? (
+                  // Show skeleton loader with consistent height to prevent layout shift.
+                  // También cubre sectionAccess: sin la lista de secciones con `view`, no hay
+                  // forma de saber si alguna del array de /content debe ocultarse.
                   <div className="space-y-6 animate-pulse min-h-150">
                     {/* Title skeleton */}
                     <div className="h-8 bg-gray-200 rounded w-3/4"></div>
@@ -2935,7 +3335,9 @@ export function AssetContent({
                                       
                                       {/* Description */}
                                       <p className="text-base text-red-800/90 mb-6 leading-relaxed max-w-full mx-auto">
-                                        {t('content.executionFailedDescription')}
+                                        {isMissingDependencyFailure(selectedExecutionInfo?.status_message)
+                                          ? t('content.executionFailedMissingDependencyDescription')
+                                          : t('content.executionFailedDescription')}
                                       </p>
                                       
                                       {/* Action Buttons */}
@@ -2947,10 +3349,11 @@ export function AssetContent({
                                           resource="version"
                                           lifecyclePermissions={lifecyclePermissions}
                                           onClick={handleCreateExecutionFromHeader}
-                                          disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
+                                          disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate}
                                           size="lg"
-                                          className={executeDocumentMutation.isPending || hasExecutionInProcess
-                                            ? "hover:cursor-not-allowed bg-gray-300 text-gray-500" 
+                                          title={!canGenerate ? cannotGenerateReason : undefined}
+                                          className={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate
+                                            ? "hover:cursor-not-allowed bg-gray-300 text-gray-500"
                                             : "hover:cursor-pointer bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg transition-all"
                                           }
                                         >
@@ -2999,9 +3402,11 @@ export function AssetContent({
                                   </EmptyIcon>
                                   <EmptyTitle>{t('content.setupDocument', { name: documentContent?.document_name || selectedFile.name })}</EmptyTitle>
                                   <EmptyDescription>
-                                    {fullDocument?.sections?.length > 0 
-                                      ? t('content.readyWithAi')
-                                      : t('content.readyWithSections')
+                                    {!canGenerate
+                                      ? cannotGenerateReason
+                                      : fullDocument?.sections?.length > 0
+                                        ? t('content.readyWithAi')
+                                        : t('content.readyWithSections')
                                     }
                                   </EmptyDescription>
                                   {!hasFailedExecution && !hasImportFailed && (
@@ -3014,7 +3419,7 @@ export function AssetContent({
                                           resource="section"
                                           lifecyclePermissions={lifecyclePermissions}
                                           onClick={() => setIsSectionSheetOpen(true)}
-                                          className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
+                                          className="hover:cursor-pointer bg-primary hover:bg-primary/90"
                                         >
                                           <BetweenHorizontalStart className="h-4 w-4 mr-2" />
                                           {t('content.addSections')}
@@ -3028,16 +3433,17 @@ export function AssetContent({
                                             resource="version"
                                             lifecyclePermissions={lifecyclePermissions}
                                             onClick={handleCreateExecutionFromHeader}
-                                            disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
-                                            className={executeDocumentMutation.isPending || hasExecutionInProcess
-                                              ? "hover:cursor-not-allowed bg-gray-300 text-gray-500" 
-                                              : "bg-[#4464f7] hover:bg-[#3451e6]"
+                                            disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate}
+                                            title={!canGenerate ? cannotGenerateReason : undefined}
+                                            className={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate
+                                              ? "hover:cursor-not-allowed bg-gray-300 text-gray-500"
+                                              : "bg-primary hover:bg-primary/90"
                                             }
                                           >
                                             {executeDocumentMutation.isPending ? (
                                               <>
                                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                {t('content.executing')}
+                                                {t('common:executing')}
                                               </>
                                             ) : (
                                               <>
@@ -3046,6 +3452,18 @@ export function AssetContent({
                                               </>
                                             )}
                                           </HuemulButton>
+                                          {isCannotGenerateContextRelated && frontendPermissions.canAccessSectionSheet && (
+                                            <HuemulButton
+                                              variant="outline"
+                                              onClick={() => {
+                                                preserveScrollPosition();
+                                                setIsContextSheetOpen(true);
+                                              }}
+                                            >
+                                              <BookOpen className="h-4 w-4 mr-2" />
+                                              {t('content.configureContext')}
+                                            </HuemulButton>
+                                          )}
                                           <HuemulButton
                                             requiredAccess={["edit", "create"]}
                                             requireAll={false}
@@ -3076,100 +3494,106 @@ export function AssetContent({
                     // Si hay contenido disponible, renderizar el contenido
                     if (documentContent?.content) {
                       return (
-                        <div className="prose prose-gray prose-sm md:prose-base max-w-full">
+                        <MediaUrlProvider freshUrls={mediaUrlsData?.media_urls ?? null}>
+                        <MentionRefsProvider assetIds={mentionAssetIds} organizationId={selectedOrganizationId ?? undefined}>
+                        <RoleRefsProvider enabled={hasRoleReferences}>
+                        <DocumentDataProvider
+                          documentId={selectedFile?.id}
+                          organizationId={selectedOrganizationId}
+                          executionId={selectedExecutionId || documentContent?.execution_id || null}
+                        >
+                        <div className={`prose prose-gray prose-sm md:prose-base max-w-full${deferredViewChrome.isViewMode ? ' [&>*+*]:mt-0' : ''}`}>
+                          {/* Template instructions callout - shown once at the top */}
+                          {documentContent.template_instructions?.trim() && (
+                            <div className="not-prose mb-4">
+                              <HuemulExpandableText
+                                collapsible
+                                text={documentContent.template_instructions.trim()}
+                                collapsedLines={1}
+                                expandedMaxHeight={100}
+                                showMoreLabel={t('content.instructionsShowMore')}
+                                showLessLabel={t('content.instructionsShowLess')}
+                                triggerClassName="rounded-lg border border-gray-200 bg-white px-3 py-2"
+                                className="rounded-lg border border-gray-200 bg-white px-4 py-2.5"
+                                leading={
+                                  <span className="flex items-center gap-1.5 shrink-0">
+                                    <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+                                    <span className="text-sm font-medium text-gray-700">
+                                      {t('content.instructionsTitle')}
+                                    </span>
+                                  </span>
+                                }
+                              />
+                            </div>
+                          )}
                           {Array.isArray(documentContent.content) ? (
-                            // New format: array of sections with separators
-                            <>
-                              {/* Add section button at the beginning */}
-                              {showEditorActions && frontendPermissions.canEditSections && (
-                                <SectionSeparator 
-                                  onAddSection={() => handleAddSectionAtPosition(-1)} 
-                                  index={-1}
-                                  isMobile={isMobile}
-                                />
-                              )}
-                              
-                              {documentContent.content.map((section: ContentSection, index: number) => {
-                          const realSectionId = section.section_id;
-                          
-                          // In reader mode, hide sections with empty content
-                          if (isViewMode && isSectionContentEmpty(section)) {
-                            return null;
-                          }
-                          
-                          return (
-                            <SectionIndexContext.Provider key={section.id} value={index}>
-                              <div id={`section-${index}`} className="relative">
-                                <SectionExecution 
-                                  sectionExecution={{
-                                    id: section.id,
-                                    output: section.content,
-                                    section_id: realSectionId,
-                                    plate_content: section.plate_content,
-                                  }}
-                                  onUpdate={() => {
-                                    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-                                  }}
-                                  readyToEdit={showEditorActions}
-                                  sectionIndex={index}
-                                  documentId={selectedFile?.id}
-                                  executionId={
-                                    (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))
-                                      ? currentExecutionId
-                                      : (selectedExecutionId || undefined)
-                                  }
-                                  executionStatus={
-                                    (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))
-                                      ? (currentExecutionStatus?.status || 'running')
-                                      : selectedExecutionInfo?.status
-                                  }
-                                  executionMode={currentExecutionMode}
-                                  showExecutionFeedback={
-                                    !!(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from') && (
-                                      currentExecutionMode === 'single'
-                                        ? index === currentSectionIndex
-                                        : currentSectionIndex !== undefined && index >= currentSectionIndex
-                                    ))
-                                  }
-                                  onExecutionStart={(executionIdForSection) => {
-                                    if (executionIdForSection) {
-                                      setSectionExecutionId(executionIdForSection);
-                                    }
-                                  }}
-                                  onOpenExecuteSheet={handleCreateExecutionFromSection(index, realSectionId)}
-                                  sectionType={section.section_type}
-                                  sectionName={section.section_name}
-                                  canEditSections={frontendPermissions.canEditSections}
-                                  onCreateSectionFromSelection={handleCreateSectionFromSelection(index)}
-                                />
-                              </div>
-                              
-                              {/* Add separator after each section - editor mode only */}
-                              {showEditorActions && frontendPermissions.canEditSections && (
-                                <SectionSeparator
-                                  onAddSection={handleAddSectionAtPosition}
-                                  index={index}
-                                  isLastSection={index === documentContent.content.length - 1}
-                                  isMobile={isMobile}
-                                />
-                              )}
-                            </SectionIndexContext.Provider>
-                          );
-                              })}
-                            </>
+                            // New format: array of sections with separators.
+                            // Lista extraída y memoizada — ver assets-sections-list.tsx
+                            // para el porqué (evitar que cada re-render de AssetContent
+                            // recorra y reconstruya las N secciones). El check de
+                            // formato sigue sobre `documentContent.content` (no sobre
+                            // `deferredContent`) para que TS siga angostando ese mismo
+                            // campo al formato legado (string) en la rama `else` de
+                            // abajo — angostar una expresión distinta (deferredContent)
+                            // no angosta esta.
+                            <SectionCollapseContext.Provider value={deferredCollapseSignal}>
+                              <AssetsSectionsList
+                                content={deferredContent ?? documentContent.content}
+                                sectionEmptiness={sectionEmptiness}
+                                isViewMode={deferredViewChrome.isViewMode}
+                                showEditorActions={deferredViewChrome.showEditorActions}
+                                canEditSections={frontendPermissions.canEditSections}
+                                isMobile={isMobile}
+                                sectionAccess={sectionAccess}
+                                documentId={selectedFile?.id}
+                                currentExecutionId={currentExecutionId}
+                                currentExecutionMode={currentExecutionMode}
+                                selectedExecutionId={selectedExecutionId}
+                                selectedExecutionStatus={selectedExecutionInfo?.status}
+                                isSectionInScope={executionRun.isSectionInScope}
+                                getDisplaySectionStatus={getDisplaySectionStatus}
+                                canGenerate={canGenerate}
+                                cannotGenerateReason={cannotGenerateReason}
+                                onSectionUpdate={handleSectionUpdate}
+                                onAddSectionAtPosition={handleAddSectionAtPosition}
+                                onExecutionStartForSection={handleSectionExecutionStart}
+                                onOpenExecuteSheetForSection={handleCreateExecutionFromSection}
+                                onCreateSectionFromSelectionForSection={handleCreateSectionFromSelection}
+                                onCopyLink={handleCopySectionLink}
+                                onSectionCollapsedChange={handleSectionCollapsedChange}
+                              />
+                            </SectionCollapseContext.Provider>
                           ) : (
                             // Legacy format: single string content
                             <Markdown>{documentContent.content}</Markdown>
                           )}
+                          {/* Sección al final del contenido: se muestra siempre que la
+                              versión visible tenga documentos relacionados (lector y edición),
+                              scrolleando junto con el resto — NO fija al pie del panel. */}
+                          {canListExecutionRelationships && (
+                            <AssetsRelatedDocumentsBlock
+                              organizationId={selectedOrganizationId}
+                              executionId={relatedExecutionId}
+                              currentDocumentId={selectedFile?.id}
+                              isViewMode={deferredViewChrome.isViewMode}
+                              canListAssetTypes={can('listAssetTypes')}
+                              canLinkAssets={can('openDiagramsCanvas')}
+                              canDeleteRelationship={can('deleteExecutionRelationship')}
+                            />
+                          )}
                         </div>
+                        </DocumentDataProvider>
+                        </RoleRefsProvider>
+                        </MentionRefsProvider>
+                        </MediaUrlProvider>
                       );
                     }
-                    
+
                     // Si no hay contenido disponible, mostrar mensaje
                     return (
                       <div className="flex items-center justify-center h-full min-h-100">
                         <div className="text-center">
-                          <File className="h-16 w-16 mx-auto mb-4 opacity-40" style={{ color: '#4464f7' }} />
+                          <File className="h-16 w-16 mx-auto mb-4 text-primary opacity-40" />
                           <p className="text-lg font-medium text-gray-500">{t('content.noContentTitle')}</p>
                           <p className="text-sm text-gray-400 mt-1 mb-6">{t('content.noContentDescription')}</p>
                           
@@ -3182,7 +3606,7 @@ export function AssetContent({
                               lifecyclePermissions={lifecyclePermissions}
                               variant="outline" 
                               onClick={handleAddSection}
-                              className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200"
+                              className="hover:cursor-pointer border-primary text-primary hover:bg-primary hover:text-white transition-colors duration-200"
                             >
                               <BetweenHorizontalStart className="h-4 w-4 mr-2" />
                               {t('content.addSection')}
@@ -3194,15 +3618,16 @@ export function AssetContent({
                               checkGlobalPermissions={true}
                               resource="version"
                               lifecyclePermissions={lifecyclePermissions}
-                              variant="outline" 
+                              variant="outline"
                               onClick={handleCreateExecutionFromHeader}
-                              disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
-                              className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                              disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate}
+                              title={!canGenerate ? cannotGenerateReason : undefined}
+                              className="hover:cursor-pointer border-primary text-primary hover:bg-primary hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {executeDocumentMutation.isPending ? (
                                 <>
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  {t('content.executing')}
+                                  {t('common:executing')}
                                 </>
                               ) : (
                                 <>
@@ -3237,58 +3662,66 @@ export function AssetContent({
         </div>
       </ResizablePanel>
 
-      {/* Table of Contents Sidebar - only show for documents with content and not during full/full-single executions */}
-      {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && 
+      {/* Panel de detalle del activo (rail Índice/Campos/Archivos/Vínculos) - solo para
+          documentos con contenido y no durante ejecuciones full/full-single */}
+      {selectedFile.type === 'document' && documentContent?.content &&
+       isTocSidebarOpen &&
        (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
         <>
           <ResizableHandle/>
-          <ResizablePanel defaultSize={20}>
-            <div className="flex flex-col h-full bg-white border-l">
-              <div className="flex flex-col pt-3">
-                <div className="px-2 pb-2">
-                  <div className="grid w-full grid-cols-2 h-8 bg-gray-50 rounded-md p-0.5">
-                    <button 
-                      onClick={() => setActiveTab('toc')}
-                      className={`text-xs py-1 px-1 h-6 rounded-sm transition-all truncate hover:cursor-pointer ${
-                        activeTab === 'toc' 
-                          ? 'bg-white shadow-sm text-gray-900' 
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
-                    >
-                      {t('content.contentTab')}
-                    </button>
-                    <button 
-                      onClick={() => setActiveTab('custom-fields')}
-                      className={`text-xs py-1 px-1 h-6 rounded-sm transition-all truncate hover:cursor-pointer ${
-                        activeTab === 'custom-fields' 
-                          ? 'bg-white shadow-sm text-gray-900' 
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
-                    >
-                      {t('content.customFieldsTab')}
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">
-                {activeTab === 'toc' ? (
-                  <TableOfContents items={tocItems} />
-                ) : (
-                  <CustomFieldsList 
-                    customFields={customFieldsData?.data || []} 
-                    isLoading={isLoadingCustomFields}
-                    onAdd={handleAddCustomFieldDocument}
-                    onEdit={handleEditCustomFieldDocument}
-                    onEditContent={handleEditCustomFieldDocumentContent}
-                    onDelete={handleDeleteCustomFieldDocument}
-                    onRefresh={handleRefreshCustomFields}
-                    uploadingImageFieldId={uploadingImageFieldId}
-                    isRefreshing={isRefreshingCustomFields}
-                    canEdit={frontendPermissions.canEditSections}
-                  />
-                )}
-              </div>
-            </div>
+          <ResizablePanel
+            ref={detailPanelRef}
+            defaultSize={22}
+            minSize={16}
+            collapsible
+            collapsedSize={4}
+            onCollapse={() => setIsDetailPanelCollapsed(true)}
+            onExpand={() => setIsDetailPanelCollapsed(false)}
+          >
+            <AssetsDetailPanel
+              organizationId={selectedOrganizationId}
+              documentId={selectedFile.id}
+              executionId={selectedExecutionId || documentContent?.execution_id}
+              versionLabel={getExecutionDisplayLabel(selectedExecutionInfo)}
+              activeTab={activeTab}
+              onActiveTabChange={setActiveTab}
+              isCollapsed={isDetailPanelCollapsed}
+              onToggleCollapse={() => {
+                const panel = detailPanelRef.current;
+                if (!panel) return;
+                if (isDetailPanelCollapsed) panel.expand(); else panel.collapse();
+              }}
+              canListCustomFields={canListCustomFields}
+              canCreateFields={canCreateCustomField && frontendPermissions.canEditSections}
+              canUpdateFields={canUpdate('custom_fields') && frontendPermissions.canEditSections}
+              canDeleteFields={canDelete('custom_fields') && frontendPermissions.canEditSections}
+              canCreateMedia={canMedia('createMedia')}
+              canUpdateMedia={canMedia('updateMedia')}
+              canDeleteMedia={canMedia('deleteMedia')}
+              canListExecutionRelationships={canListExecutionRelationships}
+              canOpenDiagrams={can('openDiagramsCanvas')}
+              canListAssetTypes={can('listAssetTypes')}
+              canDeleteRelationship={can('deleteExecutionRelationship')}
+              tocItems={tocItems}
+              canAddSection={frontendPermissions.canEditSections}
+              onAddSection={handleAddSection}
+              onRefreshIndex={handleRefreshContent}
+              customFields={customFieldsData?.data || []}
+              isLoadingCustomFields={isLoadingCustomFields}
+              isRefreshingCustomFields={isRefreshingCustomFields}
+              customFieldsPage={customFieldsPage}
+              customFieldsPageSize={CUSTOM_FIELDS_PAGE_SIZE}
+              uploadingImageFieldId={uploadingImageFieldId}
+              onCustomFieldsPageChange={setCustomFieldsPage}
+              onAddCustomField={handleAddCustomFieldDocument}
+              onEditCustomField={handleEditCustomFieldDocument}
+              onEditCustomFieldContent={handleEditCustomFieldDocumentContent}
+              onDeleteCustomField={handleDeleteCustomFieldDocument}
+              onRefreshCustomFields={handleRefreshCustomFields}
+              executions={allExecutions ?? []}
+              onOpenMediaSheet={(scope) => { setMediaSheetScope(scope ?? null); setIsMediaSheetOpen(true); }}
+              className="h-full rounded-none border-0 shadow-none"
+            />
           </ResizablePanel>
         </>
       )}
@@ -3298,6 +3731,16 @@ export function AssetContent({
         sourceKey="asset-content"
         executionId={documentContent?.execution_id}
         documentId={selectedFile?.id}
+        assetName={
+          selectedFile?.id
+            ? (() => {
+                const displayName = documentContent?.document_name || selectedFile.name;
+                return documentContent?.execution_id && selectedExecutionInfo
+                  ? `${getExecutionDisplayLabel(selectedExecutionInfo) || selectedExecutionInfo.formattedDate} - ${displayName}`
+                  : displayName;
+              })()
+            : undefined
+        }
         enabled={Boolean(documentContent && documentContent.content && selectedFile?.id)}
         priority={20}
       />
@@ -3318,7 +3761,7 @@ export function AssetContent({
       />
 
       {/* Section Execution Creation Dialog */}
-      <AddSectionExecutionDialog
+      <AddSectionExecutionSheet
         open={isSectionExecutionDialogOpen}
         onOpenChange={(open) => {
           if (!open) {
@@ -3328,6 +3771,7 @@ export function AssetContent({
         }}
         afterFromSectionId={afterFromSectionId}
         existingSections={sectionOptionsForExecutionDialog}
+        documentId={selectedFile?.id}
         onSubmit={handleSectionExecutionSubmit}
         isPending={createSectionExecutionMutation.isPending}
         onClose={() => {
@@ -3340,144 +3784,59 @@ export function AssetContent({
       />
 
       {/* Delete Confirmation AlertDialog */}
-      <ReusableAlertDialog
+      <DeleteDocumentDialog
         open={isDeleteDialogOpen}
-        onOpenChange={(open) => !deleteExecutionMutation.isPending && handleDeleteDialogChange(open)}
-        title={deleteType === 'execution' ? t('content.deleteVersionTitle') : t('content.deleteDocumentTitle')}
-        description={
-          deleteType === 'execution' ? (
-            selectedExecutionInfo ? (
-              <>
-                {t('content.deleteExecutionDescription', { date: selectedExecutionInfo.formattedDate })}
-              </>
-            ) : (
-              t('content.deleteExecutionFallback')
-            )
-          ) : (
-            t('content.deleteDocumentDescription', { name: selectedFile?.name })
-          )
-        }
-        onConfirm={handleDeleteConfirm}
-        confirmLabel={t('content.deleteConfirm')}
-        isProcessing={deleteExecutionMutation.isPending}
-        variant="destructive"
+        onOpenChange={handleDeleteDialogChange}
+        deleteType={deleteType}
+        documentName={selectedFile?.name}
+        executionFormattedDate={selectedExecutionInfo?.formattedDate}
+        onAction={async () => {
+          if (deleteType === 'document') {
+            await handleDeleteDocument();
+          } else {
+            await deleteExecutionMutation.mutateAsync();
+          }
+        }}
       />
 
       {/* Clone Confirmation AlertDialog */}
-      <ReusableAlertDialog
+      <CloneExecutionDialog
         open={isCloneDialogOpen}
-        onOpenChange={(open) => !cloneMutation.isPending && handleCloneDialogChange(open)}
-        title={t('content.cloneExecutionTitle')}
-        description={
-          selectedExecutionInfo ? (
-            t('content.cloneExecutionDescription', { name: selectedExecutionInfo.name })
-          ) : (
-            t('content.cloneExecutionFallback')
-          )
-        }
-        onConfirm={handleCloneConfirm}
-        confirmLabel={t('content.cloneConfirm')}
-        isProcessing={cloneMutation.isPending}
-        variant="default"
+        onOpenChange={handleCloneDialogChange}
+        executionName={selectedExecutionInfo?.name}
+        onAction={() => cloneMutation.mutateAsync()}
+      />
+
+      {/* Clone to New Document Sheet */}
+      <CloneToNewDocumentSheet
+        open={isCloneToNewDocumentSheetOpen}
+        onOpenChange={handleCloneToNewDocumentSheetChange}
+        onConfirm={(options) => cloneToNewDocumentMutation.mutate(options)}
+        isProcessing={cloneToNewDocumentMutation.isPending}
+        organizationId={selectedOrganizationId!}
       />
 
       {/* Approve Confirmation AlertDialog */}
-      <ReusableAlertDialog
+      <ApproveExecutionDialog
         open={isApproveDialogOpen}
-        onOpenChange={(open) => !approveMutation.isPending && !approvingExecutionId && handleApproveDialogChange(open)}
-        title={t('content.approveExecutionTitle')}
-        description={
-          selectedExecutionInfo ? (
-            t('content.approveExecutionDescription', { name: selectedExecutionInfo.name })
-          ) : (
-            t('content.approveExecutionFallback')
-          )
-        }
-        onConfirm={handleApproveConfirm}
-        confirmLabel={t('content.approveConfirm')}
-        isProcessing={approveMutation.isPending || !!approvingExecutionId}
-        variant="default"
+        onOpenChange={handleApproveDialogChange}
+        executionName={selectedExecutionInfo?.name}
+        onAction={() => approveMutation.mutateAsync()}
       />
 
       {/* Disapprove Confirmation AlertDialog */}
-      <ReusableAlertDialog
+      <DisapproveExecutionDialog
         open={isDisapproveDialogOpen}
-        onOpenChange={(open) => !disapproveMutation.isPending && handleDisapproveDialogChange(open)}
-        title={t('content.disapproveTitle')}
-        description={
-          selectedExecutionInfo ? (
-            t('content.disapproveDescription', { name: selectedExecutionInfo.name })
-          ) : (
-            t('content.disapproveFallback')
-          )
-        }
-        onConfirm={handleDisapproveConfirm}
-        confirmLabel={t('content.convertToDraft')}
-        isProcessing={disapproveMutation.isPending}
-        variant="destructive"
+        onOpenChange={handleDisapproveDialogChange}
+        executionName={selectedExecutionInfo?.name}
+        onAction={() => disapproveMutation.mutateAsync()}
       />
 
-      {/* Lifecycle Check (Advance) Confirmation AlertDialog */}
-      <LifecycleCommentDialog
-        open={isCheckLifecycleDialogOpen}
-        onOpenChange={(open) => !checkLifecycleMutation.isPending && setIsCheckLifecycleDialogOpen(open)}
-        title={documentContent?.lifecycle_status?.will_advance_phase ? t('lifecycle.advanceStateTitle') : t('lifecycle.advanceStepTitle')}
-        description={
-          documentContent?.lifecycle_status?.will_advance_phase
-            ? t('lifecycle.advanceStateDescription')
-            : t('lifecycle.advanceStepDescription')
-        }
-        onConfirm={(comment) => checkLifecycleMutation.mutate(comment)}
-        confirmLabel={documentContent?.lifecycle_status?.will_advance_phase ? t('lifecycle.advanceStateConfirm') : t('lifecycle.advanceStepConfirm')}
-        commentLabel={t('lifecycle.commentLabel')}
-        commentPlaceholder={t('lifecycle.commentPlaceholder')}
-        isProcessing={checkLifecycleMutation.isPending}
-        variant="default"
-      />
-
-      {/* Lifecycle Reject (Go Back) Dialog */}
-      <LifecycleRollbackDialog
-        open={isRejectLifecycleDialogOpen}
-        onOpenChange={(open) => !rejectLifecycleMutation.isPending && setIsRejectLifecycleDialogOpen(open)}
-        executionId={selectedExecutionId || documentContent?.execution_id || null}
-        organizationId={selectedOrganizationId!}
-        onConfirm={(options) => rejectLifecycleMutation.mutate(options)}
-        isProcessing={rejectLifecycleMutation.isPending}
-      />
-
-      {/* Publish Confirmation AlertDialog */}
-      <LifecycleCommentDialog
-        open={isPublishDialogOpen}
-        onOpenChange={(open) => !advanceLifecycleMutation.isPending && setIsPublishDialogOpen(open)}
-        title={t('lifecycle.publishTitle')}
-        description={t('lifecycle.publishDescription')}
-        onConfirm={(comment) => advanceLifecycleMutation.mutate({ comment })}
-        confirmLabel={t('lifecycle.publishConfirm')}
-        commentLabel={t('lifecycle.commentLabel')}
-        commentPlaceholder={t('lifecycle.commentPlaceholder')}
-        isProcessing={advanceLifecycleMutation.isPending}
-        variant="default"
-      />
-
-      {/* Archive Confirmation AlertDialog */}
-      <LifecycleCommentDialog
-        open={isArchiveDialogOpen}
-        onOpenChange={(open) => !advanceLifecycleMutation.isPending && setIsArchiveDialogOpen(open)}
-        title={t('lifecycle.archiveTitle')}
-        description={
-          documentContent?.lifecycle_status?.state === 'approved'
-            ? t('lifecycle.archiveFromApprovedDescription')
-            : t('lifecycle.archiveDescription')
-        }
-        onConfirm={(comment) => advanceLifecycleMutation.mutate({
-          comment,
-          skip_published: documentContent?.lifecycle_status?.state === 'approved',
-        })}
-        confirmLabel={t('lifecycle.archiveConfirm')}
-        commentLabel={t('lifecycle.commentLabel')}
-        commentPlaceholder={t('lifecycle.commentPlaceholder')}
-        isProcessing={advanceLifecycleMutation.isPending}
-        variant="destructive"
+      <HuemulLifecycleSheets
+        controller={lifecycle}
+        executionId={selectedExecutionId || documentContent?.execution_id}
+        organizationId={selectedOrganizationId}
+        existingVersions={allExecutions?.map((e: { version?: string | null }) => e.version).filter((v: string | null | undefined): v is string => !!v)}
       />
 
       <EditDocumentDialog
@@ -3514,19 +3873,20 @@ export function AssetContent({
           setIsSectionSheetOpen(true);
         }}
         onExecutionCreated={handleExecutionCreated}
-        onExecutionComplete={handleExecutionComplete}
         isMobile={isMobile}
         selectedExecutionId={selectedExecutionId}
         executionContext={executionContext}
-        disabled={hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
+        disabled={hasExecutionInProcess || !canGenerate || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
         disabledReason={
-          hasExecutionInProcess 
-            ? t('content.executionRunning') 
-            : !fullDocument?.sections || fullDocument.sections.length === 0 
-              ? t('content.needsSections') 
-              : !defaultLLM?.id 
-                ? t('content.noDefaultLlm') 
-                : undefined
+          hasExecutionInProcess
+            ? t('content.executionRunning')
+            : !canGenerate
+              ? cannotGenerateReason
+              : !fullDocument?.sections || fullDocument.sections.length === 0
+                ? t('content.needsSections')
+                : !defaultLLM?.id
+                  ? t('content.noDefaultLlm')
+                  : undefined
         }
       />
 
@@ -3541,18 +3901,19 @@ export function AssetContent({
         }}
       />
 
-      {/* Add Custom Field Document Dialog */}
-      <AddCustomFieldDocumentDialog
+      {/* Add Custom Field Document Sheet */}
+      <AddCustomFieldDocumentSheet
         isOpen={isAddCustomFieldDocumentDialogOpen}
         onClose={() => setIsAddCustomFieldDocumentDialogOpen(false)}
         documentId={selectedFile.id}
         onAdd={handleCreateCustomFieldDocument}
         onImageUploadStart={handleImageUploadStart}
         onImageUploadComplete={handleImageUploadComplete}
+        canCreateCustomField={canCreateCustomField}
       />
 
-      {/* Edit Custom Field Document Dialog (Unified) */}
-      <EditCustomFieldAssetDialog
+      {/* Edit Custom Field Document Sheet (Unified) */}
+      <EditCustomFieldAssetSheet
         isOpen={isEditCustomFieldDocumentDialogOpen}
         onClose={() => {
           setIsEditCustomFieldDocumentDialogOpen(false);
@@ -3565,19 +3926,13 @@ export function AssetContent({
       />
 
       {/* Delete Custom Field Document Confirmation Dialog */}
-      <ReusableAlertDialog
+      <DeleteCustomFieldDialog
         open={isDeleteCustomFieldDocumentDialogOpen}
         onOpenChange={(open) => {
-          if (!open && !isDeletingCustomFieldDocument) {
-            handleCancelDeleteCustomFieldDocument();
-          }
+          if (!open) handleCancelDeleteCustomFieldDocument();
         }}
-        title={t('content.deleteCustomFieldTitle')}
-        description={t('content.deleteCustomFieldDescription', { name: customFieldDocumentToDelete?.name })}
-        onConfirm={handleConfirmDeleteCustomFieldDocument}
-        confirmLabel={t('content.deleteCustomFieldConfirm')}
-        isProcessing={isDeletingCustomFieldDocument}
-        variant="destructive"
+        fieldName={customFieldDocumentToDelete?.name}
+        onAction={handleConfirmDeleteCustomFieldDocument}
       />
 
       {/* Create Template from Document Dialog */}
@@ -3589,14 +3944,6 @@ export function AssetContent({
         onTemplateCreated={(template) => {
           navigate(`/templates/${template.id}`);
         }}
-      />
-
-      {/* Assign Version Dialog */}
-      <AssignVersionDialog
-        open={isAssignVersionDialogOpen}
-        onOpenChange={(open) => { if (!assignVersionMutation.isPending) setIsAssignVersionDialogOpen(open); }}
-        onConfirm={(version) => assignVersionMutation.mutate(version)}
-        isProcessing={assignVersionMutation.isPending}
       />
 
       {/* Rename Version Dialog */}
@@ -3616,6 +3963,134 @@ export function AssetContent({
         }}
         isProcessing={renameVersionMutation.isPending}
       />
-    </>
+
+      {/* Asset Permissions Sheet */}
+      {/* Defensa en profundidad: el gate real vive dentro del sheet (se monta
+          también desde nav-knowledge-provider), acá solo se evita montarlo. */}
+      {can('manageAssetLifecycleGrants') && (
+        <AssetLifecycleSheet
+          asset={selectedFile?.type === 'document' ? { id: selectedFile.id, name: documentContent?.document_name || selectedFile.name, document_type_id: documentContent?.document_type?.id ?? selectedFile.document_type?.id ?? null } : null}
+          open={isPermissionsSheetOpen}
+          onOpenChange={setIsPermissionsSheetOpen}
+        />
+      )}
+
+      {/* Asset Info Sheet */}
+      <AssetsInfoSheet
+        open={isInfoSheetOpen}
+        onOpenChange={setIsInfoSheetOpen}
+        documentContent={documentContent}
+        selectedExecutionInfo={selectedExecutionInfo}
+        canViewTags={canViewTags}
+        canManageTags={canManageTags}
+      />
+
+      {/* Version Management Sheet */}
+      {allExecutions && selectedOrganizationId && (
+        <VersionManagementSheet
+          open={isVersionManagementSheetOpen}
+          onOpenChange={setIsVersionManagementSheetOpen}
+          executions={allExecutions}
+          organizationId={selectedOrganizationId}
+          documentId={selectedFile?.id ?? ''}
+          canEdit={!!(lifecyclePermissions?.create && lifecyclePermissions?.edit)}
+          initialExecutionId={selectedExecutionId || documentContent?.execution_id}
+        />
+      )}
+
+      {/* Version Compare Sheet */}
+      {allExecutions && allExecutions.length > 1 && selectedFile && selectedOrganizationId && (
+        <AssetVersionCompareSheet
+          key={versionCompareOverride ? `${versionCompareOverride.left}-${versionCompareOverride.right}` : 'default'}
+          open={isVersionCompareSheetOpen}
+          onOpenChange={(open) => {
+            setIsVersionCompareSheetOpen(open);
+            if (!open) setVersionCompareOverride(null);
+          }}
+          documentId={selectedFile.id}
+          executions={allExecutions}
+          defaultRightExecutionId={versionCompareOverride?.right ?? selectedExecutionId ?? documentContent?.execution_id}
+          defaultLeftExecutionId={versionCompareOverride?.left}
+        />
+      )}
+
+      {/* Notifications Sheet */}
+      {canListNotifications && (
+        <AssetsNotificationsSheet
+          open={isNotificationsSheetOpen}
+          onOpenChange={setIsNotificationsSheetOpen}
+          documentId={selectedFile?.id ?? ''}
+          executionId={selectedExecutionId}
+          organizationId={selectedOrganizationId ?? ''}
+          allExecutions={allExecutions}
+        />
+      )}
+
+      {/* Asset History Sheet */}
+      <AssetHistorySheet
+        open={isLifecycleHistorySheetOpen}
+        onOpenChange={setIsLifecycleHistorySheetOpen}
+        organizationId={selectedOrganizationId ?? ''}
+        tabs={ASSET_HISTORY_TABS}
+        documentId={selectedFile?.id ?? ''}
+        executionId={selectedExecutionId || documentContent?.execution_id || ''}
+        allExecutions={allExecutions ?? []}
+        entityName={documentContent?.document_name || selectedFile?.name}
+      />
+
+      {/* Related Diagrams Sheet */}
+      <AssetDiagramsSheet
+        open={isDiagramsSheetOpen}
+        onOpenChange={setIsDiagramsSheetOpen}
+        documentId={selectedFile?.id ?? ''}
+        organizationId={selectedOrganizationId ?? ''}
+        executionId={selectedExecutionId || documentContent?.execution_id || ''}
+      />
+
+      {/* Media Sheet — toda la media subida al documento o a la versión seleccionada */}
+      {(() => {
+        const mediaSheetExecutionId = selectedExecutionId || documentContent?.execution_id || '';
+        const defaultLevel: 'document' | 'execution' = mediaSheetExecutionId ? 'execution' : 'document';
+        const defaultParentId = mediaSheetExecutionId || (selectedFile?.id ?? '');
+        // Si el sheet se abrió desde el selector de alcance del panel de detalle, respeta esa
+        // versión en vez de la que está abierta en el editor.
+        const mediaSheetLevel = mediaSheetScope?.level ?? defaultLevel;
+        const mediaSheetParentId = mediaSheetScope?.parentId ?? defaultParentId;
+        const mediaSheetExecutionInfo = mediaSheetScope
+          ? allExecutions?.find((execution: MediaScopeExecutionOption) => execution.id === mediaSheetScope.parentId)
+          : selectedExecutionInfo;
+        const mediaSheetParentLabel = mediaSheetLevel === 'execution'
+          ? getExecutionCompactLabel(mediaSheetExecutionInfo)
+          : (documentContent?.document_name || selectedFile?.name);
+        return (
+          <MediaListSheet
+            open={isMediaSheetOpen}
+            onOpenChange={setIsMediaSheetOpen}
+            organizationId={selectedOrganizationId ?? ''}
+            level={mediaSheetLevel}
+            parentId={mediaSheetParentId}
+            parentLabel={mediaSheetParentLabel}
+            documentId={selectedFile?.id ?? ''}
+            documentLabel={documentContent?.document_name || selectedFile?.name}
+            allExecutions={allExecutions ?? []}
+            canCreate={canMedia('createMedia')}
+            canUpdate={canMedia('updateMedia')}
+            canDelete={canMedia('deleteMedia')}
+          />
+        );
+      })()}
+
+      {/* Discussions Sheet */}
+      {canListDiscussions && selectedFile && (
+        <AssetsDiscussionsSheet
+          open={isDiscussionsSheetOpen}
+          onOpenChange={setIsDiscussionsSheetOpen}
+          documentId={selectedFile.id}
+          executionId={effectiveSelectedExecutionId}
+          sections={Array.isArray(documentContent?.content) ? (documentContent.content as ContentSection[]) : []}
+          onFocusDiscussion={handleFocusDiscussion}
+        />
+      )}
+    </DiscussionFocusProvider>
   );
 }

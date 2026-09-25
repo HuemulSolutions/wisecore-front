@@ -32,14 +32,9 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { ToolbarButton } from '@/components/ui/toolbar';
+import { useTranslation } from 'react-i18next';
 
 export function EmojiToolbarButton({
   options,
@@ -49,11 +44,12 @@ export function EmojiToolbarButton({
 } & React.ComponentPropsWithoutRef<typeof ToolbarButton>) {
   const { emojiPickerState, isOpen, setIsOpen } =
     useEmojiDropdownMenuState(options);
+  const { t } = useTranslation('editor');
 
   return (
     <EmojiPopover
       control={
-        <ToolbarButton pressed={isOpen} tooltip="Emoji" isDropdown {...props}>
+        <ToolbarButton pressed={isOpen} tooltip={t('toolbar.emoji')} isDropdown {...props}>
           <SmileIcon />
         </ToolbarButton>
       }
@@ -86,7 +82,7 @@ export function EmojiPopover({
       <Popover.Trigger asChild>{control}</Popover.Trigger>
 
       <Popover.Portal>
-        <Popover.Content className="z-100">{children}</Popover.Content>
+        <Popover.Content className="z-(--z-editor-menu)">{children}</Popover.Content>
       </Popover.Portal>
     </Popover.Root>
   );
@@ -120,7 +116,7 @@ export function EmojiPicker({
     <div
       className={cn(
         'flex flex-col rounded-xl bg-popover text-popover-foreground',
-        'h-[23rem] w-80 border shadow-md'
+        'h-92 w-80 border shadow-md'
       )}
     >
       <EmojiPickerNavigation
@@ -490,45 +486,38 @@ function EmojiPickerNavigation({
   'emojiLibrary' | 'focusedCategory' | 'i18n' | 'icons'
 >) {
   return (
-    <TooltipProvider delayDuration={500}>
-      <nav
-        id="emoji-nav"
-        className="mb-2.5 border-0 border-b border-b-border border-solid p-1.5"
-      >
-        <div className="relative flex items-center justify-evenly">
-          {emojiLibrary
-            .getGrid()
-            .sections()
-            .map(({ id }) => (
-              <Tooltip key={id}>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className={cn(
-                      'h-fit rounded-full fill-current p-1.5 text-muted-foreground hover:bg-muted hover:text-muted-foreground',
-                      id === focusedCategory &&
-                        'pointer-events-none bg-accent fill-current text-accent-foreground'
-                    )}
-                    onClick={() => {
-                      onClick(id);
-                    }}
-                    aria-label={i18n.categories[id]}
-                    type="button"
-                  >
-                    <span className="inline-flex size-5 items-center justify-center">
-                      {icons.categories[id].outline}
-                    </span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  {i18n.categories[id]}
-                </TooltipContent>
-              </Tooltip>
-            ))}
-        </div>
-      </nav>
-    </TooltipProvider>
+    <nav
+      id="emoji-nav"
+      className="mb-2.5 border-0 border-b border-b-border border-solid p-1.5"
+    >
+      <div className="relative flex items-center justify-evenly">
+        {emojiLibrary
+          .getGrid()
+          .sections()
+          .map(({ id }) => (
+            <Button
+              key={id}
+              size="sm"
+              variant="ghost"
+              title={i18n.categories[id]}
+              className={cn(
+                'h-fit rounded-full fill-current p-1.5 text-muted-foreground hover:bg-muted hover:text-muted-foreground',
+                id === focusedCategory &&
+                  'pointer-events-none bg-accent fill-current text-accent-foreground'
+              )}
+              onClick={() => {
+                onClick(id);
+              }}
+              aria-label={i18n.categories[id]}
+              type="button"
+            >
+              <span className="inline-flex size-5 items-center justify-center">
+                {icons.categories[id].outline}
+              </span>
+            </Button>
+          ))}
+      </div>
+    </nav>
   );
 }
 

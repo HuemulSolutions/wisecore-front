@@ -3,20 +3,15 @@ import { useTranslation } from "react-i18next"
 import { Copy } from "lucide-react"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
-import { type Role } from "@/services/rbac"
+import type { CloneRoleDialogProps } from '@/types/roles'
+export type { CloneRoleDialogProps } from '@/types/roles'
 
-interface CloneRoleDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  role: Role | null
-  onConfirm: (copyUsers: boolean) => Promise<void>
-}
-
-export function CloneRoleDialog({ open, onOpenChange, role, onConfirm }: CloneRoleDialogProps) {
+export function CloneRoleDialog({ open, onOpenChange, role, onConfirm, canClone }: CloneRoleDialogProps) {
   const { t } = useTranslation('roles')
   const [copyUsers, setCopyUsers] = useState(false)
 
   const handleConfirm = async () => {
+    if (!canClone) return
     await onConfirm(copyUsers)
     setCopyUsers(false)
   }
@@ -27,6 +22,8 @@ export function CloneRoleDialog({ open, onOpenChange, role, onConfirm }: CloneRo
     }
     onOpenChange(isOpen)
   }
+
+  if (!canClone) return null
 
   return (
     <HuemulDialog

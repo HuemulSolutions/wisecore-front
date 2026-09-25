@@ -48,6 +48,7 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
@@ -61,6 +62,25 @@ function DialogContent({
           "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
           className
         )}
+        onInteractOutside={(e) => {
+          // Keep the dialog open when interacting with portaled overlays that render
+          // outside the dialog DOM: Base UI combobox popups, sheets opened from within
+          // the dialog (e.g. the version-compare sheet), alert dialogs, and error
+          // toasts (their "Ver detalles" button, now clickable over modal layers —
+          // see sonner.tsx). Otherwise clicking/closing them dismisses this dialog too.
+          const target = e.target as HTMLElement | null
+          if (
+            target?.closest('[data-slot="combobox-content"]') ||
+            target?.closest('[data-slot="sheet-content"]') ||
+            target?.closest('[data-slot="sheet-overlay"]') ||
+            target?.closest('[data-slot="alert-dialog-content"]') ||
+            target?.closest('[data-slot="alert-dialog-overlay"]') ||
+            target?.closest('[data-sonner-toast]')
+          ) {
+            e.preventDefault()
+          }
+          onInteractOutside?.(e)
+        }}
         {...props}
       >
         {children}

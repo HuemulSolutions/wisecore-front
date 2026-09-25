@@ -5,15 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import { HuemulField } from '@/huemul/components/huemul-field';
 import { createTemplateFromDocument } from '@/services/assets';
-import { toast } from 'sonner';
-
-interface CreateTemplateFromDocumentDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  documentId: string;
-  organizationId: string | null;
-  onTemplateCreated: (template: { id: string; name: string }) => void;
-}
+import type { CreateTemplateFromDocumentDialogProps } from '@/types/assets';
+export type { CreateTemplateFromDocumentDialogProps } from '@/types/assets';
 
 export function CreateTemplateFromDocumentDialog({
   open,
@@ -36,8 +29,8 @@ export function CreateTemplateFromDocumentDialog({
   const createTemplateMutation = useMutation({
     mutationFn: (data: { name: string; description?: string }) =>
       createTemplateFromDocument(documentId, data, organizationId!),
+    meta: { successMessage: t('createTemplateFromDocument.success') },
     onSuccess: (template) => {
-      toast.success(t('createTemplateFromDocument.success'));
       queryClient.invalidateQueries({ queryKey: ['document', documentId] });
       queryClient.invalidateQueries({ queryKey: ['templates', organizationId] });
       // HuemulDialog closes the dialog after closeDelay (500 ms); navigate after that

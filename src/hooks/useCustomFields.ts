@@ -1,13 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
 import {
   getCustomFields,
   getCustomField,
   createCustomField,
   updateCustomField,
   deleteCustomField,
+  parseCustomFieldUsageError,
   getCustomFieldDataTypes,
+  getCustomFieldQuestionTypes,
 } from "@/services/custom-fields"
+import { handleApiError } from "@/lib/error-utils"
 import type {
   UpdateCustomFieldRequest,
   PaginationParams,
@@ -21,6 +23,7 @@ export const customFieldsQueryKeys = {
   details: () => [...customFieldsQueryKeys.all, 'detail'] as const,
   detail: (id: string) => [...customFieldsQueryKeys.details(), id] as const,
   dataTypes: () => [...customFieldsQueryKeys.all, 'data-types'] as const,
+  questionTypes: () => [...customFieldsQueryKeys.all, 'question-types'] as const,
 }
 
 // Hook for fetching custom fields list
@@ -55,32 +58,54 @@ export function useCustomFieldDataTypes(options?: { enabled?: boolean }) {
   })
 }
 
+// Hook for fetching custom field question types (drives data_type derivation)
+export function useCustomFieldQuestionTypes(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: customFieldsQueryKeys.questionTypes(),
+    queryFn: getCustomFieldQuestionTypes,
+    enabled: options?.enabled !== false,
+    staleTime: 30 * 60 * 1000, // 30 minutes - question types don't change often
+  })
+}
+
 // Custom fields mutations hook
 export function useCustomFieldMutations() {
   const queryClient = useQueryClient()
 
   const createMutation = useMutation({
     mutationFn: createCustomField,
+    meta: { successMessage: 'Custom field created successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customFieldsQueryKeys.lists() })
-      toast.success('Custom field created successfully')
     },
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateCustomFieldRequest }) =>
       updateCustomField(id, data),
+    meta: { successMessage: 'Custom field updated successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customFieldsQueryKeys.all })
-      toast.success('Custom field updated successfully')
     },
   })
 
   const deleteMutation = useMutation({
-    mutationFn: deleteCustomField,
-    onSuccess: () => {
+    mutationFn: ({ id, force }: { id: string; force?: boolean }) => deleteCustomField(id, force),
+    meta: { successMessage: 'Custom field deleted successfully' },
+    onError: (error) => {
+      // El caso "campo en uso" (400 con detail de templates/documentos) lo
+      // resuelve la UI escalando su propio diálogo de confirmación — no
+      // mostrar el toast genérico para ese caso.
+      if (parseCustomFieldUsageError(error)) return
+      handleApiError(error)
+    },
+    onSuccess: (_data, { force }) => {
       queryClient.invalidateQueries({ queryKey: customFieldsQueryKeys.lists() })
-      toast.success('Custom field deleted successfully')
+      if (force) {
+        // Un borrado forzado desasocia el campo de templates y documentos.
+        queryClient.invalidateQueries({ queryKey: ['custom-field-templates'] })
+        queryClient.invalidateQueries({ queryKey: ['custom-field-documents'] })
+      }
     },
   })
 

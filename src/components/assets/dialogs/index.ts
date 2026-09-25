@@ -1,5 +1,5 @@
 // Asset dialog components
-export { CreateFolderDialog } from './assets-create-folder-dialog';
-export { CreateAssetDialog } from './assets-create-dialog';
+export { CreateFolderSheet } from './assets-create-folder-sheet';
+export { CreateAssetSheet } from './assets-create-sheet';
 export { DeleteFolderDialog } from './assets-delete-folder-dialog';
 export { DeleteDocumentDialog } from './assets-delete-dialog';

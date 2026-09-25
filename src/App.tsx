@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/auth-context";
 import { OrganizationProvider } from "./contexts/organization-context";
@@ -5,23 +6,37 @@ import { PermissionsProvider } from "./contexts/permissions-context";
 import { ProtectedRoute } from "./components/auth/auth-protected-route";
 import { ProtectedRoute as PermissionProtectedRoute } from "./components/auth/auth-protected-route-with-permissions";
 import AppLayout from "./components/layout/app-layout";
+import { HuemulAppLoading } from "./huemul/components/huemul-app-loading";
 import Home from "./pages/home";
-import Templates from "./pages/templates";
-import SearchPage from "./pages/search";
-import ConfigDocumentPage from "./pages/config_document";
-import ExecutionPage from "./pages/execution"; 
-import Organizations from "./pages/organizations";
-// import Library from "./pages/library"; // Hidden - library functionality disabled
-import Assets from "./pages/assets";
-import Graph from "./pages/graph";
-import ModelsPage from "./pages/models";
-import AuthTypes from "./pages/auth-types";
-import UsersPage from "./pages/users";
-import Roles from "./pages/roles";
-import AssetTypesPage from "./pages/assets-types";
-import CustomFieldsPage from "./pages/custom-fields";
-import GlobalAdminPage from "./pages/global-admin";
 import { RootRedirect } from "./components/organization/root-redirect";
+import { RBAC_PAGES } from "./lib/rbac-matrix";
+
+// Páginas cargadas de forma perezosa: cada una se descarga solo cuando el
+// usuario navega a su ruta, en vez de entrar todas al bundle inicial.
+const Templates = lazy(() => import("./pages/templates"));
+const SearchPage = lazy(() => import("./pages/search"));
+const Organizations = lazy(() => import("./pages/organizations"));
+// import Library from "./pages/library"; // Hidden - library functionality disabled
+const Assets = lazy(() => import("./pages/assets"));
+const AssetFullscreenPage = lazy(() => import("./pages/asset-fullscreen"));
+const ModelsPage = lazy(() => import("./pages/models"));
+const AuthTypes = lazy(() => import("./pages/auth-types"));
+const UsersPage = lazy(() => import("./pages/users"));
+const Roles = lazy(() => import("./pages/roles"));
+const AssetTypesPage = lazy(() => import("./pages/assets-types"));
+const AssetTypeDetailPage = lazy(() => import("./pages/asset-type-detail"));
+const CustomFieldsPage = lazy(() => import("./pages/custom-fields"));
+const TagsPage = lazy(() => import("./pages/tags"));
+const CanvasPage = lazy(() => import("./pages/canvas"));
+const DiagramsPage = lazy(() => import("./pages/diagrams"));
+const GlobalAdminPage = lazy(() => import("./pages/global-admin"));
+const AdvancedPage = lazy(() => import("./pages/advanced"));
+const ExternalSystemsPage = lazy(() => import("./pages/external-systems"));
+const DocumentTypeRelationshipsPage = lazy(() => import("./pages/document-type-relationships"));
+const MediaPage = lazy(() => import("./pages/media"));
+const WorkflowPage = lazy(() => import("./pages/workflow"));
+const WorkflowFillPage = lazy(() => import("./pages/workflow-fill"));
+const TokenUsagePage = lazy(() => import("./pages/token-usage"));
 
 export default function App() {
   return (
@@ -29,6 +44,7 @@ export default function App() {
       <OrganizationProvider>
         <PermissionsProvider>
           <ProtectedRoute>
+            <Suspense fallback={<HuemulAppLoading />}>
             <Routes>
           {/* Root redirect — sends user to /:orgId/home */}
           <Route path="/" element={<RootRedirect />} />
@@ -37,7 +53,7 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route path="/home" element={<Home />} />
             <Route path="/global-admin" element={
-              <PermissionProtectedRoute requireRootAdmin>
+              <PermissionProtectedRoute requireRootAdmin={RBAC_PAGES["global-admin"].requireRootAdmin} showErrorPage>
                 <GlobalAdminPage />
               </PermissionProtectedRoute>
             } />
@@ -48,71 +64,160 @@ export default function App() {
             <Route index element={<Navigate to="home" replace />} />
             <Route path="home" element={<Navigate to="/home" replace />} />
             <Route path="organizations" element={
-              <PermissionProtectedRoute permissions={["organization:r", "organization:l"]}>
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.organizations.routePermissions]}>
                 <Organizations />
               </PermissionProtectedRoute>
             } />
             <Route path="templates" element={
-              <PermissionProtectedRoute permissions={["template:r", "template:l"]}>
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.templates.routePermissions]}>
                 <Templates />
               </PermissionProtectedRoute>
             } />
             <Route path="templates/:id" element={
-              <PermissionProtectedRoute permissions={["template:r", "template:u"]}>
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.templates.routePermissions]}>
                 <Templates />
               </PermissionProtectedRoute>
             } />
-            <Route path="search" element={<SearchPage />} />
+            <Route path="search" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.search.routePermissions]}>
+                <SearchPage />
+              </PermissionProtectedRoute>
+            } />
             <Route path="asset" element={
-              <PermissionProtectedRoute permissions={["asset:r", "asset:l"]}>
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.asset.routePermissions]}>
                 <Assets />
               </PermissionProtectedRoute>
             } />
             <Route path="asset/*" element={
-              <PermissionProtectedRoute permissions={["asset:r", "asset:l"]}>
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.asset.routePermissions]}>
                 <Assets />
               </PermissionProtectedRoute>
             } />
-            <Route path="graph" element={<Graph />} />
+            {/* Vista de un asset a pantalla completa (ver ia context/fullscreen-share-route-guide.md).
+                `path` va como string literal a propósito (no template literal), para que un eventual
+                validador de rutas por AST siga reconociéndola. Dos segmentos estáticos + uno dinámico
+                le ganan en especificidad al splat "asset/*" de arriba. */}
+            <Route path="asset/full/:assetId" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.asset.routePermissions]}>
+                <AssetFullscreenPage />
+              </PermissionProtectedRoute>
+            } />
             <Route path="models" element={
-              <PermissionProtectedRoute permissions={["llm:r", "llm_provider:r"]}>
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.models.routePermissions]}>
                 <ModelsPage />
               </PermissionProtectedRoute>
             } />
             <Route path="auth-types" element={
-              <PermissionProtectedRoute permissions={["asset_type:r", "asset_type:l"]}>
+              <PermissionProtectedRoute requireRootAdmin={RBAC_PAGES["auth-types"].requireRootAdmin} showErrorPage>
                 <AuthTypes />
               </PermissionProtectedRoute>
             } />
             <Route path="global-admin" element={<Navigate to="/global-admin" replace />} />
             <Route path="users" element={
-              <PermissionProtectedRoute permissions={["user:r", "user:l"]}>
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.users.routePermissions]}>
                 <UsersPage />
               </PermissionProtectedRoute>
             } />
             <Route path="roles" element={
-              <PermissionProtectedRoute permissions={["rbac:r", "rbac:l"]}>
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.roles.routePermissions]}>
                 <Roles />
               </PermissionProtectedRoute>
             } />
             <Route path="asset-types" element={
-              <PermissionProtectedRoute permissions={["asset_type:r", "asset_type:l"]}>
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES["asset-types"].routePermissions]}>
                 <AssetTypesPage />
               </PermissionProtectedRoute>
             } />
+            {/* Detalle compartible de un tipo de activo. El `path` va como string
+                literal y su primer segmento coincide con el del módulo, así que
+                hereda RBAC_PAGES["asset-types"] sin tocar la matriz (mismo
+                criterio que `templates/:id`; ver
+                ia context/fullscreen-share-route-guide.md §2). */}
+            <Route path="asset-types/:documentTypeId" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES["asset-types"].routePermissions]}>
+                <AssetTypeDetailPage />
+              </PermissionProtectedRoute>
+            } />
             <Route path="custom-fields" element={
-              <PermissionProtectedRoute permissions={["asset_type:r", "asset_type:l"]}>
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES["custom-fields"].routePermissions]}>
                 <CustomFieldsPage />
               </PermissionProtectedRoute>
             } />
-            <Route path="configDocument/:id" element={
-              <PermissionProtectedRoute permissions={["section:u", "section:c"]}>
-                <ConfigDocumentPage />
+            <Route path="tags" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.tags.routePermissions]}>
+                <TagsPage />
               </PermissionProtectedRoute>
             } />
-            <Route path="execution/:id" element={
-              <PermissionProtectedRoute permissions={["section_execution:r", "section_execution:c"]}>
-                <ExecutionPage />
+
+            <Route path="canvas" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.canvas.routePermissions]}>
+                <CanvasPage />
+              </PermissionProtectedRoute>
+            } />
+
+            <Route path="diagrams" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.diagrams.routePermissions]}>
+                <DiagramsPage />
+              </PermissionProtectedRoute>
+            } />
+
+            <Route path="advanced" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.advanced.routePermissions]}>
+                <Navigate to="home" replace />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="advanced/:section" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.advanced.routePermissions]}>
+                <AdvancedPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="external-systems" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES["external-systems"].routePermissions]}>
+                <ExternalSystemsPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="asset-type-relationships" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES["asset-type-relationships"].routePermissions]}>
+                <DocumentTypeRelationshipsPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="media" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.media.routePermissions]}>
+                <MediaPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="token-usage" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES["token-usage"].routePermissions]}>
+                <TokenUsagePage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="workflow" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.workflow.routePermissions]}>
+                <WorkflowPage />
+              </PermissionProtectedRoute>
+            } />
+            {/* Vista compartida a pantalla completa (ver ia context/fullscreen-share-route-guide.md).
+                `path` va como string literal (no template literal) a propósito: scripts/validate-rbac.mjs
+                solo reconoce rutas reales con `path` de tipo StringLiteral en su AST — un template literal
+                queda invisible para el validador. Debe coincidir con WORKFLOW_SHARE_TEMPLATE_PATH /
+                WORKFLOW_SHARE_EXECUTION_PATH en lib/workflow-share-url.ts (mismo primer segmento
+                "workflow" → hereda RBAC_PAGES.workflow sin tocar la matriz). */}
+            <Route path="workflow/share/template/:documentTypeId/:templateId" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.workflow.routePermissions]}>
+                <WorkflowFillPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="workflow/share/execution/:documentId/:executionId" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.workflow.routePermissions]}>
+                <WorkflowFillPage />
+              </PermissionProtectedRoute>
+            } />
+            {/* Sin executionId: destino de la redirección automática apenas se crea un
+                express desde un link de template (ver workflow-fill.tsx) — WorkflowDetailPanel
+                ya resuelve la ejecución por defecto cuando executionId es undefined. */}
+            <Route path="workflow/share/execution/:documentId" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.workflow.routePermissions]}>
+                <WorkflowFillPage />
               </PermissionProtectedRoute>
             } />
           </Route>
@@ -120,6 +225,7 @@ export default function App() {
           {/* Catch-all: redirect unknown paths to root */}
           <Route path="*" element={<RootRedirect />} />
             </Routes>
+            </Suspense>
         </ProtectedRoute>
         </PermissionsProvider>
       </OrganizationProvider>

@@ -18,6 +18,13 @@ import {
   PathApi,
 } from 'platejs';
 
+import { MERMAID_KEY } from '@/lib/plate-mermaid-utils';
+import { DATA_TABLE_KEY } from '@/lib/plate-data-table-utils';
+import { newDataTableNodeId } from '@/lib/data-table-node-utils';
+import { queryClient } from '@/lib/query-client';
+import { dataTableQueryKeys } from '@/hooks/useDataTables';
+import type { DataTableSourceDef } from '@/types/data-table-resolve';
+
 const insertList = (editor: PlateEditor, type: string) => {
   editor.tf.insertNodes(
     editor.api.create.block({
@@ -43,6 +50,32 @@ const insertBlockMap: Record<
   [KEYS.table]: (editor) =>
     editor.getTransforms(TablePlugin).insert.table({}, { select: true }),
   [KEYS.toc]: (editor) => insertToc(editor, { select: true }),
+  [MERMAID_KEY]: (editor) =>
+    editor.tf.insertNodes(
+      { type: MERMAID_KEY, code: '', children: [{ text: '' }] },
+      { select: true }
+    ),
+  // Se inserta con la fuente por defecto ("Versiones del documento") — se reconfigura desde
+  // el diálogo que abre el propio nodo (ver data-table-node.tsx), mismo flujo que insertar
+  // una tabla o un diagrama vacío y completarlo después. Esta función es síncrona y corre
+  // fuera de React, así que el catálogo se lee directo del cache de React Query (ya
+  // prefetcheado al montar el documento) en vez de un hook — sin catálogo en cache, inserta
+  // sin columnas por defecto y el usuario las elige a mano.
+  [DATA_TABLE_KEY]: (editor) => {
+    const sources = queryClient.getQueryData<DataTableSourceDef[]>(dataTableQueryKeys.sources());
+    const defaultSource = sources?.find((s) => s.id === 'document_versions') ?? sources?.[0];
+    editor.tf.insertNodes(
+      {
+        type: DATA_TABLE_KEY,
+        node_id: newDataTableNodeId(),
+        scope: { kind: 'current' },
+        source: defaultSource?.id ?? 'document_versions',
+        columns: (defaultSource?.default_columns ?? []).map((id) => ({ id })),
+        children: [{ text: '' }],
+      },
+      { select: true }
+    );
+  },
 };
 
 const insertInlineMap: Record<

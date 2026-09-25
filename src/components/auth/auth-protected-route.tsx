@@ -1,23 +1,23 @@
-import { type ReactNode } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthPage } from '@/pages/auth';
+import { HuemulAppLoading } from '@/huemul/components/huemul-app-loading';
+import type { BasicProtectedRouteProps as ProtectedRouteProps } from '@/types/auth'
 
-interface ProtectedRouteProps {
-  children: ReactNode;
-}
+export type { BasicProtectedRouteProps as ProtectedRouteProps } from '@/types/auth'
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-      </div>
-    );
+    return <HuemulAppLoading />;
   }
 
   if (!isAuthenticated) {
+    // Persist the intended URL so post-login flows can redirect back
+    const currentUrl = window.location.pathname + window.location.search;
+    if (currentUrl !== '/' && currentUrl !== '/home') {
+      sessionStorage.setItem('returnUrl', currentUrl);
+    }
     return <AuthPage />;
   }
 

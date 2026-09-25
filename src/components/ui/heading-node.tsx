@@ -1,31 +1,31 @@
 'use client';
 
-import { useContext } from 'react';
+import { useContext, useMemo } from 'react';
 
 import type { PlateElementProps } from 'platejs/react';
 
 import { type VariantProps, cva } from 'class-variance-authority';
-import { NodeApi } from 'platejs';
-import { PlateElement } from 'platejs/react';
+import { type TElement, NodeApi } from 'platejs';
+import { PlateElement, useEditorRef } from 'platejs/react';
 import { SectionIndexContext } from '@/contexts/section-index-context';
 
-const headingVariants = cva('relative', {
+const headingVariants = cva('relative font-["IBM_Plex_Sans",sans-serif]', {
   variants: {
     variant: {
-      h1: 'text-2xl font-bold my-4',
-      h2: 'text-xl font-bold my-3',
-      h3: 'text-lg font-bold my-2',
-      h4: 'text-base font-bold my-2',
-      h5: 'text-sm font-bold my-2',
-      h6: 'text-xs font-bold my-2',
+      h1: 'text-[1.875rem] leading-tight font-semibold tracking-tight mt-8 mb-4',
+      h2: 'text-[1.5rem] leading-snug font-semibold tracking-tight mt-7 mb-3',
+      h3: 'text-[1.25rem] leading-snug font-semibold mt-6 mb-3',
+      h4: 'text-[1.125rem] leading-snug font-semibold mt-5 mb-2',
+      h5: 'text-base font-semibold mt-4 mb-2',
+      h6: 'text-sm font-semibold mt-3 mb-1',
     },
   },
 });
 
-function generateHeadingId(text: string, sectionIndex?: number): string | undefined {
-  if (!text) return undefined;
-  const baseId = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  return sectionIndex !== undefined ? `section-${sectionIndex}-${baseId}` : baseId;
+const HEADING_TYPES = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
+
+function slugify(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
 export function HeadingElement({
@@ -33,8 +33,31 @@ export function HeadingElement({
   ...props
 }: PlateElementProps & VariantProps<typeof headingVariants>) {
   const sectionIndex = useContext(SectionIndexContext);
+  const editor = useEditorRef();
   const text = NodeApi.string(props.element);
-  const headingId = generateHeadingId(text, sectionIndex);
+
+  const headingId = useMemo(() => {
+    if (!text) return undefined;
+    const baseSlug = slugify(text);
+    const fullBaseId = sectionIndex !== undefined ? `section-${sectionIndex}-${baseSlug}` : baseSlug;
+
+    // Count how many headings with the same slug appear before this one
+    const allHeadings = Array.from(
+      editor.api.nodes<TElement>({
+        at: [],
+        match: (n) => HEADING_TYPES.has((n as TElement).type),
+      })
+    );
+
+    let count = 0;
+    for (const [node] of allHeadings) {
+      if (node === props.element) break;
+      const nodeText = NodeApi.string(node);
+      if (slugify(nodeText) === baseSlug) count++;
+    }
+
+    return count === 0 ? fullBaseId : `${fullBaseId}-${count + 1}`;
+  }, [text, sectionIndex, editor, props.element]);
 
   return (
     <PlateElement

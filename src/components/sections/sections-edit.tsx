@@ -11,34 +11,8 @@ import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugi
     CodeToggle, InsertCodeBlock, InsertThematicBreak, ListsToggle, Separator
  } from '@mdxeditor/editor';
 import type { MDXEditorMethods } from '@mdxeditor/editor';
-
-interface Item {
-  id: string;
-  name: string;
-  prompt: string;
-  order: number;
-  dependencies: { id: string; name: string }[];
-}
-
-interface ItemForBackend {
-  id: string;
-  name: string;
-  prompt: string;
-  order: number;
-  dependencies: string[];
-}
-
-interface Section {
-  id: string;
-  name: string;
-}
-
-interface EditSectionProps {
-  item: Item;
-  onCancel: () => void;
-  onSave: (updatedItem: ItemForBackend) => void;
-  existingSections?: Section[];
-}
+import type { Item, EditItemForBackend, EditSectionProps } from '@/types/sections';
+export type { EditSectionProps } from '@/types/sections';
 
 export default function EditSection({ item, onCancel, onSave, existingSections = [] }: EditSectionProps) {
   const [formData, setFormData] = useState<Item>({
@@ -80,8 +54,11 @@ export default function EditSection({ item, onCancel, onSave, existingSections =
   const handleSave = () => {
     // order se mantiene sin edición
     // Enviar dependencies como array de strings (solo IDs) para compatibilidad con el backend
-    const updatedItem: ItemForBackend = {
-      ...formData,
+    const updatedItem: EditItemForBackend = {
+      id: formData.id,
+      name: formData.name,
+      prompt: formData.prompt,
+      order: formData.order,
       dependencies: formData.dependencies.map(dep => dep.id)
     };
     onSave(updatedItem);

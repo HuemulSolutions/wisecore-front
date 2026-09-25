@@ -1,0 +1,232 @@
+// Asset type page component props (the asset-types management module)
+import type { ReactNode } from 'react'
+import type { AssetTypeWithRoles, TemplatesSaveApiRef } from './asset-types'
+import type { AssetTypePageState } from './asset-types'
+import type { DocumentTypeFolder } from '../document-type-folders'
+import type { Tag } from '../tags'
+import type { useAssetTypeMutations } from '@/hooks/useAssetTypes'
+import type { HuemulTablePagination, HuemulTableFolder } from '@/huemul/components/huemul-table'
+
+// ----------------------------------------
+// Content Empty State
+// ----------------------------------------
+
+export interface AssetTypeContentEmptyStateProps {
+  type: 'empty' | 'error'
+  message?: string
+  onRetry?: () => void
+  onCreateFirst?: () => void
+}
+
+// ----------------------------------------
+// Create / Edit Asset Type Dialog
+// ----------------------------------------
+
+export interface CreateDocumentTypeProps {
+  trigger?: ReactNode
+  onDocumentTypeCreated?: (documentType: { id: string; name: string; color: string; created_at?: string; document_count?: number }) => void
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  documentType?: AssetTypeWithRoles | null
+  type?: 'document' | 'asset'
+  /**
+   * El mismo sheet hace POST (crear) o PUT (editar) según venga `documentType`,
+   * así que el consumidor debe resolver `asset_type:c` o `asset_type:u` y pasar
+   * el resultado. Obligatoria y sin default: ver punto 9 del checklist en
+   * ia context/rbac-audit-guide.md.
+   */
+  canSave: boolean
+}
+
+// ----------------------------------------
+// Asset Type Config Sheet (tabs)
+// ----------------------------------------
+
+export type AssetTypeConfigTab = 'general' | 'lifecycle' | 'templates'
+
+export interface AssetTypeConfigSheetProps {
+  assetType: AssetTypeWithRoles | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  organizationId: string
+  /** `asset_type:u` — habilita el tab General y su botón Guardar. */
+  canUpdate: boolean
+  /** `manageLinkedTemplates` — habilita el tab Plantillas. */
+  canManageTemplates: boolean
+  /** `manageLifecycle` — habilita el tab Ciclo de vida. */
+  canManageLifecycle: boolean
+  /** tag:r — muestra la sección de etiquetas en el tab General. */
+  canViewTags?: boolean
+  /** tag:u — permite asignar/quitar etiquetas desde la sección. Sin esto, solo lectura. */
+  canManageTags?: boolean
+}
+
+/**
+ * Opciones de `useAssetTypeConfig` — el estado compartido por las dos
+ * superficies que muestran la configuración de un tipo de activo: el sheet
+ * (`AssetTypeConfigSheet`) y la página (`pages/asset-type-detail.tsx`).
+ */
+export interface UseAssetTypeConfigOptions {
+  documentTypeId: string
+  organizationId: string
+  /**
+   * Gatea los fetch de los tabs. En el sheet es su `open`; en la página es
+   * siempre `true` (ahí el desmontaje lo hace el router).
+   */
+  enabled: boolean
+  activeTab: AssetTypeConfigTab
+  /** Ya viene envuelto en el guard de cambios sin guardar. */
+  onTabChange: (tab: AssetTypeConfigTab) => void
+  /** `asset_type:u` — habilita el tab General y su botón Guardar. */
+  canUpdate: boolean
+  /** `manageLinkedTemplates` — habilita el tab Plantillas. */
+  canManageTemplates: boolean
+  /** `manageLifecycle` — habilita el tab Ciclo de vida. */
+  canManageLifecycle: boolean
+  /** tag:r — muestra la sección de etiquetas en el tab General. */
+  canViewTags?: boolean
+  /** tag:u — permite asignar/quitar etiquetas. Sin esto, solo lectura. */
+  canManageTags?: boolean
+  /** `variant` de la superficie: ajusta el padding de los tabs. */
+  variant?: 'page' | 'sheet'
+}
+
+// ----------------------------------------
+// Asset Type Templates Panel (tab «Plantillas»)
+// ----------------------------------------
+
+export interface AssetTypeTemplatesPanelProps {
+  documentTypeId: string
+  /** Solo dispara el fetch cuando el tab/panel está visible. */
+  enabled?: boolean
+  /** Publica `save`/`isDirty`/`discard` hacia el footer del sheet. `null` al desmontar. */
+  onDirtyChange?: (state: { isDirty: boolean }) => void
+  saveApiRef?: TemplatesSaveApiRef
+}
+
+// ----------------------------------------
+// Form Fields
+// ----------------------------------------
+
+export interface DocumentTypeFormFieldsProps {
+  name: string
+  color: string
+  onNameChange: (value: string) => void
+  onColorChange: (value: string) => void
+  errors?: {
+    name?: string
+    color?: string
+  }
+  disabled?: boolean
+}
+
+// ----------------------------------------
+// Page Dialogs
+// ----------------------------------------
+
+export interface AssetTypePageDialogsProps {
+  state: AssetTypePageState
+  onCloseDialog: (dialog: keyof AssetTypePageState) => void
+  onUpdateState: (updates: Partial<AssetTypePageState>) => void
+  assetTypeMutations: ReturnType<typeof useAssetTypeMutations>
+  onImportSuccess: () => void
+  /** Ids de tipos de activo seleccionados en la tabla para exportar. */
+  exportSelectedIds: string[]
+  /** Llamado tras una exportación exitosa (p.ej. para limpiar la selección). */
+  onExported?: () => void
+  /** Llamado tras crear (no editar) un asset type nuevo, para poder fijarlo al tope de la tabla. */
+  onAssetTypeCreated?: (assetType: { id: string; name: string; color: string; created_at?: string; document_count?: number }) => void
+}
+
+// ----------------------------------------
+// Page Empty State
+// ----------------------------------------
+
+export interface AssetTypePageEmptyStateProps {
+  type: 'access-denied' | 'error'
+  message?: string
+}
+
+// ----------------------------------------
+// Page Header
+// ----------------------------------------
+
+export interface AssetTypePageHeaderProps {
+  assetTypeCount: number
+  onCreateAssetType: () => void
+  onRefresh: () => void
+  isLoading: boolean
+  hasError?: boolean
+  searchTerm: string
+  onSearchChange: (value: string) => void
+  canCreate?: boolean
+  viewMode?: 'table' | 'relationships'
+  onViewModeChange?: (mode: 'table' | 'relationships') => void
+  onExport?: () => void
+  onImport?: () => void
+  canExport?: boolean
+  canImport?: boolean
+  /** Cantidad de filas seleccionadas para exportar; deshabilita Exportar si es 0. */
+  exportSelectedCount?: number
+}
+
+// ----------------------------------------
+// Table
+// ----------------------------------------
+
+export interface AssetTypeTableProps {
+  /**
+   * Tipos de documento de la página actual: los de raíz de esta página, más los hijos
+   * de cada carpeta visible cuya carpeta está expandida (`HuemulTable` inserta esos
+   * hijos justo después de su carpeta — la tabla ya no arma el árbol a mano).
+   */
+  data: AssetTypeWithRoles[]
+  /** Carpetas de la página actual. */
+  folders: DocumentTypeFolder[]
+  /**
+   * Conteo de tipos por carpeta, independiente de si está expandida (`typesByFolder`
+   * en la página ya lo deriva de la lista completa, no solo de `data`).
+   */
+  folderItemCounts: Record<string, number>
+  expandedFolderIds: Set<string>
+  onExpandedFolderIdsChange: (ids: Set<string>) => void
+  /** Abre el sheet de configuración (general + plantillas + ciclo de vida). */
+  onConfigureAssetType: (assetType: AssetTypeWithRoles) => void
+  onDeleteAssetType: (assetType: AssetTypeWithRoles) => void
+  onCloneAssetType: (assetType: AssetTypeWithRoles) => void
+  onViewRelationships: (assetType: AssetTypeWithRoles) => void
+  /** Crea una carpeta nueva (input inline, sin sheet). */
+  onCreateFolder: (name: string) => Promise<HuemulTableFolder | void>
+  /** Renombra una carpeta existente (input inline, click en el nombre o "Renombrar" del menú). */
+  onRenameFolder: (folderId: string, name: string) => Promise<void>
+  /** Pide confirmación de borrado (abre el HuemulAlertDialog en AssetTypePageDialogs). */
+  onDeleteFolderRequest: (folder: DocumentTypeFolder) => void
+  /** Mueve un tipo de documento a una carpeta, o a la raíz si `folderId` es `null`. Cubre drag & drop y el menú "Mover a carpeta". */
+  onMoveAssetType: (assetTypeId: string, folderId: string | null) => void
+  pagination?: HuemulTablePagination
+  /** True si el usuario puede abrir al menos un tab del sheet de configuración. */
+  canConfigure?: boolean
+  canDelete?: boolean
+  canViewRelationships?: boolean
+  canClone?: boolean
+  /** `asset_type:u` — habilita drag & drop, renombrar carpeta y "Quitar de la carpeta". */
+  canManageFolders?: boolean
+  /** `asset_type:c` — habilita las afordancias de creación de carpeta. */
+  canCreateFolder?: boolean
+  /** `asset_type:d` — habilita "Eliminar" en el menú de la carpeta. */
+  canDeleteFolder?: boolean
+  /** `tag:r` — muestra la columna de etiquetas. */
+  canViewTags?: boolean
+  /** `tag:u` — habilita asignar/quitar etiquetas desde la celda. */
+  canManageTags?: boolean
+  /**
+   * Etiquetas por `document_type_id`, tal como vinieron del listado
+   * (`include_tags=true`). Siembra el picker de cada fila para no disparar un
+   * GET de etiquetas por fila.
+   */
+  initialTags?: Record<string, Tag[]>
+  isLoading?: boolean
+  isFetching?: boolean
+  selectedIds: Set<string>
+  onSelectionChange: (keys: Set<string>) => void
+}

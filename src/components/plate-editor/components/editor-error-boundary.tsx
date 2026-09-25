@@ -1,14 +1,9 @@
 import * as React from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
-interface EditorErrorBoundaryProps {
-  children: React.ReactNode;
-}
-
-interface EditorErrorBoundaryState {
-  hasError: boolean;
-}
+import { logger } from '@/lib/logger';
+import type { EditorErrorBoundaryProps, EditorErrorBoundaryState } from '@/types/editor-error-boundary';
+export type { EditorErrorBoundaryProps } from '@/types/editor-error-boundary';
 
 /**
  * Error boundary that catches rendering errors inside the Plate editor
@@ -29,7 +24,7 @@ export class EditorErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error('[EditorErrorBoundary] Caught rendering error:', error, info);
+    logger.error('[EditorErrorBoundary] Caught rendering error:', error, info);
   }
 
   handleRetry = () => {

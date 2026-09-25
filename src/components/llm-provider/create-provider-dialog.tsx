@@ -3,15 +3,9 @@ import { Blocks, ExternalLink } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
-import type { SupportedProvider, CreateLLMProviderRequest } from "@/types/llm-provider"
-
-interface CreateProviderDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  supportedProviders: SupportedProvider[]
-  onSubmit: (data: CreateLLMProviderRequest) => void
-  isCreating: boolean
-}
+import type { CreateLLMProviderRequest, CreateProviderDialogProps, SupportedProvider } from "@/types/llm-provider"
+import { isMultilineKeyProvider, getProviderHelpUrl, isCredentialsHelpUrl } from "./provider-key-hints"
+export type { CreateProviderDialogProps } from "@/types/llm-provider"
 
 export function CreateProviderDialog({
   open,
@@ -19,6 +13,7 @@ export function CreateProviderDialog({
   supportedProviders,
   onSubmit,
   isCreating,
+  canCreate,
 }: CreateProviderDialogProps) {
   const [name, setName] = useState("")
   const [isManaged, setIsManaged] = useState(false)
@@ -53,6 +48,8 @@ export function CreateProviderDialog({
   }
 
   const handleSave = async () => {
+    if (!canCreate) return
+
     const data: CreateLLMProviderRequest = {
       name,
       type: selectedType,
@@ -83,6 +80,18 @@ export function CreateProviderDialog({
     label: p.display_name,
     value: p.type,
   }))
+
+  const helpLinkAction = (supportedProvider: SupportedProvider | undefined) => {
+    const url = getProviderHelpUrl(supportedProvider)
+    if (!url) return undefined
+    return {
+      icon: ExternalLink,
+      onClick: () => window.open(url, '_blank', 'noopener,noreferrer'),
+      tooltip: isCredentialsHelpUrl(supportedProvider) ? t('createProviderDialog.getCredentials') : t('createProviderDialog.viewDocs'),
+    }
+  }
+
+  if (!canCreate) return null
 
   return (
     <HuemulDialog
@@ -138,18 +147,13 @@ export function CreateProviderDialog({
           <HuemulField
             label={t('createProviderDialog.apiKeyLabel')}
             name="apiKey"
-            type="password"
+            type={isMultilineKeyProvider(selectedProvider.type) ? "textarea" : "password"}
             placeholder={t('createProviderDialog.apiKeyPlaceholder')}
+            description={t(`createProviderDialog.keyHelp.${selectedProvider.type}`, { defaultValue: '' }) || undefined}
             value={apiKey}
             onChange={(v) => setApiKey(String(v))}
             required
-            {...(selectedProvider.credentials_url ? {
-              labelAction: {
-                icon: ExternalLink,
-                onClick: () => window.open(selectedProvider.credentials_url, '_blank', 'noopener,noreferrer'),
-                tooltip: t('createProviderDialog.getCredentials'),
-              }
-            } : {})}
+            {...(helpLinkAction(selectedProvider) ? { labelAction: helpLinkAction(selectedProvider) } : {})}
           />
         )}
 
@@ -157,18 +161,12 @@ export function CreateProviderDialog({
           <HuemulField
             label={t('createProviderDialog.endpointLabel')}
             name="endpoint"
-            type="password"
-            placeholder="https://api.example.com/v1"
+            type="url"
+            placeholder={t('createProviderDialog.endpointPlaceholder')}
             value={endpoint}
             onChange={(v) => setEndpoint(String(v))}
             required
-            {...(selectedProvider.credentials_url ? {
-              labelAction: {
-                icon: ExternalLink,
-                onClick: () => window.open(selectedProvider.credentials_url, '_blank', 'noopener,noreferrer'),
-                tooltip: t('createProviderDialog.getCredentials'),
-              }
-            } : {})}
+            {...(helpLinkAction(selectedProvider) ? { labelAction: helpLinkAction(selectedProvider) } : {})}
           />
         )}
 
@@ -176,18 +174,12 @@ export function CreateProviderDialog({
           <HuemulField
             label={t('createProviderDialog.deploymentLabel')}
             name="deployment"
-            type="password"
+            type="text"
             placeholder={t('createProviderDialog.deploymentPlaceholder')}
             value={deployment}
             onChange={(v) => setDeployment(String(v))}
             required
-            {...(selectedProvider.credentials_url ? {
-              labelAction: {
-                icon: ExternalLink,
-                onClick: () => window.open(selectedProvider.credentials_url, '_blank', 'noopener,noreferrer'),
-                tooltip: t('createProviderDialog.getCredentials'),
-              }
-            } : {})}
+            {...(helpLinkAction(selectedProvider) ? { labelAction: helpLinkAction(selectedProvider) } : {})}
           />
         )}
       </HuemulFieldGroup>

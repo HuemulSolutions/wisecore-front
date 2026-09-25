@@ -4,7 +4,53 @@ import * as React from 'react';
 import type { Value } from 'platejs';
 
 import { normalizeNodeId } from 'platejs';
+
+/**
+ * Ensure every element node has an iterable `children` array so Slate never crashes.
+ * Also validates table hierarchy: table children must be tr rows, and tr children
+ * must be td/th cells. Invalid children are filtered out to prevent
+ * computeCellIndices from crashing on non-iterable row.children.
+ */
+function sanitizeNodes(nodes: unknown[]): Value {
+  return nodes.map((node) => {
+    if (typeof node !== 'object' || node === null) {
+      return { text: String(node ?? '') };
+    }
+    if ('text' in node) return node;
+    const el = node as Record<string, unknown>;
+    let children = Array.isArray(el.children)
+      ? sanitizeNodes(el.children as unknown[])
+      : [{ text: '' }];
+
+    const type = el.type as string | undefined;
+
+    // Table children must be row elements (tr)
+    if (type === 'table') {
+      children = (children as any[]).filter(
+        (child) => child && typeof child === 'object' && !('text' in child) && child.type === 'tr'
+      ) as Value;
+      if (children.length === 0) {
+        children = [{ type: 'tr', children: [{ type: 'td', children: [{ type: 'p', children: [{ text: '' }] }] }] }] as Value;
+      }
+    }
+    // Row children must be cell elements (td / th)
+    else if (type === 'tr') {
+      children = (children as any[]).filter(
+        (child) => child && typeof child === 'object' && !('text' in child) && (child.type === 'td' || child.type === 'th')
+      ) as Value;
+      if (children.length === 0) {
+        children = [{ type: 'td', children: [{ type: 'p', children: [{ text: '' }] }] }] as Value;
+      }
+    }
+
+    return {
+      ...el,
+      children,
+    };
+  }) as Value;
+}
 import { Plate, usePlateEditor, usePlateState, usePluginOption, useEditorRef, useEditorSelector } from 'platejs/react';
+import type { PlateEditor } from 'platejs/react';
 import { SuggestionPlugin } from '@platejs/suggestion/react';
 import {
   Bold,
@@ -28,17 +74,22 @@ import { AlignKit } from '@/components/plate-editor/components/align-kit';
 import { ListKit } from '@/components/plate-editor/components/list-kit';
 import { LinkKit } from '@/components/plate-editor/components/link-kit';
 import { TableKit } from '@/components/plate-editor/components/table-kit';
+import { DataTableKit } from '@/components/plate-editor/components/data-table-kit';
 import { ToggleKit } from '@/components/plate-editor/components/toggle-kit';
 import { MediaKit } from '@/components/plate-editor/components/media-kit';
 import { CommentKit } from '@/components/plate-editor/components/comment-kit';
-import { DiscussionKit } from '@/components/plate-editor/components/discussion-kit';
+import { discussionPlugin } from '@/components/plate-editor/components/discussion-kit';
+import { BlockDiscussion } from '@/components/ui/block-discussion';
 import { SuggestionKit } from '@/components/plate-editor/components/suggestion-kit';
 import { EmojiKit } from '@/components/plate-editor/components/emoji-kit';
 import { MentionKit } from '@/components/plate-editor/components/mention-kit';
+import { ReferenceKit } from '@/components/plate-editor/components/reference-kit';
 import { SlashKit } from '@/components/plate-editor/components/slash-kit';
 import { DateKit } from '@/components/plate-editor/components/date-kit';
 import { TocKit } from '@/components/plate-editor/components/toc-kit';
 import { MarkdownKit } from '@/components/plate-editor/components/markdown-kit';
+import { CodeDrawingKit } from '@/components/plate-editor/components/code-drawing-kit';
+import { MermaidKit } from '@/components/plate-editor/components/mermaid-kit';
 
 import { Editor, EditorContainer } from '@/components/ui/editor';
 import { FloatingToolbarButtons } from '@/components/ui/floating-toolbar-buttons';
@@ -47,6 +98,7 @@ import { MarkToolbarButton } from '@/components/ui/mark-toolbar-button';
 import { AlignToolbarButton } from '@/components/ui/align-toolbar-button';
 import { LinkToolbarButton } from '@/components/ui/link-toolbar-button';
 import { TableToolbarButton } from '@/components/ui/table-toolbar-button';
+import { DataTableToolbarButton } from '@/components/ui/data-table-toolbar-button';
 import { IndentToolbarButton, OutdentToolbarButton } from '@/components/ui/indent-toolbar-button';
 import { ToggleToolbarButton } from '@/components/ui/toggle-toolbar-button';
 import { BulletedListToolbarButton, NumberedListToolbarButton, TodoListToolbarButton } from '@/components/ui/list-toolbar-button';
@@ -54,11 +106,11 @@ import { FontColorToolbarButton } from '@/components/ui/font-color-toolbar-butto
 import { MediaToolbarButton } from '@/components/ui/media-toolbar-button';
 import { TurnIntoToolbarButton } from '@/components/ui/turn-into-toolbar-button';
 import { CommentToolbarButton } from '@/components/ui/comment-toolbar-button';
+import { MermaidToolbarButton } from '@/components/ui/mermaid-toolbar-button';
 import { ModeToolbarButton } from '@/components/ui/mode-toolbar-button';
 import { EmojiToolbarButton } from '@/components/ui/emoji-toolbar-button';
 import { FontSizeToolbarButton } from '@/components/ui/font-size-toolbar-button';
 import { ToolbarButton, ToolbarSeparator } from '@/components/ui/toolbar';
-import { TooltipProvider } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -70,14 +122,22 @@ import { MarkdownPlugin } from '@platejs/markdown';
 
 import { FontSizePlugin, FontColorPlugin, FontBackgroundColorPlugin } from '@platejs/basic-styles/react';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
+import { DiscussionFocusSync } from '@/components/plate-editor/components/discussion-focus-sync';
 import { DiscussionSync } from '@/components/plate-editor/components/discussion-sync';
 import { EditorErrorBoundary } from '@/components/plate-editor/components/editor-error-boundary';
+import { EditorChromeInsetProvider } from '@/components/plate-editor/components/editor-chrome-inset';
+import { useTranslation } from 'react-i18next';
+import { MediaReferenceContext, useMediaReference } from '@/contexts/media-reference-context';
+import { MediaReferencePicker } from '@/components/ui/media-reference-picker';
+import { Images } from 'lucide-react';
 
 
-function EditorToolbar() {
+function EditorToolbar({ toolbarRef }: { toolbarRef?: React.Ref<HTMLDivElement> }) {
   const editor = useEditorRef();
   const [readOnly] = usePlateState('readOnly');
   const isSuggesting = usePluginOption(SuggestionPlugin, 'isSuggesting');
+  const { t } = useTranslation('editor');
 
   const canUndo = useEditorSelector((editor) => (editor.history?.undos?.length ?? 0) > 0, []);
   const canRedo = useEditorSelector((editor) => (editor.history?.redos?.length ?? 0) > 0, []);
@@ -113,19 +173,19 @@ function EditorToolbar() {
   }, [markdownOutput]);
 
   return (
-    <FixedToolbar className="flex items-center gap-0.5 px-1 py-1">
+    <FixedToolbar ref={toolbarRef} className="flex items-center gap-0.5 px-1 py-1">
       {/* Undo / Redo */}
       {isEditing && (
         <>
           <ToolbarButton
-            tooltip="Undo (Ctrl+Z)"
+            tooltip={t('toolbar.undo')}
             onClick={() => editor.undo()}
             disabled={!canUndo}
           >
             <Undo2 />
           </ToolbarButton>
           <ToolbarButton
-            tooltip="Redo (Ctrl+Y)"
+            tooltip={t('toolbar.redo')}
             onClick={() => editor.redo()}
             disabled={!canRedo}
           >
@@ -139,31 +199,31 @@ function EditorToolbar() {
       {/* Text formatting */}
       {isEditing && (
         <>
-          <MarkToolbarButton nodeType="bold" tooltip="Bold (Ctrl+B)">
+          <MarkToolbarButton nodeType="bold" tooltip={t('toolbar.bold')}>
             <Bold />
           </MarkToolbarButton>
-          <MarkToolbarButton nodeType="italic" tooltip="Italic (Ctrl+I)">
+          <MarkToolbarButton nodeType="italic" tooltip={t('toolbar.italic')}>
             <Italic />
           </MarkToolbarButton>
-          <MarkToolbarButton nodeType="underline" tooltip="Underline (Ctrl+U)">
+          <MarkToolbarButton nodeType="underline" tooltip={t('toolbar.underline')}>
             <Underline />
           </MarkToolbarButton>
-          <MarkToolbarButton nodeType="strikethrough" tooltip="Strikethrough (Ctrl+Shift+X)">
+          <MarkToolbarButton nodeType="strikethrough" tooltip={t('toolbar.strikethrough')}>
             <Strikethrough />
           </MarkToolbarButton>
-          <MarkToolbarButton nodeType="code" tooltip="Code (Ctrl+E)">
+          <MarkToolbarButton nodeType="code" tooltip={t('toolbar.code')}>
             <Code />
           </MarkToolbarButton>
-          <MarkToolbarButton nodeType="highlight" tooltip="Highlight (Ctrl+Shift+H)">
+          <MarkToolbarButton nodeType="highlight" tooltip={t('toolbar.highlight')}>
             <Highlighter />
           </MarkToolbarButton>
-          <MarkToolbarButton nodeType="superscript" tooltip="Superscript (Ctrl+.)">
+          <MarkToolbarButton nodeType="superscript" tooltip={t('toolbar.superscript')}>
             <Superscript />
           </MarkToolbarButton>
-          <MarkToolbarButton nodeType="subscript" tooltip="Subscript (Ctrl+,)">
+          <MarkToolbarButton nodeType="subscript" tooltip={t('toolbar.subscript')}>
             <Subscript />
           </MarkToolbarButton>
-          <MarkToolbarButton nodeType="kbd" tooltip="Keyboard">
+          <MarkToolbarButton nodeType="kbd" tooltip={t('toolbar.keyboard')}>
             <Keyboard />
           </MarkToolbarButton>
 
@@ -175,8 +235,8 @@ function EditorToolbar() {
       {isEditing && (
         <>
           <FontSizeToolbarButton />
-          <FontColorToolbarButton nodeType="color" tooltip="Text Color" />
-          <FontColorToolbarButton nodeType="backgroundColor" tooltip="Background Color" />
+          <FontColorToolbarButton nodeType="color" tooltip={t('toolbar.textColor')} />
+          <FontColorToolbarButton nodeType="backgroundColor" tooltip={t('toolbar.backgroundColor')} />
 
           <ToolbarSeparator />
         </>
@@ -212,7 +272,10 @@ function EditorToolbar() {
           <TableToolbarButton />
           <ToggleToolbarButton />
           <MediaToolbarButton nodeType="img" />
+          <MermaidToolbarButton />
+          <DataTableToolbarButton />
           <EmojiToolbarButton />
+          <MediaReferenceToolbarButton />
 
           <ToolbarSeparator />
         </>
@@ -221,7 +284,7 @@ function EditorToolbar() {
       {/* Highlight - suggestion mode */}
       {isSuggesting && (
         <>
-          <MarkToolbarButton nodeType="highlight" tooltip="Highlight (Ctrl+Shift+H)">
+          <MarkToolbarButton nodeType="highlight" tooltip={t('toolbar.highlight')}>
             <Highlighter />
           </MarkToolbarButton>
           <ToolbarSeparator />
@@ -242,7 +305,7 @@ function EditorToolbar() {
       {/* Save as Markdown */}
       <ToolbarSeparator />
       <ToolbarButton
-        tooltip="Save as Markdown"
+        tooltip={t('toolbar.saveAsMarkdown')}
         onClick={handleSaveAsMarkdown}
         className="hover:cursor-pointer"
       >
@@ -253,9 +316,9 @@ function EditorToolbar() {
       <Dialog open={markdownDialogOpen} onOpenChange={setMarkdownDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>Markdown Output</DialogTitle>
+            <DialogTitle>{t('markdownDialog.title')}</DialogTitle>
             <DialogDescription>
-              This is your editor content serialized as Markdown. You can copy it or download it as a .md file.
+              {t('markdownDialog.description')}
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-2 mb-2">
@@ -265,7 +328,7 @@ function EditorToolbar() {
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 hover:cursor-pointer transition-colors"
             >
               {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-              {copied ? 'Copied!' : 'Copy'}
+              {copied ? t('markdownDialog.copied') : t('markdownDialog.copy')}
             </button>
             <button
               type="button"
@@ -273,10 +336,10 @@ function EditorToolbar() {
               className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:cursor-pointer transition-colors"
             >
               <FileDown className="size-4" />
-              Download .md
+              {t('markdownDialog.download')}
             </button>
           </div>
-          <pre className="flex-1 overflow-auto rounded-md border bg-muted p-4 text-sm font-mono whitespace-pre-wrap break-words">
+          <pre className="flex-1 overflow-auto rounded-md border bg-muted p-4 text-sm font-mono whitespace-pre-wrap wrap-break-word">
             {markdownOutput}
           </pre>
         </DialogContent>
@@ -292,120 +355,105 @@ function EditorToolbar() {
  * Compact toolbar for section-level editing inside resizable panels.
  * Shows only the most essential formatting buttons and wraps on narrow widths.
  */
-function SectionEditorToolbar({ actions }: { actions?: React.ReactNode }) {
+function SectionEditorToolbar({
+  actions,
+  topOffset,
+  toolbarRef,
+}: {
+  actions?: React.ReactNode;
+  topOffset?: string;
+  toolbarRef?: React.Ref<HTMLDivElement>;
+}) {
   const editor = useEditorRef();
+  const { t } = useTranslation('editor');
 
   const canUndo = useEditorSelector((editor) => (editor.history?.undos?.length ?? 0) > 0, []);
   const canRedo = useEditorSelector((editor) => (editor.history?.redos?.length ?? 0) > 0, []);
 
   return (
-    <FixedToolbar className="flex flex-wrap items-center gap-0.5 px-1 py-1" style={{ top: '36px' }}>
-      {/* Undo / Redo */}
-      <ToolbarButton tooltip="Undo (Ctrl+Z)" onClick={() => editor.undo()} disabled={!canUndo}>
-        <Undo2 />
-      </ToolbarButton>
-      <ToolbarButton tooltip="Redo (Ctrl+Y)" onClick={() => editor.redo()} disabled={!canRedo}>
-        <Redo2 />
-      </ToolbarButton>
+    <FixedToolbar
+      ref={toolbarRef}
+      className="flex-col items-stretch gap-0 p-0"
+      style={topOffset ? { top: topOffset } : { top: 0 }}
+    >
+      <div className="flex flex-wrap items-center gap-0.5 px-1 py-1">
+        <ToolbarButton tooltip={t('toolbar.undo')} onClick={() => editor.undo()} disabled={!canUndo}>
+          <Undo2 />
+        </ToolbarButton>
+        <ToolbarButton tooltip={t('toolbar.redo')} onClick={() => editor.redo()} disabled={!canRedo}>
+          <Redo2 />
+        </ToolbarButton>
 
-      <ToolbarSeparator />
+        <ToolbarSeparator />
 
-      {/* Basic text formatting */}
-      <MarkToolbarButton nodeType="bold" tooltip="Bold (Ctrl+B)">
-        <Bold />
-      </MarkToolbarButton>
-      <MarkToolbarButton nodeType="italic" tooltip="Italic (Ctrl+I)">
-        <Italic />
-      </MarkToolbarButton>
-      <MarkToolbarButton nodeType="underline" tooltip="Underline (Ctrl+U)">
-        <Underline />
-      </MarkToolbarButton>
-      <MarkToolbarButton nodeType="strikethrough" tooltip="Strikethrough (Ctrl+Shift+X)">
-        <Strikethrough />
-      </MarkToolbarButton>
-      <MarkToolbarButton nodeType="code" tooltip="Code (Ctrl+E)">
-        <Code />
-      </MarkToolbarButton>
-      <MarkToolbarButton nodeType="highlight" tooltip="Highlight (Ctrl+Shift+H)">
-        <Highlighter />
-      </MarkToolbarButton>
+        <MarkToolbarButton nodeType="bold" tooltip={t('toolbar.bold')}>
+          <Bold />
+        </MarkToolbarButton>
+        <MarkToolbarButton nodeType="italic" tooltip={t('toolbar.italic')}>
+          <Italic />
+        </MarkToolbarButton>
+        <MarkToolbarButton nodeType="underline" tooltip={t('toolbar.underline')}>
+          <Underline />
+        </MarkToolbarButton>
+        <MarkToolbarButton nodeType="strikethrough" tooltip={t('toolbar.strikethrough')}>
+          <Strikethrough />
+        </MarkToolbarButton>
+        <MarkToolbarButton nodeType="code" tooltip={t('toolbar.code')}>
+          <Code />
+        </MarkToolbarButton>
+        <MarkToolbarButton nodeType="highlight" tooltip={t('toolbar.highlight')}>
+          <Highlighter />
+        </MarkToolbarButton>
+        <FontColorToolbarButton nodeType="color" tooltip={t('toolbar.textColor')} />
+        <FontColorToolbarButton nodeType="backgroundColor" tooltip={t('toolbar.backgroundColor')} />
 
-      <ToolbarSeparator />
+        <ToolbarSeparator />
 
-      {/* Block type */}
-      <TurnIntoToolbarButton />
+        <TurnIntoToolbarButton />
+        <AlignToolbarButton />
+        <OutdentToolbarButton />
+        <IndentToolbarButton />
 
-      <ToolbarSeparator />
+        <BulletedListToolbarButton />
+        <NumberedListToolbarButton />
+        <TodoListToolbarButton />
 
-      {/* Lists */}
-      <BulletedListToolbarButton />
-      <NumberedListToolbarButton />
-      <TodoListToolbarButton />
+        <ToolbarSeparator />
 
-      <ToolbarSeparator />
+        <LinkToolbarButton />
+        <TableToolbarButton />
+        <MediaToolbarButton nodeType="img" />
+        <MermaidToolbarButton />
+        <DataTableToolbarButton />
+        <MediaReferenceToolbarButton />
 
-      {/* Insert elements */}
-      <LinkToolbarButton />
-      <TableToolbarButton />
-      <MediaToolbarButton nodeType="img" />
-
-      <ToolbarSeparator />
-
-      {/* Alignment & indentation */}
-      <AlignToolbarButton />
-      <OutdentToolbarButton />
-      <IndentToolbarButton />
-
-      {/* Action buttons (save/cancel) passed from parent */}
-      {actions && (
-        <>
-          <ToolbarSeparator />
-          <div className="ml-auto flex items-center gap-1">{actions}</div>
-        </>
-      )}
+      </div>
+      {actions && actions}
     </FixedToolbar>
   );
 }
 
-export interface PlateRichEditorRef {
-  /** Serialize the current editor content to Markdown */
-  getMarkdown: () => string;
-  /** Return the current editor content as Plate Value (JSON nodes) */
-  getValue: () => Value;
-  /** Reset the editor content from a markdown string */
-  resetContent: (markdown: string) => void;
-  /** Reset the editor content directly from a Plate Value (preserves comment marks) */
-  resetValue: (value: Value) => void;
-}
+import type { PlateRichEditorRef, PlateRichEditorProps } from '@/types/plate-editor'
+export type { PlateRichEditorRef, PlateRichEditorProps } from '@/types/plate-editor'
 
-interface PlateRichEditorProps {
-  /** Additional CSS class names */
-  className?: string;
-  /** Initial editor value as Plate nodes */
-  value?: Value;
-  /** Initial editor content as a Markdown string (used instead of value) */
-  initialMarkdown?: string;
-  /** Callback when editor value changes */
-  onChange?: (value: Value) => void;
-  /** Whether the editor is read-only */
-  readOnly?: boolean;
-  /** Whether to show the toolbar (default: true) */
-  showToolbar?: boolean;
-  /** Editor variant: 'default' for standalone, 'section' for embedded in asset sections */
-  variant?: 'default' | 'section';
-  /** Extra action buttons rendered at the end of the section toolbar */
-  toolbarActions?: React.ReactNode;
-  /** Document ID – enables discussion/comment sync with backend when provided */
-  documentId?: string;
-  /** Section execution ID – required for creating discussions via with-comment endpoint */
-  sectionExecutionId?: string;
-  /**
-   * Called immediately after a discussion is created or a comment is added.
-   * Use this to auto-save plate_content so comment marks survive a page refresh.
-   */
-  onAfterDiscussionMutation?: () => void;
-  /** Callback to create a new section from selected text (floating toolbar) */
-  onCreateSectionFromSelection?: (selectedMarkdown: string) => void;
+// ─── Media reference toolbar button ──────────────────────────────────────────
+
+function MediaReferenceToolbarButton() {
+  const { openPicker } = useMediaReference()
+  const editor = useEditorRef()
+  const { t } = useTranslation('editor')
+
+  if (!openPicker) return null
+
+  return (
+    <ToolbarButton
+      tooltip={t('toolbar.insertMediaReference')}
+      onClick={() => openPicker(editor)}
+      className="hover:cursor-pointer"
+    >
+      <Images />
+    </ToolbarButton>
+  )
 }
 
 export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEditorProps>(
@@ -422,8 +470,35 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
     sectionExecutionId,
     onAfterDiscussionMutation,
     onCreateSectionFromSelection,
+    enableComments = true,
+    enableCreateSection = true,
+    toolbarTopOffset,
+    organizationId,
+    mediaUploadTarget,
   }, ref) {
   const containerRef = React.useRef<HTMLDivElement>(null);
+  // Borde inferior del toolbar fijo: define la franja que los toolbars
+  // flotantes no pueden invadir (ver EditorChromeInsetProvider).
+  const toolbarRef = React.useRef<HTMLDivElement>(null);
+  const { t } = useTranslation('editor');
+
+  // ── Media reference picker state ────────────────────────────────────────────
+  const [pickerOpen, setPickerOpen] = React.useState(false);
+  const pickerEditorRef = React.useRef<PlateEditor | null>(null);
+
+  const openPicker = React.useCallback((editor: PlateEditor) => {
+    pickerEditorRef.current = editor;
+    setPickerOpen(true);
+  }, []);
+
+  const mediaReferenceCtx = React.useMemo(
+    () => ({
+      openPicker: organizationId && documentId ? openPicker : null,
+      uploadTarget: mediaUploadTarget ?? null,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [organizationId, documentId, mediaUploadTarget?.level, mediaUploadTarget?.parentId],
+  );
 
   const editor = usePlateEditor({
     plugins: [
@@ -432,13 +507,17 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
       ...ListKit,
       ...LinkKit,
       ...TableKit,
+      ...DataTableKit,
       ...ToggleKit,
       ...MediaKit,
-      ...DiscussionKit,
+      ...CodeDrawingKit,
+      ...MermaidKit,
+      discussionPlugin.configure({ render: { aboveNodes: BlockDiscussion } }),
       ...CommentKit,
       ...SuggestionKit,
       ...EmojiKit,
       ...MentionKit,
+      ...ReferenceKit,
       ...SlashKit,
       ...DateKit,
       ...TocKit,
@@ -457,16 +536,16 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
     resetContent: (markdown: string) => {
       try {
         const nodes = editor.getApi(MarkdownPlugin).markdown.deserialize(markdown);
-        editor.tf.setValue(nodes);
+        editor.tf.setValue(sanitizeNodes(nodes as unknown[]));
       } catch (e) {
-        console.error('Failed to reset editor content:', e);
+        logger.error('Failed to reset editor content:', e);
       }
     },
     resetValue: (value: Value) => {
       try {
         editor.tf.setValue(value);
       } catch (e) {
-        console.error('Failed to reset editor value:', e);
+        logger.error('Failed to reset editor value:', e);
       }
     },
   }), [editor]);
@@ -476,16 +555,16 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
     if (initialMarkdown) {
       try {
         const nodes = editor.getApi(MarkdownPlugin).markdown.deserialize(initialMarkdown);
-        editor.tf.setValue(nodes);
+        editor.tf.setValue(sanitizeNodes(nodes as unknown[]));
       } catch (e) {
-        console.error('Failed to deserialize initial markdown:', e);
+        logger.error('Failed to deserialize initial markdown:', e);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <TooltipProvider>
+    <MediaReferenceContext.Provider value={mediaReferenceCtx}>
       <div
         ref={containerRef}
         className={cn(
@@ -497,14 +576,15 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
         )}
       >
 
-        <EditorErrorBoundary>
-          <Plate
-            editor={editor}
-            readOnly={readOnly}
-            onChange={({ value }) => {
-              onChange?.(value);
-            }}
-          >
+          <EditorErrorBoundary>
+            <EditorChromeInsetProvider toolbarRef={toolbarRef}>
+            <Plate
+              editor={editor}
+              readOnly={readOnly}
+              onChange={({ value }) => {
+                onChange?.(value);
+              }}
+            >
             {/* Sync discussions from backend when a documentId is provided */}
             {documentId && (
               <DiscussionSync
@@ -513,26 +593,56 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
                 onAfterDiscussionMutation={onAfterDiscussionMutation}
               />
             )}
+            {documentId && sectionExecutionId && (
+              <DiscussionFocusSync sectionExecutionId={sectionExecutionId} />
+            )}
 
             {/* Toolbar – use compact version for section variant */}
             {showToolbar && (
-              variant === 'section' ? <SectionEditorToolbar actions={toolbarActions} /> : <EditorToolbar />
+              variant === 'section' ? (
+                <SectionEditorToolbar
+                  actions={toolbarActions}
+                  topOffset={toolbarTopOffset}
+                  toolbarRef={toolbarRef}
+                />
+              ) : (
+                <EditorToolbar toolbarRef={toolbarRef} />
+              )
             )}
 
             {/* Editor Area */}
             <EditorContainer className="overflow-y-auto">
               <Editor
-                placeholder="Type your content here..."
+                placeholder={t('placeholder')}
                 variant={variant === 'section' ? 'section' : undefined}
+                className={readOnly ? 'pb-2 pt-1' : undefined}
               />
             </EditorContainer>
 
             {/* Floating toolbar – appears on text selection */}
-            <FloatingToolbarButtons onCreateSectionFromSelection={onCreateSectionFromSelection} />
+            <FloatingToolbarButtons
+              onCreateSectionFromSelection={onCreateSectionFromSelection}
+              enableComments={enableComments}
+              enableCreateSection={enableCreateSection}
+            />
           </Plate>
+            </EditorChromeInsetProvider>
         </EditorErrorBoundary>
       </div>
-    </TooltipProvider>
+
+      {/* Media reference picker – rendered outside the editor so it is not
+          affected by the editor's focus trap and event capture */}
+      {organizationId && documentId && (
+        <MediaReferencePicker
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          editor={pickerEditorRef.current}
+          organizationId={organizationId}
+          documentId={documentId}
+          uploadTarget={mediaUploadTarget}
+        />
+      )}
+    </MediaReferenceContext.Provider>
   );
   }
 );

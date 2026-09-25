@@ -1,61 +1,40 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { HuemulButton } from "@/huemul/components/huemul-button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  SidebarGroup,
-  SidebarGroupLabel,
-} from "@/components/ui/sidebar";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Plus, FileText, Loader2, Search, Edit3, Trash2, FileCode, RefreshCw, MoreVertical, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { HuemulPanelHeader } from "@/huemul/components/huemul-panel-header";
+import { HuemulFileTree } from "@/huemul/components/huemul-file-tree";
+import type { HuemulFileTreeRef } from "@/huemul/components/huemul-file-tree";
+import type { HuemulTreeNode, HuemulTreeMenuAction } from "@/types/huemul";
+import { useDebounce } from "@/hooks/use-debounce";
+
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Plus, FileCode, Edit3, Trash2, RefreshCw, X, Copy, Download, FileJson, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { exportTemplates } from "@/services/templates";
 import { CreateTemplateDialog } from "./templates-create-dialog";
 import { EditTemplateDialog } from "./templates-edit-dialog";
 import { DeleteTemplateDialog } from "./templates-delete-dialog";
+import { CloneTemplateDialog } from "./templates-clone-dialog";
+import { TemplatesImportSheet } from "./templates-import-sheet";
+import type { TemplateItem } from '@/types/templates';
+import type { TemplatesSidebarProps } from '@/types/templates';
+export type { TemplatesSidebarProps } from '@/types/templates';
 
-interface TemplateItem {
-  id: string;
-  name: string;
-  description?: string;
-}
+const TEMPLATE_NODE_TYPE = "template";
 
-interface TemplatesPagination {
-  page: number;
-  pageSize: number;
-  hasNext: boolean;
-  hasPrevious: boolean;
-  onPageChange: (page: number) => void;
-  onPageSizeChange: (size: number) => void;
-}
-
-interface TemplatesSidebarProps {
-  templates: TemplateItem[];
-  isLoading: boolean;
-  error?: Error | unknown | null;
-  selectedTemplateId: string | null;
-  onTemplateSelect: (template: TemplateItem) => void;
-  onTemplateDeleted?: () => void;
-  organizationId: string | null;
-  onRefresh?: () => void;
-  onSearch?: (term: string) => void;
-  searchValue?: string;
-  canCreate: boolean;
-  canUpdate: boolean;
-  canDelete: boolean;
-  pagination?: TemplatesPagination;
+function templateToNode(template: TemplateItem): HuemulTreeNode {
+  return {
+    id: template.id,
+    name: template.name,
+    type: TEMPLATE_NODE_TYPE,
+    metadata: {
+      description: template.description,
+      sections_count: template.sections_count,
+      usage_count: template.usage_count,
+    },
+  };
 }
 
 export function TemplatesSidebar({
@@ -72,312 +51,321 @@ export function TemplatesSidebar({
   canCreate,
   canUpdate,
   canDelete,
-  pagination,
+  canExport,
+  canImport,
+  hasNext,
+  onLoadMore,
 }: TemplatesSidebarProps) {
   const { t } = useTranslation(['templates', 'common']);
-  const queryClient = useQueryClient();
   const [localSearch, setLocalSearch] = useState(searchValue);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const debouncedSearch = useDebounce(localSearch, 400);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editDialogTemplate, setEditDialogTemplate] = useState<TemplateItem | null>(null);
   const [deleteDialogTemplate, setDeleteDialogTemplate] = useState<TemplateItem | null>(null);
+  const [cloneDialogTemplate, setCloneDialogTemplate] = useState<TemplateItem | null>(null);
 
-  const filteredTemplates = templates;
+  // Export selection mode + import
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isExporting, setIsExporting] = useState(false);
+  const [showImportSheet, setShowImportSheet] = useState(false);
 
-  const openEditDialog = (template: TemplateItem) => {
-    setEditDialogTemplate(template);
+  // El árbol maneja su propia data vía onLoadChildren/onRefresh; react-query sigue
+  // siendo la fuente de verdad (búsqueda + paginación). Mantenemos los templates en
+  // un ref para alimentar el árbol con callbacks estables y lo refrescamos cuando
+  // llega una nueva página/búsqueda.
+  const treeRef = useRef<HuemulFileTreeRef>(null);
+  const templatesRef = useRef<TemplateItem[]>(templates);
+  templatesRef.current = templates;
+
+  const loadTemplateNodes = useCallback(
+    () => Promise.resolve(templatesRef.current.map(templateToNode)),
+    [],
+  );
+
+  useEffect(() => {
+    treeRef.current?.refresh();
+  }, [templates]);
+
+  // Filtra en tiempo real: cada tipeo dispara onSearch tras el debounce, sin
+  // esperar Enter. El guard contra searchValue evita un llamado de más cuando
+  // el cambio ya vino del padre (ej. al limpiar un filtro externo).
+  useEffect(() => {
+    if (debouncedSearch !== searchValue) {
+      onSearch?.(debouncedSearch);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
+
+  const exitSelectionMode = () => {
+    setIsSelectionMode(false);
+    setSelectedIds(new Set());
   };
 
-  const closeEditDialog = () => {
-    setEditDialogTemplate(null);
+  const isAllSelected = templates.length > 0 && selectedIds.size === templates.length;
+
+  const handleExport = async () => {
+    if (!organizationId) return;
+    if (selectedIds.size === 0) {
+      toast.error(t('templates:exportImport.exportSelectionRequired'));
+      return;
+    }
+    setIsExporting(true);
+    try {
+      await exportTemplates(organizationId, { template_ids: [...selectedIds] });
+      exitSelectionMode();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('templates:exportImport.exportError'));
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  const openDeleteDialog = (template: TemplateItem) => {
-    setDeleteDialogTemplate(template);
-  };
-
-  const closeDeleteDialog = () => {
-    setDeleteDialogTemplate(null);
-  };
+  // Acciones por nodo (clone/edit/delete), gateadas por permisos.
+  const menuActions: HuemulTreeMenuAction[] = [];
+  if (canCreate) {
+    menuActions.push({
+      label: t('templates:sidebar.cloneTemplate'),
+      icon: <Copy className="h-4 w-4" />,
+      onClick: async (id) => {
+        const tpl = templatesRef.current.find((t) => t.id === id);
+        if (tpl) setCloneDialogTemplate(tpl);
+      },
+    });
+  }
+  if (canUpdate) {
+    menuActions.push({
+      label: t('templates:sidebar.editTemplate'),
+      icon: <Edit3 className="h-4 w-4" />,
+      onClick: async (id) => {
+        const tpl = templatesRef.current.find((t) => t.id === id);
+        if (tpl) setEditDialogTemplate(tpl);
+      },
+    });
+  }
+  if (canExport) {
+    menuActions.push({
+      label: t('templates:sidebar.exportTemplateJson'),
+      icon: <FileJson className="h-4 w-4" />,
+      onClick: async (id) => {
+        if (!organizationId) return;
+        try {
+          await exportTemplates(organizationId, { template_ids: [id] });
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : t('templates:sidebar.exportTemplateError'));
+        }
+      },
+    });
+  }
+  if (canDelete) {
+    menuActions.push({
+      variant: "destructive",
+      label: t('templates:sidebar.deleteTemplate'),
+      icon: <Trash2 className="h-4 w-4" />,
+      onClick: async (id) => {
+        const tpl = templatesRef.current.find((t) => t.id === id);
+        if (tpl) setDeleteDialogTemplate(tpl);
+      },
+    });
+  }
 
   return (
     <>
       <div className="flex flex-col h-full bg-white border-r border-gray-200">
         {/* Header */}
         <div className="py-2">
-          <SidebarGroup className="py-0">
-            <div className="flex items-center justify-between">
-              <SidebarGroupLabel className="py-0 text-xs">{t('templates:sidebar.title')}</SidebarGroupLabel>
-              <div className="flex items-center gap-1">
+          <HuemulPanelHeader
+            title={t('templates:sidebar.title')}
+            titleClassName="text-[13px] font-semibold text-foreground"
+            search={{
+              value: localSearch,
+              onChange: setLocalSearch,
+              alwaysOpen: true,
+              showIcon: true,
+              placeholder: t('templates:sidebar.searchPlaceholder'),
+            }}
+            onRefresh={() => onRefresh?.()}
+            isRefreshing={isLoading}
+            actions={
+              canCreate && (
+                <HuemulButton
+                  icon={Plus}
+                  iconClassName="h-3.5 w-3.5"
+                  label={t('templates:sidebar.newTemplateShort')}
+                  tooltip={t('templates:sidebar.newTemplate')}
+                  variant="default"
+                  size="sm"
+                  className="h-7 rounded-[7px] px-2.5 text-xs font-semibold"
+                  onClick={() => setIsDialogOpen(true)}
+                />
+              )
+            }
+          />
+
+          {/* Selection bar */}
+          {isSelectionMode && (
+            <div className="flex flex-col gap-2 mx-2 mt-1.5 px-2 py-2 rounded-md border bg-muted/40">
+              <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 hover:cursor-pointer"
-                  onClick={() => {
-                    if (isSearchOpen) { setLocalSearch(''); onSearch?.('') }
-                    setIsSearchOpen(!isSearchOpen)
-                  }}
+                  className="h-6 w-6 shrink-0 hover:cursor-pointer"
+                  onClick={exitSelectionMode}
+                  aria-label={t('common:cancel')}
                 >
-                  {isSearchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+                  <X className="h-3.5 w-3.5" />
                 </Button>
-                <HuemulButton
-                  icon={RefreshCw}
-                  iconClassName="h-4 w-4"
-                  variant="ghost"
-                  size="icon"
-                  loading={isLoading}
-                  tooltip={t('common:refresh')}
-                  className="h-6 w-6"
-                  onClick={() => onRefresh?.()}
-                />
-                {canCreate && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 hover:cursor-pointer">
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onSelect={() => {
-                        setTimeout(() => setIsDialogOpen(true), 0);
-                      }} className="hover:cursor-pointer">
-                        <FileText className="mr-2 h-4 w-4" />
-                        {t('templates:sidebar.newTemplate')}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                <span className="flex-1 min-w-0 truncate text-xs font-medium">
+                  {t('templates:exportImport.selectedCount', { count: selectedIds.size })}
+                </span>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-6 px-0 text-xs shrink-0"
+                  onClick={() =>
+                    setSelectedIds(
+                      isAllSelected ? new Set() : new Set(templatesRef.current.map((tpl) => tpl.id)),
+                    )
+                  }
+                >
+                  {isAllSelected ? t('common:deselectAll') : t('common:selectAll')}
+                </Button>
               </div>
-            </div>
-          </SidebarGroup>
-          
-          {/* Search bar */}
-          {isSearchOpen && (
-            <div className="px-2 pt-1 pb-1">
-              <Input
-                placeholder={t('templates:sidebar.searchPlaceholder')}
-                value={localSearch}
-                onChange={(e) => setLocalSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') onSearch?.(localSearch)
-                  if (e.key === 'Escape') { setLocalSearch(''); onSearch?.(''); setIsSearchOpen(false) }
-                }}
-                className="h-7 text-xs"
-                autoFocus
-              />
+              <Button
+                size="sm"
+                className="w-full h-8 text-xs"
+                disabled={selectedIds.size === 0 || isExporting}
+                onClick={handleExport}
+              >
+                {isExporting ? (
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />{t('templates:exportImport.exportingAction')}</>
+                ) : (
+                  <><Download className="h-3.5 w-3.5 mr-1.5" />{`${t('templates:exportImport.exportAction')} (${selectedIds.size})`}</>
+                )}
+              </Button>
             </div>
           )}
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-2 min-h-0">
-          <ContextMenu>
-            <ContextMenuTrigger asChild>
-              <div className="pt-1">
-                  {error ? (
-                <div className="flex flex-col items-center justify-center min-h-75 text-center rounded-lg border border-dashed p-6">
-                  <p className="text-red-600 mb-3 font-medium text-sm">
-                    {(error as Error).message || t('templates:sidebar.loadError')}
-                  </p>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    {t('templates:sidebar.loadErrorDescription')}
-                  </p>
-                  <HuemulButton
-                    icon={RefreshCw}
-                    iconClassName="h-3.5 w-3.5 mr-2"
-                    label={t('common:tryAgain')}
-                    variant="outline"
-                    size="sm"
-                    className="h-8"
-                    onClick={() => queryClient.invalidateQueries({ queryKey: ["templates", organizationId] })}
-                  />
-                </div>
-              ) : isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                  <span className="ml-2 text-sm text-gray-500">{t('templates:sidebar.loading')}</span>
-                </div>
-              ) : filteredTemplates.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                  <p className="text-sm mb-2">
-                    {searchValue ? t('templates:sidebar.noTemplatesMatchSearch') : t('templates:sidebar.noTemplatesFound')}
-                  </p>
-                  {!searchValue && (
-                    <p className="text-xs">{t('templates:sidebar.noTemplatesHint')}</p>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-0">
-                  {filteredTemplates.map((template) => (
-                    <ContextMenu key={template.id}>
-                      <ContextMenuTrigger asChild>
-                        <div
-                          className={`group p-1 rounded-md cursor-pointer transition-colors border ${
-                            selectedTemplateId === template.id
-                              ? 'bg-blue-50 border-blue-200'
-                              : 'border-transparent hover:bg-gray-50 hover:border-gray-200'
-                          }`}
-                          onClick={() => onTemplateSelect(template)}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <div className="shrink-0">
-                              <FileCode className={`h-3.5 w-3.5 ${
-                                selectedTemplateId === template.id
-                                  ? 'text-blue-600'
-                                  : 'text-gray-400'
-                              }`} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <h3 className={`font-medium text-xs truncate ${
-                                selectedTemplateId === template.id
-                                  ? 'text-blue-900'
-                                  : 'text-gray-900'
-                              }`}>
-                                {template.name}
-                              </h3>
-                              {template.description && (
-                                <p className={`text-[10px] truncate mt-0.5 ${
-                                  selectedTemplateId === template.id
-                                    ? 'text-blue-600'
-                                    : 'text-gray-500'
-                                }`}>
-                                  {template.description}
-                                </p>
-                              )}
-                            </div>
-                            {(canUpdate || canDelete) && (
-                              <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-5 w-5 hover:cursor-pointer"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <MoreVertical className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    {canUpdate && (
-                                      <DropdownMenuItem
-                                        className="hover:cursor-pointer"
-                                        onSelect={() => {
-                                          setTimeout(() => openEditDialog(template), 0);
-                                        }}
-                                      >
-                                        <Edit3 className="mr-2 h-4 w-4" />
-                                        Edit Template
-                                      </DropdownMenuItem>
-                                    )}
-                                    {canDelete && (
-                                      <DropdownMenuItem
-                                        className="hover:cursor-pointer text-red-600"
-                                        onSelect={() => {
-                                          setTimeout(() => openDeleteDialog(template), 0);
-                                        }}
-                                      >
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        Delete Template
-                                      </DropdownMenuItem>
-                                    )}
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </ContextMenuTrigger>
-                      <ContextMenuContent>
-                        {canUpdate && (
-                          <ContextMenuItem
-                            className="hover:cursor-pointer"
-                            onSelect={() => {
-                              setTimeout(() => openEditDialog(template), 0);
-                            }}
-                          >
-                            <Edit3 className="mr-2 h-4 w-4" />
-                            Edit Template
-                          </ContextMenuItem>
-                        )}
-                        {canDelete && (
-                          <ContextMenuItem
-                            className="hover:cursor-pointer text-red-600"
-                            onSelect={() => {
-                              setTimeout(() => openDeleteDialog(template), 0);
-                            }}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete Template
-                          </ContextMenuItem>
-                        )}
-                      </ContextMenuContent>
-                    </ContextMenu>
-                  ))}
-                </div>
-                  )}
+        <ScrollArea className="flex-1 min-h-0" type="hover">
+          <div className="px-2 pt-1">
+            {error ? (
+              <div className="flex flex-col items-center justify-center min-h-75 text-center rounded-lg border border-dashed p-6">
+                <p className="text-red-600 mb-3 font-medium text-sm">
+                  {(error as Error).message || t('templates:sidebar.loadError')}
+                </p>
+                <p className="text-xs text-muted-foreground mb-4">
+                  {t('templates:sidebar.loadErrorDescription')}
+                </p>
+                <HuemulButton
+                  icon={RefreshCw}
+                  iconClassName="h-3.5 w-3.5 mr-2"
+                  label={t('common:tryAgain')}
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => onRefresh?.()}
+                />
               </div>
-            </ContextMenuTrigger>
-            <ContextMenuContent>
-              {canCreate && (
-                <ContextMenuItem
-                  className="hover:cursor-pointer"
-                  onClick={() => {
-                    setTimeout(() => setIsDialogOpen(true), 0);
+            ) : isLoading && templates.length === 0 ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                <span className="ml-2 text-sm text-gray-500">{t('common:loading')}</span>
+              </div>
+            ) : (
+              <>
+                {/* Encabezado de grupo: agrupamiento visual único, sin criterio real de categoría todavía. */}
+                <div className="px-2 pb-1">
+                  <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                    {t('templates:sidebar.title')}
+                  </span>
+                </div>
+                <HuemulFileTree
+                  ref={treeRef}
+                  onLoadChildren={loadTemplateNodes}
+                  onRefresh={loadTemplateNodes}
+                  folderType="folder"
+                  showCreateButtons={false}
+                  showDefaultActions={{ create: false, delete: false, share: false }}
+                  showBorder={false}
+                  minHeight="0"
+                  activeNodeId={selectedTemplateId}
+                  disableIndentPadding
+                  renderNodeClassName={(node) =>
+                    cn(
+                      "gap-[9px] rounded-lg border px-2.5 py-2 items-start",
+                      node.id === selectedTemplateId
+                        ? "bg-[#eff4ff] border-[#dbe6ff] hover:bg-[#eff4ff] text-[#0f172a] font-semibold"
+                        : "bg-transparent border-transparent hover:bg-[#f1f4f7] text-[#334155] font-normal",
+                    )
+                  }
+                  nodeNameClassName={(node) =>
+                    node.id === selectedTemplateId ? "text-[13px] font-semibold" : "text-[13px] font-normal"
+                  }
+                  menuActions={menuActions}
+                  alwaysShowMenuActions
+                  onFileClick={(node) => {
+                    const tpl = templatesRef.current.find((tItem) => tItem.id === node.id);
+                    if (tpl) onTemplateSelect(tpl);
                   }}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Template
-                </ContextMenuItem>
-              )}
-            </ContextMenuContent>
-          </ContextMenu>
-        </div>
+                  renderLeafIcon={(node) => (
+                    <FileCode
+                      className={cn(
+                        "h-3.5 w-3.5 shrink-0",
+                        node.id === selectedTemplateId ? "text-[#2563eb]" : "text-[#94a3b8]",
+                      )}
+                    />
+                  )}
+                  selectable={isSelectionMode}
+                  selectedIds={selectedIds}
+                  onSelectionChange={setSelectedIds}
+                  labels={{
+                    empty: searchValue
+                      ? t('templates:sidebar.noTemplatesMatchSearch')
+                      : t('templates:sidebar.noTemplatesFound'),
+                    loading: t('common:loading'),
+                  }}
+                />
+              </>
+            )}
 
-        {/* Pagination footer - always visible */}
-        {pagination && (
-          <div className="shrink-0 flex items-center justify-between gap-2 px-2 py-1.5 border-t border-gray-200 bg-white">
-            <Select
-              value={pagination.pageSize.toString()}
-              onValueChange={(v) => pagination.onPageSizeChange(Number(v))}
-            >
-              <SelectTrigger className="h-6 w-[72px] text-[10px] hover:cursor-pointer">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[25, 50, 100, 250].map((s) => (
-                  <SelectItem key={s} value={s.toString()} className="text-xs">
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {hasNext && !error && !(isLoading && templates.length === 0) && (
+              <div className="flex justify-center pt-2 pb-1">
+                <HuemulButton
+                  label={isLoading ? t('common:loading') : t('common:loadMore')}
+                  variant="ghost"
+                  size="sm"
+                  loading={isLoading}
+                  onClick={onLoadMore}
+                  className="text-xs text-primary hover:text-primary/80 hover:cursor-pointer"
+                />
+              </div>
+            )}
+          </div>
+        </ScrollArea>
 
-            <span className="text-[10px] text-muted-foreground shrink-0">
-              {t('common:pagination.page')} {pagination.page}
-            </span>
-
-            <div className="flex items-center gap-0.5">
-              <Button
-                variant="outline"
-                size="icon"
-                className={`h-6 w-6 hover:cursor-pointer transition-opacity ${!pagination.hasPrevious ? 'opacity-40 cursor-not-allowed' : ''}`}
-                disabled={!pagination.hasPrevious}
-                onClick={() => pagination.onPageChange(pagination.page - 1)}
+        {/* Footer */}
+        {(canImport || canExport) && (
+          <div className="flex items-center gap-4 border-t border-[#eef1f5] px-4 py-3">
+            {canImport && (
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:text-primary hover:cursor-pointer"
+                onClick={() => setShowImportSheet(true)}
               >
-                <ChevronLeft className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className={`h-6 w-6 hover:cursor-pointer transition-opacity ${!pagination.hasNext ? 'opacity-40 cursor-not-allowed' : ''}`}
-                disabled={!pagination.hasNext}
-                onClick={() => pagination.onPageChange(pagination.page + 1)}
+                {t('templates:sidebar.footerImport')}
+              </button>
+            )}
+            {canExport && (
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:text-primary hover:cursor-pointer"
+                onClick={() => setIsSelectionMode(true)}
               >
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+                {t('templates:sidebar.footerExport')}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -394,14 +382,14 @@ export function TemplatesSidebar({
       {editDialogTemplate && organizationId && (
         <EditTemplateDialog
           open={!!editDialogTemplate}
-          onOpenChange={(open) => { if (!open) closeEditDialog(); }}
+          onOpenChange={(open) => { if (!open) setEditDialogTemplate(null); }}
           templateId={editDialogTemplate.id}
           templateName={editDialogTemplate.name}
           templateDescription={editDialogTemplate.description}
           organizationId={organizationId}
           onSuccess={() => {
             onRefresh?.();
-            closeEditDialog();
+            setEditDialogTemplate(null);
           }}
         />
       )}
@@ -409,16 +397,37 @@ export function TemplatesSidebar({
       {deleteDialogTemplate && organizationId && (
         <DeleteTemplateDialog
           open={!!deleteDialogTemplate}
-          onOpenChange={(open) => { if (!open) closeDeleteDialog(); }}
+          onOpenChange={(open) => { if (!open) setDeleteDialogTemplate(null); }}
           templateId={deleteDialogTemplate.id}
           templateName={deleteDialogTemplate.name}
           organizationId={organizationId}
           onSuccess={() => {
-            closeDeleteDialog();
+            setDeleteDialogTemplate(null);
             onTemplateDeleted?.();
           }}
         />
       )}
+
+      {cloneDialogTemplate && organizationId && (
+        <CloneTemplateDialog
+          open={!!cloneDialogTemplate}
+          onOpenChange={(open) => { if (!open) setCloneDialogTemplate(null); }}
+          templateId={cloneDialogTemplate.id}
+          organizationId={organizationId}
+          onSuccess={(cloned) => {
+            setCloneDialogTemplate(null);
+            onRefresh?.();
+            onTemplateSelect(cloned);
+          }}
+        />
+      )}
+
+      <TemplatesImportSheet
+        open={showImportSheet}
+        organizationId={organizationId}
+        onOpenChange={(open) => { if (!open) setShowImportSheet(false); }}
+        onImportSuccess={() => onRefresh?.()}
+      />
     </>
   );
 }

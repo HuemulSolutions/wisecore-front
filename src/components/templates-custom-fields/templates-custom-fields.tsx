@@ -1,31 +1,34 @@
 "use client"
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Plus, RefreshCw } from "lucide-react"
+import { useTranslation } from "react-i18next"
+import { Plus, FileSliders } from "lucide-react"
 import { useCustomFieldTemplatesByTemplate, useCustomFieldTemplateMutations } from "@/hooks/useCustomFieldTemplates"
+import { useTableLoadingState } from "@/hooks/useTableLoadingState"
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
+import { TemplateSettingsPanelHeader } from "@/components/templates/templates-settings-panel-header"
 import { CustomFieldTemplateTable } from "./templates-custom-field-table"
 import { CustomFieldTemplateEmptyState } from "./templates-custom-field-empty-state"
-import { AddCustomFieldTemplateDialog } from "./templates-custom-field-add-dialog"
-import { EditCustomFieldTemplateDialog } from "./templates-edit-custom-field-dialog"
-import type { CustomFieldTemplate } from "@/types/custom-fields-templates"
+import { AddCustomFieldTemplateSheet } from "./templates-custom-field-add-sheet"
+import { EditCustomFieldTemplateSheet } from "./templates-edit-custom-field-sheet"
+import type { CustomFieldTemplate } from '@/types/custom-fields'
+import { logger } from "@/lib/logger"
+import type { TemplateCustomFieldsProps } from '@/types/templates';
+export type { TemplateCustomFieldsProps } from '@/types/templates';
 
-interface TemplateCustomFieldsProps {
-  templateId: string
-}
-
-export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) {
+export function TemplateCustomFields({ templateId, canCreate = false, canUpdate = false, canDelete = false, onBack }: TemplateCustomFieldsProps) {
+  const { t } = useTranslation(['templates', 'common'])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedCustomFieldTemplate, setSelectedCustomFieldTemplate] = useState<CustomFieldTemplate | null>(null)
   const [customFieldEditMode, setCustomFieldEditMode] = useState<"content" | "configuration">("configuration")
-  const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
   const {
     data: customFieldTemplatesResponse,
     isLoading: isLoadingCustomFieldTemplates,
+    isFetching: isFetchingCustomFieldTemplates,
     error,
     refetch
   } = useCustomFieldTemplatesByTemplate(templateId, {
@@ -36,22 +39,20 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
 
   const customFieldTemplates = customFieldTemplatesResponse?.data || []
 
+  const { showPageLoader, isTableLoading, isTableFetching } = useTableLoadingState({
+    isLoading: isLoadingCustomFieldTemplates,
+    isFetching: isFetchingCustomFieldTemplates,
+    hasData: !!customFieldTemplatesResponse,
+  })
+
   const mutations = useCustomFieldTemplateMutations()
 
   const handleAddCustomFieldTemplate = () => {
     setIsAddDialogOpen(true)
   }
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true)
-    try {
-      await refetch()
-    } finally {
-      // Add a small delay to ensure the animation is visible
-      setTimeout(() => {
-        setIsRefreshing(false)
-      }, 500)
-    }
+  const handleRefresh = () => {
+    refetch()
   }
 
   const handleAddCustomFieldTemplateSubmit = async (data: any) => {
@@ -61,7 +62,7 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
       refetch()
       return createdTemplate // Return the created template so the dialog can use it
     } catch (error) {
-      console.error("Error creating custom field template:", error)
+      logger.error("Error creating custom field template:", error)
       throw error // Re-throw so the dialog can handle it
     }
   }
@@ -96,104 +97,40 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
     })
   }
 
-  if (isLoadingCustomFieldTemplates) {
-    return (
-      <div className="px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="space-y-1">
-            <h2 className="text-base font-semibold text-foreground">Custom Fields</h2>
-            <p className="text-xs text-muted-foreground">
-              Manage custom fields for this template
-            </p>
-          </div>
-          <Button
-            disabled
-            size="sm"
-            className="hover:cursor-pointer h-8 text-xs px-3"
-          >
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Add Field
-          </Button>
-        </div>
-        
-        <div className="animate-pulse">
-          <div className="h-32 bg-muted rounded"></div>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="space-y-1">
-            <h2 className="text-base font-semibold text-foreground">Custom Fields</h2>
-            <p className="text-xs text-muted-foreground">
-              Manage custom fields for this template
-            </p>
-          </div>
-          <Button
-            onClick={() => refetch()}
-            size="sm"
-            variant="outline"
-            className="hover:cursor-pointer h-8 text-xs px-3"
-          >
-            Retry
-          </Button>
-        </div>
-        
-        <div className="text-center py-8">
-          <p className="text-sm text-destructive">
-            Error loading custom fields. Please try again.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
   const hasCustomFieldTemplates = customFieldTemplates.length > 0
 
   return (
     <div className="px-4 py-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="space-y-1">
-          <h2 className="text-base font-semibold text-foreground">Custom Fields</h2>
-          <p className="text-xs text-muted-foreground">
-            Manage custom fields for this template
+      <TemplateSettingsPanelHeader
+        className="mb-6"
+        onBack={onBack}
+        icon={FileSliders}
+        title={t('templates:customFields.title')}
+        subtitle={t('templates:customFields.description')}
+        refresh={{ onClick: handleRefresh, loading: isTableFetching }}
+        primaryAction={canCreate ? { icon: Plus, label: t('templates:customFields.addField'), onClick: handleAddCustomFieldTemplate } : undefined}
+      />
+
+      {showPageLoader ? (
+        <div className="animate-pulse">
+          <div className="h-32 bg-muted rounded"></div>
+        </div>
+      ) : error ? (
+        <div className="text-center py-8">
+          <p className="text-sm text-destructive">
+            {t('templates:customFields.loadError')}
           </p>
         </div>
-        
-        {hasCustomFieldTemplates && (
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={handleRefresh}
-              size="sm"
-              variant="outline"
-              className="hover:cursor-pointer h-8 text-xs px-3"
-              disabled={isRefreshing}
-            >
-              <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            <Button
-              onClick={handleAddCustomFieldTemplate}
-              size="sm"
-              className="hover:cursor-pointer h-8 text-xs px-3"
-            >
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Add Field
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {hasCustomFieldTemplates ? (
+      ) : hasCustomFieldTemplates ? (
         <CustomFieldTemplateTable
           customFieldTemplates={customFieldTemplates}
           onEditCustomFieldTemplate={handleEditCustomFieldTemplate}
           onEditContentCustomFieldTemplate={handleEditCustomFieldTemplateContent}
           onDeleteCustomFieldTemplate={handleDeleteCustomFieldTemplate}
+          isLoading={isTableLoading}
+          isFetching={isTableFetching}
+          canUpdate={canUpdate}
+          canDelete={canDelete}
           pagination={{
             page: customFieldTemplatesResponse?.page || page,
             pageSize: customFieldTemplatesResponse?.page_size || pageSize,
@@ -204,25 +141,24 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
               setPageSize(newPageSize)
               setPage(1)
             },
-            pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+            pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS
           }}
         />
       ) : (
-        <CustomFieldTemplateEmptyState
-          onAddCustomFieldTemplate={handleAddCustomFieldTemplate}
-        />
+        <CustomFieldTemplateEmptyState canCreate={canCreate} />
       )}
 
-      {/* Add Custom Field Template Dialog */}
-      <AddCustomFieldTemplateDialog
+      {/* Add Custom Field Template Sheet */}
+      <AddCustomFieldTemplateSheet
         isOpen={isAddDialogOpen}
         onClose={() => setIsAddDialogOpen(false)}
         templateId={templateId}
         onAdd={handleAddCustomFieldTemplateSubmit}
+        canCreateCustomField={canCreate}
       />
 
-      {/* Edit Custom Field Template Dialog */}
-      <EditCustomFieldTemplateDialog
+      {/* Edit Custom Field Template Sheet */}
+      <EditCustomFieldTemplateSheet
         isOpen={isEditDialogOpen}
         onClose={() => {
           setIsEditDialogOpen(false)

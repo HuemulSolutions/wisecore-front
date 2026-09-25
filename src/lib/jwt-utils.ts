@@ -1,45 +1,7 @@
 import { httpClient } from '@/lib/http-client';
-
-// Interfaces para los payloads de los JWT tokens
-export interface LoginTokenPayload {
-  sub: string; // user id
-  email: string;
-  name: string;
-  last_name: string;
-  is_root_admin: boolean;
-  exp: number;
-}
-
-export interface OrganizationTokenPayload {
-  sub: string; // user id
-  email: string;
-  roles: string[];
-  permissions: string[];
-  is_root_admin: boolean;
-  is_org_admin: boolean;
-  exp: number;
-}
-
-// Tipos de permisos disponibles
-export type PermissionAction = 'c' | 'r' | 'u' | 'd' | 'l';
-export type PermissionResource = 
-  | 'organization'
-  | 'user'
-  | 'asset'
-  | 'folder'
-  | 'context'
-  | 'asset_type'
-  | 'docx_template'
-  | 'template'
-  | 'template_section'
-  | 'section'
-  | 'section_execution'
-  | 'version'
-  | 'llm_provider'
-  | 'llm'
-  | 'rbac';
-
-export type Permission = `${PermissionResource}:${PermissionAction}`;
+import { logger } from '@/lib/logger';
+import type { LoginTokenPayload, OrganizationTokenPayload, PermissionAction, PermissionResource, Permission } from '@/types/jwt-utils';
+export type { LoginTokenPayload, OrganizationTokenPayload, PermissionAction, PermissionResource, Permission };
 
 /**
  * Decodifica un JWT token sin verificar la firma (solo para extraer payload)
@@ -50,7 +12,7 @@ export function decodeJWT<T = any>(token: string): T | null {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) {
-      console.warn('Invalid JWT format');
+      logger.warn('Invalid JWT format');
       return null;
     }
     
@@ -61,7 +23,7 @@ export function decodeJWT<T = any>(token: string): T | null {
     
     return JSON.parse(decodedPayload);
   } catch (error) {
-    console.error('Error decoding JWT:', error);
+    logger.error('Error decoding JWT:', error);
     return null;
   }
 }
@@ -89,7 +51,7 @@ export function getLoginTokenInfo(): LoginTokenPayload | null {
     
     return decodeJWT<LoginTokenPayload>(loginToken);
   } catch (error) {
-    console.error('Error getting login token info:', error);
+    logger.error('Error getting login token info:', error);
     return null;
   }
 }
@@ -106,7 +68,7 @@ export function getOrganizationTokenInfo(): OrganizationTokenPayload | null {
     
     return decodeJWT<OrganizationTokenPayload>(orgToken);
   } catch (error) {
-    console.error('Error getting organization token info:', error);
+    logger.error('Error getting organization token info:', error);
     return null;
   }
 }
@@ -224,7 +186,7 @@ export function getCurrentUserInfo() {
       hasOrganizationAccess: !!orgInfo
     };
   } catch (error) {
-    console.error('Error getting current user info:', error);
+    logger.error('Error getting current user info:', error);
     return {
       loginInfo: null,
       orgInfo: null,

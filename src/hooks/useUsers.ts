@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query"
-import { getUsers, approveUser, rejectUser, deleteUser, updateUser, createUser, getUserOrganizations, updateUserRootAdmin } from "@/services/users"
-import { toast } from "sonner"
+import { useTranslation } from "react-i18next"
+import { getUsers, getUserById, approveUser, rejectUser, deleteUser, updateUser, createUser, getUserOrganizations, updateUserRootAdmin, getGlobalUsers } from "@/services/users"
 import type { UpdateUserData } from "@/types/users"
 
 // Query keys
@@ -18,6 +18,23 @@ export const userQueryKeys = {
   organizations: (userId?: string) => [...userQueryKeys.all, 'organizations', userId] as const,
 }
 
+/**
+ * Espejo acotado de `userQueryKeys` para `GET /users` (root-admin-only, todos
+ * los usuarios de la instalación, sin filtro por organización) — distinto de
+ * `userQueryKeys.list`, que filtra por `X-Org-Id` sobre otro endpoint
+ * (`/user_roles/users_with_roles`). Namespace separado para no mezclar ambas
+ * cachés bajo la misma key.
+ */
+export const globalUserQueryKeys = {
+  all: ['global-users'] as const,
+  list: (page: number, pageSize: number, search?: string) => [
+    ...globalUserQueryKeys.all,
+    page,
+    pageSize,
+    search ?? ''
+  ] as const,
+}
+
 // Hook for fetching users
 export function useUsers(enabled: boolean = true, organizationId?: string, page: number = 1, pageSize: number = 100, search?: string) {
   return useQuery({
@@ -33,6 +50,18 @@ export function useUsers(enabled: boolean = true, organizationId?: string, page:
   })
 }
 
+// Hook for fetching a single user by id (e.g. resolving a document's creator_id to a name)
+export function useUserById(userId?: string | null, enabled: boolean = true) {
+  return useQuery({
+    queryKey: userQueryKeys.detail(userId ?? ''),
+    queryFn: () => getUserById(userId!),
+    enabled: enabled && !!userId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: 0,
+  })
+}
+
 // Hook for user organizations
 export function useUserOrganizations(userId?: string) {
   return useQuery({
@@ -42,9 +71,34 @@ export function useUserOrganizations(userId?: string) {
   })
 }
 
+interface UseGlobalUsersOptions {
+  page?: number
+  pageSize?: number
+  search?: string
+  enabled?: boolean
+}
+
+/**
+ * Lista paginada de TODOS los usuarios de la instalación (`GET /users`,
+ * root-admin-only) — extraído del `useQuery` inline que tenía
+ * `global-admin-users-section.tsx`. Distinto de `useUsers` (org-scoped, otro
+ * endpoint): no filtra por organización activa.
+ */
+export function useGlobalUsers({ page = 1, pageSize = 100, search, enabled = true }: UseGlobalUsersOptions = {}) {
+  return useQuery({
+    queryKey: globalUserQueryKeys.list(page, pageSize, search),
+    queryFn: () => getGlobalUsers(page, pageSize, search?.trim() || undefined),
+    enabled,
+    placeholderData: (prev) => prev,
+    staleTime: 2 * 60 * 1000,
+    retry: 0,
+  })
+}
+
 // Hook for user mutations
 export function useUserMutations(additionalInvalidateKeys: QueryKey[] = []) {
   const queryClient = useQueryClient()
+  const { t } = useTranslation('users')
   const invalidateAdditional = () => {
     additionalInvalidateKeys.forEach((queryKey) => {
       queryClient.invalidateQueries({ queryKey })
@@ -53,57 +107,57 @@ export function useUserMutations(additionalInvalidateKeys: QueryKey[] = []) {
 
   const approveUserMutation = useMutation({
     mutationFn: approveUser,
+    meta: { successMessage: 'User approved successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       invalidateAdditional()
-      toast.success('User approved successfully')
     },
   })
 
   const rejectUserMutation = useMutation({
     mutationFn: rejectUser,
+    meta: { successMessage: 'User rejected successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       invalidateAdditional()
-      toast.success('User rejected successfully')
     },
   })
 
   const deleteUserMutation = useMutation({
     mutationFn: deleteUser,
+    meta: { successMessage: 'User deleted successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       invalidateAdditional()
-      toast.success('User deleted successfully')
     },
   })
 
   const updateUserMutation = useMutation({
-    mutationFn: ({ userId, data }: { userId: string; data: UpdateUserData }) => 
+    mutationFn: ({ userId, data }: { userId: string; data: UpdateUserData }) =>
       updateUser(userId, data),
+    meta: { successMessage: t('users:toast.userUpdated') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       invalidateAdditional()
-      toast.success('User updated successfully')
     },
   })
 
   const createUserMutation = useMutation({
     mutationFn: createUser,
+    meta: { successMessage: t('users:toast.userCreated') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       invalidateAdditional()
-      toast.success('User created successfully')
     },
   })
 
   const updateRootAdminMutation = useMutation({
     mutationFn: ({ userId, isRootAdmin }: { userId: string; isRootAdmin: boolean }) =>
       updateUserRootAdmin(userId, isRootAdmin),
+    meta: { successMessage: 'Root admin status updated successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       invalidateAdditional()
-      toast.success('Root admin status updated successfully')
     },
   })
 

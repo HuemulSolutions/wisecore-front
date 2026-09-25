@@ -1,28 +1,37 @@
 import { useTranslation } from "react-i18next"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import CreateDocumentType from "@/components/assets-types/assets-types-create"
-import RolePermissionsDialog from "@/components/roles/roles-permissions-dialog"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
-import AssetTypeLifecycleDialog from "@/components/assets-types/assets-types-lifecycle-dialog"
-import { useAssetTypeMutations } from "@/hooks/useAssetTypes"
-import { type AssetTypePageState } from "@/types/assets-types"
+import { CloneAssetTypeDialog } from "@/components/assets-types/assets-types-clone-dialog"
+import { AssetTypeRelationshipsSheet } from "@/components/assets-types/assets-types-relationships-sheet"
+import { AssetTypeExportDialog } from "@/components/assets-types/assets-types-export-dialog"
+import { AssetTypeImportSheet } from "@/components/assets-types/assets-types-import-sheet"
+import { useDocumentTypeFolderMutations } from "@/hooks/useDocumentTypeFolders"
+import type { AssetTypePageDialogsProps } from '@/types/assets'
 
-interface AssetTypePageDialogsProps {
-  state: AssetTypePageState
-  onCloseDialog: (dialog: keyof AssetTypePageState) => void
-  onUpdateState: (updates: Partial<AssetTypePageState>) => void
-  assetTypeMutations: ReturnType<typeof useAssetTypeMutations>
-}
+export type { AssetTypePageDialogsProps } from '@/types/assets'
 
-export default function AssetTypePageDialogs({ 
-  state, 
-  onCloseDialog, 
-  onUpdateState, 
-  assetTypeMutations 
+export default function AssetTypePageDialogs({
+  state,
+  onCloseDialog,
+  onUpdateState,
+  assetTypeMutations,
+  onImportSuccess,
+  exportSelectedIds,
+  onExported,
+  onAssetTypeCreated,
 }: AssetTypePageDialogsProps) {
   const { t } = useTranslation(['asset-types', 'common'])
+  const { canDelete, canCreate } = useUserPermissions()
+  const { deleteFolder } = useDocumentTypeFolderMutations()
+
+  const handleDeleteFolder = async () => {
+    if (!state.deletingFolder) return
+    await deleteFolder.mutateAsync(state.deletingFolder.id)
+  }
 
   const handleDelete = async () => {
-    if (!state.deletingAssetType) return
+    if (!canDelete('asset_type') || !state.deletingAssetType) return
 
     const minDelay = new Promise(resolve => setTimeout(resolve, 800))
 
@@ -37,24 +46,48 @@ export default function AssetTypePageDialogs({
     ])
   }
 
+  const handleClone = async (includeRelationships: boolean) => {
+    if (!canCreate('asset_type') || !state.cloningAssetType) return
+
+    const minDelay = new Promise(resolve => setTimeout(resolve, 800))
+
+    await Promise.all([
+      new Promise<void>((resolve, reject) => {
+        assetTypeMutations.cloneAssetType.mutate(
+          { id: state.cloningAssetType!.document_type_id, includeRelationships },
+          {
+            onSuccess: () => resolve(),
+            onError: (error) => reject(error)
+          }
+        )
+      }),
+      minDelay
+    ])
+  }
+
   return (
     <>
-      {/* Create/Edit Dialog */}
+      {/* Create Dialog — la edición vive ahora en el tab General del sheet de configuración */}
       <CreateDocumentType
         type="asset"
-        documentType={state.editingAssetType}
-        open={!!state.editingAssetType || state.showCreateDialog}
+        documentType={null}
+        canSave={canCreate('asset_type')}
+        open={state.showCreateDialog}
         onOpenChange={(open) => {
           if (!open) {
-            onCloseDialog('editingAssetType')
             onUpdateState({ showCreateDialog: false })
           }
         }}
-        onDocumentTypeCreated={() => {
-          onCloseDialog('editingAssetType')
+        onDocumentTypeCreated={(result) => {
           onUpdateState({ showCreateDialog: false })
+          onAssetTypeCreated?.(result)
         }}
       />
+
+      {/* La configuración (general + plantillas + ciclo de vida) ya no es un
+          sheet acá: vive en su propia página compartible
+          (pages/asset-type-detail.tsx). El sheet se conserva solo para el
+          canvas de assets-types-relationships-sheet.tsx. */}
 
       {/* Delete Asset Type Dialog */}
       <HuemulAlertDialog
@@ -72,29 +105,66 @@ export default function AssetTypePageDialogs({
         actionVariant="destructive"
       />
 
-      {/* Role Permissions Dialog */}
-      <RolePermissionsDialog
-        documentType={state.rolePermissionsAssetType ? {
-          id: state.rolePermissionsAssetType.document_type_id,
-          name: state.rolePermissionsAssetType.document_type_name,
-        } as any : null}
-        open={!!state.rolePermissionsAssetType}
+      {/* Clone Asset Type Dialog */}
+      <CloneAssetTypeDialog
+        open={!!state.cloningAssetType}
         onOpenChange={(open) => {
           if (!open) {
-            onCloseDialog('rolePermissionsAssetType')
+            onCloseDialog('cloningAssetType')
+          }
+        }}
+        assetTypeName={state.cloningAssetType?.document_type_name}
+        onConfirm={handleClone}
+      />
+
+      {/* View Relationships Sheet */}
+      <AssetTypeRelationshipsSheet
+        assetType={state.viewRelationshipsAssetType}
+        open={!!state.viewRelationshipsAssetType}
+        onOpenChange={(open) => {
+          if (!open) {
+            onCloseDialog('viewRelationshipsAssetType')
           }
         }}
       />
 
-      {/* Lifecycle Dialog */}
-      <AssetTypeLifecycleDialog
-        assetType={state.lifecycleAssetType}
-        open={!!state.lifecycleAssetType}
+      {/* Export Dialog */}
+      <AssetTypeExportDialog
+        open={state.showExportDialog}
         onOpenChange={(open) => {
           if (!open) {
-            onCloseDialog('lifecycleAssetType')
+            onUpdateState({ showExportDialog: false })
           }
         }}
+        selectedIds={exportSelectedIds}
+        onExported={onExported}
+      />
+
+      {/* Import Sheet */}
+      <AssetTypeImportSheet
+        open={state.showImportSheet}
+        onOpenChange={(open) => {
+          if (!open) {
+            onUpdateState({ showImportSheet: false })
+          }
+        }}
+        onImportSuccess={onImportSuccess}
+      />
+
+      {/* Delete Folder Dialog — crear/renombrar son inline en la tabla, solo el borrado confirma */}
+      <HuemulAlertDialog
+        open={!!state.deletingFolder}
+        onOpenChange={(open) => {
+          if (!open) {
+            onCloseDialog('deletingFolder')
+          }
+        }}
+        title={t('folders.deleteTitle')}
+        description={t('folders.deleteDescription', { name: state.deletingFolder?.name })}
+        onAction={handleDeleteFolder}
+        actionLabel={t('folders.delete')}
+        cancelLabel={t('common:cancel')}
+        actionVariant="destructive"
       />
     </>
   )

@@ -61,6 +61,7 @@ export function TableCellElementStatic({
         'h-full overflow-visible p-0',
         element.background ? 'bg-(--cellBackground)' : isHeader ? 'bg-gray-900 text-white' : 'bg-background',
         isHeader && 'text-left font-semibold *:m-0',
+        isHeader && !element.background && '[&_*]:text-white',
         !isHeader && 'align-top border-b border-gray-200',
         'before:size-full',
         "before:absolute before:box-border before:select-none before:content-['']",

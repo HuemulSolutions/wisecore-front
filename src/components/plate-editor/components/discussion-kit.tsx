@@ -6,8 +6,6 @@ import type { TComment } from '@/components/ui/comment';
 
 import { createPlatePlugin } from 'platejs/react';
 
-import { BlockDiscussion } from '@/components/ui/block-discussion';
-
 export type TDiscussion = {
   id: string;
   comments: TComment[];
@@ -15,6 +13,12 @@ export type TDiscussion = {
   isResolved: boolean;
   userId: string;
   documentContent?: string;
+  /** section_execution_id of the section this thread belongs to. Absent on
+   * discussions optimistically created before the backend round-trip. */
+  sectionExecutionId?: string | null;
+  /** execution_id this thread belongs to. Set on both section-scoped and
+   * document-scoped (whole execution) threads. */
+  executionId?: string | null;
 };
 
 export type TDiscussionUser = {
@@ -29,17 +33,21 @@ export type DiscussionCallbacks = {
     documentContent: string;
     firstCommentRich: Value;
     discussionId: string;
+    isPublic: boolean;
   }) => Promise<string | undefined>;
   onResolveDiscussion?: (discussionId: string) => Promise<void>;
+  onUnresolveDiscussion?: (discussionId: string) => Promise<void>;
   onDeleteDiscussion?: (discussionId: string) => Promise<void>;
   onAddComment?: (
     discussionId: string,
     contentRich: Value,
+    isPublic: boolean,
   ) => Promise<string | undefined>;
   onUpdateComment?: (
     commentId: string,
     contentRich: Value,
     discussionId: string,
+    isPublic: boolean,
   ) => Promise<void>;
   onDeleteComment?: (
     commentId: string,
@@ -58,9 +66,6 @@ export const discussionPlugin = createPlatePlugin({
     callbacks: {} as DiscussionCallbacks,
   },
 })
-  .configure({
-    render: { aboveNodes: BlockDiscussion },
-  })
   .extendSelectors(({ getOption }) => ({
     currentUser: () => getOption('users')[getOption('currentUserId')],
     user: (id: string) => getOption('users')[id],

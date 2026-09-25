@@ -44,27 +44,7 @@ function getIntervalForAttempt(attempt: number): number {
 // Hook
 // ========================================
 
-interface UseMessagePollingProps {
-  conversationId: string | null;
-  assistantMessageId: string | null;
-  /** Called when the message reaches a terminal status */
-  onComplete?: (message: ChatMessage) => void;
-  /** Called when the message status is 'error' */
-  onError?: (message: ChatMessage) => void;
-}
-
-interface UseMessagePollingReturn {
-  /** The latest assistant message data (null until first successful fetch) */
-  message: ChatMessage | null;
-  /** Current message status */
-  status: MessageStatus | null;
-  /** Whether polling is currently active */
-  isPolling: boolean;
-  /** Any fetch error from the query */
-  error: Error | null;
-  /** Manually stop polling */
-  stopPolling: () => void;
-}
+import type { UseMessagePollingProps, UseMessagePollingReturn } from "@/types/chatbot"
 
 export function useMessagePolling({
   conversationId,

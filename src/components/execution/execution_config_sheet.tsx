@@ -1,29 +1,15 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Settings, Sparkles, Info, Loader2 } from "lucide-react";
+import type { ExecutionConfigSheetProps } from "@/types/execution";
 
-interface ExecutionConfigSheetProps {
-  instructions: string;
-  onInstructionsChange: (value: string) => void;
-  selectedLLM: string;
-  onLLMChange: (value: string) => void;
-  llms?: any[];
-  isGenerating: boolean;
-  executionStatus: string;
-  isUpdatingLLM: boolean;
-  readonly?: boolean;
-}
+export type { ExecutionConfigSheetProps } from "@/types/execution";
 
 export function ExecutionConfigSheet({
   instructions,
@@ -36,6 +22,7 @@ export function ExecutionConfigSheet({
   isUpdatingLLM,
   readonly = false
 }: ExecutionConfigSheetProps) {
+  const { t } = useTranslation("execute");
   const [isExpanded, setIsExpanded] = useState(false);
   
   const isEditable = !readonly && executionStatus === "pending" && !isGenerating;
@@ -74,7 +61,7 @@ export function ExecutionConfigSheet({
   };
 
   return (
-    <Card className="border-l-4 border-l-[#4464f7] bg-gradient-to-r from-blue-50/30 to-white">
+    <Card className="border-l-4 border-l-[#4464f7] bg-linear-to-r from-blue-50/30 to-white">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center justify-between text-base">
           <div className="flex items-center gap-2">
@@ -101,16 +88,9 @@ export function ExecutionConfigSheet({
           <div className="space-y-2">
             <Label className="text-xs font-medium text-gray-700 flex items-center gap-1">
               AI Model
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Info className="h-3 w-3 text-gray-400" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Select the AI model to use for content generation</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <span className="inline-flex" title={t("config.modelHelp")}>
+                <Info className="h-3 w-3 text-gray-400" />
+              </span>
             </Label>
             <Select
               value={selectedLLM}
@@ -137,23 +117,16 @@ export function ExecutionConfigSheet({
           <div className="space-y-2">
             <Label htmlFor="execution-instructions" className="text-xs font-medium text-gray-700 flex items-center gap-1">
               Execution Instructions
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Info className="h-3 w-3 text-gray-400" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Specific instructions for this execution. Describe requirements, constraints, or special considerations.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <span className="inline-flex" title={t("config.instructionsHelp")}>
+                <Info className="h-3 w-3 text-gray-400" />
+              </span>
             </Label>
             <Textarea
               id="execution-instructions"
               value={instructions}
               onChange={(e) => onInstructionsChange(e.target.value)}
               placeholder="Enter specific instructions for this execution..."
-              className={`min-h-[100px] resize-vertical transition-colors text-sm ${
+              className={`min-h-25 resize-vertical transition-colors text-sm ${
                 !isEditable
                   ? "bg-gray-50 border-gray-200 text-gray-500 cursor-not-allowed"
                   : "border-gray-300 focus:ring-2 focus:ring-[#4464f7] focus:border-[#4464f7]"

@@ -12,8 +12,11 @@ import { parseTwitterUrl, parseVideoUrl } from '@platejs/media';
 import { useMediaState } from '@platejs/media/react';
 import { ResizableProvider, useResizableValue } from '@platejs/resizable';
 import { PlateElement, useEditorMounted, withHOC } from 'platejs/react';
+import { FileX } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
+import { useResolvedMediaUrl } from '@/contexts/media-url-context';
 
 import { Caption, CaptionTextarea } from './caption';
 import {
@@ -33,11 +36,13 @@ export const VideoElement = withHOC(
       isUpload,
       isYoutube,
       readOnly,
-      unsafeUrl,
     } = useMediaState({
       urlParsers: [parseTwitterUrl, parseVideoUrl],
     });
     const width = useResizableValue('width');
+    const { t } = useTranslation('editor');
+    const element = props.element as (TVideoElement & TResizableProps) & { mediaId?: string; previewUrl?: string };
+    const { src, isBroken } = useResolvedMediaUrl(element);
 
     const isEditorMounted = useEditorMounted();
 
@@ -97,14 +102,21 @@ export const VideoElement = withHOC(
               )}
 
               {isUpload && isEditorMounted && (
-                <div ref={handleRef}>
-                  <ReactPlayer
-                    height="100%"
-                    src={unsafeUrl}
-                    width="100%"
-                    controls
-                  />
-                </div>
+                isBroken ? (
+                  <div className="flex aspect-video items-center justify-center gap-2 rounded-sm bg-muted text-muted-foreground">
+                    <FileX className="size-5" />
+                    <span className="text-sm">{t('media.unavailable')}</span>
+                  </div>
+                ) : (
+                  <div ref={handleRef}>
+                    <ReactPlayer
+                      height="100%"
+                      src={src}
+                      width="100%"
+                      controls
+                    />
+                  </div>
+                )
               )}
             </div>
           </Resizable>

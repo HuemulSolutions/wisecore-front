@@ -1,0 +1,2946 @@
+"use client"
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
+import {
+  ReactFlow,
+  ReactFlowProvider,
+  Background,
+  Controls,
+  addEdge,
+  useNodesState,
+  useEdgesState,
+  useReactFlow,
+  useNodesInitialized,
+  useStore,
+  useViewport,
+  ConnectionMode,
+  MarkerType,
+  SelectionMode,
+  type Node,
+  type Edge,
+  type NodeChange,
+  type OnConnect,
+  type OnConnectEnd,
+  type OnReconnect,
+  BackgroundVariant,
+} from "@xyflow/react"
+import "@xyflow/react/dist/style.css"
+import "./relationships-canvas.css"
+
+import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
+import { MemoizedAssetTypeNode, type AssetTypeNodeData } from "./asset-type-node"
+import { MemoizedTextNode, type CanvasElementNodeData } from "./text-node"
+import { MemoizedContainerNode } from "./container-node"
+import { MemoizedRoleNode, type RoleNodeMeta } from "./role-node"
+import { MemoizedGatewayNode } from "./gateway-node"
+import { MemoizedStartEventNode } from "./start-event-node"
+import { MemoizedEndEventNode } from "./end-event-node"
+import { RoleColumnLabel } from "./role-column-label"
+import { AlignmentGuides } from "./alignment-guides"
+import { CanvasElementPalette } from "./canvas-element-palette"
+import { CanvasActionsBar, CanvasReadOnlyBadge } from "./canvas-actions-bar"
+import { CanvasEmptyState } from "./canvas-empty-state"
+import { DiagramEditorBar } from "./diagram-editor-bar"
+import { CanvasEmptyPrompt } from "./diagram-canvas-states"
+import { CanvasViewControls } from "./canvas-view-controls"
+import { useDiagramPaletteCollapsed } from "@/hooks/useDiagramPaletteCollapsed"
+import { DiagramsDeleteDialog } from "@/components/diagrams/diagrams-delete-dialog"
+import { captureDiagramSnapshot } from "@/lib/diagram-snapshot"
+import { ElementPanel } from "./element-panel"
+import { HuemulRolePickerDialog } from "@/huemul/components/huemul-role-picker"
+import { MemoizedRelationshipEdge, type RelationshipEdgeData } from "./relationship-edge"
+import { RelationshipCreateDialog, RelationshipEditDialog } from "./relationship-dialogs"
+import { ExecutionRelationshipCreateDialog, ExecutionRelationshipEditDialog, ExecutionPickerDialog, executionLabel } from "./execution-relationship-dialogs"
+import { RelationshipDeleteDialog } from "./relationship-delete-dialog"
+import { RelationshipAttributesDialog } from "./relationship-attributes-dialog"
+import { SaveAsDiagramSheet } from "./save-as-diagram-sheet"
+import { RoleEdgeNameDialog } from "./role-edge-dialogs"
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
+import { RelationshipPanel } from "./relationship-panel"
+import { NodePanel } from "./node-panel"
+import { documentTypeRelationshipQueryKeys } from "@/hooks/useDocumentTypeRelationships"
+import { getDocumentTypeRelationships } from "@/services/document-type-relationships"
+import { getExecutionRelationshipsByExecution } from "@/services/execution-relationships"
+import { useExecutionRelationshipMutations } from "@/hooks/useExecutionRelationships"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { CreateAssetSheet } from "@/components/assets/dialogs"
+import { getDocumentById } from "@/services/assets"
+import { getExecutionsByDocumentId } from "@/services/executions"
+import { NodeDiagramsPopover } from "@/components/diagrams/node-diagrams-popover"
+import type {
+  DocumentTypeRelationship,
+  InitialCanvasNode,
+  InitialCanvasRelationship,
+  InitialCanvasElement,
+  CanvasElementKind,
+  CanvasTool,
+  CanvasElementRole,
+  FlowCanvasNodeType,
+  PendingConnection,
+  PendingRoleEdge,
+  RelationshipsCanvasProps,
+  EditingDiagram,
+} from "@/types/document-type-relationships"
+import type { ExecutionRelationship, ExecutionRelationshipSubitem } from "@/types/execution-relationships"
+import type { Diagram, DiagramFlowNodeType, DiagramRelationshipEndpoint } from "@/types/diagrams"
+import {
+  detailEndpointOf,
+  DEFAULT_CANVAS_ELEMENT_COLOR,
+  EXEC_EDGE_ID_PREFIX,
+  DIRECT_EDGE_ID_PREFIX,
+  CANVAS_TYPE_BY_FLOW_NODE_TYPE,
+  isFlowCanvasType,
+  type CanvasNode,
+} from "@/lib/diagram-utils"
+import { useSaveDiagramGraph, useDiagramIdsByAsset } from "@/hooks/useDiagrams"
+import { useDiagramDirtyState } from "@/hooks/useDiagramDirtyState"
+import { useOrgNavigate, useOrgPath } from "@/hooks/useOrgRouter"
+import { handleApiError } from "@/lib/error-utils"
+
+const NODE_TYPES = {
+  assetType: MemoizedAssetTypeNode,
+  text: MemoizedTextNode,
+  container: MemoizedContainerNode,
+  role: MemoizedRoleNode,
+  gateway: MemoizedGatewayNode,
+  startEvent: MemoizedStartEventNode,
+  endEvent: MemoizedEndEventNode,
+}
+
+const EDGE_TYPES = {
+  relationship: MemoizedRelationshipEdge,
+}
+
+const EDGE_MARKER = {
+  type: MarkerType.ArrowClosed,
+  width: 18,
+  height: 18,
+  color: "var(--diagram-edge)",
+} as const
+const EDGE_MARKER_SELECTED = { ...EDGE_MARKER, color: "var(--primary)" } as const
+
+// Los contenedores son agrupadores visuales, no nodos `group` de React Flow: deben quedar
+// siempre por debajo para que un clic dentro de uno llegue al nodo que está encima, y un clic
+// en su zona vacía lo tome a él. Los contenedores más grandes van más abajo, así un contenedor
+// anidado sigue siendo seleccionable.
+const CONTAINER_Z_BASE = 0
+const CONTAINER_Z_MAX = 50
+const EDGE_Z = 60
+const NODE_Z = 100
+
+// Vertical offset (px) to separate N parallel edges centered around the handle.
+// e.g. N=2: [-7, +7]  N=3: [-14, 0, +14]  N=4: [-21, -7, +7, +21]
+const PARALLEL_SPACING = 14
+function parallelOffset(index: number, total: number): number {
+  return (index - (total - 1) / 2) * PARALLEL_SPACING
+}
+
+// Normalise the relationship object into a config shape for use in canvas logic.
+function extractRelConfig(rel: DocumentTypeRelationship) {
+  return {
+    id: rel.id,
+    name: rel.name,
+    source_document_type_id: rel.source_document_type_id,
+    target_document_type_id: rel.target_document_type_id,
+    min_count: rel.min_count,
+    max_count: rel.max_count,
+  }
+}
+
+// Display label for a canvas node in dialogs/toasts that reference a connection
+// endpoint — a role node's label is its assigned role's name (its raw content as a
+// fallback), everything else uses its asset/document-type name.
+function nodeLabel(node: Node): string {
+  if (node.type === "role") {
+    const d = node.data as CanvasElementNodeData
+    return d.role?.name ?? d.content
+  }
+  if (isFlowCanvasType(node.type)) {
+    return (node.data as CanvasElementNodeData).content
+  }
+  return (node.data as AssetTypeNodeData).name
+}
+
+function nodeColor(node?: Node): string | undefined {
+  if (!node) return undefined
+  return (node.data as AssetTypeNodeData | CanvasElementNodeData).color
+}
+
+// ─── Hierarchical layout helper ────────────────────────────────────────────────
+const NODE_COL_SPACING = 260
+const NODE_ROW_SPACING = 110
+
+function computeLayoutForNewNodes(
+  anchorId: string,
+  anchorPos: { x: number; y: number },
+  newNodeIds: string[],
+  edges: Array<{ source: string; target: string }>,
+): Map<string, { x: number; y: number }> {
+  const result = new Map<string, { x: number; y: number }>()
+  if (newNodeIds.length === 0) return result
+
+  const allIds = new Set([anchorId, ...newNodeIds])
+  const adj = new Map<string, string[]>()
+  const revAdj = new Map<string, string[]>()
+  for (const id of allIds) { adj.set(id, []); revAdj.set(id, []) }
+
+  for (const { source, target } of edges) {
+    if (allIds.has(source) && allIds.has(target)) {
+      adj.get(source)!.push(target)
+      revAdj.get(target)!.push(source)
+    }
+  }
+
+  // BFS from anchor: positive level = downstream, negative = upstream
+  const levels = new Map<string, number>([[anchorId, 0]])
+  const queue: string[] = [anchorId]
+  while (queue.length > 0) {
+    const cur = queue.shift()!
+    const curLevel = levels.get(cur)!
+    for (const next of adj.get(cur) ?? []) {
+      if (!levels.has(next)) { levels.set(next, curLevel + 1); queue.push(next) }
+    }
+    for (const prev of revAdj.get(cur) ?? []) {
+      if (!levels.has(prev)) { levels.set(prev, curLevel - 1); queue.push(prev) }
+    }
+  }
+
+  // Nodes unreachable from anchor go after the deepest level
+  let maxLevel = Math.max(0, ...Array.from(levels.values()))
+  for (const id of newNodeIds) {
+    if (!levels.has(id)) levels.set(id, ++maxLevel)
+  }
+
+  // Group new nodes by level
+  const levelGroups = new Map<number, string[]>()
+  for (const id of newNodeIds) {
+    const lv = levels.get(id)!
+    if (!levelGroups.has(lv)) levelGroups.set(lv, [])
+    levelGroups.get(lv)!.push(id)
+  }
+
+  // Position nodes: each level is a column offset from anchor
+  for (const [level, ids] of levelGroups) {
+    const totalHeight = (ids.length - 1) * NODE_ROW_SPACING
+    ids.forEach((id, i) => {
+      result.set(id, {
+        x: anchorPos.x + level * NODE_COL_SPACING,
+        y: anchorPos.y - totalHeight / 2 + i * NODE_ROW_SPACING,
+      })
+    })
+  }
+
+  return result
+}
+
+// ─── Role column layout ─────────────────────────────────────────────────────────
+// New role nodes are placed in a dedicated column to the right of everything else —
+// separates "what exists" (assets/containers) from "who can see it" (roles). Only
+// applies at creation time: roles already positioned in a loaded diagram keep
+// whatever position the user last dragged them to.
+const ROLE_COLUMN_MARGIN = 96
+const ROLE_ROW_SPACING = 24
+const ROLE_NODE_HEIGHT = 56
+
+// Distancia (en px de pantalla, no en unidades "flow") por debajo de la cual dos
+// bordes/centros se consideran "alineados" al arrastrar un nodo. Se convierte a
+// unidades flow dividiendo por el zoom, así el snap se siente igual de sensible
+// sin importar cuánto esté acercado/alejado el canvas.
+const ALIGNMENT_SNAP_THRESHOLD_PX = 6
+
+function nodeBounds(n: Node) {
+  const width = n.measured?.width ?? (n.style?.width as number) ?? 160
+  const height = n.measured?.height ?? (n.style?.height as number) ?? 160
+  return {
+    left: n.position.x,
+    centerX: n.position.x + width / 2,
+    right: n.position.x + width,
+    top: n.position.y,
+    centerY: n.position.y + height / 2,
+    bottom: n.position.y + height,
+  }
+}
+
+// Compara los 3 valores en X (left/centerX/right) y los 3 en Y (top/centerY/bottom)
+// del nodo arrastrado contra los de cada otro nodo. Devuelve, por eje, el mejor
+// match dentro del threshold — la coordenada para dibujar la línea guía y el delta
+// a aplicar a la posición del nodo arrastrado para que ese borde/centro snapee.
+function computeAlignmentSnap(dragged: Node, others: Node[], thresholdFlow: number) {
+  const draggedBounds = nodeBounds(dragged)
+  const xCandidates = [draggedBounds.left, draggedBounds.centerX, draggedBounds.right]
+  const yCandidates = [draggedBounds.top, draggedBounds.centerY, draggedBounds.bottom]
+
+  let bestX: { guide: number; delta: number; diff: number } | null = null
+  let bestY: { guide: number; delta: number; diff: number } | null = null
+
+  for (const other of others) {
+    if (other.id === dragged.id) continue
+    const b = nodeBounds(other)
+    for (const value of xCandidates) {
+      for (const otherValue of [b.left, b.centerX, b.right]) {
+        const diff = Math.abs(value - otherValue)
+        if (diff <= thresholdFlow && (!bestX || diff < bestX.diff)) {
+          bestX = { guide: otherValue, delta: otherValue - value, diff }
+        }
+      }
+    }
+    for (const value of yCandidates) {
+      for (const otherValue of [b.top, b.centerY, b.bottom]) {
+        const diff = Math.abs(value - otherValue)
+        if (diff <= thresholdFlow && (!bestY || diff < bestY.diff)) {
+          bestY = { guide: otherValue, delta: otherValue - value, diff }
+        }
+      }
+    }
+  }
+
+  return { snapX: bestX, snapY: bestY }
+}
+
+function computeRoleColumnPosition(nodes: Node[]): { x: number; y: number } {
+  const others = nodes.filter((n) => n.type !== "role")
+  const roles = nodes.filter((n) => n.type === "role")
+
+  let maxRight = 400
+  let minTop = 80
+  others.forEach((n, i) => {
+    const w = n.measured?.width ?? (n.style?.width as number) ?? 160
+    if (i === 0) minTop = n.position.y
+    maxRight = Math.max(maxRight, n.position.x + w)
+    minTop = Math.min(minTop, n.position.y)
+  })
+
+  const x = maxRight + ROLE_COLUMN_MARGIN
+  if (roles.length === 0) return { x, y: minTop }
+
+  const maxBottom = Math.max(
+    ...roles.map((n) => n.position.y + (n.measured?.height ?? (n.style?.height as number) ?? ROLE_NODE_HEIGHT)),
+  )
+  return { x, y: maxBottom + ROLE_ROW_SPACING }
+}
+
+// Diagram (API shape) → EditingDiagram (canvas state) — shared by "load an existing
+// diagram" and "just saved/created a diagram" so both promote the canvas the same way.
+function toEditingDiagram(diagram: Diagram): EditingDiagram {
+  return {
+    id: diagram.id,
+    name: diagram.name,
+    description: diagram.description,
+    executionId: diagram.execution_id,
+    snapshotMediaId: diagram.snapshot_media_id,
+  }
+}
+
+// ─── Public export — wraps with ReactFlowProvider so inner hooks work ──────────
+
+export function RelationshipsCanvas(props: RelationshipsCanvasProps) {
+  return (
+    <ReactFlowProvider>
+      <RelationshipsCanvasFlow {...props} />
+    </ReactFlowProvider>
+  )
+}
+
+// ─── Inner canvas — has access to useReactFlow context ────────────────────────
+
+function RelationshipsCanvasFlow({
+  organizationId,
+  documentTypes,
+  initialDocumentTypeId,
+  nodeActions,
+  mode = 'document-type',
+  initialNodes,
+  initialRelationships,
+  initialElements,
+  editingDiagram: editingDiagramProp,
+  onDiagramSaved,
+  onCanvasCleared,
+  readOnly = false,
+  chrome = 'default',
+  onOpenAssetTree,
+  onOpenDiagramsList,
+  onRefresh,
+  isRefreshing,
+  onDiagramDeleted,
+}: RelationshipsCanvasProps) {
+  const { t } = useTranslation("document-type-relationships")
+  const { t: tDiagrams } = useTranslation("diagrams")
+  const isEditorChrome = chrome === 'editor'
+  const navigate = useOrgNavigate()
+  const buildPath = useOrgPath()
+  // Abre el asset detrás de un nodo "assetType" en su vista de pantalla completa (ver
+  // ia context/fullscreen-share-route-guide.md), en una pestaña nueva para no arriesgar
+  // cambios sin guardar del canvas del diagrama.
+  const handleOpenAsset = useCallback((assetId: string, executionId?: string) => {
+    const query = executionId ? `?execution=${executionId}` : ''
+    window.open(buildPath(`/asset/full/${assetId}${query}`), "_blank", "noopener,noreferrer")
+  }, [buildPath])
+  const { screenToFlowPosition, getNodes, getEdges, fitView } = useReactFlow()
+  const queryClient = useQueryClient()
+  // Ancho MEDIDO del contenedor del flow (no del viewport): ya descuenta el panel
+  // lateral de 288px cuando NodePanel/ElementPanel/RelationshipPanel está abierto,
+  // así que un solo mecanismo cubre columna angosta + Wisy abierto + panel lateral.
+  const flowWidth = useStore((s) => s.width)
+  const isNarrow = flowWidth > 0 && flowWidth < 760
+  const isVeryNarrow = flowWidth > 0 && flowWidth < 520
+  const { deleteExecutionRelationship } = useExecutionRelationshipMutations(organizationId)
+  const { isOrgAdmin, hasPermission, hasAnyPermission, canCreate } = useUserPermissions()
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // ─── Relationship permissions ───────────────────────────────────────────────
+  // `readOnly` overrides every write permission below — the viewer never mutates
+  // canvas or backend state regardless of what the user is actually allowed to do.
+  // The role picker calls GET /rbac/roles — same gate as the roles page's `listRoles`
+  // and the @role mention picker in the editor (mention-node.tsx).
+  const canPickRole = !readOnly && (isOrgAdmin || hasAnyPermission(['rbac:l', 'rbac:r']))
+
+  const canListRelationships = isOrgAdmin || hasAnyPermission(['asset_type_relationship:l', 'asset_type_relationship:r'])
+  const canCreateRelationship = !readOnly && (isOrgAdmin || hasPermission('asset_type_relationship:c'))
+  const canUpdateRelationship = !readOnly && (isOrgAdmin || hasPermission('asset_type_relationship:u'))
+  const canDeleteRelationship = !readOnly && (isOrgAdmin || hasPermission('asset_type_relationship:d'))
+
+  const canListExecRelationships = isOrgAdmin || hasAnyPermission(['execution_relationship:l', 'execution_relationship:r'])
+  const canCreateExecRelationship = !readOnly && (isOrgAdmin || hasPermission('execution_relationship:c'))
+  const canUpdateExecRelationship = !readOnly && (isOrgAdmin || hasPermission('execution_relationship:u'))
+  const canDeleteExecRelationship = !readOnly && (isOrgAdmin || hasPermission('execution_relationship:d'))
+
+  const canUpdateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:u'))
+  const canCreateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:c'))
+  const canDeleteDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:d'))
+  // Ver el explorador de "diagramas de esta versión" es una LECTURA, sin exigir
+  // permiso de escritura.
+  const canListDiagrams = isOrgAdmin || hasAnyPermission(['diagram:l', 'diagram:r'])
+  // A role node/edge is content of the diagram itself: it's persisted with the
+  // POST/PUT of /diagrams and never creates an execution_relationship on its own ⇒
+  // it does NOT require execution_relationship:c/u, only a diagram write permission.
+  const canWriteDiagramGraph = canUpdateDiagram || canCreateDiagram
+  const canAddRoleNode = mode === 'execution' && canPickRole && canWriteDiagramGraph
+  // Unlike a role node, a gateway/start_event/end_event has no entity behind it —
+  // no /rbac/roles fetch involved, so no `canPickRole` gate, just diagram write access.
+  const canAddFlowNode = mode === 'execution' && canWriteDiagramGraph
+
+  const [nodes, setNodes, onNodesChangeInternal] = useNodesState<Node>([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
+
+  // Líneas guía de alineación mostradas mientras se arrastra un nodo (ver
+  // `AlignmentGuides`) — puramente visual/efímero, `null` cuando no hay drag activo.
+  const [alignmentGuides, setAlignmentGuides] = useState<{ vertical: number[]; horizontal: number[] } | null>(null)
+  const viewport = useViewport()
+
+  // Intercepta el change de posición (no `onNodeDrag`: su 3er parámetro es solo el/los
+  // nodo(s) que se están arrastrando, no el resto del diagrama — no sirve para comparar).
+  // Mismo patrón que el ejemplo oficial de "helper lines" de React Flow: usa `nodes`
+  // (state, con la posición vigente de todos los demás) para calcular el snap y muta
+  // `change.position` antes de delegar, así se aplica en el mismo paso que React Flow
+  // usa para actualizar la posición.
+  const handleNodesChange = useCallback((changes: NodeChange<Node>[]) => {
+    setAlignmentGuides(null)
+
+    const change = changes.length === 1 ? changes[0] : null
+    if (change && change.type === "position" && change.dragging && change.position) {
+      const position = change.position
+      const draggedNode = nodes.find((n) => n.id === change.id)
+      if (draggedNode) {
+        const thresholdFlow = ALIGNMENT_SNAP_THRESHOLD_PX / viewport.zoom
+        const simulated = { ...draggedNode, position }
+        const others = nodes.filter((n) => n.id !== change.id)
+        const { snapX, snapY } = computeAlignmentSnap(simulated, others, thresholdFlow)
+        if (snapX) position.x += snapX.delta
+        if (snapY) position.y += snapY.delta
+        if (snapX || snapY) {
+          setAlignmentGuides({ vertical: snapX ? [snapX.guide] : [], horizontal: snapY ? [snapY.guide] : [] })
+        }
+      }
+    }
+
+    onNodesChangeInternal(changes)
+  }, [nodes, viewport.zoom, onNodesChangeInternal])
+
+  // Right panel — tracks the clicked node/edge. Declarado antes de `layeredNodes`/
+  // `layeredEdges` porque el resaltado de relaciones (abajo) depende de la selección.
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+  // Popup "diagramas del activo" abierto con doble clic — id del nodo + punto de pantalla
+  // del clic, o null si está cerrado.
+  const [diagramsPopover, setDiagramsPopover] = useState<{ nodeId: string; x: number; y: number } | null>(null)
+  // Handler que el badge de un nodo usa para abrir el popup en el punto del clic.
+  const handleShowDiagrams = useCallback((nodeId: string, point: { x: number; y: number }) => {
+    setDiagramsPopover({ nodeId, x: point.x, y: point.y })
+  }, [])
+  // Menú contextual / panel lateral: abre el mismo popup anclado al costado derecho del nodo
+  // (ninguno de los dos trae coordenadas del clic, así que se mide su elemento en el DOM).
+  const handleExploreDiagrams = useCallback((nodeId: string) => {
+    const el = document.querySelector(`.react-flow__node[data-id="${CSS.escape(nodeId)}"]`)
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    setDiagramsPopover({ nodeId, x: rect.right, y: rect.top })
+  }, [])
+  // Diagramas por activo, para el badge "otros diagramas" de cada nodo.
+  const diagramIdsByAsset = useDiagramIdsByAsset(organizationId, {
+    enabled: mode === 'execution' && canListDiagrams,
+  })
+
+  // Deriva qué nodos/edges "pertenecen" a la selección actual — usado por
+  // `layeredNodes`/`layeredEdges` para atenuar el resto del canvas. `null` cuando no
+  // hay nada seleccionado (comportamiento normal, sin dimming).
+  const highlightSets = useMemo(() => {
+    if (selectedNodeId) {
+      const activeEdgeIds = new Set<string>()
+      const activeNodeIds = new Set<string>([selectedNodeId])
+      for (const e of edges) {
+        if (e.source === selectedNodeId || e.target === selectedNodeId) {
+          activeEdgeIds.add(e.id)
+          activeNodeIds.add(e.source)
+          activeNodeIds.add(e.target)
+        }
+      }
+      return { activeNodeIds, activeEdgeIds }
+    }
+    if (selectedEdgeId) {
+      const edge = edges.find((e) => e.id === selectedEdgeId)
+      if (!edge) return null
+      return {
+        activeNodeIds: new Set<string>([edge.source, edge.target]),
+        activeEdgeIds: new Set<string>([selectedEdgeId]),
+      }
+    }
+    return null
+  }, [selectedNodeId, selectedEdgeId, edges])
+
+  // Deriva el zIndex de render sin tocar el state: los contenedores van siempre debajo de los
+  // demás nodos (más grandes primero, para que uno anidado siga siendo seleccionable), y las
+  // aristas quedan por encima de los contenedores para poder clickearlas aunque los crucen.
+  const layeredNodes = useMemo(() => {
+    const containerAreas = nodes
+      .filter((n) => n.type === "container")
+      .map((n) => ({
+        id: n.id,
+        area:
+          (n.measured?.width ?? (n.style?.width as number) ?? 0) *
+          (n.measured?.height ?? (n.style?.height as number) ?? 0),
+      }))
+      .sort((a, b) => b.area - a.area)
+    const containerZ = new Map(
+      containerAreas.map((c, i) => [c.id, CONTAINER_Z_BASE + Math.min(i, CONTAINER_Z_MAX)]),
+    )
+
+    // How many containers point at each role — feeds the "N contenedores" line on
+    // the role pill. Computed here (not inside RoleNode) since a node can't see its
+    // siblings on its own.
+    const roleContainerCounts = new Map<string, number>()
+    for (const n of nodes) {
+      if (n.type !== "container") continue
+      const roleId = (n.data as CanvasElementNodeData).role?.id
+      if (roleId) roleContainerCounts.set(roleId, (roleContainerCounts.get(roleId) ?? 0) + 1)
+    }
+
+    return nodes.map((n) => {
+      const z = n.type === "container" ? (containerZ.get(n.id) ?? CONTAINER_Z_BASE) : NODE_Z
+      // Containers son lanes de fondo — atenuarlos deja un rectángulo fantasma, así
+      // que quedan fuera del dimming por selección.
+      const isDimmed = !!highlightSets && n.type !== "container" && !highlightSets.activeNodeIds.has(n.id)
+      const dimClassName = isDimmed ? "opacity-30 transition-opacity" : "transition-opacity"
+      if (n.type === "role") {
+        const roleId = (n.data as CanvasElementNodeData).role?.id
+        const count = roleId ? (roleContainerCounts.get(roleId) ?? 0) : 0
+        const roleMeta: RoleNodeMeta = count > 0 ? { kind: "containers", count } : { kind: "none" }
+        const prevMeta = (n.data as { roleMeta?: RoleNodeMeta }).roleMeta
+        const metaChanged = prevMeta?.kind !== roleMeta.kind || (roleMeta.kind === "containers" && (prevMeta as { count?: number })?.count !== roleMeta.count)
+        if (!metaChanged && n.zIndex === z && n.className === dimClassName) return n
+        return { ...n, zIndex: z, className: dimClassName, data: { ...n.data, roleMeta } }
+      }
+      return n.zIndex === z && n.className === dimClassName ? n : { ...n, zIndex: z, className: dimClassName }
+    })
+  }, [nodes, highlightSets])
+
+  // World position for the "ROLES" column eyebrow — above the topmost role pill,
+  // aligned to the column's x. Not a node, so it's kept out of `layeredNodes`.
+  const roleColumnLabelPos = useMemo(() => {
+    const roleNodes = nodes.filter((n) => n.type === "role")
+    if (roleNodes.length === 0) return null
+    const x = Math.min(...roleNodes.map((n) => n.position.x))
+    const y = Math.min(...roleNodes.map((n) => n.position.y)) - 32
+    return { x, y }
+  }, [nodes])
+
+  const layeredEdges = useMemo(
+    () =>
+      edges.map((e) => {
+        const highlight: RelationshipEdgeData['highlight'] = highlightSets
+          ? (highlightSets.activeEdgeIds.has(e.id) ? 'active' : 'dim')
+          : undefined
+        const isActive = e.selected || highlight === 'active'
+        return {
+          ...e,
+          zIndex: EDGE_Z,
+          markerEnd: isActive ? EDGE_MARKER_SELECTED : EDGE_MARKER,
+          data: { ...e.data, highlight } as RelationshipEdgeData,
+        }
+      }),
+    [edges, highlightSets],
+  )
+  // Un solo estado para el sheet de guardado: 'new' crea (POST), 'metadata' solo edita
+  // nombre/descripción/ejecución. "Guardar cambios" ya no pasa por el sheet — guarda
+  // directo (ver `handleSaveChanges`) porque nombre/descripción/ejecución ya están
+  // guardados y no hace falta reconfirmarlos.
+  const [saveSheetMode, setSaveSheetMode] = useState<'new' | 'metadata' | null>(null)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [showDeleteDiagram, setShowDeleteDiagram] = useState(false)
+  // Herramienta activa (solo chrome="editor"): move (por defecto) = pan con clic izquierdo;
+  // select = caja de selección al arrastrar y pan con botón medio/derecho. Shift + arrastrar
+  // hace caja de selección en ambos modos.
+  const [tool, setTool] = useState<CanvasTool>('move')
+  // Panel de elementos colapsable. La preferencia se persiste; el auto-colapso por alto
+  // (canvas < 420px) NUNCA la escribe, y el usuario puede expandirlo a mano (`autoOverride`).
+  const [collapsedPref, setCollapsedPref] = useDiagramPaletteCollapsed()
+  const [autoOverride, setAutoOverride] = useState(false)
+  const flowHeight = useStore((st) => st.height)
+  const autoCollapse = flowHeight > 0 && flowHeight < 420
+  useEffect(() => {
+    if (!autoCollapse) setAutoOverride(false)
+  }, [autoCollapse])
+  const paletteCollapsed = autoCollapse ? !autoOverride : collapsedPref
+  const togglePaletteCollapsed = useCallback(() => {
+    if (autoCollapse) setAutoOverride((v) => !v)
+    else setCollapsedPref(!collapsedPref)
+  }, [autoCollapse, collapsedPref, setCollapsedPref])
+  // Lienzo bloqueado (solo chrome="editor"): sin mover/conectar/seleccionar; pan y zoom siguen.
+  const [locked, setLocked] = useState(false)
+  const [editingDiagram, setEditingDiagram] = useState(editingDiagramProp)
+  const { saveDiagramGraph, isSaving: isSavingDiagram } = useSaveDiagramGraph(organizationId)
+
+  // El padre puede refrescar el diagrama (refetch tras invalidar) mientras el canvas
+  // sigue montado: sin esto el state local se quedaba con el nombre/ejecución viejos.
+  useEffect(() => {
+    if (editingDiagramProp) setEditingDiagram(editingDiagramProp)
+  }, [editingDiagramProp])
+
+  // Dialog state
+  const [pendingConnection, setPendingConnection] = useState<PendingConnection | null>(null)
+  const pendingConnectionRef = useRef<PendingConnection | null>(null)
+  // Bridges `onConnect` (declared above `handleRoleEdgeCreated` in this file) to it —
+  // a flow-only edge (no role on either end) skips the name/type dialog entirely and
+  // creates the direct edge immediately, unlike a role edge. Same ref-bridge pattern
+  // as `handleLoadExecRelRef` below.
+  const createDirectEdgeRef = useRef<((pending: PendingRoleEdge, name: string, type: string) => void) | null>(null)
+  const [editingRelationship, setEditingRelationship] = useState<DocumentTypeRelationship | null>(null)
+  // execution-mode edit state
+  const [editingExecRelationship, setEditingExecRelationship] = useState<ExecutionRelationship | null>(null)
+  const [editingExecRelName, setEditingExecRelName] = useState("")
+  // execution-mode load state: nodeId waiting for user to pick an execution
+  const [pendingExecLoad, setPendingExecLoad] = useState<string | null>(null)
+  // execution-mode drop state: asset dropped on canvas, waiting for the user to pick a version
+  const [pendingDrop, setPendingDrop] = useState<{
+    docType: { id: string; name: string; color: string; documentTypeId?: string }
+    position: { x: number; y: number }
+  } | null>(null)
+  // execution-mode drop state: connection dragged onto empty canvas, waiting for the user
+  // to create a brand-new asset that becomes the target of the relationship.
+  const [pendingNewAssetConnection, setPendingNewAssetConnection] = useState<{
+    sourceId: string
+    position: { x: number; y: number }
+  } | null>(null)
+  // Role picker state: either creating a brand-new role node at a position, or
+  // (re)assigning the role of an existing container/role node by its canvas id.
+  const [pendingRolePick, setPendingRolePick] = useState<
+    { position: { x: number; y: number } } | { nodeId: string } | null
+  >(null)
+  // Role↔role / role↔asset edge "Name / Type" dialog — 'create' for a brand-new
+  // connection (from onConnect), 'rename' for editing an existing direct edge (from
+  // the edge's pencil icon or the RelationshipPanel). Nothing reaches the backend
+  // here — the edge is only added to/patched in local canvas state.
+  const [roleEdgeDialogState, setRoleEdgeDialogState] = useState<
+    | { mode: 'create'; pending: PendingRoleEdge }
+    | { mode: 'rename'; edgeId: string; source: { label: string; color?: string }; target: { label: string; color?: string }; initialName: string; initialType: string }
+    | null
+  >(null)
+  // execution-mode delete state
+  const [deletingExecRelId, setDeletingExecRelId] = useState<string | null>(null)
+  const [deletingExecRelName, setDeletingExecRelName] = useState("")
+  const [deletingRelationship, setDeletingRelationship] = useState<DocumentTypeRelationship | null>(null)
+  const [attributesRelationshipId, setAttributesRelationshipId] = useState<string | null>(null)
+  const [attributesRelationshipName, setAttributesRelationshipName] = useState("")
+
+  const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
+    setSelectedEdgeId(edge.id)
+    setSelectedNodeId(null)
+  }, [])
+
+  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    setSelectedNodeId(node.id)
+    setSelectedEdgeId(null)
+  }, [])
+
+  // Doble clic en un nodo assetType: abre el popup con todos los diagramas donde aparece
+  // el activo (ver NodeDiagramsPopover más abajo), anclado al cursor. Es una lectura —
+  // sigue funcionando en `readOnly`. Sin efecto sobre role/text/container/gateway/etc.,
+  // sobre un nodo sin activo, o en modo document-type (no hay Diagram detrás ahí).
+  const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
+    if (mode !== 'execution' || !canListDiagrams || node.type !== 'assetType') return
+    const data = node.data as AssetTypeNodeData
+    if (!data.assetId) return
+    setDiagramsPopover({ nodeId: node.id, x: event.clientX, y: event.clientY })
+  }, [mode, canListDiagrams])
+
+  // Clic en el fondo del canvas: apaga la selección y, con ella, el dimming de
+  // `highlightSets` y el panel lateral.
+  const onPaneClick = useCallback(() => {
+    setSelectedNodeId(null)
+    setSelectedEdgeId(null)
+  }, [])
+
+  // Keep ref in sync so handleRelationshipCreated avoids stale closure
+  useEffect(() => {
+    pendingConnectionRef.current = pendingConnection
+  }, [pendingConnection])
+
+  // Memoize document type map for O(1) lookup — recreated only when documentTypes changes
+  const docTypeMap = useMemo(
+    () => new Map(documentTypes.map((dt) => [dt.id, dt])),
+    [documentTypes],
+  )
+
+  // Keep volatile values in refs so handleLoadRelationships can be stable
+  const docTypeMapRef = useRef(docTypeMap)
+  const organizationIdRef = useRef(organizationId)
+  useEffect(() => { docTypeMapRef.current = docTypeMap }, [docTypeMap])
+  useEffect(() => { organizationIdRef.current = organizationId }, [organizationId])
+
+  // ─── Badge "otros diagramas" de cada nodo assetType ────────────────────────
+  // Cuenta los diagramas del activo EXCLUYENDO el que está abierto. `data` no entra en
+  // `buildCanvasSignature` para un nodo assetType, así que esto no ensucia el canvas.
+  // La clave por activo evita re-correr el effect en cada frame de un arrastre.
+  const currentDiagramId = editingDiagram?.id
+  const assetNodesKey = nodes
+    .filter((n) => n.type === 'assetType')
+    .map((n) => `${n.id}:${(n.data as AssetTypeNodeData).assetId ?? ''}`)
+    .join('|')
+  useEffect(() => {
+    if (mode !== 'execution') return
+    setNodes((nds) => {
+      let changed = false
+      const next = nds.map((n) => {
+        if (n.type !== 'assetType') return n
+        const data = n.data as AssetTypeNodeData
+        const ids = data.assetId ? diagramIdsByAsset.get(data.assetId) : undefined
+        const count = ids ? ids.size - (currentDiagramId && ids.has(currentDiagramId) ? 1 : 0) : 0
+        if ((data.otherDiagramsCount ?? 0) === count) return n
+        changed = true
+        return { ...n, data: { ...data, otherDiagramsCount: count } }
+      })
+      return changed ? next : nds
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, diagramIdsByAsset, currentDiagramId, assetNodesKey])
+
+  // ─── Sync canvas node name/color when documentTypes data changes ───────────
+  useEffect(() => {
+    if (docTypeMap.size === 0) return
+    setNodes((nds) =>
+      nds.map((n) => {
+        const updated = docTypeMap.get(n.id)
+        if (!updated) return n
+        const data = n.data as AssetTypeNodeData
+        if (data.name === updated.name && data.color === updated.color) return n
+        return { ...n, data: { ...data, name: updated.name, color: updated.color } }
+      }),
+    )
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docTypeMap])
+
+  // ─── Load relationships for a specific document type ───────────────────────
+  // Stable identity — reads latest data via refs, latest graph via getNodes/getEdges
+  const handleLoadRelationships = useCallback(
+    async (documentTypeId: string) => {
+      if (!canListRelationships) return
+      const dtMap = docTypeMapRef.current
+      const orgId = organizationIdRef.current
+
+      const relData = await queryClient.fetchQuery({
+        queryKey: documentTypeRelationshipQueryKeys.list(orgId, 1, 1000, undefined, documentTypeId, true),
+        queryFn: () =>
+          getDocumentTypeRelationships(orgId, {
+            page: 1,
+            page_size: 1000,
+            document_type_id: documentTypeId,
+            include_subrelationships: true,
+          }),
+        staleTime: 2 * 60 * 1000,
+      })
+
+      if (!relData?.data?.length) return
+
+      // Flatten top-level + all sub-relationships (relationship_source / relationship_target)
+      // into a single deduplicated map — used only to draw edges between nodes that end up
+      // on the canvas (e.g. siblings), never to decide which nodes get added.
+      const allRelsMap = new Map<string, DocumentTypeRelationship>()
+      relData.data.forEach((rel) => {
+        allRelsMap.set(rel.id, rel) // top-level item takes precedence (has full callbacks)
+        rel.relationship_source.forEach((sub) => { if (!allRelsMap.has(sub.id)) allRelsMap.set(sub.id, sub) })
+        rel.relationship_target.forEach((sub) => { if (!allRelsMap.has(sub.id)) allRelsMap.set(sub.id, sub) })
+      })
+      const allRels = Array.from(allRelsMap.values())
+
+      // Use getNodes/getEdges to always read current graph state (no stale closure)
+      const existingNodeIds = new Set(getNodes().map((n) => n.id))
+      const existingEdges = getEdges()
+      const existingEdgeIds = new Set(existingEdges.map((e) => e.id))
+      const newNodes: Node<AssetTypeNodeData>[] = []
+      const newEdges: Edge[] = []
+
+      // "Children" are only the anchor's direct (level-1) relationships — relData.data before
+      // flattening. Sub-relationships describe siblings/grandchildren and must never spawn nodes.
+      const directChildIds = new Set<string>()
+      relData.data.forEach((rel) => {
+        const cfg = extractRelConfig(rel)
+        if (cfg.source_document_type_id === documentTypeId) directChildIds.add(cfg.target_document_type_id)
+        if (cfg.target_document_type_id === documentTypeId) directChildIds.add(cfg.source_document_type_id)
+      })
+
+      directChildIds.forEach((childId) => {
+        if (existingNodeIds.has(childId)) return
+        const childDocType = dtMap.get(childId)
+        if (!childDocType) return
+        newNodes.push({
+          id: childId,
+          type: "assetType",
+          position: { x: 0, y: 0 }, // will be overwritten by layout
+          data: {
+            id: childId,
+            name: childDocType.name,
+            color: childDocType.color,
+            onLoadRelationships: handleLoadRelationships,
+            onLoadRelationshipsCanvasOnly: handleLoadRelationshipsCanvasOnly,
+            onRemove: (id: string) => setNodes((nds) => nds.filter((n) => n.id !== id)),
+          },
+        })
+        existingNodeIds.add(childId)
+      })
+
+      // Final node set for this pass: existing nodes + the direct children just added.
+      // Edges only get drawn between nodes in this set — anything two hops away is skipped.
+      const finalNodeIds = existingNodeIds
+
+      // Pre-count how many NEW edges will be added per pair in this batch
+      const newEdgeCountPerPair = new Map<string, number>()
+      allRels.forEach((rel) => {
+        const cfg = extractRelConfig(rel)
+        if (
+          finalNodeIds.has(cfg.source_document_type_id) &&
+          finalNodeIds.has(cfg.target_document_type_id) &&
+          !existingEdgeIds.has(`rel-${cfg.id}`)
+        ) {
+          const key = `${cfg.source_document_type_id}::${cfg.target_document_type_id}`
+          newEdgeCountPerPair.set(key, (newEdgeCountPerPair.get(key) ?? 0) + 1)
+        }
+      })
+
+      // Count existing edges per pair so we can assign indexes starting after them
+      const existingCountPerPair = new Map<string, number>()
+      existingEdges.forEach((e) => {
+        const key = `${e.source}::${e.target}`
+        existingCountPerPair.set(key, (existingCountPerPair.get(key) ?? 0) + 1)
+      })
+
+      // Track current new-edge index per pair (starts at existing count)
+      const currentIndexPerPair = new Map<string, number>(existingCountPerPair)
+
+      allRels.forEach((rel) => {
+        const cfg = extractRelConfig(rel)
+        const sourceId = cfg.source_document_type_id
+        const targetId = cfg.target_document_type_id
+
+        // Only connect nodes that are already on the canvas (existing + newly added children)
+        if (!finalNodeIds.has(sourceId) || !finalNodeIds.has(targetId)) return
+
+        const edgeId = `rel-${cfg.id}`
+        if (!existingEdgeIds.has(edgeId) && !newEdges.some((e) => e.id === edgeId)) {
+          const pairKey = `${sourceId}::${targetId}`
+          const existingCount = existingCountPerPair.get(pairKey) ?? 0
+          const newCount = newEdgeCountPerPair.get(pairKey) ?? 1
+          const total = existingCount + newCount
+          const index = currentIndexPerPair.get(pairKey) ?? existingCount
+          currentIndexPerPair.set(pairKey, index + 1)
+
+          newEdges.push({
+            id: edgeId,
+            source: sourceId,
+            target: targetId,
+            type: "relationship",
+            data: {
+              relationshipId: cfg.id,
+              name: cfg.name,
+              edgeKind: 'document-type-relationship',
+              minCount: cfg.min_count,
+              maxCount: cfg.max_count,
+              pathOffset: parallelOffset(index, total),
+              onEdit: canUpdateRelationship ? () => setEditingRelationship(rel) : undefined,
+              onDelete: canDeleteRelationship ? () => setDeletingRelationship(rel) : undefined,
+              onManageAttributes: canUpdateRelationship ? (id) => {
+                setAttributesRelationshipId(id)
+                setAttributesRelationshipName(cfg.name)
+              } : undefined,
+            } satisfies RelationshipEdgeData,
+          })
+          existingEdgeIds.add(edgeId)
+        }
+      })
+
+      // Apply hierarchical layout to new nodes relative to the anchor
+      if (newNodes.length > 0) {
+        const anchorPos = getNodes().find((n) => n.id === documentTypeId)?.position ?? { x: 0, y: 0 }
+        const edgePairs = newEdges.map((e) => ({ source: e.source as string, target: e.target as string }))
+        const layoutPositions = computeLayoutForNewNodes(
+          documentTypeId,
+          anchorPos,
+          newNodes.map((n) => n.id),
+          edgePairs,
+        )
+        for (const node of newNodes) {
+          const pos = layoutPositions.get(node.id)
+          if (pos) node.position = pos
+        }
+        setNodes((nds) => [...nds, ...newNodes])
+      }
+      if (newEdges.length > 0) setEdges((eds) => [...eds, ...newEdges])
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [queryClient, getNodes, getEdges, setNodes, setEdges, canListRelationships, canUpdateRelationship, canDeleteRelationship],
+  )
+
+  // ─── Load relationships — canvas-only (no new nodes, only edges between existing nodes) ───
+  const handleLoadRelationshipsCanvasOnly = useCallback(
+    async (documentTypeId: string) => {
+      if (!canListRelationships) return
+      const orgId = organizationIdRef.current
+
+      const relData = await queryClient.fetchQuery({
+        queryKey: documentTypeRelationshipQueryKeys.list(orgId, 1, 1000, undefined, documentTypeId, true),
+        queryFn: () =>
+          getDocumentTypeRelationships(orgId, {
+            page: 1,
+            page_size: 1000,
+            document_type_id: documentTypeId,
+            include_subrelationships: true,
+          }),
+        staleTime: 2 * 60 * 1000,
+      })
+
+      if (!relData?.data?.length) return
+
+      const allRelsMap = new Map<string, DocumentTypeRelationship>()
+      relData.data.forEach((rel) => {
+        allRelsMap.set(rel.id, rel)
+        rel.relationship_source.forEach((sub) => { if (!allRelsMap.has(sub.id)) allRelsMap.set(sub.id, sub) })
+        rel.relationship_target.forEach((sub) => { if (!allRelsMap.has(sub.id)) allRelsMap.set(sub.id, sub) })
+      })
+      const allRels = Array.from(allRelsMap.values())
+
+      const existingNodeIds = new Set(getNodes().map((n) => n.id))
+      const existingEdges = getEdges()
+      const existingEdgeIds = new Set(existingEdges.map((e) => e.id))
+      const newEdges: Edge[] = []
+
+      // Pre-count new edges per pair (only where both nodes already exist in canvas)
+      const newEdgeCountPerPair = new Map<string, number>()
+      allRels.forEach((rel) => {
+        const cfg = extractRelConfig(rel)
+        if (
+          existingNodeIds.has(cfg.source_document_type_id) &&
+          existingNodeIds.has(cfg.target_document_type_id) &&
+          !existingEdgeIds.has(`rel-${cfg.id}`)
+        ) {
+          const key = `${cfg.source_document_type_id}::${cfg.target_document_type_id}`
+          newEdgeCountPerPair.set(key, (newEdgeCountPerPair.get(key) ?? 0) + 1)
+        }
+      })
+
+      const existingCountPerPair = new Map<string, number>()
+      existingEdges.forEach((e) => {
+        const key = `${e.source}::${e.target}`
+        existingCountPerPair.set(key, (existingCountPerPair.get(key) ?? 0) + 1)
+      })
+
+      const currentIndexPerPair = new Map<string, number>(existingCountPerPair)
+
+      allRels.forEach((rel) => {
+        const cfg = extractRelConfig(rel)
+        const sourceId = cfg.source_document_type_id
+        const targetId = cfg.target_document_type_id
+
+        // Skip if either node is not already in the canvas
+        if (!existingNodeIds.has(sourceId) || !existingNodeIds.has(targetId)) return
+
+        const edgeId = `rel-${cfg.id}`
+        if (!existingEdgeIds.has(edgeId) && !newEdges.some((e) => e.id === edgeId)) {
+          const pairKey = `${sourceId}::${targetId}`
+          const existingCount = existingCountPerPair.get(pairKey) ?? 0
+          const newCount = newEdgeCountPerPair.get(pairKey) ?? 1
+          const total = existingCount + newCount
+          const index = currentIndexPerPair.get(pairKey) ?? existingCount
+          currentIndexPerPair.set(pairKey, index + 1)
+
+          newEdges.push({
+            id: edgeId,
+            source: sourceId,
+            target: targetId,
+            type: "relationship",
+            data: {
+              relationshipId: cfg.id,
+              name: cfg.name,
+              edgeKind: 'document-type-relationship',
+              minCount: cfg.min_count,
+              maxCount: cfg.max_count,
+              pathOffset: parallelOffset(index, total),
+              onEdit: canUpdateRelationship ? () => setEditingRelationship(rel) : undefined,
+              onDelete: canDeleteRelationship ? () => setDeletingRelationship(rel) : undefined,
+              onManageAttributes: canUpdateRelationship ? (id) => {
+                setAttributesRelationshipId(id)
+                setAttributesRelationshipName(cfg.name)
+              } : undefined,
+            } satisfies RelationshipEdgeData,
+          })
+          existingEdgeIds.add(edgeId)
+        }
+      })
+
+      if (newEdges.length > 0) setEdges((eds) => [...eds, ...newEdges])
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [queryClient, getNodes, getEdges, setEdges, canListRelationships, canUpdateRelationship, canDeleteRelationship],
+  )
+
+  // ─── Auto-load initial document type ───────────────────────────────────────
+  useEffect(() => {
+    if (initialDocumentTypeId) {
+      handleLoadRelationships(initialDocumentTypeId)
+    }
+    // Run only once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ─── Drag-and-drop onto canvas ──────────────────────────────────────────────
+  const handleRemoveNode = useCallback(
+    (id: string) => {
+      setNodes((nds) => nds.filter((n) => n.id !== id))
+    },
+    [setNodes],
+  )
+
+  // ─── Select execution for a node (execution mode) ─────────────────────────
+  const handleSelectExecution = useCallback(
+    (nodeId: string, executionId: string, executionName: string) => {
+      // Block selecting a version already used by another node of the same asset
+      const node = getNodes().find((n) => n.id === nodeId)
+      const assetId = (node?.data as AssetTypeNodeData | undefined)?.assetId
+      const duplicate = getNodes().some((n) => {
+        if (n.id === nodeId) return false
+        const d = n.data as AssetTypeNodeData
+        return d.assetId === assetId && d.executionId === executionId
+      })
+      if (duplicate) {
+        toast.warning(t("nodePanel.versionAlreadyInCanvas"))
+        return
+      }
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === nodeId ? { ...n, data: { ...n.data, executionId, executionName } } : n,
+        ),
+      )
+    },
+    [setNodes, getNodes, t],
+  )
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "copy"
+  }, [])
+
+  // Create an execution-mode node at the given position, with the picked version pre-filled.
+  // A unique canvas node ID lets multiple versions of the same asset coexist; the real asset
+  // ID is stored in data.assetId.
+  const createExecutionNode = useCallback(
+    (
+      docType: { id: string; name: string; color: string; documentTypeId?: string },
+      position: { x: number; y: number },
+      executionId: string,
+      executionName: string,
+    ) => {
+      const canvasNodeId = `${docType.id}-${Math.random().toString(36).slice(2, 9)}`
+      setNodes((nds) => [
+        ...nds,
+        {
+          id: canvasNodeId,
+          type: "assetType",
+          position,
+          data: {
+            id: canvasNodeId,
+            assetId: docType.id,
+            documentTypeId: docType.documentTypeId,
+            name: docType.name,
+            color: docType.color,
+            executionId,
+            executionName,
+            onLoadRelationships: (id: string) => handleLoadExecRelRef.current?.(id),
+            onLoadRelationshipsCanvasOnly: (id: string) => handleLoadExecRelCanvasOnlyRef.current?.(id),
+            onRemove: handleRemoveNode,
+            ...(canListDiagrams ? { onExploreDiagrams: handleExploreDiagrams, onShowDiagrams: handleShowDiagrams } : {}),
+          },
+        },
+      ])
+      setSelectedNodeId(canvasNodeId)
+      setSelectedEdgeId(null)
+      return canvasNodeId
+    },
+    [setNodes, handleRemoveNode, canListDiagrams, handleShowDiagrams, handleExploreDiagrams],
+  )
+
+  // ─── Free-standing text/container elements (not tied to an asset) ─────────
+  const handleUpdateElementContent = useCallback(
+    (id: string, content: string) => {
+      setNodes((nds) => nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, content } } : n)))
+    },
+    [setNodes],
+  )
+
+  const handleUpdateElementColor = useCallback(
+    (id: string, color: string) => {
+      setNodes((nds) => nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, color } } : n)))
+    },
+    [setNodes],
+  )
+
+  // Assigns/replaces the role on a container (turns it into a lane) or a role node
+  // (its sole identity) — called once the role picker dialog resolves. On a role node
+  // this also refreshes the label/color shown, since those mirror the role itself.
+  const handleUpdateElementRole = useCallback(
+    (id: string, role: CanvasElementRole) => {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id !== id) return n
+          const isRoleNode = n.type === "role"
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              role,
+              // Roles have no color of their own — a role node keeps its own element
+              // color (DEFAULT_CANVAS_ELEMENT_COLOR.role), only its label mirrors the role.
+              ...(isRoleNode ? { content: role.name } : {}),
+            },
+          }
+        }),
+      )
+    },
+    [setNodes],
+  )
+
+  // Container-only: unassigns the role without opening the picker.
+  const handleClearElementRole = useCallback(
+    (id: string) => {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id !== id) return n
+          const nextData = { ...n.data } as CanvasElementNodeData
+          delete nextData.role
+          return { ...n, data: nextData }
+        }),
+      )
+    },
+    [setNodes],
+  )
+
+  // Opens the role picker dialog scoped to an existing element (container or role node).
+  const handleRequestRolePick = useCallback((id: string) => setPendingRolePick({ nodeId: id }), [])
+
+  const defaultContentFor = useCallback((kind: CanvasElementKind | FlowCanvasNodeType): string => {
+    switch (kind) {
+      case "container": return t("elementPanel.defaultContainerTitle")
+      case "gateway": return t("node.defaultGatewayLabel")
+      case "startEvent": return t("node.defaultStartLabel")
+      case "endEvent": return t("node.defaultEndLabel")
+      default: return t("elementPanel.defaultTextContent")
+    }
+  }, [t])
+
+  // Creates a text/container/role element OR a gateway/start_event/end_event flow
+  // node — same shape (`CanvasElementNodeData`, `content` doubling as the flow
+  // node's label), just no `role` and no resizable `style` for the flow kinds.
+  const createElementNode = useCallback(
+    (kind: CanvasElementKind | FlowCanvasNodeType, position: { x: number; y: number }, content?: string, color?: string, width?: number, height?: number, role?: CanvasElementRole) => {
+      const id = `${kind}-${Math.random().toString(36).slice(2, 9)}`
+      const node: Node<CanvasElementNodeData> = {
+        id,
+        type: kind,
+        position,
+        ...(kind === "container" ? { style: { width: width ?? 240, height: height ?? 160 } } : {}),
+        data: {
+          id,
+          kind,
+          content: content ?? defaultContentFor(kind),
+          color: color ?? DEFAULT_CANVAS_ELEMENT_COLOR[kind],
+          ...(role ? { role } : {}),
+          onContentChange: handleUpdateElementContent,
+          onColorChange: handleUpdateElementColor,
+          onRequestRolePick: handleRequestRolePick,
+          onClearRole: handleClearElementRole,
+          onRemove: handleRemoveNode,
+        },
+      }
+      const created = isEditorChrome ? { ...node, selected: true } : node
+      setNodes((nds) => [...(isEditorChrome ? nds.map((n) => (n.selected ? { ...n, selected: false } : n)) : nds), created])
+      return id
+    },
+    [isEditorChrome, setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRequestRolePick, handleClearElementRole, handleRemoveNode, defaultContentFor],
+  )
+
+  // In-canvas toolbar entry point: adds the element at the current viewport's
+  // center — needed because the drag palette (AssetTypeSidebar) isn't mounted on
+  // every screen that embeds this canvas (e.g. the executions canvas, diagram edit sheet).
+  // A "role" element has no content until a role is chosen, so it opens the picker
+  // instead of creating the node directly — the node is created once it resolves.
+  // gateway/start_event/end_event have no such precondition (no entity, always
+  // persistable), so they're created directly like text/container.
+  const addElementAtCenter = useCallback(
+    (kind: CanvasElementKind | FlowCanvasNodeType) => {
+      const rect = containerRef.current?.getBoundingClientRect()
+      const center = rect
+        ? screenToFlowPosition({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 })
+        : { x: 0, y: 0 }
+      const jitter = (getNodes().length % 8) * 12
+      const position = { x: center.x + jitter, y: center.y + jitter }
+      if (kind === "role") {
+        setPendingRolePick({ position: computeRoleColumnPosition(getNodes()) })
+        return
+      }
+      createElementNode(kind, position)
+    },
+    [screenToFlowPosition, createElementNode, getNodes],
+  )
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault()
+
+      // `application/diagram-element` (paleta del editor, `node_type` en snake_case) y
+      // `application/canvas-element` (paleta por defecto y sidebar de tipos): mismo destino.
+      const diagramElementRaw = e.dataTransfer.getData("application/diagram-element")
+      const elementRaw = diagramElementRaw || e.dataTransfer.getData("application/canvas-element")
+      if (elementRaw) {
+        let payload: { kind: string }
+        try {
+          payload = JSON.parse(elementRaw)
+        } catch {
+          return
+        }
+        const kind = (diagramElementRaw
+          ? CANVAS_TYPE_BY_FLOW_NODE_TYPE[payload.kind as DiagramFlowNodeType] ?? payload.kind
+          : payload.kind) as CanvasElementKind | FlowCanvasNodeType
+        const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+        // A "role" element has no content until a role is picked — open the
+        // dialog instead of creating the node directly (mirrors addElementAtCenter).
+        // Ignores the actual drop point: role nodes always land in the dedicated
+        // column, regardless of where they were dropped on the canvas.
+        if (kind === "role") {
+          setPendingRolePick({ position: computeRoleColumnPosition(getNodes()) })
+          return
+        }
+        createElementNode(kind, position)
+        return
+      }
+
+      const raw = e.dataTransfer.getData("application/document-type")
+      if (!raw) return
+
+      let docType: { id: string; name: string; color: string; documentTypeId?: string }
+      try {
+        docType = JSON.parse(raw)
+      } catch {
+        return
+      }
+
+      // Use screenToFlowPosition to correctly account for pan and zoom
+      const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+
+      // In execution mode, ask which version to add (and validate against canvas duplicates)
+      // before creating the node. In doc-type mode create the node directly, avoiding duplicates.
+      if (mode === 'execution') {
+        setPendingDrop({ docType, position })
+        return
+      }
+
+      if (getNodes().some((n) => n.id === docType.id)) return
+
+      setNodes((nds) => [
+        ...nds,
+        {
+          id: docType.id,
+          type: "assetType",
+          position,
+          data: {
+            id: docType.id,
+            documentTypeId: docType.documentTypeId,
+            name: docType.name,
+            color: docType.color,
+            onLoadRelationships: handleLoadRelationships,
+            onLoadRelationshipsCanvasOnly: handleLoadRelationshipsCanvasOnly,
+            onRemove: handleRemoveNode,
+          },
+        },
+      ])
+    },
+    [getNodes, screenToFlowPosition, setNodes, handleLoadRelationships, handleLoadRelationshipsCanvasOnly, handleRemoveNode, mode, createElementNode],
+  )
+
+  // ─── Connect → open create dialog ──────────────────────────────────────────
+  const onConnect: OnConnect = useCallback((params) => {
+    if (!params.source || !params.target) return
+    const allNodes = getNodes()
+    const srcNode = allNodes.find((n) => n.id === params.source)
+    const tgtNode = allNodes.find((n) => n.id === params.target)
+    if (!srcNode || !tgtNode) return
+
+    const involvesRole = srcNode.type === "role" || tgtNode.type === "role"
+    const involvesFlow = isFlowCanvasType(srcNode.type) || isFlowCanvasType(tgtNode.type)
+    if (involvesRole || involvesFlow) {
+      if (mode !== 'execution') { toast.info(t('canvas.roleEdgeExecutionOnly')); return }
+      if (!canWriteDiagramGraph) { toast.warning(t('canvas.roleEdgeNoPermission')); return }
+      if (params.source === params.target) { toast.info(t('canvas.roleSelfLoopUnsupported')); return }
+      const src = detailEndpointOf(srcNode as CanvasNode)
+      const tgt = detailEndpointOf(tgtNode as CanvasNode)
+      // No version picked on the asset, or no role assigned on the role node: it
+      // wouldn't reach `details`, so the backend would 400 the edge on save. A
+      // gateway/start_event/end_event never fails this — it's always persistable.
+      if (!src || !tgt) { toast.warning(t('canvas.roleEdgeInvalidEndpoint')); return }
+      const pending: PendingRoleEdge = {
+        sourceId: params.source,
+        targetId: params.target,
+        sourceLabel: nodeLabel(srcNode),
+        targetLabel: nodeLabel(tgtNode),
+        sourceColor: nodeColor(srcNode),
+        targetColor: nodeColor(tgtNode),
+        sourceHandle: params.sourceHandle,
+        targetHandle: params.targetHandle,
+      }
+      if (involvesRole) {
+        // A role is involved — keep asking for a name/type up front, unchanged.
+        setRoleEdgeDialogState({ mode: 'create', pending })
+        return
+      }
+      // Flow-only edge (flow↔flow or flow↔execution, no role): create it right
+      // away — no dialog. The label is edited later from the edge's own menu
+      // (`openRenameRoleEdgeDialog`), same as renaming an existing direct edge.
+      createDirectEdgeRef.current?.(pending, '', '')
+      return
+    }
+    // ── from here on: everything is unchanged (execution↔execution and document-type) ──
+
+    if (mode === 'execution') {
+      const srcData = srcNode?.data as AssetTypeNodeData | undefined
+      const tgtData = tgtNode?.data as AssetTypeNodeData | undefined
+      // Block connection if either node has no version selected
+      if (!srcData?.executionId || !tgtData?.executionId) {
+        const missing = [
+          !srcData?.executionId ? srcData?.name : null,
+          !tgtData?.executionId ? tgtData?.name : null,
+        ].filter(Boolean).join(", ")
+        toast.warning(t("nodePanel.versionRequiredFor", { names: missing }))
+        return
+      }
+      if (!canCreateExecRelationship) {
+        toast.warning(t("relationship.noCreatePermission"))
+        return
+      }
+      setPendingConnection({
+        sourceId: params.source,
+        targetId: params.target,
+        sourceAssetId: srcData?.assetId ?? params.source,
+        targetAssetId: tgtData?.assetId ?? params.target,
+        sourceDocumentTypeId: srcData?.documentTypeId ?? srcData?.id,
+        targetDocumentTypeId: tgtData?.documentTypeId ?? tgtData?.id,
+        sourceName: srcData?.name,
+        targetName: tgtData?.name,
+        sourceColor: srcData?.color,
+        targetColor: tgtData?.color,
+        sourceExecutionId: srcData.executionId,
+        targetExecutionId: tgtData.executionId,
+        sourceHandle: params.sourceHandle,
+        targetHandle: params.targetHandle,
+      })
+    } else {
+      if (!canCreateRelationship) {
+        toast.warning(t("relationship.noCreatePermission"))
+        return
+      }
+      setPendingConnection({ sourceId: params.source, targetId: params.target })
+    }
+  }, [mode, getNodes, t, canCreateExecRelationship, canCreateRelationship, canWriteDiagramGraph])
+
+  // ─── Connection dropped on empty canvas (execution mode) → create a new asset ──
+  const onConnectEnd: OnConnectEnd = useCallback(
+    (event, connectionState) => {
+      if (mode !== 'execution' || !canCreate('asset') || !canCreateExecRelationship) return
+      if (connectionState.isValid || connectionState.toNode || !connectionState.fromNode) return
+
+      const fromNodeId = connectionState.fromNode.id
+      const fromData = getNodes().find((n) => n.id === fromNodeId)?.data as AssetTypeNodeData | undefined
+      if (!fromData?.executionId) {
+        toast.warning(t("nodePanel.versionRequiredFor", { names: fromData?.name ?? '' }))
+        return
+      }
+
+      const { clientX, clientY } = 'changedTouches' in event ? event.changedTouches[0] : event
+      const position = screenToFlowPosition({ x: clientX, y: clientY })
+      setPendingNewAssetConnection({ sourceId: fromNodeId, position })
+    },
+    [mode, canCreate, canCreateExecRelationship, getNodes, screenToFlowPosition, t],
+  )
+
+  // ─── Drag an edge's endpoint to a different handle of the SAME node → re-anchor it ──
+  // Only the handle side changes here — moving an endpoint to a different node would
+  // mean mutating (or recreating) the execution_relationship/direct edge behind it,
+  // which is out of scope for a drag gesture. `edgesReconnectable` below already
+  // requires diagram-write permission, so no extra permission check here.
+  const onReconnect: OnReconnect = useCallback((oldEdge, newConnection) => {
+    if (newConnection.source !== oldEdge.source || newConnection.target !== oldEdge.target) {
+      toast.info(t("canvas.reconnectEndpointsLocked"))
+      return
+    }
+    setEdges((eds) =>
+      eds.map((e) =>
+        e.id === oldEdge.id
+          ? { ...e, sourceHandle: newConnection.sourceHandle, targetHandle: newConnection.targetHandle }
+          : e,
+      ),
+    )
+  }, [setEdges, t])
+
+  // ─── New asset created from the empty-canvas drop → place node + open relationship dialog ──
+  const handleNewAssetCreated = useCallback(
+    async (created?: { id: string; name: string; type: string }) => {
+      const pending = pendingNewAssetConnection
+      setPendingNewAssetConnection(null)
+      if (!created || !pending) return
+
+      const [document, executions] = await Promise.all([
+        getDocumentById(created.id, organizationId),
+        getExecutionsByDocumentId(created.id, organizationId),
+      ])
+      const execution = executions?.[0]
+      if (!execution) return // the create-asset dialog always leaves an initial version created
+
+      const newCanvasNodeId = createExecutionNode(
+        {
+          id: created.id,
+          name: created.name,
+          color: document?.document_type?.color ?? '#94a3b8',
+          documentTypeId: document?.document_type?.id,
+        },
+        pending.position,
+        execution.id,
+        executionLabel(execution),
+      )
+
+      const sourceData = getNodes().find((n) => n.id === pending.sourceId)?.data as AssetTypeNodeData | undefined
+
+      setPendingConnection({
+        sourceId: pending.sourceId,
+        targetId: newCanvasNodeId,
+        sourceAssetId: sourceData?.assetId ?? pending.sourceId,
+        targetAssetId: created.id,
+        sourceDocumentTypeId: sourceData?.documentTypeId ?? sourceData?.id,
+        targetDocumentTypeId: document?.document_type?.id,
+        sourceName: sourceData?.name,
+        targetName: created.name,
+        sourceColor: sourceData?.color,
+        targetColor: document?.document_type?.color,
+        sourceExecutionId: sourceData?.executionId,
+        targetExecutionId: execution.id,
+      })
+    },
+    [pendingNewAssetConnection, organizationId, getNodes, createExecutionNode],
+  )
+
+  const handleRelationshipUpdated = useCallback(
+    (updated: DocumentTypeRelationship) => {
+      const cfg = extractRelConfig(updated)
+      setEdges((eds) =>
+        eds.map((e) => {
+          if (e.id !== `rel-${cfg.id}`) return e
+          return {
+            ...e,
+            data: {
+              ...(e.data as RelationshipEdgeData),
+              name: cfg.name,
+              minCount: cfg.min_count,
+              maxCount: cfg.max_count,
+              onEdit: canUpdateRelationship ? () => setEditingRelationship(updated) : undefined,
+              onManageAttributes: canUpdateRelationship ? (id: string) => {
+                setAttributesRelationshipId(id)
+                setAttributesRelationshipName(cfg.name)
+              } : undefined,
+            } satisfies RelationshipEdgeData,
+          }
+        }),
+      )
+      setEditingRelationship(updated)
+    },
+    [setEdges, canUpdateRelationship],
+  )
+
+  const handleRelationshipCreated = useCallback(
+    (relationship: DocumentTypeRelationship) => {
+      const conn = pendingConnectionRef.current
+      if (!conn) return
+
+      const cfg = extractRelConfig(relationship)
+
+      setEdges((eds) => {
+        const pairCount = eds.filter(
+          (e) => e.source === conn.sourceId && e.target === conn.targetId,
+        ).length
+        return addEdge(
+          {
+            id: `rel-${cfg.id}`,
+            source: conn.sourceId,
+            target: conn.targetId,
+            sourceHandle: conn.sourceHandle,
+            targetHandle: conn.targetHandle,
+            type: "relationship",
+            data: {
+              relationshipId: cfg.id,
+              name: cfg.name,
+              edgeKind: 'document-type-relationship',
+              minCount: cfg.min_count,
+              maxCount: cfg.max_count,
+              pathOffset: parallelOffset(pairCount, pairCount + 1),
+              onEdit: canUpdateRelationship ? () => setEditingRelationship(relationship) : undefined,
+              onDelete: canDeleteRelationship ? () => setDeletingRelationship(relationship) : undefined,
+              onManageAttributes: canUpdateRelationship ? (id) => {
+                setAttributesRelationshipId(id)
+                setAttributesRelationshipName(cfg.name)
+              } : undefined,
+            } satisfies RelationshipEdgeData,
+          },
+          eds,
+        )
+      })
+      setPendingConnection(null)
+    },
+    [setEdges, canUpdateRelationship, canDeleteRelationship],
+  )
+
+  // ─── Execution relationship created → add edge ─────────────────────────────
+  const handleExecutionRelationshipCreated = useCallback(
+    (relationship: ExecutionRelationship, relName: string, sourceExecId: string, targetExecId: string) => {
+      const conn = pendingConnectionRef.current
+      if (!conn) return
+
+      // Store executionIds on source and target nodes for future use
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id === conn.sourceId) return { ...n, data: { ...n.data, executionId: sourceExecId } }
+          if (n.id === conn.targetId) return { ...n, data: { ...n.data, executionId: targetExecId } }
+          return n
+        }),
+      )
+
+      setEdges((eds) => {
+        const pairCount = eds.filter(
+          (e) => e.source === conn.sourceId && e.target === conn.targetId,
+        ).length
+        return addEdge(
+          {
+            id: `${EXEC_EDGE_ID_PREFIX}${relationship.id}`,
+            source: conn.sourceId,
+            target: conn.targetId,
+            sourceHandle: conn.sourceHandle,
+            targetHandle: conn.targetHandle,
+            type: "relationship",
+            data: {
+              relationshipId: relationship.id,
+              name: relName,
+              relationshipType: relationship.relationship_type,
+              edgeKind: 'execution-relationship',
+              minCount: 0,
+              maxCount: 0,
+              pathOffset: parallelOffset(pairCount, pairCount + 1),
+              onEdit: canUpdateExecRelationship ? () => {
+                setEditingExecRelationship(relationship)
+                setEditingExecRelName(relName)
+              } : undefined,
+              onDelete: canDeleteExecRelationship ? () => {
+                setDeletingExecRelId(relationship.id)
+                setDeletingExecRelName(relName)
+              } : undefined,
+              onManageAttributes: undefined,
+            } satisfies RelationshipEdgeData,
+          },
+          eds,
+        )
+      })
+      setPendingConnection(null)
+    },
+    [setEdges, canUpdateExecRelationship, canDeleteExecRelationship],
+  )
+
+  // ─── Load execution relationships for a node ────────────────────────────────
+  // Ref so new nodes created during load can reference the handler without stale closure
+  const handleLoadExecRelRef = useRef<((nodeId: string) => void) | null>(null)
+  const handleLoadExecRelCanvasOnlyRef = useRef<((nodeId: string, allowedRelIds?: Set<string>) => void) | null>(null)
+
+  const doLoadExecutionRelationships = useCallback(
+    async (nodeId: string, executionId: string, filterDocumentTypeId?: string) => {
+      if (!canListExecRelationships) return
+      const orgId = organizationIdRef.current
+
+      // Persist the executionId on the node
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === nodeId ? { ...n, data: { ...n.data, executionId } } : n,
+        ),
+      )
+
+      const relData = await getExecutionRelationshipsByExecution(orgId, executionId, {
+        page: 1,
+        page_size: 1000,
+        include_subrelationships: true,
+      })
+      if (!relData?.data?.length) return
+
+      // "Expandir por tipo": nos quedamos solo con las relaciones directas del anchor cuyo OTRO
+      // lado (no el anchor) sea del tipo elegido — las demás ni suman nodos ni edges nuevos.
+      const otherSide = (rel: ExecutionRelationshipSubitem) =>
+        rel.source_execution.id === executionId ? rel.target_execution : rel.source_execution
+      const directRels = filterDocumentTypeId
+        ? relData.data.filter((rel) => otherSide(rel).document_type_id === filterDocumentTypeId)
+        : relData.data
+      if (!directRels.length) {
+        // "Expandir por tipo": el conteo del panel viene de esta misma consulta,
+        // así que en teoría siempre hay al menos una — pero si la relación se borró
+        // entre que se abrió el panel y se hizo clic, avisar en vez de no hacer nada.
+        if (filterDocumentTypeId) toast.info(t("nodePanel.noRelationsForType"))
+        return
+      }
+
+      // Flatten top-level + all sub-relationships (relationship_source / relationship_target)
+      // into a single deduplicated map — used only to draw edges between nodes that end up on
+      // the canvas (e.g. siblings), never to decide which nodes get created.
+      const allRelsMap = new Map<string, ExecutionRelationshipSubitem>()
+      for (const item of directRels) {
+        if (!allRelsMap.has(item.id)) allRelsMap.set(item.id, item)
+        for (const sub of item.relationship_source) {
+          if (!allRelsMap.has(sub.id)) allRelsMap.set(sub.id, sub)
+        }
+        for (const sub of item.relationship_target) {
+          if (!allRelsMap.has(sub.id)) allRelsMap.set(sub.id, sub)
+        }
+      }
+      const allRels = Array.from(allRelsMap.values())
+
+      const currentNodes = getNodes()
+      const currentEdgeIds = new Set(getEdges().map((e) => e.id))
+      const newNodes: Node<AssetTypeNodeData>[] = []
+      const newEdges: Edge[] = []
+
+      // Helper: ensure a node exists for a given execution endpoint — may create a new node.
+      // Only called for the anchor's direct relationships (relData.data), never for sub-relationships.
+      const ensureNode = (docId: string, execId: string, execName: string, docName: string, docTypeId: string, docTypeColor: string) => {
+        // Already in canvas (by executionId or by doc id)
+        const byExecId =
+          currentNodes.find((n) => (n.data as AssetTypeNodeData).executionId === execId)?.id ??
+          newNodes.find((n) => (n.data as AssetTypeNodeData).executionId === execId)?.id
+        if (byExecId) return byExecId
+
+        // Look for a node with the same assetId that hasn't been assigned an execution yet
+        const existingByDocId = currentNodes.find((n) => {
+          const nd = n.data as AssetTypeNodeData
+          return !nd.executionId && (nd.assetId === docId || (!nd.assetId && n.id === docId))
+        })
+        if (existingByDocId) {
+          // Attach executionId, executionName and documentTypeId
+          setNodes((nds) =>
+            nds.map((n) => {
+              if (n.id !== existingByDocId.id) return n
+              const nd = n.data as AssetTypeNodeData
+              return { ...n, data: { ...nd, executionId: execId, executionName: execName, documentTypeId: nd.documentTypeId ?? docTypeId } }
+            }),
+          )
+          return existingByDocId.id
+        }
+
+        // Create a new node with a unique canvas ID
+        const canvasId = `${docId}-${Math.random().toString(36).slice(2, 9)}`
+        if (!newNodes.some((n) => (n.data as AssetTypeNodeData).executionId === execId)) {
+          newNodes.push({
+            id: canvasId,
+            type: 'assetType',
+            position: { x: 0, y: 0 },
+            data: {
+              id: canvasId,
+              assetId: docId,
+              executionId: execId,
+              executionName: execName,
+              documentTypeId: docTypeId,
+              name: docName,
+              color: docTypeColor || '#94a3b8',
+              onLoadRelationships: (id: string) => handleLoadExecRelRef.current?.(id),
+              onLoadRelationshipsCanvasOnly: (id: string) => handleLoadExecRelCanvasOnlyRef.current?.(id),
+              onRemove: handleRemoveNode,
+            },
+          })
+        }
+        return canvasId
+      }
+
+      // Helper: resolve an existing canvas node id for an execution — never creates one.
+      const resolveCanvasId = (execId: string): string | undefined =>
+        currentNodes.find((n) => (n.data as AssetTypeNodeData).executionId === execId)?.id ??
+        newNodes.find((n) => (n.data as AssetTypeNodeData).executionId === execId)?.id
+
+      // "Children" are only the anchor's direct relationships (directRels, before flattening).
+      // Sub-relationships describe siblings/grandchildren and must never spawn nodes.
+      for (const rel of directRels) {
+        ensureNode(rel.source_execution.document_id, rel.source_execution.id, rel.source_execution.name, rel.source_execution.document_name, rel.source_execution.document_type_id, rel.source_execution.document_type_color ?? '')
+        ensureNode(rel.target_execution.document_id, rel.target_execution.id, rel.target_execution.name, rel.target_execution.document_name, rel.target_execution.document_type_id, rel.target_execution.document_type_color ?? '')
+      }
+
+      for (const rel of allRels) {
+        const srcCanvasId = resolveCanvasId(rel.source_execution.id)
+        const tgtCanvasId = resolveCanvasId(rel.target_execution.id)
+
+        // Only connect nodes that are already on the canvas (existing + newly added children)
+        if (!srcCanvasId || !tgtCanvasId) continue
+
+        const edgeId = `${EXEC_EDGE_ID_PREFIX}${rel.id}`
+        if (!currentEdgeIds.has(edgeId) && !newEdges.some((e) => e.id === edgeId)) {
+          const pairCount = getEdges().filter(
+            (e) => e.source === srcCanvasId && e.target === tgtCanvasId,
+          ).length
+
+          const dtr = rel.document_type_relationship
+          const isManual = rel.relationship_type === 'manual' || !dtr
+          const relName = isManual ? (rel.execution_relationship_name ?? '') : dtr!.name
+
+          newEdges.push({
+            id: edgeId,
+            source: srcCanvasId,
+            target: tgtCanvasId,
+            type: 'relationship',
+            data: {
+              relationshipId: rel.id,
+              name: relName,
+              relationshipType: rel.relationship_type,
+              edgeKind: 'execution-relationship',
+              minCount: dtr?.min_count ?? 0,
+              maxCount: dtr?.max_count ?? 0,
+              pathOffset: parallelOffset(pairCount, pairCount + 1),
+              onEdit: canUpdateExecRelationship ? () => {
+                setEditingExecRelationship({
+                  id: rel.id,
+                  document_type_relationship_id: dtr?.id ?? null,
+                  relationship_type: rel.relationship_type,
+                  execution_relationship_name: rel.execution_relationship_name ?? null,
+                  source_execution_id: rel.source_execution.id,
+                  target_execution_id: rel.target_execution.id,
+                  attributes: rel.attributes,
+                  created_at: '',
+                  updated_at: '',
+                  created_by: null,
+                  updated_by: null,
+                })
+                setEditingExecRelName(relName)
+              } : undefined,
+              onDelete: canDeleteExecRelationship ? () => {
+                setDeletingExecRelId(rel.id)
+                setDeletingExecRelName(relName)
+              } : undefined,
+              onManageAttributes: undefined,
+            } satisfies RelationshipEdgeData,
+          })
+          currentEdgeIds.add(edgeId)
+        }
+      }
+
+      if (newNodes.length > 0) {
+        const anchorPos = getNodes().find((n) => n.id === nodeId)?.position ?? { x: 0, y: 0 }
+        const edgePairs = newEdges.map((e) => ({ source: e.source as string, target: e.target as string }))
+        const layoutPositions = computeLayoutForNewNodes(
+          nodeId, anchorPos, newNodes.map((n) => n.id), edgePairs,
+        )
+        for (const node of newNodes) {
+          const pos = layoutPositions.get(node.id)
+          if (pos) node.position = pos
+        }
+        setNodes((nds) => [...nds, ...newNodes])
+      }
+      if (newEdges.length > 0) setEdges((eds) => [...eds, ...newEdges])
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [queryClient, getNodes, getEdges, setNodes, setEdges, handleRemoveNode, canListExecRelationships, canUpdateExecRelationship, canDeleteExecRelationship],
+  )
+
+  const handleLoadExecutionRelationships = useCallback(
+    (nodeId: string) => {
+      const node = getNodes().find((n) => n.id === nodeId)
+      const nodeData = node?.data as AssetTypeNodeData | undefined
+      if (!nodeData) return
+      if (nodeData.executionId) {
+        doLoadExecutionRelationships(nodeId, nodeData.executionId)
+      } else {
+        toast.warning(t("nodePanel.versionRequiredFor", { names: nodeData.name }))
+      }
+    },
+    [getNodes, doLoadExecutionRelationships, t],
+  )
+
+  // "Expandir por tipo": misma carga que arriba, pero solo agrega el tipo de activo relacionado elegido.
+  const handleLoadExecutionRelationshipsForType = useCallback(
+    (nodeId: string, documentTypeId: string) => {
+      const node = getNodes().find((n) => n.id === nodeId)
+      const nodeData = node?.data as AssetTypeNodeData | undefined
+      if (!nodeData) return
+      if (nodeData.executionId) {
+        doLoadExecutionRelationships(nodeId, nodeData.executionId, documentTypeId)
+      } else {
+        toast.warning(t("nodePanel.versionRequiredFor", { names: nodeData.name }))
+      }
+    },
+    [getNodes, doLoadExecutionRelationships, t],
+  )
+
+  // ─── Load execution relationships — canvas-only (no new nodes, only edges between existing executions) ───
+  const handleLoadExecRelCanvasOnly = useCallback(
+    async (nodeId: string, allowedRelIds?: Set<string>) => {
+      if (!canListExecRelationships) return
+      const node = getNodes().find((n) => n.id === nodeId)
+      const nodeData = node?.data as AssetTypeNodeData | undefined
+      if (!nodeData?.executionId) {
+        toast.warning(t("nodePanel.versionRequiredFor", { names: nodeData?.name ?? '' }))
+        return
+      }
+      const orgId = organizationIdRef.current
+      const relData = await getExecutionRelationshipsByExecution(orgId, nodeData.executionId, {
+        page: 1,
+        page_size: 1000,
+        include_subrelationships: true,
+      })
+      if (!relData?.data?.length) return
+
+      const allRelsMap = new Map<string, ExecutionRelationshipSubitem>()
+      for (const item of relData.data) {
+        if (!allRelsMap.has(item.id)) allRelsMap.set(item.id, item)
+        for (const sub of item.relationship_source) {
+          if (!allRelsMap.has(sub.id)) allRelsMap.set(sub.id, sub)
+        }
+        for (const sub of item.relationship_target) {
+          if (!allRelsMap.has(sub.id)) allRelsMap.set(sub.id, sub)
+        }
+      }
+      const allRels = Array.from(allRelsMap.values())
+
+      const currentNodes = getNodes()
+      const existingEdges = getEdges()
+      const existingEdgeIds = new Set(existingEdges.map((e) => e.id))
+      const newEdges: Edge[] = []
+
+      // Build map of executionId → canvas node id
+      const execToNodeId = new Map<string, string>()
+      for (const n of currentNodes) {
+        const nd = n.data as AssetTypeNodeData
+        if (nd.executionId) execToNodeId.set(nd.executionId, n.id)
+      }
+
+      // Count existing edges per pair for parallel offset
+      const existingCountPerPair = new Map<string, number>()
+      existingEdges.forEach((e) => {
+        const key = `${e.source}::${e.target}`
+        existingCountPerPair.set(key, (existingCountPerPair.get(key) ?? 0) + 1)
+      })
+
+      for (const rel of allRels) {
+        // When seeding a saved Diagram, draw only the relationships it persisted —
+        // live backend relationships created since the save must not reappear.
+        if (allowedRelIds && !allowedRelIds.has(rel.id)) continue
+        const srcExecId = rel.source_execution.id
+        const tgtExecId = rel.target_execution.id
+        // Only draw edges between executions already on canvas
+        if (!execToNodeId.has(srcExecId) || !execToNodeId.has(tgtExecId)) continue
+        const srcCanvasId = execToNodeId.get(srcExecId)!
+        const tgtCanvasId = execToNodeId.get(tgtExecId)!
+        const edgeId = `${EXEC_EDGE_ID_PREFIX}${rel.id}`
+        if (!existingEdgeIds.has(edgeId) && !newEdges.some((e) => e.id === edgeId)) {
+          const pairKey = `${srcCanvasId}::${tgtCanvasId}`
+          const existingCount = existingCountPerPair.get(pairKey) ?? 0
+          const total = existingCount + 1
+          const dtr = rel.document_type_relationship
+          const isManual = rel.relationship_type === 'manual' || !dtr
+          const relName = isManual ? (rel.execution_relationship_name ?? '') : dtr!.name
+
+          newEdges.push({
+            id: edgeId,
+            source: srcCanvasId,
+            target: tgtCanvasId,
+            type: 'relationship',
+            data: {
+              relationshipId: rel.id,
+              name: relName,
+              relationshipType: rel.relationship_type,
+              edgeKind: 'execution-relationship',
+              minCount: dtr?.min_count ?? 0,
+              maxCount: dtr?.max_count ?? 0,
+              pathOffset: parallelOffset(existingCount, total),
+              onEdit: canUpdateExecRelationship ? () => {
+                setEditingExecRelationship({
+                  id: rel.id,
+                  document_type_relationship_id: dtr?.id ?? null,
+                  relationship_type: rel.relationship_type,
+                  execution_relationship_name: rel.execution_relationship_name ?? null,
+                  source_execution_id: rel.source_execution.id,
+                  target_execution_id: rel.target_execution.id,
+                  attributes: rel.attributes,
+                  created_at: '',
+                  updated_at: '',
+                  created_by: null,
+                  updated_by: null,
+                })
+                setEditingExecRelName(relName)
+              } : undefined,
+              onDelete: canDeleteExecRelationship ? () => {
+                setDeletingExecRelId(rel.id)
+                setDeletingExecRelName(relName)
+              } : undefined,
+              onManageAttributes: undefined,
+            } satisfies RelationshipEdgeData,
+          })
+          existingEdgeIds.add(edgeId)
+          existingCountPerPair.set(pairKey, total)
+        }
+      }
+      if (newEdges.length > 0) setEdges((eds) => [...eds, ...newEdges])
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [getNodes, getEdges, setEdges, t, canListExecRelationships, canUpdateExecRelationship, canDeleteExecRelationship],
+  )
+
+  // Keep refs in sync so nodes created during load can reference the latest handlers
+  useEffect(() => {
+    handleLoadExecRelRef.current = handleLoadExecutionRelationships
+  }, [handleLoadExecutionRelationships])
+  useEffect(() => {
+    handleLoadExecRelCanvasOnlyRef.current = handleLoadExecRelCanvasOnly
+  }, [handleLoadExecRelCanvasOnly])
+  useEffect(() => {
+    const nodeIds = new Set(nodes.map((n) => n.id))
+    setEdges((eds) => eds.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target)))
+  }, [nodes, setEdges])
+
+  // ─── Direct edge mutations (role/flow) — local-only until the diagram is saved ──
+  const handleRemoveDirectEdge = useCallback((edgeId: string) => {
+    setEdges((eds) => eds.filter((e) => e.id !== edgeId))
+    setSelectedEdgeId((cur) => (cur === edgeId ? null : cur))
+  }, [setEdges])
+
+  // Opens the rename dialog for an existing direct edge, resolving its current
+  // labels/colors from the live graph (never from stale seed-time data).
+  const openRenameRoleEdgeDialog = useCallback((edgeId: string) => {
+    const edge = getEdges().find((e) => e.id === edgeId)
+    if (!edge) return
+    const srcNode = getNodes().find((n) => n.id === edge.source)
+    const tgtNode = getNodes().find((n) => n.id === edge.target)
+    const data = edge.data as RelationshipEdgeData | undefined
+    setRoleEdgeDialogState({
+      mode: 'rename',
+      edgeId,
+      source: { label: srcNode ? nodeLabel(srcNode) : edge.source, color: nodeColor(srcNode) },
+      target: { label: tgtNode ? nodeLabel(tgtNode) : edge.target, color: nodeColor(tgtNode) },
+      initialName: data?.name ?? '',
+      initialType: (data?.relationshipType as string | undefined) ?? '',
+    })
+  }, [getEdges, getNodes])
+
+  const handleRenameDirectEdge = useCallback((edgeId: string, name: string, type: string) => {
+    setEdges((eds) => eds.map((e) => (
+      e.id === edgeId
+        ? { ...e, data: { ...(e.data as RelationshipEdgeData), name, relationshipType: type || undefined } }
+        : e
+    )))
+  }, [setEdges])
+
+  // Adds a brand-new direct edge to the canvas only (role↔role, role↔asset, or now
+  // any pairing involving a gateway/start_event/end_event) — nothing is sent to the
+  // backend until the diagram itself is saved. Also reached, with a blank name/type,
+  // from `onConnect`'s flow-only branch above (via `createDirectEdgeRef`) when
+  // neither endpoint is a role — that path skips the naming dialog entirely.
+  const handleRoleEdgeCreated = useCallback((pending: PendingRoleEdge, name: string, type: string) => {
+    const edgeId = `${DIRECT_EDGE_ID_PREFIX}local-${Math.random().toString(36).slice(2, 9)}`
+    setEdges((eds) => {
+      const pairCount = eds.filter((e) => e.source === pending.sourceId && e.target === pending.targetId).length
+      return addEdge(
+        {
+          id: edgeId,
+          source: pending.sourceId,
+          target: pending.targetId,
+          sourceHandle: pending.sourceHandle,
+          targetHandle: pending.targetHandle,
+          type: "relationship",
+          data: {
+            relationshipId: edgeId,
+            name,
+            relationshipType: type || undefined,
+            edgeKind: 'direct',
+            pathOffset: parallelOffset(pairCount, pairCount + 1),
+            onEdit: canWriteDiagramGraph ? () => openRenameRoleEdgeDialog(edgeId) : undefined,
+            onDelete: canWriteDiagramGraph ? () => handleRemoveDirectEdge(edgeId) : undefined,
+            onManageAttributes: undefined,
+          } satisfies RelationshipEdgeData,
+        },
+        eds,
+      )
+    })
+  }, [setEdges, canWriteDiagramGraph, openRenameRoleEdgeDialog, handleRemoveDirectEdge])
+
+  useEffect(() => {
+    createDirectEdgeRef.current = handleRoleEdgeCreated
+  }, [handleRoleEdgeCreated])
+
+  // ─── Draw relationship edges for a freshly-seeded batch of nodes ──────────
+  // The saved Diagram's relationships arrive already resolved by the backend
+  // (source/target endpoints, document_type_relationship, etc.) — no fetch needed
+  // here, just build edges off the just-built `seeded` array so node lookup and
+  // parallel-offset counting can't race against react-flow's state.
+  const seedRelationshipEdges = useCallback(
+    (seeded: { canvasNodeId: string; seed: InitialCanvasNode; node: Node<AssetTypeNodeData | CanvasElementNodeData> }[], relationships?: InitialCanvasRelationship[]) => {
+      // No gate on canListExecRelationships/canWriteDiagramGraph here: these edges
+      // come from the saved Diagram's own denormalized data (no fetch involved), not
+      // a live exec-rel list request — a viewer with only diagram:r must still see them.
+      if (!relationships?.length) return
+
+      const execToNodeId = new Map<string, string>()
+      // A role can be dropped onto the canvas more than once, so `role_id` alone can't
+      // tell which node an edge belongs to — same problem as flow below.
+      // `roleDetailToNodeId` (keyed by `detail_id`) is the precise resolution once the
+      // backend echoes it on the relationship endpoint; `roleToNodeId` is a first-wins
+      // fallback for when it doesn't (older backend, or a legacy role with no detail
+      // yet) — first because that's the order `details` comes back in, so it's at
+      // least deterministic instead of last-write-wins.
+      const roleToNodeId = new Map<string, string>()
+      const roleDetailToNodeId = new Map<string, string>()
+      // Keyed by `detail_id` — the only identity a gateway/start_event/end_event
+      // endpoint carries (two of them are otherwise indistinguishable).
+      const flowToNodeId = new Map<string, string>()
+      for (const { canvasNodeId, seed } of seeded) {
+        if (seed.nodeType === 'role') {
+          if (!roleToNodeId.has(seed.role.id)) roleToNodeId.set(seed.role.id, canvasNodeId)
+          if (seed.detailId) roleDetailToNodeId.set(seed.detailId, canvasNodeId)
+        } else if (seed.nodeType === 'flow') flowToNodeId.set(seed.detailId, canvasNodeId)
+        else execToNodeId.set(seed.executionId, canvasNodeId)
+      }
+      const resolve = (ep: DiagramRelationshipEndpoint): string | undefined => {
+        if (ep.node_type === 'role') return (ep.detail_id && roleDetailToNodeId.get(ep.detail_id)) ?? roleToNodeId.get(ep.role_id)
+        if (ep.node_type === 'execution') return execToNodeId.get(ep.execution_id)
+        return flowToNodeId.get(ep.detail_id)
+      }
+
+      const newEdges: Edge[] = []
+      const edgeIds = new Set<string>()
+      const countPerPair = new Map<string, number>()
+
+      for (const rel of relationships) {
+        const src = resolve(rel.source)
+        const tgt = resolve(rel.target)
+        if (!src || !tgt) continue // endpoint outside the canvas
+
+        const pairKey = `${src}::${tgt}`
+        const existingCount = countPerPair.get(pairKey) ?? 0
+        const total = existingCount + 1
+
+        if (rel.execution_relationship_id !== null) {
+          // ── execution↔execution — unchanged, just reads from `rel.source`/`rel.target` now ──
+          const edgeId = `${EXEC_EDGE_ID_PREFIX}${rel.execution_relationship_id}`
+          if (edgeIds.has(edgeId)) continue
+          const dtr = rel.document_type_relationship
+          const isManual = rel.relationship_type === 'manual' || !dtr
+          const relName = isManual ? (rel.execution_relationship_name ?? '') : dtr!.name
+
+          newEdges.push({
+            id: edgeId,
+            source: src,
+            target: tgt,
+            sourceHandle: rel.source_handle ?? undefined,
+            targetHandle: rel.target_handle ?? undefined,
+            type: 'relationship',
+            data: {
+              relationshipId: rel.execution_relationship_id,
+              name: relName,
+              relationshipType: rel.relationship_type,
+              edgeKind: 'execution-relationship',
+              minCount: dtr?.min_count ?? 0,
+              maxCount: dtr?.max_count ?? 0,
+              pathOffset: parallelOffset(existingCount, total),
+              onEdit: canUpdateExecRelationship ? () => {
+                setEditingExecRelationship({
+                  id: rel.execution_relationship_id,
+                  document_type_relationship_id: dtr?.id ?? null,
+                  relationship_type: rel.relationship_type,
+                  execution_relationship_name: rel.execution_relationship_name ?? null,
+                  source_execution_id: rel.source.execution_id,
+                  target_execution_id: rel.target.execution_id,
+                  attributes: rel.attributes,
+                  created_at: '',
+                  updated_at: '',
+                  created_by: null,
+                  updated_by: null,
+                })
+                setEditingExecRelName(relName)
+              } : undefined,
+              onDelete: canDeleteExecRelationship ? () => {
+                setDeletingExecRelId(rel.execution_relationship_id)
+                setDeletingExecRelName(relName)
+              } : undefined,
+              onManageAttributes: undefined,
+            } satisfies RelationshipEdgeData,
+          })
+          edgeIds.add(edgeId)
+          countPerPair.set(pairKey, total)
+        } else {
+          // ── direct edge — role↔role or role↔asset, no execution_relationship behind it ──
+          const edgeId = `${DIRECT_EDGE_ID_PREFIX}${rel.id}`
+          if (edgeIds.has(edgeId)) continue
+
+          newEdges.push({
+            id: edgeId,
+            source: src,
+            target: tgt,
+            sourceHandle: rel.source_handle ?? undefined,
+            targetHandle: rel.target_handle ?? undefined,
+            type: 'relationship',
+            data: {
+              relationshipId: edgeId,
+              name: rel.name ?? '',
+              relationshipType: rel.relationship_type ?? undefined,
+              edgeKind: 'direct',
+              pathOffset: parallelOffset(existingCount, total),
+              onEdit: canWriteDiagramGraph ? () => openRenameRoleEdgeDialog(edgeId) : undefined,
+              onDelete: canWriteDiagramGraph ? () => handleRemoveDirectEdge(edgeId) : undefined,
+              onManageAttributes: undefined,
+            } satisfies RelationshipEdgeData,
+          })
+          edgeIds.add(edgeId)
+          countPerPair.set(pairKey, total)
+        }
+      }
+
+      if (newEdges.length > 0) setEdges((eds) => [...eds, ...newEdges])
+    },
+    [setEdges, canUpdateExecRelationship, canDeleteExecRelationship, canWriteDiagramGraph, openRenameRoleEdgeDialog, handleRemoveDirectEdge],
+  )
+
+  // ─── Seed nodes at explicit saved positions (reopening/loading a Diagram) ──
+  // `relationships`, when given, are the diagram's saved relationships (already
+  // resolved by the backend) — otherwise no edges are drawn for the seeded nodes.
+  //
+  // Edges are NOT drawn synchronously here: react-flow needs a render pass to
+  // register/measure freshly-seeded nodes before it can resolve edge endpoints
+  // (getEdgeParams / useInternalNode return null otherwise, so edges never
+  // appear). The pending batch is stashed in a ref and flushed by the
+  // useNodesInitialized effect below, once react-flow reports the new nodes
+  // are actually initialized.
+  const pendingEdgeSeedRef = useRef<{
+    seeded: { canvasNodeId: string; seed: InitialCanvasNode; node: Node<AssetTypeNodeData | CanvasElementNodeData> }[]
+    relationships?: InitialCanvasRelationship[]
+  } | null>(null)
+
+  // "Cambios sin guardar": compara una firma serializada del grafo actual contra
+  // la línea base del último grafo cargado/guardado. `isSeedPending` evita que la
+  // línea base se estampe a mitad del sembrado en olas de un diagrama (nodos →
+  // medición → flush de aristas vía `useNodesInitialized`, más abajo).
+  const isSeedPending = useCallback(() => pendingEdgeSeedRef.current !== null, [])
+  const { isDirty, requestBaselineReset, markSaved } = useDiagramDirtyState({
+    nodes: nodes as CanvasNode[],
+    edges: edges as Edge<RelationshipEdgeData>[],
+    isSeedPending,
+  })
+
+  const seedCanvasNodes = useCallback((nodesToSeed: InitialCanvasNode[], relationships?: InitialCanvasRelationship[]) => {
+    const seeded = nodesToSeed.map((n) => {
+      if (n.nodeType === 'role') {
+        const canvasNodeId = `role-${Math.random().toString(36).slice(2, 9)}`
+        const node: Node<CanvasElementNodeData> = {
+          id: canvasNodeId,
+          type: "role",
+          position: n.position,
+          data: {
+            id: canvasNodeId,
+            kind: "role",
+            content: n.role.name,
+            color: n.color ?? DEFAULT_CANVAS_ELEMENT_COLOR.role,
+            role: n.role,
+            ...(readOnly ? { readOnly: true } : {
+              onRequestRolePick: handleRequestRolePick,
+              onRemove: handleRemoveNode,
+            }),
+          },
+        }
+        return { canvasNodeId, seed: n, node }
+      }
+      if (n.nodeType === 'flow') {
+        const canvasType = CANVAS_TYPE_BY_FLOW_NODE_TYPE[n.flowType]
+        const canvasNodeId = `${canvasType}-${Math.random().toString(36).slice(2, 9)}`
+        const node: Node<CanvasElementNodeData> = {
+          id: canvasNodeId,
+          type: canvasType,
+          position: n.position,
+          data: {
+            id: canvasNodeId,
+            kind: canvasType,
+            content: n.label,
+            color: DEFAULT_CANVAS_ELEMENT_COLOR[canvasType],
+            ...(readOnly ? { readOnly: true } : {
+              onContentChange: handleUpdateElementContent,
+              onRemove: handleRemoveNode,
+            }),
+          },
+        }
+        return { canvasNodeId, seed: n, node }
+      }
+      const canvasNodeId = `${n.assetId}-${Math.random().toString(36).slice(2, 9)}`
+      const node: Node<AssetTypeNodeData> = {
+        id: canvasNodeId,
+        type: "assetType",
+        position: n.position,
+        data: {
+          id: canvasNodeId,
+          assetId: n.assetId,
+          documentTypeId: n.documentTypeId,
+          executionId: n.executionId,
+          executionName: n.executionName,
+          name: n.name,
+          color: n.color,
+          ...(readOnly ? { readOnly: true } : {
+            onLoadRelationships: (id: string) => handleLoadExecRelRef.current?.(id),
+            onLoadRelationshipsCanvasOnly: (id: string) => handleLoadExecRelCanvasOnlyRef.current?.(id),
+            onRemove: handleRemoveNode,
+            ...(canListDiagrams ? { onExploreDiagrams: handleExploreDiagrams } : {}),
+          }),
+          // El badge es lectura: también vive en `readOnly` (visor).
+          ...(canListDiagrams ? { onShowDiagrams: handleShowDiagrams } : {}),
+        },
+      }
+      return { canvasNodeId, seed: n, node }
+    })
+
+    setNodes((nds) => [...nds, ...seeded.map((s) => s.node)])
+    pendingEdgeSeedRef.current = { seeded, relationships }
+  }, [setNodes, handleRemoveNode, handleRequestRolePick, handleUpdateElementContent, readOnly, canListDiagrams, handleShowDiagrams, handleExploreDiagrams])
+
+  // Flush any pending edge seed once react-flow reports the current nodes are
+  // initialized (measured). Depends on `nodes` too (not just the boolean) so a
+  // batch queued while the flag was already `true` still gets a fresh check.
+  const nodesInitialized = useNodesInitialized()
+  useEffect(() => {
+    if (!nodesInitialized || !pendingEdgeSeedRef.current) return
+    const { seeded, relationships } = pendingEdgeSeedRef.current
+    pendingEdgeSeedRef.current = null
+    seedRelationshipEdges(seeded, relationships)
+  }, [nodesInitialized, nodes, seedRelationshipEdges])
+
+  // ─── Seed free-standing text/container elements at explicit saved positions ──
+  // Roles no longer travel through here — they're seeded as nodes above.
+  const seedElementNodes = useCallback((elementsToSeed: InitialCanvasElement[]) => {
+    const seeded: Node<CanvasElementNodeData>[] = elementsToSeed.map((el) => {
+      const id = `${el.kind}-${Math.random().toString(36).slice(2, 9)}`
+      return {
+        id,
+        type: el.kind,
+        position: el.position,
+        ...(el.kind === "container" ? { style: { width: el.width, height: el.height } } : {}),
+        data: {
+          id,
+          kind: el.kind,
+          content: el.content,
+          color: el.color,
+          ...(el.role ? { role: el.role } : {}),
+          ...(readOnly ? { readOnly: true } : {
+            onContentChange: handleUpdateElementContent,
+            onColorChange: handleUpdateElementColor,
+            onRequestRolePick: handleRequestRolePick,
+            onClearRole: handleClearElementRole,
+            onRemove: handleRemoveNode,
+          }),
+        },
+      }
+    })
+    setNodes((nds) => [...nds, ...seeded])
+  }, [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRequestRolePick, handleClearElementRole, handleRemoveNode, readOnly])
+
+  // Guarded by a ref (not just the effect dep array) so it only seeds once even if
+  // the parent re-renders and passes a new `initialNodes` array reference.
+  const hasSeededInitialNodesRef = useRef(false)
+  useEffect(() => {
+    if (hasSeededInitialNodesRef.current || (!initialNodes?.length && !initialElements?.length)) return
+    hasSeededInitialNodesRef.current = true
+    if (initialNodes?.length) seedCanvasNodes(initialNodes, initialRelationships)
+    if (initialElements?.length) seedElementNodes(initialElements)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialNodes, initialElements])
+
+  // Saving (create or update) resolves the same shape a saved Diagram loads with —
+  // reused here so a freshly created diagram is promoted straight into "editing" mode.
+  const handleDiagramSaved = useCallback((diagram: Diagram) => {
+    setEditingDiagram(toEditingDiagram(diagram))
+    onDiagramSaved?.(diagram)
+  }, [onDiagramSaved])
+
+  // "Guardar cambios" ya no abre el sheet: nombre/descripción/ejecución ya están
+  // guardados (para tocarlos está "Editar datos del diagrama"), así que guarda
+  // directo — regenera el snapshot y hace el PUT sin pedir nada más.
+  const handleSaveChanges = useCallback(async () => {
+    if (!editingDiagram) return
+    // Defensive re-check: the menu item is already gated on `hasPersistableDetails`,
+    // but a node could be removed between render and click. A diagram with only
+    // texts/containers would 422 with DIAGRAM_DETAILS_REQUIRED on the backend.
+    if (!nodes.some((n) => detailEndpointOf(n as CanvasNode) !== null)) {
+      toast.warning(t('canvas.saveDetailsRequired'))
+      return
+    }
+    try {
+      // Capturados antes del await: el usuario puede seguir moviendo cosas mientras
+      // el PUT viaja, y `markSaved` necesita el grafo EXACTO que se envió.
+      const savedNodes = nodes as Node<AssetTypeNodeData | CanvasElementNodeData>[]
+      const savedEdges = edges as Edge<RelationshipEdgeData>[]
+      const saved = await saveDiagramGraph({
+        diagramId: editingDiagram.id,
+        name: editingDiagram.name,
+        description: editingDiagram.description,
+        executionId: editingDiagram.executionId,
+        snapshotMediaId: editingDiagram.snapshotMediaId,
+        nodes: savedNodes,
+        edges: savedEdges,
+        containerRef,
+        fitView,
+      })
+      handleDiagramSaved(saved)
+      markSaved(savedNodes as CanvasNode[], savedEdges)
+      toast.success(t('saveAsDiagramDialog.updateSuccessToast'), {
+        action: {
+          label: t('saveAsDiagramDialog.viewDiagrams'),
+          onClick: () => navigate('/diagrams'),
+        },
+      })
+    } catch (err) {
+      handleApiError(err)
+    }
+  }, [editingDiagram, saveDiagramGraph, nodes, edges, containerRef, fitView, handleDiagramSaved, markSaved, t, navigate])
+
+  // ─── Acciones de la barra del editor (chrome="editor") ──────────────────────
+
+  // Renombrar inline reusa el camino de "Editar datos" (PUT con skipSnapshot): reemplaza
+  // el grafo completo, así que también persiste lo pendiente — igual que el sheet de metadatos.
+  const handleRenameDiagram = useCallback(async (name: string) => {
+    if (!editingDiagram) return
+    if (!nodes.some((n) => detailEndpointOf(n as CanvasNode) !== null)) {
+      toast.warning(t('canvas.saveDetailsRequired'))
+      return
+    }
+    try {
+      const savedNodes = nodes as Node<AssetTypeNodeData | CanvasElementNodeData>[]
+      const savedEdges = edges as Edge<RelationshipEdgeData>[]
+      const saved = await saveDiagramGraph({
+        diagramId: editingDiagram.id,
+        name,
+        description: editingDiagram.description,
+        executionId: editingDiagram.executionId,
+        snapshotMediaId: editingDiagram.snapshotMediaId,
+        nodes: savedNodes,
+        edges: savedEdges,
+        containerRef,
+        fitView,
+        skipSnapshot: true,
+      })
+      handleDiagramSaved(saved)
+      markSaved(savedNodes as CanvasNode[], savedEdges)
+    } catch (err) {
+      handleApiError(err)
+    }
+  }, [editingDiagram, saveDiagramGraph, nodes, edges, containerRef, fitView, handleDiagramSaved, markSaved, t])
+
+  // Duplicar = POST del grafo actual (sin diagramId) con snapshot propio. No se llama
+  // `handleDiagramSaved`: este canvas sigue editando el original; la página navega a la copia.
+  const handleDuplicateDiagram = useCallback(async () => {
+    if (!editingDiagram) return
+    if (!nodes.some((n) => detailEndpointOf(n as CanvasNode) !== null)) {
+      toast.warning(t('canvas.saveDetailsRequired'))
+      return
+    }
+    try {
+      const saved = await saveDiagramGraph({
+        name: tDiagrams('bar.copyOf', { name: editingDiagram.name }),
+        description: editingDiagram.description,
+        executionId: editingDiagram.executionId,
+        nodes: nodes as Node<AssetTypeNodeData | CanvasElementNodeData>[],
+        edges: edges as Edge<RelationshipEdgeData>[],
+        containerRef,
+        fitView,
+      })
+      toast.success(tDiagrams('bar.duplicated'))
+      onDiagramSaved?.(saved)
+    } catch (err) {
+      handleApiError(err)
+    }
+  }, [editingDiagram, saveDiagramGraph, nodes, edges, containerRef, fitView, onDiagramSaved, t, tDiagrams])
+
+  const handleExportImage = useCallback(async () => {
+    try {
+      const file = await captureDiagramSnapshot(containerRef, nodes, fitView)
+      const url = URL.createObjectURL(file)
+      const a = document.createElement('a')
+      const baseName = (editingDiagram?.name ?? 'diagram').replace(/[\\/:*?"<>|]+/g, '-').trim() || 'diagram'
+      a.href = url
+      a.download = `${baseName}.png`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      toast.error(tDiagrams('bar.exportError'))
+    }
+  }, [containerRef, nodes, fitView, editingDiagram, tDiagrams])
+
+  // Atajos de teclado de la paleta. Se ignoran con foco en un campo de texto, en un
+  // nodo de texto en edición o dentro de un diálogo/menú (el canvas tiene ediciones inline).
+  useEffect(() => {
+    if (!isEditorChrome || readOnly) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return
+      const el = document.activeElement as HTMLElement | null
+      if (el) {
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable) return
+        if (el.closest('[role="dialog"],[role="alertdialog"],[role="menu"]')) return
+      }
+      switch (e.key.toLowerCase()) {
+        case 'v': setTool('select'); break
+        case 'h': setTool('move'); break
+        case '[': togglePaletteCollapsed(); break
+        case 'c': addElementAtCenter('container'); break
+        case 't': addElementAtCenter('text'); break
+        case 'r': if (canAddRoleNode) addElementAtCenter('role'); break
+        case '1': if (canAddFlowNode) addElementAtCenter('startEvent'); break
+        case '2': if (canAddFlowNode) addElementAtCenter('gateway'); break
+        case '3': if (canAddFlowNode) addElementAtCenter('endEvent'); break
+        default: return
+      }
+      e.preventDefault()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [isEditorChrome, readOnly, addElementAtCenter, canAddRoleNode, canAddFlowNode, togglePaletteCollapsed])
+
+  const handleClearCanvas = useCallback(() => {
+    requestBaselineReset()
+    setNodes([])
+    setEdges([])
+    setSelectedEdgeId(null)
+    setSelectedNodeId(null)
+    setEditingDiagram(undefined)
+    onCanvasCleared?.()
+  }, [setNodes, setEdges, requestBaselineReset, onCanvasCleared])
+
+  const sourceDocType = pendingConnection ? docTypeMap.get(pendingConnection.sourceId) : undefined
+  const targetDocType = pendingConnection ? docTypeMap.get(pendingConnection.targetId) : undefined
+  // A node "counts" toward a savable diagram once it reaches `details` — an execution
+  // node with a version picked, or a role node with a role assigned (containers/texts
+  // never do). Same rule `buildDiagramGraphPayload` uses to decide what to persist.
+  const hasPersistableDetails = nodes.some((n) => detailEndpointOf(n as CanvasNode) !== null)
+  // La barra de acciones agrupa todo lo relativo al Diagrama (guardar, limpiar):
+  // sin nodos no hay nada que guardar ni limpiar, así que no se muestra.
+  const showActionsBar = !readOnly && nodes.length > 0
+
+  // Traducción 1:1 de los gates que antes vivían en cada `DropdownMenuItem`: un
+  // handler `undefined` hace que `CanvasActionsBar` no renderice el botón — nunca
+  // se muestra una acción no permitida, ni siquiera deshabilitada.
+  const isExecution = mode === 'execution'
+  const canSaveChanges = isExecution && hasPersistableDetails && !!editingDiagram && canUpdateDiagram
+  const canSaveAsNew = isExecution && hasPersistableDetails && canCreateDiagram
+  const canEditMetadata = isExecution && !!editingDiagram && canUpdateDiagram
+
+  return (
+    <>
+      <div ref={containerRef} className="relative flex h-full w-full">
+        <ReactFlow
+          nodes={layeredNodes}
+          edges={layeredEdges}
+          onNodesChange={handleNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={readOnly ? undefined : onConnect}
+          onConnectEnd={readOnly ? undefined : onConnectEnd}
+          onReconnect={readOnly ? undefined : onReconnect}
+          onEdgeClick={onEdgeClick}
+          onNodeClick={onNodeClick}
+          onNodeDoubleClick={onNodeDoubleClick}
+          onPaneClick={onPaneClick}
+          onDrop={readOnly ? undefined : handleDrop}
+          onDragOver={readOnly ? undefined : handleDragOver}
+          nodeTypes={NODE_TYPES}
+          edgeTypes={EDGE_TYPES}
+          connectionMode={ConnectionMode.Loose}
+          elevateNodesOnSelect={false}
+          nodesDraggable={!readOnly && !locked}
+          nodesConnectable={!readOnly && !locked}
+          elementsSelectable={!locked}
+          // Selección múltiple por caja: Shift + arrastrar sobre el pane vacío (comporta-
+          // miento nativo de React Flow, `selectionKeyCode` default 'Shift') — el click
+          // izquierdo sin modificador sigue siendo pan. `Partial` selecciona un nodo si la
+          // caja lo toca, no exige cubrirlo entero.
+          selectionMode={SelectionMode.Partial}
+          selectionOnDrag={isEditorChrome && !readOnly && tool === 'select'}
+          panOnDrag={isEditorChrome && !readOnly && tool === 'select' ? [1, 2] : true}
+          // Reanclar cambia solo el diagrama (no la execution_relationship/relación de
+          // negocio detrás del edge), así que el permiso correcto es el de escritura
+          // del diagrama — mismo criterio que la rama de rol de `deleteKeyCode` abajo.
+          // En modo document-type nada de esto se persiste en un Diagram.
+          edgesReconnectable={!readOnly && mode === 'execution' && canWriteDiagramGraph}
+          reconnectRadius={12}
+          fitView
+          proOptions={{ hideAttribution: true }}
+          // El borrado por tecla es una mutación sin botón: exige el permiso de
+          // borrado del modo activo. En `execution` la eliminación se persiste
+          // luego con "Guardar cambios", así que sin `execution_relationship:d`
+          // no debe poder seleccionarse y borrarse.
+          // En `execution` una arista de rol solo vive en el diagrama (no en
+          // execution_relationship), así que el borrado por tecla también se
+          // habilita con permiso de escritura del diagrama, no solo con
+          // execution_relationship:d.
+          deleteKeyCode={
+            (mode === 'execution'
+              ? (canDeleteExecRelationship || canWriteDiagramGraph)
+              : canDeleteRelationship)
+              ? "Delete"
+              : null
+          }
+          className={isEditorChrome ? "flex-1 h-full bg-surface-sunken" : "flex-1 h-full bg-muted/10"}
+        >
+          {isEditorChrome ? (
+            <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#d5dce5" />
+          ) : (
+            <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+          )}
+          {isEditorChrome ? (
+            <CanvasViewControls locked={locked} onToggleLock={() => setLocked((v) => !v)} />
+          ) : (
+            <Controls />
+          )}
+          {alignmentGuides && (
+            <AlignmentGuides vertical={alignmentGuides.vertical} horizontal={alignmentGuides.horizontal} />
+          )}
+          {roleColumnLabelPos && (
+            <RoleColumnLabel
+              x={roleColumnLabelPos.x}
+              y={roleColumnLabelPos.y}
+              label={t("node.rolesColumnLabel")}
+            />
+          )}
+
+          {/* Always available — not gated on the drag palette, which isn't mounted on every screen */}
+          {!readOnly && (
+            <CanvasElementPalette
+              canAddRole={canAddRoleNode}
+              canAddFlow={canAddFlowNode}
+              onAdd={addElementAtCenter}
+              compact={isNarrow}
+              editor={isEditorChrome}
+              activeTool={tool}
+              onChangeTool={setTool}
+              collapsed={paletteCollapsed}
+              onToggleCollapsed={togglePaletteCollapsed}
+            />
+          )}
+
+          {readOnly && <CanvasReadOnlyBadge />}
+
+          {showActionsBar && !isEditorChrome && (
+            <CanvasActionsBar
+              diagramName={mode === 'execution' ? editingDiagram?.name : undefined}
+              isDirty={isDirty}
+              isSaving={isSavingDiagram}
+              compact={isNarrow}
+              collapsed={isVeryNarrow}
+              onSaveChanges={canSaveChanges ? handleSaveChanges : undefined}
+              onSaveAsNew={canSaveAsNew ? () => setSaveSheetMode('new') : undefined}
+              onEditMetadata={canEditMetadata ? () => setSaveSheetMode('metadata') : undefined}
+              onClearCanvas={() => setShowClearConfirm(true)}
+            />
+          )}
+
+          {isEditorChrome && !readOnly && (nodes.length > 0 || !!editingDiagram) && (
+            <DiagramEditorBar
+              diagramName={editingDiagram?.name}
+              isDirty={isDirty}
+              isSaving={isSavingDiagram}
+              // Diagrama nuevo: "Guardar" abre el sheet de creación (sin pasar por el menú ⋯).
+              onSave={
+                canSaveChanges
+                  ? handleSaveChanges
+                  : !editingDiagram && canSaveAsNew
+                    ? () => setSaveSheetMode('new')
+                    : undefined
+              }
+              onRename={canEditMetadata ? handleRenameDiagram : undefined}
+              // Solo para un diagrama ya guardado: en uno nuevo sería repetir "Guardar".
+              onSaveAsNew={editingDiagram && canSaveAsNew ? () => setSaveSheetMode('new') : undefined}
+              onEditMetadata={canEditMetadata ? () => setSaveSheetMode('metadata') : undefined}
+              onDuplicate={canSaveAsNew && editingDiagram ? handleDuplicateDiagram : undefined}
+              onExportImage={nodes.length > 0 ? handleExportImage : undefined}
+              onRefresh={onRefresh}
+              isRefreshing={isRefreshing}
+              onClear={() => setShowClearConfirm(true)}
+              onDelete={canDeleteDiagram && editingDiagram ? () => setShowDeleteDiagram(true) : undefined}
+            />
+          )}
+
+          {nodes.length === 0 && (
+            isEditorChrome
+              ? <CanvasEmptyPrompt onOpenTree={onOpenAssetTree} onOpenDiagrams={onOpenDiagramsList} />
+              : <CanvasEmptyState mode={mode} />
+          )}
+        </ReactFlow>
+
+        {selectedEdgeId && (
+          <RelationshipPanel
+            selectedEdgeId={selectedEdgeId}
+            canvasNodes={nodes as Node<AssetTypeNodeData | CanvasElementNodeData>[]}
+            edges={edges as Edge<RelationshipEdgeData>[]}
+            onClose={() => setSelectedEdgeId(null)}
+          />
+        )}
+
+        {selectedNodeId && (() => {
+          const selectedNode = nodes.find((n) => n.id === selectedNodeId)
+          if (selectedNode?.type === "text" || selectedNode?.type === "container" || selectedNode?.type === "role" || isFlowCanvasType(selectedNode?.type)) {
+            return (
+              <ElementPanel
+                elementData={selectedNode.data as CanvasElementNodeData}
+                onClose={() => setSelectedNodeId(null)}
+                readOnly={readOnly}
+              />
+            )
+          }
+          const nodeData = selectedNode?.data as AssetTypeNodeData | undefined
+          if (!nodeData) return null
+          return (
+            <NodePanel
+              nodeId={nodeData.id}
+              assetId={nodeData.assetId}
+              nodeName={nodeData.name}
+              nodeColor={nodeData.color}
+              assetTypeName={
+                mode === 'execution' && nodeData.documentTypeId
+                  ? docTypeMap.get(nodeData.documentTypeId)?.name
+                  : undefined
+              }
+              nodeActions={nodeActions}
+              onOpenAsset={mode === 'execution' && nodeData.assetId ? () => handleOpenAsset(nodeData.assetId!, nodeData.executionId) : undefined}
+              onExploreDiagrams={
+                mode === 'execution' && canListDiagrams && nodeData.assetId
+                  ? () => handleExploreDiagrams(nodeData.id)
+                  : undefined
+              }
+              documentTypes={documentTypes}
+              onLoadRelationshipsForType={mode === 'execution' && canListExecRelationships ? handleLoadExecutionRelationshipsForType : undefined}
+              onLoadRelationships={nodeData.onLoadRelationships && (mode === 'execution' ? canListExecRelationships : canListRelationships) ? (mode === 'execution' ? handleLoadExecutionRelationships : handleLoadRelationships) : undefined}
+              onLoadRelationshipsCanvasOnly={nodeData.onLoadRelationships && (mode === 'execution' ? canListExecRelationships : canListRelationships) ? (mode === 'execution' ? handleLoadExecRelCanvasOnly : handleLoadRelationshipsCanvasOnly) : undefined}
+              onClose={() => setSelectedNodeId(null)}
+              mode={mode}
+              executionId={nodeData.executionId}
+              organizationId={organizationId}
+              onSelectExecution={handleSelectExecution}
+              readOnly={readOnly}
+            />
+          )
+        })()}
+      </div>
+
+      {diagramsPopover && (() => {
+        const popoverNode = nodes.find((n) => n.id === diagramsPopover.nodeId)
+        const popoverData = popoverNode?.data as AssetTypeNodeData | undefined
+        if (!popoverData?.assetId) return null
+        return (
+          <NodeDiagramsPopover
+            organizationId={organizationId}
+            assetId={popoverData.assetId}
+            assetName={popoverData.name}
+            executionId={popoverData.executionId}
+            currentDiagramId={editingDiagram?.id}
+            anchor={{ x: diagramsPopover.x, y: diagramsPopover.y }}
+            onClose={() => setDiagramsPopover(null)}
+          />
+        )
+      })()}
+
+      {/* Create relationship dialog — document-type mode */}
+      {pendingConnection && mode === 'document-type' && (
+        <RelationshipCreateDialog
+          open={!!pendingConnection}
+          onOpenChange={(o) => !o && setPendingConnection(null)}
+          organizationId={organizationId}
+          sourceDocumentTypeId={pendingConnection.sourceId}
+          targetDocumentTypeId={pendingConnection.targetId}
+          sourceDocumentType={sourceDocType}
+          targetDocumentType={targetDocType}
+          onCreated={handleRelationshipCreated}
+        />
+      )}
+
+      {/* Create relationship dialog — execution mode */}
+      {pendingConnection && mode === 'execution' &&
+        pendingConnection.sourceDocumentTypeId &&
+        pendingConnection.targetDocumentTypeId && (
+        <ExecutionRelationshipCreateDialog
+          open={!!pendingConnection}
+          onOpenChange={(o) => !o && setPendingConnection(null)}
+          organizationId={organizationId}
+          source={{
+            assetId: pendingConnection.sourceAssetId ?? pendingConnection.sourceId,
+            name: pendingConnection.sourceName ?? pendingConnection.sourceId,
+            color: pendingConnection.sourceColor,
+            documentTypeId: pendingConnection.sourceDocumentTypeId,
+            executionId: pendingConnection.sourceExecutionId,
+          }}
+          target={{
+            assetId: pendingConnection.targetAssetId ?? pendingConnection.targetId,
+            name: pendingConnection.targetName ?? pendingConnection.targetId,
+            color: pendingConnection.targetColor,
+            documentTypeId: pendingConnection.targetDocumentTypeId,
+            executionId: pendingConnection.targetExecutionId,
+          }}
+          onCreated={handleExecutionRelationshipCreated}
+        />
+      )}
+
+      {/* Edit relationship dialog — document-type mode */}
+      <RelationshipEditDialog
+        open={!!editingRelationship}
+        onOpenChange={(o) => !o && setEditingRelationship(null)}
+        organizationId={organizationId}
+        relationship={editingRelationship}
+        onUpdated={handleRelationshipUpdated}
+      />
+
+      {/* Execution version picker — shown when user triggers "Load relationships" without a stored executionId */}
+      {pendingExecLoad && (() => {
+        const pendingNode = nodes.find((n) => n.id === pendingExecLoad)
+        const pendingData = pendingNode?.data as AssetTypeNodeData | undefined
+        return (
+          <ExecutionPickerDialog
+            open={!!pendingExecLoad}
+            onOpenChange={(o) => !o && setPendingExecLoad(null)}
+            organizationId={organizationId}
+            assetId={pendingData?.assetId ?? pendingExecLoad}
+            assetName={pendingData?.name ?? pendingExecLoad}
+            onSelect={(executionId) => {
+              doLoadExecutionRelationships(pendingExecLoad, executionId)
+              setPendingExecLoad(null)
+            }}
+          />
+        )
+      })()}
+
+      {/* Execution version picker — shown when an asset is dropped on the canvas (execution mode) */}
+      {pendingDrop && (
+        <ExecutionPickerDialog
+          open={!!pendingDrop}
+          onOpenChange={(o) => !o && setPendingDrop(null)}
+          organizationId={organizationId}
+          assetId={pendingDrop.docType.id}
+          assetName={pendingDrop.docType.name}
+          excludeExecutionIds={nodes
+            .filter((n) => {
+              const d = n.data as AssetTypeNodeData
+              return d.assetId === pendingDrop.docType.id && !!d.executionId
+            })
+            .map((n) => (n.data as AssetTypeNodeData).executionId as string)}
+          onSelect={(executionId, executionName) => {
+            createExecutionNode(pendingDrop.docType, pendingDrop.position, executionId, executionName)
+            setPendingDrop(null)
+          }}
+        />
+      )}
+
+      {/* Role picker — shared by "create role node" and "(re)assign role on container/role node" */}
+      {pendingRolePick && (
+        <HuemulRolePickerDialog
+          open={!!pendingRolePick}
+          onOpenChange={(o) => !o && setPendingRolePick(null)}
+          onSelect={(id, name) => {
+            const role: CanvasElementRole = { id, name }
+            if ("nodeId" in pendingRolePick) {
+              handleUpdateElementRole(pendingRolePick.nodeId, role)
+            } else {
+              // A role node can be dropped onto the canvas more than once — the same
+              // responsible acting at different points of the flow. Each drop is a
+              // distinct node (own `key`/`detailId`, see diagram-utils.ts).
+              createElementNode("role", pendingRolePick.position, role.name, undefined, undefined, undefined, role)
+            }
+            setPendingRolePick(null)
+          }}
+        />
+      )}
+
+      {/* Role↔role / role↔asset edge "Name / Type" dialog — create and rename share
+          this component; nothing reaches the backend until the diagram is saved. */}
+      {roleEdgeDialogState && (
+        <RoleEdgeNameDialog
+          open={!!roleEdgeDialogState}
+          onOpenChange={(o) => !o && setRoleEdgeDialogState(null)}
+          mode={roleEdgeDialogState.mode}
+          source={
+            roleEdgeDialogState.mode === 'create'
+              ? { label: roleEdgeDialogState.pending.sourceLabel, color: roleEdgeDialogState.pending.sourceColor }
+              : roleEdgeDialogState.source
+          }
+          target={
+            roleEdgeDialogState.mode === 'create'
+              ? { label: roleEdgeDialogState.pending.targetLabel, color: roleEdgeDialogState.pending.targetColor }
+              : roleEdgeDialogState.target
+          }
+          initialName={roleEdgeDialogState.mode === 'rename' ? roleEdgeDialogState.initialName : undefined}
+          initialType={roleEdgeDialogState.mode === 'rename' ? roleEdgeDialogState.initialType : undefined}
+          onSubmit={(name, type) => {
+            if (roleEdgeDialogState.mode === 'create') {
+              handleRoleEdgeCreated(roleEdgeDialogState.pending, name, type)
+            } else {
+              handleRenameDirectEdge(roleEdgeDialogState.edgeId, name, type)
+            }
+            setRoleEdgeDialogState(null)
+          }}
+        />
+      )}
+
+      {/* Create-asset dialog — shown when a connection is dropped on empty canvas (execution mode) */}
+      {mode === 'execution' && (
+        <CreateAssetSheet
+          open={!!pendingNewAssetConnection}
+          onOpenChange={(o) => !o && setPendingNewAssetConnection(null)}
+          onAssetCreated={handleNewAssetCreated}
+          canCreate={canCreate('asset')}
+        />
+      )}
+
+      {/* Edit relationship dialog — execution mode */}
+      <ExecutionRelationshipEditDialog
+        open={!!editingExecRelationship}
+        onOpenChange={(o) => !o && setEditingExecRelationship(null)}
+        organizationId={organizationId}
+        executionRelationship={editingExecRelationship}
+        relationshipName={editingExecRelName}
+        onUpdated={(updated) => {
+          setEditingExecRelationship(updated)
+        }}
+      />
+
+      {/* Clear canvas confirmation — a stray click used to wipe unsaved work with no way back */}
+      <HuemulAlertDialog
+        open={showClearConfirm}
+        onOpenChange={setShowClearConfirm}
+        title={t("canvas.clearConfirm.title")}
+        description={t("canvas.clearConfirm.description")}
+        actionLabel={t("canvas.clearConfirm.confirmLabel")}
+        onAction={async () => {
+          handleClearCanvas()
+        }}
+      />
+
+      {isEditorChrome && (
+        <DiagramsDeleteDialog
+          open={showDeleteDiagram}
+          onOpenChange={setShowDeleteDiagram}
+          diagram={editingDiagram ? { id: editingDiagram.id, name: editingDiagram.name } : null}
+          organizationId={organizationId}
+          canDelete={canDeleteDiagram}
+          onDeleted={(id) => {
+            onDiagramDeleted?.(id)
+            onCanvasCleared?.()
+          }}
+        />
+      )}
+
+      {/* Delete exec relationship dialog */}
+      <HuemulAlertDialog
+        open={!!deletingExecRelId}
+        onOpenChange={(o) => !o && setDeletingExecRelId(null)}
+        title={t("delete.title")}
+        description={t("delete.description", { name: deletingExecRelName })}
+        actionLabel={t("delete.confirmLabel")}
+        onAction={async () => {
+          if (!deletingExecRelId) return
+          await new Promise<void>((resolve, reject) => {
+            deleteExecutionRelationship.mutate(deletingExecRelId, {
+              onSuccess: () => {
+                setEdges((eds) => eds.filter((e) => e.id !== `${EXEC_EDGE_ID_PREFIX}${deletingExecRelId}`))
+                setSelectedEdgeId(null)
+                setDeletingExecRelId(null)
+                resolve()
+              },
+              onError: (err) => reject(err),
+            })
+          })
+        }}
+      />
+
+      {/* Delete relationship dialog */}
+      <RelationshipDeleteDialog
+        open={!!deletingRelationship}
+        onOpenChange={(o) => !o && setDeletingRelationship(null)}
+        organizationId={organizationId}
+        relationship={deletingRelationship}
+        onDeleted={() => {
+          if (deletingRelationship) {
+            const configId = extractRelConfig(deletingRelationship).id
+            setEdges((eds) => eds.filter((e) => e.id !== `rel-${configId}`))
+          }
+          setDeletingRelationship(null)
+        }}
+      />
+
+      {/* Attributes management dialog */}
+      {attributesRelationshipId && (
+        <RelationshipAttributesDialog
+          open={!!attributesRelationshipId}
+          onOpenChange={(o) => !o && setAttributesRelationshipId(null)}
+          organizationId={organizationId}
+          relationshipId={attributesRelationshipId}
+          relationshipName={attributesRelationshipName}
+        />
+      )}
+
+      {/* Save current graph as a Diagram, or save changes to the diagram being edited (execution mode only) */}
+      {mode === 'execution' && (
+        <SaveAsDiagramSheet
+          open={saveSheetMode !== null}
+          onOpenChange={(o) => { if (!o) setSaveSheetMode(null) }}
+          organizationId={organizationId}
+          nodes={nodes as Node<AssetTypeNodeData | CanvasElementNodeData>[]}
+          edges={edges as Edge<RelationshipEdgeData>[]}
+          containerRef={containerRef}
+          fitView={fitView}
+          diagramId={saveSheetMode === 'new' ? undefined : editingDiagram?.id}
+          metadataOnly={saveSheetMode === 'metadata'}
+          canCreate={canCreateDiagram}
+          canUpdate={canUpdateDiagram}
+          onSaved={(diagram, savedGraph) => {
+            handleDiagramSaved(diagram)
+            markSaved(savedGraph.nodes, savedGraph.edges)
+          }}
+          initialValues={editingDiagram ? {
+            name: editingDiagram.name,
+            description: editingDiagram.description,
+            executionId: editingDiagram.executionId,
+            snapshotMediaId: editingDiagram.snapshotMediaId,
+          } : undefined}
+        />
+      )}
+    </>
+  )
+}

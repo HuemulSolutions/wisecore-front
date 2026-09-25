@@ -21,6 +21,29 @@ import layout from './locales/layout'
 import templates from './locales/templates'
 import search from './locales/search'
 import auth from './locales/auth'
+import editor from './locales/editor'
+import advanced from './locales/advanced'
+import externalSystems from './locales/external-systems'
+import externalFunctionalities from './locales/external-functionalities'
+import externalSecrets from './locales/external-secrets'
+import externalParameters from './locales/external-parameters'
+import chatbot from './locales/chatbot'
+import huemulFilters from './locales/huemul-filters'
+import huemulFileTree from './locales/huemul-file-tree'
+import canvas from './locales/canvas'
+import diagrams from './locales/diagrams'
+import documentTypeRelationships from './locales/document-type-relationships'
+import media from './locales/media'
+import subscriptions from './locales/subscriptions'
+import notifications from './locales/notifications'
+import roleFolder from './locales/role-folder'
+import workflow from './locales/workflow'
+import errorDetails from './locales/error-details'
+import tokenUsage from './locales/token-usage'
+import tokens from './locales/tokens'
+import tags from './locales/tags'
+import preferences from './locales/preferences'
+import { logger } from '@/lib/logger'
 
 // Each module defines translations per-key: { myKey: { en: "...", es: "..." } }
 // This helper extracts a single language from the tree so i18next can consume it.
@@ -61,9 +84,44 @@ const modules = {
   templates,
   search,
   auth,
+  editor,
+  advanced,
+  'external-systems': externalSystems,
+  'external-functionalities': externalFunctionalities,
+  'external-secrets': externalSecrets,
+  'external-parameters': externalParameters,
+  chatbot,
+  'huemul-filters': huemulFilters,
+  'huemul-file-tree': huemulFileTree,
+  canvas,
+  diagrams,
+  'document-type-relationships': documentTypeRelationships,
+  media,
+  subscriptions,
+  notifications,
+  'role-folder': roleFolder,
+  workflow,
+  'error-details': errorDetails,
+  'token-usage': tokenUsage,
+  tokens,
+  tags,
+  preferences,
 } as const
 
-const supportedLanguages = ['en', 'es'] as const
+export const supportedLanguages = ['en', 'es'] as const
+
+/**
+ * Normaliza un código de idioma crudo (`i18n.language`/`i18n.resolvedLanguage`,
+ * típicamente con región — `es-ES`, `es-419`, `en-US`) al idioma soportado más
+ * cercano, con fallback a `'en'`. Única fuente de verdad: reusar esto en vez
+ * de comparar contra `supportedLanguages` a mano (bug real: comparar el
+ * código crudo sin quitar la región siempre falla el `includes` y cae al
+ * fallback — ver `useLanguagePreference.ts`).
+ */
+export function resolveSupportedLanguage(lng?: string): (typeof supportedLanguages)[number] {
+  const base = (lng ?? 'en').split('-')[0] as (typeof supportedLanguages)[number]
+  return supportedLanguages.includes(base) ? base : 'en'
+}
 
 const resources = Object.fromEntries(
   supportedLanguages.map((lang) => [
@@ -84,7 +142,11 @@ i18n
     resources,
     fallbackLng: 'en',
     detection: {
-      order: ['navigator', 'htmlTag', 'path', 'subdomain'],
+      // 'localStorage' primero: si el usuario eligió un idioma explícito
+      // (useLanguagePreference, src/hooks/useLanguagePreference.ts) debe
+      // ganarle a la detección del navegador en el próximo arranque, incluso
+      // antes de que resuelva el GET al servidor.
+      order: ['localStorage', 'navigator', 'htmlTag', 'path', 'subdomain'],
       caches: ['localStorage'],
     },
     interpolation: {
@@ -93,5 +155,29 @@ i18n
     ns: Object.keys(modules),
     defaultNS: 'common',
   })
+
+// Mantiene <html lang> alineado con el idioma real que i18next eligió, y
+// reafirma el opt-out de traducción automática. index.html ya declara
+// lang="es" + translate="no" + <meta name="google" content="notranslate">,
+// pero eso solo cubre el HTML servido; esto lo mantiene correcto cuando el
+// detector ('navigator' primero) resuelve un idioma distinto. Un <html lang>
+// desalineado del contenido real es lo que dispara el traductor del
+// navegador, que reparenta nodos de texto (<font>) y provoca
+// "NotFoundError: Failed to execute 'removeChild'" cuando React intenta
+// actualizar ese subárbol — se ejecuta a nivel de módulo (antes de
+// createRoot en main.tsx) para llegar antes del primer paint.
+function syncDocumentLang(lng?: string) {
+  const resolved = resolveSupportedLanguage(lng)
+  const html = document.documentElement
+  html.lang = resolved
+  html.setAttribute('translate', 'no')
+  html.classList.add('notranslate')
+  if (/\btranslated-(ltr|rtl)\b/.test(html.className)) {
+    logger.warn('[wisecore] pagina traducida por el navegador')
+  }
+}
+
+syncDocumentLang(i18n.resolvedLanguage ?? i18n.language)
+i18n.on('languageChanged', syncDocumentLang)
 
 export default i18n

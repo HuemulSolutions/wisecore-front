@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { usePermissions } from '@/contexts/permissions-context';
 import type { Permission } from '@/lib/jwt-utils';
 
@@ -15,14 +15,17 @@ export function useUserPermissions() {
   try {
     contextData = usePermissions();
   } catch {
-    // Si el contexto no está disponible, retornar valores por defecto
-    console.warn('PermissionsContext not available, using default values');
+    // Context not available (e.g. Plate editor portals outside the provider tree).
+    // Return safe defaults with isLoading:false so consumers don't block rendering.
     contextData = {
       permissions: [],
       roles: [],
       isRootAdmin: false,
       isOrgAdmin: false,
-      isLoading: true,
+      isLoading: false,
+      // No provider in this tree (e.g. Plate editor portals) — don't block
+      // consumers waiting on this flag.
+      hasLoadedPermissionsOnce: true,
       hasPermission: () => false,
       hasAnyPermission: () => false,
       hasAllPermissions: () => false,
@@ -38,6 +41,7 @@ export function useUserPermissions() {
     isRootAdmin,
     isOrgAdmin,
     isLoading,
+    hasLoadedPermissionsOnce,
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
@@ -98,6 +102,16 @@ export function useUserPermissions() {
     return hasAnyPermission(['folder:r', 'folder:l', 'folder:c', 'folder:u', 'folder:d']) || isOrgAdmin;
   }, [hasAnyPermission, isOrgAdmin]);
 
+  const canAccessRoleFolders = useMemo(() => {
+    return hasAnyPermission(['role_folder:r', 'role_folder:l', 'role_folder:c', 'role_folder:u', 'role_folder:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
+
+  // Permite crear/eliminar carpetas grupales custom en la raíz (hermanas de Global/Forms/Grupal),
+  // sin necesitar ser org admin. Ver ia context/rbac-permissions-guide.md.
+  const canManageGroupFolders = useMemo(() => {
+    return hasPermission('folder:manage_groups') || isOrgAdmin;
+  }, [hasPermission, isOrgAdmin]);
+
   const canAccessTemplates = useMemo(() => {
     return hasAnyPermission(['template:r', 'template:l', 'template:c', 'template:u', 'template:d']) || isOrgAdmin;
   }, [hasAnyPermission, isOrgAdmin]);
@@ -134,6 +148,38 @@ export function useUserPermissions() {
     return hasAnyPermission(['discussion:r', 'discussion:l', 'discussion:c', 'discussion:u', 'discussion:d']) || isOrgAdmin;
   }, [hasAnyPermission, isOrgAdmin]);
 
+  const canAccessExternalSystems = useMemo(() => {
+    return hasAnyPermission(['external_system:r', 'external_system:l', 'external_system:c', 'external_system:u', 'external_system:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
+
+  const canAccessExternalFunctionalities = useMemo(() => {
+    return hasAnyPermission(['external_functionality:r', 'external_functionality:l', 'external_functionality:c', 'external_functionality:u', 'external_functionality:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
+
+  const canAccessExternalParameters = useMemo(() => {
+    return hasAnyPermission(['external_parameter:r', 'external_parameter:l', 'external_parameter:c', 'external_parameter:u', 'external_parameter:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
+
+  const canAccessExternalSecrets = useMemo(() => {
+    return hasAnyPermission(['external_secret:r', 'external_secret:l', 'external_secret:c', 'external_secret:u', 'external_secret:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
+
+  const canAccessCanvas = useMemo(() => {
+    return hasAnyPermission(['canvas:r', 'canvas:l', 'canvas:c', 'canvas:u', 'canvas:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
+
+  const canAccessDiagrams = useMemo(() => {
+    return hasAnyPermission(['diagram:r', 'diagram:l', 'diagram:c', 'diagram:u', 'diagram:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
+
+  const canAccessTokenUsage = useMemo(() => {
+    return hasAnyPermission(['token_usage:r', 'token_usage:l']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
+
+  const canAccessNotifications = useMemo(() => {
+    return hasAnyPermission(['notification:r', 'notification:l', 'notification:c', 'notification:u', 'notification:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
+
   // Función para verificar múltiples permisos de un recurso
   const hasResourceAccess = useMemo(() => {
     return (resource: string, actions: string[] = ['r']) => {
@@ -157,35 +203,6 @@ export function useUserPermissions() {
     };
   }, [hasPermission, isOrgAdmin]);
 
-  // Debug info (solo en desarrollo) - con throttling para evitar spam
-  const lastLogRef = useRef<string>('');
-  
-  if (process.env.NODE_ENV === 'development') {
-    const currentState = JSON.stringify({
-      isRootAdmin,
-      isOrgAdmin,
-      permissionsCount: permissions.length,
-      canAccessUsers,
-      canAccessRoles,
-      canAccessAssets,
-      isLoading
-    });
-    
-    // Solo logear cuando el estado realmente cambia
-    if (currentState !== lastLogRef.current && permissions.length > 0) {
-      lastLogRef.current = currentState;
-      console.log('useUserPermissions state changed:', {
-        isRootAdmin,
-        isOrgAdmin,
-        permissionsCount: permissions.length,
-        canAccessUsers,
-        canAccessRoles,
-        canAccessAssets,
-        isLoading
-      });
-    }
-  }
-
   return {
     // Estado
     permissions,
@@ -193,6 +210,7 @@ export function useUserPermissions() {
     isRootAdmin,
     isOrgAdmin,
     isLoading,
+    hasLoadedPermissionsOnce,
 
     // Funciones básicas
     hasPermission,
@@ -214,6 +232,8 @@ export function useUserPermissions() {
     canAccessRoles,
     canAccessAssets,
     canAccessFolders,
+    canAccessRoleFolders,
+    canManageGroupFolders,
     canAccessTemplates,
     canAccessDocumentTypes,
     canAccessSections,
@@ -223,6 +243,14 @@ export function useUserPermissions() {
     canAccessOrganizations,
     canAccessVersions,
     canAccessDiscussions,
+    canAccessExternalSystems,
+    canAccessExternalFunctionalities,
+    canAccessExternalParameters,
+    canAccessExternalSecrets,
+    canAccessCanvas,
+    canAccessDiagrams,
+    canAccessTokenUsage,
+    canAccessNotifications,
 
     // Funciones de utilidad
     hasResourceAccess,

@@ -1,14 +1,7 @@
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-
-interface PageSkeletonProps {
-  /** Number of skeleton rows to display in the table */
-  rows?: number
-  /** Show search input skeleton */
-  showSearch?: boolean
-  /** Show additional filters skeleton */
-  showFilters?: boolean
-}
+import type { PageSkeletonProps } from '@/types/huemul'
+export type { PageSkeletonProps } from '@/types/huemul'
 
 export function PageSkeleton({ 
   rows = 5, 

@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogClose } from "@/components/ui/dialog";
-import { ReusableDialog } from "@/components/ui/reusable-dialog";
-import { Button } from "@/components/ui/button";
+import { HuemulDialog } from "@/huemul/components/huemul-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -11,24 +9,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Play, FastForward, Bot, Loader2 } from 'lucide-react';
-import { getLLMs, getDefaultLLM } from '@/services/llms';
-import type { LLM } from '@/types/llm';
+import { Play, FastForward, Loader2 } from 'lucide-react';
+import { getAllLLMs, getDefaultLLM } from '@/services/llms';
+import type { LLM } from '@/types/models';
 import { useOrganization } from '@/contexts/organization-context';
 import { handleApiError } from '@/lib/error-utils';
+import type { ExecutionConfigDialogProps } from '@/types/execution';
 
-interface ExecutionConfigDialogProps {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    mode: 'single' | 'from';
-    onExecute: (config: ExecutionConfig) => void;
-    isExecuting?: boolean;
-}
-
-export interface ExecutionConfig {
-    instructions: string;
-    llmModel: string;
-}
+export type { ExecutionConfig } from '@/types/execution';
 
 export default function ExecutionConfigDialog({ 
     open, 
@@ -53,7 +41,7 @@ export default function ExecutionConfigDialog({
     const loadLLMs = async () => {
         try {
             setIsLoadingLLMs(true);
-            const llms = await getLLMs();
+            const llms = await getAllLLMs();
             setAvailableLLMs(llms);
             
             // Try to set default LLM
@@ -91,50 +79,26 @@ export default function ExecutionConfigDialog({
     const Icon = mode === 'single' ? Play : FastForward;
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <ReusableDialog
-                open={open}
-                onOpenChange={onOpenChange}
-                title={title}
-                description={description}
-                icon={Icon}
-                maxWidth="md"
-                maxHeight="90vh"
-                footer={
-                    <div className="flex items-center justify-end gap-3 w-full">
-                        <DialogClose asChild>
-                            <Button 
-                                variant="outline" 
-                                disabled={isExecuting}
-                                className="hover:cursor-pointer"
-                            >
-                                Cancel
-                            </Button>
-                        </DialogClose>
-                        <Button
-                            onClick={handleExecute}
-                            disabled={isExecuting || !llmModel || isLoadingLLMs || availableLLMs.length === 0}
-                            className={`hover:cursor-pointer ${
-                                mode === 'single' 
-                                    ? 'bg-green-600 hover:bg-green-700' 
-                                    : 'bg-purple-600 hover:bg-purple-700'
-                            }`}
-                        >
-                            {isExecuting ? (
-                                <>
-                                    <Bot className="h-4 w-4 mr-2 animate-spin" />
-                                    Executing...
-                                </>
-                            ) : (
-                                <>
-                                    <Icon className="h-4 w-4 mr-2" />
-                                    Execute
-                                </>
-                            )}
-                        </Button>
-                    </div>
-                }
-            >
+        <HuemulDialog
+            open={open}
+            onOpenChange={onOpenChange}
+            title={title}
+            description={description}
+            icon={Icon}
+            maxWidth="sm:max-w-md"
+            maxHeight="max-h-[90vh]"
+            saveAction={{
+                label: "Execute",
+                onClick: handleExecute,
+                disabled: isExecuting || !llmModel || isLoadingLLMs || availableLLMs.length === 0,
+                loading: isExecuting,
+                icon: Icon,
+                closeOnSuccess: false,
+                className: mode === 'single'
+                    ? 'bg-green-600 hover:bg-green-700 hover:cursor-pointer'
+                    : 'bg-purple-600 hover:bg-purple-700 hover:cursor-pointer',
+            }}
+        >
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="llm-model">LLM Model</Label>
@@ -189,7 +153,6 @@ export default function ExecutionConfigDialog({
                         </p>
                     </div>
                 </div>
-            </ReusableDialog>
-        </Dialog>
+        </HuemulDialog>
     );
 }

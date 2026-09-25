@@ -1,49 +1,27 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import type { Value } from 'platejs';
 import { Button } from '@/components/ui/button';
 import { Check, X, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { PlateRichEditor, type PlateRichEditorRef } from './plate-editor';
+import { useTranslation } from 'react-i18next';
+import type { SectionPlateEditorRef, SectionPlateEditorProps } from '@/types/section-plate-editor';
+export type { SectionPlateEditorRef, SectionPlateEditorProps } from '@/types/section-plate-editor';
+import { normalizePlateMediaForSave } from '@/lib/plate-media-utils';
+import { ensureMermaidSnapshots } from '@/lib/plate-mermaid-utils';
+import { ensureDataTableSnapshots, normalizeDataTableNodesInTree } from '@/lib/plate-data-table-utils';
+import { useDataTableBatchResolver } from '@/contexts/document-data-context';
+import { labelForColumnId } from '@/lib/data-table-catalog-labels';
+import { uploadMedia } from '@/services/media';
 
-interface SectionPlateEditorProps {
-  /** Section ID for save callbacks */
-  sectionId: string;
-  /** Markdown content to display / edit */
-  content: string;
-  /**
-   * Plate JSON nodes (stringified array) previously saved alongside the markdown.
-   * When provided, the editor is initialized from this rich JSON instead of the
-   * plain markdown, preserving comment marks and other metadata that markdown
-   * serialisation cannot carry.
-   */
-  plateContent?: string[];
-  /** Whether the editor is in edit mode */
-  isEditing: boolean;
-  /** Called when the user saves – receives (sectionId, markdownString, plateContent) */
-  onSave: (sectionId: string, newContent: string, plateContent?: string[]) => void | Promise<void>;
-  /** Called when the user cancels editing */
-  onCancel: () => void;
-  /** Whether a save operation is in progress */
-  isSaving?: boolean;
-  /** Optional className for the outer wrapper */
-  className?: string;
-  /** Document ID – enables discussion/comment sync when provided */
-  documentId?: string;
-  /** Section execution ID – required for creating discussions */
-  sectionExecutionId?: string;
-  /** Callback to create a new section from selected text */
-  onCreateSectionFromSelection?: (selectedMarkdown: string) => void;
-  /**
-   * Called after any discussion mutation (create discussion, add comment reply).
-   * Receives (sectionId, markdown, plateContent) so the caller can silently
-   * persist the updated plate_content – which now contains the comment marks –
-   * without requiring the user to explicitly save the section.
-   */
-  onAutoSavePlateContent?: (sectionId: string, markdown: string, plateContent: string[]) => void;
-}
-
-/** Ensure every element node has an iterable `children` array so Slate never crashes. */
+/**
+ * Ensure every element node has an iterable `children` array so Slate never crashes.
+ * Also validates table hierarchy: table children must be tr rows, and tr children
+ * must be td/th cells. Invalid children are filtered out to prevent
+ * computeCellIndices from crashing on non-iterable row.children.
+ */
 function sanitizeNodes(nodes: unknown[]): Value {
   return nodes.map((node) => {
     if (typeof node !== 'object' || node === null) {
@@ -51,11 +29,34 @@ function sanitizeNodes(nodes: unknown[]): Value {
     }
     if ('text' in node) return node;
     const el = node as Record<string, unknown>;
+    let children = Array.isArray(el.children)
+      ? sanitizeNodes(el.children as unknown[])
+      : [{ text: '' }];
+
+    const type = el.type as string | undefined;
+
+    // Table children must be row elements (tr)
+    if (type === 'table') {
+      children = (children as any[]).filter(
+        (child) => child && typeof child === 'object' && !('text' in child) && child.type === 'tr'
+      ) as Value;
+      if (children.length === 0) {
+        children = [{ type: 'tr', children: [{ type: 'td', children: [{ type: 'p', children: [{ text: '' }] }] }] }] as Value;
+      }
+    }
+    // Row children must be cell elements (td / th)
+    else if (type === 'tr') {
+      children = (children as any[]).filter(
+        (child) => child && typeof child === 'object' && !('text' in child) && (child.type === 'td' || child.type === 'th')
+      ) as Value;
+      if (children.length === 0) {
+        children = [{ type: 'td', children: [{ type: 'p', children: [{ text: '' }] }] }] as Value;
+      }
+    }
+
     return {
       ...el,
-      children: Array.isArray(el.children)
-        ? sanitizeNodes(el.children as unknown[])
-        : [{ text: '' }],
+      children,
     };
   }) as Value;
 }
@@ -77,17 +78,19 @@ function parsePlateContent(raw: string[]): Value | null {
  * - When `isEditing` is false the editor renders in read-only mode with no
  *   toolbar and no border, looking like styled content.
  * - When `isEditing` is true the toolbar appears together with Save / Cancel
- *   action buttons.
+ *   action buttons (unless `hideActions` is true).
  *
  * Initialization priority:
  *   1. `plateContent` (rich JSON with comment marks) when available
  *   2. `content` (markdown string) as fallback
  */
-export default function SectionPlateEditor({
-  sectionId,
-  content,
+const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorProps>(
+  function SectionPlateEditor({
+  sectionId = '',
+  content = '',
   plateContent,
-  isEditing,
+  initialValue,
+  isEditing = false,
   onSave,
   onCancel,
   isSaving = false,
@@ -96,15 +99,63 @@ export default function SectionPlateEditor({
   sectionExecutionId,
   onCreateSectionFromSelection,
   onAutoSavePlateContent,
-}: SectionPlateEditorProps) {
+  enableComments = true,
+  enableCreateSection = true,
+  hideActions = false,
+  toolbarTopOffset,
+  onValueChange,
+  organizationId,
+  mediaUploadTarget,
+}, ref) {
   const editorRef = useRef<PlateRichEditorRef>(null);
+  const resolveDataTableBatch = useDataTableBatchResolver();
   const [dirty, setDirty] = useState(false);
+  const [isPreparingSave, setIsPreparingSave] = useState(false);
   const prevContentRef = useRef<string>(content);
+  const { t } = useTranslation('common');
+  const { t: tEditor } = useTranslation('editor');
+
+  // Renders + uploads a fresh snapshot for every Mermaid diagram whose code changed
+  // since its last snapshot (see ensureMermaidSnapshots), writes the media reference
+  // back into the live editor, and returns the updated value. No-op when there's no
+  // organizationId to upload with (e.g. richtext form fields outside an asset).
+  const runEnsureMermaidSnapshots = useCallback(async (): Promise<{ value: Value; failed: number }> => {
+    const plateValue = editorRef.current?.getValue();
+    if (!plateValue || !organizationId) return { value: plateValue ?? [], failed: 0 };
+
+    const { value, failed } = await ensureMermaidSnapshots(plateValue, (file) =>
+      uploadMedia(organizationId, {
+        file,
+        level: mediaUploadTarget?.level ?? 'document',
+        parent_id: mediaUploadTarget?.parentId ?? documentId ?? null,
+        name: 'mermaid-diagram.png',
+        origin: 'mermaid_snapshot',
+      }),
+    );
+
+    if (failed > 0) {
+      toast.warning(tEditor('mermaid.snapshotFailed', { count: failed }));
+    }
+    editorRef.current?.resetValue(value as Value);
+    return { value: value as Value, failed };
+  }, [organizationId, mediaUploadTarget, documentId, tEditor]);
+
+  // Expose editor methods via ref for use in parent forms
+  useImperativeHandle(ref, () => ({
+    getMarkdown: () => editorRef.current?.getMarkdown() ?? content,
+    getValue: () => editorRef.current?.getValue() ?? [],
+    resetContent: (markdown: string) => editorRef.current?.resetContent(markdown),
+    resetValue: (value: Value) => editorRef.current?.resetValue(value),
+    ensureMermaidSnapshots: runEnsureMermaidSnapshots,
+  }), [content, runEnsureMermaidSnapshots]);
 
   // Parse plate_content once per section load.
-  // If valid JSON is available it takes priority over markdown for initialization.
+  // Priority: initialValue > plateContent (JSON) > content (markdown)
   const initialPlateValue = useMemo(
-    () => (plateContent ? parsePlateContent(plateContent) : null),
+    () => {
+      if (initialValue) return initialValue;
+      return plateContent ? parsePlateContent(plateContent) : null;
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [sectionId], // re-parse only when the section changes, not on every render
   );
@@ -131,17 +182,44 @@ export default function SectionPlateEditor({
     }
   }, [content, plateContent, isEditing]);
 
-  const handleChange = useCallback(() => {
+  const handleChange = useCallback((value: Value) => {
     if (!dirty) setDirty(true);
-  }, [dirty]);
+    onValueChange?.(value);
+  }, [dirty, onValueChange]);
 
-  const handleSave = useCallback(() => {
-    if (!dirty || isSaving) return;
-    const md = editorRef.current?.getMarkdown() ?? content;
-    const plateValue = editorRef.current?.getValue();
-    const newPlateContent = plateValue?.map((node) => JSON.stringify(node));
-    onSave(sectionId, md, newPlateContent);
-  }, [dirty, isSaving, sectionId, content, onSave]);
+  const handleSave = useCallback(async () => {
+    if (!dirty || isSaving || isPreparingSave) return;
+    setIsPreparingSave(true);
+    try {
+      // Snapshot any changed Mermaid diagrams first – the markdown serialized right
+      // after depends on their `url` already pointing at the uploaded media.
+      const { value: mermaidValue } = await runEnsureMermaidSnapshots();
+      // Freeze the resolved rows of every `data_table` node into its `snapshot` — the
+      // Markdown serialize rule (markdown-kit.tsx) reads only that frozen snapshot, never
+      // live data, so Word/Markdown exports must get today's data at save time. A batch
+      // resolve failure never blocks the save (see ensureDataTableSnapshots) — it just keeps
+      // the previous snapshot and reports it via `failed`.
+      const { value: plateValue, failed: dataTableFailed } = await ensureDataTableSnapshots(
+        mermaidValue,
+        resolveDataTableBatch,
+        (columnId) => labelForColumnId(tEditor, columnId),
+      );
+      if (dataTableFailed > 0) {
+        toast.warning(tEditor('dataTable.snapshotFailed', { count: dataTableFailed }));
+      }
+      editorRef.current?.resetValue(plateValue as Value);
+      const md = editorRef.current?.getMarkdown() ?? content;
+      // Rewrite url/previewUrl back to {{MEDIA:<uuid>}} for every media node before
+      // persisting, so the backend always has a placeholder to re-resolve fresh on
+      // the next load (a resolved SAS previewUrl left in place would expire and
+      // never be refreshed again).
+      const normalized = plateValue.length ? normalizePlateMediaForSave(plateValue) : plateValue;
+      const newPlateContent = normalized?.map((node) => JSON.stringify(node));
+      await onSave?.(sectionId, md, newPlateContent);
+    } finally {
+      setIsPreparingSave(false);
+    }
+  }, [dirty, isSaving, isPreparingSave, sectionId, content, onSave, runEnsureMermaidSnapshots, resolveDataTableBatch, tEditor]);
 
   const handleCancel = useCallback(() => {
     if (isSaving) return;
@@ -150,38 +228,40 @@ export default function SectionPlateEditor({
       const parsed = parsePlateContent(plateContent);
       if (parsed) {
         editorRef.current?.resetValue(parsed);
-        onCancel();
+        onCancel?.();
         return;
       }
     }
     editorRef.current?.resetContent(content);
-    onCancel();
+    onCancel?.();
   }, [isSaving, content, plateContent, onCancel]);
 
-  const actionButtons = isEditing ? (
-    <>
+  const actionButtons = isEditing && !hideActions ? (
+    <div className="flex items-center justify-end gap-2 border-t border-border px-3 py-1.5">
       <Button
-        variant="ghost"
+        variant="outline"
         onClick={handleCancel}
-        className="hover:cursor-pointer hover:bg-gray-100 h-7 w-7 p-0"
+        className="hover:cursor-pointer"
         size="sm"
-        disabled={isSaving}
+        disabled={isSaving || isPreparingSave}
       >
-        <X className="h-4 w-4 text-gray-600" />
+        <X className="h-4 w-4 mr-1" />
+        {t('cancel')}
       </Button>
       <Button
         onClick={handleSave}
-        className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer h-7 w-7 p-0"
+        className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
         size="sm"
-        disabled={!dirty || isSaving}
+        disabled={!dirty || isSaving || isPreparingSave}
       >
-        {isSaving ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
+        {isSaving || isPreparingSave ? (
+          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
         ) : (
-          <Check className="h-4 w-4" />
+          <Check className="h-4 w-4 mr-1" />
         )}
+        {isSaving || isPreparingSave ? t('saving') : t('save')}
       </Button>
-    </>
+    </div>
   ) : undefined;
 
   return (
@@ -196,22 +276,34 @@ export default function SectionPlateEditor({
         showToolbar={isEditing}
         onChange={handleChange}
         variant="section"
-        className={isEditing ? 'min-h-[240px]' : undefined}
+        className={isEditing && !hideActions ? 'min-h-60' : undefined}
         toolbarActions={actionButtons}
         documentId={documentId}
         sectionExecutionId={sectionExecutionId}
+        mediaUploadTarget={mediaUploadTarget}
+        enableComments={enableComments}
+        enableCreateSection={enableCreateSection}
+        toolbarTopOffset={toolbarTopOffset}
+        organizationId={organizationId}
         onAfterDiscussionMutation={onAutoSavePlateContent ? () => {
-          // Read current editor state and persist plate_content silently
-          // so comment marks survive a page refresh.
-          const md = editorRef.current?.getMarkdown() ?? content;
+          // Read current editor state and persist plate_content silently so comment marks
+          // survive a page refresh. Also backfills `node_id` on any `data_table` node that
+          // doesn't have one yet (sync, no network, no snapshot recompute) — a document that
+          // only ever autosaves and never goes through the manual "Guardar" (handleSave)
+          // would otherwise never get the anchor its Markdown markers/refresh need.
           const plateValue = editorRef.current?.getValue();
           if (plateValue) {
-            onAutoSavePlateContent(sectionId, md, plateValue.map((n) => JSON.stringify(n)));
+            const normalizedDataTables = normalizeDataTableNodesInTree(plateValue) as Value;
+            editorRef.current?.resetValue(normalizedDataTables);
+            const md = editorRef.current?.getMarkdown() ?? content;
+            const normalized = normalizePlateMediaForSave(normalizedDataTables);
+            onAutoSavePlateContent(sectionId, md, normalized.map((n) => JSON.stringify(n)));
           }
         } : undefined}
-        onCreateSectionFromSelection={onCreateSectionFromSelection}
+        onCreateSectionFromSelection={enableCreateSection ? onCreateSectionFromSelection : undefined}
       />
     </div>
   );
-}
+});
 
+export default SectionPlateEditor;

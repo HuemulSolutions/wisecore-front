@@ -18,18 +18,10 @@ import { toast } from "sonner";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useOrganization } from "@/contexts/organization-context";
+import { usePageAccess } from "@/hooks/usePageAccess";
 import { useTranslation } from "react-i18next";
-
-interface TemplateConfigSheetProps {
-  template: {
-    id: string;
-    name: string;
-    description?: string;
-    template_sections?: any[];
-  } | null;
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-}
+import type { TemplateConfigSheetProps } from '@/types/assets';
+export type { TemplateConfigSheetProps } from '@/types/assets';
 
 export function TemplateConfigSheet({
   template,
@@ -38,7 +30,13 @@ export function TemplateConfigSheet({
 }: TemplateConfigSheetProps) {
   const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
-  const { t } = useTranslation('assets');
+  // El sheet muta `template_section`, no `asset`: gate propio en vez de
+  // depender de que el trigger no se renderice (sus 2 call-sites viven en
+  // /asset, así que la matriz de esa página es la fuente).
+  const { can } = usePageAccess('asset');
+  const canUpdateSection = can('updateTemplateSection');
+  const canDeleteSection = can('deleteTemplateSection');
+  const { t } = useTranslation(["assets", "common"]);
   const [isAddingSection, setIsAddingSection] = useState(false);
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
 
@@ -74,8 +72,10 @@ export function TemplateConfigSheet({
   });
 
   const updateSectionMutation = useMutation({
-    mutationFn: ({ sectionId, sectionData }: { sectionId: string; sectionData: any }) =>
-      updateTemplateSection(sectionId, sectionData, selectedOrganizationId!),
+    mutationFn: ({ sectionId, sectionData }: { sectionId: string; sectionData: any }) => {
+      if (!canUpdateSection) return Promise.reject(new Error('Missing permission'));
+      return updateTemplateSection(sectionId, sectionData, selectedOrganizationId!);
+    },
     onSuccess: () => {
       toast.success(t('templateSheet.sectionUpdated'));
       queryClient.invalidateQueries({ queryKey: ['template', template?.id] });
@@ -89,10 +89,12 @@ export function TemplateConfigSheet({
     }: {
       sectionId: string;
       options?: { propagate_to_documents?: boolean };
-    }) =>
-      options?.propagate_to_documents
+    }) => {
+      if (!canDeleteSection) return Promise.reject(new Error('Missing permission'));
+      return options?.propagate_to_documents
         ? deleteTemplateSectionWithPropagation(sectionId, options, selectedOrganizationId!)
-        : deleteTemplateSection(sectionId, selectedOrganizationId!),
+        : deleteTemplateSection(sectionId, selectedOrganizationId!);
+    },
     onSuccess: (data: any) => {
       if (data?.propagated && data?.deleted_document_sections_count) {
         toast.success(t('templateSheet.sectionDeletedPropagated', { count: data.deleted_document_sections_count }));
@@ -104,7 +106,10 @@ export function TemplateConfigSheet({
   });
 
   const reorderSectionsMutation = useMutation({
-    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections, selectedOrganizationId!),
+    mutationFn: (sections: { section_id: string; order: number }[]) => {
+      if (!canUpdateSection) return Promise.reject(new Error('Missing permission'));
+      return updateSectionsOrder(sections, selectedOrganizationId!);
+    },
     onSuccess: () => {
       toast.success(t('templateSheet.orderUpdated'));
       queryClient.invalidateQueries({ queryKey: ['template', template?.id] });
@@ -113,6 +118,9 @@ export function TemplateConfigSheet({
 
   // Función para manejar el final del drag
   const handleDragEnd = (event: DragEndEvent) => {
+    // Reordenar es un gesto sin botón: necesita su propio chequeo (punto 8 del
+    // checklist de ia context/rbac-audit-guide.md).
+    if (!canUpdateSection) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -225,7 +233,7 @@ export function TemplateConfigSheet({
                         size="sm"
                         disabled={addSectionMutation.isPending}
                       >
-                        {t('templateSheet.cancel')}
+                        {t('common:cancel')}
                       </Button>
                       <Button
                         form="add-template-section-form"
@@ -269,6 +277,9 @@ export function TemplateConfigSheet({
                                 await deleteSectionMutation.mutateAsync({ sectionId, options });
                               }}
                               isTemplateSection={true}
+                              templateId={template!.id}
+                              canUpdate={canUpdateSection}
+                              canDelete={canDeleteSection}
                             />
                           </div>
                         ))}

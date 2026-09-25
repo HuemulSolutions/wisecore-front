@@ -1,24 +1,31 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import { logger } from "@/lib/logger";
+import type { SectionDependencyConfig, SectionFormField } from "@/types/sections/core";
 
 export async function createSection(
-    sectionData: { 
-        name: string; 
+    sectionData: {
+        name: string;
         document_id: string;
-        execution_id?: string;
-        prompt?: string; 
-        output?: string;
+        prompt?: string;
+        design_prompt?: string;
+        generate_content?: boolean;
+        generate_design?: boolean;
+        html_template_identifier?: string;
         reference_section_id?: string;
         reference_mode?: string;
         reference_execution_id?: string;
-        dependencies?: string[]; 
-        type?: "ai" | "manual" | "reference";
-    }, 
+        dependencies?: string[];
+        type?: "ai" | "manual" | "reference" | "form";
+        form_fields?: SectionFormField[];
+        execution_id?: string;
+        output?: string;
+    } & SectionDependencyConfig,
     organizationId: string
 ) {
     const response = await httpClient.post(`${backendUrl}/sections/`, {
         ...sectionData,
-        type: sectionData.type || "ai" // Asegurar que siempre se envíe el tipo
+        type: sectionData.type || "ai"
     }, {
         headers: {
             'X-Org-Id': organizationId,
@@ -26,23 +33,30 @@ export async function createSection(
     });
 
     const data = await response.json();
-    console.log('Section created:', data.data);
+    logger.log('Section created:', data.data);
     return data.data;
 }
 
 export async function updateSection(
-    sectionId: string, 
-    sectionData: { 
-        name?: string; 
-        type?: "ai" | "manual" | "reference";
-        prompt?: string; 
+    sectionId: string,
+    sectionData: {
+        name?: string;
+        type?: "ai" | "manual" | "reference" | "form";
+        prompt?: string;
+        design_prompt?: string;
+        generate_content?: boolean;
+        generate_design?: boolean;
+        html_template_identifier?: string;
         output?: string;
         reference_section_id?: string;
         reference_mode?: string;
         reference_execution_id?: string;
-        dependencies?: string[]; 
+        dependencies?: string[];
         propagate_to_template?: boolean;
-    }, 
+        propagate_to_executions?: boolean;
+        execution_id?: string;
+        form_fields?: SectionFormField[];
+    } & SectionDependencyConfig,
     organizationId: string
 ) {
     const response = await httpClient.put(`${backendUrl}/sections/${sectionId}`, sectionData, {
@@ -52,7 +66,7 @@ export async function updateSection(
     });
 
     const data = await response.json();
-    console.log('Section updated:', data.data);
+    logger.log('Section updated:', data.data);
     return data.data;
 }
 
@@ -69,7 +83,7 @@ export async function updateSectionsOrder(sections: { section_id: string; order:
     });
 
     const data = await response.json();
-    console.log('Sections reordered:', data.data);
+    logger.log('Sections reordered:', data.data);
     return data.data;
 }
 
@@ -91,7 +105,7 @@ export async function deleteSection(
         },
     });
 
-    console.log('Section deleted:', sectionId);
+    logger.log('Section deleted:', sectionId);
     return sectionId;
 }
 

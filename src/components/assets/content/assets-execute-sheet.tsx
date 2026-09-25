@@ -15,32 +15,14 @@ import {
   getExecutionById, 
   executeDocument 
 } from "@/services/executions";
-import { getLLMs, getDefaultLLM } from "@/services/llms";
+import { getAllLLMs, getDefaultLLM } from "@/services/llms";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
 import { handleApiError } from "@/lib/error-utils";
-
-interface ExecuteSheetProps {
-  selectedFile: {
-    id: string;
-    name: string;
-    type: "folder" | "document";
-    access_levels?: string[];
-  } | null;
-  fullDocument?: any;
-  isLoadingFullDocument?: boolean;
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSectionSheetOpen: () => void;
-  onExecutionComplete?: () => void;
-  onExecutionCreated?: (executionId: string, mode: 'full' | 'full-single' | 'single' | 'from', sectionIndex?: number) => void;
-  isMobile?: boolean;
-  disabled?: boolean;
-  disabledReason?: string;
-  selectedExecutionId?: string | null;
-  executionContext?: { type: 'header' | 'section', sectionIndex?: number, sectionId?: string } | null;
-}
+import { logger } from "@/lib/logger";
+import type { ExecuteSheetProps } from '@/types/assets';
+export type { ExecuteSheetProps } from '@/types/assets';
 
 export function ExecuteSheet({
   selectedFile,
@@ -49,10 +31,11 @@ export function ExecuteSheet({
   isOpen,
   onOpenChange,
   onSectionSheetOpen,
-  onExecutionComplete,
   onExecutionCreated,
   selectedExecutionId,
-  executionContext}: ExecuteSheetProps) {
+  executionContext,
+  disabled,
+  disabledReason}: ExecuteSheetProps) {
   // Estados para el Execute Sheet
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
 
@@ -63,7 +46,7 @@ export function ExecuteSheet({
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
   
   const { selectedOrganizationId } = useOrganization();
-  const { t } = useTranslation('execute');
+  const { t } = useTranslation(['execute', 'common']);
   
   // Refs para la inicialización
   const instructionsInitialized = useRef<boolean>(false);
@@ -91,7 +74,7 @@ export function ExecuteSheet({
   // Query para obtener LLMs (lazy loading: only when sheet is open)
   const { data: llms } = useQuery({
     queryKey: ["llms"],
-    queryFn: getLLMs,
+    queryFn: getAllLLMs,
     enabled: isOpen, // Only fetch when sheet is actually open
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
@@ -131,10 +114,13 @@ export function ExecuteSheet({
       // Necesitamos acceder a execution.id
       const executionId = executionData.execution?.id || executionData.id;
       
-      console.log('📦 Execute Sheet - Raw response:', executionData);
-      console.log('🆔 Extracted execution ID:', executionId);
-      
-      setCurrentExecutionId(executionId);
+      logger.log('📦 Execute Sheet - Raw response:', executionData);
+      logger.log('🆔 Extracted execution ID:', executionId);
+
+      // No se hace setCurrentExecutionId(executionId) acá: el sheet se cierra
+      // en la línea de abajo, así que esa query (getExecutionById, para
+      // precargar instrucciones/LLM al EDITAR una ejecución) nunca llega a
+      // usarse — sólo dispara un GET /execution/{id} de más (B1).
       setHasAttemptedCreation(false);
       
       // Determinar el índice de la sección si aplica
@@ -142,7 +128,7 @@ export function ExecuteSheet({
         ? fullDocument.sections.findIndex((s: any) => s.id === selectedSectionId)
         : undefined;
       
-      console.log('🚀 Execute Sheet - Execution created:', {
+      logger.log('🚀 Execute Sheet - Execution created:', {
         executionId,
         executionType,
         selectedSectionId,
@@ -157,7 +143,6 @@ export function ExecuteSheet({
         : undefined;
       
       onExecutionCreated?.(executionId, executionType, indexToPass);
-      onExecutionComplete?.();
       onOpenChange(false); // Cerrar el sheet inmediatamente
     },
     onError: (error) => {
@@ -174,6 +159,11 @@ export function ExecuteSheet({
 
   // Nueva función para ejecutar documento directamente
   const handleExecuteDocument = () => {
+    if (disabled) {
+      toast.error(disabledReason ?? t('assets:content.cannotGenerateGeneric'));
+      return;
+    }
+
     if (!selectedFile?.id) {
       toast.error(t('toast.noDocumentId'));
       return;
@@ -315,7 +305,7 @@ export function ExecuteSheet({
         fullDocument?.sections?.[executionContext.sectionIndex]?.id &&
         !selectedSectionId) {
       const sectionId = fullDocument.sections[executionContext.sectionIndex].id;
-      console.log('🔄 [ExecuteSheet] Updating selectedSectionId from fullDocument:', sectionId);
+      logger.log('🔄 [ExecuteSheet] Updating selectedSectionId from fullDocument:', sectionId);
       setSelectedSectionId(sectionId);
     }
   }, [isOpen, executionContext, fullDocument, selectedSectionId]);
@@ -351,7 +341,7 @@ export function ExecuteSheet({
       if ((executionType === 'single' || executionType === 'from') && !selectedSectionId) disabledReasons.push('Single/From mode without section');
       if ((executionType === 'single' || executionType === 'from') && !currentExecutionId && !selectedExecutionId) disabledReasons.push('Single/From mode without execution');
       
-      console.log('🔍 [ExecuteSheet] Estado del botón:', {
+      logger.log('🔍 [ExecuteSheet] Estado del botón:', {
         executionType,
         selectedSectionId,
         currentExecutionId,
@@ -368,9 +358,9 @@ export function ExecuteSheet({
       });
       
       if (disabledReasons.length > 0) {
-        console.log('🚫 [ExecuteSheet] Button DISABLED. Reasons:', disabledReasons);
+        logger.log('🚫 [ExecuteSheet] Button DISABLED. Reasons:', disabledReasons);
       } else {
-        console.log('✅ [ExecuteSheet] Button ENABLED');
+        logger.log('✅ [ExecuteSheet] Button ENABLED');
       }
     }
   }, [isOpen, executionType, selectedSectionId, currentExecutionId, selectedExecutionId, fullDocument?.sections, fullDocument, defaultLLM?.id, sheetSelectedLLM, executeDocumentMutation.isPending, isLoadingDefaultLLM, isLoadingFullDocument, isActuallyLoadingFullDocument, executionContext]);
@@ -397,6 +387,16 @@ export function ExecuteSheet({
     value: section.id,
   })) ?? [];
 
+  // When coming from a section context, find the section in fullDocument by ID (not by sectionIndex),
+  // because documentContent.content may include sections with null section_id that are absent from
+  // fullDocument.sections, causing the indices to diverge.
+  const contextSection = executionContext?.type === 'section' && executionContext.sectionId
+    ? fullDocument?.sections?.find((s: any) => s.id === executionContext.sectionId)
+    : undefined;
+  const contextSectionStructureIndex = contextSection
+    ? fullDocument?.sections?.indexOf(contextSection)
+    : -1;
+
   const llmOptions = llms?.map((llm: any) => ({
     label: defaultLLM?.id === llm.id ? `${llm.name} (${t('languageModel.defaultBadge')})` : llm.name,
     value: llm.id,
@@ -422,11 +422,12 @@ export function ExecuteSheet({
             loading={executeDocumentMutation.isPending || isActuallyLoadingFullDocument || isLoadingDefaultLLM}
             icon={Play}
             label={
-              executeDocumentMutation.isPending ? t('button.creating') :
-              (isActuallyLoadingFullDocument || isLoadingDefaultLLM) ? t('button.loading') :
+              executeDocumentMutation.isPending ? t('common:creating') :
+              (isActuallyLoadingFullDocument || isLoadingDefaultLLM) ? t('common:loading') :
               t('button.execute')
             }
             disabled={
+              !!disabled ||
               isActuallyLoadingFullDocument ||
               isLoadingDefaultLLM ||
               executeDocumentMutation.isPending ||
@@ -435,11 +436,22 @@ export function ExecuteSheet({
               ((executionType === 'single' || executionType === 'from') &&
                 (!selectedSectionId || (!currentExecutionId && !selectedExecutionId)))
             }
+            tooltip={disabled ? disabledReason : undefined}
             className="bg-[#4464f7] hover:bg-[#3451e6]"
           />
         }
       >
         <div className="space-y-6">
+                  {/* Aviso de bloqueo (ej. can_generate=false) — el tooltip del botón
+                      del header puede no dispararse sobre un botón deshabilitado, así
+                      que el motivo también se muestra acá. */}
+                  {disabled && disabledReason && !executeDocumentMutation.isPending && !(hasAttemptedCreation && executeDocumentMutation.isError) && (
+                    <Card className="border-0 shadow-sm border-l-4 border-l-amber-500">
+                      <CardContent className="py-4">
+                        <p className="text-sm text-gray-700">{disabledReason}</p>
+                      </CardContent>
+                    </Card>
+                  )}
                   {/* Estado de carga mientras se ejecuta el documento */}
                   {executeDocumentMutation.isPending ? (
                     <Card className="border-0 shadow-sm border-l-4 border-l-[#4464f7]">
@@ -469,7 +481,7 @@ export function ExecuteSheet({
                           loading={executeDocumentMutation.isPending}
                           disabled={isActuallyLoadingFullDocument || isLoadingDefaultLLM || (!sheetSelectedLLM && !defaultLLM?.id)}
                           icon={Play}
-                          label={t('button.tryAgain')}
+                          label={t('common:tryAgain')}
                           className="bg-[#4464f7] hover:bg-[#3451e6] px-6"
                         />
                         </div>
@@ -538,11 +550,11 @@ export function ExecuteSheet({
                                 <div className="flex items-center gap-2">
                                   <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
                                   <span className="text-sm font-medium text-blue-900">
-                                    {t('selectedSection.sectionNumber', { number: (executionContext.sectionIndex || 0) + 1 })}
+                                    {t('selectedSection.sectionNumber', { number: contextSectionStructureIndex >= 0 ? contextSectionStructureIndex + 1 : (executionContext.sectionIndex || 0) + 1 })}
                                   </span>
                                 </div>
                                 <div className="text-sm text-blue-700">
-                                  {fullDocument?.sections?.[executionContext.sectionIndex || 0]?.name || t('selectedSection.label')}
+                                  {contextSection?.name || fullDocument?.sections?.[executionContext.sectionIndex || 0]?.name || t('selectedSection.label')}
                                 </div>
                               </div>
                               <p className="text-xs text-gray-500">

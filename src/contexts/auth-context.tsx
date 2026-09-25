@@ -1,21 +1,15 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
 import { toast } from 'sonner';
 import { httpClient } from '@/lib/http-client';
+import { queryClient } from '@/lib/query-client';
+import { logger } from '@/lib/logger';
+import { sessionEvents } from '@/lib/session-events';
 import type { User } from '@/types/users';
+import type { AuthContextType, AuthProviderProps } from '@/types/auth'
+export type { AuthContextType }
 
 // Re-export User type for external consumption
 export type { User };
-
-export interface AuthContextType {
-  user: User | null;
-  token: string | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (token: string, user: User) => void;
-  logout: () => void;
-  updateUser: (user: User) => void;
-}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -27,9 +21,6 @@ export const useAuth = () => {
   return context;
 };
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
@@ -47,11 +38,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setToken(savedToken);
         setUser(parsedUser);
         httpClient.setLoginToken(savedToken);
-        console.log('AuthContext: Restored login token from localStorage:', savedToken.substring(0, 10) + '...');
+        logger.log('AuthContext: Restored login token from localStorage:', savedToken.substring(0, 10) + '...');
       } catch (error) {
-        console.error('Error parsing saved user data:', error);
+        logger.error('Error parsing saved user data:', error);
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_user');
+        // httpClient ya se hidrató con este token al cargar el módulo (ver
+        // http-client.ts) — si el auth_user asociado está corrupto, limpiarlo también.
+        httpClient.setLoginToken(null);
       }
     }
 
@@ -70,16 +64,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const login = (authToken: string, userData: User) => {
-    console.log('AuthContext: Login called with token:', authToken.substring(0, 10) + '...', 'and user:', userData.email);
+    logger.log('AuthContext: Login called with token:', authToken.substring(0, 10) + '...', 'and user:', userData.email);
     setToken(authToken);
     setUser(userData);
     localStorage.setItem('auth_token', authToken);
     localStorage.setItem('auth_user', JSON.stringify(userData));
     httpClient.setLoginToken(authToken);
-    console.log('AuthContext: Login completed, login token set in httpClient');
+    logger.log('AuthContext: Login completed, login token set in httpClient');
+    // Avisa a PermissionsProvider/OrganizationContext (no pueden consumir
+    // useAuth() sin invertir el orden de providers, ver session-events.ts).
+    // No-op en el flujo logout→login (ya está limpio), pero mantiene el
+    // invariante "todo borde de sesión limpia el estado derivado" también
+    // para el caso de login sin logout previo.
+    sessionEvents.emitReset('login');
   };
 
-  const logout = () => {
+  const clearSession = () => {
     setToken(null);
     setUser(null);
     localStorage.removeItem('auth_token');
@@ -89,6 +89,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     httpClient.setLoginToken(null);
     httpClient.setOrganizationToken(null);
     httpClient.setOrganizationId(null);
+  };
+
+  const logout = () => {
+    clearSession();
+    // Purge cached data so it can't leak into the next session in this tab
+    // (e.g. a different user logging in right after, or the same user
+    // logging back into a different organization).
+    queryClient.clear();
+    // Debe ir al final: PermissionsProvider/OrganizationContext leen el
+    // estado ya limpio (httpClient nulo) al reaccionar a este evento.
+    sessionEvents.emitReset('logout');
   };
 
   const updateUser = (updatedUser: User) => {

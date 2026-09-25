@@ -1,5 +1,6 @@
 import * as React from "react";
-import { type LucideIcon, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,77 +13,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-export interface HuemulDialogFooterAction {
-  /** Button label */
-  label: string;
-  /** Click handler — can be async; the button will show a loader until it resolves */
-  onClick?: () => void | Promise<void>;
-  /** Button variant (defaults to "default") */
-  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-  /** Disable the button */
-  disabled?: boolean;
-  /** Show a loading spinner / disable while loading (external control) */
-  loading?: boolean;
-  /** Optional icon to render inside the button */
-  icon?: LucideIcon;
-  /** Auto-close the dialog after a successful async click (default: true for saveAction, false for extraActions) */
-  closeOnSuccess?: boolean;
-}
-
-export interface HuemulDialogProps {
-  /** Controlled open state */
-  open: boolean;
-  /** Called when the dialog requests to open or close */
-  onOpenChange: (open: boolean) => void;
-
-  // ── Header ──────────────────────────────────────────────────────────────
-  /** Dialog title (required) */
-  title: string;
-  /** Optional description below the title */
-  description?: string;
-  /** Optional icon rendered to the left of the title */
-  icon?: LucideIcon;
-  /** Icon className overrides (e.g. size, color) */
-  iconClassName?: string;
-
-  // ── Close button ────────────────────────────────────────────────────────
-  /** Show the X close button in the top-right corner (default: true) */
-  showCloseButton?: boolean;
-
-  // ── Loading ─────────────────────────────────────────────────────────────
-  /** Show a skeleton loader in the body while content is loading (default: false) */
-  bodyLoading?: boolean;
-
-  // ── Footer ──────────────────────────────────────────────────────────────
-  /** Show the sticky footer (default: true) */
-  showFooter?: boolean;
-  /** Show a Cancel button in the footer (default: true when footer visible) */
-  showCancelButton?: boolean;
-  /** Label for the cancel button (default: "Cancel") */
-  cancelLabel?: string;
-  /** Primary save / confirm action */
-  saveAction?: HuemulDialogFooterAction;
-  /** Extra action buttons rendered between cancel and save */
-  extraActions?: HuemulDialogFooterAction[];
-
-  /** Delay in ms before auto-closing the dialog after a successful async action (default: 500) */
-  closeDelay?: number;
-
-  // ── Layout ──────────────────────────────────────────────────────────────
-  /** Max-width class (default: "sm:max-w-lg") */
-  maxWidth?: string;
-  /** Max-height class (default: "max-h-[85vh]") */
-  maxHeight?: string;
-  /** Additional className on DialogContent */
-  className?: string;
-  /** Body content */
-  children: React.ReactNode;
-}
-
-// ── Component ──────────────────────────────────────────────────────────────
+import type { HuemulDialogFooterAction, HuemulDialogProps } from "@/types/huemul";
+export type { HuemulDialogFooterAction, HuemulDialogProps } from "@/types/huemul";
 
 export function HuemulDialog({
   open,
@@ -95,15 +27,20 @@ export function HuemulDialog({
   bodyLoading = false,
   showFooter = true,
   showCancelButton = true,
-  cancelLabel = "Cancel",
+  cancelLabel,
+  onCancel,
   saveAction,
   extraActions,
   closeDelay = 500,
   maxWidth = "sm:max-w-lg",
   maxHeight = "max-h-[85vh]",
   className,
+  footerLeft,
   children,
 }: HuemulDialogProps) {
+  // Default traducido del botón de cancelar (ver HuemulSheet).
+  const { t } = useTranslation("common");
+
   // Shared helpers so every path goes through Radix's onOpenChange
   const closeDialog = React.useCallback(() => {
     onOpenChange(false);
@@ -155,23 +92,6 @@ export function HuemulDialog({
     }
   }, [open]);
 
-  // Submit on Enter key (skip textareas)
-  React.useEffect(() => {
-    if (!open || !saveAction) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Enter" || e.shiftKey) return;
-      const target = e.target as HTMLElement;
-      if (target.tagName === "TEXTAREA") return;
-      if (saveAction.disabled || saveAction.loading || saveLoading) return;
-      e.preventDefault();
-      handleActionClick(saveAction, setSaveLoading, true);
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, saveAction, saveLoading, handleActionClick]);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -198,7 +118,7 @@ export function HuemulDialog({
         </DialogHeader>
 
         {/* ── Body ───────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-6 py-2">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-2">
           {bodyLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-4 w-3/4" />
@@ -214,66 +134,83 @@ export function HuemulDialog({
         </div>
 
         {/* ── Footer (sticky) ────────────────────────────────────────── */}
-        {showFooter && (
-          <div className="sticky bottom-0 border-t bg-background px-6 py-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            {showCancelButton && (
-              <DialogClose asChild>
-                <Button
-                  variant="outline"
-                  className="hover:cursor-pointer"
-                  onClick={closeDialog}
-                >
-                  {cancelLabel}
-                </Button>
-              </DialogClose>
-            )}
+        {showFooter && (() => {
+          const buttons = (
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              {showCancelButton && (
+                <DialogClose asChild>
+                  <Button
+                    variant="outline"
+                    className="hover:cursor-pointer"
+                    onClick={() => onCancel?.()}
+                  >
+                    {cancelLabel ?? t("cancel")}
+                  </Button>
+                </DialogClose>
+              )}
 
-            {extraActions?.map((action, index) => {
-              const ActionIcon = action.icon;
-              const isLoading = action.loading || extraLoading[index];
-              return (
+              {extraActions?.map((action, index) => {
+                const ActionIcon = action.icon;
+                const isLoading = action.loading || extraLoading[index];
+                return (
+                  <Button
+                    key={action.label}
+                    variant={action.variant ?? "secondary"}
+                    disabled={action.disabled || isLoading}
+                    className={cn("hover:cursor-pointer", action.className)}
+                    onClick={() =>
+                      handleActionClick(
+                        action,
+                        (v) => setExtraLoading((prev) => ({ ...prev, [index]: v })),
+                        false,
+                      )
+                    }
+                  >
+                    {isLoading ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      ActionIcon && <ActionIcon className="size-4" />
+                    )}
+                    {action.label}
+                  </Button>
+                );
+              })}
+
+              {saveAction && (
                 <Button
-                  key={action.label}
-                  variant={action.variant ?? "secondary"}
-                  disabled={action.disabled || isLoading}
-                  className="hover:cursor-pointer"
+                  variant={saveAction.variant ?? "default"}
+                  disabled={saveAction.disabled || saveAction.loading || saveLoading}
+                  className={cn("hover:cursor-pointer", saveAction.className)}
                   onClick={() =>
-                    handleActionClick(
-                      action,
-                      (v) => setExtraLoading((prev) => ({ ...prev, [index]: v })),
-                      false,
-                    )
+                    handleActionClick(saveAction, setSaveLoading, true)
                   }
                 >
-                  {isLoading ? (
+                  {(saveAction.loading || saveLoading) ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
-                    ActionIcon && <ActionIcon className="size-4" />
+                    saveAction.icon && <saveAction.icon className="size-4" />
                   )}
-                  {action.label}
+                  {saveAction.label}
                 </Button>
-              );
-            })}
+              )}
+            </div>
+          );
 
-            {saveAction && (
-              <Button
-                variant={saveAction.variant ?? "default"}
-                disabled={saveAction.disabled || saveAction.loading || saveLoading}
-                className="hover:cursor-pointer"
-                onClick={() =>
-                  handleActionClick(saveAction, setSaveLoading, true)
-                }
-              >
-                {(saveAction.loading || saveLoading) ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  saveAction.icon && <saveAction.icon className="size-4" />
-                )}
-                {saveAction.label}
-              </Button>
-            )}
-          </div>
-        )}
+          if (!footerLeft) {
+            return (
+              <div className="sticky bottom-0 border-t bg-background px-6 py-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                {buttons}
+              </div>
+            );
+          }
+
+          return (
+            <div className="sticky bottom-0 border-t bg-background px-6 py-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center">{footerLeft}</div>
+              {buttons}
+            </div>
+          );
+        })()}
       </DialogContent>
     </Dialog>
   );

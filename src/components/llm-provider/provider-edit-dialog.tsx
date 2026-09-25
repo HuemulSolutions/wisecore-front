@@ -1,18 +1,11 @@
 import { useState, useEffect } from "react"
-import { Edit } from "lucide-react"
+import { Edit, ExternalLink } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
-import type { SupportedProvider, CreateLLMProviderRequest } from "@/types/llm-provider"
-
-interface EditProviderDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  provider: any | null
-  supportedProviders: SupportedProvider[]
-  onSubmit: (data: CreateLLMProviderRequest) => void
-  isUpdating: boolean
-}
+import type { CreateLLMProviderRequest, EditProviderDialogProps, SupportedProvider } from "@/types/llm-provider"
+import { isMultilineKeyProvider, getProviderHelpUrl, isCredentialsHelpUrl } from "./provider-key-hints"
+export type { EditProviderDialogProps } from "@/types/llm-provider"
 
 export function EditProviderDialog({
   open,
@@ -21,6 +14,7 @@ export function EditProviderDialog({
   supportedProviders,
   onSubmit,
   isUpdating,
+  canUpdate,
 }: EditProviderDialogProps) {
   const [name, setName] = useState("")
   const [isManaged, setIsManaged] = useState(false)
@@ -39,9 +33,9 @@ export function EditProviderDialog({
       setName(provider.name || "")
       setIsManaged(provider.is_managed || false)
       setSelectedType(provider.type || "")
-      setApiKey("")
-      setEndpoint("")
-      setDeployment("")
+      setApiKey("") // nunca viene del backend
+      setEndpoint(provider.endpoint ?? "")
+      setDeployment(provider.deployment ?? "")
     }
   }, [provider, open])
 
@@ -58,19 +52,21 @@ export function EditProviderDialog({
   }, [open])
 
   const handleSave = async () => {
+    if (!canUpdate) return
+
     const data: CreateLLMProviderRequest = {
       name,
       type: selectedType,
       is_managed: isManaged,
     }
 
-    if (selectedProvider?.requires_api_key) {
+    if (selectedProvider?.requires_api_key && apiKey.trim() !== "") {
       data.key = apiKey
     }
-    if (selectedProvider?.requires_endpoint) {
+    if (selectedProvider?.requires_endpoint && endpoint.trim() !== "") {
       data.endpoint = endpoint
     }
-    if (selectedProvider?.requires_deployment) {
+    if (selectedProvider?.requires_deployment && deployment.trim() !== "") {
       data.deployment = deployment
     }
 
@@ -80,7 +76,6 @@ export function EditProviderDialog({
   const isFormValid =
     name.trim() !== "" &&
     selectedType !== "" &&
-    (!selectedProvider?.requires_api_key || apiKey.trim() !== "") &&
     (!selectedProvider?.requires_endpoint || endpoint.trim() !== "") &&
     (!selectedProvider?.requires_deployment || deployment.trim() !== "")
 
@@ -89,7 +84,17 @@ export function EditProviderDialog({
     value: p.type,
   }))
 
-  if (!provider) return null
+  const helpLinkAction = (supportedProvider: SupportedProvider | undefined) => {
+    const url = getProviderHelpUrl(supportedProvider)
+    if (!url) return undefined
+    return {
+      icon: ExternalLink,
+      onClick: () => window.open(url, '_blank', 'noopener,noreferrer'),
+      tooltip: isCredentialsHelpUrl(supportedProvider) ? t('createProviderDialog.getCredentials') : t('createProviderDialog.viewDocs'),
+    }
+  }
+
+  if (!provider || !canUpdate) return null
 
   return (
     <HuemulDialog
@@ -145,11 +150,12 @@ export function EditProviderDialog({
           <HuemulField
             label={t('createProviderDialog.apiKeyLabel')}
             name="apiKey"
-            type="password"
-            placeholder={t('createProviderDialog.apiKeyPlaceholder')}
+            type={isMultilineKeyProvider(selectedProvider.type) ? "textarea" : "password"}
+            placeholder={t('editProviderDialog.apiKeyKeepPlaceholder')}
+            description={t('editProviderDialog.apiKeyKeepHelp')}
             value={apiKey}
             onChange={(v) => setApiKey(String(v))}
-            required
+            {...(helpLinkAction(selectedProvider) ? { labelAction: helpLinkAction(selectedProvider) } : {})}
           />
         )}
 
@@ -157,11 +163,12 @@ export function EditProviderDialog({
           <HuemulField
             label={t('createProviderDialog.endpointLabel')}
             name="endpoint"
-            type="password"
-            placeholder="https://api.example.com/v1"
+            type="url"
+            placeholder={t('createProviderDialog.endpointPlaceholder')}
             value={endpoint}
             onChange={(v) => setEndpoint(String(v))}
             required
+            {...(helpLinkAction(selectedProvider) ? { labelAction: helpLinkAction(selectedProvider) } : {})}
           />
         )}
 
@@ -169,11 +176,12 @@ export function EditProviderDialog({
           <HuemulField
             label={t('createProviderDialog.deploymentLabel')}
             name="deployment"
-            type="password"
+            type="text"
             placeholder={t('createProviderDialog.deploymentPlaceholder')}
             value={deployment}
             onChange={(v) => setDeployment(String(v))}
             required
+            {...(helpLinkAction(selectedProvider) ? { labelAction: helpLinkAction(selectedProvider) } : {})}
           />
         )}
       </HuemulFieldGroup>

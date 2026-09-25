@@ -3,11 +3,137 @@ import { KEYS } from 'platejs';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 
+import { MEDIA_TOKEN_RE, isMediaToken } from '@/lib/plate-media-utils';
+import { MERMAID_KEY } from '@/lib/plate-mermaid-utils';
+import { DATA_TABLE_KEY, buildGfmTableMarkdown } from '@/lib/plate-data-table-utils';
+import { ASSET_REFERENCE_KEY, ROLE_REFERENCE_KEY } from '@/lib/plate-reference-utils';
+import type { AssetReferenceElement, RoleReferenceElement } from '@/types/reference';
+import type { DataTableElement } from '@/types/data-table-node';
+
+/** Matches `![alt]({{MEDIA:<uuid>}})` — the markdown image form of the media token. */
+const MEDIA_IMAGE_RE = /^!\[([^\]]*)\]\((\{\{MEDIA:[0-9a-f-]{36}\}\})\)$/i;
+
+/** Flattens a Plate caption/text node array (`[{ text: '...' }, ...]`) to plain text. */
+function plainTextOf(nodes: unknown): string {
+  if (!Array.isArray(nodes)) return '';
+  return nodes
+    .map((n) => (n && typeof n === 'object' && 'text' in n ? String((n as { text: unknown }).text ?? '') : ''))
+    .join('')
+    .trim();
+}
+
 export const MarkdownKit = [
   MarkdownPlugin.configure({
     options: {
       plainMarks: [KEYS.suggestion, KEYS.comment],
       remarkPlugins: [remarkMath, remarkGfm, remarkMdx, remarkMention],
+      rules: {
+        // Serialize {{MEDIA:GUID}} image nodes as a markdown image, but wrapped as raw
+        // HTML so remark doesn't escape the curly braces inside the URL. The backend's
+        // export_markdown only resolves the `![alt](url)` pattern, so the token must be
+        // wrapped in real markdown-image syntax, not left bare.
+        [KEYS.img]: {
+          serialize: (slateNode: any) => {
+            const url: string = slateNode.url ?? '';
+            if (isMediaToken(url)) {
+              return { type: 'html', value: `![${slateNode.alt ?? ''}](${url})` } as any;
+            }
+            // Default: standard markdown image
+            return {
+              type: 'image',
+              url,
+              alt: slateNode.alt ?? '',
+              title: slateNode.title ?? null,
+            };
+          },
+        },
+        // Non-image media reference (pdf/docx/xlsx/csv/pptx/txt) — serialized as a
+        // markdown link, not an image: unlike KEYS.img, the backend's export_markdown
+        // does not (yet) resolve a {{MEDIA:GUID}} token inside a link, so this degrades
+        // to a visible file name with an unresolved href until backend implements it
+        // (see respuestas/backend-referencia-archivo-markdown.md). Wrapped as raw HTML,
+        // same reason as KEYS.img, so remark doesn't escape the token's curly braces.
+        // Without this rule the node has no text children and disappears from the
+        // export entirely, which is strictly worse — never revert to no rule at all.
+        [KEYS.file]: {
+          serialize: (slateNode: any) => {
+            const url: string = slateNode.url ?? '';
+            const label = plainTextOf(slateNode.caption) || slateNode.name || 'archivo';
+            if (isMediaToken(url)) {
+              return { type: 'html', value: `[${label}](${url})` } as any;
+            }
+            return { type: 'link', url, children: [{ type: 'text', value: label }] } as any;
+          },
+        },
+        // A Mermaid diagram can't be rendered server-side, so the parallel markdown
+        // text carries either the rasterized snapshot (once uploaded) as a standard
+        // markdown image, or – if no snapshot exists yet – the source code in a fenced
+        // block so the content isn't silently lost.
+        [MERMAID_KEY]: {
+          serialize: (slateNode: any) => {
+            const url: string = slateNode.url ?? '';
+            if (isMediaToken(url)) {
+              const alt = plainTextOf(slateNode.caption) || 'Diagrama';
+              return { type: 'html', value: `![${alt}](${url})` } as any;
+            }
+            const code: string = slateNode.code ?? '';
+            return { type: 'html', value: '```mermaid\n' + code + '\n```' } as any;
+          },
+        },
+        // Tabla de datos dinámica — solo serialize, sin deserialize: el nodo siempre
+        // vuelve desde `plate_content` JSON, nunca se reconstruye desde Markdown (mismo
+        // criterio que ASSET_REFERENCE_KEY más abajo). Se serializa el `snapshot` congelado
+        // por `ensureDataTableSnapshots` al guardar (ver section-plate-editor.tsx), no los
+        // datos en vivo — la serialización corre fuera de React, sin acceso al caché.
+        // Envuelta como `html` crudo, igual que MERMAID_KEY, para que remark no escape
+        // las barras `|` de la tabla GFM ni los comentarios `<!-- data_table:{node_id} -->`
+        // que delimitan el bloque para el refresco automático del backend.
+        [DATA_TABLE_KEY]: {
+          serialize: (slateNode: DataTableElement) => {
+            const markdown = buildGfmTableMarkdown(slateNode);
+            return markdown ? ({ type: 'html', value: markdown } as any) : ({ type: 'text', value: '' } as any);
+          },
+        },
+        // Referencias `@` (asset_reference/role_reference) — solo serialize, sin
+        // deserialize: el contenido siempre carga desde plate_content JSON, nunca
+        // se reconstruye desde Markdown (mismo criterio que MERMAID_KEY arriba).
+        // El nombre viene del snapshot del propio nodo (name/pinnedVersionLabel),
+        // no del caché de datos frescos — este paso corre fuera de React.
+        [ASSET_REFERENCE_KEY]: {
+          serialize: (slateNode: AssetReferenceElement) => ({
+            type: 'text',
+            value: slateNode.versionMode === 'pinned' && slateNode.pinnedVersionLabel
+              ? `@${slateNode.name}@${slateNode.pinnedVersionLabel}`
+              : `@${slateNode.name}`,
+          }),
+        },
+        [ROLE_REFERENCE_KEY]: {
+          serialize: (slateNode: RoleReferenceElement) => ({ type: 'text', value: `@${slateNode.name}` }),
+        },
+        // Deserialize raw HTML {{MEDIA:GUID}} tokens back into image nodes – both the
+        // bare legacy token and the `![alt]({{MEDIA:GUID}})` markdown-image form.
+        html: {
+          deserialize: (mdastNode: any) => {
+            const raw: string = (mdastNode.value ?? '').trim();
+
+            const imageMatch = MEDIA_IMAGE_RE.exec(raw);
+            const token = imageMatch ? imageMatch[2] : raw;
+            const alt = imageMatch ? imageMatch[1] : undefined;
+
+            const match = MEDIA_TOKEN_RE.exec(token);
+            if (match) {
+              return {
+                type: KEYS.img,
+                url: token,
+                mediaId: match[1],
+                alt,
+                children: [{ text: '' }],
+              };
+            }
+            return undefined;
+          },
+        },
+      },
     },
   }),
 ];

@@ -1,71 +1,39 @@
 import { httpClient } from '@/lib/http-client';
 import { backendUrl } from '@/config';
+import type { DocumentType, DocumentTypeDetail, DocumentTypeDetailResponse, DocumentTypesResponse, CreateDocumentTypeData, UpdateDocumentTypeData } from '@/types/document-types';
 
-export interface DocumentType {
-  id: string;
-  name: string;
-  color: string;
-  created_at: string;
-  updated_at: string;
-  document_count: number;
-}
+export type { DocumentType, DocumentTypeDetail, DocumentTypeDetailResponse, DocumentTypesResponse, CreateDocumentTypeData, UpdateDocumentTypeData };
 
-export interface DocumentTypeDetail {
-  id: string;
-  name: string;
-  color: string;
-  created_at: string;
-  updated_at: string;
-  role_count: number;
-  access_level: string[];
-}
-
-export interface DocumentTypeDetailResponse {
-  data: DocumentTypeDetail;
-  transaction_id: string;
-  timestamp: string;
-}
-
-export interface DocumentTypesResponse {
-  data: DocumentType[];
-  transaction_id: string;
-  timestamp: string;
-}
-
-export interface CreateDocumentTypeData {
-  name: string;
-  color: string;
-}
-
-export interface UpdateDocumentTypeData {
-  name?: string;
-  color?: string;
-}
-
-// Get current organization ID from localStorage or context
-const getOrganizationId = (): string | null => {
-  return localStorage.getItem('selectedOrganizationId');
-};
-
-// Get headers with organization ID
-const getHeaders = (): Record<string, string> => {
-  const orgId = getOrganizationId();
-  const headers: Record<string, string> = {};
-  
-  if (orgId) {
-    headers['X-Org-Id'] = orgId;
-  }
-  
-  return headers;
-};
+// Nota: X-Org-Id lo inyecta httpClient desde el contexto de organización activa
+// (ver src/lib/http-client.ts). No pasarlo a mano leyendo localStorage: ese header
+// gana sobre el de httpClient y puede servir una organización obsoleta tras un
+// cambio de organización activa.
 
 // Get all document types
-export const getDocumentTypes = async (): Promise<DocumentTypesResponse> => {
-  const response = await httpClient.fetch(`${backendUrl}/document_types/`, {
+export const getDocumentTypes = async (params?: {
+  page?: number
+  page_size?: number
+  search?: string
+  tag_id?: string
+  document_type_folder_id?: string
+  /** Si es true, cada document type llega con sus etiquetas asignadas en `tags`. */
+  include_tags?: boolean
+}): Promise<DocumentTypesResponse> => {
+  const query = new URLSearchParams()
+  if (params?.page) query.set('page', params.page.toString())
+  if (params?.page_size) query.set('page_size', params.page_size.toString())
+  if (params?.search?.trim()) query.set('search', params.search.trim())
+  if (params?.tag_id) query.set('tag_id', params.tag_id)
+  if (params?.document_type_folder_id) query.set('document_type_folder_id', params.document_type_folder_id)
+  // Se omite cuando es false: ese ya es el default del backend y mandarlo
+  // ensuciaría la query string sin cambiar la respuesta.
+  if (params?.include_tags) query.set('include_tags', 'true')
+  const qs = query.toString()
+
+  const response = await httpClient.fetch(`${backendUrl}/document_types/${qs ? `?${qs}` : ''}`, {
     method: 'GET',
-    headers: getHeaders(),
   });
-  
+
   return response.json();
 };
 
@@ -73,23 +41,19 @@ export const getDocumentTypes = async (): Promise<DocumentTypesResponse> => {
 export const createDocumentType = async (data: CreateDocumentTypeData): Promise<DocumentType> => {
   const response = await httpClient.fetch(`${backendUrl}/document_types/`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getHeaders(),
-    },
     body: JSON.stringify(data),
   });
-  
-  return response.json();
+
+  const json = await response.json();
+  return json.data;
 };
 
 // Get document type by ID
 export const getDocumentTypeById = async (id: string): Promise<DocumentTypeDetailResponse> => {
   const response = await httpClient.fetch(`${backendUrl}/document_types/${id}`, {
     method: 'GET',
-    headers: getHeaders(),
   });
-  
+
   return response.json();
 };
 
@@ -97,20 +61,16 @@ export const getDocumentTypeById = async (id: string): Promise<DocumentTypeDetai
 export const updateDocumentType = async (id: string, data: UpdateDocumentTypeData): Promise<DocumentType> => {
   const response = await httpClient.fetch(`${backendUrl}/document_types/${id}`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getHeaders(),
-    },
     body: JSON.stringify(data),
   });
-  
-  return response.json();
+
+  const json = await response.json();
+  return json.data;
 };
 
 // Delete document type
 export const deleteDocumentType = async (id: string): Promise<void> => {
   await httpClient.fetch(`${backendUrl}/document_types/${id}`, {
     method: 'DELETE',
-    headers: getHeaders(),
   });
 };

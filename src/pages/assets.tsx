@@ -1,18 +1,24 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useOrgNavigate } from "@/hooks/useOrgRouter";
 import { AssetContent } from "@/components/assets";
+import { AssetEmptyContent } from "@/components/assets/content/assets-empty-content";
 import { EmptyState } from "@/components/assets/empty-state";
 import { LoadingOverlay } from "@/components/assets/loading-overlay";
 import { useOrganization } from "@/contexts/organization-context";
 import { ExpandedFoldersProvider } from "@/hooks/use-expanded-folders";
 import { useAssetNavigation } from "@/hooks/useAssetNavigation";
 import { useScrollPreservation } from "@/hooks/useScrollPreservation";
-import { NavKnowledgeHeader, NavKnowledgeContent, useNavKnowledgeRefresh } from "@/components/layout/nav-knowledge";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
+import { NavKnowledgeHeader, NavKnowledgeContent } from "@/components/layout/nav-knowledge";
+import { useNavKnowledgeRefresh, useNavKnowledgePagination } from "@/contexts/nav-knowledge-context";
+import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
+import { HuemulPagination } from "@/huemul/components/huemul-pagination";
+import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useGlobalPanel } from "@/contexts/global-panel-context";
+import { usePageAccess } from "@/hooks/usePageAccess";
+import { useInvalidateDocumentSectionAccess } from "@/hooks/useDocumentSectionAccess";
 
 /**
  * Main content component for the Assets page
@@ -20,19 +26,27 @@ import {
  */
 function AssetsContent() {
   const queryClient = useQueryClient();
+  const navigate = useOrgNavigate();
   const { selectedOrganizationId, organizationToken } = useOrganization();
   const refreshFileTree = useNavKnowledgeRefresh();
+  const { isOpen: isWisyOpen } = useGlobalPanel();
+  const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('asset');
+  const invalidateSectionAccess = useInvalidateDocumentSectionAccess();
+  const { page, pageSize, hasNext, hasPrevious, setPage } = useNavKnowledgePagination();
+  const canListLibrary = can('listAssets') || can('listFolders');
 
   // Asset navigation (URL parsing, breadcrumb, selected file)
   const {
     breadcrumb,
     selectedFile,
     selectedExecutionId,
+    selectedSectionId,
     isLoadingDocument,
     setSelectedFile,
     setSelectedExecutionId,
+    setSelectedSectionId,
     currentFolderId,
-  } = useAssetNavigation({ selectedOrganizationId, organizationToken });
+  } = useAssetNavigation({ selectedOrganizationId, organizationToken, canListLibrary });
 
   // Scroll preservation
   const { scrollContainerRef, preserveScroll, restoreScrollPosition } = useScrollPreservation();
@@ -44,10 +58,36 @@ function AssetsContent() {
   }, [restoreScrollPosition, selectedFile, selectedExecutionId]);
 
   // Handle refresh library content
+  // Invalida el árbol de la biblioteca Y el contenido del asset abierto (alineado
+  // con asset-fullscreen.tsx:61-65) — antes solo refrescaba el árbol, dejando el
+  // panel de detalle con el contenido viejo.
   const handleRefresh = async () => {
     queryClient.invalidateQueries({ queryKey: ['library', selectedOrganizationId] });
+    queryClient.invalidateQueries({ queryKey: ['document-content'] });
+    queryClient.invalidateQueries({ queryKey: ['document'] });
+    invalidateSectionAccess(selectedFile?.id);
     refreshFileTree();
   };
+
+  // Abre el asset actual en la vista dedicada de pantalla completa (ver
+  // ia context/fullscreen-share-route-guide.md y pages/asset-fullscreen.tsx).
+  const handleOpenFullscreen = useCallback(() => {
+    if (!selectedFile) return;
+    navigate(
+      `/asset/full/${selectedFile.id}${selectedExecutionId ? `?execution=${selectedExecutionId}` : ''}`,
+    );
+  }, [navigate, selectedFile, selectedExecutionId]);
+
+  // Loading de permisos
+  if (isLoadingPermissions) {
+    return <PageSkeleton />;
+  }
+
+  // Sin ningún permiso sobre la página -> 403 in-place (no depender solo del
+  // route guard, que redirige a /home y deja la superficie sin explicación)
+  if (!canAccessPage) {
+    return <HuemulAccessDenied />;
+  }
 
   // Empty states
   if (!selectedOrganizationId) {
@@ -55,40 +95,71 @@ function AssetsContent() {
   }
 
   return (
-    <div className="flex h-full bg-gray-50">
+    <div className="relative h-full">
       {isLoadingDocument && <LoadingOverlay />}
-      
-      <ResizablePanelGroup direction="horizontal" className="h-full w-full">
-        <ResizablePanel defaultSize={20}>
-          <div className="flex flex-col h-full bg-white border-r">
-            <div className="py-2">
-              <NavKnowledgeHeader />
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <NavKnowledgeContent />
-            </div>
-          </div>
-        </ResizablePanel>
-        
-        <ResizableHandle />
-        
-        <ResizablePanel defaultSize={80} minSize={50}>
-          <div ref={scrollContainerRef} className="h-full bg-white">
-            <AssetContent
-              selectedFile={selectedFile}
-              breadcrumb={breadcrumb}
-              selectedExecutionId={selectedExecutionId}
-              setSelectedExecutionId={setSelectedExecutionId}
-              setSelectedFile={setSelectedFile}
-              onRefresh={handleRefresh}
-              currentFolderId={currentFolderId}
-              isSidebarOpen={false}
-              onToggleSidebar={() => {}}
-              onPreserveScroll={preserveScroll}
-            />
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+      <HuemulPageLayout
+        className="bg-gray-50"
+        columns={[
+          {
+            content: (
+              <div className="flex flex-col h-full bg-white border-r">
+                <div className="py-2">
+                  <NavKnowledgeHeader />
+                </div>
+                <ScrollArea className="flex-1 min-h-0" type="hover">
+                  <NavKnowledgeContent />
+                </ScrollArea>
+              </div>
+            ),
+            defaultSize: isWisyOpen ? 15 : 20,
+            minSize: isWisyOpen ? 10 : 12,
+            collapsible: true,
+            collapsedSize: 0,
+            className: "overflow-hidden [scrollbar-gutter:auto]",
+            footer: {
+              content: (
+                <HuemulPagination
+                  page={page}
+                  pageSize={pageSize}
+                  hasNext={hasNext}
+                  hasPrevious={hasPrevious}
+                  onPageChange={setPage}
+                />
+              ),
+            },
+          },
+          {
+            content: (
+              <div ref={scrollContainerRef} className="h-full bg-white">
+                {selectedFile ? (
+                  <AssetContent
+                    selectedFile={selectedFile}
+                    breadcrumb={breadcrumb}
+                    selectedExecutionId={selectedExecutionId}
+                    setSelectedExecutionId={setSelectedExecutionId}
+                    selectedSectionId={selectedSectionId}
+                    setSelectedSectionId={setSelectedSectionId}
+                    setSelectedFile={setSelectedFile}
+                    onRefresh={handleRefresh}
+                    currentFolderId={currentFolderId}
+                    isSidebarOpen={false}
+                    onToggleSidebar={() => {}}
+                    onPreserveScroll={preserveScroll}
+                    onOpenFullscreen={handleOpenFullscreen}
+                  />
+                ) : (
+                  <AssetEmptyContent
+                    currentFolderId={currentFolderId}
+                    onPreserveScroll={preserveScroll}
+                  />
+                )}
+              </div>
+            ),
+            defaultSize: 80,
+            minSize: 50,
+          },
+        ]}
+      />
     </div>
   );
 }

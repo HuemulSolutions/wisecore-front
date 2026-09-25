@@ -4,14 +4,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { AlertTriangle, RefreshCw, Plus, Search } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { useTranslation } from "react-i18next"
+import type { CustomFieldContentEmptyStateProps } from '@/types/custom-fields'
 
-interface CustomFieldContentEmptyStateProps {
-  type: "error" | "empty" | "no-results"
-  message?: string
-  onRetry?: () => void
-  onCreateFirst?: () => void
-  onClearFilters?: () => void
-}
+export type { CustomFieldContentEmptyStateProps } from '@/types/custom-fields'
 
 export function CustomFieldContentEmptyState({
   type,

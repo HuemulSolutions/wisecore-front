@@ -20,7 +20,7 @@ export function SearchResultsSkeleton() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 {/* Icon skeleton */}
-                <Skeleton className="w-10 h-10 rounded-lg flex-shrink-0" />
+                <Skeleton className="w-10 h-10 rounded-lg shrink-0" />
                 
                 <div className="flex-1 min-w-0 space-y-2">
                   {/* Title skeleton */}
@@ -36,7 +36,7 @@ export function SearchResultsSkeleton() {
               </div>
               
               {/* Action buttons skeleton */}
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
                 <Skeleton className="h-8 w-32" />
                 <Skeleton className="h-8 w-8" />
               </div>

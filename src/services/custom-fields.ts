@@ -1,8 +1,10 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import { ApiError } from "@/types/api-error";
 import type {
   CustomField,
   CustomFieldDataType,
+  CustomFieldQuestionType,
   PaginationParams,
   ApiResponse,
   CreateCustomFieldRequest,
@@ -13,41 +15,32 @@ import type {
 // Type aliases for API responses
 export type CustomFieldResponse = ApiResponse<CustomField>;
 export type DataTypesResponse = ApiResponse<CustomFieldDataType[]>;
+export type QuestionTypesResponse = ApiResponse<CustomFieldQuestionType[]>;
 
-// Get current organization ID from localStorage or context
-const getOrganizationId = (): string | null => {
-  return localStorage.getItem('selectedOrganizationId');
-};
-
-// Get headers with organization ID
-const getHeaders = (): Record<string, string> => {
-  const orgId = getOrganizationId();
-  const headers: Record<string, string> = {};
-  
-  if (orgId) {
-    headers['X-Org-Id'] = orgId;
-  }
-  
-  return headers;
-};
+// El X-Org-Id lo inyecta httpClient desde el contexto de organización.
 
 // Get available data types for custom fields
 export const getCustomFieldDataTypes = async (): Promise<DataTypesResponse> => {
-  const response = await httpClient.get(`${backendUrl}/custom_fields/data_types`, {
-    headers: getHeaders(),
-  });
-  
+  const response = await httpClient.get(`${backendUrl}/custom_fields/data_types`);
+
+  return response.json();
+};
+
+// Get available question types for custom fields (drives data_type derivation)
+export const getCustomFieldQuestionTypes = async (): Promise<QuestionTypesResponse> => {
+  const response = await httpClient.get(`${backendUrl}/custom_fields/question_types`);
+
   return response.json();
 };
 
 // Get all custom fields with pagination
 export const getCustomFields = async (params?: PaginationParams): Promise<CustomFieldsResponse> => {
   const searchParams = new URLSearchParams();
-  
+
   if (params?.page) {
     searchParams.append("page", params.page.toString());
   }
-  
+
   if (params?.page_size) {
     searchParams.append("page_size", params.page_size.toString());
   }
@@ -57,19 +50,15 @@ export const getCustomFields = async (params?: PaginationParams): Promise<Custom
   }
 
   const url = `${backendUrl}/custom_fields/${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
-  const response = await httpClient.get(url, {
-    headers: getHeaders(),
-  });
-  
+  const response = await httpClient.get(url);
+
   return response.json();
 };
 
 // Get single custom field
 export const getCustomField = async (id: string): Promise<CustomField> => {
-  const response = await httpClient.get(`${backendUrl}/custom_fields/${id}`, {
-    headers: getHeaders(),
-  });
-  
+  const response = await httpClient.get(`${backendUrl}/custom_fields/${id}`);
+
   const result: CustomFieldResponse = await response.json();
   return result.data;
 };
@@ -78,11 +67,10 @@ export const getCustomField = async (id: string): Promise<CustomField> => {
 export const createCustomField = async (data: CreateCustomFieldRequest): Promise<CustomField> => {
   const response = await httpClient.post(`${backendUrl}/custom_fields/`, data, {
     headers: {
-      ...getHeaders(),
       "Content-Type": "application/json",
     },
   });
-  
+
   const result: CustomFieldResponse = await response.json();
   return result.data;
 };
@@ -91,54 +79,56 @@ export const createCustomField = async (data: CreateCustomFieldRequest): Promise
 export const updateCustomField = async (id: string, data: UpdateCustomFieldRequest): Promise<CustomField> => {
   const response = await httpClient.patch(`${backendUrl}/custom_fields/${id}`, data, {
     headers: {
-      ...getHeaders(),
       "Content-Type": "application/json",
     },
   });
-  
+
   const result: CustomFieldResponse = await response.json();
   return result.data;
 };
 
-// Delete custom field
-export const deleteCustomField = async (id: string): Promise<void> => {
-  await httpClient.delete(`${backendUrl}/custom_fields/${id}`, {
-    headers: getHeaders(),
-  });
+// Delete custom field. force=true elimina también sus asociaciones en
+// custom_field_templates / custom_field_documents (no borra los templates ni
+// los documentos, solo la asignación de este campo en ellos).
+export const deleteCustomField = async (id: string, force = false): Promise<void> => {
+  const query = force ? "?force=true" : "";
+  await httpClient.delete(`${backendUrl}/custom_fields/${id}${query}`);
 };
 
-// Legacy service object for backward compatibility
-export const customFieldsService = {
-  /**
-   * Get available data types for custom fields
-   * @deprecated Use getCustomFieldDataTypes instead
-   */
-  getDataTypes: getCustomFieldDataTypes,
+export interface CustomFieldUsage {
+  templates: number;
+  documents: number;
+}
 
-  /**
-   * List custom fields with pagination
-   * @deprecated Use getCustomFields instead
-   */
-  getCustomFields: (params?: PaginationParams, _orgId?: string) => {
-    void _orgId; // Kept for API compatibility
-    return getCustomFields(params);
-  },
+/**
+ * El backend responde 400 con error.detail = { templates, documents } cuando
+ * el custom field está en uso y se intentó borrar sin force=true. ApiError
+ * normaliza ese detail a un string JSON (ver normalizeDetail en api-error.ts),
+ * así que hay que parsearlo de vuelta. Devuelve null si el error no es ese caso.
+ */
+export const parseCustomFieldUsageError = (error: unknown): CustomFieldUsage | null => {
+  if (!ApiError.isApiError(error) || error.statusCode !== 400 || !error.detail) {
+    return null;
+  }
 
-  /**
-   * Get a specific custom field by ID
-   * @deprecated Use getCustomField instead
-   */
-  getCustomField: (customFieldId: string, _orgId?: string) => {
-    void _orgId; // Kept for API compatibility
-    return getCustomField(customFieldId);
-  },
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(error.detail);
+  } catch {
+    return null;
+  }
 
-  /**
-   * Create a new custom field
-   * @deprecated Use createCustomField instead
-   */
-  createCustomField: (data: CreateCustomFieldRequest, _orgId?: string) => {
-    void _orgId; // Kept for API compatibility
-    return createCustomField(data);
-  },
+  if (typeof parsed !== "object" || parsed === null) {
+    return null;
+  }
+
+  const { templates, documents } = parsed as Record<string, unknown>;
+  if (typeof templates !== "number" && typeof documents !== "number") {
+    return null;
+  }
+
+  return {
+    templates: typeof templates === "number" ? templates : 0,
+    documents: typeof documents === "number" ? documents : 0,
+  };
 };

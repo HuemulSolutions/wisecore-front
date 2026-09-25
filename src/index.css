@@ -1,4 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap');
+/* Solo para el panel de detalle del activo (.asset-detail-panel) — ver ese componente. */
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 
 @plugin 'tailwind-scrollbar-hide';
 
@@ -45,6 +47,17 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-brand: var(--brand);
   --color-highlight: var(--highlight);
+  --color-highlight-foreground: var(--highlight-foreground);
+  --shadow-comment-thread: 0 24px 50px -20px rgb(15 23 42 / .45), 0 1px 3px rgb(15 23 42 / .08);
+  --shadow-comment-popover: 0 20px 44px -16px rgb(15 23 42 / .45), 0 2px 6px rgb(15 23 42 / .06);
+  --shadow-comment-toolbar: 0 12px 28px -8px rgb(15 23 42 / .55);
+  --shadow-comment-pill: 0 6px 14px -4px rgb(37 99 235 / .6);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-divider: var(--divider);
+  --shadow-card: var(--elevation-1);
+  --shadow-card-raised: var(--elevation-2);
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
 }
 
 :root {
@@ -66,6 +79,39 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.929 0.013 255.508);
   --border-hover: oklch(88.2% 0.059 254.128);
+
+  /* ── Superficies y elevación ────────────────────────────────────────────
+     Tres niveles: hundido (fondo de página) → card → card elevada. */
+  --surface-sunken: oklch(0.963 0.006 247.9);
+  --divider: oklch(0.952 0.008 255.5);
+  --elevation-1:
+    0 1px 2px 0 oklch(0.129 0.042 264.695 / 0.06),
+    0 2px 6px -2px oklch(0.129 0.042 264.695 / 0.10);
+  --elevation-2:
+    0 2px 4px -1px oklch(0.129 0.042 264.695 / 0.08),
+    0 12px 24px -8px oklch(0.129 0.042 264.695 / 0.14);
+
+  --diagram-edge: oklch(0.84 0.028 257.417);
+  --diagram-role-fill: #eef2ff;
+  --diagram-role-border: #c7d2fe;
+  --diagram-role-icon-bg: #4f46e5;
+  --diagram-role-title: #312e81;
+  --diagram-role-meta: #6366f1;
+  --diagram-role-edge: #a5b4fc;
+  --diagram-gateway-fill: #fef3c7;
+  --diagram-gateway-border: #f59e0b;
+  --diagram-gateway-icon-bg: #b45309;
+  --diagram-gateway-label: #78350f;
+  --diagram-event-start-fill: #dcfce7;
+  --diagram-event-start-border: #22c55e;
+  --diagram-event-start-icon: #16a34a;
+  --diagram-event-start-label: #14532d;
+  --diagram-event-end-fill: #fee2e2;
+  --diagram-event-end-border: #ef4444;
+  --diagram-event-end-icon: #dc2626;
+  --diagram-event-end-label: #7f1d1d;
+  --diagram-container-fill: rgba(241, 244, 248, 0.72);
+  --diagram-container-label: #94a3b8;
   --input: oklch(0.929 0.013 255.508);
   --ring: oklch(0.704 0.04 256.788);
   --chart-1: oklch(0.646 0.222 41.116);
@@ -83,6 +129,26 @@
   --sidebar-ring: oklch(0.704 0.04 256.788);
   --brand: oklch(0.623 0.214 259.815);
   --highlight: oklch(0.852 0.199 91.936);
+  --highlight-foreground: #451a03;
+
+  /* ── Escala de z-index ──────────────────────────────────────────────────────
+     Fuente única de la jerarquía de capas. Consumir con `z-(--z-…)`
+     (Tailwind v4 no expone namespace de tema para z-index).
+     Ver `ia context/z-index-layering-guide.md`. */
+  --z-app-header: 50;              /* header global de la app */
+  --z-page-header: 40;             /* header de detalle (activo / plantilla) */
+  --z-page-sticky-elevated: 32;    /* banner de ejecución que convive con secciones reales visibles — debe ganarle a su barra */
+  --z-page-sticky: 30;             /* barra sticky de sección, banners de ejecución que reemplazan la lista por un skeleton */
+  --z-page-sticky-secondary: 28;   /* banners que viven bajo la barra de sección */
+  --z-editor-toolbar: 30;          /* FixedToolbar del editor (dentro de su isolate) */
+  --z-editor-node-toolbar: 25;     /* toolbars flotantes de nodo (mermaid/media/tabla/link) */
+  --z-editor-floating-toolbar: 20; /* toolbar de selección de texto */
+  --z-editor-selection: 10;        /* rectángulo de selección de bloques por arrastre */
+  --z-editor-menu: 50;             /* menús invocados por el usuario: slash, emoji, selects */
+  --z-feed-sticky: 10;             /* cabecera de grupo sticky dentro de un feed scrolleable */
+  --z-canvas-overlay: 15;          /* overlay que cubre un canvas React Flow en edición sin desmontarlo (ej. explorador de diagramas de un nodo) */
+  --z-canvas-state: 5;             /* overlay de estado (vacío) montado dentro de <ReactFlow>: debe superar al renderer (4) y queda al nivel de los Panel */
+  --z-canvas-rail-panel: 12;       /* panel superpuesto del riel de /diagrams (árbol, listado, recientes, búsqueda); queda bajo --z-canvas-overlay */
 }
 
 .dark {
@@ -102,6 +168,31 @@
   --accent-foreground: oklch(0.984 0.003 247.858);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
+  --surface-sunken: oklch(0.16 0.04 265);
+  --divider: oklch(1 0 0 / 7%);
+  --elevation-1: 0 1px 2px 0 oklch(0 0 0 / 0.40), 0 2px 6px -2px oklch(0 0 0 / 0.50);
+  --elevation-2: 0 2px 4px -1px oklch(0 0 0 / 0.45), 0 12px 24px -8px oklch(0 0 0 / 0.60);
+  --diagram-edge: oklch(0.42 0.028 257.417);
+  --diagram-role-fill: rgba(99, 102, 241, 0.16);
+  --diagram-role-border: rgba(129, 140, 248, 0.55);
+  --diagram-role-icon-bg: #6366f1;
+  --diagram-role-title: #e0e7ff;
+  --diagram-role-meta: #a5b4fc;
+  --diagram-role-edge: #818cf8;
+  --diagram-gateway-fill: rgba(217, 119, 6, 0.24);
+  --diagram-gateway-border: rgba(252, 211, 77, 0.75);
+  --diagram-gateway-icon-bg: #d97706;
+  --diagram-gateway-label: #fde68a;
+  --diagram-event-start-fill: rgba(22, 163, 74, 0.24);
+  --diagram-event-start-border: rgba(134, 239, 172, 0.75);
+  --diagram-event-start-icon: #4ade80;
+  --diagram-event-start-label: #bbf7d0;
+  --diagram-event-end-fill: rgba(220, 38, 38, 0.24);
+  --diagram-event-end-border: rgba(252, 165, 165, 0.75);
+  --diagram-event-end-icon: #f87171;
+  --diagram-event-end-label: #fecaca;
+  --diagram-container-fill: rgba(30, 41, 59, 0.55);
+  --diagram-container-label: #94a3b8;
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.551 0.027 264.364);
   --chart-1: oklch(0.488 0.243 264.376);
@@ -119,6 +210,7 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
   --brand: oklch(0.707 0.165 254.624);
   --highlight: oklch(0.852 0.199 91.936);
+  --highlight-foreground: #451a03;
 }
 
 @layer base {
@@ -128,8 +220,25 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    line-height: 2;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
+}
+
+/*
+ * Panel de detalle del activo documental (rail Índice/Campos/Archivos/Vínculos).
+ * Tokens propios de la especificación de diseño — escopados a este panel, no al
+ * tema global (que usa IBM Plex Sans + oklch, ver ia context/diseno-rediseno-pantallas-guide.md).
+ */
+.asset-detail-panel {
+  font-family: 'Inter Tight', 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --adp-border: #e7ebf1;
+  --adp-rail-bg: #f8fafc;
+  --adp-accent-bg: #eef4ff;
+  --adp-accent-fg: #1d4ed8;
+  --adp-page-bg: #eceef1;
 }
 
 /* Markdown content styles for section content dialog */
@@ -198,7 +307,7 @@
 }
 
 .markdown-content mark {
-  @apply bg-yellow-200 dark:bg-yellow-800 px-1 rounded;
+  @apply bg-highlight text-highlight-foreground px-1 rounded;
 }
 
 .markdown-content mark.bg-blue-100 {
@@ -355,4 +464,49 @@
     transform: translateY(-2px);
     opacity: 1;
   }
+}
+
+/* Wisy panel gradient header */
+.wisy-header-gradient {
+  background: linear-gradient(135deg, oklch(0.569 0.2218 268.76 / 12%), oklch(0.569 0.2218 268.76 / 4%) 50%, transparent 100%);
+}
+
+/* Wisy chat background pattern */
+.wisy-chat-bg {
+  background-color: oklch(0.985 0.002 248);
+  background-image:
+    radial-gradient(oklch(0.569 0.2218 268.76 / 3%) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.dark .wisy-chat-bg {
+  background-color: oklch(0.16 0.04 265);
+  background-image:
+    radial-gradient(oklch(0.569 0.2218 268.76 / 6%) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Wisy floating input area */
+.wisy-input-area {
+  background: linear-gradient(to top, var(--background) 80%, transparent 100%);
+}
+
+/* Wisy sparkle pulse */
+@keyframes wisy-pulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+.wisy-sparkle-pulse {
+  animation: wisy-pulse 2.5s ease-in-out infinite;
+}
+
+/* Wisy AI avatar glow */
+.wisy-avatar-glow {
+  box-shadow: 0 0 8px oklch(0.569 0.2218 268.76 / 25%);
+}
+
+/* Wisy welcome gradient */
+.wisy-welcome-gradient {
+  background: linear-gradient(135deg, oklch(0.569 0.2218 268.76 / 10%), oklch(0.623 0.214 259.815 / 8%) 50%, oklch(0.569 0.2218 268.76 / 4%) 100%);
 }

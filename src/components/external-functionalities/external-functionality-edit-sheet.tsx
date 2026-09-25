@@ -1,0 +1,76 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useTranslation } from "react-i18next"
+import { Edit } from "lucide-react"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
+import { useExternalFunctionalityMutations } from "@/hooks/useExternalFunctionalities"
+import { ExternalFunctionalityForm } from "./external-functionality-form"
+import type { UpdateExternalFunctionalityRequest } from "@/types/external-functionalities"
+import type { ExternalFunctionalityEditDialogProps } from "@/types/external-functionalities"
+
+export type { ExternalFunctionalityEditDialogProps } from "@/types/external-functionalities"
+
+export function ExternalFunctionalityEditSheet({
+  open,
+  onOpenChange,
+  organizationId,
+  systemId,
+  functionality,
+  canUpdate,
+}: ExternalFunctionalityEditDialogProps) {
+  const { t } = useTranslation(["external-functionalities", "common"])
+  const [formData, setFormData] = useState<UpdateExternalFunctionalityRequest>({})
+  const { updateExternalFunctionality } = useExternalFunctionalityMutations(organizationId, systemId)
+
+  useEffect(() => {
+    if (functionality && open) {
+      setFormData({
+        name: functionality.name,
+        description: functionality.description,
+        usage_example: functionality.usage_example,
+        partial_url: functionality.partial_url,
+        storage_url: functionality.storage_url,
+        http_method: functionality.http_method,
+        objective: functionality.objective,
+        body: functionality.body,
+        execution_type: functionality.execution_type,
+        functionality_class: functionality.functionality_class,
+      })
+    }
+  }, [functionality, open])
+
+  const handleChange = <K extends keyof UpdateExternalFunctionalityRequest>(
+    field: K,
+    value: UpdateExternalFunctionalityRequest[K],
+  ) => setFormData((prev) => ({ ...prev, [field]: value }))
+
+  const handleSubmit = async () => {
+    if (!canUpdate || !functionality) return
+    await new Promise<void>((resolve, reject) => {
+      updateExternalFunctionality.mutate(
+        { functionalityId: functionality.id, body: formData },
+        { onSuccess: () => resolve(), onError: (err) => reject(err) },
+      )
+    })
+  }
+
+  if (!canUpdate) return null
+
+  return (
+    <HuemulSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t("edit.title")}
+      icon={Edit}
+      maxWidth="sm:max-w-2xl"
+      saveAction={{
+        label: t("common:update"),
+        onClick: handleSubmit,
+        position: "header",
+      }}
+    >
+      <ExternalFunctionalityForm formData={formData} onChange={handleChange} />
+    </HuemulSheet>
+  )
+}

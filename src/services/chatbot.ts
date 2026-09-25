@@ -77,6 +77,21 @@ export async function updateConversationTitle(
 }
 
 /**
+ * Actualiza las references de una conversacion.
+ */
+export async function updateConversationReferences(
+  conversationId: string,
+  references: ConversationReference[]
+): Promise<Conversation> {
+  const response = await httpClient.patch(
+    `${CHATBOT_BASE}/conversations/${conversationId}/references`,
+    { references }
+  );
+  const json = await response.json();
+  return json.data;
+}
+
+/**
  * Archiva una conversacion (soft delete definitivo, no hay restore).
  */
 export async function archiveConversation(
@@ -101,12 +116,12 @@ export async function archiveConversation(
 export async function sendMessage(
   conversationId: string,
   content: string,
-  references?: ConversationReference[],
+  workingContext?: ConversationReference[],
   llmId?: string
 ): Promise<SendMessageResponse> {
   const body: SendMessageRequest = { content };
-  if (references && references.length > 0) {
-    body.references = references;
+  if (workingContext && workingContext.length > 0) {
+    body.working_context = workingContext;
   }
   if (llmId) {
     body.llm_id = llmId;

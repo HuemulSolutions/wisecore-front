@@ -3,16 +3,9 @@
 import { Plus, Settings2 } from "lucide-react"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
 import { useTranslation } from "react-i18next"
+import type { CustomFieldPageHeaderProps } from '@/types/custom-fields'
 
-interface CustomFieldPageHeaderProps {
-  customFieldCount: number
-  onCreateCustomField: () => void
-  onRefresh: () => void
-  isLoading?: boolean
-  searchTerm: string
-  onSearchChange: (value: string) => void
-  canManage?: boolean
-}
+export type { CustomFieldPageHeaderProps } from '@/types/custom-fields'
 
 export function CustomFieldPageHeader({
   customFieldCount,
@@ -21,7 +14,7 @@ export function CustomFieldPageHeader({
   isLoading = false,
   searchTerm,
   onSearchChange,
-  canManage = false
+  canCreate = false
 }: CustomFieldPageHeaderProps) {
   const { t } = useTranslation('custom-fields')
 
@@ -30,11 +23,11 @@ export function CustomFieldPageHeader({
       icon={Settings2}
       title={t('header.title')}
       badges={[
-        { label: "", value: isLoading ? "..." : customFieldCount }
+        { label: "", value: customFieldCount }
       ]}
       onRefresh={onRefresh}
       isLoading={isLoading}
-      primaryAction={canManage ? {
+      primaryAction={canCreate ? {
         label: t('header.createCustomField'),
         icon: Plus,
         onClick: onCreateCustomField

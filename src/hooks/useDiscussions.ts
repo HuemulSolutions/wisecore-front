@@ -4,12 +4,15 @@ import type { Value } from 'platejs';
 
 import { useAuth } from '@/contexts/auth-context';
 import { useOrganization } from '@/contexts/organization-context';
+import i18n from '@/i18n';
+import { parseApiDate } from '@/lib/utils';
 import { useUsers } from '@/hooks/useUsers';
 import {
   listDiscussions,
   createDiscussionWithComment,
   deleteDiscussion,
   resolveDiscussion,
+  unresolveDiscussion,
 } from '@/services/discussions';
 import {
   createDiscussionComment,
@@ -76,9 +79,10 @@ function mapApiCommentToPlate(c: DiscussionComment): TComment {
     id: c.id,
     discussionId: c.discussion_id,
     contentRich: parseRichContent(c.content_rich),
-    createdAt: new Date(c.created_at),
+    createdAt: parseApiDate(c.created_at),
     userId: c.user_id ?? c.created_by ?? '',
     isEdited: c.is_edited ?? c.created_at !== c.updated_at,
+    isPublic: c.is_public,
   };
 }
 
@@ -88,16 +92,22 @@ function mapApiDiscussionToPlate(
   return {
     id: d.id,
     comments: (d.comments ?? []).map(mapApiCommentToPlate),
-    createdAt: new Date(d.created_at),
+    createdAt: parseApiDate(d.created_at),
     isResolved: d.is_resolved,
     userId: d.created_by ?? '',
     documentContent: d.document_content,
+    sectionExecutionId: d.section_execution_id,
+    executionId: d.execution_id,
   };
 }
 
 // ── Main Hook ───────────────────────────────────────────────────────────
 
-export function useDiscussions(documentId: string | undefined, sectionExecutionId?: string) {
+export function useDiscussions(
+  documentId: string | undefined,
+  sectionExecutionId?: string,
+  executionId?: string,
+) {
   const { user } = useAuth();
   const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
@@ -135,6 +145,8 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
   const {
     data: discussionsResponse,
     isLoading: isLoadingDiscussions,
+    isFetching: isFetchingDiscussions,
+    refetch: refetchDiscussions,
   } = useQuery({
     queryKey: discussionQueryKeys.byDocument(documentId!),
     queryFn: () =>
@@ -160,6 +172,15 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
     return discussionsResponse.data.map(mapApiDiscussionToPlate);
   }, [discussionsResponse?.data]);
 
+  // ── Same list, filtered to the given execution (client-side — the fetch
+  // above stays shared across sections and the sheet). Threads without an
+  // execution_id (created before this field existed) stay visible when no
+  // executionId filter is given. ──────────────────────────────────────
+  const discussionsForExecution: TDiscussion[] = useMemo(() => {
+    if (!executionId) return discussions;
+    return discussions.filter((d) => d.executionId === executionId);
+  }, [discussions, executionId]);
+
   // ── Invalidation helper ─────────────────────────────────────────────
   const invalidate = useCallback(() => {
     if (documentId) {
@@ -176,59 +197,103 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
       documentContent: string;
       firstCommentRich: Value;
       discussionId: string;
+      isPublic: boolean;
     }) => {
       const discussion = await createDiscussionWithComment(
         {
           document_id: documentId!,
-          section_execution_id: sectionExecutionId!,
+          // section_execution_id is enough — the backend derives execution_id
+          // from it. Falls back to execution_id only when there is no section
+          // (e.g. a whole-document thread created without a Plate editor).
+          ...(sectionExecutionId
+            ? { section_execution_id: sectionExecutionId }
+            : { execution_id: executionId }),
           document_content: params.documentContent,
           content_rich: serializeRichContent(params.firstCommentRich),
+          is_public: params.isPublic,
         },
         selectedOrganizationId!,
       );
       return discussion.id;
     },
     onSuccess: () => invalidate(),
+    meta: { successMessage: i18n.t('assets:content.discussions.createdToast') },
+  });
+
+  // Comentario general sobre la ejecución completa (sin section_execution_id).
+  const createExecutionDiscussionMutation = useMutation({
+    mutationFn: async (params: { contentRich: Value; isPublic: boolean }) => {
+      const discussion = await createDiscussionWithComment(
+        {
+          document_id: documentId!,
+          execution_id: executionId,
+          document_content: '',
+          content_rich: serializeRichContent(params.contentRich),
+          is_public: params.isPublic,
+        },
+        selectedOrganizationId!,
+      );
+      return discussion.id;
+    },
+    onSuccess: () => invalidate(),
+    meta: { successMessage: i18n.t('assets:content.discussions.createdToast') },
   });
 
   const resolveDiscussionMutation = useMutation({
     mutationFn: (discussionId: string) =>
       resolveDiscussion(discussionId, selectedOrganizationId ?? undefined),
     onSuccess: () => invalidate(),
+    meta: { successMessage: i18n.t('assets:content.discussions.resolvedToast') },
+  });
+
+  const unresolveDiscussionMutation = useMutation({
+    mutationFn: (discussionId: string) =>
+      unresolveDiscussion(discussionId, selectedOrganizationId ?? undefined),
+    onSuccess: () => invalidate(),
+    meta: { successMessage: i18n.t('assets:content.discussions.unresolvedToast') },
   });
 
   const deleteDiscussionMutation = useMutation({
     mutationFn: (discussionId: string) =>
       deleteDiscussion(discussionId, selectedOrganizationId ?? undefined),
     onSuccess: () => invalidate(),
+    meta: { successMessage: i18n.t('assets:content.discussions.deletedToast') },
   });
 
   const addCommentMutation = useMutation({
-    mutationFn: async (params: { discussionId: string; contentRich: Value }) => {
+    mutationFn: async (params: { discussionId: string; contentRich: Value; isPublic: boolean }) => {
       const comment = await createDiscussionComment(
         {
           discussion_id: params.discussionId,
           content_rich: serializeRichContent(params.contentRich),
+          is_public: params.isPublic,
         },
         selectedOrganizationId ?? undefined,
       );
       return comment.id;
     },
     onSuccess: () => invalidate(),
+    meta: { successMessage: i18n.t('assets:content.discussions.commentAddedToast') },
   });
 
   const updateCommentMutation = useMutation({
     mutationFn: async (params: {
       commentId: string;
       contentRich: Value;
+      isPublic: boolean;
     }) => {
       await updateDiscussionComment(
         params.commentId,
-        { content_rich: serializeRichContent(params.contentRich) },
+        {
+          content_rich: serializeRichContent(params.contentRich),
+          is_public: params.isPublic,
+        },
         selectedOrganizationId ?? undefined,
       );
     },
     onSuccess: () => invalidate(),
+    onError: () => invalidate(),
+    meta: { successMessage: i18n.t('assets:content.discussions.commentUpdatedToast') },
   });
 
   const deleteCommentMutation = useMutation({
@@ -239,6 +304,8 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
       );
     },
     onSuccess: () => invalidate(),
+    onError: () => invalidate(),
+    meta: { successMessage: i18n.t('assets:content.discussions.commentDeletedToast') },
   });
 
   // ── Callbacks for the Plate discussion plugin ───────────────────────
@@ -251,33 +318,50 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
       onResolveDiscussion: async (discussionId) => {
         await resolveDiscussionMutation.mutateAsync(discussionId);
       },
+      onUnresolveDiscussion: async (discussionId) => {
+        await unresolveDiscussionMutation.mutateAsync(discussionId);
+      },
       onDeleteDiscussion: async (discussionId) => {
         await deleteDiscussionMutation.mutateAsync(discussionId);
       },
-      onAddComment: async (discussionId, contentRich) => {
+      onAddComment: async (discussionId, contentRich, isPublic) => {
         const id = await addCommentMutation.mutateAsync({
           discussionId,
           contentRich,
+          isPublic,
         });
         return id;
       },
-      onUpdateComment: async (commentId, contentRich) => {
-        await updateCommentMutation.mutateAsync({ commentId, contentRich });
+      onUpdateComment: async (commentId, contentRich, _discussionId, isPublic) => {
+        await updateCommentMutation.mutateAsync({ commentId, contentRich, isPublic });
       },
       onDeleteComment: async (commentId, discussionId) => {
         await deleteCommentMutation.mutateAsync({ commentId, discussionId });
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedOrganizationId, documentId, sectionExecutionId],
+    [selectedOrganizationId, documentId, sectionExecutionId, executionId],
   );
 
   return {
     discussions,
+    discussionsForExecution,
     usersMap,
     currentUserId: user?.id ?? '',
     callbacks,
+    createExecutionDiscussion: createExecutionDiscussionMutation.mutateAsync,
+    isCreatingExecutionDiscussion: createExecutionDiscussionMutation.isPending,
+    addComment: addCommentMutation.mutateAsync,
+    isAddingComment: addCommentMutation.isPending,
+    resolveDiscussion: resolveDiscussionMutation.mutateAsync,
+    isResolvingDiscussion: resolveDiscussionMutation.isPending,
+    unresolveDiscussion: unresolveDiscussionMutation.mutateAsync,
+    isUnresolvingDiscussion: unresolveDiscussionMutation.isPending,
+    deleteDiscussion: deleteDiscussionMutation.mutateAsync,
+    isDeletingDiscussion: deleteDiscussionMutation.isPending,
     isLoading: isLoadingDiscussions,
+    isFetching: isFetchingDiscussions,
+    refetch: refetchDiscussions,
     invalidate,
   };
 }

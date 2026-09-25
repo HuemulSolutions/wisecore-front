@@ -18,8 +18,10 @@
 export interface ApiErrorDetail {
   code: string;
   message: string;
-  detail: string;
-  path: string;
+  // El backend no siempre los incluye — isApiErrorResponse no los exige.
+  // ApiError los normaliza a string en el constructor.
+  detail?: string;
+  path?: string;
 }
 
 export interface ApiErrorResponse {
@@ -27,6 +29,16 @@ export interface ApiErrorResponse {
   status_code: number;
   timestamp: string;
   error: ApiErrorDetail;
+}
+
+/**
+ * Normaliza el campo `detail`, que el backend a veces omite y a veces
+ * devuelve como objeto estructurado en vez de string.
+ */
+function normalizeDetail(detail: unknown): string {
+  if (detail === undefined || detail === null) return '';
+  if (typeof detail === 'string') return detail;
+  return JSON.stringify(detail);
 }
 
 /**
@@ -40,6 +52,8 @@ export class ApiError extends Error {
   readonly detail: string;
   readonly path: string;
   readonly timestamp: string;
+  /** Marcado por httpClient cuando ya disparó el flujo de logout/redirect (401 real). */
+  handled?: boolean;
 
   constructor(response: ApiErrorResponse) {
     super(response.error.message);
@@ -47,8 +61,8 @@ export class ApiError extends Error {
     this.transactionId = response.transaction_id;
     this.statusCode = response.status_code;
     this.code = response.error.code;
-    this.detail = response.error.detail;
-    this.path = response.error.path;
+    this.detail = normalizeDetail(response.error.detail);
+    this.path = typeof response.error.path === 'string' ? response.error.path : '';
     this.timestamp = response.timestamp;
 
     // Maintain proper stack trace in V8 environments (Chrome, Node)

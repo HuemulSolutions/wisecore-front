@@ -1,39 +1,20 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import { downloadBlobResponse } from "@/lib/blob-download";
+import { logger } from "@/lib/logger";
+import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, ImportDocumentFromUrlParams, ImportDocumentAsyncResponse, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics, DocumentStatisticsResponse, DocumentStatisticsScope, DocumentMediaUrls, DocumentMediaUrlsResponse, DocumentSectionAccessItem, AssetContentResponse } from "@/types/assets";
 
-interface SyncedDocumentResult {
-  document_id: string;
-  document_name: string;
-  sections_created: number;
-  sections_updated: number;
-  sections_deleted: number;
-  custom_sections_preserved: number;
-}
+export type { ImportDocumentFromFileParams, ImportDocumentFromUrlParams, ImportDocumentAsyncResponse, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics };
 
-interface SyncDocumentsFromTemplateResponse {
-  template_id: string;
-  template_name: string;
-  synced_documents: SyncedDocumentResult[];
-  total_documents_synced: number;
-  errors: string[];
-}
-
-interface SyncTemplateFromDocumentResponse {
-  template_id: string;
-  template_name: string;
-  document_id: string;
-  document_name: string;
-  sections_created: number;
-  sections_updated: number;
-  sections_deleted: number;
-}
-
-export async function getAllDocuments(organizationId: string, documentTypeId?: string) {
+export async function getAllDocuments(organizationId: string, documentTypeId?: string, search?: string) {
   const url = new URL(`${backendUrl}/documents/`);
   if (documentTypeId) {
     url.searchParams.append('document_type_id', documentTypeId);
   }
-  
+  if (search?.trim()) {
+    url.searchParams.append('search', search.trim());
+  }
+
   const headers: Record<string, string> = {};
   if (organizationId) {
     headers['X-Org-Id'] = organizationId;
@@ -43,7 +24,7 @@ export async function getAllDocuments(organizationId: string, documentTypeId?: s
     headers,
   });
   const data = await response.json();
-  console.log('Documents fetched:', data.data);
+  logger.log('Documents fetched:', data.data);
   return data.data;
 }
 
@@ -54,7 +35,24 @@ export async function getDocumentById(documentId: string, organizationId: string
     },
   });
   const data = await response.json();
-  console.log('Document fetched:', data.data);
+  logger.log('Document fetched:', data.data);
+  return data.data;
+}
+
+export async function getDocumentStatistics(
+  organizationId: string,
+  scope?: DocumentStatisticsScope,
+): Promise<DocumentStatistics> {
+  // Sin `scope`, comportamiento actual sin cambios (`organization`). `team` es
+  // alias exacto de `organization` hoy — no existe concepto de equipo en
+  // backend, ver `DocumentStatisticsScope`.
+  const url = scope ? `${backendUrl}/documents/statistics?scope=${scope}` : `${backendUrl}/documents/statistics`;
+  const response = await httpClient.get(url, {
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
+  const data = (await response.json()) as DocumentStatisticsResponse;
   return data.data;
 }
 
@@ -64,18 +62,21 @@ export async function deleteDocument(documentId: string, organizationId: string)
       'X-Org-Id': organizationId,
     },
   });
-  console.log('Document deleted:', documentId);
+  logger.log('Document deleted:', documentId);
   return true;
 }
 
-export async function getDocumentSections(documentId: string, organizationId: string) {
+export async function getDocumentSections(
+  documentId: string,
+  organizationId: string,
+): Promise<DocumentSectionAccessItem[]> {
   const response = await httpClient.get(`${backendUrl}/documents/${documentId}/sections`, {
     headers: {
       'X-Org-Id': organizationId,
     },
   });
   const data = await response.json();
-  console.log('Document sections fetched:', data.data);
+  logger.log('Document sections fetched:', data.data);
   return data.data;
 }
 
@@ -92,7 +93,7 @@ export async function getDocumentSectionsConfig(documentId: string, organization
   });
 
   const data = await response.json();
-  console.log('Document sections config fetched:', data.data);
+  logger.log('Document sections config fetched:', data.data);
   return data.data;
 }
 
@@ -105,11 +106,15 @@ export async function createDocument(documentData: { name: string; description?:
   });
 
   const data = await response.json();
-  console.log('Document created:', data.data);
+  logger.log('Document created:', data.data);
   return data.data;
 }
 
-export async function getDocumentContent(documentId: string, organizationId: string, executionId?: string) {
+export async function getDocumentContent(
+  documentId: string,
+  organizationId: string,
+  executionId?: string,
+): Promise<AssetContentResponse['data']> {
   const url = new URL(`${backendUrl}/documents/${documentId}/content`);
   if (executionId) {
     url.searchParams.append('execution_id', executionId);
@@ -120,8 +125,34 @@ export async function getDocumentContent(documentId: string, organizationId: str
       'X-Org-Id': organizationId,
     },
   });
-  const data = await response.json();
-  console.log('Document content fetched:', data.data);
+  const data = (await response.json()) as AssetContentResponse;
+  logger.log('Document content fetched:', data.data);
+  return data.data;
+}
+
+/**
+ * Lightweight refresh of media download URLs for a document, without
+ * re-fetching the whole content (avoids pisar ediciones en curso / audit log
+ * cost of /content). Poll this at `ttl_seconds - margin` to keep long-lived
+ * tabs' media links from expiring.
+ */
+export async function getDocumentMediaUrls(
+  documentId: string,
+  organizationId: string,
+  params: { executionId?: string; replaceCustomFields?: boolean } = {},
+): Promise<DocumentMediaUrls> {
+  const url = new URL(`${backendUrl}/documents/${documentId}/media_urls`);
+  if (params.executionId) {
+    url.searchParams.append('execution_id', params.executionId);
+  }
+  if (params.replaceCustomFields) {
+    url.searchParams.append('replace_custom_fields', 'true');
+  }
+
+  const response = await httpClient.get(url.toString(), {
+    headers: { 'X-Org-Id': organizationId },
+  });
+  const data = (await response.json()) as DocumentMediaUrlsResponse;
   return data.data;
 }
 
@@ -134,13 +165,13 @@ export async function generateDocumentStructure(documentId: string, organization
   });
 
   const data = await response.json();
-  console.log('Document structure generation initiated:', data);
+  logger.log('Document structure generation initiated:', data);
   return data;
 }
 
 export async function updateDocument(
-  documentId: string, 
-  documentData: { name?: string; description?: string; internal_code?: string; document_type_id?: string }, 
+  documentId: string,
+  documentData: { name?: string; description?: string; internal_code?: string; document_type_id?: string; created_by?: string; context_required?: boolean },
   organizationId: string
 ) {
   const response = await httpClient.put(`${backendUrl}/documents/${documentId}`, documentData, {
@@ -150,12 +181,12 @@ export async function updateDocument(
   });
 
   const data = await response.json();
-  console.log('Document updated:', data.data);
+  logger.log('Document updated:', data.data);
   return data.data;
 }
 
 export async function moveDocument(documentId: string, newParentId: string | undefined, organizationId: string) {
-  console.log('Moving document:', documentId, 'to parent:', newParentId);
+  logger.log('Moving document:', documentId, 'to parent:', newParentId);
   
   const response = await httpClient.put(`${backendUrl}/documents/${documentId}/move`, {
     folder_id: newParentId === undefined ? null : newParentId,
@@ -166,7 +197,7 @@ export async function moveDocument(documentId: string, newParentId: string | und
   });
 
   const data = await response.json();
-  console.log('Document moved:', data.data);
+  logger.log('Document moved:', data.data);
   return data.data;
 }
 
@@ -185,7 +216,7 @@ export async function createTemplateFromDocument(
     }
   );
   const data = await response.json();
-  console.log('Template created from document:', data.data);
+  logger.log('Template created from document:', data.data);
   return data.data;
 }
 
@@ -204,7 +235,7 @@ export async function syncDocumentsFromTemplate(
   });
 
   const data = await response.json();
-  console.log('Documents synced from template:', data.data);
+  logger.log('Documents synced from template:', data.data);
   return data.data;
 }
 
@@ -222,19 +253,8 @@ export async function syncTemplateFromDocument(
   });
 
   const data = await response.json();
-  console.log('Template synced from document:', data.data);
+  logger.log('Template synced from document:', data.data);
   return data.data;
-}
-
-export interface ImportDocumentFromFileParams {
-  name: string;
-  description?: string;
-  internal_code?: string;
-  document_type_id: string;
-  section_separator?: 'h1' | 'h2' | 'h3';
-  force_import?: boolean;
-  file: File;
-  organizationId: string;
 }
 
 export async function importDocumentFromFile(params: ImportDocumentFromFileParams) {
@@ -245,6 +265,7 @@ export async function importDocumentFromFile(params: ImportDocumentFromFileParam
   if (params.internal_code) url.searchParams.append('internal_code', params.internal_code);
   if (params.section_separator) url.searchParams.append('section_separator', params.section_separator);
   if (params.force_import !== undefined) url.searchParams.append('force_import', String(params.force_import));
+  if (params.folder_id != null) url.searchParams.append('folder_id', params.folder_id);
 
   const formData = new FormData();
   formData.append('file', params.file);
@@ -258,7 +279,82 @@ export async function importDocumentFromFile(params: ImportDocumentFromFileParam
   });
 
   const data = await response.json();
-  console.log('Document imported from file:', data.data);
+  logger.log('Document imported from file:', data.data);
+  return data.data;
+}
+
+export async function importDocumentFromUrl(params: ImportDocumentFromUrlParams): Promise<ImportDocumentAsyncResponse> {
+  const { organizationId, ...rest } = params;
+  const body: Record<string, unknown> = {
+    url: rest.url,
+    name: rest.name,
+    document_type_id: rest.document_type_id,
+  };
+  if (rest.description) body.description = rest.description;
+  if (rest.internal_code) body.internal_code = rest.internal_code;
+  if (rest.folder_id != null) body.folder_id = rest.folder_id;
+  if (rest.section_separator) body.section_separator = rest.section_separator;
+  if (rest.force_import !== undefined) body.force_import = rest.force_import;
+
+  const response = await httpClient.post(`${backendUrl}/documents/import-from-url`, body, {
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
+
+  const data = await response.json();
+  logger.log('Document imported from URL:', data.data);
+  return data.data;
+}
+
+// Exporta la configuraciÃ³n de uno o mÃ¡s documentos (por execution_id, es decir versiÃ³n)
+// como archivo JSON descargable (requiere permiso asset:r).
+export async function exportDocuments(organizationId: string, body: ExportDocumentsBody): Promise<void> {
+  const orgToken = httpClient.getOrganizationToken();
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (orgToken) headers['Authorization'] = `Bearer ${orgToken}`;
+  if (organizationId) headers['X-Org-Id'] = organizationId;
+
+  const response = await fetch(`${backendUrl}/documents/export`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(errorBody?.message ?? 'Error al exportar documentos');
+  }
+
+  await downloadBlobResponse(response, 'documents_export.json');
+}
+
+// Importa documentos desde un JSON de configuraciÃ³n exportado (requiere permisos asset:c + asset:u).
+// Distinto de importDocumentFromFile (/documents/import-from-file), que convierte DOCX/PDF.
+export async function importDocumentsConfig(
+  organizationId: string,
+  file: File,
+  params: ImportDocumentsConfigQueryParams = {},
+): Promise<ImportDocumentsConfigData> {
+  const url = new URL(`${backendUrl}/documents/import-config`);
+  if (params.on_conflict) url.searchParams.append('on_conflict', params.on_conflict);
+  if (params.document_ids?.length) {
+    url.searchParams.append('document_ids', params.document_ids.join(','));
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await httpClient.fetch(url.toString(), {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
+
+  const data = (await response.json()) as ImportDocumentsConfigResponse;
   return data.data;
 }
 
@@ -269,7 +365,7 @@ export async function checkDocumentLifecycle(documentId: string, organizationId:
     },
   });
   const data = await response.json();
-  console.log('Document lifecycle checked:', data.data);
+  logger.log('Document lifecycle checked:', data.data);
   return data.data;
 }
 
@@ -280,6 +376,38 @@ export async function rejectDocumentLifecycle(documentId: string, organizationId
     },
   });
   const data = await response.json();
-  console.log('Document lifecycle rejected:', data.data);
+  logger.log('Document lifecycle rejected:', data.data);
   return data.data;
+}
+
+// --- Pending AI suggestions ---
+
+export async function getDocumentsWithPendingChanges(
+  organizationId: string,
+  options: {
+    page?: number
+    pageSize?: number
+    search?: string
+    hasPendingAiSuggestion?: boolean
+  } = {}
+): Promise<PendingChangesResponse> {
+  const { page = 1, pageSize = 100, search, hasPendingAiSuggestion = true } = options
+  const url = new URL(`${backendUrl}/documents/`)
+  url.searchParams.append('page', String(page))
+  url.searchParams.append('page_size', String(pageSize))
+  if (search) url.searchParams.append('search', search)
+  if (hasPendingAiSuggestion !== undefined) {
+    url.searchParams.append('has_pending_ai_suggestion', String(hasPendingAiSuggestion))
+  }
+
+  const response = await httpClient.get(url.toString(), {
+    headers: { 'X-Org-Id': organizationId },
+  })
+  const json = await response.json()
+  return {
+    data: json.data,
+    page: json.page,
+    page_size: json.page_size,
+    has_next: json.has_next,
+  }
 }

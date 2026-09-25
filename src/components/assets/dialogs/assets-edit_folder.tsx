@@ -4,9 +4,10 @@ import * as React from "react"
 import { useState } from "react"
 import { useMutation } from "@tanstack/react-query"
 import { Edit3 } from "lucide-react"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { editFolder } from "@/services/folders"
 import { toast } from "sonner"
+import { handleApiError } from "@/lib/error-utils"
 import { useOrganizationId } from "@/hooks/use-organization"
 import NameDescriptionFields from "@/components/assets/content/name-description-fields"
 import type { EditFolderDialogProps } from "@/types/assets"
@@ -20,7 +21,7 @@ export default function EditFolder({
   onOpenChange
 }: EditFolderDialogProps) {
   const [name, setName] = useState(currentName)
-  const { t } = useTranslation('assets')
+  const { t } = useTranslation(["assets", "common"])
 
   // Reset name when currentName changes or dialog opens
   React.useEffect(() => {
@@ -38,16 +39,30 @@ export default function EditFolder({
       }
       return await editFolder(folderId, newName.trim(), selectedOrganizationId)
     },
+    meta: { showSuccessToast: false },
     onSuccess: () => {
       toast.success(t('editFolder.renameSuccess', { name: name.trim() }))
       onFolderEdited?.()
       onOpenChange(false)
     },
+    onError: (error) => {
+      handleApiError(error, {
+        onErrorCode: (code) => {
+          const key: Record<string, string> = {
+            FOLDER_NOT_RENAMABLE: 'editFolder.notRenamableError',
+            FOLDER_ADMINISTER_REQUIRED: 'editFolder.administerRequiredError',
+            ORG_ADMIN_REQUIRED: 'editFolder.orgAdminRequiredError',
+          }
+          const messageKey = key[code]
+          if (!messageKey) return false
+          toast.error(t(messageKey))
+          return true
+        },
+      })
+    },
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  const handleSubmit = () => {
     if (!name.trim()) {
       toast.error(t('editFolder.emptyNameError'))
       return
@@ -63,32 +78,31 @@ export default function EditFolder({
   }
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
       title={t('editFolder.title')}
       description={t('editFolder.description', { name: currentName })}
       icon={Edit3}
-      maxWidth="md"
-      maxHeight="90vh"
-      showDefaultFooter
-      onCancel={() => onOpenChange(false)}
-      submitLabel={t('editFolder.submitLabel')}
-      cancelLabel={t('editFolder.cancelLabel')}
-      isSubmitting={editFolderMutation.isPending}
-      isValid={!!name.trim()}
-      formId="edit-folder-form"
+      maxWidth="sm:max-w-md"
+      maxHeight="max-h-[90vh]"
+      cancelLabel={t('common:cancel')}
+      saveAction={{
+        label: t('editFolder.submitLabel'),
+        onClick: handleSubmit,
+        disabled: !name.trim(),
+        loading: editFolderMutation.isPending,
+        closeOnSuccess: false,
+      }}
     >
-      <form id="edit-folder-form" onSubmit={handleSubmit}>
-        <NameDescriptionFields
-          name={name}
-          onNameChange={setName}
-          nameLabel={t('editFolder.nameLabel')}
-          namePlaceholder={t('editFolder.namePlaceholder')}
-          disabled={editFolderMutation.isPending}
-          includeDescription={false}
-        />
-      </form>
-    </ReusableDialog>
+      <NameDescriptionFields
+        name={name}
+        onNameChange={setName}
+        nameLabel={t('editFolder.nameLabel')}
+        namePlaceholder={t('editFolder.namePlaceholder')}
+        disabled={editFolderMutation.isPending}
+        includeDescription={false}
+      />
+    </HuemulDialog>
   )
 }

@@ -6,7 +6,7 @@ name: Build and deploy Node.js app to Azure Web App - web-hs-wisecore-frontend-q
 on:
   push:
     branches:
-      - dev
+      - qa
   workflow_dispatch:
 
 jobs:

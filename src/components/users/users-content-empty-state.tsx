@@ -2,12 +2,8 @@ import { Users, RefreshCw } from "lucide-react"
 import { useTranslation } from 'react-i18next'
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Card } from "@/components/ui/card"
-
-interface UserContentEmptyStateProps {
-  type: 'empty' | 'error'
-  message?: string
-  onRetry?: () => void
-}
+import type { UserContentEmptyStateProps } from '@/types/users'
+export type { UserContentEmptyStateProps } from '@/types/users'
 
 export function UserContentEmptyState({ type, message, onRetry }: UserContentEmptyStateProps) {
   const { t } = useTranslation(['users', 'common'])

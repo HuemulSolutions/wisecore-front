@@ -1,0 +1,50 @@
+# Generado por Terraform (deploy/deploy.tf) desde workflows/node.yml.tftpl — NO EDITAR A MANO.
+# Cambios van en la plantilla del repo de infra, no aquí.
+#
+# VITE_API_URL es BUILD-TIME: Vite la hornea en el bundle, así que no sirve como app_setting del
+# App Service. Se inyecta aquí desde una variable de GitHub por slug, que gestiona Terraform
+# (deploy/deploy.tf -> github_actions_variable).
+name: Deploy web-hs-wisecore-front-dev-003 (dev)
+
+on:
+  push:
+    branches: ["dev"]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-web-hs-wisecore-front-dev-003-dev
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - run: npm ci
+
+      - name: Build
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL_DEV003 }}
+        run: npm run build
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Se publica el repo completo: el App Service arranca con 'pm2 serve /home/site/wwwroot/dist'.
+      - uses: azure/webapps-deploy@v3
+        with:
+          app-name: web-hs-wisecore-front-dev-003
+          package: .

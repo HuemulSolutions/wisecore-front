@@ -1,5 +1,8 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getAccessLevels } from '@/services/access-levels'
+import { usePageAccess } from '@/hooks/usePageAccess'
+import { isTerminalLifecycleState, isExternalElaborationLocked } from '@/lib/lifecycle-access'
 import type { FrontendPermissions, LifecyclePermissions, LifecycleStatus } from '@/types/assets'
 
 /**
@@ -75,6 +78,15 @@ function toLifecycleKey(access: string): keyof LifecyclePermissions | null {
 /**
  * Returns true if the lifecycle permissions allow the given access level.
  * If there is no lifecycle equivalent for the access level (e.g. "delete"), it returns true.
+ *
+ * CONTRATO (no cambiar a fail-closed): `permissions === undefined` significa
+ * "el lifecycle no impone restricción", NO "está permitido". Un asset cuyo
+ * asset type no tiene lifecycle configurado vuelve legítimamente sin
+ * `lifecycle_permissions`; con fail-closed todo editor con permisos correctos
+ * perdería los botones en silencio. El piso de seguridad lo pone RBAC: el
+ * cruce lifecycle × RBAC vive en `computeFrontendPermissions`, así que sin
+ * lifecycle la affordance degrada a "solo RBAC decide" en vez de "permitir
+ * todo". Ver ia context/rbac-audit-guide.md (pasada de /asset).
  */
 export function lifecycleAllows(
   permissions: LifecyclePermissions | undefined,
@@ -84,6 +96,22 @@ export function lifecycleAllows(
   const key = toLifecycleKey(access)
   if (!key) return true
   return permissions[key] === true
+}
+
+/**
+ * ¿La etapa actual del documento admite responder formularios / editar contenido?
+ * Solo `edit`: `lifecycle_permissions.edit` es un permiso de ROL, no de etapa —
+ * el actor de un grupo de elaboración que además es revisor o aprobador lo sigue
+ * recibiendo en `true` durante `in_review` / `in_approval`, y sin este chequeo
+ * los campos quedaban editables ahí aunque el PATCH no fuera a persistir.
+ *
+ * `status === undefined` ⇒ `true`, mismo contrato fail-open que `lifecycleAllows`:
+ * un asset type sin lifecycle configurado vuelve legítimamente sin
+ * `lifecycle_status` y no debe perder la edición en silencio. El piso lo pone RBAC.
+ */
+export function lifecycleStageAllowsEditing(status: LifecycleStatus | undefined): boolean {
+  if (!status) return true
+  return status.stage === 'edit' && !isTerminalLifecycleState(status.state)
 }
 
 /**
@@ -113,14 +141,46 @@ export function useLifecyclePermissions(permissions?: LifecyclePermissions) {
 }
 
 /**
- * Computes high-level frontend permissions directly from lifecycle_permissions.
- * A frontend permission is true whenever the user holds the relevant lifecycle role,
- * regardless of the document's current stage — individual buttons are responsible
- * for deciding whether to act on them given the current stage.
+ * Capacidades RBAC globales que se cruzan con el lifecycle del documento.
+ *
+ * Granularidad GRUESA a propósito: el eje RBAC es `asset:*` y no
+ * `section_execution:*` / `version:*` / `custom_fields:*`. Cierra el hueco real
+ * (mutar contenido sin ningún permiso de escritura, apoyándose solo en un grant
+ * de lifecycle) sin depender de que los roles ya existentes tuvieran modelados
+ * los sub-recursos. La tabla fina queda documentada como paso 2 en
+ * ia context/rbac-audit-guide.md.
+ */
+export interface AssetRbacCaps {
+  /** asset:r | asset:l */
+  readAsset: boolean
+  /** asset:u — editar secciones, formularios, autosave, IA, review status */
+  updateAssetContent: boolean
+  /** asset:c — crear ejecución, clonar versión / a nuevo documento */
+  createVersion: boolean
+  /** asset:d — borrar versión y borrar documento */
+  deleteVersion: boolean
+  /** asset:r — exportar (markdown / word / excel / json) */
+  exportVersion: boolean
+}
+
+/**
+ * Computes high-level frontend permissions by crossing lifecycle_permissions
+ * with the user's global RBAC capabilities.
+ *
+ * Regla: `affordanceVisible = lifecycleAllows && rbacAllows` (AND). Son dos ejes
+ * ortogonales — el lifecycle contesta "¿sos el editor/revisor DE ESTE
+ * documento?" y RBAC contesta "¿tu rol en esta organización te permite esta
+ * acción EN ABSOLUTO?". Ninguno implica al otro.
+ *
+ * `rbac` es un parámetro OBLIGATORIO a propósito: así cualquier call-site futuro
+ * que se olvide de cruzar RBAC rompe el build en vez de reabrir el hueco en
+ * silencio (mismo criterio que el punto 9 del checklist de la guía de auditoría:
+ * un default permisivo es indistinguible de "todavía no lo gatearon").
  */
 export function computeFrontendPermissions(
-  permissions?: LifecyclePermissions,
-  status?: LifecycleStatus,
+  permissions: LifecyclePermissions | undefined,
+  status: LifecycleStatus | undefined,
+  rbac: AssetRbacCaps,
 ): FrontendPermissions {
   const hasCreate = permissions?.create === true
   const hasEdit = permissions?.edit === true
@@ -128,15 +188,105 @@ export function computeFrontendPermissions(
   const hasApprove = permissions?.approve === true
   const hasPublish = permissions?.publish === true
   const hasArchive = permissions?.archive === true
-  const isEditStage = status?.stage === 'edit'
+  const isEditStage = status?.stage === 'edit' && !isTerminalLifecycleState(status?.state)
+  // Bloqueo de ElaborationRun (ver ia context correspondiente): apaga solo las
+  // capacidades de ESCRITURA DE CONTENIDO, que es lo que el backend rechaza con
+  // 409 EXECUTION_LOCKED_EXTERNAL_ELABORATION. No toca canAccessSectionSheet
+  // (seguir viendo la configuración es legítimo) ni las acciones de ciclo de
+  // vida (review/approve/publish/archive), que el backend no bloquea.
+  const isLocked = isExternalElaborationLocked(status)
 
   return {
-    canEditSections: (hasCreate || hasEdit) && isEditStage,
-    canAccessSectionSheet: hasCreate || hasEdit || hasReview || hasApprove || hasPublish,
-    canExecuteAI: hasCreate || hasEdit,
-    canReviewContent: hasReview,
-    canApproveContent: hasApprove,
-    canPublishContent: hasPublish,
-    canArchiveContent: hasArchive,
+    canEditSections: (hasCreate || hasEdit) && isEditStage && rbac.updateAssetContent && !isLocked,
+    canAccessSectionSheet:
+      (hasCreate || hasEdit || hasReview || hasApprove || hasPublish) && rbac.updateAssetContent,
+    canExecuteAI: (hasCreate || hasEdit) && rbac.updateAssetContent && !isLocked,
+    canReviewContent: hasReview && rbac.updateAssetContent,
+    canApproveContent: hasApprove && rbac.updateAssetContent,
+    canPublishContent: hasPublish && rbac.updateAssetContent,
+    canArchiveContent: hasArchive && rbac.updateAssetContent,
   }
+}
+
+/**
+ * Única fuente de verdad de los permisos del panel derecho de /asset.
+ *
+ * Arma las capacidades RBAC desde la matriz declarativa (`RBAC_PAGES.asset`) y
+ * las cruza con el lifecycle del documento. Absorbe además las tres
+ * derivaciones que antes vivían sueltas en assets-content.tsx
+ * (`canViewContent`, `isViewOnly`, `canSwitchToEditorMode`), que eran justo los
+ * tres puntos donde cada una decidía su propia política de fail-open.
+ */
+export function useAssetContentPermissions(
+  lifecyclePermissions?: LifecyclePermissions,
+  lifecycleStatus?: LifecycleStatus,
+) {
+  const { can } = usePageAccess('asset')
+
+  const rbac = useMemo<AssetRbacCaps>(
+    () => ({
+      readAsset: can('readAsset'),
+      updateAssetContent: can('updateAssetContent'),
+      createVersion: can('createVersion'),
+      deleteVersion: can('deleteVersion'),
+      exportVersion: can('exportVersion'),
+    }),
+    [can]
+  )
+
+  const frontendPermissions = useMemo<FrontendPermissions>(
+    () => computeFrontendPermissions(lifecyclePermissions, lifecycleStatus, rbac),
+    [lifecyclePermissions, lifecycleStatus, rbac]
+  )
+
+  /** Ver el contenido del asset: RBAC de lectura Y algún rol de lifecycle. */
+  const canViewContent = useMemo(() => {
+    if (!rbac.readAsset) return false
+    if (!lifecyclePermissions) return true
+    return (
+      lifecyclePermissions.view ||
+      lifecyclePermissions.create ||
+      lifecyclePermissions.edit ||
+      lifecyclePermissions.review ||
+      lifecyclePermissions.approve ||
+      lifecyclePermissions.publish ||
+      lifecyclePermissions.archive
+    )
+  }, [lifecyclePermissions, rbac.readAsset])
+
+  /**
+   * Solo lectura si CUALQUIERA de los dos ejes lo dice (OR): sin capacidad de
+   * escritura en RBAC, o sin ningún rol de escritura en el lifecycle.
+   */
+  const isViewOnly = useMemo(() => {
+    const hasAnyRbacWrite =
+      rbac.updateAssetContent || rbac.createVersion || rbac.deleteVersion
+    if (!hasAnyRbacWrite) return true
+    if (!lifecyclePermissions) return false
+    return (
+      !lifecyclePermissions.create &&
+      !lifecyclePermissions.edit &&
+      !lifecyclePermissions.review &&
+      !lifecyclePermissions.approve &&
+      !lifecyclePermissions.publish &&
+      !lifecyclePermissions.archive
+    )
+  }, [lifecyclePermissions, rbac])
+
+  /**
+   * Toggle lector/editor: solo en stage "edit" con create/edit y asset:u, y
+   * nunca mientras haya un ElaborationRun bloqueando la execution — el efecto
+   * en assets-content.tsx fuerza modo lector en cuanto esto pasa a false.
+   */
+  const canSwitchToEditorMode = useMemo(() => {
+    const isEditStage = lifecycleStatus?.stage === 'edit'
+    return (
+      isEditStage &&
+      rbac.updateAssetContent &&
+      !!(lifecyclePermissions?.create || lifecyclePermissions?.edit) &&
+      !isExternalElaborationLocked(lifecycleStatus)
+    )
+  }, [lifecyclePermissions, lifecycleStatus, rbac.updateAssetContent])
+
+  return { frontendPermissions, rbac, canViewContent, isViewOnly, canSwitchToEditorMode }
 }

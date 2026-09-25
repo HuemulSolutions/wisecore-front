@@ -1,30 +1,18 @@
 import { useEffect } from "react";
 import { SectionForm } from "@/components/sections/sections-form";
 import type { AddSectionExecutionRequest } from "@/services/section_execution";
+import type { AddSectionExecutionFormProps } from '@/types/sections';
+export type { AddSectionExecutionFormProps } from '@/types/sections';
 
-interface SectionOption {
-  id: string;
-  name: string;
-}
-
-interface AddSectionExecutionFormProps {
-  onSubmit: (values: AddSectionExecutionRequest) => void;
-  isPending: boolean;
-  afterFromId: string | null;
-  existingSections: SectionOption[];
-  onValidationChange?: (isValid: boolean) => void;
-  defaultType?: 'ai' | 'manual' | 'reference';
-  defaultManualInput?: string;
-}
-
-export function AddSectionExecutionForm({ 
-  onSubmit, 
-  isPending, 
+export function AddSectionExecutionForm({
+  onSubmit,
+  isPending,
   afterFromId,
   existingSections,
   onValidationChange,
   defaultType,
   defaultManualInput,
+  documentId,
 }: AddSectionExecutionFormProps) {
   useEffect(() => {
     onValidationChange?.(false);
@@ -50,6 +38,7 @@ export function AddSectionExecutionForm({
       mode="create"
       editorType="rich"
       formId="add-section-execution-form"
+      documentId={documentId}
       onSubmit={handleSubmit}
       isPending={isPending}
       existingSections={existingSections}

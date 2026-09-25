@@ -1,32 +1,34 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { useOrgNavigate, stripOrgPrefix } from "@/hooks/useOrgRouter";
-import { getLibraryContent } from "@/services/folders";
+import { getLibraryContent, getLibraryContentByAsset } from "@/services/folders";
 import type { BreadcrumbItem, LibraryItem, LibraryNavigationState } from "@/components/assets";
+import type { UseAssetNavigationProps, UseAssetNavigationReturn } from "@/types/assets"
+import { logger } from "@/lib/logger"
 
-interface UseAssetNavigationProps {
-  selectedOrganizationId: string | null;
-  organizationToken: string | null;
-}
+/**
+ * sessionStorage keys for the selected document/breadcrumb are namespaced by
+ * organization id — otherwise switching orgs while this hook is unmounted
+ * (e.g. the user is on /home when they switch) leaves the previous org's
+ * document "stuck": it gets silently restored under the new org next time
+ * Activos mounts.
+ */
+const navStorageKey = (orgId: string | null | undefined, name: 'breadcrumb' | 'selectedFile') =>
+  `library:${orgId ?? 'none'}:${name}`;
 
-interface UseAssetNavigationReturn {
-  breadcrumb: BreadcrumbItem[];
-  selectedFile: LibraryItem | null;
-  selectedExecutionId: string | null;
-  isLoadingDocument: boolean;
-  isUpdatingUrl: boolean;
-  setBreadcrumb: React.Dispatch<React.SetStateAction<BreadcrumbItem[]>>;
-  setSelectedFile: React.Dispatch<React.SetStateAction<LibraryItem | null>>;
-  setSelectedExecutionId: React.Dispatch<React.SetStateAction<string | null>>;
-  currentFolderId: string | undefined;
+/** Removes the pre-namespacing keys so sessions open from before this fix don't keep leaking. */
+function purgeLegacyNavStorage() {
+  sessionStorage.removeItem('library-breadcrumb');
+  sessionStorage.removeItem('library-selectedFile');
 }
 
 /**
  * Hook to manage asset navigation, URL parsing, and state synchronization
  */
-export function useAssetNavigation({ 
-  selectedOrganizationId, 
-  organizationToken 
+export function useAssetNavigation({
+  selectedOrganizationId,
+  organizationToken,
+  canListLibrary
 }: UseAssetNavigationProps): UseAssetNavigationReturn {
   const navigate = useOrgNavigate();
   const location = useLocation();
@@ -36,6 +38,7 @@ export function useAssetNavigation({
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([]);
   const [selectedFile, setSelectedFile] = useState<LibraryItem | null>(null);
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [isLoadingDocument, setIsLoadingDocument] = useState(false);
   const [isUpdatingUrl, setIsUpdatingUrl] = useState(false);
 
@@ -71,7 +74,14 @@ export function useAssetNavigation({
     // Multi-segment case
     const possibleFileId = segments[segments.length - 1];
     const parentFolderPath = segments.slice(0, -1);
-    
+
+    // Sin permiso de listar la biblioteca no se resuelve la jerarquía: se cae
+    // al fallback "tratar el último segmento como documento" sin pegarle al
+    // backend. El acceso al documento en sí lo decide su propio query.
+    if (!canListLibrary) {
+      return { folderPath: parentFolderPath, selectedFileId: possibleFileId };
+    }
+
     // Approach 1: Check if last segment is a file by loading parent folder
     try {
       const parentFolderId = parentFolderPath.length > 0 
@@ -79,10 +89,10 @@ export function useAssetNavigation({
         : undefined;
       
       const parentContent = await getLibraryContent(selectedOrganizationId!, parentFolderId);
-      const items = parentContent?.content || [];
+      const items = parentContent?.assets || [];
       
       const foundFile = items.find(
-        (item: LibraryItem) => item.id === possibleFileId && item.type === 'document'
+        (item) => item.id === possibleFileId
       );
       
       if (foundFile) {
@@ -97,7 +107,7 @@ export function useAssetNavigation({
       const lastFolderId = segments[segments.length - 1];
       const folderContent = await getLibraryContent(selectedOrganizationId!, lastFolderId);
       
-      if (folderContent?.content !== undefined) {
+      if (folderContent?.assets !== undefined) {
         return { folderPath: segments, selectedFileId: null };
       }
     } catch {
@@ -106,23 +116,34 @@ export function useAssetNavigation({
     
     // Fallback: treat as file
     return { folderPath: parentFolderPath, selectedFileId: possibleFileId };
-  }, [location.pathname, selectedOrganizationId]);
+  }, [location.pathname, selectedOrganizationId, canListLibrary]);
 
   /**
-   * Build URL path from breadcrumb and selected file
+   * Build URL path from breadcrumb and selected file.
+   * Appends ?execution=<id> when both a file and an execution are provided.
    */
-  const buildUrlPath = useCallback((breadcrumb: BreadcrumbItem[], selectedFileId?: string) => {
+  const buildUrlPath = useCallback((breadcrumb: BreadcrumbItem[], selectedFileId?: string, executionId?: string, sectionId?: string) => {
     let path = '/asset';
-    
+
     if (breadcrumb.length > 0) {
       const folderPath = breadcrumb.map(item => encodeURIComponent(item.id)).join('/');
       path += '/' + folderPath;
     }
-    
+
     if (selectedFileId) {
       path += '/' + encodeURIComponent(selectedFileId);
     }
-    
+
+    const params = new URLSearchParams();
+    if (executionId && selectedFileId) {
+      params.set('execution', executionId);
+    }
+    if (sectionId && selectedFileId) {
+      params.set('section', sectionId);
+    }
+    const qs = params.toString();
+    if (qs) path += '?' + qs;
+
     return path;
   }, []);
 
@@ -132,19 +153,22 @@ export function useAssetNavigation({
   const loadFolderHierarchy = useCallback(async (folderIds: string[]): Promise<BreadcrumbItem[]> => {
     const hierarchy: BreadcrumbItem[] = [];
     let currentFolderId: string | undefined = undefined;
-    
+
+    // Sin permiso de listar la biblioteca no se reconstruye el breadcrumb.
+    if (!canListLibrary) return hierarchy;
+
     for (let i = 0; i < folderIds.length; i++) {
       const targetFolderId = folderIds[i];
       
       try {
         const data = await getLibraryContent(selectedOrganizationId!, currentFolderId);
         
-        if (!data?.content) {
+        if (!data?.folders) {
           break;
         }
         
-        const folders = data.content.filter((item: LibraryItem) => item.type === 'folder');
-        const targetFolder = folders.find((folder: LibraryItem) => folder.id === targetFolderId);
+        const folders = data.folders;
+        const targetFolder = folders.find((folder) => folder.id === targetFolderId);
         
         if (targetFolder) {
           hierarchy.push({ id: targetFolder.id, name: targetFolder.name });
@@ -156,7 +180,7 @@ export function useAssetNavigation({
           break;
         }
       } catch (error) {
-        console.error(`Error loading folder hierarchy at ${targetFolderId}:`, error);
+        logger.error(`Error loading folder hierarchy at ${targetFolderId}:`, error);
         if (hierarchy.length > 0) {
           return hierarchy;
         }
@@ -165,7 +189,7 @@ export function useAssetNavigation({
     }
     
     return hierarchy;
-  }, [selectedOrganizationId]);
+  }, [selectedOrganizationId, canListLibrary]);
 
   /**
    * Initialize from URL on mount and when URL changes
@@ -179,8 +203,8 @@ export function useAssetNavigation({
       return;
     }
     
-    // Skip if this URL has already been processed (compare without org prefix)
-    if (lastProcessedUrlRef.current === stripOrgPrefix(location.pathname)) {
+    // Skip if this URL has already been processed (compare without org prefix, include search)
+    if (lastProcessedUrlRef.current === stripOrgPrefix(location.pathname) + location.search) {
       return;
     }
     
@@ -188,13 +212,22 @@ export function useAssetNavigation({
       try {
         setIsLoadingDocument(true);
         
-        // Mark this URL as processed (store without org prefix)
-        lastProcessedUrlRef.current = stripOrgPrefix(location.pathname);
+        // Mark this URL as processed (store without org prefix, include search)
+        lastProcessedUrlRef.current = stripOrgPrefix(location.pathname) + location.search;
+
+        // Parse execution ID and section ID from query params (e.g. ?execution=<id>&section=<id>)
+        const urlSearchParams = new URLSearchParams(location.search);
+        const urlExecutionId = urlSearchParams.get('execution');
+        const urlSectionId = urlSearchParams.get('section');
         
         // Check if we're coming from FileTree navigation with full context
         const navState = location.state as LibraryNavigationState | undefined;
         if (navState?.fromFileTree && navState.selectedDocumentId) {
-          setSelectedExecutionId(null);
+          // Si quien navega ya conoce la execution (ej. tras clonar), arrancar
+          // directo con ella evita un primer fetch de /content sin execution_id
+          // (que puede volver vacío) seguido de un segundo fetch con la real.
+          setSelectedExecutionId(navState.selectedExecutionId ?? null);
+          setSelectedSectionId(null);
           setSelectedFile({
             id: navState.selectedDocumentId,
             name: navState.selectedDocumentName || 'Document',
@@ -239,17 +272,21 @@ export function useAssetNavigation({
         }
         
         if (selectedFileId) {
-          setSelectedExecutionId(null);
+          // Restore execution and section from URL query params if present
+          setSelectedExecutionId(urlExecutionId);
+          setSelectedSectionId(urlSectionId);
           setSelectedFile({
             id: selectedFileId,
             name: `Document ${selectedFileId.substring(0, 8)}...`,
             type: 'document'
           });
         } else {
+          setSelectedExecutionId(null);
+          setSelectedSectionId(null);
           setSelectedFile(null);
         }
       } catch (error) {
-        console.error('Error initializing from URL:', error);
+        logger.error('Error initializing from URL:', error);
         navigate('/asset', { replace: true });
       } finally {
         setIsLoadingDocument(false);
@@ -258,9 +295,10 @@ export function useAssetNavigation({
     
     // Check if this is first load or URL change
     if (!hasRestoredRef.current) {
-      const savedBreadcrumb = sessionStorage.getItem('library-breadcrumb');
-      const savedSelectedFile = sessionStorage.getItem('library-selectedFile');
-      
+      purgeLegacyNavStorage();
+      const savedBreadcrumb = sessionStorage.getItem(navStorageKey(selectedOrganizationId, 'breadcrumb'));
+      const savedSelectedFile = sessionStorage.getItem(navStorageKey(selectedOrganizationId, 'selectedFile'));
+
       if (stripOrgPrefix(location.pathname) !== '/asset') {
         isInitializingRef.current = true;
         initializeFromUrl().finally(() => { isInitializingRef.current = false; });
@@ -269,39 +307,53 @@ export function useAssetNavigation({
           const parsed = JSON.parse(savedBreadcrumb);
           if (Array.isArray(parsed) && parsed.length > 0) setBreadcrumb(parsed);
         } catch {}
-        
+
         if (savedSelectedFile) {
           try {
             const parsedFile = JSON.parse(savedSelectedFile);
-            if (parsedFile?.id) setSelectedFile(parsedFile);
+            if (parsedFile?.id) {
+              setSelectedFile(parsedFile);
+              // Defense in depth: the restored file may be stale (deleted, or
+              // — pre-namespacing sessions — from a different org). Verify it
+              // still exists in this org before trusting its name/content.
+              // Requiere permiso de listar la biblioteca: sin él no se dispara
+              // la verificación (y el documento restaurado se valida solo).
+              const verifiedOrgId = selectedOrganizationId;
+              if (canListLibrary) getLibraryContentByAsset(verifiedOrgId!, parsedFile.id).catch(() => {
+                setSelectedFile(null);
+                setBreadcrumb([]);
+                sessionStorage.removeItem(navStorageKey(verifiedOrgId, 'selectedFile'));
+                sessionStorage.removeItem(navStorageKey(verifiedOrgId, 'breadcrumb'));
+              });
+            }
           } catch {}
         }
       }
-      
+
       hasRestoredRef.current = true;
     } else {
       isInitializingRef.current = true;
       initializeFromUrl().finally(() => { isInitializingRef.current = false; });
     }
-  }, [selectedOrganizationId, organizationToken, urlOrgId, location.pathname, location.state, parseUrlPath, loadFolderHierarchy, buildUrlPath, navigate]);
+  }, [selectedOrganizationId, organizationToken, urlOrgId, location.pathname, location.search, location.state, parseUrlPath, loadFolderHierarchy, buildUrlPath, navigate, canListLibrary]);
 
   /**
    * Sync sessionStorage when breadcrumb or selectedFile changes
    */
   useEffect(() => {
-    if (hasRestoredRef.current) {
-      sessionStorage.setItem('library-breadcrumb', JSON.stringify(breadcrumb));
-      
+    if (hasRestoredRef.current && selectedOrganizationId) {
+      sessionStorage.setItem(navStorageKey(selectedOrganizationId, 'breadcrumb'), JSON.stringify(breadcrumb));
+
       if (selectedFile) {
-        sessionStorage.setItem('library-selectedFile', JSON.stringify(selectedFile));
+        sessionStorage.setItem(navStorageKey(selectedOrganizationId, 'selectedFile'), JSON.stringify(selectedFile));
       } else {
-        sessionStorage.removeItem('library-selectedFile');
+        sessionStorage.removeItem(navStorageKey(selectedOrganizationId, 'selectedFile'));
       }
     }
-  }, [breadcrumb, selectedFile]);
+  }, [breadcrumb, selectedFile, selectedOrganizationId]);
 
   /**
-   * Update URL when selected file or breadcrumb changes
+   * Update URL when selected file, breadcrumb, or execution changes
    */
   useEffect(() => {
     if (!hasRestoredRef.current || !selectedOrganizationId || !organizationToken) return;
@@ -310,15 +362,16 @@ export function useAssetNavigation({
     // state (breadcrumb/selectedFile) hasn't settled yet.
     if (isInitializingRef.current) return;
     
-    const newUrl = buildUrlPath(breadcrumb, selectedFile?.id);
-    
+    const newUrl = buildUrlPath(breadcrumb, selectedFile?.id, selectedExecutionId || undefined, selectedSectionId || undefined);
+
     // Don't update URL if navigation came from FileTree
     const navigationState = location.state as any;
     if (navigationState?.fromFileTree) {
       return;
     }
     
-    if (stripOrgPrefix(location.pathname) !== newUrl && !isUpdatingUrl) {
+    const currentFullUrl = stripOrgPrefix(location.pathname) + location.search;
+    if (currentFullUrl !== newUrl && !isUpdatingUrl) {
       setIsUpdatingUrl(true);
       
       lastProcessedUrlRef.current = newUrl;
@@ -330,7 +383,7 @@ export function useAssetNavigation({
         }, 100);
       }, 0);
     }
-  }, [breadcrumb, selectedFile, buildUrlPath, navigate, location.pathname, selectedOrganizationId, organizationToken, isUpdatingUrl, location.state]);
+  }, [breadcrumb, selectedFile, selectedExecutionId, selectedSectionId, buildUrlPath, navigate, location.pathname, location.search, selectedOrganizationId, organizationToken, isUpdatingUrl, location.state]);
 
   /**
    * Reset state when organization changes
@@ -342,20 +395,26 @@ export function useAssetNavigation({
       setBreadcrumb([]);
       setSelectedFile(null);
       setSelectedExecutionId(null);
+      setSelectedSectionId(null);
       hasRestoredRef.current = false;
       lastProcessedUrlRef.current = '';
-      
-      sessionStorage.removeItem('library-breadcrumb');
-      sessionStorage.removeItem('library-selectedFile');
-      
+
+      // Clear the PREVIOUS org's keys — the new org's keys (if any, from an
+      // earlier visit) are handled by the namespaced restore path above.
+      sessionStorage.removeItem(navStorageKey(prevOrganizationIdRef.current, 'breadcrumb'));
+      sessionStorage.removeItem(navStorageKey(prevOrganizationIdRef.current, 'selectedFile'));
+
       // Check if the URL orgId already matches the new org — if so, the switch
       // was driven by a shared URL and we should re-initialize from the URL
       // instead of redirecting to the asset root.
       const urlDroveChange = urlOrgId === selectedOrganizationId;
       
-      if (!urlDroveChange && stripOrgPrefix(location.pathname) !== '/asset') {
+      if (!urlDroveChange && stripOrgPrefix(location.pathname).startsWith('/asset')) {
         setIsUpdatingUrl(true);
-        navigate('/asset', { replace: true });
+        // Prefixed with the org id — an unprefixed '/asset' only matches the
+        // app's catch-all route (App.tsx RootRedirect), triggering a second,
+        // competing navigation on top of app-layout's context→URL sync.
+        navigate(`/${selectedOrganizationId}/asset`, { replace: true });
         setTimeout(() => setIsUpdatingUrl(false), 200);
       }
       // else: shared URL-driven switch — the "Initialize from URL" effect will
@@ -382,13 +441,13 @@ export function useAssetNavigation({
       if (navigationState?.breadcrumb && navigationState.breadcrumb.length > 0) {
         setBreadcrumb(navigationState.breadcrumb);
       } else if (navigationState?.restoreBreadcrumb) {
-        const savedBreadcrumb = sessionStorage.getItem('library-breadcrumb');
+        const savedBreadcrumb = sessionStorage.getItem(navStorageKey(selectedOrganizationId, 'breadcrumb'));
         if (savedBreadcrumb) {
           try {
             const parsedBreadcrumb = JSON.parse(savedBreadcrumb);
             setBreadcrumb(parsedBreadcrumb);
           } catch (error) {
-            console.error('Error parsing saved breadcrumb:', error);
+            logger.error('Error parsing saved breadcrumb:', error);
           }
         }
       }
@@ -397,41 +456,43 @@ export function useAssetNavigation({
     }
     
     if (navigationState?.fromLibrary) {
-      const savedBreadcrumb = sessionStorage.getItem('library-breadcrumb');
-      const savedSelectedFile = sessionStorage.getItem('library-selectedFile');
+      const savedBreadcrumb = sessionStorage.getItem(navStorageKey(selectedOrganizationId, 'breadcrumb'));
+      const savedSelectedFile = sessionStorage.getItem(navStorageKey(selectedOrganizationId, 'selectedFile'));
       
       if (savedBreadcrumb) {
         try {
           const parsedBreadcrumb = JSON.parse(savedBreadcrumb);
           setBreadcrumb(parsedBreadcrumb);
         } catch (error) {
-          console.error('Error parsing saved breadcrumb:', error);
+          logger.error('Error parsing saved breadcrumb:', error);
         }
       }
-      
+
       if (savedSelectedFile) {
         try {
           const parsedSelectedFile = JSON.parse(savedSelectedFile);
           setSelectedExecutionId(null);
           setSelectedFile(parsedSelectedFile);
         } catch (error) {
-          console.error('Error parsing saved selected file:', error);
+          logger.error('Error parsing saved selected file:', error);
         }
       }
       
       navigate(location.pathname, { replace: true });
     }
-  }, [location.state, location.pathname, navigate]);
+  }, [location.state, location.pathname, navigate, selectedOrganizationId]);
 
   return {
     breadcrumb,
     selectedFile,
     selectedExecutionId,
+    selectedSectionId,
     isLoadingDocument,
     isUpdatingUrl,
     setBreadcrumb,
     setSelectedFile,
     setSelectedExecutionId,
+    setSelectedSectionId,
     currentFolderId,
   };
 }

@@ -1,39 +1,87 @@
 // Re-export all types from their respective files
 export * from './api-error'
-export * from './assets-types'
 export * from './assets'
 export * from './auth'
 export * from './custom-fields'
-export type { 
-  CustomFieldDocument, 
-  CustomFieldDocumentSource,
-  CustomFieldDocumentListParams,
-  CustomFieldDocumentByDocumentParams,
-  CustomFieldDocumentSourcesResponse,
-  CustomFieldDocumentsResponse,
-  CustomFieldDocumentResponse,
-  CreateCustomFieldDocumentRequest,
-  UpdateCustomFieldDocumentRequest
-} from './custom-fields-documents'
-export type {
-  CustomFieldTemplate,
-  CustomFieldTemplateSource,
-  CustomFieldTemplateListParams,
-  CustomFieldTemplateByTemplateParams,
-  CustomFieldTemplateSourcesResponse,
-  CustomFieldTemplatesResponse,
-  CustomFieldTemplateResponse,
-  CreateCustomFieldTemplateRequest,
-  UpdateCustomFieldTemplateRequest
-} from './custom-fields-templates'
 export * from './data-table'
 export * from './embedding-provider'
-export * from './llm'
 export * from './llm-provider'
 export * from './menu-action'
-export * from './page-header'
-export * from './sections'
+// sections: AddSectionFormProps and SectionExecutionProps conflict with @/types/assets — selective export
+export type { Dependency, SortableSectionItem, SortableSectionSheetItem, SectionCoreItem, SectionComponentProps, AddSectionFormSheetProps, EditItem, EditItemForBackend, EditSectionProps, EditFormItem, EditFormItemForBackend, EditSectionFormProps, EditSectionDialogProps, AddSectionExecutionFormProps, SectionItem, SectionFormProps, SortableSectionProps, SortableSectionSheetProps, DeleteMode } from './sections'
 export * from './table-of-contents'
 export * from './users'
 export * from './chatbot'
 export * from './discussions'
+export * from './markdown-diff-viewer'
+export * from './protected-component'
+export * from './empty-state'
+export * from './loading-overlay'
+
+export * from './content-error-state'
+export * from './name-description-fields'
+export * from './asset-version-compare-sheet'
+export * from './section-separator'
+
+
+export * from './wisy-context-chips'
+export * from './context'
+export type { ContextItem as EditableContextItem } from './context'
+export * from './add-custom-field-dialog'
+export * from './dependency'
+export * from './ai-suggestion-feedback'
+export * from './document-type-relationships'
+export type { ExportType, DocxSource, CombinedExportConfig, CombinedExportFormProps } from './combined-export-form'
+export type { ExecutionConfig, ExecutionConfigDialogProps, DeleteExecutionDialogProps, ExecutionConfigSheetProps, ExecutionInfoSheetProps, ExecutionInfoProps, ExecutionStatusBannerProps, ExecutionRunProgressBannerProps, UseAllExecutionsOptions, ExecutionPollingData, UseExecutionPollingProps, UseExecutionStateProps } from './execution'
+export type { EditType, ExecutionMode, MassExecutionConfig } from './mass-execution-form'
+export * from './other-version-execution-banner'
+export * from './external-functionalities'
+export * from './external-systems'
+export * from './external-asset-import'
+export * from './editor'
+export * from './mdx-editor'
+export * from './models'
+export type { Organization, OrganizationUser, OrganizationUsersResponse, SetOrganizationAdminResponse, OrganizationContextType, OrganizationProviderProps, CreateOrganizationDialogProps, DeleteOrganizationDialogProps, OrganizationContentEmptyStateProps, OrganizationPageEmptyStateProps, OrganizationPageHeaderProps, OrganizationSelectionDialogProps } from './organizations'
+export * from './plate-editor'
+export * from './section-plate-editor'
+export * from './discussion-sync'
+export * from './editor-error-boundary'
+export * from './roles'
+
+
+// templates: CreateTemplateDialogProps conflicts with @/types/assets version — selective export
+export type { TemplateItem, TemplatesResponse, ChildDocumentExecution, ChildDocument, ChildDocumentFolder, ChildDocumentsResponse, DeleteTemplateDialogProps, EditTemplateDialogProps, AddCustomFieldTemplateDialogProps, EditCustomFieldTemplateDialogProps, TemplateContentProps, TemplateHeaderProps, TemplateSectionsListProps, TemplatesSidebarProps, DocxTemplateCardProps, TemplateDocxListProps, TemplateEmptyStateProps, TemplateInfoSheetProps, CustomFieldTemplateTableProps, CustomFieldTemplateEmptyStateProps, TemplateCustomFieldsProps, UseDocxTemplatesForTemplateOptions } from './templates'
+// Note: AddSectionDialogProps from templates conflicts with the assets version.
+// Import directly from '@/types/templates/add-section-dialog' if needed.
+export * from './lifecycle'
+export * from './huemul'
+export * from './json-viewer'
+export * from './error-utils'
+export * from './editing-guard-context'
+export * from './global-panel-context'
+export * from './permissions-context'
+export * from './external-parameters'
+export * from './external-secrets'
+export * from './user-preferences'
+export * from './media'
+export * from './mention'
+export * from './reference'
+// ExternalSystemsPageState now exported from ./external-systems
+export type { ExternalSystemsPageState } from './external-systems'
+export * from './canvas'
+
+export * from './jwt-utils'
+export * from './access-levels'
+export type { ExecutionLifecycleState, Execution, ExecutionsResponse, GetExecutionsParams, ExecutionSearchType, RollbackTarget, RollbackStep, RollbackTargetsResponse } from './execution'
+export * from './auth-types'
+export type { DocumentTypeDetail, DocumentTypeDetailResponse, DocumentTypesResponse, CreateDocumentTypeData, UpdateDocumentTypeData } from './document-types'
+export * from './document-type-folders'
+export * from './folders'
+export * from './diagrams'
+export * from './generate'
+export type { EmptyStateProps as UserPageEmptyStateProps } from './users/components'
+export * from './rbac'
+export * from './search'
+export * from './section-execution'
+export * from './tags'
+export * from './data-table-node'
