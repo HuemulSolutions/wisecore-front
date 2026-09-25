@@ -52,12 +52,12 @@ export function HomeCommentsPopover({
   return (
     // La fila entera abre el activo: frenar el clic acá y dentro del contenido
     // (el Portal de Radix igual propaga eventos React al padre).
-    <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+    <span className="-mx-4 -my-3 block" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+            className="flex w-full items-center px-4 py-3 text-left hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring"
             title={t('commentsPopover.open')}
           >
             {trigger}
