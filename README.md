@@ -158,6 +158,18 @@ Configured through `src/config.ts`, backed by Vite's `import.meta.env`. See `.en
 | `VITE_TERMS_URL` | No | Terms-of-service link shown on the login screen; omitted → plain text with no link |
 | `VITE_PRIVACY_URL` | No | Same as above, for the privacy policy |
 
+### Running against a local backend
+
+`.env.example` points to `http://localhost:8080` (the dockerized stack). To work against a backend started with `scripts/serve_local.py` (port 8000), create a `.env.local`, which is gitignored and takes precedence over `.env`:
+
+```env
+VITE_API_URL=http://localhost:8000/api/v1
+```
+
+- Keep the dev server on **5173**. The backend redirects corporate SSO logins to `URL_FRONTEND/auth/sso/callback`, and its local `URL_FRONTEND` is `http://localhost:5173`. If Vite picks another port because 5173 is busy, the SSO round-trip lands on the wrong origin.
+- HMR picks up code changes; restart `npm run dev` only after editing `.env*`, `vite.config.ts` or dependencies.
+- The full local login/SSO/MCP test guide lives in the backend repo: `docs/sso.md` §10.2.
+
 ## Project Structure
 
 ```
