@@ -252,12 +252,12 @@ export interface FileUploadEntryMeta {
   url: string;
   name?: string;
   contentType?: string;
-  /** id del media, si el backend lo incluye en la entrada — permite rearmar el token al guardar. */
+  /** id del media (el backend lo incluye en cada entrada) — permite rearmar el token al guardar. */
   mediaId?: string;
 }
 
 // Decodifica UNA entrada de value de carga_de_archivos. El backend devuelve
-// {url, name, content_type} (mismo shape que CustomFieldValueFile). Devuelve null cuando la
+// {url, name, content_type, media_id}. Devuelve null cuando la
 // entrada no es un archivo mostrable: token {{MEDIA:...}} sin resolver (media borrada o sin
 // acceso, que el caller pinta como "archivo no disponible") o cualquier otra forma.
 export function readFileUploadEntry(entry: unknown): FileUploadEntryMeta | null {

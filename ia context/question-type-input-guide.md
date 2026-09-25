@@ -69,12 +69,12 @@ form-fields-only concept, custom fields can't be created as `etiqueta`).
 - Form runtime (`asset-form-section.tsx`): `uploadMedia` → stores a `{{MEDIA:id}}` token, with preview/broken-file handling.
 - Custom fields (`custom-field-value-field.tsx`): a dedicated blob endpoint per entity (`uploadCustomFieldTemplateValueBlob` / `uploadCustomFieldDocumentValueBlob`), **images only** — there is no generic file-upload endpoint for custom fields today, so a custom field configured with `carga_de_archivos` but a non-`image` `data_type` has no real upload widget (pre-existing limitation, not something this component should paper over).
 
-**Regla de valor para `carga_de_archivos` (form runtime):** el backend LEE cada archivo como objeto `{url, name, content_type[, media_id]}` (o el token `{{MEDIA:id}}` sin resolver si el media está roto), pero al GUARDAR (`PATCH form_values`/`form_answer`) solo acepta tokens `{{MEDIA:<uuid>}}` — cualquier otra cosa devuelve 400 `INVALID_FILE_UPLOAD_VALUE`. Por eso `asset-form-section.tsx`:
+**Regla de valor para `carga_de_archivos` (form runtime):** el backend LEE cada archivo como objeto `{url, name, content_type, media_id}` (`media_id` = uuid del token; o el token `{{MEDIA:id}}` sin resolver si el media está roto), pero al GUARDAR (`PATCH form_values`/`form_answer`) solo acepta tokens `{{MEDIA:<uuid>}}` — cualquier otra cosa devuelve 400 `INVALID_FILE_UPLOAD_VALUE`. Por eso `asset-form-section.tsx`:
 
 - guarda en `answers` solo tokens (`buildInitialAnswers` convierte con `fileUploadEntryToToken`, que necesita `media_id`);
 - pinta desde `fileMetaByToken` (token → `{url, name, contentType}`), sembrado con `buildInitialFileMeta` y ampliado con cada subida — nunca desde `answers`;
 - `resolveFileUploadRow` (`question-type-meta.ts`) es el único resolver de "qué se pinta por entrada", compartido con `FormFieldAnswerValue`;
-- `validateFormFieldValue` frena con `invalidFileReference` un campo que aún tenga entradas no-token (objeto sin `media_id`), en vez de mandar un PATCH que el backend rechaza.
+- gracias a `media_id`, editar una pregunta con varios archivos (agregar/quitar uno) reenvía los previos como tokens sin pedir resubirlos; `validateFormFieldValue` solo valida min/max.
 
 Pattern for a new consumer:
 
