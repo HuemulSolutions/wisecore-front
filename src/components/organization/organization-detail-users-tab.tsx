@@ -8,7 +8,7 @@ import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { isStatusCode } from "@/lib/error-utils"
 import { assignUserToOrganization, removeUserFromOrganization } from "@/services/users"
-import { useOrganizationUsers, useSetOrganizationAdmin, useSetMembershipAuthMethod, organizationQueryKeys } from "@/hooks/useOrganizations"
+import { useOrganizationUsers, useSetOrganizationAdmin, organizationQueryKeys } from "@/hooks/useOrganizations"
 import { globalUserQueryKeys } from "@/hooks/useUsers"
 import { OrganizationUserRow } from "./organization-user-row"
 import { OrganizationUserAddPopover } from "./organization-user-add-popover"
@@ -53,7 +53,6 @@ export function OrganizationDetailUsersTab({ organization, canListUsers, canSetA
     canListUsers ? organization.id : undefined
   )
   const setAdminMutation = useSetOrganizationAdmin()
-  const setAuthMethodMutation = useSetMembershipAuthMethod()
 
   const invalidateMembers = () => {
     queryClient.invalidateQueries({ queryKey: organizationQueryKeys.usersBase(organization.id) })
@@ -165,12 +164,9 @@ export function OrganizationDetailUsersTab({ organization, canListUsers, canSetA
               onMakeAdmin={setConfirmingUser}
               canRemove={canManageMembers}
               onRemove={setRemovingUser}
-              disabled={setAdminMutation.isPending || removeMutation.isPending || setAuthMethodMutation.isPending}
+              disabled={setAdminMutation.isPending || removeMutation.isPending}
               organizationId={organization.id}
               canEditAuthMethod={canEditAuthMethod}
-              onAuthMethodChange={(member, authTypeId) =>
-                setAuthMethodMutation.mutate({ organizationId: organization.id, userId: member.id, authTypeId })
-              }
             />
           ))}
         </div>

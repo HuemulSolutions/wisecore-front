@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { HuemulButton } from "@/huemul/components/huemul-button"
-import { MembershipAuthMethodSelect } from "./membership-auth-method-select"
+import { MembershipAuthMethodField } from "./membership-auth-method-field"
 import type { OrganizationUser } from "@/types/organizations"
 
 export interface OrganizationUserRowProps {
@@ -20,7 +20,6 @@ export interface OrganizationUserRowProps {
   organizationId: string
   /** Root admin o admin de ESA organización: reemplaza el badge del método por un select. */
   canEditAuthMethod?: boolean
-  onAuthMethodChange?: (user: OrganizationUser, authTypeId: string) => void
 }
 
 function getInitials(user: OrganizationUser) {
@@ -37,7 +36,6 @@ export function OrganizationUserRow({
   disabled,
   organizationId,
   canEditAuthMethod = false,
-  onAuthMethodChange,
 }: OrganizationUserRowProps) {
   const { t } = useTranslation(['organizations', 'users', 'common'])
 
@@ -64,13 +62,11 @@ export function OrganizationUserRow({
       </div>
       {/* Método de autenticación de la membresía (docs/sso-frontend.md, Fase 6):
           badge de solo lectura, o select si el usuario puede cambiarlo. */}
-      <MembershipAuthMethodSelect
+      <MembershipAuthMethodField
+        member={user}
         organizationId={organizationId}
-        value={user.auth_type_id}
-        current={user.auth_type}
         canEdit={canEditAuthMethod}
         disabled={disabled}
-        onChange={(authTypeId) => onAuthMethodChange?.(user, authTypeId)}
         className={canEditAuthMethod ? "w-44 shrink-0" : "shrink-0"}
       />
       {canSetAdmin && !user.is_org_admin && (

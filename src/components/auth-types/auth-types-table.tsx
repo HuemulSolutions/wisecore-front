@@ -115,10 +115,9 @@ export function AuthTypesTable({
       key: "delete",
       label: t('actions.deleteAuthType'),
       icon: Trash2,
+      onClick: onDelete,
       // `internal` es global e inmutable: el backend rechaza el borrado.
-      onClick: (authType) => {
-        if (authType.type !== 'internal') onDelete(authType)
-      },
+      show: (authType) => authType.type !== 'internal',
       destructive: true
     }
   ] : []

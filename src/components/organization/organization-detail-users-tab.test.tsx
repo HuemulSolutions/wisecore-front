@@ -101,6 +101,35 @@ describe('OrganizationDetailUsersTab · método de autenticación por miembro', 
     expect(calls[0].body).toEqual({ auth_type_id: MICROSOFT_CONNECTION_ID })
   })
 
+  it('el admin (no root) que pasa SU propia membresía a SSO confirma antes del PATCH', async () => {
+    useMembers([{ ...members[1], id: activeUser.id, name: 'Self', last_name: 'Admin' }])
+    const calls: string[] = []
+    server.use(
+      http.patch(`${backendUrl}/organizations/${ORG_A_ID}/users/:userId/auth-method`, ({ request }) => {
+        calls.push(request.url)
+        return respondOk({ user_id: activeUser.id, organization_id: ORG_A_ID, auth_type_id: MICROSOFT_CONNECTION_ID, auth_type: microsoftMembership })
+      }),
+    )
+    const { user } = renderWithProviders(
+      <OrganizationDetailUsersTab organization={organization} canListUsers canSetAdmin={false} canEditAuthMethod />,
+      { session: orgAdminSession, org: orgAdminOrg },
+    )
+
+    await screen.findByText('Self Admin')
+    const trigger = within(rowOf('Self Admin')).getByRole('combobox')
+    await waitFor(() => expect(trigger).toBeEnabled())
+    await user.click(trigger)
+    await user.click(within(await screen.findByRole('listbox')).getByText('Microsoft Contoso'))
+
+    const dialog = await screen.findByRole('alertdialog')
+    expect(within(dialog).getByText('Change your own sign-in method?')).toBeInTheDocument()
+    expect(calls).toHaveLength(0)
+
+    await user.click(within(dialog).getByRole('button', { name: 'Change method' }))
+    await waitFor(() => expect(calls).toHaveLength(1))
+    expect(calls[0]).toContain(`/users/${activeUser.id}/auth-method`)
+  })
+
   it('una conexión inactiva sigue visible como el método actual del miembro', async () => {
     useMembers()
     const { user } = renderWithProviders(

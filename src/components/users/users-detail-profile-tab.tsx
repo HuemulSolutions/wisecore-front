@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import UserFormFields from "./users-form-fields"
-import { UserAuthMethodField } from "./users-auth-method-field"
+import { MembershipAuthMethodField } from "@/components/organization/membership-auth-method-field"
 import { formatDate, getStatusColor } from "./users-table"
 import type { User, UserProfileFormApi } from "@/types/users"
 import type { useUserMutations } from "@/hooks/useUsers"
@@ -19,7 +19,7 @@ export interface UsersDetailProfileTabProps {
   userMutations: ReturnType<typeof useUserMutations>
   canUpdate: boolean
   canManageRootAdmin: boolean
-  /** Método de inicio de sesión en la organización activa; ver `UserAuthMethodField`. */
+  /** Método de inicio de sesión en la organización activa; ver `MembershipAuthMethodField`. */
   authMethod?: {
     organizationId: string
     canEdit: boolean
@@ -109,8 +109,8 @@ export function UsersDetailProfileTab({
       {/* Acción inmediata (PATCH de la membresía), fuera del formulario del
           perfil: no pasa por `PUT /users/{id}` ni por la barra de guardado. */}
       {authMethod && (
-        <UserAuthMethodField
-          user={user}
+        <MembershipAuthMethodField
+          member={user}
           organizationId={authMethod.organizationId}
           canEdit={authMethod.canEdit}
           withLabel

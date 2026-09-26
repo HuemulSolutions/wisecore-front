@@ -7,7 +7,7 @@ import { HuemulTable, type HuemulTableColumn } from "@/huemul/components/huemul-
 import { useRolesMap } from "@/contexts/role-refs-context"
 import { roleRowSwatch } from "@/lib/reference-colors"
 import type { UserTableProps } from '@/types/users'
-import { UserAuthMethodField } from './users-auth-method-field'
+import { MembershipAuthMethodField } from '@/components/organization/membership-auth-method-field'
 export type { UserTableProps } from '@/types/users'
 
 // Helper functions
@@ -71,8 +71,8 @@ export default function UserTable({
     render: (user) => (
       // El select no debe abrir el panel del usuario al interactuar con él.
       <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-        <UserAuthMethodField
-          user={user}
+        <MembershipAuthMethodField
+          member={user}
           organizationId={organizationId!}
           canEdit={canEditAuthMethod}
           className={canEditAuthMethod ? "w-full max-w-52" : undefined}

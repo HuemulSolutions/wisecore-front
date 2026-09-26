@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest'
 import { backendUrl } from '@/config'
 import AuthTypesPage from '@/pages/auth-types'
 import { AuthTypeFormDialog } from '@/components/auth-types/auth-types-form-dialog'
+import { AuthTypesTable } from '@/components/auth-types/auth-types-table'
 import { renderWithProviders } from '@/test/render'
 import { server } from '@/test/msw/server'
 import { respondOk } from '@/test/msw/respond'
@@ -198,6 +199,25 @@ describe('AuthTypeFormDialog', () => {
 
     await waitFor(() => expect(bodies).toHaveLength(1))
     expect(bodies[0]).toEqual({ name: 'Microsoft Contoso 2' })
+  })
+
+  it('la conexión internal no ofrece "Eliminar" (es global e inmutable); las SSO sí', async () => {
+    useConnections()
+    const { user } = renderWithProviders(
+      <AuthTypesTable authTypes={connections.slice(0, 2)} onEdit={() => {}} onDelete={() => {}} canManage />,
+      { session: rootSession },
+    )
+
+    const [internalActions, microsoftActions] = await screen.findAllByRole('button', { name: 'Actions' })
+    await user.click(internalActions)
+    let menu = await screen.findByRole('menu')
+    expect(within(menu).getByText('Edit connection')).toBeInTheDocument()
+    expect(within(menu).queryByText('Delete connection')).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
+
+    await user.click(microsoftActions)
+    menu = await screen.findByRole('menu')
+    expect(within(menu).getByText('Delete connection')).toBeInTheDocument()
   })
 
   it('la conexión internal no expone params, dominios, secreto ni cambio de tipo', async () => {
