@@ -270,6 +270,14 @@ export function isExternalElaborationLocked(status?: LifecycleStatus): boolean {
   return status?.is_locked_external_elaboration === true
 }
 
+/**
+ * La última corrida de elaboración del step vigente falló. Mientras corre un
+ * reintento manda el banner de lock, no el de error — por eso se excluye el lock.
+ */
+export function hasExternalElaborationError(status?: LifecycleStatus | null): boolean {
+  return status?.has_external_elaboration_error === true && !isExternalElaborationLocked(status)
+}
+
 /** Cadencia del poll de /content mientras el activo está bloqueado esperando al sistema externo. */
 export const EXTERNAL_ELABORATION_POLL_MS = 5000
 

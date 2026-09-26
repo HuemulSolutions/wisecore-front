@@ -61,9 +61,22 @@ Toda la cadena ya existe end-to-end:
 - El historial de sección (`GET /section_executions/{id}/history`) **solo** registra `modify` sobre secciones tipo `form`. Altas, bajas y modificaciones de secciones no-formulario no dejan rastro — y ni siquiera las que sí quedan registradas tienen `created_by` (queda `null`).
 - Al terminar bien, el step se completa solo y la ejecución avanza — la UI debe refrescar el estado del ciclo de vida cuando `is_locked_external_elaboration` vuelve a `false` (ya cubierto por el poll existente, no hace falta código extra).
 
+### 6. Error de la última corrida (banner rojo)
+
+- `lifecycle_status` (de `/documents/{id}/content` y `/execution-lifecycle/{id}/status`) trae `has_external_elaboration_error` + `external_elaboration_error_message`, calculados sobre el step vigente. Se limpian **solos** con una corrida posterior no fallida — no hay dismiss manual. El timeout de 10 min del backend marca la corrida como fallida, libera el lock y enciende este banner.
+- Helper `hasExternalElaborationError(status)` en [`lifecycle-access.ts`](../src/lib/lifecycle-access.ts): `=== true` y **excluye el lock** (mientras corre un reintento manda el banner de lock).
+- Banner: [`external-elaboration-error-banner.tsx`](../src/components/assets/content/external-elaboration-error-banner.tsx), montado en `assets-content.tsx` justo después del banner de lock. Botón "Reintentar" reusa `runElaborationMutation` (`run-elaboration`); solo se ofrece con `permissions.edit`, `stage === "edit"` y estado no terminal. No depende de `hasEnabledElaborationConfig` (el error ya prueba que hay elaboración; evita exigir el permiso de configuración).
+- `is_automatic` (por step, en `current_step`/`pending_steps`/`completed_steps` del `/status`) existe pero el front no lo consume todavía.
+
+### 7. Rollback y steps automáticos
+
+- Un step automático (con elaboración externa habilitada) **no es destino de rollback**: `GET /execution-lifecycle/{id}/rollback-targets` ya no lo devuelve, así que el picker ([`lifecycle-rollback-sheet.tsx`](../src/components/ui/lifecycle-rollback-sheet.tsx)) se filtra solo — no re-filtrar en el front.
+- `POST /reject` puede devolver 400 `LIFECYCLE_REJECT_TARGET_AUTOMATIC_STEP` (toast dedicado + invalida `["rollback-targets"]`, en `rejectMutation`) y 409 `EXECUTION_LOCKED_EXTERNAL_ELABORATION` (mismo toast global que complete/advance; el botón "Devolver" ya se deshabilita con el lock).
+- `rollback-targets` **no sirve como fuente única de "steps completados"**: excluye a los automáticos aunque estén hechos. `useLifecycleProgress` completa con "los que preceden al step actual dentro del grupo".
+
 ## Deuda conocida / limitación actual
 
-**No hay endpoint de estado o listado de `ElaborationRun`.** La única fuente de "¿terminó bien o mal?" son los `execution-logs` de la funcionalidad (`GET /external-systems/{system_id}/functionalities/{functionality_id}/execution-logs?...&status=failed`), que exigen conocer de antemano `system_id`/`functionality_id` (se sacan de `LifecycleElaborationConfigResponse.external_functionality`). Por decisión de producto, esta iteración **no construyó UI de progreso/historial de runs** — solo se cubre con el banner de bloqueo existente y el toast de error del disparo manual. Pedido enviado a backend: [`respuestas/backend-elaboracion-externa-estado-run.md`](../respuestas/backend-elaboracion-externa-estado-run.md).
+**No hay endpoint de estado o listado de `ElaborationRun`** (el error de la última corrida ya está cubierto por §6; sigue faltando historial/progreso). La única fuente de "¿terminó bien o mal?" son los `execution-logs` de la funcionalidad (`GET /external-systems/{system_id}/functionalities/{functionality_id}/execution-logs?...&status=failed`), que exigen conocer de antemano `system_id`/`functionality_id` (se sacan de `LifecycleElaborationConfigResponse.external_functionality`). Por decisión de producto, esta iteración **no construyó UI de progreso/historial de runs** — solo se cubre con el banner de bloqueo existente y el toast de error del disparo manual. Pedido enviado a backend: [`respuestas/backend-elaboracion-externa-estado-run.md`](../respuestas/backend-elaboracion-externa-estado-run.md).
 
 Esa misma limitación obliga a un `GET /lifecycle/steps/{step_id}/elaboration-config` client-side (gateado por `lifecycle_elaboration_config:l|r`, permiso de *configuración*) solo para decidir si el editor del documento ve el botón de disparo — el mismo pedido incluye agregar `has_external_elaboration` a `lifecycle_status`, como ya se hizo con `is_locked_external_elaboration`, para evitar ese round-trip y ese permiso fuera de lugar.
 
@@ -76,6 +89,9 @@ Esa misma limitación obliga a un `GET /lifecycle/steps/{step_id}/elaboration-co
 - Mostrar toast de éxito genérico (`meta.successMessage`) en el disparo manual sin chequear `data.run !== null` — el 200 con `run: null` es el caso "no había nada que disparar", no un éxito.
 - Filtrar el selector de molde de sección por algo distinto de `type === "form"`, o no filtrar — el backend matchea por `field_name` de los `form_fields` de esa sección puntual.
 - Asumir que una sección creada por `add` queda marcada como "de IA" en algún campo — no existe, solo el nombre por defecto.
+
+- Comparar `has_external_elaboration_error` por truthiness, o mostrarlo junto al banner de lock — usar `hasExternalElaborationError`.
+- Usar `rollback-targets` como única fuente de "steps completados" (los automáticos no aparecen).
 
 ## Checklist de verificación final
 
