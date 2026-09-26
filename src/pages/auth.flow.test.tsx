@@ -2,7 +2,7 @@
  * Plan SSO frontend (docs/sso-frontend.md) · Fase 3 · máquina de estados del login.
  */
 import { http } from 'msw'
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { backendUrl } from '@/config'
@@ -137,60 +137,31 @@ describe('AuthPage · caso C (varias organizaciones)', () => {
     expect(assignSpy).toHaveBeenCalledTimes(2)
   })
 
-  it('con el preauth desactivado, select → internal_code muestra el OTP y el reenvío repite /login/select (no /codes)', async () => {
-    useCodesFlow(authFlow.chooseOrganization(PREAUTH_TOKEN))
-    let codesCalls = 0
-    let selectCalls = 0
-    server.use(
-      http.post(`${backendUrl}/auth/codes`, () => {
-        codesCalls += 1
-        return respondOk(authFlow.chooseOrganization(PREAUTH_TOKEN))
-      }),
-      http.post(`${backendUrl}/auth/login/select`, () => {
-        selectCalls += 1
-        return respondOk({ auth_flow: 'internal_code', message: 'sent', expires_at: null, organization: { id: ORG_A_ID, name: 'Org A' } })
-      }),
-    )
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    const { user } = renderWithProviders(<AuthPage />, { withRoutes: true, advanceTimers: vi.advanceTimersByTime })
-    await requestCode(user, 'ada@example.com')
-    // choose_organization directo: sin código previo.
-    const list = await screen.findByRole('list', { name: 'Choose an organization' })
-    expect(codesCalls).toBe(1)
-
-    await user.click(within(list).getByText('Org A'))
-    expect(await screen.findByText('Enter verification code')).toBeInTheDocument()
-    expect(selectCalls).toBe(1)
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(61_000)
-    })
-    await user.click(screen.getByRole('button', { name: 'Resend' }))
-    await waitFor(() => expect(selectCalls).toBe(2))
-    expect(codesCalls).toBe(1)
-  })
-
   it('"Back" desde el selector vuelve al email', async () => {
-    useCodesFlow(authFlow.chooseOrganization(PREAUTH_TOKEN))
+    useCodesFlow(authFlow.preauthCode)
+    useVerifyChooseOrganization()
     const { user } = renderWithProviders(<AuthPage />, { withRoutes: true })
     await requestCode(user, 'ada@example.com')
+    await screen.findByText("Verify it's you")
+    await verify(user)
     await screen.findByRole('list', { name: 'Choose an organization' })
 
     await user.click(screen.getByRole('button', { name: 'Back' }))
     expect(screen.getByPlaceholderText(EMAIL_PLACEHOLDER)).toHaveValue('ada@example.com')
   })
 
-  it('root admin: la lista trae todas las organizaciones y el login_org_id del token auto-selecciona', async () => {
+  it('root admin: pasa por el mismo caso C con SOLO sus membresías y el login_org_id del token auto-selecciona', async () => {
     useCodesFlow(authFlow.preauthCode)
     server.use(
       http.post(`${backendUrl}/auth/codes/verify`, () =>
         respondOk({
           auth_flow: 'choose_organization',
           preauth_token: PREAUTH_TOKEN,
+          // El backend lista solo las organizaciones donde el root admin es miembro
+          // (el token de organización exige membresía): nada de organizaciones ajenas.
           organizations: [
             { id: ORG_A_ID, name: 'Org A', method: { kind: 'internal_code', type: 'internal', name: null } },
             { id: ORG_B_ID, name: 'Org B', method: { kind: 'internal_code', type: 'internal', name: null } },
-            { id: 'ffffffff-ffff-4fff-8fff-ffffffffffff', name: 'Org C', method: { kind: 'internal_code', type: 'internal', name: null } },
           ],
         }),
       ),
@@ -203,8 +174,8 @@ describe('AuthPage · caso C (varias organizaciones)', () => {
     await screen.findByText("Verify it's you")
     await verify(user)
     const list = await screen.findByRole('list', { name: 'Choose an organization' })
-    expect(within(list).getAllByRole('button')).toHaveLength(3)
-    expect(within(list).getAllByText('Email code')).toHaveLength(3)
+    expect(within(list).getAllByRole('button')).toHaveLength(2)
+    expect(within(list).getAllByText('Email code')).toHaveLength(2)
 
     await user.click(within(list).getByText('Org B'))
     await waitFor(() => expect(localStorage.getItem('selectedOrganizationId')).toBe(ORG_B_ID))

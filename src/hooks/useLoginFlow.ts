@@ -68,23 +68,12 @@ export function useLoginFlow(options: UseLoginFlowOptions = {}) {
 
   /** Resultado de `POST /auth/login/select` (o de una selección automática). */
   const onOrganizationSelected = useCallback(
-    (result: SelectOrganizationResult, organization: LoginOrganizationOption, preauthToken: string, currentEmail: string) => {
+    (result: SelectOrganizationResult, organization: LoginOrganizationOption, currentEmail: string) => {
       if (result.kind === 'token') {
         void finish(result.token, result.user, organization.id)
         return
       }
-      if (result.kind === 'sso') {
-        goToIdp(result.sso, currentEmail, organization.id)
-        return
-      }
-      // internal_code sin preauth verificado (LOGIN_MULTI_ORG_PREAUTH=false): el
-      // reenvío repite `select`, no `/codes` (que devolvería choose_organization otra vez).
-      setStep({
-        kind: 'otp',
-        email: currentEmail,
-        variant: 'login',
-        resend: () => authService.selectLoginOrganization({ preauth_token: preauthToken, organization_id: organization.id }),
-      })
+      goToIdp(result.sso, currentEmail, organization.id)
     },
     [finish, goToIdp],
   )
@@ -94,7 +83,7 @@ export function useLoginFlow(options: UseLoginFlowOptions = {}) {
       const target = targetOrganizationId ? organizations.find((o) => o.id === targetOrganizationId) : undefined
       if (target) {
         const result = await authService.selectLoginOrganization({ preauth_token: preauthToken, organization_id: target.id })
-        onOrganizationSelected(result, target, preauthToken, currentEmail)
+        onOrganizationSelected(result, target, currentEmail)
         return
       }
       setStep({ kind: 'choose-organization', email: currentEmail, preauthToken, organizations })
@@ -116,12 +105,9 @@ export function useLoginFlow(options: UseLoginFlowOptions = {}) {
         case 'sso':
           goToIdp(result.sso, requestedEmail, targetOrganizationId)
           return
-        case 'choose_organization':
-          void showOrganizationPicker(requestedEmail, result.preauth_token, result.organizations)
-          return
       }
     },
-    [goToIdp, showOrganizationPicker, targetOrganizationId],
+    [goToIdp, targetOrganizationId],
   )
 
   /** Resultado de `POST /auth/codes/verify`. */

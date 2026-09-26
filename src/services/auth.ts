@@ -18,7 +18,7 @@ import type {
 
 export type { RequestCodeRequest, VerifyCodeRequest, UpdateUserRequest, AuthResponse };
 
-const KNOWN_AUTH_FLOWS = new Set(['internal_code', 'preauth_code', 'sso', 'choose_organization']);
+const KNOWN_AUTH_FLOWS = new Set(['internal_code', 'preauth_code', 'sso']);
 
 /** Lanzado cuando el backend responde un `auth_flow` que este frontend no conoce (p. ej. `saml2`). */
 export class UnsupportedAuthFlowError extends Error {
@@ -72,9 +72,6 @@ class AuthService {
     if (authFlow === 'sso' && !(data as { sso?: unknown })?.sso) {
       throw new Error('Invalid response from server');
     }
-    if (authFlow === 'choose_organization' && !hasChooseOrganization(data)) {
-      throw new Error('Invalid response from server');
-    }
     return { ...(data as object), auth_flow: authFlow } as RequestCodeResult;
   }
 
@@ -116,9 +113,6 @@ class AuthService {
     }
     if (data.auth_flow === 'sso' && data.sso) {
       return { kind: 'sso', sso: data.sso as SsoFlowPayload, organization };
-    }
-    if (data.auth_flow === 'internal_code') {
-      return { kind: 'internal_code', expires_at: (data.expires_at as string | null) ?? null, organization };
     }
     logger.error('Invalid response structure:', body);
     throw new Error('Invalid response from server');

@@ -83,7 +83,7 @@ export function AuthPage({ initialEmail = '' }: { initialEmail?: string } = {}) 
           organizations={step.organizations}
           onBack={flow.back}
           onSelected={(result, organization) =>
-            flow.onOrganizationSelected(result, organization, step.preauthToken, step.email)
+            flow.onOrganizationSelected(result, organization, step.email)
           }
         />
       )}

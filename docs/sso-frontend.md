@@ -25,15 +25,14 @@ funciona contra el backend viejo. Orden de despliegue: **frontend primero** (§7
 ```
 POST /auth/codes {email, purpose:"login"} → data.auth_flow:
   internal_code {expires_at}                      (como hoy)
-  preauth_code  {expires_at}                      (usuario en 2+ orgs o root admin)
+  preauth_code  {expires_at}                      (usuario con 2+ membresías; el root admin, solo las suyas)
   sso           {sso:{connection_id,name,type:'microsoft'|'google',authorize_url}}
-  choose_organization {preauth_token, organizations:[{id,name,method:{kind,type,name,connection_id?}}]}
   404 User not found.                             (email desconocido)
 POST /auth/codes/verify {email,code}
   → {message,user,token}                          (caso B)
-  → {auth_flow:"choose_organization", preauth_token, organizations}   (caso C)
+  → {auth_flow:"choose_organization", preauth_token, organizations:[{id,name,method:{kind,type,name,connection_id?}}]}   (caso C)
 POST /auth/login/select {preauth_token, organization_id}
-  → {message,user,token,organization} | {auth_flow:"internal_code",expires_at,organization} | {auth_flow:"sso",sso,organization}
+  → {message,user,token,organization} (membresía por código: el preauth ya verificó) | {auth_flow:"sso",sso,organization}
 GET  /auth/sso/{connection_id}/start → 302 al IdP → vuelve al backend → redirige a
   {URL_FRONTEND}/auth/sso/callback?code=<handoff>[&return_to=/ruta]  |  ?error=<código>  |  ?linked=1
 POST /auth/sso/exchange {code} → {message,user,token,return_to}       (un solo uso, 60 s)

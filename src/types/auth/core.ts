@@ -28,7 +28,7 @@ export interface OTPFormProps extends React.ComponentProps<"div"> {
   onBack?: () => void;
   /** El código se verificó: token (caso B) o lista de organizaciones (caso C). */
   onVerified: (result: VerifyCodeResult) => void;
-  /** Reenvío del código; lo inyecta el orquestador (puede ser `/codes` o `/login/select`). */
+  /** Reenvío del código; lo inyecta el orquestador (`/codes`). */
   onResend: () => Promise<unknown>;
 }
 
@@ -121,22 +121,28 @@ export interface LoginOrganizationOption {
   };
 }
 
-/** Respuesta de `POST /auth/codes` (purpose=login), discriminada por `auth_flow`. */
+/**
+ * Respuesta de `POST /auth/codes` (purpose=login), discriminada por `auth_flow`.
+ * La lista de organizaciones nunca sale de acá: el caso C pide antes el código
+ * preauth y la lista llega en `verify`.
+ */
 export type RequestCodeResult =
   | { auth_flow: 'internal_code'; expires_at?: string | null }
   | { auth_flow: 'preauth_code'; expires_at?: string | null }
-  | { auth_flow: 'sso'; sso: SsoFlowPayload }
-  | { auth_flow: 'choose_organization'; preauth_token: string; organizations: LoginOrganizationOption[] };
+  | { auth_flow: 'sso'; sso: SsoFlowPayload };
 
 /** Respuesta de `POST /auth/codes/verify`. */
 export type VerifyCodeResult =
   | { kind: 'token'; token: string; user: User }
   | { kind: 'choose_organization'; preauth_token: string; organizations: LoginOrganizationOption[] };
 
-/** Respuesta de `POST /auth/login/select`: el backend aplica el método de la membresía. */
+/**
+ * Respuesta de `POST /auth/login/select`: el backend aplica el método de la membresía.
+ * El preauth ya verificó la casilla, así que una membresía por código entrega el token
+ * directo; una SSO manda al proveedor.
+ */
 export type SelectOrganizationResult =
   | { kind: 'token'; token: string; user: User; organization: { id: string; name: string } | null }
-  | { kind: 'internal_code'; expires_at?: string | null; organization: { id: string; name: string } | null }
   | { kind: 'sso'; sso: SsoFlowPayload; organization: { id: string; name: string } | null };
 
 export interface SelectOrganizationRequest {
