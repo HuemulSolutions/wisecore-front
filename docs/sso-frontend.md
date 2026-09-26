@@ -16,9 +16,10 @@ desapareció y `auth_types` pasó a ser un catálogo de conexiones por organizac
 Hoy el frontend solo hace login por email + código de seis dígitos, no lee `auth_flow`, no tiene
 rutas públicas (todo vive bajo `ProtectedRoute`) y no tenía ninguna prueba automatizada.
 
-**Compatibilidad:** el backend nuevo rompe al frontend actual para todo usuario con 2+ organizaciones
-y para root admins (`/codes/verify` responde `choose_organization` sin `token`). El frontend nuevo sí
-funciona contra el backend viejo. Orden de despliegue: **frontend primero** (§7).
+**Compatibilidad:** front y backend se despliegan juntos, **backend primero** (§7). El frontend no
+mantiene compatibilidad con el backend anterior al SSO: el backend migra los datos (`ENTRA` →
+`MICROSOFT`, `users.auth_type_id` → INTERNAL) y siempre informa los campos nuevos (`auth_type` de la
+membresía, `default_auth_type_id`), así que el front no contempla respuestas sin ellos.
 
 ## 2. Contrato del backend que consume el front
 
@@ -134,10 +135,9 @@ Implementados en la rama `seba-sso` del backend además de redactarse como pedid
 
 ## 7. Orden de despliegue
 
-1. Front Fases 0-1 → dev/qa (cero cambio visible).
-2. Front Fases 2-5 → dev/qa → main (compatible con el backend viejo: `internal_code` sigue igual y un
-   `auth_flow` desconocido cae al mensaje genérico).
-3. Backend `seba-sso` con `SSO_ENABLED=false`; verificar login interno y multi-org con el front nuevo.
+1. Backend (wisecore-backend#342) con `SSO_ENABLED=false` y `upgrade_bd` (migraciones admin del SSO).
+2. Front (este PR, wisecore-front#256) inmediatamente después: no hay convivencia con el backend viejo.
+3. Verificar login interno y multi-org (código preauth → elegir organización).
 4. `SSO_ENABLED=true`; configurar conexiones desde `/auth-types`; prueba manual con Entra y Google.
 5. Iteración 2.
 
@@ -153,3 +153,4 @@ Implementados en la rama `seba-sso` del backend además de redactarse como pedid
 | 2026-09-25 | 5 | Tipos `microsoft`/`google`, `AuthTypeFormDialog` único, tabla con ámbito/dominios/estado/secreto, eje `requireOrgAdmin` (matriz, `usePageAccess`, guard, menú), traducciones. Tests en `components/auth-types/auth-types.test.tsx` y `lib/auth-type-form.test.ts`. Suite: 85 PASSED, 1 `todo` (OrgSync). |
 | 2026-09-25 | 6 | Método por membresía: `membership-auth-method-select.tsx`, `useSetMembershipAuthMethod`, `useEligibleAuthTypes({organizationId})`, `setMembershipAuthMethod`, `default_auth_type_id` en `useOrganizationDetailsForm`/`updateOrganization`, `auth_type_id` al agregar miembro, eje `canEditAuthMethod`/`canManageDefaultAuthMethod` en `OrganizationDetailPanel`. Backend `seba-sso` `2ee6b8b`. 11 tests nuevos. |
 | 2026-09-25 | fix | Cambio de org con SSO volvía a la org anterior: el step-up del switcher guardaba la URL de la org vieja como vuelta y el OrgSync de `AppLayout` la re-seleccionaba. Ahora el switcher no guarda vuelta (va a `/<orgNueva>/home`), solo el deep link (`source: 'orgsync'`) la conserva, y `SsoCallbackPage` descarta cualquier destino de otra organización (`pathBelongsToOtherOrg`). Microsoft sigue mostrando el selector de cuenta (`prompt=select_account`, decisión de backend). Suite: 104 PASSED. |
+| 2026-09-25 | fix | Orden de despliegue: backend primero y sin compatibilidad con el backend anterior al SSO (§1, §7). El login sigue el contrato final del backend: caso C siempre con preauth, `select` responde `token`/`sso`, el root admin solo ve sus membresías. |
