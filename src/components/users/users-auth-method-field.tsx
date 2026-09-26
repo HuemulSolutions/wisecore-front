@@ -88,8 +88,8 @@ export function UserAuthMethodField({
       actionVariant="default"
       onAction={async () => {
         if (!pending) return
+        // El cierre lo hace HuemulAlertDialog (onOpenChange(false) limpia `pending`).
         await mutation.mutateAsync({ organizationId, userId: user.id, authTypeId: pending.authTypeId })
-        setPending(null)
       }}
     />
   )

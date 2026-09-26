@@ -75,9 +75,12 @@ export function MembershipAuthMethodSelect({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `providerLabel` solo depende de `t`
   }, [current, eligible, internalLabel, t])
 
+  // Backend anterior al SSO: el campo no viene y no se muestra nada, tampoco en
+  // edición (no hay método que mostrar y ese backend no tiene el PATCH). Los
+  // callers sin membresía (default de la org, alta de miembro) pasan `null`.
+  if (current === undefined && value === undefined) return null
+
   if (!canEdit) {
-    // Backend anterior al SSO: el campo no viene y no se muestra nada.
-    if (current === undefined && value === undefined) return null
     return <AuthMethodBadge type={current?.type ?? "internal"} name={current?.name ?? null} className={className} />
   }
 

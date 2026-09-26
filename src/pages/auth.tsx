@@ -8,6 +8,7 @@ import { AuthSsoRedirect } from "@/components/auth/auth-sso-redirect"
 import { AuthShell } from "@/components/auth/auth-shell"
 import { useAuth } from "@/contexts/auth-context"
 import { useLoginFlow } from "@/hooks/useLoginFlow"
+import { authStepUpStore } from "@/lib/auth-step-up-store"
 import { logger } from "@/lib/logger"
 import { consumeReturnUrl } from "@/lib/return-url"
 
@@ -23,7 +24,19 @@ export function AuthPage({ initialEmail = '' }: { initialEmail?: string } = {}) 
   const navigate = useNavigate()
   const flow = useLoginFlow({
     initialEmail,
-    onCompleted: (result) => logger.log('Authentication successful', result),
+    onCompleted: (result) => {
+      logger.log('Authentication successful', result)
+      // La organización del token (`login_org_id`) exige otro método: se abre el
+      // step-up directamente, igual que el selector de organización y OrgSync, en
+      // vez de dejar al usuario frente al selector sin explicación.
+      if (result.stepUpRequired && result.targetOrganizationId) {
+        authStepUpStore.open({
+          organizationId: result.targetOrganizationId,
+          required: result.stepUpRequired,
+          source: 'dialog',
+        })
+      }
+    },
   })
 
   // Redirect if already authenticated.

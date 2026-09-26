@@ -70,7 +70,7 @@ export function AuthOrganizationPicker({
                   type="button"
                   onClick={() => selectMutation.mutate(organization)}
                   disabled={selectMutation.isPending}
-                  className="w-full flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-left transition-colors hover:border-[#4464f7] hover:bg-[#4464f7]/5 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-left transition-colors hover:cursor-pointer hover:border-[#4464f7] hover:bg-[#4464f7]/5 disabled:cursor-not-allowed disabled:opacity-60"
                   aria-busy={busy}
                 >
                   <span className="flex items-center gap-3 min-w-0">

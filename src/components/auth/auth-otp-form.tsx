@@ -160,7 +160,7 @@ export function OTPForm({
                 type="button"
                 onClick={handleResend}
                 disabled={resendCooldown > 0 || resendMutation.isPending}
-                className="text-[#4464f7] hover:text-[#3451e6] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-[#4464f7]"
+                className="text-[#4464f7] hover:text-[#3451e6] hover:cursor-pointer font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-[#4464f7]"
               >
                 {resendMutation.isPending
                   ? t('otp.sending')

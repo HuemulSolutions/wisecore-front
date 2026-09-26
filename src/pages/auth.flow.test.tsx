@@ -12,6 +12,8 @@ import { server } from '@/test/msw/server'
 import { respondOk } from '@/test/msw/respond'
 import { activeUser, authFlow, googleSso, microsoftSso, ORG_A_ID, ORG_B_ID, rootAdmin } from '@/test/fixtures'
 import { VALID_CODE, loginTokenFor } from '@/test/msw/handlers/auth'
+import { authMethodRequiredHandler } from '@/test/msw/handlers/organizations'
+import { authStepUpStore } from '@/lib/auth-step-up-store'
 import { ssoNavigation } from '@/lib/sso-redirect'
 
 const EMAIL_PLACEHOLDER = 'email@example.com'
@@ -50,6 +52,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   assignSpy.mockRestore()
+  authStepUpStore.reset()
 })
 
 describe('AuthPage · caso C (varias organizaciones)', () => {
@@ -261,5 +264,18 @@ describe('AuthPage · SSO y flujos no soportados', () => {
 
     await waitFor(() => expect(localStorage.getItem('selectedOrganizationId')).toBe(ORG_A_ID))
     expect(orgTokenRequests).toEqual([ORG_A_ID])
+  })
+
+  it('si la organización del token exige otro método, abre el step-up para esa organización', async () => {
+    const required = { auth_flow: 'sso', sso: microsoftSso }
+    server.use(authMethodRequiredHandler(required, ORG_A_ID))
+    const { user } = renderWithProviders(<AuthPage />, { withRoutes: true })
+    await requestCode(user, 'ada@example.com')
+    await screen.findByText('Enter verification code')
+    await verify(user)
+
+    await waitFor(() => expect(authStepUpStore.getSnapshot()).not.toBeNull())
+    expect(authStepUpStore.getSnapshot()?.request).toMatchObject({ organizationId: ORG_A_ID, required, source: 'dialog' })
+    expect(localStorage.getItem('selectedOrganizationId')).toBeNull()
   })
 })
