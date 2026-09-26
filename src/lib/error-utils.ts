@@ -11,6 +11,22 @@ import { logger } from '@/lib/logger';
 // un botón secundario como "Ver detalles".
 const ERROR_TOAST_DURATION_MS = 10_000;
 
+/** `error.code` del backend → clave i18n del mensaje que ve el usuario. */
+const DEDICATED_ERROR_MESSAGES: Record<string, string> = {
+  // El genérico del backend habla de "locked" sin contexto. Cubre tanto `archived`
+  // como `finalized` — mismo código de error para ambos.
+  EXECUTION_LIFECYCLE_LOCKED: 'assets:lifecycle.errorLocked',
+  // Respaldo ante la carrera donde el usuario mandó el request justo antes de que
+  // lifecycle_status refrescara con is_locked_external_elaboration: true (los botones
+  // ya deberían estar apagados por computeFrontendPermissions, esto es solo el eco).
+  EXECUTION_LOCKED_EXTERNAL_ELABORATION: 'assets:lifecycle.errorLockedExternalElaboration',
+  // Login/SSO (docs/sso-frontend.md §2): conexión de la membresía desactivada,
+  // restricción sobre el método de un root admin y organización llena.
+  CONNECTION_DISABLED: 'auth:ssoErrors.connection_disabled',
+  ROOT_ADMIN_METHOD_RESTRICTED: 'auth:errors.rootAdminMethodRestricted',
+  ORGANIZATION_USER_LIMIT_REACHED: 'auth:errors.organizationUserLimitReached',
+};
+
 /**
  * Centralized error handler for API errors
  * 
@@ -69,21 +85,11 @@ export function handleApiError(
       return; // Custom handler took care of it
     }
 
-    // Mensaje dedicado: el genérico del backend habla de "locked" sin contexto.
-    // Cubre tanto `archived` como `finalized` — mismo código de error para ambos.
-    if (error.code === 'EXECUTION_LIFECYCLE_LOCKED') {
+    // Códigos con mensaje propio y traducido en vez del texto crudo del backend.
+    const dedicatedMessageKey = DEDICATED_ERROR_MESSAGES[error.code];
+    if (dedicatedMessageKey) {
       if (showToast) {
-        toast.error(i18n.t('assets:lifecycle.errorLocked'));
-      }
-      return;
-    }
-
-    // Respaldo ante la carrera donde el usuario mandó el request justo antes de que
-    // lifecycle_status refrescara con is_locked_external_elaboration: true (los botones
-    // ya deberían estar apagados por computeFrontendPermissions, esto es solo el eco).
-    if (error.code === 'EXECUTION_LOCKED_EXTERNAL_ELABORATION') {
-      if (showToast) {
-        toast.error(i18n.t('assets:lifecycle.errorLockedExternalElaboration'));
+        toast.error(i18n.t(dedicatedMessageKey));
       }
       return;
     }

@@ -43,6 +43,9 @@ const translations = {
     sessionExpired: { en: "Your session has expired. Please log in again.", es: "La sesión expiró. Iniciar sesión nuevamente." },
     unsupportedFlow: { en: "This sign-in method is not available. Please try again.", es: "Este método de inicio de sesión no está disponible. Reintentar." },
     selectOrganizationFailed: { en: "We couldn't continue with that organization. Please try again.", es: "No se pudo continuar con esa organización. Reintentar." },
+    accountNotActive: { en: "Your account is not active. Contact your administrator.", es: "Tu cuenta no está activa. Contactar al administrador." },
+    rootAdminMethodRestricted: { en: "Only a root admin can change the sign-in method of a root admin.", es: "Solo un root admin puede cambiar el método de inicio de sesión de un root admin." },
+    organizationUserLimitReached: { en: "The organization has reached its user limit.", es: "La organización alcanzó su límite de usuarios." },
   },
   invitations: {
     created: { en: "Invitation sent", es: "Invitación enviada" },
@@ -85,10 +88,12 @@ const translations = {
     identity_taken: { en: "This corporate account is already linked to another user.", es: "Esta cuenta corporativa ya está vinculada a otro usuario." },
     user_not_found: { en: "No account matches this corporate identity. Ask your administrator for an invitation.", es: "Ninguna cuenta coincide con esta identidad corporativa. Pedir una invitación al administrador." },
     user_not_active: { en: "Your account is pending approval.", es: "La cuenta está pendiente de aprobación." },
-    connection_disabled: { en: "This sign-in method is disabled.", es: "Este método de inicio de sesión está deshabilitado." },
+    connection_disabled: { en: "Your organization's sign-in method is disabled. Contact your administrator.", es: "El método de inicio de sesión de la organización está deshabilitado. Contactar al administrador." },
     sso_disabled: { en: "Corporate sign-in is not enabled on this server.", es: "El inicio de sesión corporativo no está habilitado en este servidor." },
     discovery_failed: { en: "The identity provider is not reachable right now.", es: "El proveedor de identidad no está disponible en este momento." },
     handoff_invalid: { en: "The sign-in link expired. Please start again.", es: "El enlace de inicio de sesión expiró. Comenzar de nuevo." },
+    organization_full: { en: "The organization has reached its user limit. Contact your administrator.", es: "La organización alcanzó su límite de usuarios. Contactar al administrador." },
+    link_scope_required: { en: "To link this account, sign in first with a method that covers this organization.", es: "Para vincular esta cuenta, iniciar sesión antes con un método que cubra esta organización." },
   },
   stepUp: {
     title: { en: "Additional sign-in required", es: "Se requiere otro inicio de sesión" },

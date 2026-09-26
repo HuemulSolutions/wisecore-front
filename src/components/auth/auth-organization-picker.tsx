@@ -13,7 +13,7 @@ import { HuemulFieldGroup } from '@/huemul/components/huemul-field'
 import { HuemulButton } from '@/huemul/components/huemul-button'
 import { AuthMethodBadge } from '@/components/auth/auth-method-badge'
 import { authService } from '@/services/auth'
-import { isStatusCode } from '@/lib/error-utils'
+import { isErrorCode, isStatusCode } from '@/lib/error-utils'
 import type { LoginOrganizationOption, SelectOrganizationResult } from '@/types/auth'
 
 export interface AuthOrganizationPickerProps extends React.ComponentProps<'div'> {
@@ -45,7 +45,9 @@ export function AuthOrganizationPicker({
   const selectError = selectMutation.error
     ? isStatusCode(selectMutation.error, 429)
       ? t('errors.tooManyRequests')
-      : t('errors.selectOrganizationFailed')
+      : isErrorCode(selectMutation.error, 'CONNECTION_DISABLED')
+        ? t('ssoErrors.connection_disabled')
+        : t('errors.selectOrganizationFailed')
     : null
 
   return (

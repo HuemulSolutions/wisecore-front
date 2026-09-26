@@ -71,4 +71,22 @@ describe('AuthContext', () => {
     expect(sessionStorage.getItem('returnUrl')).toBe('/org-a/home')
     window.history.pushState({}, '', '/')
   })
+
+  it('un 403 USER_NOT_ACTIVE cierra sesión con el mensaje de cuenta inactiva y sin returnUrl', async () => {
+    window.history.pushState({}, '', '/org-a/home')
+    sessionStorage.removeItem('returnUrl')
+    toastError.mockClear()
+    renderWithProviders(<Probe />, { session: { token: makeLoginToken(), user: activeUser } })
+    await screen.findByText('auth:ada@example.com')
+    server.use(
+      http.post(`${backendUrl}/user_roles/user_token`, () => respondApiError(403, 'USER_NOT_ACTIVE', 'not active', 'not active')),
+    )
+
+    await httpClient.post(`${backendUrl}/user_roles/user_token`).catch(() => undefined)
+
+    await waitFor(() => expect(screen.getByTestId('auth')).toHaveTextContent('anon'))
+    expect(toastError).toHaveBeenCalledWith('Your account is not active. Contact your administrator.')
+    expect(sessionStorage.getItem('returnUrl')).toBeNull()
+    window.history.pushState({}, '', '/')
+  })
 })

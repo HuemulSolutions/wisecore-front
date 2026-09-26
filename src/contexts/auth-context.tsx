@@ -51,11 +51,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     }
 
-    // Set up unauthorized handler
-    httpClient.setOnUnauthorized(() => {
-      // Save where the user was so we can redirect back after re-login.
-      saveReturnUrl(currentPath());
-      toast.error(i18n.t('auth:errors.sessionExpired'));
+    // Fin de sesión decidido por httpClient: token vencido (401) o usuario que ya no
+    // está activo (403 USER_NOT_ACTIVE). Solo en el primer caso tiene sentido volver
+    // a la página después de iniciar sesión otra vez.
+    httpClient.setOnUnauthorized((reason) => {
+      if (reason === 'expired') {
+        saveReturnUrl(currentPath());
+      }
+      toast.error(i18n.t(reason === 'inactive' ? 'auth:errors.accountNotActive' : 'auth:errors.sessionExpired'));
       logout();
     });
     

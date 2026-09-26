@@ -9,7 +9,7 @@ import { backendUrl } from '@/config'
 import { AuthPage } from '@/pages/auth'
 import { renderWithProviders } from '@/test/render'
 import { server } from '@/test/msw/server'
-import { respondOk } from '@/test/msw/respond'
+import { respondApiError, respondOk } from '@/test/msw/respond'
 import { activeUser, authFlow, googleSso, microsoftSso, ORG_A_ID, ORG_B_ID, rootAdmin } from '@/test/fixtures'
 import { VALID_CODE, loginTokenFor } from '@/test/msw/handlers/auth'
 import { authMethodRequiredHandler } from '@/test/msw/handlers/organizations'
@@ -194,6 +194,36 @@ describe('AuthPage · SSO y flujos no soportados', () => {
     const pending = JSON.parse(sessionStorage.getItem('sso.flow') ?? '{}')
     expect(pending.connectionId).toBe(googleSso.connection_id)
     expect(pending.pendingOrganizationId).toBeNull()
+  })
+
+  it('/codes → 400 CONNECTION_DISABLED muestra que el método de la organización está deshabilitado', async () => {
+    server.use(
+      http.post(`${backendUrl}/auth/codes`, () =>
+        respondApiError(400, 'CONNECTION_DISABLED', "The organization's SSO connection is disabled.", 'inactive'),
+      ),
+    )
+    const { user } = renderWithProviders(<AuthPage />, { withRoutes: true })
+
+    await requestCode(user, 'ada@example.com')
+    expect(await screen.findByText("Your organization's sign-in method is disabled. Contact your administrator.")).toBeInTheDocument()
+  })
+
+  it('select → 400 CONNECTION_DISABLED lo muestra en el selector', async () => {
+    useCodesFlow(authFlow.preauthCode)
+    useVerifyChooseOrganization()
+    server.use(
+      http.post(`${backendUrl}/auth/login/select`, () =>
+        respondApiError(400, 'CONNECTION_DISABLED', "The organization's SSO connection is disabled.", 'inactive'),
+      ),
+    )
+    const { user } = renderWithProviders(<AuthPage />, { withRoutes: true })
+    await requestCode(user, 'ada@example.com')
+    await screen.findByText("Verify it's you")
+    await verify(user)
+    const list = await screen.findByRole('list', { name: 'Choose an organization' })
+
+    await user.click(within(list).getByText('Org B'))
+    expect(await screen.findByRole('alert')).toHaveTextContent("Your organization's sign-in method is disabled")
   })
 
   it('un auth_flow desconocido (p. ej. saml2 de un backend viejo) muestra el error genérico', async () => {

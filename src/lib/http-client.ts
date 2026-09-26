@@ -19,7 +19,10 @@ const hasStoredOrg = !!storedOrgToken && !!storedOrgId;
 let loginToken: string | null = readStored('auth_token');
 let organizationToken: string | null = hasStoredOrg ? storedOrgToken : null;
 let organizationId: string | null = hasStoredOrg ? storedOrgId : null;
-let onUnauthorized: (() => void) | null = null;
+/** Por qué se cierra la sesión: token vencido/inválido (401) o usuario ya no activo. */
+export type SessionEndReason = 'expired' | 'inactive';
+
+let onUnauthorized: ((reason: SessionEndReason) => void) | null = null;
 
 export const httpClient = {
   setLoginToken(token: string | null) {
@@ -46,7 +49,7 @@ export const httpClient = {
     return organizationId;
   },
 
-  setOnUnauthorized(callback: () => void) {
+  setOnUnauthorized(callback: (reason: SessionEndReason) => void) {
     onUnauthorized = callback;
   },
 
@@ -174,12 +177,20 @@ export const httpClient = {
             apiError.detail.includes('access denied');
 
           if (!isRolePermissionError) {
-            onUnauthorized();
+            onUnauthorized('expired');
             // Marca que este error ya disparó logout/redirect, para que
             // error-utils no intente mostrar un toast sobre algo que ya
             // está siendo manejado (ver handleApiError).
             apiError.handled = true;
           }
+        }
+
+        // Un usuario desactivado o pendiente ya no obtiene token de ninguna
+        // organización (POST /user_roles/user_token): la sesión no sirve y se
+        // cierra como un token vencido, con su propio mensaje.
+        if (response.status === 403 && apiError.code === 'USER_NOT_ACTIVE' && onUnauthorized) {
+          onUnauthorized('inactive');
+          apiError.handled = true;
         }
 
         throw apiError;
@@ -200,7 +211,7 @@ export const httpClient = {
           detail.includes('access denied');
         
         if (!isRolePermissionError) {
-          onUnauthorized();
+          onUnauthorized('expired');
         }
       }
 

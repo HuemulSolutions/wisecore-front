@@ -106,6 +106,22 @@ describe('httpClient · errores', () => {
     expect(error).toBeInstanceOf(ApiError)
     expect((error as ApiError).handled).toBe(true)
     expect(onUnauthorized).toHaveBeenCalledTimes(1)
+    expect(onUnauthorized).toHaveBeenCalledWith('expired')
+  })
+
+  it('403 USER_NOT_ACTIVE (usuario desactivado o pendiente) cierra la sesión con motivo "inactive"', async () => {
+    const onUnauthorized = vi.fn()
+    httpClient.setOnUnauthorized(onUnauthorized)
+    server.use(
+      http.post(`${backendUrl}/user_roles/user_token`, () =>
+        respondApiError(403, 'USER_NOT_ACTIVE', 'User is not active', 'User is not active'),
+      ),
+    )
+
+    const error = (await httpClient.post(`${backendUrl}/user_roles/user_token`).catch((e: unknown) => e)) as ApiError
+
+    expect(error.handled).toBe(true)
+    expect(onUnauthorized).toHaveBeenCalledWith('inactive')
   })
 
   it('401 de permisos (FORBIDDEN) NO cierra sesión', async () => {

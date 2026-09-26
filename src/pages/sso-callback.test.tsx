@@ -161,6 +161,11 @@ describe('SsoCallbackPage', () => {
     await expectLocation(`/${ORG_B_ID}/templates`)
   })
 
+  it('?error=organization_full (organización en su límite de usuarios) muestra su mensaje', async () => {
+    renderWithProviders(<SsoCallbackPage />, { route: `${CALLBACK}?error=organization_full`, withRoutes: true })
+    expect(await screen.findByRole('alert')).toHaveTextContent('The organization has reached its user limit')
+  })
+
   it('?error=tenant_not_allowed muestra el mensaje específico, quita el error de la URL y ofrece volver al login', async () => {
     const { user } = renderWithProviders(<SsoCallbackPage />, { route: `${CALLBACK}?error=tenant_not_allowed`, withRoutes: true })
 

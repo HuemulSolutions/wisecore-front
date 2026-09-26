@@ -48,6 +48,8 @@ const KNOWN_ERROR_CODES: ReadonlySet<string> = new Set<SsoErrorCode>([
   'sso_disabled',
   'discovery_failed',
   'handoff_invalid',
+  'organization_full',
+  'link_scope_required',
 ])
 
 /** Códigos ya canjeados en este proceso (anti doble canje bajo StrictMode). */

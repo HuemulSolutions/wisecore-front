@@ -7,7 +7,7 @@ import { FieldDescription } from "@/components/ui/field"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { authService } from "@/services/auth"
-import { isStatusCode } from "@/lib/error-utils"
+import { isErrorCode, isStatusCode } from "@/lib/error-utils"
 import type { LoginFormProps } from "@/types/auth"
 
 export type { LoginFormProps } from "@/types/auth"
@@ -38,7 +38,9 @@ export function LoginForm({
   const requestCodeError = requestCodeMutation.error
     ? isStatusCode(requestCodeMutation.error, 429)
       ? t('auth:errors.tooManyRequests')
-      : t('auth:errors.requestCodeFailed')
+      : isErrorCode(requestCodeMutation.error, 'CONNECTION_DISABLED')
+        ? t('auth:ssoErrors.connection_disabled')
+        : t('auth:errors.requestCodeFailed')
     : null
 
   const handleSubmit = (e: React.FormEvent) => {

@@ -184,4 +184,6 @@ export type SsoErrorCode =
   | 'connection_disabled'
   | 'sso_disabled'
   | 'discovery_failed'
-  | 'handoff_invalid';
+  | 'handoff_invalid'
+  | 'organization_full'
+  | 'link_scope_required';

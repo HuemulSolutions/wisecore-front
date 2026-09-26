@@ -1,9 +1,10 @@
 /**
  * Plan SSO frontend (docs/sso-frontend.md) · BASELINE · error-utils.
  */
-import { describe, expect, it } from 'vitest'
+import { toast } from 'sonner'
+import { describe, expect, it, vi } from 'vitest'
 
-import { isErrorCode, isStatusCode, parseErrorDetail } from '@/lib/error-utils'
+import { handleApiError, isErrorCode, isStatusCode, parseErrorDetail } from '@/lib/error-utils'
 import { ApiError } from '@/types/api-error'
 
 function apiError(status: number, code: string, detail: unknown): ApiError {
@@ -35,5 +36,20 @@ describe('error-utils', () => {
     expect(isErrorCode(error, 'RATE_LIMITED')).toBe(true)
     expect(isStatusCode(new Error('x'), 429)).toBe(false)
     expect(isErrorCode(new Error('x'), 'RATE_LIMITED')).toBe(false)
+  })
+
+  it('handleApiError muestra el mensaje traducido de los códigos de login/SSO en vez del texto del backend', () => {
+    // Espía el `toast` real: el setup de tests ya cargó `sonner`, así que un vi.mock llega tarde.
+    const toastError = vi.spyOn(toast, 'error').mockImplementation(() => '')
+    handleApiError(apiError(403, 'ROOT_ADMIN_METHOD_RESTRICTED', 'raw backend detail'))
+    handleApiError(apiError(400, 'ORGANIZATION_USER_LIMIT_REACHED', 'raw backend detail'))
+    handleApiError(apiError(403, 'CONNECTION_DISABLED', 'raw backend detail'))
+
+    expect(toastError.mock.calls.map(([message]) => message)).toEqual([
+      'Only a root admin can change the sign-in method of a root admin.',
+      'The organization has reached its user limit.',
+      "Your organization's sign-in method is disabled. Contact your administrator.",
+    ])
+    toastError.mockRestore()
   })
 })

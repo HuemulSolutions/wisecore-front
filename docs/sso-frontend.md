@@ -29,17 +29,23 @@ POST /auth/codes {email, purpose:"login"} → data.auth_flow:
   preauth_code  {expires_at}                      (usuario con 2+ membresías; el root admin, solo las suyas)
   sso           {sso:{connection_id,name,type:'microsoft'|'google',authorize_url}}
   404 User not found.                             (email desconocido)
+  400 CONNECTION_DISABLED                         (la conexión SSO de la membresía está desactivada)
+  authorize_url lleva un contexto firmado `ctx` (org, email, conexión): el front navega a la URL tal cual
 POST /auth/codes/verify {email,code}
   → {message,user,token}                          (caso B)
   → {auth_flow:"choose_organization", preauth_token, organizations:[{id,name,method:{kind,type,name,connection_id?}}]}   (caso C)
 POST /auth/login/select {preauth_token, organization_id}
   → {message,user,token,organization} (membresía por código: el preauth ya verificó) | {auth_flow:"sso",sso,organization}
+  400 CONNECTION_DISABLED
 GET  /auth/sso/{connection_id}/start → 302 al IdP → vuelve al backend → redirige a
   {URL_FRONTEND}/auth/sso/callback?code=<handoff>[&return_to=/ruta]  |  ?error=<código>  |  ?linked=1
 POST /auth/sso/exchange {code} → {message,user,token,return_to}       (un solo uso, 60 s)
 Token app: claims auth_type_id (conexión usada; INTERNAL en código) y login_org_id
 POST /user_roles/user_token → 403 {error:{code:"AUTH_METHOD_REQUIRED",
   detail:{message, required_auth_flow:{auth_flow:"internal_code"} | {auth_flow:"sso", sso:{...}}}}}
+  (internal_code: el login vino de la conexión de otra org; el sso.authorize_url trae la org destino en `ctx`)
+  403 CONNECTION_DISABLED (sin step-up: lo resuelve un admin)
+  403 USER_NOT_ACTIVE → el front cierra la sesión con el mensaje de cuenta inactiva
 GET/POST/PUT/DELETE /auth_types  (internal|microsoft|google; organization_id, is_active, email_domains,
   has_client_secret, is_sso; client_secret write-only; lectura para todos, escritura root u org admin)
 POST /auth-sso/{connection_id}/link → {authorize_url}; GET /auth-sso/identities/me
@@ -48,7 +54,10 @@ POST /auth-sso/{connection_id}/link → {authorize_url}; GET /auth-sso/identitie
 Códigos de error del callback SSO (`?error=`): `invalid_state`, `idp_error`, `token_exchange_failed`,
 `invalid_id_token`, `tenant_not_allowed`, `domain_not_allowed`, `email_missing`, `email_not_verified`,
 `account_conflict`, `identity_taken`, `user_not_found`, `user_not_active`, `connection_disabled`,
-`sso_disabled`, `discovery_failed`, `handoff_invalid`.
+`sso_disabled`, `discovery_failed`, `handoff_invalid`, `organization_full`, `link_scope_required`.
+
+Mensajes traducidos en `handleApiError` para `CONNECTION_DISABLED`, `ROOT_ADMIN_METHOD_RESTRICTED` (un
+no-root intenta pasar a SSO a un root admin) y `ORGANIZATION_USER_LIMIT_REACHED` (alta en una org llena).
 
 ## 3. Qué se conserva (baseline)
 
@@ -154,3 +163,4 @@ Implementados en la rama `seba-sso` del backend además de redactarse como pedid
 | 2026-09-25 | 6 | Método por membresía: `membership-auth-method-select.tsx`, `useSetMembershipAuthMethod`, `useEligibleAuthTypes({organizationId})`, `setMembershipAuthMethod`, `default_auth_type_id` en `useOrganizationDetailsForm`/`updateOrganization`, `auth_type_id` al agregar miembro, eje `canEditAuthMethod`/`canManageDefaultAuthMethod` en `OrganizationDetailPanel`. Backend `seba-sso` `2ee6b8b`. 11 tests nuevos. |
 | 2026-09-25 | fix | Cambio de org con SSO volvía a la org anterior: el step-up del switcher guardaba la URL de la org vieja como vuelta y el OrgSync de `AppLayout` la re-seleccionaba. Ahora el switcher no guarda vuelta (va a `/<orgNueva>/home`), solo el deep link (`source: 'orgsync'`) la conserva, y `SsoCallbackPage` descarta cualquier destino de otra organización (`pathBelongsToOtherOrg`). Microsoft sigue mostrando el selector de cuenta (`prompt=select_account`, decisión de backend). Suite: 104 PASSED. |
 | 2026-09-25 | fix | Orden de despliegue: backend primero y sin compatibilidad con el backend anterior al SSO (§1, §7). El login sigue el contrato final del backend: caso C siempre con preauth, `select` responde `token`/`sso`, el root admin solo ve sus membresías. |
+| 2026-09-26 | fix | Contrato del backend tras su auditoría: `CONNECTION_DISABLED` con mensaje propio (login, selector y toasts), `USER_NOT_ACTIVE` cierra la sesión (`onUnauthorized('inactive')`), callback `organization_full`/`link_scope_required`, mapa central de mensajes en `handleApiError`. `ctx` en `authorize_url` y step-up `internal_code` ya estaban soportados. |
