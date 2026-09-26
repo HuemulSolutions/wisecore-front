@@ -8,6 +8,7 @@ interface OrganizationDetailsValues {
   description: string
   maxUsers: number | null
   tokenLimit: number | null
+  defaultAuthTypeId: string | null
 }
 
 function valuesFromOrganization(organization: Organization): OrganizationDetailsValues {
@@ -16,6 +17,7 @@ function valuesFromOrganization(organization: Organization): OrganizationDetails
     description: organization.description || "",
     maxUsers: organization.max_users ?? null,
     tokenLimit: organization.token_limit ?? null,
+    defaultAuthTypeId: organization.default_auth_type_id ?? null,
   }
 }
 
@@ -29,14 +31,18 @@ function valuesFromOrganization(organization: Organization): OrganizationDetails
  * `manageSystemLimits`: solo `/global-admin` (root-admin) lo pasa en `true` —
  * `/organizations` no toca `max_users`/`token_limit`, ni para leerlos ni para
  * enviarlos en el PATCH (quedan `undefined`, el backend no los modifica).
+ *
+ * `manageDefaultAuthMethod`: root admin (el PATCH es root-only). Trackea
+ * `default_auth_type_id` (docs/sso-frontend.md, Fase 6) y lo envía solo si cambió.
  */
 export function useOrganizationDetailsForm(
   organization: Organization | null,
   canUpdate: boolean,
   manageSystemLimits: boolean = false,
+  manageDefaultAuthMethod: boolean = false,
 ): OrganizationDetailsFormApi {
   const { t } = useTranslation('organizations')
-  const [values, setValues] = useState<OrganizationDetailsValues>({ name: "", description: "", maxUsers: null, tokenLimit: null })
+  const [values, setValues] = useState<OrganizationDetailsValues>({ name: "", description: "", maxUsers: null, tokenLimit: null, defaultAuthTypeId: null })
   const baselineRef = useRef<OrganizationDetailsValues>(values)
 
   const { updateOrganization } = useOrganizationMutations()
@@ -47,7 +53,8 @@ export function useOrganizationDetailsForm(
     (manageSystemLimits && (
       values.maxUsers !== baselineRef.current.maxUsers ||
       values.tokenLimit !== baselineRef.current.tokenLimit
-    ))
+    )) ||
+    (manageDefaultAuthMethod && values.defaultAuthTypeId !== baselineRef.current.defaultAuthTypeId)
 
   useEffect(() => {
     if (!organization || isDirty) return
@@ -74,9 +81,12 @@ export function useOrganizationDetailsForm(
         name,
         description: description || undefined,
         ...(manageSystemLimits ? { max_users: values.maxUsers, token_limit: values.tokenLimit } : {}),
+        ...(manageDefaultAuthMethod && values.defaultAuthTypeId !== baselineRef.current.defaultAuthTypeId
+          ? { default_auth_type_id: values.defaultAuthTypeId }
+          : {}),
       },
     })
-    baselineRef.current = { name, description, maxUsers: values.maxUsers, tokenLimit: values.tokenLimit }
+    baselineRef.current = { name, description, maxUsers: values.maxUsers, tokenLimit: values.tokenLimit, defaultAuthTypeId: values.defaultAuthTypeId }
   }
   const save = useCallback(() => saveRef.current(), [])
 
@@ -89,6 +99,8 @@ export function useOrganizationDetailsForm(
     setDescription: (v) => setValues((prev) => ({ ...prev, description: v })),
     setMaxUsers: (v) => setValues((prev) => ({ ...prev, maxUsers: v })),
     setTokenLimit: (v) => setValues((prev) => ({ ...prev, tokenLimit: v })),
+    defaultAuthTypeId: values.defaultAuthTypeId,
+    setDefaultAuthTypeId: (v) => setValues((prev) => ({ ...prev, defaultAuthTypeId: v })),
     canSave,
     isDirty,
     isSaving: updateOrganization.isPending,

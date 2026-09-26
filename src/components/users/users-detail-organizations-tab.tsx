@@ -9,6 +9,7 @@ import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { assignUserToOrganization, removeUserFromOrganization } from "@/services/users"
 import { useUserOrganizations, userQueryKeys } from "@/hooks/useUsers"
 import { useSetOrganizationAdmin, useOrganizationMutations } from "@/hooks/useOrganizations"
+import { MembershipAuthMethodField } from "@/components/organization/membership-auth-method-field"
 import { UserOrganizationAddPopover } from "./user-organization-add-popover"
 import { CreateOrganizationDialog } from "@/components/organization"
 import type { User, UserOrganization } from "@/types/users"
@@ -115,6 +116,14 @@ export function UsersDetailOrganizationsTab({ user, canManageMembers }: UsersDet
                   <p className="truncate text-[11px] text-muted-foreground">{org.description}</p>
                 )}
               </div>
+              {/* Método de autenticación de ESTA membresía (docs/sso-frontend.md,
+                  Fase 6): las conexiones elegibles son las de cada organización. */}
+              <MembershipAuthMethodField
+                member={{ id: user.id, auth_type_id: org.auth_type_id, auth_type: org.auth_type }}
+                organizationId={org.id}
+                canEdit={canManageMembers}
+                className={canManageMembers ? "w-44 shrink-0" : "shrink-0"}
+              />
               {canManageMembers && (
                 <div className="flex shrink-0 items-center gap-1.5">
                   <HuemulButton

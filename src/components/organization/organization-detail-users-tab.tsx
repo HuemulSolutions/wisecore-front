@@ -12,6 +12,7 @@ import { useOrganizationUsers, useSetOrganizationAdmin, organizationQueryKeys } 
 import { globalUserQueryKeys } from "@/hooks/useUsers"
 import { OrganizationUserRow } from "./organization-user-row"
 import { OrganizationUserAddPopover } from "./organization-user-add-popover"
+import { MembershipAuthMethodSelect } from "./membership-auth-method-select"
 import CreateUserSheet from "@/components/users/users-create-sheet"
 import type { Organization, OrganizationUser } from "@/types/organizations"
 import type { User } from "@/types/users"
@@ -22,6 +23,12 @@ export interface OrganizationDetailUsersTabProps {
   canSetAdmin: boolean
   /** Root-admin-only: agrega "Agregar usuario" y "Quitar" por fila. */
   canManageMembers?: boolean
+  /**
+   * Root admin o admin de ESTA organización: permite cambiar el método de
+   * autenticación de cada miembro (docs/sso-frontend.md, Fase 6). Sin él, el
+   * método se muestra como badge de solo lectura.
+   */
+  canEditAuthMethod?: boolean
 }
 
 /**
@@ -32,12 +39,15 @@ export interface OrganizationDetailUsersTabProps {
  * `POST`/`DELETE /organizations/{id}/users` (antes solo en
  * `UserOrganizationsDialog`, root-admin-only vía `/global-admin`).
  */
-export function OrganizationDetailUsersTab({ organization, canListUsers, canSetAdmin, canManageMembers = false }: OrganizationDetailUsersTabProps) {
+export function OrganizationDetailUsersTab({ organization, canListUsers, canSetAdmin, canManageMembers = false, canEditAuthMethod = false }: OrganizationDetailUsersTabProps) {
   const { t } = useTranslation(['organizations', 'users', 'common'])
   const queryClient = useQueryClient()
   const [confirmingUser, setConfirmingUser] = useState<OrganizationUser | null>(null)
   const [removingUser, setRemovingUser] = useState<OrganizationUser | null>(null)
   const [showCreateUser, setShowCreateUser] = useState(false)
+  // Método que recibirá el próximo miembro agregado desde este tab. `null` =
+  // dejar que el backend aplique `default_auth_type_id` de la org (o email).
+  const [newMemberAuthTypeId, setNewMemberAuthTypeId] = useState<string | null>(null)
 
   const { data, isLoading, isFetching, error, refetch } = useOrganizationUsers(
     canListUsers ? organization.id : undefined
@@ -49,7 +59,11 @@ export function OrganizationDetailUsersTab({ organization, canListUsers, canSetA
   }
 
   const assignMutation = useMutation({
-    mutationFn: (user: User) => assignUserToOrganization(organization.id, { user_id: user.id }),
+    mutationFn: (user: User) =>
+      assignUserToOrganization(organization.id, {
+        user_id: user.id,
+        ...(newMemberAuthTypeId ? { auth_type_id: newMemberAuthTypeId } : {}),
+      }),
     meta: { successMessage: t('users:organizations.assignedSuccess') },
     onSuccess: invalidateMembers,
   })
@@ -105,6 +119,18 @@ export function OrganizationDetailUsersTab({ organization, canListUsers, canSetA
         </div>
       )}
 
+      {canManageMembers && canListUsers && (
+        <MembershipAuthMethodSelect
+          organizationId={organization.id}
+          value={newMemberAuthTypeId ?? organization.default_auth_type_id ?? null}
+          canEdit
+          onChange={setNewMemberAuthTypeId}
+          label={t('detail.newMemberAuthMethod')}
+          description={t('detail.newMemberAuthMethodDescription')}
+          disabled={assignMutation.isPending}
+        />
+      )}
+
       {!canListUsers ? null : isLoading ? (
         <div className="space-y-2">
           {[...Array(3)].map((_, i) => (
@@ -139,6 +165,8 @@ export function OrganizationDetailUsersTab({ organization, canListUsers, canSetA
               canRemove={canManageMembers}
               onRemove={setRemovingUser}
               disabled={setAdminMutation.isPending || removeMutation.isPending}
+              organizationId={organization.id}
+              canEditAuthMethod={canEditAuthMethod}
             />
           ))}
         </div>

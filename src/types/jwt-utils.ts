@@ -5,6 +5,10 @@ export interface LoginTokenPayload {
   last_name: string;
   is_root_admin: boolean;
   exp: number;
+  /** Conexión con la que entró (INTERNAL en el login por código). docs/sso-frontend.md §2. */
+  auth_type_id?: string;
+  /** Organización elegida en el login (caso B o `select`); null si no aplica. */
+  login_org_id?: string | null;
 }
 
 export interface OrganizationTokenPayload {

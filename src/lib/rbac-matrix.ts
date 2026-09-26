@@ -40,6 +40,12 @@ export interface RbacPageSpec {
   routePermissions?: Permission[];
   /** Solo accesible para root admin (rutas técnicas). */
   requireRootAdmin?: boolean;
+  /**
+   * Accesible para root admin O para el admin de la organización activa
+   * (`is_org_admin` del token de organización). Para páginas que administran
+   * la configuración de la organización sin un `PermissionResource` propio.
+   */
+  requireOrgAdmin?: boolean;
   /** Metadata de navegación, si la página tiene entrada en el nav superior. */
   nav?: RbacNavSpec;
   /** Permisos por affordance (botón, tab, acción de fila, etc). */
@@ -302,16 +308,17 @@ export const RBAC_PAGES = {
   },
   "auth-types": {
     route: "auth-types",
-    // Recurso técnico global: no existe `auth_type` en PermissionResource
-    // (src/types/jwt-utils.ts), por eso el guard de ruta pedía `asset_type:*`
-    // prestado mientras la página exigía isRootAdmin adentro. La página siempre
-    // fue root-admin-only; ahora la matriz lo declara y es la única fuente.
+    // Conexiones de autenticación (docs/sso-frontend.md, Fase 5). No existe
+    // `auth_type` en PermissionResource (src/types/jwt-utils.ts). El backend
+    // (`auth_type/routes.py`) permite escribir al root admin sobre cualquier
+    // conexión y al org admin (`is_org_admin` + `X-Org-Id`) sobre las de su
+    // organización: la matriz declara ese mismo eje con `requireOrgAdmin`.
     //
     // Sin `features` a propósito: `can()` resuelve por hasPermission, que da
     // bypass a isOrgAdmin pero NO a isRootAdmin — un feature con permisos de
     // otro recurso devolvería false justo para el root admin. Todas las
     // affordances comparten el eje de `canAccessPage`. Ver rbac-audit-guide.md.
-    requireRootAdmin: true,
+    requireOrgAdmin: true,
   },
   users: {
     // Vista plana org-scoped sobre un recurso propio (`user`, ya existente en

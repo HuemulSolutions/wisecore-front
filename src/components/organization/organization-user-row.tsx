@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { HuemulButton } from "@/huemul/components/huemul-button"
+import { MembershipAuthMethodField } from "./membership-auth-method-field"
 import type { OrganizationUser } from "@/types/organizations"
 
 export interface OrganizationUserRowProps {
@@ -15,6 +16,10 @@ export interface OrganizationUserRowProps {
   canRemove?: boolean
   onRemove?: (user: OrganizationUser) => void
   disabled?: boolean
+  /** Organización de la membresía (para resolver las conexiones elegibles). */
+  organizationId: string
+  /** Root admin o admin de ESA organización: reemplaza el badge del método por un select. */
+  canEditAuthMethod?: boolean
 }
 
 function getInitials(user: OrganizationUser) {
@@ -22,7 +27,16 @@ function getInitials(user: OrganizationUser) {
 }
 
 /** Fila de usuario del tab "Usuarios" del panel de organización. */
-export function OrganizationUserRow({ user, canSetAdmin, onMakeAdmin, canRemove = false, onRemove, disabled }: OrganizationUserRowProps) {
+export function OrganizationUserRow({
+  user,
+  canSetAdmin,
+  onMakeAdmin,
+  canRemove = false,
+  onRemove,
+  disabled,
+  organizationId,
+  canEditAuthMethod = false,
+}: OrganizationUserRowProps) {
   const { t } = useTranslation(['organizations', 'users', 'common'])
 
   return (
@@ -46,6 +60,15 @@ export function OrganizationUserRow({ user, canSetAdmin, onMakeAdmin, canRemove 
         </div>
         <p className="truncate text-[11px] text-muted-foreground">{user.email}</p>
       </div>
+      {/* Método de autenticación de la membresía (docs/sso-frontend.md, Fase 6):
+          badge de solo lectura, o select si el usuario puede cambiarlo. */}
+      <MembershipAuthMethodField
+        member={user}
+        organizationId={organizationId}
+        canEdit={canEditAuthMethod}
+        disabled={disabled}
+        className={canEditAuthMethod ? "w-44 shrink-0" : "shrink-0"}
+      />
       {canSetAdmin && !user.is_org_admin && (
         <HuemulButton
           variant="outline"

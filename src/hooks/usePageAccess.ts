@@ -12,9 +12,10 @@ import type { Permission } from "@/lib/jwt-utils";
  */
 export function resolvePageAccess(
   page: RbacPageSpec,
-  ctx: { hasAnyPermission: (ps: Permission[]) => boolean; isRootAdmin: boolean }
+  ctx: { hasAnyPermission: (ps: Permission[]) => boolean; isRootAdmin: boolean; isOrgAdmin?: boolean }
 ): boolean {
   if (page.requireRootAdmin) return ctx.isRootAdmin;
+  if (page.requireOrgAdmin) return ctx.isRootAdmin || !!ctx.isOrgAdmin;
   if (!page.routePermissions || page.routePermissions.length === 0) return true;
   return ctx.hasAnyPermission(page.routePermissions as Permission[]);
 }
@@ -43,7 +44,7 @@ type PageOf<K extends RbacPageKey> = { [P in K]: (typeof RBAC_PAGES)[P] }[K];
 type FeaturesOf<K extends RbacPageKey> = PageOf<K> extends { features: infer F } ? F : undefined;
 
 export function usePageAccess<K extends RbacPageKey>(pageKey: K) {
-  const { hasPermission, hasAnyPermission, hasAllPermissions, isRootAdmin, isLoading } = useUserPermissions();
+  const { hasPermission, hasAnyPermission, hasAllPermissions, isRootAdmin, isOrgAdmin, isLoading } = useUserPermissions();
   // Cast a RbacPageSpec (el shape validado por `satisfies` en la matriz) para
   // la lectura en runtime — evita el mismo problema de distribución al leer
   // `requireRootAdmin`/`routePermissions`/`features` de una entrada que no
@@ -51,8 +52,8 @@ export function usePageAccess<K extends RbacPageKey>(pageKey: K) {
   const page = RBAC_PAGES[pageKey] as RbacPageSpec;
 
   const canAccessPage = useMemo(
-    () => resolvePageAccess(page, { hasAnyPermission, isRootAdmin }),
-    [hasAnyPermission, isRootAdmin, page]
+    () => resolvePageAccess(page, { hasAnyPermission, isRootAdmin, isOrgAdmin }),
+    [hasAnyPermission, isRootAdmin, isOrgAdmin, page]
   );
 
   const can = useCallback(

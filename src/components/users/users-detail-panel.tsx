@@ -69,6 +69,12 @@ export interface UserDetailPanelProps {
     /** Root-admin-only en ambos consumidores — ver `UsersDetailOrganizationsTab`. */
     canManageMembers: boolean
   }
+  /** Método de inicio de sesión en la organización activa (tab Perfil). Sin esto no se muestra. */
+  authMethod?: {
+    organizationId: string
+    /** Root admin o admin de la organización activa. */
+    canEdit: boolean
+  }
 }
 
 function getInitials(user: User) {
@@ -97,6 +103,7 @@ export function UserDetailPanel({
   onRegisterGuard,
   staging,
   organizationsTab,
+  authMethod,
 }: UserDetailPanelProps) {
   const { t } = useTranslation(["users", "common"])
   const { byId: rolesById } = useRolesMap(canListRoles)
@@ -302,6 +309,7 @@ export function UserDetailPanel({
                 userMutations={userMutations}
                 canUpdate={canUpdate}
                 canManageRootAdmin={canManageRootAdmin}
+                authMethod={authMethod}
               />
             </TabsContent>
             {showRolesTab && staging && (

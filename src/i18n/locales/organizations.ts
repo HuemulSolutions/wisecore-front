@@ -96,6 +96,7 @@ const translations = {
     updated: { en: "Organization updated successfully", es: "Organización actualizada exitosamente" },
     deleted: { en: "Organization deleted successfully", es: "Organización eliminada exitosamente" },
     adminSet: { en: "Organization admin set successfully", es: "Admin de organización asignado exitosamente" },
+    authMethodUpdated: { en: "Sign-in method updated", es: "Método de inicio de sesión actualizado" },
   },
   detail: {
     tabDetails: { en: "Details", es: "Detalles" },
@@ -128,6 +129,20 @@ const translations = {
       es: "No hay permiso para ver los usuarios de esta organización",
     },
     makeAdmin: { en: "Make admin", es: "Hacer admin" },
+    // Método de autenticación por membresía (docs/sso-frontend.md, Fase 6).
+    authMethod: { en: "Sign-in method", es: "Método de inicio de sesión" },
+    authMethodInactive: { en: "not available", es: "no disponible" },
+    newMemberAuthMethod: { en: "Sign-in method for new members", es: "Método de inicio de sesión para nuevos miembros" },
+    newMemberAuthMethodDescription: {
+      en: "Applied to users you add from this tab. Existing members keep their own method.",
+      es: "Se aplica a los usuarios que agregues desde esta pestaña. Los miembros actuales conservan su método.",
+    },
+    defaultAuthMethod: { en: "Default sign-in method", es: "Método de inicio de sesión por defecto" },
+    defaultAuthMethodDescription: {
+      en: "Assigned to new members of this organization. Changing it does not affect existing members.",
+      es: "Se asigna a los miembros nuevos de esta organización. Cambiarlo no afecta a los miembros actuales.",
+    },
+    defaultAuthMethodInternal: { en: "Email code (default)", es: "Código por email (por defecto)" },
     makeAdminTitle: { en: "Make {{name}} an admin?", es: "¿Hacer admin a {{name}}?" },
     makeAdminDescription: {
       en: "{{name}} will become an administrator of \"{{organization}}\" with full management permissions over it.",

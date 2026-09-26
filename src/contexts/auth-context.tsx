@@ -4,6 +4,8 @@ import { httpClient } from '@/lib/http-client';
 import { queryClient } from '@/lib/query-client';
 import { logger } from '@/lib/logger';
 import { sessionEvents } from '@/lib/session-events';
+import { currentPath, saveReturnUrl } from '@/lib/return-url';
+import i18n from '@/i18n';
 import type { User } from '@/types/users';
 import type { AuthContextType, AuthProviderProps } from '@/types/auth'
 export type { AuthContextType }
@@ -52,11 +54,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Set up unauthorized handler
     httpClient.setOnUnauthorized(() => {
       // Save where the user was so we can redirect back after re-login.
-      const currentPath = window.location.pathname + window.location.search;
-      if (currentPath && currentPath !== '/' && !currentPath.startsWith('/auth')) {
-        sessionStorage.setItem('returnUrl', currentPath);
-      }
-      toast.error('Your session has expired. Please log in again.');
+      saveReturnUrl(currentPath());
+      toast.error(i18n.t('auth:errors.sessionExpired'));
       logout();
     });
     

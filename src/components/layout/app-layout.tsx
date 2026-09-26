@@ -1,4 +1,9 @@
 import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
+import { clearReturnUrl, consumeReturnUrl, saveReturnUrl } from '@/lib/return-url'
+import { authStepUpStore } from '@/lib/auth-step-up-store'
+import { isErrorCode, parseErrorDetail } from '@/lib/error-utils'
+import { AUTH_METHOD_REQUIRED } from '@/hooks/useCompleteLogin'
+import type { AuthMethodRequiredDetail } from '@/types/auth'
 import { Home, Search, LayoutTemplate, BookText, Menu, Network, Workflow } from "lucide-react"
 import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from "react"
 import { useTranslation } from "react-i18next"
@@ -267,7 +272,7 @@ export default function AppLayout() {
         logger.log(`[OrgSync] Switched to org "${orgId}" successfully`)
 
         // Deep link URL is already correct — clean up any saved returnUrl
-        sessionStorage.removeItem('returnUrl')
+        clearReturnUrl()
 
         // Immediately refresh permissions from the new token instead of
         // waiting for the 2-second polling interval.
@@ -298,6 +303,27 @@ export default function AppLayout() {
       .catch((error) => {
         if (cancelled) return
         logger.error(`[OrgSync] Failed to switch to org "${orgId}":`, error)
+        // Step-up (docs/sso-frontend.md §2): la organización del deep link exige otro
+        // método de acceso. Mientras el diálogo está abierto la URL no se toca (es la
+        // vuelta tras el SSO); si el usuario no completa el step-up, se vuelve a la
+        // organización vigente para que URL y contexto no queden desalineados.
+        if (isErrorCode(error, AUTH_METHOD_REQUIRED)) {
+          const detail = parseErrorDetail<AuthMethodRequiredDetail>(error)
+          if (detail?.required_auth_flow) {
+            saveReturnUrl(location.pathname + location.search)
+            const currentOrganizationId = selectedOrganizationId
+            authStepUpStore.open({
+              organizationId: orgId,
+              required: detail.required_auth_flow,
+              source: 'orgsync',
+              onCancel: () => {
+                clearReturnUrl()
+                rawNavigate(currentOrganizationId ? `/${currentOrganizationId}/home` : '/', { replace: true })
+              },
+            })
+            return
+          }
+        }
         // If token generation fails (user doesn't have access), redirect
         // with the current org, or show org selection dialog
         if (selectedOrganizationId) {
@@ -346,9 +372,8 @@ export default function AppLayout() {
     if (!selectedOrganizationId || !organizationToken) return // not ready
     if (orgId) return // already at an org-scoped URL
 
-    const returnUrl = sessionStorage.getItem('returnUrl')
+    const returnUrl = consumeReturnUrl()
     if (returnUrl) {
-      sessionStorage.removeItem('returnUrl')
       const urlObj = new URL(returnUrl, window.location.origin)
       const returnPathWithoutOrg = stripOrgPrefix(urlObj.pathname)
       rawNavigate(
