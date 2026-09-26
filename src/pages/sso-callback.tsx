@@ -22,7 +22,8 @@ import { useCompleteLogin } from '@/hooks/useCompleteLogin'
 import { authSsoQueryKeys } from '@/hooks/useAuthSso'
 import { authService } from '@/services/auth'
 import { ApiError } from '@/types/api-error'
-import { consumeReturnUrl, pathBelongsToOtherOrg, sanitizeReturnPath } from '@/lib/return-url'
+import { consumeReturnUrl, pathBelongsToOtherOrg, sanitizeReturnPath, saveReturnUrl } from '@/lib/return-url'
+import { authStepUpStore } from '@/lib/auth-step-up-store'
 import { consumePendingSsoState } from '@/lib/sso-redirect'
 import { logger } from '@/lib/logger'
 import { AuthShell } from '@/components/auth/auth-shell'
@@ -60,7 +61,6 @@ export function resetConsumedSsoCodes(): void {
 type CallbackState =
   | { status: 'working' }
   | { status: 'error'; code: string }
-  | { status: 'step-up' }
 
 function errorCodeFrom(error: unknown): string {
   if (error instanceof ApiError && KNOWN_ERROR_CODES.has(error.detail)) return error.detail
@@ -128,17 +128,24 @@ export function SsoCallbackPage() {
           user: exchange.user,
           organizationId: pending?.pendingOrganizationId ?? null,
         })
-        if (result.stepUpRequired) {
-          // La organización exige otro método incluso tras este SSO: no volver a
-          // redirigir automáticamente (anti-loop); el usuario elige a mano.
-          setState({ status: 'step-up' })
-          return
-        }
         let target =
           sanitizeReturnPath(exchange.return_to) ??
           returnTo ??
           pending?.returnUrl ??
           consumeReturnUrl()
+        if (result.stepUpRequired && result.targetOrganizationId) {
+          // La organización exige otro método incluso tras este SSO: se abre el
+          // step-up global, que nunca redirige solo al IdP y pasa a modo manual al
+          // segundo intento (anti-loop). El destino queda guardado para la vuelta.
+          saveReturnUrl(target)
+          authStepUpStore.open({
+            organizationId: result.targetOrganizationId,
+            required: result.stepUpRequired,
+            source: 'callback',
+          })
+          navigate('/', { replace: true })
+          return
+        }
         // Nunca volver a una ruta de otra organización: AppLayout la tomaría como
         // deep link y re-seleccionaría la org anterior.
         if (result.organizationId && pathBelongsToOtherOrg(target, result.organizationId)) {
@@ -178,16 +185,6 @@ export function SsoCallbackPage() {
               {t(`ssoErrors.${state.code}`, { defaultValue: t('ssoErrors.generic') })}
             </FieldDescription>
             <HuemulButton icon={ArrowLeft} label={t('ssoCallback.backToLogin')} onClick={goToLogin} className="w-full" />
-          </>
-        )}
-        {state.status === 'step-up' && (
-          <>
-            <AlertTriangle className="h-8 w-8 text-amber-600" aria-hidden />
-            <h1 className="text-2xl font-bold text-gray-900">{t('stepUp.title')}</h1>
-            <FieldDescription className="text-gray-600" role="alert">
-              {t('stepUp.stillRequired')}
-            </FieldDescription>
-            <HuemulButton label={t('stepUp.chooseAnotherOrganization')} onClick={() => navigate('/', { replace: true })} className="w-full" />
           </>
         )}
       </div>

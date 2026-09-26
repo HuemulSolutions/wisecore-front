@@ -103,6 +103,27 @@ describe('Step-up desde el diálogo de organización', () => {
     expect(localStorage.getItem('auth_token')).toBe(session.token)
     expect(localStorage.getItem('auth_user')).toBeTruthy()
   })
+
+  it('"Cancelar" corre el onCancel del pedido (p. ej. OrgSync vuelve a la organización vigente)', async () => {
+    const onCancel = vi.fn()
+    const { user } = renderWithProviders(<AuthMethodRequiredDialog />, { session })
+    authStepUpStore.open({ organizationId: ORG_B_ID, required: { auth_flow: 'internal_code' }, source: 'orgsync', onCancel })
+    await screen.findByTestId('auth-step-up')
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() => expect(onCancel).toHaveBeenCalledTimes(1))
+  })
+
+  it('resolve (llegó el token) cierra sin correr onCancel', () => {
+    const onCancel = vi.fn()
+    authStepUpStore.open({ organizationId: ORG_B_ID, required: { auth_flow: 'internal_code' }, source: 'orgsync', onCancel })
+
+    authStepUpStore.resolve()
+
+    expect(authStepUpStore.getSnapshot()).toBeNull()
+    expect(onCancel).not.toHaveBeenCalled()
+  })
 })
 
 describe('Step-up con código (internal_code) sin cerrar sesión', () => {

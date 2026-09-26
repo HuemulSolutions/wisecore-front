@@ -304,13 +304,23 @@ export default function AppLayout() {
         if (cancelled) return
         logger.error(`[OrgSync] Failed to switch to org "${orgId}":`, error)
         // Step-up (docs/sso-frontend.md §2): la organización del deep link exige otro
-        // método de acceso. No se navega a ninguna parte: se recuerda la URL y se abre
-        // el diálogo global para que el usuario vuelva a entrar con ese método.
+        // método de acceso. Mientras el diálogo está abierto la URL no se toca (es la
+        // vuelta tras el SSO); si el usuario no completa el step-up, se vuelve a la
+        // organización vigente para que URL y contexto no queden desalineados.
         if (isErrorCode(error, AUTH_METHOD_REQUIRED)) {
           const detail = parseErrorDetail<AuthMethodRequiredDetail>(error)
           if (detail?.required_auth_flow) {
             saveReturnUrl(location.pathname + location.search)
-            authStepUpStore.open({ organizationId: orgId, required: detail.required_auth_flow, source: 'orgsync' })
+            const currentOrganizationId = selectedOrganizationId
+            authStepUpStore.open({
+              organizationId: orgId,
+              required: detail.required_auth_flow,
+              source: 'orgsync',
+              onCancel: () => {
+                clearReturnUrl()
+                rawNavigate(currentOrganizationId ? `/${currentOrganizationId}/home` : '/', { replace: true })
+              },
+            })
             return
           }
         }

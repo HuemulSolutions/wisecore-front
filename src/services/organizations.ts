@@ -135,27 +135,18 @@ export async function setOrganizationAdmin(
 /**
  * Cambia el método de autenticación de una membresía (docs/sso-frontend.md, Fase 6).
  * `X-Org-Id` es la organización del path (no la activa): el backend exige que
- * coincidan y que el token sea root admin o admin de ESA organización.
- *
- * `is_org_admin` solo viaja en el token de organización, pero httpClient manda el
- * de login a toda URL `/organizations/...`: si la organización es la activa se
- * fuerza su token (org admin). Para otra organización queda el de login, que
- * alcanza al root admin (`is_root_admin`).
+ * coincidan y que el token sea root admin o admin de ESA organización (httpClient
+ * elige el token de organización cuando es la activa).
  */
 export async function setMembershipAuthMethod(
   organizationId: string,
   userId: string,
   authTypeId: string,
 ): Promise<{ user_id: string; organization_id: string; auth_type_id: string; auth_type: { id: string; name: string; type: string } }> {
-  const headers: Record<string, string> = { 'X-Org-Id': organizationId };
-  const orgToken = httpClient.getOrganizationToken();
-  if (orgToken && httpClient.getOrganizationId() === organizationId) {
-    headers['Authorization'] = `Bearer ${orgToken}`;
-  }
   const response = await httpClient.patch(
     `${backendUrl}/organizations/${organizationId}/users/${userId}/auth-method`,
     { auth_type_id: authTypeId },
-    { headers },
+    { headers: { 'X-Org-Id': organizationId } },
   );
   const data = await response.json();
   return data.data;

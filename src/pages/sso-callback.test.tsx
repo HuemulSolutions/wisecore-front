@@ -16,6 +16,8 @@ import { makeLoginToken } from '@/test/jwt'
 import { VALID_HANDOFF_CODE, consumedHandoffCodes, loginTokenFor } from '@/test/msw/handlers/auth'
 import { authMethodRequiredHandler } from '@/test/msw/handlers/organizations'
 import { savePendingSsoState } from '@/lib/sso-redirect'
+import { authStepUpStore } from '@/lib/auth-step-up-store'
+import { peekReturnUrl } from '@/lib/return-url'
 
 const toastSuccess = vi.fn()
 vi.mock('sonner', async (importOriginal) => {
@@ -54,6 +56,7 @@ describe('SsoCallbackPage', () => {
     resetConsumedSsoCodes()
     consumedHandoffCodes.clear()
     toastSuccess.mockClear()
+    authStepUpStore.reset()
   })
 
   it('canjea el code una sola vez (StrictMode), inicia sesión, pide el token de la org del token y navega a /{org}/home', async () => {
@@ -208,17 +211,24 @@ describe('SsoCallbackPage', () => {
     await expectLocation('/login')
   })
 
-  it('si la organización exige otro método tras el SSO (403 AUTH_METHOD_REQUIRED) no redirige de nuevo: modo manual', async () => {
+  it('si la organización exige otro método tras el SSO (403 AUTH_METHOD_REQUIRED) abre el step-up global y guarda el destino', async () => {
     server.use(
       http.post(`${backendUrl}/auth/sso/exchange`, () =>
-        respondOk({ message: 'ok', user: activeUser, token: loginTokenFor(), return_to: null }),
+        respondOk({ message: 'ok', user: activeUser, token: loginTokenFor(), return_to: `/${ORG_A_ID}/templates` }),
       ),
       authMethodRequiredHandler({ auth_flow: 'internal_code' }),
     )
     renderWithProviders(<SsoCallbackPage />, { route: `${CALLBACK}?code=${VALID_HANDOFF_CODE}`, withRoutes: true })
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('still requires a different sign-in method')
-    expect(screen.getByTestId('location')).toHaveTextContent(CALLBACK)
+    await waitFor(() => expect(authStepUpStore.getSnapshot()).not.toBeNull())
+    expect(authStepUpStore.getSnapshot()?.request).toMatchObject({
+      organizationId: ORG_A_ID,
+      required: { auth_flow: 'internal_code' },
+      source: 'callback',
+    })
+    // Sale del callback: el diálogo global (montado en App) queda sobre la app.
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/'))
+    expect(peekReturnUrl()).toBe(`/${ORG_A_ID}/templates`)
     // La sesión sí quedó iniciada; solo falta la organización.
     expect(localStorage.getItem('auth_token')).toBeTruthy()
     expect(localStorage.getItem('organizationToken')).toBeNull()

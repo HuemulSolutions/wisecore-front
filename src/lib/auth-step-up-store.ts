@@ -21,6 +21,11 @@ export interface StepUpRequest {
   organizationName?: string | null
   required: RequiredAuthFlow
   source: StepUpSource
+  /**
+   * Qué deshacer si el usuario no completa el step-up (cancela o elige otra
+   * organización). No corre si el token llega (`resolve`).
+   */
+  onCancel?: () => void
 }
 
 export interface StepUpSnapshot {
@@ -75,6 +80,15 @@ function emit(): void {
   state.listeners.forEach((listener) => listener())
 }
 
+/** Cierra el pedido actual y lo devuelve (null si no había). */
+function clear(): StepUpSnapshot | null {
+  const current = state.current
+  if (current === null) return null
+  state.current = null
+  emit()
+  return current
+}
+
 export const authStepUpStore = {
   subscribe(listener: () => void): () => void {
     state.listeners.add(listener)
@@ -96,16 +110,14 @@ export const authStepUpStore = {
     emit()
     return state.current
   },
-  /** Cierra el diálogo sin tocar el contador (el usuario canceló). */
+  /** El usuario canceló: cierra sin tocar el contador y corre el `onCancel` del pedido. */
   close(): void {
-    if (state.current === null) return
-    state.current = null
-    emit()
+    clear()?.request.onCancel?.()
   },
   /** El token de organización llegó: se limpia el contador y se cierra. */
   resolve(): void {
     writeAttempts(null)
-    authStepUpStore.close()
+    clear()
   },
   /** Solo para tests. */
   reset(): void {

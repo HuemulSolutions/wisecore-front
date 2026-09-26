@@ -89,14 +89,22 @@ export const httpClient = {
     // OJO: `/auth-sso/` y `/auth_types/` NO matchean a propósito — necesitan el token de
     // organización porque el backend lee `is_org_admin` de ese JWT (docs/sso-frontend.md).
     const isAuthEndpoint = url.includes('/auth/');
-    const isOrganizationsEndpoint = url.includes('/organizations') && !url.includes('/users/organizations');
-    
+    // `/organizations/{org activa}/...` va con el token de esa organización: el backend
+    // autoriza al org admin por `is_org_admin`, que solo viaja ahí (y el token de org
+    // también lleva `is_root_admin`, así que los endpoints solo-root siguen andando).
+    const organizationPathId = url.match(/\/organizations\/([^/?#]+)/)?.[1];
+    const isActiveOrganizationEndpoint =
+      !!organizationToken && !!organizationPathId && organizationPathId === organizationId;
+    const isOrganizationsEndpoint =
+      url.includes('/organizations') && !url.includes('/users/organizations') && !isActiveOrganizationEndpoint;
+
     // Usar loginToken para:
     // 1. Generar token organizacional (/users/{id}/token)
     // 2. Generar token de usuario-rol (/user_roles/user_token)
-    // 3. Obtener organizaciones del usuario (/users/organizations) 
+    // 3. Obtener organizaciones del usuario (/users/organizations)
     // 4. Endpoints de auth (/auth/*)
-    // 5. Listar todas las organizaciones (/organizations)
+    // 5. Listar organizaciones (/organizations) y operar sobre otra organización que la
+    //    activa (root admin cross-org)
     const shouldUseLoginToken = isTokenEndpoint || isUserRolesTokenEndpoint || isUserOrganizationsEndpoint || isAuthEndpoint || isOrganizationsEndpoint;
     // Use organizationToken for org-scoped requests, but fallback to loginToken if not available
     // This allows root admin to access Global Admin without selecting an organization
@@ -106,7 +114,7 @@ export const httpClient = {
     logger.log(`[httpClient] Using ${shouldUseLoginToken ? 'login' : 'organization'} token:`, tokenToUse?.substring(0, 10) + '...');
     
     // Add auth token if available. Un servicio puede forzar otro token pasando
-    // `Authorization` explícito (p. ej. el token de org en una URL /organizations/...).
+    // `Authorization` explícito.
     if (tokenToUse && !headers.has('Authorization')) {
       headers.set('Authorization', `Bearer ${tokenToUse}`);
     }

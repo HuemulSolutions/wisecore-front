@@ -68,6 +68,31 @@ describe('httpClient · selección de token por URL', () => {
 
     expect(seen.authorization).toBe('Bearer login-token')
   })
+
+  it('/organizations/{org activa}/... usa el org token (el backend lee is_org_admin de ahí)', async () => {
+    httpClient.setLoginToken('login-token')
+    httpClient.setOrganizationToken('org-token')
+    httpClient.setOrganizationId('org-1')
+    const seen = captureHeaders('/organizations/org-1/users')
+
+    await httpClient.get(`${backendUrl}/organizations/org-1/users`)
+
+    expect(seen.authorization).toBe('Bearer org-token')
+    expect(seen.orgId).toBe('org-1')
+  })
+
+  it('/organizations y /organizations/{otra org}/... siguen con el login token (root admin cross-org)', async () => {
+    httpClient.setLoginToken('login-token')
+    httpClient.setOrganizationToken('org-token')
+    httpClient.setOrganizationId('org-1')
+    const list = captureHeaders('/organizations')
+    await httpClient.get(`${backendUrl}/organizations`)
+    expect(list.authorization).toBe('Bearer login-token')
+
+    const other = captureHeaders('/organizations/org-2/users')
+    await httpClient.get(`${backendUrl}/organizations/org-2/users`, { headers: { 'X-Org-Id': 'org-2' } })
+    expect(other.authorization).toBe('Bearer login-token')
+  })
 })
 
 describe('httpClient · errores', () => {
