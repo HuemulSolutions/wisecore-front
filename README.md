@@ -94,7 +94,7 @@ Context-aware, expandable assistant available across the app.
 
 ### Developer Experience
 - **ESLint** + **typescript-eslint**
-- **Vitest** + **Testing Library** + **msw** (`npm run test`). CI runs `npm run test --if-present`, so a failing test blocks the deploy. Conventions in `ia context/testing-guide.md`; the auth/SSO test plan lives in `docs/sso-frontend.md`.
+- **Vitest** + **Testing Library** + **msw** (`npm run test`). Tests run locally: the Terraform-generated deploy workflow (`.github/workflows/deploy-front-<env>-003.yml`) only installs and builds, so run the suite before pushing. Conventions in `ia context/testing-guide.md`; the auth/SSO test plan lives in `docs/sso-frontend.md`.
 
 ## Getting Started
 

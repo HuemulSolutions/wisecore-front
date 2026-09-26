@@ -190,7 +190,10 @@ export function OrganizationDetailPanel({
               />
             </TabsContent>
             <TabsContent value="users" className="m-0 h-full">
+              {/* `key` por organización: el panel queda montado al cambiar de fila y
+                  el estado del tab (método del próximo miembro, diálogos) es de UNA org. */}
               <OrganizationDetailUsersTab
+                key={displayOrganization.id}
                 organization={displayOrganization}
                 canListUsers={canListUsers}
                 canSetAdmin={canSetAdmin}
