@@ -72,12 +72,17 @@ export function ProtectedRoute({
     hasRole,
     hasAnyRole,
   } = useUserPermissions();
-  const { organizationToken } = useOrganization();
+  const { organizationToken, selectedOrganizationId } = useOrganization();
   const { orgId } = useParams<{ orgId: string }>();
 
-  // If we're on an org-scoped route but the org token hasn't been generated
-  // yet (e.g. deep-link OrgSync is in progress), wait before checking perms.
-  const orgTokenPending = !!orgId && orgId !== '_' && !organizationToken;
+  // En una ruta de organización, los permisos (incluido `isOrgAdmin`) tienen que
+  // ser de ESA organización: se espera mientras no haya token de org o mientras
+  // el contexto siga en otra (OrgSync en curso tras pegar un link, o un step-up
+  // abierto). Sin esto, el token de la org anterior abriría la ruta.
+  const urlOrgId = orgId && orgId !== '_' ? orgId : null;
+  const orgContextPending =
+    !!urlOrgId &&
+    (!organizationToken || selectedOrganizationId?.toLowerCase() !== urlOrgId.toLowerCase());
 
   // There's an org token but PermissionsProvider hasn't resolved a valid
   // (non-empty) permissions read yet — e.g. right after a hard deep-link
@@ -89,7 +94,7 @@ export function ProtectedRoute({
 
   // Mostrar loading mientras se cargan datos. El header ya está montado
   // (AppLayout), así que solo el cuerpo muestra el skeleton.
-  if (authLoading || permissionsLoading || orgTokenPending || permissionsNeverLoaded) {
+  if (authLoading || permissionsLoading || orgContextPending || permissionsNeverLoaded) {
     return <PageSkeleton />;
   }
 

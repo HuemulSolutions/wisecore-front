@@ -22,6 +22,7 @@ import { FieldDescription } from '@/components/ui/field'
 import { AuthMethodBadge } from '@/components/auth/auth-method-badge'
 import { LoginForm } from '@/components/auth/auth-login-form'
 import { OTPForm } from '@/components/auth/auth-otp-form'
+import { AuthOrganizationPicker } from '@/components/auth/auth-organization-picker'
 import { useAuth } from '@/contexts/auth-context'
 import { useOrganization } from '@/contexts/organization-context'
 import { useLoginFlow } from '@/hooks/useLoginFlow'
@@ -64,6 +65,7 @@ function StepUpDialogContent({ snapshot }: { snapshot: StepUpSnapshot }) {
       }
     },
   })
+  const { step } = flow
 
   const goToIdp = () => {
     if (required.auth_flow !== 'sso') return
@@ -115,23 +117,33 @@ function StepUpDialogContent({ snapshot }: { snapshot: StepUpSnapshot }) {
 
         {required.auth_flow === 'internal_code' && (
           <div className="flex flex-col gap-4">
-            {flow.step.kind === 'email' && (
+            {step.kind === 'email' && (
               <LoginForm
                 initialEmail={flow.email}
                 lockedEmail
                 onCodeRequested={flow.onCodeRequested}
               />
             )}
-            {flow.step.kind === 'otp' && (
+            {step.kind === 'otp' && (
               <OTPForm
-                email={flow.step.email}
-                variant={flow.step.variant}
+                email={step.email}
+                variant={step.variant}
                 onBack={flow.back}
                 onVerified={flow.onVerified}
-                onResend={flow.step.resend}
+                onResend={step.resend}
               />
             )}
-            {(flow.step.kind === 'choose-organization' || flow.step.kind === 'sso-redirect') && (
+            {/* Solo aparece si la selección automática de la organización objetivo
+                falló: el selector deja reintentarla o elegir otra. */}
+            {step.kind === 'choose-organization' && (
+              <AuthOrganizationPicker
+                preauthToken={step.preauthToken}
+                organizations={step.organizations}
+                onBack={flow.back}
+                onSelected={(result, organization) => flow.onOrganizationSelected(result, organization, step.email)}
+              />
+            )}
+            {step.kind === 'sso-redirect' && (
               <FieldDescription className="text-gray-600">{t('common:loading')}</FieldDescription>
             )}
           </div>

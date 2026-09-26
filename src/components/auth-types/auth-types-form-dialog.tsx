@@ -58,7 +58,9 @@ export function AuthTypeFormDialog({ open, onOpenChange, authType = null, canMan
   const hasSecret = authType?.has_client_secret ?? false
 
   const typeOptions = useMemo(() => {
-    const available = (authTypeTypes ?? []).filter((type) => type !== 'internal' || mode === 'edit')
+    // Solo lo que este formulario sabe construir (SSO_AUTH_TYPE_KINDS); `internal`
+    // aparece únicamente al editar la conexión global.
+    const available = (authTypeTypes ?? []).filter((type) => isSsoAuthType(type) || (type === 'internal' && mode === 'edit'))
     return available.map((type) => ({ value: type, label: t(`types.${type}`, { defaultValue: type }) }))
   }, [authTypeTypes, mode, t])
 

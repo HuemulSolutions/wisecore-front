@@ -12,8 +12,8 @@ import { authStepUpStore } from '@/lib/auth-step-up-store'
 import { ssoNavigation } from '@/lib/sso-redirect'
 import { renderWithProviders } from '@/test/render'
 import { server } from '@/test/msw/server'
-import { respondOk } from '@/test/msw/respond'
-import { activeUser, microsoftSso, ORG_A_ID, ORG_B_ID } from '@/test/fixtures'
+import { respondApiError, respondOk } from '@/test/msw/respond'
+import { activeUser, authFlow, microsoftSso, ORG_A_ID, ORG_B_ID } from '@/test/fixtures'
 import { makeLoginToken, makeOrgToken } from '@/test/jwt'
 import { authMethodRequiredHandler } from '@/test/msw/handlers/organizations'
 import { VALID_CODE, loginTokenFor } from '@/test/msw/handlers/auth'
@@ -166,6 +166,39 @@ describe('Step-up con código (internal_code) sin cerrar sesión', () => {
     expect(localStorage.getItem('selectedOrganizationId')).toBe(ORG_A_ID)
     expect(localStorage.getItem('organizationToken')).toBeTruthy()
     expect(sessionStorage.getItem('auth.stepUp')).toBeNull()
+  })
+
+  it('con varias membresías, si la selección automática falla se muestra el selector y se puede reintentar', async () => {
+    let selectCalls = 0
+    server.use(
+      http.post(`${backendUrl}/auth/codes`, () => respondOk(authFlow.preauthCode)),
+      http.post(`${backendUrl}/auth/codes/verify`, () => respondOk(authFlow.chooseOrganization('preauth-1'))),
+      http.post(`${backendUrl}/auth/login/select`, () => {
+        selectCalls += 1
+        if (selectCalls === 1) return respondApiError(500, 'ERROR', 'Unexpected error', 'boom')
+        return respondOk({ message: 'ok', user: activeUser, token: loginTokenFor({ login_org_id: ORG_A_ID }), organization: { id: ORG_A_ID, name: 'Org A' } })
+      }),
+      http.post(`${backendUrl}/user_roles/user_token`, () =>
+        respondOk({ token: makeOrgToken({ sub: activeUser.id, org_id: ORG_A_ID, permissions: ['asset:r'] }) }),
+      ),
+    )
+    const { user } = renderWithProviders(<AuthMethodRequiredDialog />, { session })
+    authStepUpStore.open({ organizationId: ORG_A_ID, organizationName: 'Org A', required: { auth_flow: 'internal_code' }, source: 'test' })
+    await screen.findByTestId('auth-step-up')
+
+    await user.click(screen.getByRole('button', { name: 'Continue with Email' }))
+    await screen.findByText("Verify it's you")
+    await user.type(otpInput(), VALID_CODE)
+    await user.click(screen.getByRole('button', { name: 'Verify Code' }))
+
+    // La selección automática de Org A falló: en vez de quedar mudo, aparece el selector.
+    const list = await screen.findByRole('list', { name: 'Choose an organization' })
+    expect(selectCalls).toBe(1)
+
+    await user.click(within(list).getByText('Org A'))
+    await waitFor(() => expect(screen.queryByTestId('auth-step-up')).not.toBeInTheDocument())
+    expect(selectCalls).toBe(2)
+    expect(localStorage.getItem('selectedOrganizationId')).toBe(ORG_A_ID)
   })
 
   it('si la organización exige un método distinto tras verificar, el diálogo se reabre con ese método', async () => {

@@ -252,4 +252,14 @@ describe('AuthTypeFormDialog', () => {
     await waitFor(() => expect(bodies).toHaveLength(1))
     expect(bodies[0].organization_id).toBeNull()
   })
+
+  it('el alta ofrece solo los tipos que el formulario sabe construir (aunque la API devuelva otros)', async () => {
+    useConnections()
+    server.use(http.get(`${backendUrl}/auth_types/types`, () => respondOk(['internal', 'microsoft', 'google', 'oidc'])))
+    const { user } = renderWithProviders(<AuthTypeFormDialog open onOpenChange={() => {}} authType={null} canManage />, { session: rootSession })
+
+    await user.click(await screen.findByLabelText('Type'))
+    const options = within(await screen.findByRole('listbox')).getAllByRole('option').map((o) => o.textContent)
+    expect(options).toEqual(['Microsoft Entra ID', 'Google'])
+  })
 })

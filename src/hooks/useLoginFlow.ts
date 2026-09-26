@@ -11,6 +11,7 @@ import { useCallback, useState } from 'react'
 import { useCompleteLogin, type CompleteLoginResult } from '@/hooks/useCompleteLogin'
 import { beginSsoRedirect } from '@/lib/sso-redirect'
 import { peekReturnUrl } from '@/lib/return-url'
+import { logger } from '@/lib/logger'
 import { authService } from '@/services/auth'
 import type {
   LoginOrganizationOption,
@@ -82,9 +83,15 @@ export function useLoginFlow(options: UseLoginFlowOptions = {}) {
     async (currentEmail: string, preauthToken: string, organizations: LoginOrganizationOption[]) => {
       const target = targetOrganizationId ? organizations.find((o) => o.id === targetOrganizationId) : undefined
       if (target) {
-        const result = await authService.selectLoginOrganization({ preauth_token: preauthToken, organization_id: target.id })
-        onOrganizationSelected(result, target, currentEmail)
-        return
+        try {
+          const result = await authService.selectLoginOrganization({ preauth_token: preauthToken, organization_id: target.id })
+          onOrganizationSelected(result, target, currentEmail)
+          return
+        } catch (error) {
+          // Sin salida muda: se muestra el selector, que maneja sus errores y deja
+          // reintentar esa organización o elegir otra.
+          logger.warn('[login] automatic organization selection failed', target.id, error)
+        }
       }
       setStep({ kind: 'choose-organization', email: currentEmail, preauthToken, organizations })
     },
