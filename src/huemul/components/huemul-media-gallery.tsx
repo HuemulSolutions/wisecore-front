@@ -128,7 +128,7 @@ function MediaCard({
       <div className="relative aspect-square bg-muted flex items-center justify-center overflow-hidden">
         <MediaThumb
           contentType={contentType}
-          url={version?.download_url}
+          url={version?.thumbnail_url ?? version?.download_url}
           alt={name}
           imgClassName="object-cover w-full h-full group-hover:scale-105 transition-transform duration-200"
           iconClassName="h-12 w-12 opacity-40"
@@ -210,7 +210,7 @@ function MediaRow({
       <div className="relative h-10 w-10 shrink-0 rounded-md bg-muted flex items-center justify-center overflow-hidden">
         <MediaThumb
           contentType={contentType}
-          url={version?.download_url}
+          url={version?.thumbnail_url ?? version?.download_url}
           alt={name}
           imgClassName="object-cover w-full h-full"
           iconClassName="h-5 w-5 opacity-50"

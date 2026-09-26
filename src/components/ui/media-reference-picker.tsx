@@ -20,6 +20,7 @@ import { HuemulViewToggle } from '@/huemul/components/huemul-view-toggle'
 import { HuemulMediaGallery } from '@/huemul/components/huemul-media-gallery'
 import { HuemulMediaGenerateSheet } from '@/huemul/components/huemul-media-generate-sheet'
 import { isImage } from '@/huemul/components/huemul-media-icon'
+import { getMediaDownloadUrl } from '@/services/media'
 import { mediaTokenFor } from '@/lib/plate-media-utils'
 import type { Media } from '@/types/media'
 import type { GeneratedImage } from '@/types/image-generation'
@@ -51,6 +52,7 @@ export function MediaReferencePicker({
   const [page, setPage] = useState(1)
   const [viewMode, setViewMode] = useMediaViewMode()
   const [generateOpen, setGenerateOpen] = useState(false)
+  const [resolvingId, setResolvingId] = useState<string | null>(null)
   const { can } = usePageAccess('media')
   const canCreate = can('createMedia')
   const canDeleteMedia = can('deleteMedia')
@@ -127,12 +129,23 @@ export function MediaReferencePicker({
     editor.tf.insertNodes({ type: KEYS.p, children: [{ text: '' }] } as any)
   }
 
-  function handleSelect(media: Media) {
-    if (!editor) return
+  async function handleSelect(media: Media) {
+    if (!editor || resolvingId) return
     const version = media.current_version
+    // El listado devuelve la miniatura en `download_url`: se pide el original
+    // para que el nodo (y su lightbox) no quede en 300px.
+    setResolvingId(media.id)
+    let previewUrl = version?.download_url || ''
+    try {
+      previewUrl = await getMediaDownloadUrl(organizationId, media.id)
+    } catch {
+      // Sin el original se inserta igual con lo que trae el listado.
+    } finally {
+      setResolvingId(null)
+    }
     insertMediaReference({
       mediaId: media.id,
-      previewUrl: version?.download_url || '',
+      previewUrl,
       name: media.name ?? version?.original_filename ?? media.id,
       contentType: version?.content_type,
       fileSize: version?.file_size,
