@@ -38,7 +38,9 @@ export function AuthShell({ children, className }: AuthShellProps) {
         className="absolute inset-0 -z-10 bg-gradient-to-b from-slate-950/75 via-slate-950/25 to-slate-950/85 lg:bg-gradient-to-r lg:from-slate-950/85 lg:via-slate-950/35 lg:to-slate-950/10"
       />
 
-      <div className="mx-auto grid min-h-svh w-full max-w-7xl gap-8 px-4 py-6 sm:px-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,28rem)] lg:items-center lg:gap-16 lg:px-12 lg:py-10">
+      {/* `grid-cols-1` (minmax(0,1fr)) en móvil: una columna implícita `auto` crece hasta
+          el min-content del contenido y una fila larga desbordaba la pantalla. */}
+      <div className="mx-auto grid min-h-svh w-full max-w-7xl grid-cols-1 gap-8 px-4 py-6 sm:px-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,28rem)] lg:items-center lg:gap-16 lg:px-12 lg:py-10">
         <section className="flex flex-col text-white motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 motion-safe:animation-duration-700 lg:min-h-[calc(100svh-5rem)] lg:justify-between">
           <WisecoreLogo variant="ai-light" size="lg" className="h-9 self-start sm:h-11 lg:h-12" />
 

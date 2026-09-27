@@ -70,7 +70,8 @@ describe('AuthPage · caso C (varias organizaciones)', () => {
     const items = within(list).getAllByRole('button')
     expect(items).toHaveLength(2)
     expect(within(items[0]).getByText('Org A')).toBeInTheDocument()
-    expect(within(items[0]).getByText('Internal Authentication')).toBeInTheDocument()
+    // El código por correo no lleva badge: solo se señala el SSO.
+    expect(within(items[0]).queryByText('Internal Authentication')).not.toBeInTheDocument()
     expect(within(items[1]).getByText('Org B')).toBeInTheDocument()
     expect(within(items[1]).getByText('Microsoft Contoso')).toBeInTheDocument()
     // El usuario no elige método: no hay ningún control para cambiarlo.
@@ -175,7 +176,7 @@ describe('AuthPage · caso C (varias organizaciones)', () => {
     await verify(user)
     const list = await screen.findByRole('list', { name: 'Choose an organization' })
     expect(within(list).getAllByRole('button')).toHaveLength(2)
-    expect(within(list).getAllByText('Email code')).toHaveLength(2)
+    expect(within(list).queryAllByText('Email code')).toHaveLength(0)
 
     await user.click(within(list).getByText('Org B'))
     await waitFor(() => expect(localStorage.getItem('selectedOrganizationId')).toBe(ORG_B_ID))
