@@ -4,12 +4,9 @@ const translations = {
     addAuthType: { en: "Add connection", es: "Agregar conexión" },
     searchPlaceholder: { en: "Search connections...", es: "Buscar conexiones..." },
     authTypesCount: { en: "{{count}} connections", es: "{{count}} conexiones" },
-    organizationFilter: { en: "Filter by organization", es: "Filtrar por organización" },
-    allOrganizations: { en: "All organizations", es: "Todas las organizaciones" },
   },
   columns: {
     type: { en: "Type", es: "Tipo" },
-    scope: { en: "Scope", es: "Ámbito" },
     domains: { en: "Email domains", es: "Dominios de correo" },
     status: { en: "Status", es: "Estado" },
     secret: { en: "Secret", es: "Secreto" },
@@ -18,9 +15,6 @@ const translations = {
     internal: { en: "Email code", es: "Código por correo" },
     microsoft: { en: "Microsoft Entra ID", es: "Microsoft Entra ID" },
     google: { en: "Google", es: "Google" },
-  },
-  scope: {
-    organization: { en: "This organization", es: "Esta organización" },
   },
   badges: {
     readOnly: { en: "Built-in", es: "Integrada" },
@@ -61,9 +55,6 @@ const translations = {
     leaveEmptyToKeep: { en: "Leave empty to keep the current secret.", es: "Dejar vacío para conservar el secreto actual." },
     isActive: { en: "Active", es: "Activa" },
     isActiveHint: { en: "Inactive connections cannot be used to sign in and release their domains.", es: "Una conexión inactiva no sirve para iniciar sesión y libera sus dominios." },
-    organization: { en: "Organization", es: "Organización" },
-    organizationPlaceholder: { en: "Select the organization", es: "Seleccionar la organización" },
-    organizationHint: { en: "Every connection belongs to one organization and can only be assigned to its members.", es: "Cada conexión pertenece a una organización y solo se puede asignar a sus miembros." },
     internalHint: { en: "Built-in email-code method of this organization. It cannot be edited or removed.", es: "Método por código de correo integrado de esta organización. No se puede editar ni eliminar." },
   },
   validation: {
@@ -73,7 +64,6 @@ const translations = {
     allowedHostedDomainsRequired: { en: "Add at least one Google Workspace domain", es: "Agregar al menos un dominio de Google Workspace" },
     invalidDomain: { en: "One or more domains are not valid", es: "Uno o más dominios no son válidos" },
     clientSecretRequired: { en: "Client secret is required", es: "El client secret es obligatorio" },
-    organizationRequired: { en: "Organization is required", es: "La organización es obligatoria" },
   },
   toasts: {
     created: { en: "Connection created", es: "Conexión creada" },
@@ -105,6 +95,11 @@ const translations = {
   emptyState: {
     noResults: { en: "No connections match your search", es: "Ninguna conexión coincide con la búsqueda" },
     empty: { en: "No authentication connections yet", es: "Todavía no hay conexiones de autenticación" },
+    organizationRequired: { en: "Organization required", es: "Organización requerida" },
+    organizationRequiredDescription: {
+      en: "Select an organization to see its authentication connections. Connections belong to the organization you are signed in to.",
+      es: "Selecciona una organización para ver sus conexiones de autenticación. Las conexiones son de la organización en la que has iniciado sesión.",
+    },
   },
   errorState: {
     failedToLoad: { en: "Failed to load authentication connections", es: "Error al cargar las conexiones de autenticación" },

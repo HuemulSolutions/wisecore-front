@@ -12,10 +12,12 @@ import { renderWithProviders } from '@/test/render'
 import { server } from '@/test/msw/server'
 import { respondOk } from '@/test/msw/respond'
 import { googleConnection, internalConnection, INTERNAL_CONNECTION_ID, MICROSOFT_CONNECTION_ID, microsoftConnection, ORG_A_ID, rootAdmin } from '@/test/fixtures'
-import { makeLoginToken } from '@/test/jwt'
+import { makeLoginToken, makeOrgToken } from '@/test/jwt'
 import type { Organization } from '@/types/organizations'
 
 const rootSession = { token: makeLoginToken({ sub: rootAdmin.id, is_root_admin: true }), user: rootAdmin }
+// El método por defecto se elige entre las conexiones de la organización activa (Org A).
+const rootOrg = { id: ORG_A_ID, token: makeOrgToken({ sub: rootAdmin.id, is_root_admin: true, permissions: [] }) }
 
 /** Arnés mínimo: el hook real + el tab real + un botón que dispara `save`. */
 function Harness({ organization, manageDefault = true }: { organization: Organization; manageDefault?: boolean }) {
@@ -45,7 +47,7 @@ describe('OrganizationDetailDetailsTab · método por defecto', () => {
         return respondOk({ id: ORG_A_ID, name: 'Org A', default_auth_type_id: MICROSOFT_CONNECTION_ID })
       }),
     )
-    const { user } = renderWithProviders(<Harness organization={{ id: ORG_A_ID, name: 'Org A', default_auth_type_id: null }} />, { session: rootSession })
+    const { user } = renderWithProviders(<Harness organization={{ id: ORG_A_ID, name: 'Org A', default_auth_type_id: null }} />, { session: rootSession, org: rootOrg })
 
     const trigger = await screen.findByLabelText('Default sign-in method')
     // `null` se muestra como la conexión interna con la etiqueta "por defecto".
@@ -72,7 +74,7 @@ describe('OrganizationDetailDetailsTab · método por defecto', () => {
     )
     const { user } = renderWithProviders(
       <Harness organization={{ id: ORG_A_ID, name: 'Org A', default_auth_type_id: INTERNAL_CONNECTION_ID }} />,
-      { session: rootSession },
+      { session: rootSession, org: rootOrg },
     )
 
     const name = await screen.findByDisplayValue('Org A')
@@ -84,7 +86,7 @@ describe('OrganizationDetailDetailsTab · método por defecto', () => {
   })
 
   it('sin permiso de root admin el campo no se muestra', async () => {
-    renderWithProviders(<Harness organization={{ id: ORG_A_ID, name: 'Org A' }} manageDefault={false} />, { session: rootSession })
+    renderWithProviders(<Harness organization={{ id: ORG_A_ID, name: 'Org A' }} manageDefault={false} />, { session: rootSession, org: rootOrg })
     await screen.findByDisplayValue('Org A')
     expect(screen.queryByLabelText('Default sign-in method')).not.toBeInTheDocument()
   })

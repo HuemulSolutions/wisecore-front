@@ -46,8 +46,6 @@ export interface AuthTypeFormValues {
   allowedTenantIdsText: string
   allowedHostedDomainsText: string
   autoProvision: AutoProvision
-  /** Organización de la conexión (la elige solo el root admin al crear; '' = sin elegir). */
-  organizationId: string
 }
 
 export const EMPTY_AUTH_TYPE_FORM: AuthTypeFormValues = {
@@ -61,7 +59,6 @@ export const EMPTY_AUTH_TYPE_FORM: AuthTypeFormValues = {
   allowedTenantIdsText: '',
   allowedHostedDomainsText: '',
   autoProvision: 'off',
-  organizationId: '',
 }
 
 export function formValuesFromAuthType(authType: AuthType): AuthTypeFormValues {
@@ -77,7 +74,6 @@ export function formValuesFromAuthType(authType: AuthType): AuthTypeFormValues {
     allowedTenantIdsText: isMicrosoftParams(params) ? listToInput(params.allowed_tenant_ids) : '',
     allowedHostedDomainsText: isGoogleParams(params) ? listToInput(params.allowed_hosted_domains) : '',
     autoProvision: params?.auto_provision ?? 'off',
-    organizationId: authType.organization_id ?? '',
   }
 }
 
@@ -88,22 +84,19 @@ export type AuthTypeFormErrorKey =
   | 'allowedHostedDomains'
   | 'emailDomains'
   | 'clientSecret'
-  | 'organizationId'
 
 /**
  * Devuelve los campos inválidos con la clave de i18n (`validation.*`) del mensaje.
- * `requireOrganization`: el root admin crea siempre dentro de una organización (no hay
- * conexiones globales).
+ * La organización no se valida acá: la conexión se crea siempre en la organización
+ * activa (el backend la toma del token), también para el root admin.
  */
 export function validateAuthTypeForm(
   values: AuthTypeFormValues,
   mode: 'create' | 'edit',
   hasSecret: boolean,
-  options: { requireOrganization?: boolean } = {},
 ): Partial<Record<AuthTypeFormErrorKey, string>> {
   const errors: Partial<Record<AuthTypeFormErrorKey, string>> = {}
   if (!values.name.trim()) errors.name = 'validation.nameRequired'
-  if (options.requireOrganization && !values.organizationId) errors.organizationId = 'validation.organizationRequired'
   if (!isSsoAuthType(values.type)) return errors
 
   if (!values.clientId.trim()) errors.clientId = 'validation.clientIdRequired'
@@ -145,7 +138,11 @@ export function buildParams(values: AuthTypeFormValues): AuthTypeParams | null {
   return null
 }
 
-export function buildCreateRequest(values: AuthTypeFormValues, options: { includeOrganization: boolean }): CreateAuthTypeRequest {
+/**
+ * Body de `POST /auth_types`. Nunca lleva `organization_id`: el backend crea la
+ * conexión en la organización del token (claim `org_id`), para todos los usuarios.
+ */
+export function buildCreateRequest(values: AuthTypeFormValues): CreateAuthTypeRequest {
   const request: CreateAuthTypeRequest = {
     name: values.name.trim(),
     type: values.type,
@@ -155,10 +152,6 @@ export function buildCreateRequest(values: AuthTypeFormValues, options: { includ
     request.params = buildParams(values)
     request.email_domains = parseDomainList(values.emailDomainsText)
     if (values.clientSecret.trim()) request.client_secret = values.clientSecret.trim()
-  }
-  // Nunca `null`: el backend no acepta conexiones sin organización.
-  if (options.includeOrganization && values.organizationId) {
-    request.organization_id = values.organizationId
   }
   return request
 }

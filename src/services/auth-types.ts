@@ -31,10 +31,14 @@ export function normalizeAuthType(raw: Partial<AuthType> & Record<string, unknow
 class AuthTypesService {
   private baseUrl = `${backendUrl}/auth_types`;
 
-  async getAuthTypes(search?: string, options: { organizationId?: string | null; onlyActive?: boolean } = {}): Promise<AuthType[]> {
+  /**
+   * Conexiones de la organización del token de organización. No hay parámetro de
+   * organización: el backend acota por el claim `org_id` para todos los usuarios,
+   * root admin incluido, y sin token de organización devuelve una lista vacía.
+   */
+  async getAuthTypes(search?: string, options: { onlyActive?: boolean } = {}): Promise<AuthType[]> {
     const query = new URLSearchParams();
     if (search) query.set('search', search);
-    if (options.organizationId) query.set('organization_id', options.organizationId);
     if (options.onlyActive) query.set('only_active', 'true');
     const qs = query.toString();
     const response = await httpClient.get(qs ? `${this.baseUrl}/?${qs}` : `${this.baseUrl}/`);
@@ -74,7 +78,7 @@ class AuthTypesService {
 export const authTypesService = new AuthTypesService();
 
 // Export individual functions for use in hooks
-export const getAuthTypes = (search?: string, options?: { organizationId?: string | null; onlyActive?: boolean }) =>
+export const getAuthTypes = (search?: string, options?: { onlyActive?: boolean }) =>
   authTypesService.getAuthTypes(search, options);
 export const getAuthType = (id: string) => authTypesService.getAuthType(id);
 export const getAuthTypeTypes = () => authTypesService.getAuthTypeTypes();
