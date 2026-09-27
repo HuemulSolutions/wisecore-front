@@ -136,6 +136,7 @@ const translations = {
       en: "Sign in to this organization to change the sign-in method.",
       es: "Ingresa a esta organización para cambiar el método de inicio de sesión.",
     },
+    authMethodOtherOrganizationUnknown: { en: "Configured in that organization", es: "Configurado en esa organización" },
     newMemberAuthMethod: { en: "Sign-in method for new members", es: "Método de inicio de sesión para nuevos miembros" },
     newMemberAuthMethodDescription: {
       en: "Applied to users you add from this tab. Existing members keep their own method.",

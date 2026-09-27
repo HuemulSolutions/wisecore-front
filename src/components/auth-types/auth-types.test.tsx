@@ -1,7 +1,7 @@
 /**
  * Plan SSO frontend (docs/sso-frontend.md) · Fase 5 · admin de conexiones y RBAC.
  */
-import { http } from 'msw'
+import { delay, http } from 'msw'
 import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
@@ -9,10 +9,20 @@ import { backendUrl } from '@/config'
 import AuthTypesPage from '@/pages/auth-types'
 import { AuthTypeFormDialog } from '@/components/auth-types/auth-types-form-dialog'
 import { AuthTypesTable } from '@/components/auth-types/auth-types-table'
+import { useOrganization } from '@/contexts/organization-context'
 import { renderWithProviders } from '@/test/render'
 import { server } from '@/test/msw/server'
 import { respondOk } from '@/test/msw/respond'
-import { activeUser, GOOGLE_CONNECTION_ID, INTERNAL_CONNECTION_ID, MICROSOFT_CONNECTION_ID, ORG_A_ID, rootAdmin } from '@/test/fixtures'
+import {
+  activeUser,
+  GOOGLE_CONNECTION_ID,
+  INTERNAL_CONNECTION_ID,
+  internalConnectionOrgB,
+  MICROSOFT_CONNECTION_ID,
+  ORG_A_ID,
+  ORG_B_ID,
+  rootAdmin,
+} from '@/test/fixtures'
 import { makeLoginToken, makeOrgToken } from '@/test/jwt'
 import type { AuthType } from '@/types/auth-types'
 
@@ -120,6 +130,56 @@ describe('AuthTypes · página y RBAC', () => {
     expect(requests[0].orgParam).toBeNull()
     expect(requests[0].orgHeader).toBe(ORG_A_ID)
     expect(requests[0].auth).toBe(`Bearer ${rootOrg.token}`)
+  })
+
+  it('al cambiar de organización con la página montada no se muestran las conexiones de la anterior', async () => {
+    const orgBToken = makeOrgToken({ sub: rootAdmin.id, is_root_admin: true, permissions: [] })
+    server.use(
+      http.get(`${backendUrl}/auth_types/`, async ({ request }) => {
+        if (request.headers.get('X-Org-Id') === ORG_B_ID) {
+          // Org B tarda: durante la carga no puede quedar la lista de Org A como placeholder.
+          await delay(150)
+          return respondOk([{ ...internalConnectionOrgB, name: 'Internal Org B' }])
+        }
+        return respondOk(connections)
+      }),
+    )
+    // La página queda montada al cambiar de organización (misma ruta): se simula el
+    // cambio como lo hace el selector, actualizando id y token de organización.
+    function SwitchToOrgB() {
+      const { setSelectedOrganizationId, setOrganizationToken } = useOrganization()
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            setOrganizationToken(orgBToken)
+            setSelectedOrganizationId(ORG_B_ID)
+          }}
+        >
+          switch to B
+        </button>
+      )
+    }
+    const { user } = renderWithProviders(
+      <>
+        <SwitchToOrgB />
+        <AuthTypesPage />
+      </>,
+      { session: rootSession, org: rootOrg, route: `/${ORG_A_ID}/auth-types` },
+    )
+
+    expect(await screen.findByText('Microsoft Contoso')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'switch to B' }))
+
+    // Mientras carga Org B (150 ms) no aparece nada de Org A: se afirma de inmediato,
+    // sin esperar, porque el bug era justamente el placeholder durante la carga.
+    expect(screen.queryByText('Microsoft Contoso')).not.toBeInTheDocument()
+    expect(screen.queryByText('Google Workspace')).not.toBeInTheDocument()
+    expect(screen.queryByText('Internal Authentication')).not.toBeInTheDocument()
+
+    // Y al terminar, solo la INTERNAL de Org B.
+    expect(await screen.findByText('Internal Org B')).toBeInTheDocument()
+    expect(screen.queryByText('Microsoft Contoso')).not.toBeInTheDocument()
   })
 
   it('el root admin sin organización activa no ve ninguna conexión ni consulta el backend', async () => {

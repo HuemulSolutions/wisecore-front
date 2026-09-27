@@ -11,7 +11,7 @@ import { useOrganizationDetailsForm } from '@/hooks/useOrganizationDetailsForm'
 import { renderWithProviders } from '@/test/render'
 import { server } from '@/test/msw/server'
 import { respondOk } from '@/test/msw/respond'
-import { googleConnection, internalConnection, INTERNAL_CONNECTION_ID, MICROSOFT_CONNECTION_ID, microsoftConnection, ORG_A_ID, rootAdmin } from '@/test/fixtures'
+import { googleConnection, internalConnection, INTERNAL_CONNECTION_ID, MICROSOFT_CONNECTION_ID, microsoftConnection, ORG_A_ID, ORG_B_ID, rootAdmin } from '@/test/fixtures'
 import { makeLoginToken, makeOrgToken } from '@/test/jwt'
 import type { Organization } from '@/types/organizations'
 
@@ -83,6 +83,36 @@ describe('OrganizationDetailDetailsTab · método por defecto', () => {
 
     await waitFor(() => expect(bodies).toHaveLength(1))
     expect('default_auth_type_id' in bodies[0]).toBe(false)
+  })
+
+  it('mirando otra organización, un método por defecto SSO no se etiqueta como código por correo', async () => {
+    useConnections()
+    renderWithProviders(
+      <Harness organization={{ id: ORG_B_ID, name: 'Org B', default_auth_type_id: MICROSOFT_CONNECTION_ID }} />,
+      { session: rootSession, org: rootOrg },
+    )
+
+    await screen.findByDisplayValue('Org B')
+    // Org B no es la organización activa: sin select y sin inventar el método (las
+    // conexiones de Org B no se entregan, así que no se puede resolver el nombre).
+    expect(screen.queryByLabelText('Default sign-in method')).not.toBeInTheDocument()
+    const readOnly = screen.getByTestId('membership-auth-method-other-organization')
+    expect(readOnly).toHaveTextContent('Configured in that organization')
+    expect(readOnly).not.toHaveTextContent('Email code')
+    expect(readOnly).not.toHaveTextContent('Microsoft')
+  })
+
+  it('mirando otra organización sin método por defecto se muestra el código por correo', async () => {
+    useConnections()
+    renderWithProviders(
+      <Harness organization={{ id: ORG_B_ID, name: 'Org B', default_auth_type_id: null }} />,
+      { session: rootSession, org: rootOrg },
+    )
+
+    await screen.findByDisplayValue('Org B')
+    const readOnly = screen.getByTestId('membership-auth-method-other-organization')
+    expect(readOnly).toHaveTextContent('Email code')
+    expect(readOnly).not.toHaveTextContent('Configured in that organization')
   })
 
   it('sin permiso de root admin el campo no se muestra', async () => {

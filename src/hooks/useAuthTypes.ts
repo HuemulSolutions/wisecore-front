@@ -37,7 +37,11 @@ export function useAuthTypes(options?: { enabled?: boolean; search?: string; onl
   return useQuery({
     queryKey: authTypeQueryKeys.list(selectedOrganizationId, search, onlyActive),
     queryFn: () => getAuthTypes(search, { onlyActive }),
-    placeholderData: (prev) => prev,
+    // El placeholder reutiliza los datos previos solo si son de la misma organización:
+    // incluir la org en la key no alcanza, porque TanStack entrega los datos de la key
+    // anterior mientras carga la nueva y se verían conexiones de la organización anterior.
+    placeholderData: (prev, prevQuery) =>
+      prevQuery?.queryKey[2] === (selectedOrganizationId ?? '') ? prev : undefined,
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 0, // No retries to avoid multiple error requests
     enabled: (options?.enabled ?? true) && hasOrganization,

@@ -11,6 +11,7 @@
  */
 import { useMemo } from "react"
 import { useTranslation } from "react-i18next"
+import { KeyRound } from "lucide-react"
 
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { AuthMethodBadge } from "@/components/auth/auth-method-badge"
@@ -90,13 +91,25 @@ export function MembershipAuthMethodSelect({
   // `/organizations`) solo se muestra el método actual, con la indicación de
   // entrar a esa organización para cambiarlo.
   if (isOtherOrganization) {
+    // Sin metadata de la conexión (`current`) y con un id asignado no se puede saber
+    // qué método es (las conexiones de otra org no se entregan): no se etiqueta como
+    // `internal`. `value == null` sí es el método por defecto (código por correo).
+    const badge =
+      current || value == null ? (
+        <AuthMethodBadge type={current?.type ?? "internal"} name={current?.name ?? null} />
+      ) : (
+        <span className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground">
+          <KeyRound className="h-4 w-4 shrink-0" aria-hidden />
+          {t("organizations:detail.authMethodOtherOrganizationUnknown")}
+        </span>
+      )
     return (
       <span
         className={className}
         title={t("organizations:detail.authMethodOtherOrganization")}
         data-testid="membership-auth-method-other-organization"
       >
-        <AuthMethodBadge type={current?.type ?? "internal"} name={current?.name ?? null} />
+        {badge}
       </span>
     )
   }
