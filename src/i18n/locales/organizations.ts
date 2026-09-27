@@ -132,6 +132,10 @@ const translations = {
     // Método de autenticación por membresía (docs/sso-frontend.md, Fase 6).
     authMethod: { en: "Sign-in method", es: "Método de inicio de sesión" },
     authMethodInactive: { en: "not available", es: "no disponible" },
+    authMethodOtherOrganization: {
+      en: "Sign in to this organization to change the sign-in method.",
+      es: "Ingresa a esta organización para cambiar el método de inicio de sesión.",
+    },
     newMemberAuthMethod: { en: "Sign-in method for new members", es: "Método de inicio de sesión para nuevos miembros" },
     newMemberAuthMethodDescription: {
       en: "Applied to users you add from this tab. Existing members keep their own method.",

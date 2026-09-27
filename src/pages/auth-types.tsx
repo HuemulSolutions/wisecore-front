@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react"
+import { useTranslation } from "react-i18next"
+import { Building2 } from "lucide-react"
 import { useAuthTypes } from "@/hooks/useAuthTypes"
-import { useOrganizationsLookup } from "@/hooks/useOrganizations"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { useOrganization } from "@/contexts/organization-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { AuthTypeFormDialog } from "@/components/auth-types/auth-types-form-dialog"
@@ -17,10 +18,16 @@ import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 
 /**
- * Authentication Types management page
- * Provides interface for creating, editing, and managing authentication types
+ * Conexiones de autenticación de la organización activa.
+ *
+ * Regla de aislamiento por organización: todo usuario, el root admin incluido,
+ * ve y administra solo las conexiones de la organización en la que está
+ * logueado (el backend las toma del claim `org_id` del token de organización).
+ * Sin organización activa no hay nada que listar: la página lo dice y no
+ * consulta. No existe un modo "todas las organizaciones".
  */
 export default function AuthTypes() {
+  const { t } = useTranslation('auth-types')
   const [inputSearch, setInputSearch] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
   const [page, setPage] = useState(1)
@@ -29,27 +36,15 @@ export default function AuthTypes() {
   const [deletingAuthType, setDeletingAuthType] = useState<AuthType | null>(null)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  // Solo root admin: '' = conexiones de todas las organizaciones.
-  const [organizationFilter, setOrganizationFilter] = useState("")
 
   const { canAccessPage: canManageAuthTypes, isLoading: isLoadingPermissions } = usePageAccess('auth-types')
-  const { isRootAdmin } = useUserPermissions()
-  const { byId: organizationsById } = useOrganizationsLookup(canManageAuthTypes && isRootAdmin)
-  const organizationOptions = useMemo(
-    () =>
-      Object.values(organizationsById)
-        .map((org) => ({ value: org.id, label: org.name }))
-        .sort((a, b) => a.label.localeCompare(b.label)),
-    [organizationsById],
-  )
+  const { selectedOrganizationId, organizationToken } = useOrganization()
+  const hasOrganization = !!selectedOrganizationId && !!organizationToken
 
-  // Solo hacer la llamada a la API si el usuario puede administrar (root u org admin).
-  // El org admin ve siempre las de su organización (el backend la toma del token); el
-  // root admin, las de todas o las de la organización filtrada.
+  // Solo con organización activa y permiso de administración (root u org admin).
   const { data: authTypes = [], isLoading, isFetching, error, refetch } = useAuthTypes({
-    enabled: canManageAuthTypes,
+    enabled: canManageAuthTypes && hasOrganization,
     search: searchTerm || undefined,
-    organizationId: isRootAdmin && organizationFilter ? organizationFilter : undefined,
   })
 
   const pagedAuthTypes = useMemo(
@@ -71,6 +66,20 @@ export default function AuthTypes() {
   // Verificar si el usuario puede administrar conexiones (root u org admin)
   if (!canManageAuthTypes) {
     return <HuemulAccessDenied />
+  }
+
+  // Sin organización activa (p. ej. `/_/auth-types` con solo el token de login)
+  // no hay conexiones que mostrar, tampoco para el root admin.
+  if (!hasOrganization) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-6" data-testid="auth-types-organization-required">
+        <div className="text-center max-w-md">
+          <Building2 className="mx-auto mb-3 h-10 w-10 text-muted-foreground" aria-hidden />
+          <h2 className="text-xl font-bold text-foreground mb-2">{t('emptyState.organizationRequired')}</h2>
+          <p className="text-muted-foreground">{t('emptyState.organizationRequiredDescription')}</p>
+        </div>
+      </div>
+    )
   }
 
   if (showPageLoader) {
@@ -104,18 +113,6 @@ export default function AuthTypes() {
             onCreateClick={() => setIsCreateDialogOpen(true)}
             hasError={!!error}
             canManage={canManageAuthTypes}
-            organizationFilter={
-              isRootAdmin
-                ? {
-                    value: organizationFilter,
-                    options: organizationOptions,
-                    onChange: (value) => {
-                      setOrganizationFilter(value)
-                      setPage(1)
-                    },
-                  }
-                : undefined
-            }
           />
         }
         headerClassName="p-4 md:p-6 pb-0 md:pb-0"

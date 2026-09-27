@@ -20,10 +20,13 @@ import {
   ORG_A_ID,
   rootAdmin,
 } from '@/test/fixtures'
-import { makeLoginToken } from '@/test/jwt'
+import { makeLoginToken, makeOrgToken } from '@/test/jwt'
 import type { User } from '@/types/users'
 
 const rootSession = { token: makeLoginToken({ sub: rootAdmin.id, is_root_admin: true }), user: rootAdmin }
+// Las conexiones son de la organización activa: la lista de /users siempre opera con
+// un token de organización (también el root admin).
+const rootOrg = { id: ORG_A_ID, token: makeOrgToken({ sub: rootAdmin.id, is_root_admin: true, permissions: [] }) }
 
 // Como los devuelve `GET /user_roles/users_with_roles`: método de la membresía en ORG_A.
 const member = { ...activeUser, auth_type_id: internalMembership.id, auth_type: internalMembership } as User
@@ -31,7 +34,7 @@ const self = { ...rootAdmin, auth_type_id: MICROSOFT_CONNECTION_ID, auth_type: m
 
 function renderTable(
   users: User[],
-  props: { canEditAuthMethod?: boolean; organizationId?: string; session?: typeof rootSession } = {},
+  props: { canEditAuthMethod?: boolean; organizationId?: string; session?: typeof rootSession; org?: typeof rootOrg } = {},
 ) {
   const onSelectUser = vi.fn()
   const result = renderWithProviders(
@@ -44,7 +47,7 @@ function renderTable(
       organizationId={'organizationId' in props ? props.organizationId : ORG_A_ID}
       canEditAuthMethod={props.canEditAuthMethod ?? false}
     />,
-    { session: props.session ?? rootSession },
+    { session: props.session ?? rootSession, org: props.org ?? rootOrg },
   )
   return { ...result, onSelectUser }
 }
@@ -107,7 +110,8 @@ describe('UserTable · método de inicio de sesión de la membresía', () => {
       }),
     )
     const orgAdminSession = { token: makeLoginToken({ sub: member.id, is_root_admin: false }), user: member }
-    const { user } = renderTable([member], { canEditAuthMethod: true, session: orgAdminSession })
+    const orgAdminOrg = { id: ORG_A_ID, token: makeOrgToken({ sub: member.id, is_org_admin: true, permissions: [] }) }
+    const { user } = renderTable([member], { canEditAuthMethod: true, session: orgAdminSession, org: orgAdminOrg })
 
     const pick = async () => {
       const trigger = await screen.findByRole('combobox')
