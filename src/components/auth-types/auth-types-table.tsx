@@ -1,12 +1,10 @@
-import { Edit2, Trash2, Shield, KeyRound, Building2, Lock } from "lucide-react"
+import { Edit2, Trash2, Shield, KeyRound, Lock } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import type { AuthType } from "@/services/auth-types"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import { Badge } from "@/components/ui/badge"
 import { AuthMethodBadge } from "@/components/auth/auth-method-badge"
-import { useOrganizationsLookup } from "@/hooks/useOrganizations"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
 import type { AuthTypesTableProps } from '@/types/auth-types'
 
 export type { AuthTypesTableProps } from '@/types/auth-types'
@@ -23,15 +21,9 @@ export function AuthTypesTable({
   canManage = false,
 }: AuthTypesTableProps) {
   const { t } = useTranslation(['auth-types', 'common'])
-  const { isRootAdmin } = useUserPermissions()
-  // Solo el root admin ve conexiones de varias organizaciones; para el org admin
-  // el ámbito es siempre "su organización" y no hace falta el catálogo.
-  const { byId: organizationsById } = useOrganizationsLookup(isRootAdmin && authTypes.some((a) => a.organization_id))
 
-  // Toda conexión es de una organización: el root admin ve su nombre; el org admin, "Esta organización".
-  const scopeLabel = (authType: AuthType) =>
-    organizationsById[authType.organization_id]?.name ?? t('scope.organization')
-
+  // Todas las filas son de la organización activa (el backend no entrega otras a
+  // nadie, tampoco al root admin), así que no hay columna de ámbito.
   // La `internal` de cada organización la crea el backend y es de solo lectura (PUT/DELETE → 403).
   const isReadOnly = (authType: AuthType) => authType.type === 'internal'
 
@@ -56,16 +48,6 @@ export function AuthTypesTable({
       label: t('columns.type'),
       render: (authType) => (
         <AuthMethodBadge type={authType.type} name={t(`types.${authType.type}`, { defaultValue: authType.type })} />
-      )
-    },
-    {
-      key: "scope",
-      label: t('columns.scope'),
-      render: (authType) => (
-        <span className="inline-flex items-center gap-1.5 text-xs text-foreground" title={scopeLabel(authType)}>
-          <Building2 className="h-3.5 w-3.5" aria-hidden />
-          {scopeLabel(authType)}
-        </span>
       )
     },
     {

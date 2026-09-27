@@ -8,13 +8,18 @@ import { describe, expect, it } from 'vitest'
 
 import { ProtectedRoute } from '@/components/auth/auth-protected-route-with-permissions'
 import { renderWithProviders } from '@/test/render'
-import { activeUser, ORG_A_ID, ORG_B_ID } from '@/test/fixtures'
+import { activeUser, ORG_A_ID, ORG_B_ID, rootAdmin } from '@/test/fixtures'
 import { makeLoginToken, makeOrgToken } from '@/test/jwt'
 
 const orgAdminSession = { token: makeLoginToken({ sub: activeUser.id }), user: activeUser }
 const orgAdminOfA = { id: ORG_A_ID, token: makeOrgToken({ sub: activeUser.id, is_org_admin: true, permissions: [] }) }
+const rootSession = { token: makeLoginToken({ sub: rootAdmin.id, is_root_admin: true }), user: rootAdmin }
+const rootOfA = { id: ORG_A_ID, token: makeOrgToken({ sub: rootAdmin.id, is_root_admin: true, permissions: [] }) }
 
-function renderAuthTypesRoute(urlOrgId: string) {
+function renderAuthTypesRoute(
+  urlOrgId: string,
+  options: { session: typeof orgAdminSession; org?: typeof orgAdminOfA } = { session: orgAdminSession, org: orgAdminOfA },
+) {
   return renderWithProviders(
     <Routes>
       <Route
@@ -26,7 +31,7 @@ function renderAuthTypesRoute(urlOrgId: string) {
         }
       />
     </Routes>,
-    { session: orgAdminSession, org: orgAdminOfA, route: `/${urlOrgId}/auth-types` },
+    { session: options.session, org: options.org, route: `/${urlOrgId}/auth-types` },
   )
 }
 
@@ -39,6 +44,19 @@ describe('ProtectedRoute · contexto de organización', () => {
   it('con el token de otra organización (link pegado, OrgSync en curso) espera en vez de abrir la ruta', async () => {
     renderAuthTypesRoute(ORG_B_ID)
     // Se deja correr la carga de permisos: aun así la ruta no se abre con el token de Org A.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.queryByText('auth types page')).not.toBeInTheDocument()
+  })
+
+  it('el root admin con token de organización entra a la ruta de esa organización', async () => {
+    renderAuthTypesRoute(ORG_A_ID, { session: rootSession, org: rootOfA })
+    expect(await screen.findByText('auth types page')).toBeInTheDocument()
+  })
+
+  it('el root admin sin organización activa (solo token de login) no entra a una ruta de administración de organización', async () => {
+    // Las conexiones son de la organización del token: sin org no hay nada que administrar,
+    // tampoco para el root admin.
+    renderAuthTypesRoute('_', { session: rootSession })
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(screen.queryByText('auth types page')).not.toBeInTheDocument()
   })

@@ -47,7 +47,10 @@ export interface CreateAuthTypeRequest {
   name: string;
   type: AuthTypeKind;
   params?: AuthTypeParams | null;
-  /** Obligatorio para el root admin; el org admin crea siempre en la organización de su token. */
+  /**
+   * Opcional: el backend crea siempre en la organización del token (claim `org_id`),
+   * también para el root admin; si viene y difiere, responde 403. El front no lo manda.
+   */
   organization_id?: string;
   email_domains?: string[];
   is_active?: boolean;

@@ -132,10 +132,12 @@ export function ProtectedRoute({
   }
 
   // Rutas de administración de la organización sin recurso propio (p. ej.
-  // conexiones de autenticación): root admin O admin de la org activa. Misma
-  // defensa `hasLoadedPermissionsOnce` que arriba.
+  // conexiones de autenticación): root admin O admin de la org activa, y
+  // siempre con una organización activa (el backend acota por la org del token
+  // para todos, también para el root admin: sin org no hay nada que administrar).
+  // Misma defensa `hasLoadedPermissionsOnce` que arriba.
   if (requireOrgAdmin) {
-    if ((isRootAdmin || isOrgAdmin) && hasLoadedPermissionsOnce) {
+    if ((isRootAdmin || isOrgAdmin) && hasLoadedPermissionsOnce && !!organizationToken) {
       return <>{children}</>;
     }
     return showErrorPage ? <AccessDeniedPage /> : <Navigate to={redirectTo} replace />;
