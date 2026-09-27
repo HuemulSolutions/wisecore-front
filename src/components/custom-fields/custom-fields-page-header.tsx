@@ -3,25 +3,19 @@
 import { Plus, Settings2 } from "lucide-react"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
 import { useTranslation } from "react-i18next"
+import type { CustomFieldPageHeaderProps } from '@/types/custom-fields'
 
-interface CustomFieldPageHeaderProps {
-  customFieldCount: number
-  onCreateCustomField: () => void
-  onRefresh: () => void
-  isLoading?: boolean
-  searchTerm: string
-  onSearchChange: (value: string) => void
-  canManage?: boolean
-}
+export type { CustomFieldPageHeaderProps } from '@/types/custom-fields'
 
 export function CustomFieldPageHeader({
   customFieldCount,
   onCreateCustomField,
   onRefresh,
   isLoading = false,
+  hasError = false,
   searchTerm,
   onSearchChange,
-  canManage = false
+  canCreate = false
 }: CustomFieldPageHeaderProps) {
   const { t } = useTranslation('custom-fields')
 
@@ -30,14 +24,16 @@ export function CustomFieldPageHeader({
       icon={Settings2}
       title={t('header.title')}
       badges={[
-        { label: "", value: isLoading ? "..." : customFieldCount }
+        { label: "", value: t('header.customFieldsCount', { count: customFieldCount }) }
       ]}
       onRefresh={onRefresh}
       isLoading={isLoading}
-      primaryAction={canManage ? {
+      hasError={hasError}
+      primaryAction={canCreate ? {
         label: t('header.createCustomField'),
         icon: Plus,
-        onClick: onCreateCustomField
+        onClick: onCreateCustomField,
+        disabled: hasError
       } : undefined}
       searchConfig={{
         placeholder: t('header.searchPlaceholder'),

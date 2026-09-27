@@ -1,18 +1,22 @@
 'use client';
 
-// import * as React from 'react';
+import * as React from 'react';
 
 import type { TImageElement } from 'platejs';
 import type { PlateElementProps } from 'platejs/react';
 
 import { useDraggable } from '@platejs/dnd';
-import { Image, ImagePlugin, useMediaState } from '@platejs/media/react';
+import { ImagePlugin, useMediaState } from '@platejs/media/react';
 import { ResizableProvider, useResizableValue } from '@platejs/resizable';
 import { PlateElement, withHOC } from 'platejs/react';
+import { ImageOff, Maximize2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
+import { useResolvedMediaUrl } from '@/contexts/media-url-context';
 
 import { Caption, CaptionTextarea } from './caption';
+import { MediaImageLightbox } from './media-image-lightbox';
 import { MediaToolbar } from './media-toolbar';
 import {
   mediaResizeHandleVariants,
@@ -25,10 +29,32 @@ export const ImageElement = withHOC(
   function ImageElement(props: PlateElementProps<TImageElement>) {
     const { align = 'center', focused, readOnly, selected } = useMediaState();
     const width = useResizableValue('width');
+    const element = props.element as TImageElement & { mediaId?: string; previewUrl?: string };
+    const { t } = useTranslation('editor');
+    const [lightboxOpen, setLightboxOpen] = React.useState(false);
 
     const { isDragging, handleRef } = useDraggable({
       element: props.element,
     });
+
+    // Resolve the freshest URL available: the live /media_urls map (by mediaId)
+    // when present, else the node's own url/previewUrl. See useResolvedMediaUrl
+    // for why previewUrl is only trusted while url is still an unresolved token.
+    const { src, isBroken } = useResolvedMediaUrl(element);
+    const [loadError, setLoadError] = React.useState(false);
+    // Clear a stale broken flag once the src actually changes (e.g. after a
+    // /media_urls refresh replaces an expired SAS url with a fresh one).
+    React.useEffect(() => setLoadError(false), [src]);
+    const showBroken = isBroken || loadError;
+    const alt = props.attributes.alt as string | undefined;
+
+    // A single click on a void node selects it (needed for resize/toolbar), so
+    // opening the lightbox needs a distinct trigger while editing: double-click,
+    // or the expand button. In read-only mode there's nothing to protect, so a
+    // plain click opens it directly — matching how a reader expects an image to behave.
+    function handleImageClick() {
+      if (readOnly) setLightboxOpen(true);
+    }
 
     return (
       <MediaToolbar plugin={ImagePlugin}>
@@ -45,16 +71,48 @@ export const ImageElement = withHOC(
                 className={mediaResizeHandleVariants({ direction: 'left' })}
                 options={{ direction: 'left' }}
               />
-              <Image
-                ref={handleRef}
-                className={cn(
-                  'block w-full max-w-full cursor-pointer object-cover px-0',
-                  'rounded-sm',
-                  focused && selected && 'ring-2 ring-ring ring-offset-2',
-                  isDragging && 'opacity-50'
-                )}
-                alt={props.attributes.alt as string | undefined}
-              />
+              {showBroken ? (
+                <div
+                  ref={handleRef}
+                  className={cn(
+                    'flex w-full max-w-full items-center justify-center gap-2 rounded-sm bg-muted py-8 text-muted-foreground',
+                    focused && selected && 'ring-2 ring-ring ring-offset-2'
+                  )}
+                >
+                  <ImageOff className="size-5" />
+                  <span className="text-sm">{t('media.unavailable')}</span>
+                </div>
+              ) : (
+                <div className="group/image relative">
+                  <img
+                    ref={handleRef}
+                    src={src}
+                    onError={() => setLoadError(true)}
+                    onClick={handleImageClick}
+                    onDoubleClick={() => setLightboxOpen(true)}
+                    className={cn(
+                      'block w-full max-w-full cursor-pointer object-cover px-0',
+                      'rounded-sm',
+                      focused && selected && 'ring-2 ring-ring ring-offset-2',
+                      isDragging && 'opacity-50'
+                    )}
+                    alt={alt}
+                  />
+                  <button
+                    type="button"
+                    contentEditable={false}
+                    className="absolute right-2 top-2 rounded p-1.5 text-white opacity-0 transition-opacity bg-black/50 hover:bg-black/70 group-hover/image:opacity-100"
+                    aria-label={t('media.expand')}
+                    title={t('media.expand')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLightboxOpen(true);
+                    }}
+                  >
+                    <Maximize2 className="size-4" />
+                  </button>
+                </div>
+              )}
               <ResizeHandle
                 className={mediaResizeHandleVariants({
                   direction: 'right',
@@ -76,6 +134,9 @@ export const ImageElement = withHOC(
 
           {props.children}
         </PlateElement>
+        {!showBroken && (
+          <MediaImageLightbox open={lightboxOpen} onOpenChange={setLightboxOpen} src={src} alt={alt} />
+        )}
       </MediaToolbar>
     );
   }

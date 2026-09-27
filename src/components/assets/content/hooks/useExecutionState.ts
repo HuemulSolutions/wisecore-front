@@ -4,17 +4,8 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-
-interface UseExecutionStateProps {
-  selectedFileId?: string;
-  selectedOrganizationId?: string;
-  documentContent?: any;
-  documentExecutions?: any[];
-  selectedExecutionId: string | null;
-  // setSelectedExecutionId is intentionally not used internally - 
-  // it's passed down for external state management
-  setSelectedExecutionId: (id: string | null) => void;
-}
+import type { UseExecutionStateProps } from '@/types/execution';
+export type { UseExecutionStateProps } from '@/types/execution';
 
 export function useExecutionState({
   selectedFileId,
@@ -66,11 +57,17 @@ export function useExecutionState({
   const hasNewPendingExecution = useMemo(() => {
     const executions = documentContent?.executions || documentExecutions;
     if (!executions) return false;
-    const pendingExecution = executions.find((execution: any) => 
+    const pendingExecution = executions.find((execution: any) =>
       execution.status === 'pending'
     );
     if (!pendingExecution) return false;
-    return !pendingExecution.sections?.some((section: any) => 
+    // `pendingExecution.sections` viene embebido en el documento/lista de
+    // ejecuciones (no de `GET /execution/{id}`, que sí filtra por `view` — ver
+    // "ia context/permisos-seccion-lifecycle-guide.md" §5). Si esta lista
+    // también empezara a filtrarse por permiso de sección, un usuario sin
+    // acceso a todas las secciones podría ver `hasNewPendingExecution` en
+    // `false` de más (falso negativo) — no confirmado hoy, queda anotado.
+    return !pendingExecution.sections?.some((section: any) =>
       section.output && section.output.trim().length > 0
     );
   }, [documentContent?.executions, documentExecutions]);
@@ -154,6 +151,9 @@ export function useExecutionState({
     },
     enabled: !!currentExecutionId && !!selectedOrganizationId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'),
     refetchInterval: (query) => {
+      // Corta si el último fetch falló — un `data` stale no-terminal lo
+      // mantendría sondeando para siempre contra un endpoint que sigue en error.
+      if (query.state.status === 'error') return false;
       const status = query.state.data?.status;
       if (status === 'completed' || status === 'failed' || status === 'cancelled') {
         return false;

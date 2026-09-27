@@ -1,0 +1,218 @@
+// Miscellaneous component props for the assets module
+import type React from 'react'
+import type { LifecyclePermissions, FileNode } from './core'
+import type { MenuAction } from '@/types/menu-action'
+import type { HuemulFileTreeRef } from '@/huemul/components/huemul-file-tree'
+import type { HuemulTreeToolbarAction } from '@/types/huemul/tree'
+import type { CustomFieldDocument } from '@/types/custom-fields'
+
+// ----------------------------------------
+// Access Control
+// ----------------------------------------
+
+export interface DocumentAccessControlProps {
+  requiredAccess: string | string[]
+  requireAll?: boolean
+  children: React.ReactNode
+  fallback?: React.ReactNode
+  /** Si se debe verificar también los permisos globales del usuario (asset:*, folder:*, etc.) */
+  checkGlobalPermissions?: boolean
+  /** Recurso para verificar permisos globales (ej: 'asset', 'folder', 'context') */
+  resource?: string
+  /** Lifecycle permissions from the document content response */
+  lifecyclePermissions?: LifecyclePermissions
+}
+
+export interface DocumentActionButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
+  requiredAccess: string | string[]
+  requireAll?: boolean
+  children: React.ReactNode
+  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
+  size?: 'default' | 'sm' | 'lg' | 'icon'
+  /** Si se debe verificar también los permisos globales del usuario */
+  checkGlobalPermissions?: boolean
+  /** Recurso para verificar permisos globales (ej: 'asset', 'folder', 'context') */
+  resource?: string
+}
+
+// ----------------------------------------
+// Custom Fields List
+// ----------------------------------------
+
+export interface CustomFieldsListProps {
+  customFields: CustomFieldDocument[]
+  isLoading: boolean
+  onAdd: () => void
+  onEdit: (field: CustomFieldDocument) => void
+  onEditContent: (field: CustomFieldDocument) => void
+  onDelete: (field: CustomFieldDocument) => void
+  onRefresh: () => void
+  uploadingImageFieldId?: string | null
+  isRefreshing?: boolean
+  // Permisos separados por acción (defaults `false`, secure-by-default): un
+  // único `canEdit` no distinguía crear de editar de borrar.
+  canCreate?: boolean
+  canUpdate?: boolean
+  canDelete?: boolean
+  /** Paginación del listado — si se omite onPageChange, no se muestra el footer de paginación. */
+  page?: number
+  pageSize?: number
+  totalItems?: number
+  hasNext?: boolean
+  onPageChange?: (page: number) => void
+  /** Título + refresh + "+" propios (default `true`). En `false` el caller (ej. el panel de
+   * detalle del activo) los pone en su propio header y esta lista solo renderiza filas. */
+  showHeader?: boolean
+}
+
+// ----------------------------------------
+// Empty Content
+// ----------------------------------------
+
+export interface AssetEmptyContentProps {
+  currentFolderId: string | undefined
+  onPreserveScroll?: () => void
+}
+
+// ----------------------------------------
+// File Tree
+// Note: renamed from FileTreeProps to AssetFileTreeProps to avoid collision
+// with the BasicFileNode-based FileTreeProps exported from core.ts
+// ----------------------------------------
+
+export interface AssetFileTreeProps {
+  onLoadChildren?: (folderId: string | null, node?: FileNode) => Promise<FileNode[]>
+  onRefresh?: () => Promise<FileNode[]>
+  /** documentTypeId and templateId are passed by custom create-file dialogs */
+  onCreateFile?: (parentId: string | null, name: string, documentTypeId?: string, templateId?: string) => Promise<void>
+  onCreateFolder?: (parentId: string | null, name: string) => Promise<void>
+  onDelete?: (nodeId: string, nodeType: "document" | "folder") => Promise<void>
+  onShare?: (nodeId: string) => Promise<void>
+  onMoveFolder?: (folderId: string, parentFolderId: string | null) => Promise<void>
+  onMoveFile?: (documentId: string, folderId: string | null) => Promise<void>
+  onFileClick?: (node: FileNode) => void | Promise<void>
+  activeNodeId?: string | null
+  menuActions?: MenuAction[]
+  /** Ver la nota en HuemulFileTreeProps.toolbarActions. */
+  toolbarActions?: HuemulTreeToolbarAction[]
+  showDefaultActions?: {
+    create?: boolean
+    delete?: boolean
+    share?: boolean
+  }
+  customDialogs?: {
+    createFile?: (parentId: string | null, onSuccess: () => void) => React.ReactNode
+    createFolder?: (parentId: string | null, onSuccess: () => void) => React.ReactNode
+    delete?: (nodeId: string, nodeType: "document" | "folder", onSuccess: () => void) => React.ReactNode
+    share?: (nodeId: string, onSuccess: () => void) => React.ReactNode
+  }
+  showCreateButtons?: boolean
+  initialFolderId?: string | null
+  showBorder?: boolean
+  showRefreshButton?: boolean
+  minHeight?: string
+  renderLeafIcon?: (node: FileNode) => React.ReactNode
+  renderFolderIcon?: (node: FileNode, isExpanded: boolean) => React.ReactNode
+  renderNodeClassName?: (node: FileNode) => string | undefined
+  alwaysShowMenuActions?: boolean
+  onNodeDragStart?: (e: React.DragEvent, node: FileNode) => void
+  // Multi-selección opt-in (checkboxes), para modo exportación.
+  selectable?: boolean
+  selectedIds?: Set<string>
+  onSelectionChange?: (next: Set<string>) => void
+  isNodeSelectable?: (node: FileNode) => boolean
+  cascadeSelection?: boolean
+  isNodeExpandable?: (node: FileNode) => boolean
+  /** Ver la nota en HuemulFileTreeProps.isNodePersistable. */
+  isNodePersistable?: (node: FileNode) => boolean
+  renderNodeSuffix?: (node: FileNode) => React.ReactNode
+  // Al refrescar, recargar las carpetas que el usuario expandió a mano.
+  // En false, el resultado de onRefresh/onLoadChildren es autoritativo:
+  // solo queda expandido lo que venga marcado en esa respuesta.
+  preserveExpandedOnRefresh?: boolean
+  /**
+   * Qué nodos puede arrastrar el usuario (mover por drag&drop).
+   * Default: todos. Ver la nota en HuemulFileTreeProps.canDragNode.
+   */
+  canDragNode?: (node: FileNode) => boolean
+  /**
+   * Qué carpetas pueden RECIBIR un drop (destino). Ver la nota en
+   * HuemulFileTreeProps.canDropNode.
+   */
+  canDropNode?: (node: FileNode) => boolean
+  /** Ver la nota en HuemulFileTreeProps.onExpandedFoldersChange. */
+  onExpandedFoldersChange?: (folderIds: string[], context: { knownIds: string[] }) => void
+}
+
+export interface FileTreeRef extends HuemulFileTreeRef {}
+
+// ----------------------------------------
+// Section Execution
+// ----------------------------------------
+
+export interface SectionExecutionProps {
+  sectionExecution: {
+    id: string
+    output: string
+    section_id?: string
+    /** Plate JSON nodes (stringified) – used to restore comment marks on load */
+    plate_content?: string[]
+    ai_suggestion_status?: 'pending' | 'completed' | 'failed' | null
+    ai_suggestion_content?: string | null
+    ai_suggestion_instruction?: string | null
+    review_status?: 'editing' | 'reviewing' | 'finished' | 'rejected' | null
+    /** Completitud de obligatorios resuelta por el backend (solo secciones type="form"). */
+    answers_status?: import('../sections/execution-core').SectionAnswersStatus | null
+    /** Valores del formulario (solo para secciones type="form") */
+    form_fields?: import('../sections/core').FormFieldValue[]
+  }
+  /** payload solo lo envía el autoguardado de formularios (ver FormValuesSectionPayload) */
+  onUpdate?: (payload?: import('../sections/core').FormValuesSectionPayload[]) => void
+  readyToEdit: boolean
+  sectionIndex?: number
+  documentId?: string
+  executionId?: string
+  onExecutionStart?: (executionId: string, mode: 'single' | 'from') => void
+  executionStatus?: string
+  onOpenExecuteSheet?: () => void
+  executionMode?: 'single' | 'from' | 'full' | 'full-single'
+  showExecutionFeedback?: boolean
+  sectionType?: 'ai' | 'manual' | 'reference' | 'form' | null
+  sectionName?: string
+  /** Estado de la sección (ej. "pending"). Para type="form" decide responder vs solo lectura */
+  status?: string
+  canEditSections?: boolean
+  onCreateSectionFromSelection?: (selectedMarkdown: string) => void
+  onCopyLink?: () => void
+  /** Definiciones de los form fields de la sección (solo type="form") */
+  formFieldDefinitions?: import('../sections/core').SectionFormField[]
+  /**
+   * false si el depends_on propio de la sección no se cumple (con show_when_inactive:true
+   * sigue visible pero inactiva). Ausente/true = sin restricción. Ver
+   * "ia context/dependencias-condicionales-formularios-guide.md" §3.2.
+   */
+  sectionCanAnswer?: boolean
+  /**
+   * true cuando el usuario SÍ puede editar el resto del documento pero esta
+   * sección puntual quedó de solo lectura por el permiso de sección del ciclo de
+   * vida (`resolveSectionCanEdit` === false). Pinta un indicador en la barra de
+   * la sección — distinto de no poder editar el documento en absoluto. Ver
+   * src/hooks/useDocumentSectionAccess.ts.
+   */
+  readOnlyBySectionRule?: boolean
+  /**
+   * false cuando el backend reporta can_generate=false en /content (p.ej. el
+   * activo exige contexto y no tiene ninguno). Gatea Play / "Ejecutar sección" /
+   * "Ejecutar desde la sección". Ausente = sin restricción.
+   */
+  canGenerate?: boolean
+  /** Motivo ya traducido, para el tooltip. Solo relevante si canGenerate === false. */
+  cannotGenerateReason?: string
+  /**
+   * Reporta el `isCollapsed` de ESTA sección hacia AssetContent, para que el botón "colapsar/
+   * expandir todas" del toolbar refleje el estado real (no sólo la última señal que emitió).
+   * `undefined` = la sección se desmontó (eliminada, oculta por permiso/depends_on, o filtrada
+   * por contenido vacío en lector) — se excluye del cómputo agregado.
+   */
+  onCollapsedChange?: (sectionExecutionId: string, collapsed: boolean | undefined) => void
+}

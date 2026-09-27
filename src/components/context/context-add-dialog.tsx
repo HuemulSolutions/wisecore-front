@@ -7,15 +7,9 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog";
 import { addTextContext } from "@/services/context";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
+import type { AddContextDialogProps } from '@/types/context';
 
-interface AddContextDialogProps {
-  /** Document ID to add context to */
-  documentId: string;
-  /** Controlled open state */
-  open: boolean;
-  /** Called when the dialog requests to open or close */
-  onOpenChange: (open: boolean) => void;
-}
+export type { AddContextDialogProps } from '@/types/context';
 
 export function AddContextDialog({
   documentId,
@@ -24,6 +18,7 @@ export function AddContextDialog({
 }: AddContextDialogProps) {
   const [context, setContext] = useState("");
   const [contextName, setContextName] = useState("");
+  const [required, setRequired] = useState(false);
 
   const { t } = useTranslation('context')
   const queryClient = useQueryClient();
@@ -36,6 +31,7 @@ export function AddContextDialog({
   const resetForm = useCallback(() => {
     setContext("");
     setContextName("");
+    setRequired(false);
   }, []);
 
   // Reset form when dialog closes
@@ -51,22 +47,25 @@ export function AddContextDialog({
 
   // Mutation to add text context
   const addTextMutation = useMutation({
-    mutationFn: ({ name, content }: { name: string; content: string }) =>
-      addTextContext(documentId, name, content, selectedOrganizationId!),
+    mutationFn: ({ name, content, required }: { name: string; content?: string; required: boolean }) =>
+      addTextContext(documentId, { name, content, required }, selectedOrganizationId!),
     onSuccess: () => {
       toast.success(t('addDialog.toastTextAdded'));
       resetForm();
       queryClient.invalidateQueries({ queryKey: ["contexts", documentId] });
+      // can_generate (GET /documents/{id}/content) depende de si el activo
+      // tiene contexto configurado — se recalcula solo al invalidar acá.
+      queryClient.invalidateQueries({ queryKey: ["document-content", documentId] });
       closeDialog();
     },
   });
 
   const handleAddText = async () => {
-    if (!contextName.trim() || !context.trim()) {
+    if (!contextName.trim() || (!required && !context.trim())) {
       toast.error(t('addDialog.validationFillFields'));
       return;
     }
-    addTextMutation.mutate({ name: contextName, content: context });
+    addTextMutation.mutate({ name: contextName, content: context.trim() || undefined, required });
   };
 
   return (
@@ -83,7 +82,7 @@ export function AddContextDialog({
       saveAction={{
         label: t('addDialog.addTextButton'),
         onClick: handleAddText,
-        disabled: !contextName.trim() || !context.trim() || addTextMutation.isPending,
+        disabled: !contextName.trim() || (!required && !context.trim()) || addTextMutation.isPending,
         loading: addTextMutation.isPending,
         icon: Plus,
         closeOnSuccess: false,
@@ -102,6 +101,18 @@ export function AddContextDialog({
         />
 
         <HuemulField
+          type="switch"
+          label={t('addDialog.required')}
+          id="dialog-text-required"
+          value={required}
+          onChange={(val) => setRequired(Boolean(val))}
+          description={t('addDialog.requiredDescription')}
+          disabled={addTextMutation.isPending}
+          labelFirst
+          className="px-4 py-3.5 border rounded-[10px]"
+        />
+
+        <HuemulField
           type="textarea"
           label={t('addDialog.contextContent')}
           id="dialog-text-content"
@@ -110,7 +121,7 @@ export function AddContextDialog({
           value={context}
           onChange={(val) => setContext(String(val))}
           disabled={addTextMutation.isPending}
-          required
+          required={!required}
         />
       </div>
     </HuemulDialog>

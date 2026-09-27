@@ -1,9 +1,9 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
-import type { LLM, CreateLLMRequest } from "@/types/llm";
+import type { LLM, LLMsResponse, CreateLLMRequest, LlmConfigurationStatusData, LlmConfigurationStatusResponse } from "@/types/models";
 
 // Re-export types for backward compatibility
-export type { LLM, CreateLLMRequest } from "@/types/llm";
+export type { LLM, LLMsResponse, CreateLLMRequest } from "@/types/models";
 export type {
   LLMProvider,
   SupportedProvider,
@@ -22,11 +22,22 @@ export {
   deleteProvider,
 } from "@/services/llm-provider";
 
-export async function getLLMs(): Promise<LLM[]> {
-    const response = await httpClient.get(`${backendUrl}/llms/`);
-    const data = await response.json();
-    console.log('LLMs fetched:', data.data);
-    return data.data || data;
+export async function getLLMs(page: number = 1, pageSize: number = 10, search?: string): Promise<LLMsResponse> {
+    const params = new URLSearchParams({
+        page: page.toString(),
+        page_size: pageSize.toString(),
+    });
+    if (search?.trim()) {
+        params.set('search', search.trim());
+    }
+    const response = await httpClient.get(`${backendUrl}/llms/?${params.toString()}`);
+    return response.json();
+}
+
+/** Fetches all LLMs as a flat array (non-paginated helper for internal components). */
+export async function getAllLLMs(): Promise<LLM[]> {
+    const response = await getLLMs(1, 1000);
+    return response.data ?? [];
 }
 
 export async function createLLM(llm: CreateLLMRequest): Promise<LLM> {
@@ -35,7 +46,7 @@ export async function createLLM(llm: CreateLLMRequest): Promise<LLM> {
     return data.data || data;
 }
 
-export async function updateLLMModel(llmId: string, llm: Partial<CreateLLMRequest>): Promise<LLM> {
+export async function updateLLMModel(llmId: string, llm: CreateLLMRequest): Promise<LLM> {
     const response = await httpClient.put(`${backendUrl}/llms/${llmId}`, llm);
     const data = await response.json();
     return data.data || data;
@@ -65,5 +76,15 @@ export async function updateExecutionLLM(executionId: string, llmId: string) {
 export async function testLLMConnection(llmId: string): Promise<{ ok: boolean }> {
     const response = await httpClient.post(`${backendUrl}/llms/${llmId}/test_connection`, {});
     const data = await response.json();
-    return data.data || data;
+    const result = data.data || data;
+    if (!result?.ok) throw new Error();
+    return result;
+}
+
+export async function getLlmConfigurationStatus(organizationId: string): Promise<LlmConfigurationStatusData> {
+    const response = await httpClient.get(`${backendUrl}/llms/configuration-status`, {
+        headers: { 'X-Org-Id': organizationId },
+    });
+    const data = (await response.json()) as LlmConfigurationStatusResponse;
+    return data.data;
 }

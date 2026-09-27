@@ -1,17 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loader2, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { getExecutionStatus } from '@/services/executions';
 import { useOrganization } from '@/contexts/organization-context';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
+import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
+import { getExecutionPollInterval } from '@/lib/polling-intervals';
+import { executionStatusBannerStyle } from '@/lib/lifecycle-colors';
 import { Button } from '@/components/ui/button';
+import type { OtherVersionExecutionBannerProps } from '@/types/other-version-execution-banner';
 
-interface OtherVersionExecutionBannerProps {
-  executionId: string;
-  executionName: string;
-  onDismiss: () => void;
-  onViewVersion: () => void;
-}
+export type { OtherVersionExecutionBannerProps } from '@/types/other-version-execution-banner';
 
 export function OtherVersionExecutionBanner({
   executionId,
@@ -19,36 +20,42 @@ export function OtherVersionExecutionBanner({
   onDismiss,
   onViewVersion
 }: OtherVersionExecutionBannerProps) {
+  const { t } = useTranslation('execute');
   const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
-  const [pollingInterval, setPollingInterval] = useState<number | false>(2000);
+  const [isPolling, setIsPolling] = useState(true);
   const [isDismissed, setIsDismissed] = useState(false);
+  // Este banner se monta una vez por executionId (key={execution.id} en el
+  // padre), así que un solo Date.now() al montar alcanza como base del
+  // backoff — se reinicia también al reanudar el polling a mano, más abajo.
+  const startedAtRef = useRef(Date.now());
 
   // Poll execution status
   const { data: execution, refetch } = useQuery({
     queryKey: ['execution-status', executionId],
     queryFn: () => {
-      console.log('🔄 Fetching other version execution status for:', executionId);
+      logger.log('🔄 Fetching other version execution status for:', executionId);
       return getExecutionStatus(executionId!, selectedOrganizationId!);
     },
-    enabled: !!executionId && !!selectedOrganizationId && pollingInterval !== false && !isDismissed,
-    refetchInterval: pollingInterval,
-    refetchOnWindowFocus: false,
+    enabled: !!executionId && !!selectedOrganizationId && isPolling && !isDismissed,
+    refetchInterval: () => (isPolling ? getExecutionPollInterval(Date.now() - startedAtRef.current) : false),
+    refetchOnWindowFocus: true,
   });
 
   useEffect(() => {
     const terminalStates = ['completed', 'failed', 'cancelled'];
     if (execution?.status && terminalStates.includes(execution.status)) {
-      console.log('🛑 Other version execution stopped polling:', execution.status);
-      setPollingInterval(false);
+      logger.log('🛑 Other version execution stopped polling:', execution.status);
+      setIsPolling(false);
     } else if (execution?.status === 'running' || execution?.status === 'pending' || execution?.status === 'paused') {
       // Ensure polling is active for active states (including paused to check for resume)
-      if (pollingInterval === false && !isDismissed) {
-        console.log('🔄 Restarting other version polling for active execution');
-        setPollingInterval(2000);
+      if (!isPolling && !isDismissed) {
+        logger.log('🔄 Restarting other version polling for active execution');
+        startedAtRef.current = Date.now();
+        setIsPolling(true);
       }
     }
-  }, [execution?.status, pollingInterval, isDismissed]);
+  }, [execution?.status, isPolling, isDismissed]);
 
   const handleDismiss = () => {
     setIsDismissed(true);
@@ -56,14 +63,15 @@ export function OtherVersionExecutionBanner({
   };
 
   const handleRefresh = () => {
-    console.log('🔄 Manual other version refresh triggered');
+    logger.log('🔄 Manual other version refresh triggered');
     refetch();
     queryClient.invalidateQueries({ queryKey: ['execution-status', executionId] });
-    
+
     // Restart polling if it was stopped and not dismissed
-    if (pollingInterval === false && !isDismissed) {
-      console.log('🔄 Restarting other version polling after manual refresh');
-      setPollingInterval(2000);
+    if (!isPolling && !isDismissed) {
+      logger.log('🔄 Restarting other version polling after manual refresh');
+      startedAtRef.current = Date.now();
+      setIsPolling(true);
     }
   };
 
@@ -71,65 +79,36 @@ export function OtherVersionExecutionBanner({
     return null;
   }
 
+  // Forma del icono por estado — el color sale de `executionStatusBannerStyle`
+  // (misma fuente que el resto de banners de ejecución), para no desincronizarse
+  // del fondo si cambia el hue del estado.
+  const statusIconShape: Record<string, typeof Loader2> = {
+    running: Loader2,
+    pending: Clock,
+    completed: CheckCircle,
+    failed: XCircle,
+    cancelled: XCircle,
+    paused: Clock,
+  };
+
   const getStatusInfo = () => {
-    switch (execution.status) {
-      case 'running':
-        return {
-          icon: <Loader2 className="h-5 w-5 animate-spin text-blue-600" />,
-          text: 'generating',
-          bgColor: 'bg-blue-50',
-          borderColor: 'border-blue-200',
-          textColor: 'text-blue-800'
-        };
-      case 'pending':
-        return {
-          icon: <Clock className="h-5 w-5 text-amber-600" />,
-          text: 'queued',
-          bgColor: 'bg-amber-50',
-          borderColor: 'border-amber-200',
-          textColor: 'text-amber-800'
-        };
-      case 'completed':
-        return {
-          icon: <CheckCircle className="h-5 w-5 text-green-600" />,
-          text: 'completed',
-          bgColor: 'bg-green-50',
-          borderColor: 'border-green-200',
-          textColor: 'text-green-800'
-        };
-      case 'failed':
-        return {
-          icon: <XCircle className="h-5 w-5 text-red-600" />,
-          text: 'failed',
-          bgColor: 'bg-red-50',
-          borderColor: 'border-red-200',
-          textColor: 'text-red-800'
-        };
-      case 'cancelled':
-        return {
-          icon: <XCircle className="h-5 w-5 text-gray-600" />,
-          text: 'cancelled',
-          bgColor: 'bg-gray-50',
-          borderColor: 'border-gray-200',
-          textColor: 'text-gray-800'
-        };
-      case 'paused':
-        return {
-          icon: <Clock className="h-5 w-5 text-amber-600" />,
-          text: 'paused',
-          bgColor: 'bg-amber-50',
-          borderColor: 'border-amber-200',
-          textColor: 'text-amber-800'
-        };
-      default:
-        return {
-          icon: <Clock className="h-5 w-5 text-gray-600" />,
-          text: execution.status,
-          bgColor: 'bg-gray-50',
-          borderColor: 'border-gray-200',
-          textColor: 'text-gray-800'
-        };
-    }
+    const tone = executionStatusBannerStyle(execution.status);
+    const Icon = statusIconShape[execution.status] ?? Clock;
+    const textKey: Record<string, string> = {
+      running: 'banner.status.running',
+      pending: 'banner.status.queued',
+      completed: 'banner.status.completed',
+      failed: 'banner.status.failed',
+      cancelled: 'banner.status.cancelled',
+      paused: 'banner.status.paused',
+    };
+    return {
+      icon: <Icon className={cn('h-5 w-5', execution.status === 'running' && 'animate-spin', tone.icon)} />,
+      text: textKey[execution.status] ? t(textKey[execution.status]) : execution.status,
+      bgColor: tone.bg,
+      borderColor: tone.border,
+      textColor: tone.text,
+    };
   };
 
   const statusInfo = getStatusInfo();
@@ -147,15 +126,19 @@ export function OtherVersionExecutionBanner({
           </div>
           <div className="flex-1 min-w-0">
             <p className={cn("text-sm font-medium", statusInfo.textColor)}>
-              Version "{executionName}" is {statusInfo.text}
+              {t('otherVersionBanner.versionTitle', { name: executionName, status: statusInfo.text })}
             </p>
             <p className="text-xs text-gray-600 mt-1">
-              {execution.status === 'running' && 'Content is being generated for this version...'}
-              {execution.status === 'pending' && 'Waiting in queue to start generation...'}
-              {execution.status === 'completed' && 'Generation completed successfully!'}
-              {execution.status === 'failed' && 'Generation encountered an error.'}
-              {execution.status === 'cancelled' && 'Generation was cancelled.'}
-              {execution.status === 'paused' && 'Generation is paused.'}
+              {execution.status === 'running' && t('otherVersionBanner.description.running')}
+              {execution.status === 'pending' && t('otherVersionBanner.description.pending')}
+              {execution.status === 'completed' && t('otherVersionBanner.description.completed')}
+              {execution.status === 'failed' && (
+                isMissingDependencyFailure(execution.status_message)
+                  ? t('otherVersionBanner.description.missingDependency')
+                  : t('otherVersionBanner.description.failed')
+              )}
+              {execution.status === 'cancelled' && t('otherVersionBanner.description.cancelled')}
+              {execution.status === 'paused' && t('otherVersionBanner.description.paused')}
             </p>
           </div>
         </div>
@@ -177,7 +160,7 @@ export function OtherVersionExecutionBanner({
               onClick={onViewVersion}
               className="hover:cursor-pointer"
             >
-              View Version
+              {t('otherVersionBanner.viewVersion')}
             </Button>
           )}
           <Button

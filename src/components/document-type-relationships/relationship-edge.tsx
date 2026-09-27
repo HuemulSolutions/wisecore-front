@@ -1,0 +1,313 @@
+"use client"
+
+import { memo } from "react"
+import {
+  BaseEdge,
+  EdgeLabelRenderer,
+  getBezierPath,
+  useInternalNode,
+  Position,
+  type EdgeProps,
+  type Edge,
+  type InternalNode,
+} from "@xyflow/react"
+import { Edit2, Trash2, Settings2 } from "lucide-react"
+import { useTranslation } from "react-i18next"
+import { cn } from "@/lib/utils"
+
+// 'document-type-relationship' (id `rel-…`) and 'execution-relationship' (id
+// `exec-rel-…`) both have a real backend entity behind them; 'direct' (id
+// `diagram-edge-…`) only exists inside a Diagram's own `relationships` — it never
+// creates an execution_relationship. Explicit instead of inferred from the id prefix:
+// the prefix-based classification worked by accident (a third `rel-` prefix would
+// silently misclassify), this makes it a compile-time-checked field instead.
+export type RelationshipEdgeKind = 'document-type-relationship' | 'execution-relationship' | 'direct'
+
+export interface RelationshipEdgeData {
+  relationshipId: string
+  name: string
+  edgeKind: RelationshipEdgeKind
+  /** 'default' | 'manual' for an execution relationship; a free-text label (or unset)
+   *  for a direct edge — never compare this to 'manual' without checking `edgeKind` first. */
+  relationshipType?: string
+  minCount?: number
+  maxCount?: number
+  /** Signed offset index used to vary curvature for parallel edges */
+  pathOffset?: number
+  /** Derived in `layeredEdges` from the canvas selection — never part of the
+   *  persisted graph. 'active' = touches the selected node/edge, 'dim' = the
+   *  rest while something is selected, undefined = nothing selected. */
+  highlight?: 'active' | 'dim'
+  onEdit?: (relationshipId: string) => void
+  onDelete?: (relationshipId: string) => void
+  onManageAttributes?: (relationshipId: string) => void
+  [key: string]: unknown
+}
+
+type RelationshipEdgeType = Edge<RelationshipEdgeData, "relationship">
+
+// El SVG de cada edge lleva zIndex EDGE_Z (60) desde `layeredEdges` en relationships-canvas,
+// y `.react-flow__edgelabel-renderer` es z-index auto: sin esto el trazo pinta sobre el chip
+// de la etiqueta y el texto queda cruzado por la línea. 61 sigue por debajo de NODE_Z (100),
+// así que las tarjetas de nodo continúan tapando etiquetas, como hasta ahora.
+const EDGE_LABEL_Z = 61
+
+// ─── Floating-edge utilities ───────────────────────────────────────────────────
+
+function getNodeCenter(node: InternalNode) {
+  return {
+    x: node.internals.positionAbsolute.x + (node.measured.width ?? 0) / 2,
+    y: node.internals.positionAbsolute.y + (node.measured.height ?? 0) / 2,
+  }
+}
+
+/** Canvas coordinates of a specific handle box, given its position side. */
+function handleBoxCoords(
+  node: InternalNode,
+  handle: { x: number; y: number; width: number; height: number },
+  position: Position,
+): [number, number] {
+  let ox = handle.width / 2
+  let oy = handle.height / 2
+  if (position === Position.Left) ox = 0
+  if (position === Position.Right) ox = handle.width
+  if (position === Position.Top) oy = 0
+  if (position === Position.Bottom) oy = handle.height
+  return [node.internals.positionAbsolute.x + handle.x + ox, node.internals.positionAbsolute.y + handle.y + oy]
+}
+
+/**
+ * Given a node and the center of the other node, find which handle position
+ * is closest (Top/Right/Bottom/Left) and return its canvas coordinates.
+ */
+function getFloatingHandleParams(
+  node: InternalNode,
+  otherCenter: { x: number; y: number },
+): [number, number, Position] {
+  const center = getNodeCenter(node)
+  const dx = otherCenter.x - center.x
+  const dy = otherCenter.y - center.y
+
+  // Pick dominant axis
+  const position =
+    Math.abs(dx) >= Math.abs(dy)
+      ? dx > 0
+        ? Position.Right
+        : Position.Left
+      : dy > 0
+        ? Position.Bottom
+        : Position.Top
+
+  // Find the matching source handle in handleBounds
+  const handle = node.internals.handleBounds?.source?.find((h) => h.position === position)
+
+  if (handle) {
+    const [x, y] = handleBoxCoords(node, handle, position)
+    return [x, y, position]
+  }
+
+  // Fallback: use node center edge
+  const w = (node.measured.width ?? 0) / 2
+  const h = (node.measured.height ?? 0) / 2
+  const fallbacks: Record<Position, [number, number]> = {
+    [Position.Top]:    [center.x, center.y - h],
+    [Position.Bottom]: [center.x, center.y + h],
+    [Position.Left]:   [center.x - w, center.y],
+    [Position.Right]:  [center.x + w, center.y],
+  }
+  return [...fallbacks[position], position]
+}
+
+/**
+ * Coordinates of a specific handle by id (e.g. the diagram's saved
+ * `source_handle`/`target_handle`) — anchored, not recalculated per render. `null`
+ * when the node has no such handle (not yet measured, or an unknown id), so the
+ * caller can fall back to floating.
+ */
+function getAnchoredHandleParams(node: InternalNode, handleId: string): [number, number, Position] | null {
+  const handle = node.internals.handleBounds?.source?.find((h) => h.id === handleId)
+  if (!handle) return null
+  const [x, y] = handleBoxCoords(node, handle, handle.position)
+  return [x, y, handle.position]
+}
+
+function getEdgeParams(
+  source: InternalNode,
+  target: InternalNode,
+  sourceHandleId?: string | null,
+  targetHandleId?: string | null,
+) {
+  const targetCenter = getNodeCenter(target)
+  const sourceCenter = getNodeCenter(source)
+  const [sx, sy, sourcePos] =
+    (sourceHandleId && getAnchoredHandleParams(source, sourceHandleId)) || getFloatingHandleParams(source, targetCenter)
+  const [tx, ty, targetPos] =
+    (targetHandleId && getAnchoredHandleParams(target, targetHandleId)) || getFloatingHandleParams(target, sourceCenter)
+  return { sx, sy, tx, ty, sourcePos, targetPos }
+}
+
+// ─── Self-loop path helper ────────────────────────────────────────────────────
+
+/**
+ * Builds a smooth oval arc that goes above the node using an SVG arc command.
+ * Source = left-center, Target = right-center of the node.
+ * Stacked loops grow the oval height/width via `loopIndex`.
+ */
+function getSelfLoopPath(
+  node: InternalNode,
+  loopIndex: number = 0,
+): [string, number, number] {
+  const center = getNodeCenter(node)
+  const halfW = (node.measured.width ?? 120) / 2
+
+  // Connect left-center → right-center of the node
+  const sx = center.x - halfW
+  const sy = center.y
+  const tx = center.x + halfW
+  const ty = center.y
+
+  // rx slightly wider than the node so the oval doesn't look cramped
+  const rx = halfW + 20 + loopIndex * 14
+  // ry controls the arc height above the node
+  const ry = 55 + loopIndex * 20
+
+  // large-arc=1, sweep=1 → clockwise in SVG (Y-down) → arc goes ABOVE the node
+  const path = `M ${sx} ${sy} A ${rx} ${ry} 0 1 1 ${tx} ${ty}`
+
+  // Label at the apex of the arc: ellipse top = center.y - ry
+  const labelX = center.x
+  const labelY = center.y - ry - 16
+
+  return [path, labelX, labelY]
+}
+
+// ─── Edge component ────────────────────────────────────────────────────────────
+
+export function RelationshipEdge({
+  id,
+  source,
+  target,
+  selected,
+  data,
+  markerEnd,
+  sourceHandleId,
+  targetHandleId,
+}: EdgeProps<RelationshipEdgeType>) {
+  const { t } = useTranslation("document-type-relationships")
+  const sourceNode = useInternalNode(source)
+  const targetNode = useInternalNode(target)
+  const edgeData = data!
+
+  if (!sourceNode || !targetNode) return null
+
+  const isSelfLoop = source === target
+  const offset = edgeData.pathOffset ?? 0
+  const isDirect = edgeData.edgeKind === "direct"
+  const isActive = selected || edgeData.highlight === "active"
+  const isDimmed = edgeData.highlight === "dim"
+  const strokeColor = isActive ? "var(--primary)" : isDirect ? "var(--diagram-role-edge)" : "var(--diagram-edge)"
+
+  let edgePath: string
+  let labelX: number
+  let labelY: number
+
+  if (isSelfLoop) {
+    // Convert the raw pathOffset (…-28, -14, 0, 14, 28…) to a 0-based index
+    const loopIndex = Math.round(Math.abs(offset) / 14)
+    ;[edgePath, labelX, labelY] = getSelfLoopPath(sourceNode, loopIndex)
+  } else {
+    const { sx, sy, tx, ty, sourcePos, targetPos } = getEdgeParams(sourceNode, targetNode, sourceHandleId, targetHandleId)
+
+    // Vary curvature to separate parallel edges; offset units come from parallelOffset()
+    const curvature = 0.25 + (offset / 14) * 0.35
+
+    ;[edgePath, labelX, labelY] = getBezierPath({
+      sourceX: sx,
+      sourceY: sy,
+      sourcePosition: sourcePos,
+      targetX: tx,
+      targetY: ty,
+      targetPosition: targetPos,
+      curvature,
+    })
+  }
+
+  return (
+    <>
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        markerEnd={markerEnd}
+        style={{
+          strokeWidth: isActive ? 1.75 : 1.25,
+          stroke: strokeColor,
+          opacity: isDimmed ? 0.25 : 1,
+          // Minimal, honest signal that this line has no backend relationship behind
+          // it — just an entry in the Diagram's own `relationships`.
+          strokeDasharray: isDirect ? '5 5' : undefined,
+        }}
+      />
+
+      <EdgeLabelRenderer>
+        <div
+          style={{
+            position: "absolute",
+            transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+            pointerEvents: "all",
+            zIndex: EDGE_LABEL_Z,
+            opacity: isDimmed ? 0.25 : 1,
+          }}
+          className="nodrag nopan flex flex-col items-center gap-1"
+        >
+          {/* A direct edge's label is optional (backend accepts `name: null`) — an
+              empty chip with a background used to render regardless of content. */}
+          {edgeData.name && (
+            <span
+              className={cn(
+                "text-[11px] font-semibold px-1.5 py-0.5 rounded bg-background whitespace-nowrap max-w-40 truncate",
+                isActive ? "text-primary" : isDirect ? "" : "text-foreground",
+              )}
+              style={!isActive && isDirect ? { color: "var(--diagram-role-edge)" } : undefined}
+            >
+              {edgeData.name}
+            </span>
+          )}
+
+          {selected && (edgeData.onEdit || edgeData.onManageAttributes || edgeData.onDelete) && (
+            <div className="flex items-center gap-0.5 bg-background border rounded-md px-1 py-0.5 shadow-sm">
+              {edgeData.onEdit && (
+                <button
+                  onClick={() => edgeData.onEdit!(edgeData.relationshipId)}
+                  className="p-1 rounded hover:bg-accent hover:cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
+                  title={t("panel.edit")}
+                >
+                  <Edit2 className="h-3 w-3" />
+                </button>
+              )}
+              {edgeData.onManageAttributes && (
+                <button
+                  onClick={() => edgeData.onManageAttributes!(edgeData.relationshipId)}
+                  className="p-1 rounded hover:bg-accent hover:cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
+                  title={t("panel.attributes")}
+                >
+                  <Settings2 className="h-3 w-3" />
+                </button>
+              )}
+              {edgeData.onDelete && (
+                <button
+                  onClick={() => edgeData.onDelete!(edgeData.relationshipId)}
+                  className="p-1 rounded hover:bg-destructive/10 hover:cursor-pointer text-muted-foreground hover:text-destructive transition-colors"
+                  title={t("panel.delete")}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </EdgeLabelRenderer>
+    </>
+  )
+}
+
+export const MemoizedRelationshipEdge = memo(RelationshipEdge)

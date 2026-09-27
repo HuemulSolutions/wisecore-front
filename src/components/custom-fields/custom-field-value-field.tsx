@@ -1,0 +1,193 @@
+import { Loader2 } from "lucide-react"
+import { useTranslation } from "react-i18next"
+import type { TFunction } from "i18next"
+import { Label } from "@/components/ui/label"
+import { HuemulField } from "@/huemul/components/huemul-field"
+import { HuemulQuestionInput } from "@/huemul/components/huemul-question-input"
+import type { HuemulQuestionInputValue } from "@/huemul/components/huemul-question-input"
+import { QUESTION_TYPE, NUMERIC_DATA_TYPES, readFileUploadLimits } from "@/components/sections/question-type-meta"
+import { CustomFieldFilesInput } from "@/components/custom-fields/custom-field-files-input"
+import type { CustomFieldValueFieldProps } from "@/types/custom-fields"
+export type { CustomFieldValueFieldProps } from "@/types/custom-fields"
+
+const VALID_IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "bmp"]
+
+// question_type que HuemulQuestionInput representa como boolean/number — el resto
+// viaja como string. Deben coincidir con los widgets de huemul-question-input.tsx.
+const BOOLEAN_QUESTION_TYPES: string[] = [QUESTION_TYPE.yesNo]
+const NUMBER_QUESTION_TYPES: string[] = [
+  QUESTION_TYPE.number,
+  QUESTION_TYPE.decimal,
+  QUESTION_TYPE.linearScale,
+  QUESTION_TYPE.rating,
+]
+
+function isBooleanField(dataType: string, questionType?: string): boolean {
+  return questionType ? BOOLEAN_QUESTION_TYPES.includes(questionType) : dataType === "bool"
+}
+
+function isNumberField(dataType: string, questionType?: string): boolean {
+  if (questionType) return NUMBER_QUESTION_TYPES.includes(questionType)
+  return NUMERIC_DATA_TYPES.includes(dataType)
+}
+
+// Mismo criterio de placeholders que el componente tenía antes de delegar el
+// mapeo de widgets a HuemulQuestionInput (question_type primero, data_type como fallback).
+function resolvePlaceholder(dataType: string, questionType: string | undefined, t: TFunction): string | undefined {
+  switch (questionType) {
+    case QUESTION_TYPE.number:
+      return t("addDialog.valuePlaceholderInt")
+    case QUESTION_TYPE.decimal:
+      return t("addDialog.valuePlaceholderDecimal")
+    case QUESTION_TYPE.dropdown:
+      return t("addDialog.valuePlaceholderList")
+  }
+  switch (dataType) {
+    case "int":
+      return t("addDialog.valuePlaceholderInt")
+    case "decimal":
+      return t("addDialog.valuePlaceholderDecimal")
+    case "time":
+      return t("addDialog.valuePlaceholderTime")
+    case "datetime":
+      return t("addDialog.valuePlaceholderDatetime")
+    case "url":
+      return t("addDialog.valuePlaceholderGeneric")
+    case "list":
+      return t("addDialog.valuePlaceholderList")
+    case "date":
+    case "bool":
+      return undefined
+    default:
+      return t("addDialog.valuePlaceholderGeneric")
+  }
+}
+
+export function CustomFieldValueField({
+  dataType,
+  questionType,
+  label,
+  value,
+  onChange,
+  options = [],
+  error,
+  disabled = false,
+  onImageFile,
+  onImageValidationError,
+  isUploadingImage = false,
+  imageUploadDescription,
+  minValue,
+  maxValue,
+  minLabel,
+  maxLabel,
+  allowedTypes,
+  maxSizeMb,
+  entityType,
+  entityCustomFieldId,
+  valueFiles,
+  pendingFiles,
+  onPendingFilesChange,
+}: CustomFieldValueFieldProps) {
+  const { t } = useTranslation("custom-fields")
+
+  // Carga de archivos: flujo de upload propio (blob por custom field) — no delega a
+  // HuemulQuestionInput, que no maneja archivos (ver comentario en ese componente).
+  // Gate por question_type (no solo data_type "image"): un custom field carga_de_archivos
+  // con otro data_type también necesita el uploader — antes no tenía ninguno.
+  if (questionType === QUESTION_TYPE.fileUpload || dataType === "image") {
+    const { min, max } = readFileUploadLimits({ min_value: minValue, max_value: maxValue })
+
+    // Varios archivos (max_value > 1): colección value_blobs — subir varios, listar,
+    // borrar uno. max_value <= 1 (o sin configurar) sigue el flujo legado de abajo.
+    if (max > 1) {
+      return (
+        <div className="space-y-1.5">
+          {label && <Label className="text-sm font-medium leading-snug">{label}</Label>}
+          <CustomFieldFilesInput
+            entityType={entityType ?? "document"}
+            entityCustomFieldId={entityCustomFieldId ?? null}
+            files={valueFiles ?? []}
+            pendingFiles={pendingFiles}
+            onPendingFilesChange={onPendingFilesChange}
+            min={min}
+            max={max}
+            allowedTypes={allowedTypes}
+            maxSizeMb={maxSizeMb}
+            disabled={disabled}
+            error={error}
+            onError={(message) => onImageValidationError?.(message ?? "")}
+          />
+        </div>
+      )
+    }
+
+    // Respeta los tipos configurados en el custom field (carga_de_archivos); si no hay
+    // configuración (custom fields creados antes de esta opción), cae al catálogo fijo.
+    const validExtensions = allowedTypes?.length ? allowedTypes : VALID_IMAGE_EXTENSIONS
+    const accept = validExtensions.map((ext) => `.${ext}`).join(",")
+    return (
+      <HuemulField
+        type="file"
+        label={label}
+        accept={accept}
+        disabled={disabled || isUploadingImage}
+        description={!isUploadingImage ? imageUploadDescription : undefined}
+        error={error}
+        onFileChange={(files) => {
+          const file = files?.[0]
+          if (!file) return
+          const ext = file.name.split(".").pop()?.toLowerCase() ?? ""
+          if (!validExtensions.includes(ext)) {
+            onImageValidationError?.(t("addDialog.invalidImageType"))
+            return
+          }
+          onChange(file.name)
+          onImageFile?.(file)
+        }}
+      >
+        {isUploadingImage && (
+          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>{t("addDialog.uploadingImage")}</span>
+          </div>
+        )}
+      </HuemulField>
+    )
+  }
+
+  // Adaptador entre el contrato string|string[] de este componente (el que persisten
+  // los sheets de template/asset) y el valor tipado que espera HuemulQuestionInput —
+  // el mismo mapeo question_type→widget que usa el runtime de respuesta de formulario.
+  const toQuestionInputValue = (): HuemulQuestionInputValue => {
+    if (Array.isArray(value)) return value
+    if (isBooleanField(dataType, questionType)) return value === "true" || value === "1"
+    if (isNumberField(dataType, questionType)) return value === "" ? null : Number(value)
+    return value
+  }
+
+  const handleChange = (v: HuemulQuestionInputValue) => {
+    if (Array.isArray(v)) { onChange(v); return }
+    if (v === null) { onChange(""); return }
+    if (typeof v === "boolean") { onChange(v.toString()); return }
+    onChange(String(v))
+  }
+
+  return (
+    <HuemulQuestionInput
+      questionType={questionType}
+      dataType={dataType}
+      label={label}
+      placeholder={resolvePlaceholder(dataType, questionType, t)}
+      value={toQuestionInputValue()}
+      onChange={handleChange}
+      options={options}
+      noValueLabel={t("addDialog.noValueOption")}
+      min={typeof minValue === "number" ? minValue : undefined}
+      max={typeof maxValue === "number" ? maxValue : undefined}
+      minLabel={minLabel}
+      maxLabel={maxLabel}
+      error={error}
+      disabled={disabled}
+    />
+  )
+}

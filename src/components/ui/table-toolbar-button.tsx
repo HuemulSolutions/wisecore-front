@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { KEYS } from 'platejs';
 import { useEditorPlugin, useEditorSelector } from 'platejs/react';
+import { useTranslation } from 'react-i18next';
 
 import {
   DropdownMenu,
@@ -43,11 +44,12 @@ export function TableToolbarButton(props: DropdownMenuProps) {
   const { editor, tf } = useEditorPlugin(TablePlugin);
   const [open, setOpen] = React.useState(false);
   const mergeState = useTableMergeState();
+  const { t } = useTranslation('editor');
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen} modal={false} {...props}>
       <DropdownMenuTrigger asChild>
-        <ToolbarButton pressed={open} tooltip="Table" isDropdown>
+        <ToolbarButton pressed={open} tooltip={t('table.tooltip')} isDropdown>
           <Table />
         </ToolbarButton>
       </DropdownMenuTrigger>
@@ -60,7 +62,7 @@ export function TableToolbarButton(props: DropdownMenuProps) {
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="gap-2 data-[disabled]:pointer-events-none data-[disabled]:opacity-50">
               <Grid3x3Icon className="size-4" />
-              <span>Table</span>
+              <span>{t('table.table')}</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="m-0 p-0">
               <TablePicker />
@@ -73,7 +75,7 @@ export function TableToolbarButton(props: DropdownMenuProps) {
               disabled={!tableSelected}
             >
               <div className="size-4" />
-              <span>Cell</span>
+              <span>{t('table.cell')}</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               <DropdownMenuItem
@@ -85,7 +87,7 @@ export function TableToolbarButton(props: DropdownMenuProps) {
                 }}
               >
                 <Combine />
-                Merge cells
+                {t('table.mergeCells')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="min-w-[180px]"
@@ -96,7 +98,7 @@ export function TableToolbarButton(props: DropdownMenuProps) {
                 }}
               >
                 <Ungroup />
-                Split cell
+                {t('table.splitCell')}
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
@@ -107,7 +109,7 @@ export function TableToolbarButton(props: DropdownMenuProps) {
               disabled={!tableSelected}
             >
               <div className="size-4" />
-              <span>Row</span>
+              <span>{t('table.row')}</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               <DropdownMenuItem
@@ -119,7 +121,7 @@ export function TableToolbarButton(props: DropdownMenuProps) {
                 }}
               >
                 <ArrowUp />
-                Insert row before
+                {t('table.insertRowBefore')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="min-w-[180px]"
@@ -130,7 +132,7 @@ export function TableToolbarButton(props: DropdownMenuProps) {
                 }}
               >
                 <ArrowDown />
-                Insert row after
+                {t('table.insertRowAfter')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="min-w-[180px]"
@@ -141,7 +143,7 @@ export function TableToolbarButton(props: DropdownMenuProps) {
                 }}
               >
                 <XIcon />
-                Delete row
+                {t('table.deleteRow')}
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
@@ -152,7 +154,7 @@ export function TableToolbarButton(props: DropdownMenuProps) {
               disabled={!tableSelected}
             >
               <div className="size-4" />
-              <span>Column</span>
+              <span>{t('table.column')}</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               <DropdownMenuItem
@@ -164,7 +166,7 @@ export function TableToolbarButton(props: DropdownMenuProps) {
                 }}
               >
                 <ArrowLeft />
-                Insert column before
+                {t('table.insertColumnBefore')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="min-w-[180px]"
@@ -175,7 +177,7 @@ export function TableToolbarButton(props: DropdownMenuProps) {
                 }}
               >
                 <ArrowRight />
-                Insert column after
+                {t('table.insertColumnAfter')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="min-w-[180px]"
@@ -186,7 +188,7 @@ export function TableToolbarButton(props: DropdownMenuProps) {
                 }}
               >
                 <XIcon />
-                Delete column
+                {t('table.deleteColumn')}
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
@@ -200,7 +202,7 @@ export function TableToolbarButton(props: DropdownMenuProps) {
             }}
           >
             <Trash2Icon />
-            Delete table
+            {t('table.deleteTable')}
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

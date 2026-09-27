@@ -12,6 +12,7 @@ import { useComposedRef } from '@udecode/cn';
 import debounce from 'lodash/debounce';
 import { BaselineIcon, EraserIcon, PaintBucketIcon, PlusIcon } from 'lucide-react';
 import { useEditorRef, useEditorSelector } from 'platejs/react';
+import { useTranslation } from 'react-i18next';
 
 import { buttonVariants } from '@/components/ui/button';
 import {
@@ -20,12 +21,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 import { ToolbarButton, ToolbarMenuGroup } from './toolbar';
@@ -157,9 +152,11 @@ function PureColorPicker({
   updateCustomColor: (color: string) => void;
   color?: string;
 }) {
+  const { t } = useTranslation('editor');
+
   return (
     <div className={cn('flex flex-col', className)} {...props}>
-      <ToolbarMenuGroup label="Custom Colors">
+      <ToolbarMenuGroup label={t('colors.customColors')}>
         <ColorCustom
           color={color}
           className="px-2"
@@ -169,7 +166,7 @@ function PureColorPicker({
           updateCustomColor={updateCustomColor}
         />
       </ToolbarMenuGroup>
-      <ToolbarMenuGroup label="Default Colors">
+      <ToolbarMenuGroup label={t('colors.defaultColors')}>
         <ColorDropdownMenuItems
           color={color}
           className="px-2"
@@ -181,7 +178,7 @@ function PureColorPicker({
         <ToolbarMenuGroup>
           <DropdownMenuItem className="p-2" onClick={clearColor}>
             <EraserIcon />
-            <span>Clear</span>
+            <span>{t('colors.clear')}</span>
           </DropdownMenuItem>
         </ToolbarMenuGroup>
       )}
@@ -189,13 +186,13 @@ function PureColorPicker({
   );
 }
 
-const ColorPicker = React.memo(
-  PureColorPicker,
-  (prev, next) =>
-    prev.color === next.color &&
-    prev.colors === next.colors &&
-    prev.customColors === next.customColors
-);
+const ColorPicker = React.memo(PureColorPicker, (prev, next) => {
+  for (const key of Object.keys(next) as (keyof typeof next)[]) {
+    if (typeof next[key] === "function") continue;
+    if (!Object.is(prev[key], next[key])) return false;
+  }
+  return true;
+});
 
 function ColorCustom({
   className,
@@ -337,8 +334,9 @@ function ColorDropdownMenuItem({
   updateColor: (color: string) => void;
   name?: string;
 } & DropdownMenuItemProps) {
-  const content = (
+  return (
     <DropdownMenuItem
+      title={name ? name.charAt(0).toUpperCase() + name.slice(1) : undefined}
       className={cn(
         buttonVariants({
           size: 'icon',
@@ -356,15 +354,6 @@ function ColorDropdownMenuItem({
       }}
       {...props}
     />
-  );
-
-  return name ? (
-    <Tooltip>
-      <TooltipTrigger>{content}</TooltipTrigger>
-      <TooltipContent className="mb-1 capitalize">{name}</TooltipContent>
-    </Tooltip>
-  ) : (
-    content
   );
 }
 
@@ -387,19 +376,17 @@ export function ColorDropdownMenuItems({
       )}
       {...props}
     >
-      <TooltipProvider>
-        {colors.map(({ isBrightColor, name, value }) => (
-          <ColorDropdownMenuItem
-            name={name}
-            key={name ?? value}
-            value={value}
-            isBrightColor={isBrightColor}
-            isSelected={color === value}
-            updateColor={updateColor}
-          />
-        ))}
-        {props.children}
-      </TooltipProvider>
+      {colors.map(({ isBrightColor, name, value }) => (
+        <ColorDropdownMenuItem
+          name={name}
+          key={name ?? value}
+          value={value}
+          isBrightColor={isBrightColor}
+          isSelected={color === value}
+          updateColor={updateColor}
+        />
+      ))}
+      {props.children}
     </div>
   );
 }

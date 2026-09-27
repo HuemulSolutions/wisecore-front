@@ -2,19 +2,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef, useEffect } from 'react';
 import { getExecutionStatus } from '@/services/executions';
 import { useOrganizationId } from '@/hooks/use-organization';
-
-interface ExecutionStatus {
-  id: string;
-  status: string;
-  [key: string]: any;
-}
-
-interface UseExecutionPollingProps {
-  executionId: string | null;
-  enabled?: boolean;
-  pollingInterval?: number;
-  onStatusChange?: (status: string, execution: ExecutionStatus) => void;
-}
+import type { ExecutionPollingData, UseExecutionPollingProps } from '@/types/execution'
+import { logger } from '@/lib/logger';
 
 export function useExecutionPolling({ 
   executionId, 
@@ -26,20 +15,23 @@ export function useExecutionPolling({
   const selectedOrganizationId = useOrganizationId();
   const previousStatusRef = useRef<string | null>(null);
 
-  const { data: execution, isLoading, error, refetch } = useQuery<ExecutionStatus>({
+  const { data: execution, isLoading, error, refetch } = useQuery<ExecutionPollingData>({
     queryKey: ['execution-status', executionId],
     queryFn: () => getExecutionStatus(executionId!, selectedOrganizationId!),
     enabled: enabled && !!executionId && !!selectedOrganizationId,
     refetchInterval: (query) => {
+      // Corta si el último fetch falló — si no, un `data` stale no-terminal
+      // lo mantendría sondeando para siempre contra un endpoint en error.
+      if (query.state.status === 'error') return false;
       try {
         // Stop polling if execution is completed or failed
-        const executionData = query.state.data as ExecutionStatus;
+        const executionData = query.state.data as ExecutionPollingData;
         if (executionData?.status === 'completed' || executionData?.status === 'failed' || executionData?.status === 'approved' || executionData?.status === 'import_failed') {
           return false;
         }
         return pollingInterval;
       } catch (error) {
-        console.error('Error in refetchInterval:', error);
+        logger.error('Error in refetchInterval:', error);
         return false; // Stop polling on error
       }
     },
@@ -48,7 +40,7 @@ export function useExecutionPolling({
     retry: (failureCount) => {
       // Only retry up to 3 times
       if (failureCount >= 3) {
-        console.error('Max retries reached for execution polling');
+        logger.error('Max retries reached for execution polling');
         return false;
       }
       return true;
@@ -59,18 +51,18 @@ export function useExecutionPolling({
 
   // Handle status changes in useEffect
   useEffect(() => {
-    console.log('Polling execution status:', execution?.status, 'Previous:', previousStatusRef.current);
+    logger.log('Polling execution status:', execution?.status, 'Previous:', previousStatusRef.current);
     if (onStatusChange && execution?.status) {
       // Initialize previousStatusRef if this is the first time we get a status
       if (previousStatusRef.current === null && execution.status) {
-        console.log('Initializing status tracking with:', execution.status);
+        logger.log('Initializing status tracking with:', execution.status);
         previousStatusRef.current = execution.status;
         return; // Don't trigger callback on initialization
       }
       
       // Trigger callback only when status actually changes
       if (execution.status !== previousStatusRef.current) {
-        console.log('Status changed from', previousStatusRef.current, 'to', execution.status);
+        logger.log('Status changed from', previousStatusRef.current, 'to', execution.status);
         // Update the ref before calling the callback to prevent race conditions
         const prevStatus = previousStatusRef.current;
         previousStatusRef.current = execution.status;
@@ -79,7 +71,7 @@ export function useExecutionPolling({
         try {
           onStatusChange(execution.status, execution);
         } catch (error) {
-          console.error('Error in onStatusChange callback:', error);
+          logger.error('Error in onStatusChange callback:', error);
           // Revert the ref in case of error
           previousStatusRef.current = prevStatus;
         }

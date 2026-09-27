@@ -1,81 +1,75 @@
 "use client"
 
-import { useState } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
+import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { handleApiError } from "@/lib/error-utils"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useSearchParams } from "react-router-dom"
+import { Plus, Users } from "lucide-react"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
-import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
-import { useUserMutations } from "@/hooks/useUsers"
-import { getGlobalUsers } from "@/services/users"
-import { type User } from "@/types/users"
-import { Check, Edit, Shield, ShieldCheck, Trash2, Users, X, Building, Plus } from "lucide-react"
-import ProtectedComponent from "@/components/protected-component"
+import { useUrlTab } from "@/hooks/useUrlTab"
+import { useGlobalUsers, useUserById, useUserMutations, globalUserQueryKeys } from "@/hooks/useUsers"
+import { useUserProfileForm } from "@/hooks/useUserProfileForm"
+import { GlobalAdminUsersTable } from "./global-admin-users-table"
 
 import {
-  UserPageSkeleton,
   UserPageEmptyState,
   UserPageDialogs,
   UserContentEmptyState,
-  type UserPageState,
-  formatDate,
-  getStatusColor,
+  UserDetailPanel,
+  type UserDetailPanelGuardApi,
 } from "@/components/users"
+import type { User, UserDetailTab, UserDialogsState } from "@/types/users"
 
-interface GlobalUsersResponse {
-  data: User[]
-  page: number
-  page_size: number
-  has_next: boolean
-  total?: number
+interface GlobalAdminUsersSectionProps {
+  /**
+   * Único eje de permisos de la sección: `/global-admin` es una ruta técnica
+   * root-admin-only y NO org-scoped, así que los permisos org-scoped
+   * (`user:c/u/d`) no aplican acá. Un trío canCreate/canUpdate/canDelete
+   * alimentado por el mismo booleano sería granularidad falsa.
+   * Ver ia context/rbac-audit-guide.md.
+   */
+  canManage: boolean
 }
 
-export function GlobalAdminUsersSection() {
-  const { t } = useTranslation(['users', 'global-admin'])
-  const [state, setState] = useState<UserPageState>({
-    searchTerm: "",
-    filterStatus: "all",
-    selectedUsers: new Set(),
-    editingUser: null,
-    organizationUser: null,
-    showCreateDialog: false,
-    assigningRoleUser: null,
-    deletingUser: null,
-    rootAdminUser: null
-  })
+const USER_DETAIL_TABS: readonly UserDetailTab[] = ['profile', 'organizations']
+
+/**
+ * Sección Usuarios de `/global-admin` — maestro-detalle, mismo panel que
+ * `/users` (`UserDetailPanel`) pero sin tab Roles (org-scoped, no aplica a
+ * un usuario global) y con tab Organizaciones siempre disponible (acá
+ * `canManage` YA implica root admin, a diferencia de `/users` donde ese tab
+ * depende de `isRootAdmin`). Reemplaza el kebab de 7 acciones: aprobar/
+ * rechazar/root-admin/editar ya son inline en el panel; asignar organización
+ * pasa al tab Organizaciones (resuelve el stub "Hacer admin de organización"
+ * que antes solo mostraba un toast).
+ */
+export function GlobalAdminUsersSection({ canManage }: GlobalAdminUsersSectionProps) {
+  const { t } = useTranslation(['users', 'global-admin', 'common'])
+  const [searchTerm, setSearchTerm] = useState("")
+  const [filterStatus, setFilterStatus] = useState("all")
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [deletingUser, setDeletingUser] = useState<User | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
+  const [searchParams, setSearchParams] = useSearchParams()
 
-  const { canAccessUsers, isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
-  const queryClient = useQueryClient()
+  // Espejo de /users: el usuario/tab del panel viven en la URL.
+  const panelUserId = searchParams.get('user')
+  const { tab: detailTab, setTab: setDetailTab, applyTab } = useUrlTab({
+    tabs: USER_DETAIL_TABS,
+    fallback: 'profile',
+  })
 
-  const canListUsers = isRootAdmin || hasAnyPermission(['user:l', 'user:r'])
-  const canCreateUser = isRootAdmin || hasPermission('user:c')
-  const canUpdateUser = isRootAdmin || hasPermission('user:u')
-  const canDeleteUser = isRootAdmin || hasPermission('user:d')
-
-  const globalUsersQueryKey = ["global-users", page, pageSize, state.searchTerm] as const
-
-  const { data: usersResponse, isLoading, isFetching, error, refetch } = useQuery({
-    queryKey: globalUsersQueryKey,
-    queryFn: () => getGlobalUsers(page, pageSize, state.searchTerm || undefined),
-    placeholderData: (prev) => prev,
-    enabled: canListUsers
-  }) as {
-    data: GlobalUsersResponse | undefined
-    isLoading: boolean
-    isFetching: boolean
-    error: any
-    refetch: () => Promise<any>
-  }
-  const userMutations = useUserMutations([["global-users"]])
+  const { data: usersResponse, isLoading, isFetching, error, refetch } = useGlobalUsers({
+    page,
+    pageSize,
+    search: searchTerm,
+    enabled: canManage,
+  })
+  const userMutations = useUserMutations([globalUserQueryKeys.all])
 
   const { showPageLoader, isTableLoading, isTableFetching } = useTableLoadingState({
     isLoading,
@@ -83,171 +77,78 @@ export function GlobalAdminUsersSection() {
     hasData: !!usersResponse,
   })
 
-  if (isLoadingPermissions) {
-    return <UserPageSkeleton />
-  }
+  const users = usersResponse?.data ?? []
+  const filteredUsers = filterStatus === "all" ? users : users.filter((u) => u.status === filterStatus)
 
-  if (!isRootAdmin && !canAccessUsers) {
+  // Deep-link: espejo de /users (useUserById, GET /users/{id} — sin filtro
+  // de organización, sirve igual acá).
+  const foundInPage = filteredUsers.find((u) => u.id === panelUserId) ?? null
+  const needsFallbackFetch = !!panelUserId && !foundInPage
+  const { data: fallbackUser } = useUserById(needsFallbackFetch ? panelUserId : null, needsFallbackFetch && canManage)
+  const selectedUser = foundInPage ?? fallbackUser ?? null
+
+  const profileForm = useUserProfileForm(selectedUser, canManage, userMutations)
+
+  const guardRef = useRef<UserDetailPanelGuardApi | null>(null)
+  const onRegisterGuard = useCallback((api: UserDetailPanelGuardApi | null) => {
+    guardRef.current = api
+  }, [])
+
+  const navigateToUser = useCallback((userId: string | null, tab: UserDetailTab = 'profile') => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (userId) {
+        next.set('user', userId)
+        applyTab(next, tab)
+      } else {
+        next.delete('user')
+        next.delete('tab')
+      }
+      return next
+    }, { replace: true })
+  }, [setSearchParams, applyTab])
+
+  if (!canManage) {
     return <UserPageEmptyState type="access-denied" />
   }
 
   if (showPageLoader) {
-    return <UserPageSkeleton />
+    return (
+      <div className="space-y-3">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="h-16 w-full animate-pulse rounded-lg bg-muted" />
+        ))}
+      </div>
+    )
   }
 
-  const users = usersResponse?.data ?? []
-  const filteredUsers = state.filterStatus === "all"
-    ? users
-    : users.filter((user: User) => user.status === state.filterStatus)
-
-  const updateState = (updates: Partial<UserPageState>) => {
-    setState(prev => ({ ...prev, ...updates }))
+  const closeDialog = (dialog: keyof UserDialogsState) => {
+    if (dialog === 'deletingUser') setDeletingUser(null)
+    if (dialog === 'showCreateDialog') setShowCreateDialog(false)
   }
 
-  const closeDialog = (dialog: keyof UserPageState) => {
-    setState(prev => ({ ...prev, [dialog]: null }))
+  const handleSelectUser = (user: User, tab?: UserDetailTab) => {
+    const targetTab = tab ?? (user.id === panelUserId ? detailTab : 'profile')
+    const proceed = () => navigateToUser(user.id, targetTab)
+    if (guardRef.current) guardRef.current.attemptNavigate(proceed)
+    else proceed()
+  }
+
+  const handleClosePanel = () => navigateToUser(null)
+
+  const handleTabChange = (tab: UserDetailTab) => {
+    if (!panelUserId) return
+    setDetailTab(tab)
   }
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
     try {
-      await queryClient.invalidateQueries({ queryKey: ["global-users"] })
       await refetch()
-      toast.success(t('common:dataRefreshed'))
-    } catch (error) {
-      handleApiError(error, { fallbackMessage: t('common:refreshFailed') })
     } finally {
       setIsRefreshing(false)
     }
   }
-
-  const handleMakeOrganizationAdmin = (user: User) => {
-    toast.info(t('global-admin:toast.orgAdminPending', { name: `${user.name} ${user.last_name}` }))
-    console.log("Organization admin intent", user)
-  }
-
-  const translateStatusI18n = (status: string) => {
-    const statusMap: Record<string, string> = {
-      active: t('common:active'),
-      inactive: t('common:inactive'),
-      pending: t('common:pending'),
-    }
-    return statusMap[status] || status
-  }
-
-  const columns: HuemulTableColumn<User>[] = [
-    {
-      key: "name",
-      label: t('common:name'),
-      render: (user) => (
-        <div className="flex flex-col gap-0">
-          <span className="text-xs font-medium text-foreground leading-tight">
-            {user.name} {user.last_name}
-          </span>
-          {user.activated_at && (
-            <span className="text-[10px] text-muted-foreground leading-tight">
-              {t('activated', { date: formatDate(user.activated_at) })}
-            </span>
-          )}
-        </div>
-      )
-    },
-    {
-      key: "email",
-      label: t('common:email'),
-      render: (user) => (
-        <span className="text-xs text-blue-600 font-medium">{user.email}</span>
-      )
-    },
-    {
-      key: "root-admin",
-      label: t('columns.rootAdmin'),
-      render: (user) => (
-        user.is_root_admin ? (
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-            <Shield className="w-2 h-2 mr-0.5" />
-            {t('common:yes')}
-          </Badge>
-        ) : (
-          <span className="text-xs text-muted-foreground">{t('common:no')}</span>
-        )
-      )
-    },
-    {
-      key: "status",
-      label: t('common:status'),
-      render: (user) => (
-        <Badge className={`text-[10px] px-1.5 py-0 h-5 ${getStatusColor(user.status)}`}>
-          {translateStatusI18n(user.status)}
-        </Badge>
-      )
-    },
-    {
-      key: "created",
-      label: t('columns.created'),
-      render: (user) => (
-        <span className="text-xs text-foreground">{formatDate(user.created_at)}</span>
-      )
-    }
-  ]
-
-  const actions: HuemulTableAction<User>[] = [
-    {
-      key: "approve",
-      label: t('actions.approveUser'),
-      icon: Check,
-      onClick: (user) => userMutations.approveUser.mutate(user.id),
-      show: (user) => user.status === 'pending' && canUpdateUser,
-      className: "text-green-600"
-    },
-    {
-      key: "reject",
-      label: t('actions.rejectUser'),
-      icon: X,
-      onClick: (user) => userMutations.rejectUser.mutate(user.id),
-      show: (user) => user.status === 'pending' && canUpdateUser,
-      separator: true,
-      destructive: true
-    },
-    {
-      key: "assign-organization",
-      label: t('actions.assignToOrganization'),
-      icon: Building,
-      onClick: (user) => updateState({ organizationUser: user }),
-      show: () => isRootAdmin
-    },
-    {
-      key: "manage-root-admin",
-      label: t('actions.manageRootAdmin'),
-      icon: ShieldCheck,
-      onClick: (user) => updateState({ rootAdminUser: user }),
-      show: () => isRootAdmin
-    },
-    {
-      key: "make-org-admin",
-      label: t('actions.makeOrgAdmin'),
-      icon: Shield,
-      onClick: handleMakeOrganizationAdmin,
-      show: () => isRootAdmin,
-      separator: true
-    },
-    {
-      key: "edit",
-      label: t('actions.editUser'),
-      icon: Edit,
-      onClick: (user) => updateState({ editingUser: user }),
-      show: () => canUpdateUser,
-      separator: true
-    },
-    {
-      key: "delete",
-      label: t('actions.deleteUser'),
-      icon: Trash2,
-      onClick: (user) => updateState({ deletingUser: user }),
-      show: () => canDeleteUser,
-      destructive: true
-    }
-  ]
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
@@ -255,78 +156,58 @@ export function GlobalAdminUsersSection() {
         <PageHeader
           icon={Users}
           title={t('header.title')}
+          subtitle={t('global-admin:sections.usersSubtitle')}
           badges={[
             { label: "", value: t('header.usersCount', { count: usersResponse?.total ?? filteredUsers.length }) }
           ]}
           onRefresh={handleRefresh}
-          isLoading={isRefreshing}
+          isLoading={isRefreshing || isFetching}
           hasError={!!error}
-          primaryAction={canCreateUser ? {
+          primaryAction={{
             label: t('header.addUser'),
             icon: Plus,
-            onClick: () => updateState({ showCreateDialog: true }),
-            protectedContent: (
-              <ProtectedComponent permission="user:c">
-                <Button
-                  size="sm"
-                  onClick={() => updateState({ showCreateDialog: true })}
-                  disabled={!!error}
-                  className="hover:cursor-pointer h-8 text-xs px-2"
-                >
-                  <Plus className="w-3 h-3 mr-1" />
-                  {t('header.addUser')}
-                </Button>
-              </ProtectedComponent>
-            )
-          } : undefined}
+            onClick: () => setShowCreateDialog(true),
+            disabled: !!error,
+          }}
           searchConfig={{
             placeholder: t('header.searchPlaceholder'),
-            value: state.searchTerm,
+            value: searchTerm,
             onChange: (value) => {
-              updateState({ searchTerm: value })
+              setSearchTerm(value)
               setPage(1)
             },
             triggerOnEnter: true,
           }}
         >
-          <Select value={state.filterStatus} onValueChange={(value) => updateState({ filterStatus: value })}>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="w-full md:w-36 h-8 hover:cursor-pointer text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('header.filterAllStatus')}</SelectItem>
-              <SelectItem value="active">{t('header.filterActive')}</SelectItem>
-              <SelectItem value="inactive">{t('header.filterInactive')}</SelectItem>
-              <SelectItem value="pending">{t('header.filterPending')}</SelectItem>
+              <SelectItem value="active">{t('common:active')}</SelectItem>
+              <SelectItem value="inactive">{t('common:inactive')}</SelectItem>
+              <SelectItem value="pending">{t('common:pending')}</SelectItem>
             </SelectContent>
           </Select>
         </PageHeader>
       </div>
 
       {error ? (
-        <UserContentEmptyState 
-          type="error" 
-          message={error.message} 
+        <UserContentEmptyState
+          type="error"
+          message={(error as Error).message}
           onRetry={handleRefresh}
         />
       ) : !isTableLoading && !isTableFetching && filteredUsers.length === 0 ? (
-        <UserContentEmptyState 
-          type="empty"
-        />
+        <UserContentEmptyState type="empty" />
       ) : (
-        <HuemulTable
-          data={filteredUsers}
-          columns={columns}
-          actions={actions}
-          getRowKey={(user) => user.id}
-          emptyState={{
-            icon: Users,
-            title: t('emptyState.title'),
-            description: t('emptyState.description')
-          }}
-          maxHeight="flex-1 min-h-0"
-          isLoading={isTableLoading}
-          isFetching={isTableFetching}
+        <GlobalAdminUsersTable
+          users={filteredUsers}
+          onSelectUser={handleSelectUser}
+          selectedUserId={panelUserId}
+          isTableLoading={isTableLoading}
+          isTableFetching={isTableFetching}
           pagination={{
             page: usersResponse?.page || page,
             pageSize: usersResponse?.page_size || pageSize,
@@ -337,20 +218,40 @@ export function GlobalAdminUsersSection() {
               setPageSize(newPageSize)
               setPage(1)
             },
-            pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+            pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS
           }}
         />
       )}
 
-      <UserPageDialogs
-        state={state}
-        onCloseDialog={closeDialog}
-        onUpdateState={updateState}
+      <UserDetailPanel
+        open={!!panelUserId}
+        user={selectedUser}
+        activeTab={detailTab}
+        onTabChange={handleTabChange}
+        onClose={handleClosePanel}
+        onDeleteUser={() => selectedUser && setDeletingUser(selectedUser)}
+        availableTabs={USER_DETAIL_TABS}
         userMutations={userMutations}
-        onUsersUpdated={() => {
-          void refetch()
+        profileForm={profileForm}
+        canUpdate={canManage}
+        canDelete={canManage}
+        canManageRootAdmin={canManage}
+        onRegisterGuard={onRegisterGuard}
+        organizationsTab={{ canManageMembers: canManage }}
+      />
+
+      <UserPageDialogs
+        state={{ showCreateDialog, deletingUser }}
+        onCloseDialog={closeDialog}
+        onUpdateState={(updates) => {
+          if ('showCreateDialog' in updates) setShowCreateDialog(!!updates.showCreateDialog)
+          if ('deletingUser' in updates) setDeletingUser(updates.deletingUser ?? null)
         }}
+        userMutations={userMutations}
+        onUsersUpdated={() => void refetch()}
         createUserAddToOrganization={false}
+        canCreate={canManage}
+        canDelete={canManage}
       />
     </div>
   )

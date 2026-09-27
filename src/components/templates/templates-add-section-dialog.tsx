@@ -1,20 +1,13 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { HuemulDialog } from "@/huemul/components/huemul-dialog";
+import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { createTemplateSection } from "@/services/template_section";
 import { AddSectionFormSheet } from "@/components/sections/sections-add-form-sheet";
 import { Plus } from "lucide-react";
-import { toast } from "sonner";
-
-interface AddSectionDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  templateId: string;
-  organizationId: string;
-  existingSections: any[];
-  onGeneratingChange?: (isGenerating: boolean) => void;
-}
+import { withRefresh } from "@/lib/query-utils";
+import type { AddSectionDialogProps } from '@/types/templates/add-section-dialog';
+export type { AddSectionDialogProps } from '@/types/templates/add-section-dialog';
 
 export function AddSectionDialog({
   open,
@@ -23,6 +16,8 @@ export function AddSectionDialog({
   organizationId,
   existingSections,
   onGeneratingChange,
+  defaultType,
+  containerName,
 }: AddSectionDialogProps) {
   const { t } = useTranslation(['sections', 'templates', 'common']);
   const queryClient = useQueryClient();
@@ -35,28 +30,37 @@ export function AddSectionDialog({
   };
 
   const addSectionMutation = useMutation({
-    mutationFn: (sectionData: any) => createTemplateSection(sectionData, organizationId),
+    mutationFn: withRefresh(
+      (sectionData: any) => createTemplateSection(sectionData, organizationId),
+      queryClient,
+      () => [['template', templateId]],
+    ),
+    meta: { successMessage: t('sections:toast.sectionCreated') },
     onSuccess: () => {
-      toast.success(t('sections:toast.sectionCreated'));
-      queryClient.invalidateQueries({ queryKey: ['template', templateId] });
       onOpenChange(false);
       setIsFormValid(false);
     },
   });
 
+  const position = existingSections.length + 1;
+
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={(o) => {
         if (!o) setIsFormValid(false);
         onOpenChange(o);
       }}
-      title={t('sections:addDialog.title')}
-      description={t('templates:addSection.description')}
+      title={t('sections:addDialog.title', { position })}
+      description={
+        containerName
+          ? t('templates:addSection.subtitle', { name: containerName })
+          : t('templates:addSection.subtitleNoName')
+      }
       icon={Plus}
-      maxWidth="sm:max-w-3xl"
-      maxHeight="max-h-[90vh]"
+      maxWidth="w-full sm:max-w-[860px]"
       cancelLabel={t('common:cancel')}
+      footerLeft={<span className="text-xs text-[#64748b]">{t('sections:form.propagate.footerNote')}</span>}
       saveAction={{
         label: addSectionMutation.isPending ? t('templates:addSection.saving') : t('templates:addSection.save'),
         icon: Plus,
@@ -75,7 +79,8 @@ export function AddSectionDialog({
         existingSections={existingSections}
         onValidationChange={setIsFormValid}
         onGeneratingChange={handleGeneratingChange}
+        defaultType={defaultType}
       />
-    </HuemulDialog>
+    </HuemulSheet>
   );
 }

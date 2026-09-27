@@ -1,61 +1,55 @@
 "use client"
 
-import type { CustomFieldPageState } from "./index"
-import type { useCustomFieldMutations } from "@/hooks/useCustomFields"
-import { CreateEditCustomFieldDialog } from "./custom-fields-create-edit-dialog"
-import { DeleteCustomFieldDialog } from "./custom-fields-delete-dialog"
+import { CreateEditCustomFieldSheet } from "./custom-fields-create-edit-sheet"
+import type { CustomFieldPageDialogsProps } from '@/types/custom-fields'
 
-interface CustomFieldPageDialogsProps {
-  state: CustomFieldPageState
-  onCloseDialog: (dialog: keyof CustomFieldPageState) => void
-  customFieldMutations: ReturnType<typeof useCustomFieldMutations>
-}
+export type { CustomFieldPageDialogsProps } from '@/types/custom-fields'
 
 export function CustomFieldPageDialogs({
   state,
   onCloseDialog,
   customFieldMutations,
+  canCreate = false,
+  canUpdate = false,
+  canDelete = false,
 }: CustomFieldPageDialogsProps) {
   return (
     <>
       {/* Create Dialog */}
-      <CreateEditCustomFieldDialog
-        open={state.showCreateDialog}
-        onOpenChange={(open: boolean) => {
-          if (!open) onCloseDialog('showCreateDialog')
-        }}
-        customField={null}
-        onSuccess={() => {
-          onCloseDialog('showCreateDialog')
-        }}
-        customFieldMutations={customFieldMutations}
-      />
+      {canCreate && (
+        <CreateEditCustomFieldSheet
+          open={state.showCreateDialog}
+          onOpenChange={(open: boolean) => {
+            if (!open) onCloseDialog('showCreateDialog')
+          }}
+          customField={null}
+          onSuccess={() => {
+            onCloseDialog('showCreateDialog')
+          }}
+          customFieldMutations={customFieldMutations}
+          canCreate={canCreate}
+          canUpdate={canUpdate}
+          canDelete={canDelete}
+        />
+      )}
 
       {/* Edit Dialog */}
-      <CreateEditCustomFieldDialog
-        open={!!state.editingCustomField}
-        onOpenChange={(open: boolean) => {
-          if (!open) onCloseDialog('editingCustomField')
-        }}
-        customField={state.editingCustomField}
-        onSuccess={() => {
-          onCloseDialog('editingCustomField')
-        }}
-        customFieldMutations={customFieldMutations}
-      />
-
-      {/* Delete Dialog */}
-      <DeleteCustomFieldDialog
-        open={!!state.deletingCustomField}
-        onOpenChange={(open: boolean) => {
-          if (!open) onCloseDialog('deletingCustomField')
-        }}
-        customField={state.deletingCustomField}
-        onConfirm={(customField: any) => {
-          customFieldMutations.delete.mutate(customField.id)
-          // Don't close here - let the delete dialog handle it with delay
-        }}
-      />
+      {(canUpdate || canDelete) && (
+        <CreateEditCustomFieldSheet
+          open={!!state.editingCustomField}
+          onOpenChange={(open: boolean) => {
+            if (!open) onCloseDialog('editingCustomField')
+          }}
+          customField={state.editingCustomField}
+          onSuccess={() => {
+            onCloseDialog('editingCustomField')
+          }}
+          customFieldMutations={customFieldMutations}
+          canCreate={canCreate}
+          canUpdate={canUpdate}
+          canDelete={canDelete}
+        />
+      )}
     </>
   )
 }

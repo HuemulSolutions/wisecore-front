@@ -3,19 +3,15 @@ import { Plus } from 'lucide-react';
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import { HuemulField } from '@/huemul/components/huemul-field';
 import { useTranslation } from 'react-i18next';
-
-interface CreateOrganizationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { name: string; description?: string }) => void;
-  isPending: boolean;
-}
+import type { CreateOrganizationDialogProps } from '@/types/organizations';
+export type { CreateOrganizationDialogProps } from '@/types/organizations';
 
 export function CreateOrganizationDialog({
   open,
   onOpenChange,
   onSubmit,
-  isPending
+  isPending,
+  canCreate
 }: CreateOrganizationDialogProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -28,6 +24,8 @@ export function CreateOrganizationDialog({
       setDescription('');
     }
   }, [open]);
+
+  if (!canCreate) return null;
 
   const isValid = name.trim().length > 0;
 
@@ -46,6 +44,7 @@ export function CreateOrganizationDialog({
         loading: isPending,
         closeOnSuccess: false,
         onClick: () => {
+          if (!canCreate) return;
           if (name.trim()) {
             onSubmit({
               name: name.trim(),

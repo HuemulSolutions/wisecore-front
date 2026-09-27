@@ -1,256 +1,386 @@
-const translations = {
-  hero: {
-    title: { en: "Welcome to Wisecore", es: "Bienvenido a Wisecore" },
+﻿const translations = {
+  greeting: {
+    morning: { en: "Good morning, {{name}}", es: "Buenos días, {{name}}" },
+    afternoon: { en: "Good afternoon, {{name}}", es: "Buenas tardes, {{name}}" },
+    evening: { en: "Good evening, {{name}}", es: "Buenas noches, {{name}}" },
+    welcome: { en: "Welcome, {{name}}", es: "Bienvenido, {{name}}" },
+    unreadNotifications: {
+      en: "{{count}} unread notifications",
+      es: "{{count}} notificaciones sin leer",
+    },
+  },
+
+  actions: {
+    uploadDocument: { en: "Upload Asset", es: "Subir Activo" },
+    createAsset: { en: "Create Asset", es: "Crear Activo" },
+    refreshing: { en: "Refreshing…", es: "Actualizando…" },
+  },
+
+  refreshed: { en: "Refreshed", es: "Actualizado" },
+
+  // Subtítulo del saludo, armado en JSX a partir de fragmentos (mismo patrón
+  // que ya usaba este archivo para "fecha · notificaciones sin leer") — no hay
+  // Trans/i18nKey en el repo, así que el número en negrita se envuelve en un
+  // <span> propio en vez de embeber markup en la traducción.
+  subtitle: {
+    pendingPrefix: { en: "You have", es: "Tienes" },
+    pendingSuffix: { en: "pending", es: "pendientes" },
+    // Conteo no exacto (`N+`): el número es un piso, no un total probado.
+    pendingApproxSuffix: { en: "+ pending", es: "+ pendientes" },
+    dueSoonSuffix: { en: "due this week", es: "vencen esta semana" },
+    upToDate: { en: "You're all caught up", es: "Estás al día" },
+    firstTime: {
+      en: "Get your organization ready in {{count}} steps. Once assets are moving, you'll see here what you need to review, approve or publish.",
+      es: "Deja tu organización lista en {{count}} pasos. Cuando haya activos en movimiento, aquí verás lo que te toca revisar, aprobar o publicar.",
+    },
+  },
+
+  tabs: {
+    myWork: { en: "My work", es: "Mi trabajo" },
+    allAssets: { en: "All assets", es: "Todos los activos" },
+    teamActivity: { en: "Team activity", es: "Actividad del equipo" },
+  },
+
+  commentsPopover: {
+    open: { en: "View unresolved comments", es: "Ver comentarios sin resolver" },
+    title: { en: "Comments", es: "Comentarios" },
+    documentScope: { en: "Whole document", es: "Todo el documento" },
+    unknownSection: { en: "Untitled section", es: "Sección sin título" },
+    unknownAuthor: { en: "Unknown user", es: "Usuario desconocido" },
+    empty: { en: "No unresolved comments", es: "No hay comentarios sin resolver" },
+    error: { en: "Could not load the comments.", es: "No se pudieron cargar los comentarios." },
+    viewFullAsset: { en: "View full asset", es: "Ver activo completo" },
+  },
+
+  workGroups: {
+    approved: {
+      title: { en: "Yours, approved and ready to publish", es: "Tus aprobados, listos para publicar" },
+      meta: { en: "Only publishing is left", es: "Solo falta publicarlos" },
+      empty: { en: "You have no assets pending publication", es: "No tienes activos pendientes de publicar" },
+      actionPublish: { en: "Publish", es: "Publicar" },
+    },
+    review: {
+      title: { en: "Awaiting your review", es: "Esperan tu revisión" },
+      meta: { en: "Oldest first", es: "Más antiguos primero" },
+      empty: { en: "You have no pending reviews", es: "No tienes revisiones pendientes" },
+      // Sin botones inline todavía — backend entregó `lifecycle_permissions`
+      // por fila pero no `lifecycle_status` (can_advance/can_rollback/
+      // advance_blockers), que es lo que hace falta para decidir qué botón
+      // pintar. Claves listas para cuando se resuelva (ver
+      // respuestas/spec-home-lifecycle-status-por-fila.md).
+      actionSecondary: { en: "Return", es: "Devolver" },
+      actionPrimary: { en: "Review", es: "Revisar" },
+    },
+    approval: {
+      title: { en: "Awaiting your approval", es: "Esperan tu aprobación" },
+      meta: { en: "By publication date", es: "Por fecha de publicación" },
+      empty: { en: "You have no pending approvals", es: "No tienes aprobaciones pendientes" },
+      actionSecondary: { en: "Reject", es: "Rechazar" },
+      actionPrimary: { en: "Approve", es: "Aprobar" },
+    },
+    mentions: {
+      title: { en: "Comments mentioning you", es: "Comentarios que te mencionan" },
+      meta: { en: "Sorted by recency", es: "Ordenado por recencia" },
+      actionPrimary: { en: "Reply", es: "Responder" },
+    },
+    common: {
+      viewRemaining: { en: "View the {{count}} remaining in All assets", es: "Ver los {{count}} restantes en Todos los activos" },
+      viewRemainingOne: { en: "View the remaining one in All assets", es: "Ver el restante en Todos los activos" },
+      open: { en: "Open", es: "Abrir" },
+      published: { en: "Published: {{name}}", es: "Publicado: {{name}}" },
+      showingOf: { en: "Showing 2 of {{count}}", es: "Mostrando 2 de {{count}}" },
+      viewAll: { en: "View all", es: "Ver todas" },
+      countApprox: { en: "{{count}}+", es: "{{count}}+" },
+      collapse: { en: "Collapse", es: "Colapsar" },
+      expand: { en: "Expand", es: "Expandir" },
+      errorTitle: {
+        en: "We couldn't load this group. The others are still up to date.",
+        es: "No pudimos cargar este grupo. Los demás siguen al día.",
+      },
+      // Una variante por cubo de `getRelativeTimeBucket` — la frase se arma
+      // entera acá (no se concatena `formatRelativeTime`, que ya trae
+      // "Ayer"/"hace 3m" redactado y daba "esperando hace Ayer").
+      updatedAgo: {
+        justNow: { en: "updated just now", es: "actualizado hace un momento" },
+        minutes: { en: "updated {{count}}m ago", es: "actualizado hace {{count}}m" },
+        hours: { en: "updated {{count}}h ago", es: "actualizado hace {{count}}h" },
+        yesterday: { en: "updated yesterday", es: "actualizado ayer" },
+        date: { en: "updated on {{date}}", es: "actualizado el {{date}}" },
+      },
+      // `lifecycle_state_since` — entrada al estado actual, distinto de
+      // `updatedAgo` (última edición de contenido). Ver spec Punto 6.
+      pendingSince: {
+        justNow: { en: "waiting since just now", es: "en espera desde hace un momento" },
+        minutes: { en: "waiting for {{count}}m", es: "en espera desde hace {{count}}m" },
+        hours: { en: "waiting for {{count}}h", es: "en espera desde hace {{count}}h" },
+        yesterday: { en: "waiting since yesterday", es: "en espera desde ayer" },
+        date: { en: "waiting since {{date}}", es: "en espera desde el {{date}}" },
+      },
+      publishesOn: { en: "publishes on {{date}}", es: "publica el {{date}}" },
+    },
+  },
+
+  rail: {
+    collapse: { en: "Collapse", es: "Colapsar" },
+    expand: { en: "Expand", es: "Expandir" },
+    overview: {
+      title: { en: "Overview", es: "Panorama" },
+      scopeOrganization: { en: "Organization", es: "Organización" },
+      scopeMine: { en: "Personal", es: "Personal" },
+      hintDefault: { en: "Click an indicator to filter the table", es: "Clic en un indicador para filtrar la tabla" },
+      hintActive: { en: "Filter applied · click again to remove it", es: "Filtro aplicado · clic de nuevo para quitarlo" },
+      hintReadOnly: { en: "Read-only: you can't access the asset list", es: "Solo consulta: no tienes acceso a la lista de activos" },
+      errorFallback: { en: "Couldn't load the overview", es: "No se pudo cargar el panorama" },
+      unavailable: {
+        title: { en: "Overview not available", es: "Panorama no disponible" },
+        description: {
+          en: "Your role doesn't include organization statistics. Your pending work is still complete.",
+          es: "Tu rol no incluye las estadísticas de la organización. Tu trabajo pendiente sigue completo.",
+        },
+      },
+    },
+    continue: {
+      title: { en: "Continue where you left off", es: "Continuar donde quedaste" },
+      subtitle: { en: "Latest assets you edited", es: "Últimos activos que editaste" },
+      viewAll: { en: "View all your recent activity", es: "Ver toda tu actividad reciente" },
+    },
+    gettingStarted: {
+      title: { en: "Getting started", es: "Puesta en marcha" },
+      // Sin estimación de tiempo fija: configurar credenciales de un
+      // proveedor de LLM/embeddings no entra en un cálculo de minutos
+      // confiable como sí lo hacían los otros pasos.
+      stepCount: { en: "{{done}} of {{total}}", es: "{{done}} de {{total}}" },
+      // Banner compacto (checklist oculta, primera vez) y link del rail.
+      hiddenBanner: { en: "{{done}} of {{total}} · missing: {{step}}", es: "{{done}} de {{total}} · falta: {{step}}" },
+      hiddenLink: { en: "Getting started hidden · {{done}} of {{total}} · Resume", es: "Puesta en marcha oculta · {{done}} de {{total}} · Retomar" },
+      hide: { en: "Hide for now", es: "Ocultar por ahora" },
+      resume: { en: "Resume", es: "Retomar" },
+      done: { en: "Done", es: "Listo" },
+      adminOnly: { en: "Set up by an administrator", es: "Lo configura un administrador" },
+      steps: {
+        defaultLlm: {
+          title: { en: "Choose the default language model", es: "Elige el modelo de lenguaje por defecto" },
+          description: {
+            en: "Used by assisted writing and asset summaries",
+            es: "Lo usan la redacción asistida y los resúmenes de activos",
+          },
+          action: { en: "Choose", es: "Elegir" },
+        },
+        embeddingProvider: {
+          title: { en: "Connect an embeddings provider", es: "Conecta un proveedor de embeddings" },
+          description: {
+            en: "Enables semantic search over content",
+            es: "Habilita la búsqueda semántica sobre el contenido",
+          },
+          action: { en: "Connect", es: "Conectar" },
+        },
+        assetType: {
+          title: { en: "Define your first asset type", es: "Define tu primer tipo de activo" },
+          description: {
+            en: "The fields and lifecycle your documents will follow",
+            es: "Los campos y el ciclo de vida que seguirán tus documentos",
+          },
+          action: { en: "Define", es: "Definir" },
+        },
+        firstAsset: {
+          title: { en: "Create or upload your first asset", es: "Crea o sube tu primer activo" },
+          description: {
+            en: "From a template or by importing an existing file",
+            es: "Desde una plantilla o importando un archivo existente",
+          },
+          action: { en: "Create", es: "Crear" },
+        },
+        inviteTeam: {
+          title: { en: "Invite your team", es: "Invita a tu equipo" },
+          description: {
+            en: "Assign who reviews and who approves so the flow moves forward",
+            es: "Asigna quién revisa y quién aprueba para que el flujo avance",
+          },
+          action: { en: "Invite", es: "Invitar" },
+        },
+      },
+    },
+  },
+
+  emptyState: {
+    firstTime: {
+      title: { en: "You have nothing pending yet", es: "Todavía no tienes nada pendiente" },
+      description: {
+        en: "Once your team starts moving assets, this list sorts itself into three groups:",
+        es: "Cuando tu equipo empiece a mover activos, esta lista se ordena sola en tres grupos:",
+      },
+      groups: {
+        review: { title: { en: "Awaiting your review", es: "Esperan tu revisión" }, subtitle: { en: "You were assigned as reviewer", es: "Te asignaron como revisor" } },
+        approval: { title: { en: "Awaiting your approval", es: "Esperan tu aprobación" }, subtitle: { en: "Your signature decides if it moves on", es: "Tu firma decide si avanza" } },
+        approved: { title: { en: "Your approved assets", es: "Tus aprobados" }, subtitle: { en: "Only publishing is left", es: "Solo falta que los publiques" } },
+      },
+    },
+    noPending: {
+      title: { en: "You're all caught up", es: "Estás al día" },
+      description: {
+        en: "You have no reviews or approvals waiting, and nothing of yours approved and unpublished. If something is assigned to you, it will show up here.",
+        es: "No tienes revisiones ni aprobaciones esperándote, y nada tuyo aprobado sin publicar. Si te asignan algo, aparece aquí.",
+      },
+      explore: { en: "Explore all assets", es: "Explorar todos los activos" },
+      create: { en: "Create asset", es: "Crear activo" },
+    },
+  },
+
+  // Aviso cuando la UI descarta un filtro incompatible (el backend responde
+  // 400 PENDING_MY_ACTION_WITH_SEARCH_NOT_SUPPORTED si llegan juntos).
+  filterNotice: {
+    droppedPending: {
+      en: "We removed “{{label}}”: that filter can't be combined with a text search. Clear the search to apply it again.",
+      es: "Quitamos «{{label}}»: ese filtro no se puede combinar con una búsqueda de texto. Borra la búsqueda para volver a aplicarlo.",
+    },
+    droppedQuery: {
+      en: "We removed the search “{{query}}”: “{{label}}” can't be combined with a text search.",
+      es: "Quitamos la búsqueda «{{query}}»: «{{label}}» no se puede combinar con búsqueda de texto.",
+    },
+    dismiss: { en: "Got it", es: "Entendido" },
+  },
+
+  noResults: {
+    titleOne: { en: "No asset matches this filter", es: "Ningún activo cumple este filtro" },
+    titleMany: { en: "No asset matches these {{count}} filters", es: "Ningún activo cumple estos {{count}} filtros" },
     description: {
-      en: "Wisecore is an advanced platform powered by Large Language Models (LLMs) designed to help organizations generate, manage, and share internal knowledge efficiently. Centralize your company's information, automate documentation, and empower your teams with instant access to reliable, AI-driven insights.",
-      es: "Wisecore es una plataforma avanzada impulsada por Modelos de Lenguaje de Gran Escala (LLMs) diseñada para ayudar a las organizaciones a generar, gestionar y compartir conocimiento interno de manera eficiente. Centraliza la información de tu empresa, automatiza la documentación y empodera a tus equipos con acceso instantáneo a perspectivas confiables basadas en IA.",
+      en: "Remove the filter that restricts the most or broaden the search.",
+      es: "Quita el filtro que más restringe o amplía la búsqueda.",
+    },
+    searchInContent: { en: "Search “{{query}}” in content", es: "Buscar «{{query}}» en el contenido" },
+    clearFilters: { en: "Clear filters", es: "Limpiar filtros" },
+  },
+
+  orgEmpty: {
+    title: { en: "The organization has no assets yet", es: "La organización todavía no tiene activos" },
+    descriptionCreate: {
+      en: "Create one from a template or upload an existing file. It will show up here and in the Overview.",
+      es: "Crea uno desde una plantilla o sube un archivo existente. Aparecerá aquí y en el Panorama.",
+    },
+    descriptionReadOnly: {
+      en: "When someone in your organization creates an asset, it will show up here.",
+      es: "Cuando alguien de tu organización cree un activo, aparecerá aquí.",
+    },
+    upload: { en: "Upload file", es: "Subir archivo" },
+    create: { en: "Create asset", es: "Crear activo" },
+  },
+
+  filters: {
+    title: { en: "Filters", es: "Filtros" },
+    search: { en: "Search", es: "Búsqueda" },
+    searchPlaceholder: { en: "Search...", es: "Buscar..." },
+    searchType: { en: "Search type", es: "Tipo de búsqueda" },
+    searchTypeDefault: { en: "Default (semantic)", es: "Por defecto (semántica)" },
+    searchTypeSemantic: { en: "Semantic", es: "Semántica" },
+    searchTypeTitle: { en: "Title", es: "Título" },
+    searchTypeCode: { en: "Code", es: "Código" },
+    searchTypeContent: { en: "Content", es: "Contenido" },
+    lifecycleState: { en: "Lifecycle", es: "Ciclo de Vida" },
+    allLifecycleStates: { en: "All states", es: "Todos los estados" },
+    pendingMyAction: { en: "Pending your action", es: "Pendientes de tu acción" },
+    allPendingMyAction: { en: "All", es: "Todas" },
+    pendingMyActionReview: { en: "Awaiting your review", es: "Esperando tu revisión" },
+    pendingMyActionApprove: { en: "Awaiting your approval", es: "Esperando tu aprobación" },
+    pendingMyActionAny: { en: "Awaiting your review or approval", es: "Esperando tu revisión o aprobación" },
+    ownerScope: { en: "Owner", es: "Propietario" },
+    allOwners: { en: "All owners", es: "Todos los propietarios" },
+    ownerAll: { en: "All", es: "Todos" },
+    ownerMe: { en: "Me", es: "Yo" },
+    ownerMeDescription: { en: "Assets you own", es: "Activos propios" },
+    ownerScopeLabel: { en: "Quick filters", es: "Filtros rápidos" },
+    ownerUsersLabel: { en: "Specific user", es: "Usuario específico" },
+    ownerSpecific: { en: "Specific user", es: "Usuario específico" },
+    ownerSpecificPlaceholder: { en: "Search user...", es: "Buscar usuario..." },
+    pendingAiSuggestion: { en: "AI Suggestions", es: "Sugerencias IA" },
+    unresolvedComments: { en: "Unresolved Comments", es: "Con comentarios sin resolver" },
+    expiringSoon: { en: "Expiring soon", es: "Próximos a expirar" },
+    documentType: { en: "Asset Type", es: "Tipo de Activo" },
+    allDocumentTypes: { en: "All types", es: "Todos los tipos" },
+    expirationDate: { en: "Expiration Date", es: "Fecha de Expiración" },
+    expirationDateFrom: { en: "Exp. from", es: "Exp. desde" },
+    expirationDateTo: { en: "Exp. to", es: "Exp. hasta" },
+    estimatedPublicationDate: { en: "Est. Publication Date", es: "Fecha Est. de Publicación" },
+    estimatedPublicationDateFrom: { en: "Est. pub. from", es: "Est. pub. desde" },
+    estimatedPublicationDateTo: { en: "Est. pub. to", es: "Est. pub. hasta" },
+    reviewDate: { en: "Review Date", es: "Fecha de Revisión" },
+    reviewDateFrom: { en: "Review from", es: "Revisión desde" },
+    reviewDateTo: { en: "Review to", es: "Revisión hasta" },
+    auditDate: { en: "Audit Date", es: "Fecha de Auditoría" },
+    auditDateFrom: { en: "Audit from", es: "Auditoría desde" },
+    auditDateTo: { en: "Audit to", es: "Auditoría hasta" },
+    all: { en: "All", es: "Todos" },
+    customFieldsGroup: { en: "Custom Fields", es: "Campos Personalizados" },
+    customFields: { en: "Custom Fields", es: "Campos personalizados" },
+    customFieldsPlaceholder: { en: "Search field...", es: "Buscar campo..." },
+  },
+
+  kpis: {
+    owned: {
+      label: { en: "Your assets", es: "Tus activos" },
+    },
+    draft: {
+      label: { en: "In elaboration", es: "En elaboración" },
+    },
+    inReview: {
+      label: { en: "Awaiting review", es: "En espera de revisión" },
+    },
+    inApproval: {
+      label: { en: "Awaiting approval", es: "En espera de aprobación" },
+    },
+    approved: {
+      label: { en: "Approved, unpublished", es: "Aprobados sin publicar" },
+    },
+    published: {
+      label: { en: "Published", es: "Publicados" },
+    },
+    expiringSoon: {
+      label: { en: "Expiring soon (next 7 days)", es: "Por vencer (próximos 7 días)" },
+    },
+    unresolvedComments: {
+      label: { en: "With pending comments", es: "Con comentarios pendientes" },
+    },
+    // Bloque "Personal" — `scope=me` de `GET /documents/statistics`.
+    pendingMyReview: {
+      label: { en: "Awaiting your review", es: "Esperan tu revisión" },
+    },
+    pendingMyApproval: {
+      label: { en: "Awaiting your approval", es: "Esperan tu aprobación" },
+    },
+    approvedOwnedByMe: {
+      label: { en: "Approved by you", es: "Aprobados por ti" },
     },
   },
 
-  features: {
-    automatedDocs: {
-      title: { en: "Automated Documentation", es: "Documentación Automatizada" },
-      description: {
-        en: "Generate and organize internal documentation automatically.",
-        es: "Genera y organiza documentación interna automáticamente.",
-      },
+  executionsTable: {
+    title: { en: "Recent Executions", es: "Ejecuciones Recientes" },
+    columns: {
+      documentName: { en: "Asset", es: "Activo" },
+      version: { en: "Version", es: "Versión" },
+      lifecycleState: { en: "Lifecycle", es: "Ciclo de Vida" },
+      taskStatus: { en: "Task Status", es: "Estado de Tarea" },
+      owner: { en: "Owner", es: "Propietario" },
+      totalTokens: { en: "Tokens", es: "Tokens" },
+      updatedAt: { en: "Last Modified", es: "Última Modificación" },
+      expirationDate: { en: "Expiration Date", es: "Fecha de Expiración" },
+      estimatedPublicationDate: { en: "Est. Publication Date", es: "Fecha Est. de Publicación" },
+      reviewDate: { en: "Review Date", es: "Fecha de Revisión" },
+      auditDate: { en: "Audit Date", es: "Fecha de Auditoría" },
+      unresolvedComments: { en: "Comments", es: "Comentarios" },
     },
-    intelligentSearch: {
-      title: { en: "Intelligent Search", es: "Búsqueda Inteligente" },
-      description: {
-        en: "Quickly search within your organization's knowledge and assets.",
-        es: "Busca rápidamente en el conocimiento y activos de tu organización.",
-      },
+    status: {
+      completed: { en: "Completed", es: "Completado" },
+      failed: { en: "Failed", es: "Fallido" },
+      running: { en: "Running", es: "En ejecución" },
+      queued: { en: "Queued", es: "En cola" },
     },
-    teamCollaboration: {
-      title: { en: "Team Collaboration", es: "Colaboración en Equipo" },
-      description: {
-        en: "Collaborate and share information across teams.",
-        es: "Colabora y comparte información entre equipos.",
-      },
+    empty: {
+      title: { en: "No executions found", es: "No se encontraron ejecuciones" },
+      description: { en: "Create an asset and run a version to see it here.", es: "Crear un activo y generar una versión para verla aquí." },
     },
-    aiInsights: {
-      title: { en: "AI Insights", es: "Perspectivas de IA" },
-      description: {
-        en: "Leverage AI to answer questions and surface key insights.",
-        es: "Aprovecha la IA para responder preguntas y obtener perspectivas clave.",
-      },
-    },
-  },
-
-  fieldShowcase: {
-    title: { en: "HuemulField showcase", es: "Demo de HuemulField" },
-    fullName: {
-      label: { en: "Full name", es: "Nombre completo" },
-      placeholder: { en: "John Doe", es: "Juan García" },
-      helpText: { en: "Enter your first and last name.", es: "Ingresa tu nombre y apellido." },
-    },
-    email: {
-      label: { en: "Email", es: "Correo electrónico" },
-      placeholder: { en: "you@example.com", es: "tu@ejemplo.com" },
-    },
-    role: {
-      label: { en: "Role", es: "Rol" },
-      placeholder: { en: "Select a role", es: "Seleccionar un rol" },
-      admin: { en: "Admin", es: "Administrador" },
-      editor: { en: "Editor", es: "Editor" },
-      viewer: { en: "Viewer", es: "Visualizador" },
-    },
-    plan: {
-      label: { en: "Plan", es: "Plan" },
-      placeholder: { en: "Search plans...", es: "Buscar planes..." },
-      free: { en: "Free", es: "Gratis" },
-      freeDesc: { en: "Up to 5 users", es: "Hasta 5 usuarios" },
-      pro: { en: "Pro", es: "Pro" },
-      proDesc: { en: "Up to 50 users", es: "Hasta 50 usuarios" },
-      enterprise: { en: "Enterprise", es: "Empresa" },
-      enterpriseDesc: { en: "Unlimited users", es: "Usuarios ilimitados" },
-    },
-    startDate: {
-      label: { en: "Start date", es: "Fecha de inicio" },
-    },
-    uploadFile: {
-      label: { en: "Upload a file", es: "Subir un archivo" },
-      description: { en: "Select a file from your computer.", es: "Selecciona un archivo de tu computadora." },
-    },
-    brandColor: {
-      label: { en: "Brand color", es: "Color de marca" },
-    },
-    notes: {
-      label: { en: "Notes", es: "Notas" },
-      placeholder: { en: "Add a note...", es: "Agregar una nota..." },
-    },
-    emailNotifications: {
-      label: { en: "Email notifications", es: "Notificaciones por correo" },
-      checkLabel: { en: "Receive email updates", es: "Recibir actualizaciones por correo" },
-    },
-    searchScope: {
-      label: { en: "Search scope", es: "Ámbito de búsqueda" },
-      all: { en: "All", es: "Todos" },
-      myOrg: { en: "My org", es: "Mi organización" },
-      mine: { en: "Mine", es: "Mío" },
-    },
-    richText: {
-      label: { en: "Rich text content", es: "Contenido de texto enriquecido" },
-      description: { en: "Full rich-text editor powered by Plate.", es: "Editor de texto enriquecido completo impulsado por Plate." },
-    },
-  },
-
-  sheetShowcase: {
-    title: { en: "HuemulSheet showcase", es: "Demo de HuemulSheet" },
-    saveLabel: { en: "Save", es: "Guardar" },
-    confirmLabel: { en: "Confirm", es: "Confirmar" },
-    applyLabel: { en: "Apply", es: "Aplicar" },
-    downloadLabel: { en: "Download", es: "Descargar" },
-    approveLabel: { en: "Approve", es: "Aprobar" },
-    requestChangesLabel: { en: "Request changes", es: "Solicitar cambios" },
-    rejectLabel: { en: "Reject", es: "Rechazar" },
-    saveChangesLabel: { en: "Save changes", es: "Guardar cambios" },
-
-    basic: {
-      button: { en: "Basic", es: "Básico" },
-      buttonDesc: { en: "Save + Cancel footer", es: "Pie con Guardar + Cancelar" },
-      title: { en: "Basic Sheet", es: "Panel Básico" },
-      body1: {
-        en: "This is the most common configuration: a title, body content, a primary Save button and a Cancel button in the sticky footer.",
-        es: "Esta es la configuración más común: un título, contenido, un botón principal Guardar y un botón Cancelar en el pie fijo.",
-      },
-      body2: {
-        en: "The save action is async — it shows a spinner until the promise resolves, then auto-closes the sheet after a short delay.",
-        es: "La acción de guardado es asíncrona: muestra un indicador hasta que la promesa se resuelve y luego cierra el panel automáticamente.",
-      },
-    },
-
-    iconDesc: {
-      button: { en: "Icon + Description", es: "Ícono + Descripción" },
-      buttonDesc: { en: "Header icon & subtitle", es: "Ícono y subtítulo en cabecera" },
-      title: { en: "Edit Profile", es: "Editar Perfil" },
-      description: {
-        en: "Update your personal information. Changes are saved immediately.",
-        es: "Actualiza tu información personal. Los cambios se guardan de inmediato.",
-      },
-      note: {
-        en: "The header renders an icon to the left of the title and an optional description line below it.",
-        es: "La cabecera muestra un ícono a la izquierda del título y una línea de descripción opcional debajo.",
-      },
-      note2: {
-        en: "Pass any LucideIcon via icon and customise its colour with iconClassName.",
-        es: "Pasa cualquier LucideIcon mediante icon y personaliza su color con iconClassName.",
-      },
-    },
-
-    loading: {
-      button: { en: "Body Loading", es: "Cargando Cuerpo" },
-      buttonDesc: { en: "Skeleton while fetching", es: "Esqueleto mientras carga" },
-      title: { en: "Loading Content", es: "Cargando Contenido" },
-      description: {
-        en: "Simulates a sheet that is fetching remote data.",
-        es: "Simula un panel que está obteniendo datos remotos.",
-      },
-    },
-
-    headerActions: {
-      button: { en: "Header Actions", es: "Acciones en Cabecera" },
-      buttonDesc: { en: "Buttons in the header", es: "Botones en la cabecera" },
-      title: { en: "Asset Settings", es: "Configuración del Activo" },
-      description: {
-        en: "Actions can be placed in the header for quick access.",
-        es: "Las acciones pueden colocarse en la cabecera para acceso rápido.",
-      },
-      note: {
-        en: "Both Save and Download are rendered inside the header by setting position: \"header\".",
-        es: "Tanto Guardar como Descargar se muestran en la cabecera configurando position: \"header\".",
-      },
-      note2: {
-        en: "The footer is hidden via showFooter=false since all actions are already in the header.",
-        es: "El pie se oculta con showFooter=false ya que todas las acciones están en la cabecera.",
-      },
-    },
-
-    extraFooter: {
-      button: { en: "Extra Footer Actions", es: "Acciones Extra en Pie" },
-      buttonDesc: { en: "Multiple footer buttons", es: "Múltiples botones en el pie" },
-      title: { en: "Review Asset", es: "Revisar Activo" },
-      description: {
-        en: "Multiple footer actions with different intents.",
-        es: "Múltiples acciones en el pie con diferentes intenciones.",
-      },
-      note: {
-        en: "Use extraActions to render additional buttons alongside the primary save action. Each can have its own variant, icon and async handler.",
-        es: "Usa extraActions para renderizar botones adicionales junto a la acción principal. Cada uno puede tener su propio variant, ícono y manejador asíncrono.",
-      },
-      item1: {
-        en: "Approve — primary default button, auto-closes on success.",
-        es: "Aprobar — botón principal predeterminado, se cierra automáticamente al éxito.",
-      },
-      item2: {
-        en: "Request changes — secondary, stays open after resolving.",
-        es: "Solicitar cambios — secundario, permanece abierto al resolver.",
-      },
-      item3: {
-        en: "Reject — destructive variant, auto-closes on success.",
-        es: "Rechazar — variante destructiva, se cierra automáticamente al éxito.",
-      },
-    },
-
-    leftSide: {
-      button: { en: "Left Side", es: "Lado Izquierdo" },
-      buttonDesc: { en: "Slides from the left", es: "Se desliza desde la izquierda" },
-      title: { en: "Left Panel", es: "Panel Izquierdo" },
-      description: {
-        en: "Sheet entering from the left edge of the screen.",
-        es: "Panel que entra desde el borde izquierdo de la pantalla.",
-      },
-      note: {
-        en: "Set side=\"left\" to slide in from the opposite edge — useful for navigation panels or contextual filters.",
-        es: "Establece side=\"left\" para deslizar desde el borde opuesto — útil para paneles de navegación o filtros contextuales.",
-      },
-    },
-
-    bottomSide: {
-      button: { en: "Bottom Side", es: "Lado Inferior" },
-      buttonDesc: { en: "Slides from the bottom", es: "Se desliza desde abajo" },
-      title: { en: "Bottom Sheet", es: "Panel Inferior" },
-      description: {
-        en: "Sheet entering from the bottom — great for mobile experiences.",
-        es: "Panel que entra desde abajo — ideal para experiencias móviles.",
-      },
-      note: {
-        en: "Set side=\"bottom\" for a bottom sheet. Combine with maxWidth=\"sm:max-w-full\" so it spans the full width.",
-        es: "Establece side=\"bottom\" para un panel inferior. Combina con maxWidth=\"sm:max-w-full\" para que ocupe el ancho completo.",
-      },
-    },
-
-    noFooter: {
-      button: { en: "No Footer", es: "Sin Pie" },
-      buttonDesc: { en: "Content-only, no sticky bar", es: "Solo contenido, sin barra fija" },
-      title: { en: "Read-only Details", es: "Detalles de Solo Lectura" },
-      description: {
-        en: "Informational panel — no actions required.",
-        es: "Panel informativo — no se requieren acciones.",
-      },
-      note: {
-        en: "Set showFooter=false to hide the entire sticky footer area — ideal for read-only detail views.",
-        es: "Establece showFooter=false para ocultar el área del pie fijo — ideal para vistas de solo lectura.",
-      },
-      note2: {
-        en: "The user can still dismiss the sheet via the default close button (✕) in the top-right corner provided by Radix.",
-        es: "El usuario puede cerrar el panel mediante el botón de cierre predeterminado (✕) en la esquina superior derecha proporcionado por Radix.",
-      },
-    },
-
-    wide: {
-      button: { en: "Wide Sheet", es: "Panel Amplio" },
-      buttonDesc: { en: "Custom max-width", es: "Ancho máximo personalizado" },
-      title: { en: "Wide Sheet", es: "Panel Amplio" },
-      description: {
-        en: "Expanded width for data-heavy content like tables or forms.",
-        es: "Ancho expandido para contenido con muchos datos como tablas o formularios.",
-      },
-      note: {
-        en: "Override the default width (sm:max-w-md) with the maxWidth prop. Any Tailwind max-width class works — e.g. sm:max-w-2xl, sm:max-w-4xl, etc.",
-        es: "Sobrescribe el ancho predeterminado (sm:max-w-md) con la prop maxWidth. Cualquier clase Tailwind de ancho máximo funciona, como sm:max-w-2xl, sm:max-w-4xl, etc.",
-      },
+    resultsCount: { en: "{{count}} assets found", es: "{{count}} activos encontrados" },
+    you: { en: "You", es: "Tú" },
+    actions: {
+      openAsset: { en: "Open asset", es: "Abrir activo" },
     },
   },
 }

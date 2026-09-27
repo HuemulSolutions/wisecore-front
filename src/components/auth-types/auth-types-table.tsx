@@ -1,73 +1,125 @@
-import { Edit2, Trash2, Shield } from "lucide-react"
+import { Edit2, Trash2, Shield, KeyRound, Building2, Lock } from "lucide-react"
 import { useTranslation } from "react-i18next"
+
 import type { AuthType } from "@/services/auth-types"
-import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
+import { Badge } from "@/components/ui/badge"
+import { AuthMethodBadge } from "@/components/auth/auth-method-badge"
+import { useOrganizationsLookup } from "@/hooks/useOrganizations"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import type { AuthTypesTableProps } from '@/types/auth-types'
 
-interface AuthTypesTableProps {
-  authTypes: AuthType[]
-  onEdit: (authType: AuthType) => void
-  onDelete: (authType: AuthType) => void
-  isLoading?: boolean
-  isFetching?: boolean
-  pagination?: HuemulTablePagination
-}
+export type { AuthTypesTableProps } from '@/types/auth-types'
 
+const MAX_VISIBLE_DOMAINS = 2
 
-export function AuthTypesTable({ 
-  authTypes, 
-  onEdit, 
+export function AuthTypesTable({
+  authTypes,
+  onEdit,
   onDelete,
   isLoading = false,
   isFetching = false,
   pagination,
+  canManage = false,
 }: AuthTypesTableProps) {
   const { t } = useTranslation(['auth-types', 'common'])
   const { isRootAdmin } = useUserPermissions()
+  // Solo el root admin ve conexiones de varias organizaciones; para el org admin
+  // el ámbito es siempre "su organización" y no hace falta el catálogo.
+  const { byId: organizationsById } = useOrganizationsLookup(isRootAdmin && authTypes.some((a) => a.organization_id))
+
+  // Toda conexión es de una organización: el root admin ve su nombre; el org admin, "Esta organización".
+  const scopeLabel = (authType: AuthType) =>
+    organizationsById[authType.organization_id]?.name ?? t('scope.organization')
+
+  // La `internal` de cada organización la crea el backend y es de solo lectura (PUT/DELETE → 403).
+  const isReadOnly = (authType: AuthType) => authType.type === 'internal'
 
   const columns: HuemulTableColumn<AuthType>[] = [
     {
       key: "name",
       label: t('common:name'),
       render: (authType) => (
-        <span className="text-xs font-medium text-foreground">{authType.name}</span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="text-xs font-medium text-foreground">{authType.name}</span>
+          {isReadOnly(authType) && (
+            <Badge variant="outline" className="gap-1 text-[10px]" title={t('fields.internalHint')}>
+              <Lock className="h-3 w-3" aria-hidden />
+              {t('badges.readOnly')}
+            </Badge>
+          )}
+        </span>
       )
     },
     {
       key: "type",
       label: t('columns.type'),
       render: (authType) => (
-        <span className="text-xs text-foreground">
-          {authType.type === 'internal' ? t('types.internal') : authType.type === 'entra' ? t('types.entra') : authType.type}
+        <AuthMethodBadge type={authType.type} name={t(`types.${authType.type}`, { defaultValue: authType.type })} />
+      )
+    },
+    {
+      key: "scope",
+      label: t('columns.scope'),
+      render: (authType) => (
+        <span className="inline-flex items-center gap-1.5 text-xs text-foreground" title={scopeLabel(authType)}>
+          <Building2 className="h-3.5 w-3.5" aria-hidden />
+          {scopeLabel(authType)}
         </span>
       )
     },
     {
-      key: "created",
-      label: t('columns.created'),
+      key: "domains",
+      label: t('columns.domains'),
+      render: (authType) => {
+        const domains = authType.email_domains ?? []
+        if (domains.length === 0) return <span className="text-xs text-muted-foreground">—</span>
+        const visible = domains.slice(0, MAX_VISIBLE_DOMAINS)
+        const rest = domains.length - visible.length
+        return (
+          <span className="flex flex-wrap gap-1" title={domains.join(', ')}>
+            {visible.map((domain) => (
+              <Badge key={domain} variant="secondary" className="text-[10px]">{domain}</Badge>
+            ))}
+            {rest > 0 && <Badge variant="outline" className="text-[10px]">+{rest}</Badge>}
+          </span>
+        )
+      }
+    },
+    {
+      key: "status",
+      label: t('columns.status'),
       render: (authType) => (
-        <span className="text-xs text-foreground">
-          {new Date(authType.created_at).toLocaleDateString()}
-        </span>
+        <Badge variant={authType.is_active ? 'default' : 'outline'} className="text-[10px]">
+          {authType.is_active ? t('status.active') : t('status.inactive')}
+        </Badge>
       )
     },
     {
-      key: "updated",
-      label: t('columns.updated'),
-      render: (authType) => (
-        <span className="text-xs text-foreground">
-          {new Date(authType.updated_at).toLocaleDateString()}
-        </span>
-      )
-    }
+      key: "secret",
+      label: t('columns.secret'),
+      render: (authType) => {
+        if (authType.type === 'internal') return <span className="text-xs text-muted-foreground">—</span>
+        return (
+          <span
+            className={authType.has_client_secret ? 'inline-flex items-center gap-1 text-xs text-foreground' : 'inline-flex items-center gap-1 text-xs text-amber-700'}
+            title={authType.has_client_secret ? t('secret.configured') : t('secret.missing')}
+          >
+            <KeyRound className="h-3.5 w-3.5" aria-hidden />
+            {authType.has_client_secret ? t('secret.configured') : t('secret.missing')}
+          </span>
+        )
+      }
+    },
   ]
 
-  const actions: HuemulTableAction<AuthType>[] = isRootAdmin ? [
+  const actions: HuemulTableAction<AuthType>[] = canManage ? [
     {
       key: "edit",
       label: t('actions.editAuthType'),
       icon: Edit2,
       onClick: onEdit,
+      show: (authType) => !isReadOnly(authType),
       separator: true
     },
     {
@@ -75,6 +127,7 @@ export function AuthTypesTable({
       label: t('actions.deleteAuthType'),
       icon: Trash2,
       onClick: onDelete,
+      show: (authType) => !isReadOnly(authType),
       destructive: true
     }
   ] : []
@@ -90,7 +143,6 @@ export function AuthTypesTable({
         title: t('emptyState.empty'),
         description: t('emptyState.noResults'),
       }}
-      maxHeight="max-h-[70vh]"
       isLoading={isLoading}
       isFetching={isFetching}
       pagination={pagination}

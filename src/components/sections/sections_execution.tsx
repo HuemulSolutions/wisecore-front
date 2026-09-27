@@ -17,23 +17,14 @@ import { deleteSectionExec, modifyContent } from '@/services/section_execution';
 import { useOrganization } from '@/contexts/organization-context';
 import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
+import { logger } from '@/lib/logger';
 import { useTranslation } from 'react-i18next';
-
-interface SectionExecutionProps {
-    sectionExecution: {
-        id: string;
-        section_execution_id?: string;
-        name?: string;
-        prompt: string;
-        output: string;
-    }
-    onUpdate?: () => void;
-    readyToEdit: boolean;
-}
+import type { SectionExecutionProps } from '@/types/sections';
+export type { SectionExecutionProps } from '@/types/sections';
 
 export default function SectionExecution({ sectionExecution, onUpdate, readyToEdit }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
-    const { t } = useTranslation('assets');
+    const { t } = useTranslation(["assets", "common"]);
     const [isPromptOpen, setIsPromptOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isAiEditing, setIsAiEditing] = useState(false);
@@ -43,7 +34,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
     const [isAiProcessing, setIsAiProcessing] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-    console.log('SectionExecution Props:', { sectionExecution });
+    logger.log('SectionExecution Props:', { sectionExecution });
 
     const handleSave = async (sectionId: string, newContent: string) => {
         try {
@@ -52,8 +43,8 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
             setIsEditing(false);
             setAiPreview(null);
             onUpdate?.();
-        } catch (e) {
-            console.error('Error saving content', e);
+        } catch (error) {
+            handleApiError(error, { fallbackMessage: t('section.saveFailed') });
         } finally {
             setIsSaving(false);
         }
@@ -99,7 +90,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                                 onClick={() => setIsEditing(true)}
                             >
                                 <Edit className="h-4 w-4 mr-2" />
-                                {t('section.edit')}
+                                {t('common:edit')}
                             </DropdownMenuItem>
                         )}
                         {!isEditing && !isAiEditing && (
@@ -123,7 +114,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                             }}
                         >
                             <Trash2 className="h-4 w-4 mr-2" />
-                            {t('section.delete')}
+                            {t('common:delete')}
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -182,7 +173,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                                         setAiPreview(prev => (prev ?? '') + normalized);
                                     },
                                     onError: (e: Event) => {
-                                        console.error('AI edit error', e);
+                                        logger.error('AI edit error', e);
                                         setIsAiProcessing(false);
                                     },
                                     onClose: () => {
@@ -204,7 +195,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                                 setIsAiEditing(false);
                                 setAiPrompt('');
                             }}
-                            label={t('section.cancel')}
+                            label={t('common:cancel')}
                         />
                     </div>
                 </div>
@@ -218,7 +209,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                             size="sm"
                             onClick={() => handleSave(sectionExecution.section_execution_id || sectionExecution.id, aiPreview)}
                             disabled={isSaving}
-                            label={t('section.save')}
+                            label={t('common:save')}
                         />
                         <HuemulButton
                             size="sm"

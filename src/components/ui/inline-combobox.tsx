@@ -26,6 +26,7 @@ import {
 import { cva } from 'class-variance-authority';
 import { useComposedRef, useEditorRef } from 'platejs/react';
 
+import { useEditorChromeInset } from '@/components/plate-editor/components/editor-chrome-inset';
 import { cn } from '@/lib/utils';
 
 type FilterFn = (
@@ -64,6 +65,10 @@ type InlineComboboxProps = {
   children: React.ReactNode;
   element: TElement;
   trigger: string;
+  /** Búsqueda inicial del combobox (no controlada) — para reabrir un combobox ya
+   * con texto tipeado, ej. al reconvertir un `@algo` huérfano en `mention_input`
+   * (ver mention-kit.tsx). Ignorado si `value`/`setValue` están controlados. */
+  defaultValue?: string;
   filter?: FilterFn | false;
   hideWhenNoValue?: boolean;
   showTrigger?: boolean;
@@ -73,6 +78,7 @@ type InlineComboboxProps = {
 
 const InlineCombobox = ({
   children,
+  defaultValue = '',
   element,
   filter = defaultFilter,
   hideWhenNoValue = false,
@@ -85,7 +91,7 @@ const InlineCombobox = ({
   const inputRef = React.useRef<HTMLInputElement>(null);
   const cursorState = useHTMLInputCursorState(inputRef);
 
-  const [valueState, setValueState] = React.useState('');
+  const [valueState, setValueState] = React.useState(defaultValue);
   const hasValueProp = valueProp !== undefined;
   const value = hasValueProp ? valueProp : valueState;
 
@@ -179,6 +185,7 @@ const InlineCombobox = ({
 
   const store = useComboboxStore({
     // open: ,
+    defaultValue,
     setValue: (newValue) => React.startTransition(() => setValue(newValue)),
   });
 
@@ -215,7 +222,7 @@ const InlineComboboxInput = ({
   className,
   ref: propRef,
   ...props
-}: React.HTMLAttributes<HTMLInputElement> & {
+}: React.InputHTMLAttributes<HTMLInputElement> & {
   ref?: React.RefObject<HTMLInputElement | null>;
 }) => {
   const {
@@ -241,7 +248,7 @@ const InlineComboboxInput = ({
     <>
       {showTrigger && trigger}
 
-      <span className="relative min-h-[1lh]">
+      <span className="relative min-h-lh">
         <span
           className="invisible overflow-hidden text-nowrap"
           aria-hidden="true"
@@ -273,6 +280,7 @@ const InlineComboboxContent: typeof ComboboxPopover = ({
 }) => {
   // Portal prevents CSS from leaking into popover
   const store = useComboboxContext();
+  const chromeInset = useEditorChromeInset();
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (!store) return;
@@ -297,9 +305,11 @@ const InlineComboboxContent: typeof ComboboxPopover = ({
     <Portal>
       <ComboboxPopover
         className={cn(
-          'z-500 max-h-[288px] w-[300px] overflow-y-auto rounded-md bg-popover shadow-md',
+          'z-(--z-editor-menu) max-h-72 w-75 overflow-y-auto rounded-md bg-popover shadow-md',
           className
         )}
+        // Evita que el menú se abra sobre el chrome fijo (header + toolbar).
+        overflowPadding={Math.max(8, chromeInset + 8)}
         onKeyDownCapture={handleKeyDown}
         {...props}
       />
@@ -328,6 +338,7 @@ const InlineComboboxItem = ({
   group,
   keywords,
   label,
+  keepInput = false,
   onClick,
   ...props
 }: {
@@ -335,6 +346,10 @@ const InlineComboboxItem = ({
   group?: string;
   keywords?: string[];
   label?: string;
+  /** Cuando es `true`, el click NO borra/cancela el `mention_input` (`removeInput`)
+   * antes de correr `onClick` — para filas que navegan dentro del mismo popover
+   * (ej. entrar a una carpeta) en vez de insertar algo y cerrar. */
+  keepInput?: boolean;
 } & ComboboxItemProps &
   Required<Pick<ComboboxItemProps, 'value'>>) => {
   const { value } = props;
@@ -358,7 +373,7 @@ const InlineComboboxItem = ({
     <ComboboxItem
       className={cn(comboboxItemVariants(), className)}
       onClick={(event) => {
-        removeInput(focusEditor);
+        if (!keepInput) removeInput(focusEditor);
         onClick?.(event);
       }}
       {...props}
@@ -403,7 +418,7 @@ function InlineComboboxGroup({
     <ComboboxGroup
       {...props}
       className={cn(
-        'hidden not-last:border-b py-1.5 [&:has([role=option])]:block',
+        'hidden not-last:border-b py-1.5 has-[[role=option]]:block',
         className
       )}
     />

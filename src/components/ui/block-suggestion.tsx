@@ -32,12 +32,10 @@ import {
 } from '@/components/plate-editor/components/discussion-kit';
 import { suggestionPlugin } from '@/components/plate-editor/components/suggestion-kit';
 
-import {
-  type TComment,
-  Comment,
-  CommentCreateForm,
-  formatCommentDate,
-} from './comment';
+import { formatCommentDate } from '@/lib/comment-utils';
+
+import { type TComment, Comment } from './comment-item';
+import { CommentCreateForm } from './comment-create-form';
 
 export interface ResolvedSuggestion extends TResolvedSuggestion {
   comments: TComment[];
@@ -76,12 +74,8 @@ const TYPE_TEXT_MAP: Record<string, (node?: TElement) => string> = {
 };
 
 export function BlockSuggestionCard({
-  idx,
-  isLast,
   suggestion,
 }: {
-  idx: number;
-  isLast: boolean;
   suggestion: ResolvedSuggestion;
 }) {
   const { api, editor } = useEditorPlugin(SuggestionPlugin);
@@ -112,7 +106,6 @@ export function BlockSuggestionCard({
 
   return (
     <div
-      key={`${suggestion.suggestionId}-${idx}`}
       className="relative"
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
@@ -210,10 +203,7 @@ export function BlockSuggestionCard({
           <Comment
             key={comment.id ?? index}
             comment={comment}
-            discussionLength={suggestion.comments.length}
-            documentContent="__suggestion__"
             editingId={editingId}
-            index={index}
             setEditingId={setEditingId}
           />
         ))}
@@ -240,8 +230,6 @@ export function BlockSuggestionCard({
 
         <CommentCreateForm discussionId={suggestion.suggestionId} />
       </div>
-
-      {!isLast && <div className="h-px w-full bg-muted" />}
     </div>
   );
 }

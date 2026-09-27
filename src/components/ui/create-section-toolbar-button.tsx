@@ -2,6 +2,7 @@
 
 import { SplitSquareHorizontal } from 'lucide-react';
 import { useEditorRef } from 'platejs/react';
+import { useTranslation } from 'react-i18next';
 import { MarkdownPlugin } from '@platejs/markdown';
 
 import { ToolbarButton } from './toolbar';
@@ -12,6 +13,7 @@ interface CreateSectionToolbarButtonProps {
 
 export function CreateSectionToolbarButton({ onCreateSection }: CreateSectionToolbarButtonProps) {
   const editor = useEditorRef();
+  const { t } = useTranslation('editor');
 
   const handleClick = () => {
     const fragment = (editor as any).getFragment();
@@ -26,7 +28,7 @@ export function CreateSectionToolbarButton({ onCreateSection }: CreateSectionToo
   return (
     <ToolbarButton
       onClick={handleClick}
-      tooltip="Create section from selection"
+      tooltip={t('toolbar.createSectionFromSelection')}
     >
       <SplitSquareHorizontal />
     </ToolbarButton>

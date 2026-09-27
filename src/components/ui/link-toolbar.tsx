@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { NodeEntry, TLinkElement } from 'platejs';
 
@@ -8,6 +9,7 @@ import {
   type UseVirtualFloatingOptions,
   flip,
   offset,
+  shift,
 } from '@platejs/floating';
 import { getLinkAttributes } from '@platejs/link';
 import {
@@ -30,9 +32,10 @@ import {
 
 import { buttonVariants } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { useEditorChromeInset } from '@/components/plate-editor/components/editor-chrome-inset';
 
 const popoverVariants = cva(
-  'z-50 w-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md outline-hidden'
+  'z-(--z-editor-node-toolbar) w-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md outline-hidden'
 );
 
 const inputVariants = cva(
@@ -50,19 +53,28 @@ export function LinkFloatingToolbar({
     'activeId'
   );
 
+  // Reserva la franja del chrome fijo para no dibujarse sobre el toolbar del
+  // editor ni sobre el header (ver editor-chrome-inset).
+  const topInset = useEditorChromeInset();
+
   const floatingOptions: UseVirtualFloatingOptions = React.useMemo(
-    () => ({
-      middleware: [
-        offset(8),
-        flip({
-          fallbackPlacements: ['bottom-end', 'top-start', 'top-end'],
-          padding: 12,
-        }),
-      ],
-      placement:
-        activeSuggestionId || activeCommentId ? 'top-start' : 'bottom-start',
-    }),
-    [activeCommentId, activeSuggestionId]
+    () => {
+      const padding = { top: topInset + 12, bottom: 12, left: 12, right: 12 };
+
+      return {
+        middleware: [
+          offset(8),
+          flip({
+            fallbackPlacements: ['bottom-end', 'top-start', 'top-end'],
+            padding,
+          }),
+          shift({ padding }),
+        ],
+        placement:
+          activeSuggestionId || activeCommentId ? 'top-start' : 'bottom-start',
+      };
+    },
+    [activeCommentId, activeSuggestionId, topInset]
   );
 
   const insertState = useFloatingLinkInsertState({
@@ -92,6 +104,7 @@ export function LinkFloatingToolbar({
     ref: editRef,
     unlinkButtonProps,
   } = useFloatingLinkEdit(editState);
+  const { t } = useTranslation('editor');
   const inputProps = useFormInputProps({
     preventDefaultOnEnterKeydown: true,
   });
@@ -99,7 +112,7 @@ export function LinkFloatingToolbar({
   if (hidden) return null;
 
   const input = (
-    <div className="flex w-[330px] flex-col" {...inputProps}>
+    <div className="flex w-82.5 flex-col" {...inputProps}>
       <div className="flex items-center">
         <div className="flex items-center pr-1 pl-2 text-muted-foreground">
           <Link className="size-4" />
@@ -107,7 +120,7 @@ export function LinkFloatingToolbar({
 
         <FloatingLinkUrlInput
           className={inputVariants()}
-          placeholder="Paste link"
+          placeholder={t('link.pasteLink')}
           data-plate-focus
         />
       </div>
@@ -118,7 +131,7 @@ export function LinkFloatingToolbar({
         </div>
         <input
           className={inputVariants()}
-          placeholder="Text to display"
+          placeholder={t('link.textToDisplay')}
           data-plate-focus
           {...textInputProps}
         />
@@ -135,7 +148,7 @@ export function LinkFloatingToolbar({
         type="button"
         {...editButtonProps}
       >
-        Edit link
+        {t('link.editLink')}
       </button>
 
       <Separator orientation="vertical" />
@@ -171,6 +184,7 @@ export function LinkFloatingToolbar({
 }
 
 function LinkOpenButton() {
+  const { t } = useTranslation('editor');
   const editor = useEditorRef();
   const selection = useEditorSelection();
 
@@ -199,7 +213,7 @@ function LinkOpenButton() {
       onMouseOver={(e) => {
         e.stopPropagation();
       }}
-      aria-label="Open link in a new tab"
+      aria-label={t('link.openInNewTab')}
       target="_blank"
     >
       <ExternalLink width={18} />

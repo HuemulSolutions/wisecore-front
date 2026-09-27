@@ -1,28 +1,19 @@
 import { useOrgNavigate } from '@/hooks/useOrgRouter';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { HuemulExecutionStatusBadge } from "@/huemul/components/huemul-execution-status-badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { RefreshCw, MoreVertical, Plus, Settings, Trash2, Network, DiamondMinus } from "lucide-react";
+import { RefreshCw, MoreVertical, Plus, Trash2, Network, DiamondMinus } from "lucide-react";
 import { formatDate } from '@/services/utils';
 import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionCustomWord, deleteExecution, createExecution } from '@/services/executions';
 import { useState } from 'react';
 import { DeleteExecutionDialog } from './execution-delete-dialog';
 import { useOrganization } from '@/contexts/organization-context';
 import { handleApiError } from '@/lib/error-utils';
+import { logger } from '@/lib/logger';
+import type { ExecutionInfoProps } from '@/types/execution';
 
-
-export interface ExecutionInfoProps {
-    execution: {
-        id: string;
-        document_id: string;
-        status: string;
-        created_at: string;
-        updated_at: string;
-    };
-    onRefresh?: () => void;
-    isGenerating: boolean;
-}
+export type { ExecutionInfoProps } from '@/types/execution';
 
 export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoProps) {
     const navigate = useOrgNavigate();
@@ -38,7 +29,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
             setIsExporting(true);
             await exportExecutionToMarkdown(execution.id, selectedOrganizationId!);
         } catch (error) {
-            console.error('Error exporting execution to markdown:', error);
+            handleApiError(error, { fallbackMessage: 'Failed to export. Please try again.' });
         } finally {
             setIsExporting(false);
         }
@@ -49,7 +40,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
             setIsExportingWord(true);
             await exportExecutionToWord(execution.id, selectedOrganizationId!);
         } catch (error) {
-            console.error('Error exporting execution to Word:', error);
+            handleApiError(error, { fallbackMessage: 'Failed to export. Please try again.' });
         } finally {
             setIsExportingWord(false);
         }
@@ -60,7 +51,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
             setIsExportingCustomWord(true);
             await exportExecutionCustomWord(execution.id, selectedOrganizationId!);
         } catch (error) {
-            console.error('Error exporting execution to custom Word:', error);
+            handleApiError(error, { fallbackMessage: 'Failed to export. Please try again.' });
         } finally {
             setIsExportingCustomWord(false);
         }
@@ -72,7 +63,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
             await deleteExecution(execution.id, selectedOrganizationId!);
             navigate(`/asset/${execution.document_id}`);
         } catch (error) {
-            console.error('Error deleting execution:', error);
+            logger.error('Error deleting execution:', error);
         } finally {
             setIsDeleting(false);
             setIsDeleteOpen(false);
@@ -81,34 +72,14 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
 
     const handleNewExecution = () => {
         createExecution(execution.document_id!, selectedOrganizationId!)
-          .then((execution) => {
-            console.log("Execution created:", execution);
-            navigate(`/execution/${execution.id}`);
+          .then((newExec) => {
+            logger.log("Execution created:", newExec);
+            onRefresh?.();
           })
           .catch((error) => {
             handleApiError(error);
           });
       };
-    const getStatusBadge = (status: string) => {
-        const statusConfig = {
-            pending: { variant: "outline", label: "Pending", className: "bg-yellow-100 text-yellow-800 border-yellow-300" },
-            running: { variant: "outline", label: "Executing", className: "bg-blue-100 text-blue-800 border-blue-300" },
-            completed: { variant: "outline", label: "Completed", className: "bg-green-100 text-green-800 border-green-300" },
-            failed: { variant: "outline", label: "Failed", className: "bg-red-100 text-red-800 border-red-300" },
-            approved: { variant: "outline", label: "Approved", className: "bg-green-100 text-green-800 border-green-300" }
-        };
-        
-        const config = statusConfig[status as keyof typeof statusConfig] || { variant: "secondary", label: status, className: "" };
-        return (
-            <Badge 
-                variant={config.variant as "default" | "secondary" | "destructive" | "outline"} 
-                className={config.className || ""}
-            >
-                {config.label}
-            </Badge>
-        );
-    };
-
     return (
         <>
             <Card>
@@ -176,13 +147,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
                                         <Plus className="h-4 w-4 mr-2" />
                                         New execution
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem 
-                                        className="hover:cursor-pointer"
-                                        onClick={() => navigate(`/configDocument/${execution.document_id}`)}
-                                    >
-                                        <Settings className="h-4 w-4 mr-2" />
-                                        Configure document
-                                    </DropdownMenuItem>
+
                                     <DropdownMenuItem 
                                         className="hover:cursor-pointer text-red-600"
                                         onClick={() => setIsDeleteOpen(true)}
@@ -200,7 +165,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <p className="text-sm font-medium text-gray-600">Status</p>
-                            {getStatusBadge(execution.status)}
+                            <HuemulExecutionStatusBadge status={execution.status} />
                         </div>
                         <div className="space-y-2">
                             <p className="text-sm font-medium text-gray-600">Created at</p>

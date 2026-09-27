@@ -1,15 +1,15 @@
 // import * as React from 'react';
 
-import type { TMentionElement } from 'platejs';
 import type { SlateElementProps } from 'platejs/static';
 
 import { KEYS } from 'platejs';
 import { SlateElement } from 'platejs/static';
 
 import { cn } from '@/lib/utils';
+import type { WisecoreMentionElement } from '@/types/mention';
 
 export function MentionElementStatic(
-  props: SlateElementProps<TMentionElement> & {
+  props: SlateElementProps<WisecoreMentionElement> & {
     prefix?: string;
   }
 ) {
@@ -26,6 +26,7 @@ export function MentionElementStatic(
         element.children[0][KEYS.italic] === true && 'italic',
         element.children[0][KEYS.underline] === true && 'underline'
       )}
+      style={element.color ? { color: element.color } : undefined}
       attributes={{
         ...props.attributes,
         'data-slate-value': element.value,

@@ -5,11 +5,15 @@
 // Core models
 // ========================================
 
+export type DiscussionAuthorType = 'human' | 'ai';
+
 export interface Discussion {
   id: string;
   document_id: string;
   document_content: string;
   is_resolved: boolean;
+  author_type?: DiscussionAuthorType;
+  execution_id: string | null;
   section_execution_id: string | null;
   organization_id: string;
   resolved_by: string | null;
@@ -26,6 +30,7 @@ export interface DiscussionComment {
   content_rich: string;
   user_id?: string;
   is_edited?: boolean;
+  is_public: boolean;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -45,23 +50,31 @@ export interface DiscussionWithComments extends Discussion {
 
 export interface CreateDiscussionRequest {
   document_id: string;
+  execution_id?: string;
+  section_execution_id?: string;
   document_content: string;
+  author_type?: DiscussionAuthorType;
 }
 
 export interface CreateDiscussionWithCommentRequest {
   document_id: string;
-  section_execution_id: string;
+  execution_id?: string;
+  section_execution_id?: string;
   document_content: string;
   content_rich: string;
+  is_public?: boolean;
+  author_type?: DiscussionAuthorType;
 }
 
 export interface CreateDiscussionCommentRequest {
   discussion_id: string;
   content_rich: string;
+  is_public?: boolean;
 }
 
 export interface UpdateDiscussionCommentRequest {
   content_rich: string;
+  is_public?: boolean;
 }
 
 // ========================================
@@ -70,6 +83,7 @@ export interface UpdateDiscussionCommentRequest {
 
 export interface DiscussionListParams {
   document_id?: string;
+  execution_id?: string;
   section_execution_id?: string;
   include_comments?: boolean;
   page?: number;

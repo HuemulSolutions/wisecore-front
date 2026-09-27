@@ -1,10 +1,6 @@
 import { httpClient } from '@/lib/http-client'
-
-export interface AccessLevelsResponse {
-  data: string[]
-  transaction_id: string
-  timestamp: string
-}
+import type { AccessLevelsResponse } from '@/types/access-levels'
+export type { AccessLevelsResponse }
 
 /**
  * Obtiene los niveles de acceso disponibles para roles y tipos de documentos

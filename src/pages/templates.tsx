@@ -1,59 +1,149 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { getAllTemplates } from "@/services/templates";
 import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
+import { useTag } from "@/hooks/useTags";
 import { TemplateContent } from "@/components/templates/templates-content";
 import { TemplatesSidebar } from "@/components/templates/templates-sidebar";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
+import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
+import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
+import { HuemulTagChip } from "@/huemul/components/huemul-tag-chip";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
-interface TemplateItem {
-  id: string;
-  name: string;
-  description?: string;
-}
+import type { TemplateItem } from "@/types/templates"
 
 export default function Templates() {
+  const { t } = useTranslation('templates');
   const queryClient = useQueryClient();
     const navigate = useOrgNavigate();
   const { id: templateId } = useParams<{ id?: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tagId = searchParams.get("tag_id") || undefined;
+  const { data: activeTag } = useTag(tagId ?? "", !!tagId);
   const { selectedOrganizationId } = useOrganization();
-  
+
   // Permisos
-  const { isRootAdmin, hasPermission, hasAnyPermission } = useUserPermissions();
-  
-  // Permisos específicos
-  const canListTemplates = isRootAdmin || hasAnyPermission(['template:l', 'template:r']);
-  const canCreateTemplate = isRootAdmin || hasPermission('template:c');
-  const canUpdateTemplate = isRootAdmin || hasPermission('template:u');
-  const canDeleteTemplate = isRootAdmin || hasPermission('template:d');
-  const canListSections = isRootAdmin || hasAnyPermission(['template_section:l', 'template_section:r']);
-  const canCreateSection = isRootAdmin || hasPermission('template_section:c');
-  const canUpdateSection = isRootAdmin || hasPermission('template_section:u');
-  const canDeleteSection = isRootAdmin || hasPermission('template_section:d');
-  
+  // NOTA: NO usar isRootAdmin como bypass — solo isOrgAdmin hace bypass, y ese
+  // ya está aplicado dentro de canCreate/canRead/canUpdate/canDelete/canList
+  // (ver useUserPermissions.ts). Ver ia context/rbac-permissions-guide.md.
+  const {
+    hasAnyPermission,
+    hasPermission,
+    canCreate,
+    canRead,
+    canUpdate,
+    canDelete,
+    canList,
+    isLoading: isLoadingPermissions,
+  } = useUserPermissions();
+
+  // Permisos específicos — template
+  const canListTemplates = hasAnyPermission(['template:l', 'template:r']);
+  const canCreateTemplate = canCreate('template');
+  const canUpdateTemplate = canUpdate('template');
+  const canDeleteTemplate = canDelete('template');
+  const canExportTemplate = canRead('template');
+  const canImportTemplate = canCreate('template') && canUpdate('template');
+
+  // Permisos específicos — template_section
+  const canListSections = hasAnyPermission(['template_section:l', 'template_section:r']);
+  const canCreateSection = canCreate('template_section');
+  const canUpdateSection = canUpdate('template_section');
+  const canDeleteSection = canDelete('template_section');
+
+  // Permisos específicos — custom_fields (tab "Campos personalizados")
+  const canListCustomFields = hasAnyPermission(['custom_fields:l', 'custom_fields:r']);
+  const canCreateCustomField = canCreate('custom_fields');
+  const canUpdateCustomField = canUpdate('custom_fields');
+  const canDeleteCustomField = canDelete('custom_fields');
+
+  // Permisos específicos — docx_template (tab "Plantillas DOCX")
+  const canListDocx = hasAnyPermission(['docx_template:l', 'docx_template:r']);
+  const canCreateDocx = canCreate('docx_template');
+  const canUpdateDocx = canUpdate('docx_template');
+  const canDeleteDocx = canDelete('docx_template');
+
+  // Permisos específicos — media (tab "Media")
+  const canListMedia = canList('media');
+  const canCreateMedia = canCreate('media');
+  const canUpdateMedia = canUpdate('media');
+  const canDeleteMedia = canDelete('media');
+
+  // Permisos específicos — tag (sheet de etiquetas asignadas al template)
+  const canViewTags = hasPermission('tag:r');
+  const canManageTags = hasPermission('tag:u');
+
+  // Permisos específicos — contexto y dependencias del template (tabs propios).
+  // GET exige template:r —no basta con template:l— y toda escritura template:u.
+  const canListTemplateContext = canRead('template');
+  const canManageTemplateContext = canUpdate('template');
+  const canListTemplateDependencies = canRead('template');
+  const canManageTemplateDependencies = canUpdate('template');
+  // El picker de documentos del alta de dependencia necesita listar carpetas
+  // y documentos; sin eso el botón abriría un árbol vacío (fail-closed).
+  const canPickAssetsForDependencies =
+    hasAnyPermission(['asset:l', 'asset:r']) && hasAnyPermission(['folder:l', 'folder:r']);
+
+  // GET /templates/{id}/child-documents (tab "Documentos creados") — mismo
+  // criterio que listTemplateContext/listTemplateDependencies: sub-recurso
+  // de template, exige template:r.
+  const canListChildDocuments = canRead('template');
+
   // Estados principales
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
+  const [pageSize] = useState(100);
+  const [accumulatedTemplates, setAccumulatedTemplates] = useState<TemplateItem[]>([]);
   const hasRestoredRef = useRef(false);
+  const prevOrgIdRef = useRef(selectedOrganizationId);
+
+  const clearTagFilter = () => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("tag_id");
+      return next;
+    });
+    setPage(1);
+    setAccumulatedTemplates([]);
+  };
 
   // Query para listar templates - solo si tiene permisos
   const { data: templatesData, error: queryError, isFetching } = useQuery({
-    queryKey: ["templates", selectedOrganizationId, searchTerm, page, pageSize],
-    queryFn: () => getAllTemplates(selectedOrganizationId!, searchTerm || undefined, page, pageSize),
+    queryKey: ["templates", selectedOrganizationId, searchTerm, page, pageSize, tagId],
+    queryFn: () => getAllTemplates(selectedOrganizationId!, searchTerm || undefined, page, pageSize, { tag_id: tagId }),
     enabled: !!selectedOrganizationId && canListTemplates,
     retry: false,
   });
 
-  const templates = templatesData?.data || [];
+  // El árbol navega con scroll + "cargar más" en vez de paginación por footer:
+  // acumulamos páginas localmente (reemplazando en la página 1, agregando y
+  // deduplicando en las siguientes), igual que conversation-list.tsx.
+  useEffect(() => {
+    if (!templatesData) return;
+
+    if (page === 1) {
+      setAccumulatedTemplates(templatesData.data);
+    } else {
+      setAccumulatedTemplates((prev) => {
+        const existingIds = new Set(prev.map((t) => t.id));
+        const newItems = templatesData.data.filter((t) => !existingIds.has(t.id));
+        return [...prev, ...newItems];
+      });
+    }
+  }, [templatesData, page]);
+
+  const templates = accumulatedTemplates;
+
+  const handleLoadMore = () => {
+    if (templatesData?.has_next && !isFetching) {
+      setPage((prev) => prev + 1);
+    }
+  };
 
   // Manejar selección de template
   const handleTemplateSelect = (template: TemplateItem) => {
@@ -75,51 +165,74 @@ export default function Templates() {
     hasRestoredRef.current = true;
   }, [selectedOrganizationId, templates, templateId]);
 
-  // Reset cuando cambia la organización
+  // Reset cuando cambia la organización.
+  // Guard contra prevOrgIdRef: un useEffect corre también en el mount inicial
+  // (no solo cuando cambian sus deps), así que sin este guard este reset se
+  // disparaba en cada remount de la página (ej. al volver de otra pantalla)
+  // y vaciaba accumulatedTemplates justo después de que el efecto de sync lo
+  // hubiera poblado desde la caché de React Query, dejando el listado vacío
+  // hasta refrescar manualmente.
   useEffect(() => {
+    if (prevOrgIdRef.current === selectedOrganizationId) return;
+    prevOrgIdRef.current = selectedOrganizationId;
     setSelectedTemplate(null);
     hasRestoredRef.current = false;
     setPage(1);
+    setAccumulatedTemplates([]);
   }, [selectedOrganizationId]);
 
+  // Loading de permisos
+  if (isLoadingPermissions) return <PageSkeleton />;
+
+  // Sin ningún permiso sobre la página -> 403 in-place (no depender solo del route guard)
+  if (!canListTemplates) return <HuemulAccessDenied />;
+
   return (
-    <div className="flex h-full bg-gray-50">
-      <ResizablePanelGroup direction="horizontal" className="h-full">
-        {/* Templates Sidebar */}
-        <ResizablePanel defaultSize={15} minSize={15} maxSize={30}>
-          <TemplatesSidebar
-            templates={templates}
-            isLoading={isFetching}
-            error={queryError}
-            selectedTemplateId={selectedTemplate?.id || null}
-            onTemplateSelect={handleTemplateSelect}
-            onTemplateDeleted={() => {
-              setSelectedTemplate(null);
-              navigate('/templates', { replace: true });
-            }}
-            organizationId={selectedOrganizationId}
-            onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId, searchTerm, page, pageSize] })}
-            onSearch={(term) => { setSearchTerm(term); setPage(1); }}
-            searchValue={searchTerm}
-            canCreate={canCreateTemplate}
-            canUpdate={canUpdateTemplate}
-            canDelete={canDeleteTemplate}
-            pagination={{
-              page: templatesData?.page ?? page,
-              pageSize: templatesData?.page_size ?? pageSize,
-              hasNext: templatesData?.has_next ?? false,
-              hasPrevious: (templatesData?.page ?? page) > 1,
-              onPageChange: setPage,
-              onPageSizeChange: (size) => { setPageSize(size); setPage(1); },
-            }}
-          />
-        </ResizablePanel>
-
-        <ResizableHandle />
-
-        {/* Main Content */}
-        <ResizablePanel defaultSize={80}>
-          <div className="h-full bg-white">
+    <HuemulPageLayout
+      header={
+        activeTag ? (
+          <div className="flex items-center gap-2 border-b bg-muted/20 px-4 py-2">
+            <span className="text-xs text-muted-foreground">{t('filters.filteredByTag')}</span>
+            <HuemulTagChip label={activeTag.name} color={activeTag.color} size="sm" onRemove={clearTagFilter} />
+          </div>
+        ) : undefined
+      }
+      columns={[
+        {
+          content: (
+            <TemplatesSidebar
+              templates={templates}
+              isLoading={isFetching}
+              error={queryError}
+              selectedTemplateId={selectedTemplate?.id || null}
+              onTemplateSelect={handleTemplateSelect}
+              onTemplateDeleted={() => {
+                setSelectedTemplate(null);
+                navigate('/templates', { replace: true });
+              }}
+              organizationId={selectedOrganizationId}
+              onRefresh={() => {
+                setPage(1);
+                setAccumulatedTemplates([]);
+                queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId, searchTerm, page, pageSize, tagId] });
+              }}
+              onSearch={(term) => { setSearchTerm(term); setPage(1); setAccumulatedTemplates([]); }}
+              searchValue={searchTerm}
+              canCreate={canCreateTemplate}
+              canUpdate={canUpdateTemplate}
+              canDelete={canDeleteTemplate}
+              canExport={canExportTemplate}
+              canImport={canImportTemplate}
+              hasNext={templatesData?.has_next ?? false}
+              onLoadMore={handleLoadMore}
+            />
+          ),
+          defaultSize: 15,
+          minSize: 20,
+          maxSize: 30,
+        },
+        {
+          content: (
             <TemplateContent
               selectedTemplate={selectedTemplate}
               onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId] })}
@@ -128,21 +241,43 @@ export default function Templates() {
                 navigate('/templates', { replace: true });
               }}
               onTemplateCreated={(template) => {
-                // Select the newly created template
                 setSelectedTemplate(template);
                 navigate(`/templates/${template.id}`, { replace: true });
               }}
               canCreate={canCreateTemplate}
               canUpdate={canUpdateTemplate}
               canDelete={canDeleteTemplate}
+              canExportTemplate={canExportTemplate}
               canListSections={canListSections}
               canCreateSection={canCreateSection}
               canUpdateSection={canUpdateSection}
               canDeleteSection={canDeleteSection}
+              canListCustomFields={canListCustomFields}
+              canCreateCustomField={canCreateCustomField}
+              canUpdateCustomField={canUpdateCustomField}
+              canDeleteCustomField={canDeleteCustomField}
+              canListDocx={canListDocx}
+              canCreateDocx={canCreateDocx}
+              canUpdateDocx={canUpdateDocx}
+              canDeleteDocx={canDeleteDocx}
+              canListMedia={canListMedia}
+              canCreateMedia={canCreateMedia}
+              canUpdateMedia={canUpdateMedia}
+              canDeleteMedia={canDeleteMedia}
+              canViewTags={canViewTags}
+              canManageTags={canManageTags}
+              canListTemplateContext={canListTemplateContext}
+              canManageTemplateContext={canManageTemplateContext}
+              canListTemplateDependencies={canListTemplateDependencies}
+              canManageTemplateDependencies={canManageTemplateDependencies}
+              canPickAssetsForDependencies={canPickAssetsForDependencies}
+              canListChildDocuments={canListChildDocuments}
             />
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
-    </div>
+          ),
+          defaultSize: 85,
+          minSize: 50,
+        },
+      ]}
+    />
   );
 }

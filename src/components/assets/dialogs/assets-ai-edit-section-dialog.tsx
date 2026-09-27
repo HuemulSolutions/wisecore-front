@@ -3,13 +3,8 @@ import { Bot } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
-
-interface AiEditSectionDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSend: (prompt: string) => void
-  isProcessing?: boolean
-}
+import type { AiEditSectionDialogProps } from '@/types/assets'
+export type { AiEditSectionDialogProps } from '@/types/assets'
 
 export function AiEditSectionDialog({
   open,

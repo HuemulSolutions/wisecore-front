@@ -1,0 +1,46 @@
+/* Amplía la zona de agarre del NodeResizer de react-flow para los contenedores del
+   canvas de diagramas. Los valores por defecto de la librería (línea de 1px, handle
+   de 5px) hacen casi imposible agarrar el borde para redimensionar. Estas clases se
+   pasan vía `lineClassName`/`handleClassName` en container-node.tsx, así que solo
+   afectan al NodeResizer del contenedor, no a otros usos futuros de react-flow. */
+
+.huemul-resize-line.react-flow__resize-control.line {
+  border-width: 0; /* la línea ya no se ve: el borde de color lo pinta el propio contenedor */
+}
+
+.huemul-resize-line.react-flow__resize-control.line.left,
+.huemul-resize-line.react-flow__resize-control.line.right {
+  width: 14px;
+}
+
+.huemul-resize-line.react-flow__resize-control.line.top,
+.huemul-resize-line.react-flow__resize-control.line.bottom {
+  height: 14px;
+}
+
+/* Sin `position` acá: react-flow ya pone `position: absolute` en `.react-flow__resize-control`.
+   Reintroducirlo (aunque sea `relative`) gana por especificidad, saca el handle del
+   posicionamiento absoluto y lo mete en flujo normal — empuja el contenido del contenedor. */
+.huemul-resize-handle.react-flow__resize-control.handle {
+  width: 8px;
+  height: 8px;
+}
+
+/* Área de agarre invisible más grande que el punto visible, sin desplazar el layout. */
+.huemul-resize-handle.react-flow__resize-control.handle::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+}
+
+/* Cuando el contenedor solo está en hover (no seleccionado), el handle queda
+   atenuado y se revela al acercarse el cursor, para no meter ruido visual
+   permanente en el canvas. */
+.huemul-resize-handle--ghost.react-flow__resize-control.handle {
+  opacity: 0;
+  transition: opacity 0.1s ease-in-out;
+}
+
+.huemul-resize-handle--ghost.react-flow__resize-control.handle:hover {
+  opacity: 1;
+}

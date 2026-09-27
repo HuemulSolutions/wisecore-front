@@ -2,16 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
 import { deleteTemplate } from "@/services/templates";
-import { toast } from "sonner";
-
-interface DeleteTemplateDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  templateId: string;
-  templateName: string;
-  organizationId: string;
-  onSuccess: () => void;
-}
+import type { DeleteTemplateDialogProps } from '@/types/templates';
+export type { DeleteTemplateDialogProps } from '@/types/templates';
 
 export function DeleteTemplateDialog({
   open,
@@ -21,13 +13,13 @@ export function DeleteTemplateDialog({
   organizationId,
   onSuccess,
 }: DeleteTemplateDialogProps) {
-  const { t } = useTranslation('templates');
+  const { t } = useTranslation(['templates', 'common']);
   const queryClient = useQueryClient();
 
   const deleteTemplateMutation = useMutation({
     mutationFn: () => deleteTemplate(templateId, organizationId),
+    meta: { successMessage: t('delete.success') },
     onSuccess: () => {
-      toast.success(t('delete.success'));
       queryClient.invalidateQueries({ queryKey: ["templates", organizationId] });
     },
   });
@@ -48,7 +40,7 @@ export function DeleteTemplateDialog({
       onOpenChange={onOpenChange}
       title={t('delete.title')}
       description={t('delete.description', { name: templateName })}
-      actionLabel={t('delete.actionLabel')}
+      actionLabel={t('common:delete')}
       onAction={handleDelete}
     />
   );

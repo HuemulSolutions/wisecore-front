@@ -3,23 +3,8 @@ import { useTranslation } from "react-i18next";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import AddContext from "@/components/context/context-add";
-import type { LifecyclePermissions } from "@/types/assets";
-
-interface ContextSheetProps {
-  selectedFile: {
-    id: string;
-    name: string;
-    type: "folder" | "document";
-    access_levels?: string[];
-  } | null;
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  isMobile?: boolean;
-  documentName?: string;
-  lifecyclePermissions?: LifecyclePermissions;
-  stage?: string;
-  showTrigger?: boolean;
-}
+import type { ContextSheetProps } from '@/types/assets';
+export type { ContextSheetProps } from '@/types/assets';
 
 export function ContextSheet({
   selectedFile,
@@ -29,6 +14,7 @@ export function ContextSheet({
   documentName,
   lifecyclePermissions,
   stage,
+  isExternalElaborationLocked = false,
   showTrigger = true,
 }: ContextSheetProps) {
   const { t } = useTranslation('context')
@@ -42,8 +28,8 @@ export function ContextSheet({
     lifecyclePermissions?.edit
   );
 
-  // Can add/edit/delete contexts: only create or edit, and only in edit stage
-  const canEdit = !!(lifecyclePermissions?.create || lifecyclePermissions?.edit) && stage === 'edit';
+  // Can add/edit/delete contexts: only create or edit, only in edit stage, y no mientras el sistema externo está elaborando
+  const canEdit = !!(lifecyclePermissions?.create || lifecyclePermissions?.edit) && stage === 'edit' && !isExternalElaborationLocked;
 
   if (!canAccess) return null;
 
@@ -61,7 +47,7 @@ export function ContextSheet({
           icon={Users}
           iconClassName={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"}
           label={isMobile ? undefined : t('sheet.buttonLabel')}
-          title={t('sheet.manageContext')}
+          tooltip={t('sheet.manageContext')}
           className={isMobile
             ? "h-7 w-7 p-0 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors rounded-full"
             : "h-7 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs"

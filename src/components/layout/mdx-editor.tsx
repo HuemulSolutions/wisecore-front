@@ -27,15 +27,8 @@ import {
     type MDXEditorMethods
 } from '@mdxeditor/editor'
 import { useRef } from 'react'
-
-
-interface MdxEditorProps {
-    value: string;
-    onChange: (value: string) => void;
-    onError?: (payload: { error: string; source: string }) => void;
-    diffMarkdown?: string;
-    stickyToolbar?: boolean;
-}
+import type { MdxEditorProps } from '@/types/mdx-editor'
+export type { MdxEditorProps } from '@/types/mdx-editor'
 
 
 export default function MdxEditor({ value, onChange, onError, diffMarkdown, stickyToolbar = true }: MdxEditorProps) {

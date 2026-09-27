@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getExecutionsByDocumentId } from '@/services/executions';
+import { logger } from '@/lib/logger';
 
 export function useExecutionsByDocumentId(documentId: string, organizationId: string, enabled: boolean) {
   return useQuery({
@@ -20,7 +21,7 @@ export function useExecutionsByDocumentId(documentId: string, organizationId: st
         // Las ejecuciones cambian menos frecuentemente que el contenido
         return hasRunningExecution ? 45000 : false;
       } catch {
-        console.error('Error in refetchInterval for executions');
+        logger.error('Error in refetchInterval for executions');
         return false; // Stop polling on error
       }
     },
@@ -41,7 +42,7 @@ export function useExecutionsByDocumentId(documentId: string, organizationId: st
     retry: (failureCount) => {
       // Only retry up to 3 times
       if (failureCount >= 3) {
-        console.error('Max retries reached for executions polling');
+        logger.error('Max retries reached for executions polling');
         return false;
       }
       return true;

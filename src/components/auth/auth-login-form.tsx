@@ -3,33 +3,45 @@ import { useMutation } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 
 import { cn } from "@/lib/utils"
-import { WisecoreLogo } from "@/components/ui/wisecore-logo"
 import { FieldDescription } from "@/components/ui/field"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { authService } from "@/services/auth"
-import { getErrorMessage } from "@/lib/error-utils"
-import packageJson from "../../../package.json"
+import { isErrorCode, isStatusCode } from "@/lib/error-utils"
+import type { LoginFormProps } from "@/types/auth"
 
-interface LoginFormProps extends React.ComponentProps<"div"> {
-  onCodeRequested?: (email: string) => void
-}
+export type { LoginFormProps } from "@/types/auth"
 
 export function LoginForm({
   className,
   onCodeRequested,
+  initialEmail,
+  lockedEmail = false,
   ...props
 }: LoginFormProps) {
-  const [email, setEmail] = useState("")
-  const { t } = useTranslation('auth')
+  const [email, setEmail] = useState(initialEmail ?? "")
+  const { t } = useTranslation(['auth', 'common'])
 
   const requestCodeMutation = useMutation({
     mutationFn: (email: string) =>
       authService.requestCode({ email, purpose: "login" }),
-    onSuccess: () => {
-      onCodeRequested?.(email)
+    onSuccess: (result, requestedEmail) => {
+      // El paso siguiente (OTP, selector de organización o redirección al IdP)
+      // lo decide `useLoginFlow` según `auth_flow` (docs/sso-frontend.md §2).
+      onCodeRequested?.(result, requestedEmail)
     },
   })
+
+  // Mensaje genérico traducido en vez del texto crudo del backend: evita
+  // enumeración de usuarios (¿existe este email o no?) y viola la regla de
+  // i18n del proyecto si se muestra verbatim.
+  const requestCodeError = requestCodeMutation.error
+    ? isStatusCode(requestCodeMutation.error, 429)
+      ? t('auth:errors.tooManyRequests')
+      : isErrorCode(requestCodeMutation.error, 'CONNECTION_DISABLED')
+        ? t('auth:ssoErrors.connection_disabled')
+        : t('auth:errors.requestCodeFailed')
+    : null
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -42,45 +54,30 @@ export function LoginForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <form onSubmit={handleSubmit}>
         <HuemulFieldGroup>
-          <div className="flex flex-col items-center gap-4 text-center">
-            <WisecoreLogo size="lg" className="text-[#4464f7]" />
-
-          </div>
           <HuemulField
             type="email"
-            label={t('login.email')}
+            label={t('common:email')}
             name="email"
             placeholder={t('login.emailPlaceholder')}
             value={email}
             onChange={(v) => setEmail(v as string)}
             required
+            autoComplete="email"
+            disabled={lockedEmail}
           />
           <HuemulButton
             type="submit"
-            label={t('login.continueWithEmail')}
+            label={requestCodeMutation.isPending ? t('login.sendingCode') : t('login.continueWithEmail')}
             loading={requestCodeMutation.isPending}
-            className="w-full bg-[#4464f7] hover:bg-[#3451e6] text-white font-medium py-2.5 transition-colors"
+            className="w-full h-11 bg-gradient-to-r from-[#4464f7] to-[#2f6bff] hover:from-[#3451e6] hover:to-[#2459f0] text-white font-medium shadow-lg shadow-blue-500/30 transition-all"
           />
-          {requestCodeMutation.error && (
+          {requestCodeError && (
             <FieldDescription className="text-red-600 text-center">
-              {getErrorMessage(requestCodeMutation.error)}
+              {requestCodeError}
             </FieldDescription>
           )}
         </HuemulFieldGroup>
       </form>
-      <FieldDescription className="px-6 text-center text-sm text-gray-500">
-        {t('login.termsText')}{" "}
-        <a href="#" className="text-[#4464f7] hover:text-[#3451e6] hover:underline">
-          {t('login.termsOfService')}
-        </a>{" "}
-        {t('login.and')}{" "}
-        <a href="#" className="text-[#4464f7] hover:text-[#3451e6] hover:underline">
-          {t('login.privacyPolicy')}
-        </a>.
-      </FieldDescription>
-      <div className="text-center text-xs text-gray-400">
-        {t('login.version')} {packageJson.version}
-      </div>
     </div>
   )
 }

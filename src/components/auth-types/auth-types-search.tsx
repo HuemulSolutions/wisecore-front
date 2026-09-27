@@ -1,27 +1,23 @@
 import { Shield, Plus } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
-import ProtectedComponent from "@/components/protected-component"
-import { HuemulButton } from "@/huemul/components/huemul-button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import type { AuthTypesSearchProps } from '@/types/auth-types'
 
-interface AuthTypesSearchProps {
-  searchTerm: string
-  onSearchChange: (value: string) => void
-  authTypesCount: number
-  isLoading: boolean
-  onRefresh: () => void
-  onCreateClick: () => void
-  hasError?: boolean
-}
+export type { AuthTypesSearchProps } from '@/types/auth-types'
 
-export function AuthTypesSearch({ 
-  searchTerm, 
+const ALL_ORGANIZATIONS = '__all__'
+
+export function AuthTypesSearch({
+  searchTerm,
   onSearchChange,
   authTypesCount,
   isLoading,
   onRefresh,
   onCreateClick,
-  hasError
+  hasError,
+  canManage = false,
+  organizationFilter,
 }: AuthTypesSearchProps) {
   const { t } = useTranslation('auth-types')
 
@@ -35,23 +31,12 @@ export function AuthTypesSearch({
       onRefresh={onRefresh}
       isLoading={isLoading}
       hasError={hasError}
-      primaryAction={{
+      primaryAction={canManage ? {
         label: t('header.addAuthType'),
         icon: Plus,
         onClick: onCreateClick,
-        protectedContent: (
-          <ProtectedComponent requireRootAdmin>
-            <HuemulButton
-              size="sm"
-              icon={Plus}
-              label={t('header.addAuthType')}
-              onClick={onCreateClick}
-              disabled={hasError}
-              className="h-8 text-xs px-2"
-            />
-          </ProtectedComponent>
-        )
-      }}
+        disabled: hasError,
+      } : undefined}
       searchConfig={{
         placeholder: t('header.searchPlaceholder'),
         value: searchTerm,
@@ -59,6 +44,24 @@ export function AuthTypesSearch({
         minLength: 1,
         triggerOnEnter: true,
       }}
-    />
+    >
+      {organizationFilter && (
+        // Radix Select no admite `value=""`: "todas" viaja como `__all__`.
+        <Select
+          value={organizationFilter.value || ALL_ORGANIZATIONS}
+          onValueChange={(value) => organizationFilter.onChange(value === ALL_ORGANIZATIONS ? '' : value)}
+        >
+          <SelectTrigger className="w-full md:w-48 h-8 hover:cursor-pointer text-xs" aria-label={t('header.organizationFilter')}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_ORGANIZATIONS}>{t('header.allOrganizations')}</SelectItem>
+            {organizationFilter.options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </PageHeader>
   )
 }

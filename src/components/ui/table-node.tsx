@@ -9,7 +9,10 @@ import {
   BlockSelectionPlugin,
   useBlockSelected,
 } from '@platejs/selection/react';
-import { setCellBackground } from '@platejs/table';
+import {
+  isSelectingCell as isSelectingCellFn,
+  setCellBackground,
+} from '@platejs/table';
 import {
   TablePlugin,
   TableProvider,
@@ -19,7 +22,7 @@ import {
   useTableElement,
   useTableMergeState,
 } from '@platejs/table/react';
-import { PopoverAnchor, Content as RadixPopoverContent } from '@radix-ui/react-popover';
+import { PopoverAnchor } from '@radix-ui/react-popover';
 import { cva } from 'class-variance-authority';
 import {
   ArrowDown,
@@ -70,8 +73,10 @@ import {
   DropdownMenuPortal,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { NodeFloatingToolbarContent } from '@/components/ui/node-floating-toolbar';
 import { Popover, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 import { blockSelectionVariants } from './block-selection';
 import {
@@ -105,11 +110,8 @@ export const TableElement = withHOC(
       'isSelectionAreaVisible'
     );
     const hasControls = !readOnly && !isSelectionAreaVisible;
-    const {
-      isSelectingCell,
-      marginLeft,
-      props: tableProps,
-    } = useTableElement();
+    const { marginLeft, props: tableProps } = useTableElement();
+    const isSelectingCell = useEditorSelector(isSelectingCellFn, []);
 
     const isSelectingTable = useBlockSelected(props.element.id as string);
 
@@ -163,6 +165,7 @@ function TableFloatingToolbar({
   const isFocusedLast = useFocusedLast();
 
   const { canMerge, canSplit } = useTableMergeState();
+  const { t } = useTranslation('editor');
 
   return (
     <Popover
@@ -170,11 +173,10 @@ function TableFloatingToolbar({
       modal={false}
     >
       <PopoverAnchor asChild>{children}</PopoverAnchor>
-      <RadixPopoverContent
+      <NodeFloatingToolbarContent
         asChild
         onOpenAutoFocus={(e) => e.preventDefault()}
         contentEditable={false}
-        className="z-[30]"
         sideOffset={4}
         {...props}
       >
@@ -183,14 +185,14 @@ function TableFloatingToolbar({
           contentEditable={false}
         >
           <ToolbarGroup>
-            <ColorDropdownMenu tooltip="Background color">
+            <ColorDropdownMenu tooltip={t('table.cellBackground')}>
               <PaintBucketIcon />
             </ColorDropdownMenu>
             {canMerge && (
               <ToolbarButton
                 onClick={() => tf.table.merge()}
                 onMouseDown={(e) => e.preventDefault()}
-                tooltip="Merge cells"
+                tooltip={t('table.mergeCells')}
               >
                 <CombineIcon />
               </ToolbarButton>
@@ -199,7 +201,7 @@ function TableFloatingToolbar({
               <ToolbarButton
                 onClick={() => tf.table.split()}
                 onMouseDown={(e) => e.preventDefault()}
-                tooltip="Split cell"
+                tooltip={t('table.splitCell')}
               >
                 <SquareSplitHorizontalIcon />
               </ToolbarButton>
@@ -207,7 +209,7 @@ function TableFloatingToolbar({
 
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
-                <ToolbarButton tooltip="Cell borders">
+                <ToolbarButton tooltip={t('table.cellBorders')}>
                   <Grid2X2Icon />
                 </ToolbarButton>
               </DropdownMenuTrigger>
@@ -219,7 +221,7 @@ function TableFloatingToolbar({
 
             {collapsedInside && (
               <ToolbarGroup>
-                <ToolbarButton tooltip="Delete table" {...buttonProps}>
+                <ToolbarButton tooltip={t('table.deleteTable')} {...buttonProps}>
                   <Trash2Icon />
                 </ToolbarButton>
               </ToolbarGroup>
@@ -233,7 +235,7 @@ function TableFloatingToolbar({
                   tf.insert.tableRow({ before: true });
                 }}
                 onMouseDown={(e) => e.preventDefault()}
-                tooltip="Insert row before"
+                tooltip={t('table.insertRowBefore')}
               >
                 <ArrowUp />
               </ToolbarButton>
@@ -242,7 +244,7 @@ function TableFloatingToolbar({
                   tf.insert.tableRow();
                 }}
                 onMouseDown={(e) => e.preventDefault()}
-                tooltip="Insert row after"
+                tooltip={t('table.insertRowAfter')}
               >
                 <ArrowDown />
               </ToolbarButton>
@@ -251,7 +253,7 @@ function TableFloatingToolbar({
                   tf.remove.tableRow();
                 }}
                 onMouseDown={(e) => e.preventDefault()}
-                tooltip="Delete row"
+                tooltip={t('table.deleteRow')}
               >
                 <XIcon />
               </ToolbarButton>
@@ -265,7 +267,7 @@ function TableFloatingToolbar({
                   tf.insert.tableColumn({ before: true });
                 }}
                 onMouseDown={(e) => e.preventDefault()}
-                tooltip="Insert column before"
+                tooltip={t('table.insertColumnBefore')}
               >
                 <ArrowLeft />
               </ToolbarButton>
@@ -274,7 +276,7 @@ function TableFloatingToolbar({
                   tf.insert.tableColumn();
                 }}
                 onMouseDown={(e) => e.preventDefault()}
-                tooltip="Insert column after"
+                tooltip={t('table.insertColumnAfter')}
               >
                 <ArrowRight />
               </ToolbarButton>
@@ -283,14 +285,14 @@ function TableFloatingToolbar({
                   tf.remove.tableColumn();
                 }}
                 onMouseDown={(e) => e.preventDefault()}
-                tooltip="Delete column"
+                tooltip={t('table.deleteColumn')}
               >
                 <XIcon />
               </ToolbarButton>
             </ToolbarGroup>
           )}
         </Toolbar>
-      </RadixPopoverContent>
+      </NodeFloatingToolbarContent>
     </Popover>
   );
 }
@@ -299,6 +301,7 @@ function TableBordersDropdownMenuContent(
   props: React.ComponentProps<typeof DropdownMenuPrimitive.Content>
 ) {
   const editor = useEditorRef();
+  const { t } = useTranslation('editor');
   const {
     getOnSelectTableBorder,
     hasBottomBorder,
@@ -311,7 +314,7 @@ function TableBordersDropdownMenuContent(
 
   return (
     <DropdownMenuContent
-      className="min-w-[220px]"
+      className="min-w-55"
       onCloseAutoFocus={(e) => {
         e.preventDefault();
         editor.tf.focus();
@@ -327,28 +330,28 @@ function TableBordersDropdownMenuContent(
           onCheckedChange={getOnSelectTableBorder('top')}
         >
           <BorderTopIcon />
-          <div>Top Border</div>
+          <div>{t('table.borders.top')}</div>
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
           checked={hasRightBorder}
           onCheckedChange={getOnSelectTableBorder('right')}
         >
           <BorderRightIcon />
-          <div>Right Border</div>
+          <div>{t('table.borders.right')}</div>
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
           checked={hasBottomBorder}
           onCheckedChange={getOnSelectTableBorder('bottom')}
         >
           <BorderBottomIcon />
-          <div>Bottom Border</div>
+          <div>{t('table.borders.bottom')}</div>
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
           checked={hasLeftBorder}
           onCheckedChange={getOnSelectTableBorder('left')}
         >
           <BorderLeftIcon />
-          <div>Left Border</div>
+          <div>{t('table.borders.left')}</div>
         </DropdownMenuCheckboxItem>
       </DropdownMenuGroup>
 
@@ -358,14 +361,14 @@ function TableBordersDropdownMenuContent(
           onCheckedChange={getOnSelectTableBorder('none')}
         >
           <BorderNoneIcon />
-          <div>No Border</div>
+          <div>{t('table.borders.none')}</div>
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
           checked={hasOuterBorders}
           onCheckedChange={getOnSelectTableBorder('outer')}
         >
           <BorderAllIcon />
-          <div>Outside Borders</div>
+          <div>{t('table.borders.outside')}</div>
         </DropdownMenuCheckboxItem>
       </DropdownMenuGroup>
     </DropdownMenuContent>
@@ -380,6 +383,7 @@ function ColorDropdownMenu({
   tooltip: string;
 }) {
   const [open, setOpen] = React.useState(false);
+  const { t } = useTranslation('editor');
 
   const editor = useEditorRef();
   const selectedCells = usePluginOption(TablePlugin, 'selectedCells');
@@ -407,7 +411,7 @@ function ColorDropdownMenu({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="start">
-        <ToolbarMenuGroup label="Colors">
+        <ToolbarMenuGroup label={t('colors.label')}>
           <ColorDropdownMenuItems
             className="px-2"
             colors={DEFAULT_COLORS}
@@ -417,7 +421,7 @@ function ColorDropdownMenu({
         <DropdownMenuGroup>
           <DropdownMenuItem className="p-2" onClick={onClearColor}>
             <EraserIcon />
-            <span>Clear</span>
+            <span>{t('colors.clear')}</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
@@ -443,6 +447,8 @@ export function TableRowElement({
     element,
     type: element.type,
     canDropNode: ({ dragEntry, dropEntry }) =>
+      !!dragEntry &&
+      !!dropEntry &&
       PathApi.equals(
         PathApi.parent(dragEntry[1]),
         PathApi.parent(dropEntry[1])
@@ -557,6 +563,7 @@ export function TableCellElement({
         'h-full overflow-visible p-0',
         element.background ? 'bg-(--cellBackground)' : isHeader ? 'bg-gray-900 text-white' : 'bg-background',
         isHeader && 'text-left font-semibold *:m-0',
+        isHeader && !element.background && '**:text-white',
         !isHeader && 'align-top border-b border-gray-200',
         'before:size-full',
         selected && 'before:z-10 before:bg-brand/5',
@@ -596,7 +603,7 @@ export function TableCellElement({
             <>
               <ResizeHandle
                 {...rightProps}
-                className="-top-2 -right-1 h-[calc(100%_+_8px)] w-2"
+                className="-top-2 -right-1 h-[calc(100%+8px)] w-2"
                 data-col={colIndex}
               />
               <ResizeHandle {...bottomProps} className="-bottom-1 h-2" />

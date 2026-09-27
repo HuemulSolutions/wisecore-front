@@ -1,8 +1,10 @@
 import * as React from "react";
-import { type LucideIcon, Loader2, AlertTriangle, Check } from "lucide-react";
+import { Loader2, AlertTriangle, Check } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -12,49 +14,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-type ActionState = "idle" | "loading" | "success";
-
-export interface HuemulAlertDialogProps {
-  /** Controlled open state */
-  open: boolean;
-  /** Called when the dialog requests to open or close */
-  onOpenChange: (open: boolean) => void;
-
-  // ── Header ──────────────────────────────────────────────────────────────
-  /** Dialog title (default: "Are you sure?") */
-  title?: string;
-  /** Optional description below the title */
-  description?: React.ReactNode;
-  /** Optional icon rendered to the left of the title (default: AlertTriangle) */
-  icon?: LucideIcon;
-  /** Icon className overrides (e.g. size, color) */
-  iconClassName?: string;
-
-  // ── Action ──────────────────────────────────────────────────────────────
-  /** Label for the destructive action button (default: "Delete") */
-  actionLabel?: string;
-  /** Async handler executed when the action button is clicked */
-  onAction: () => Promise<void>;
-  /** Button variant for the action button (default: "destructive") */
-  actionVariant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-  /** Optional icon for the action button */
-  actionIcon?: LucideIcon;
-
-  // ── Cancel ──────────────────────────────────────────────────────────────
-  /** Label for the cancel button (default: "Cancel") */
-  cancelLabel?: string;
-
-  // ── Timing ──────────────────────────────────────────────────────────────
-  /** Delay in ms to keep the success state visible before closing (default: 600) */
-  successDelay?: number;
-
-  // ── Layout ──────────────────────────────────────────────────────────────
-  /** Additional className on AlertDialogContent */
-  className?: string;
-}
+import type { ActionState, HuemulAlertDialogProps } from "@/types/huemul";
+export type { HuemulAlertDialogProps } from "@/types/huemul";
 
 // ── Component ──────────────────────────────────────────────────────────────
 
@@ -66,13 +27,18 @@ export function HuemulAlertDialog({
   icon: Icon = AlertTriangle,
   iconClassName,
   actionLabel = "Delete",
+  loadingLabel,
   onAction,
   actionVariant = "destructive",
   actionIcon,
-  cancelLabel = "Cancel",
+  cancelLabel,
   successDelay = 600,
+  showSuccessState = true,
   className,
+  alert,
 }: HuemulAlertDialogProps) {
+  // Default traducido del botón de cancelar (ver HuemulSheet).
+  const { t } = useTranslation("common");
   const [actionState, setActionState] = React.useState<ActionState>("idle");
 
   // ── Shared helpers — all open/close goes through Radix's onOpenChange ──
@@ -80,9 +46,12 @@ export function HuemulAlertDialog({
     onOpenChange(false);
   }, [onOpenChange]);
 
-  // Reset state when dialog closes
+  // Reset al ABRIR, no al cerrar: si se reseteara al cerrar, el contenido
+  // (ícono, texto, botones habilitados) cambiaría a mitad de la animación de
+  // salida de Radix (~200ms), que deja el diálogo visible mientras se
+  // desvanece — se lee como si el diálogo "parpadeara" o se reabriera.
   React.useEffect(() => {
-    if (!open) {
+    if (open) {
       setActionState("idle");
     }
   }, [open]);
@@ -91,18 +60,30 @@ export function HuemulAlertDialog({
     setActionState("loading");
     try {
       await onAction();
-      setActionState("success");
-      setTimeout(() => {
-        setActionState("idle");
+      if (showSuccessState) {
+        setActionState("success");
+        setTimeout(() => {
+          setActionState("idle");
+          closeDialog();
+        }, successDelay);
+      } else {
+        // Cierra apenas resuelve, sin pasar por "success": el botón queda
+        // en su texto de loading hasta que Radix empieza a animar la
+        // salida — nunca repinta contenido a mitad del fade-out.
         closeDialog();
-      }, successDelay);
+      }
     } catch {
       setActionState("idle");
     }
-  }, [onAction, closeDialog, successDelay]);
+  }, [onAction, closeDialog, successDelay, showSuccessState]);
 
   const isProcessing = actionState !== "idle";
   const ActionIcon = actionIcon;
+  const AlertIcon = alert?.icon ?? AlertTriangle;
+  // Default de borrado: los diálogos que pasan t('common:delete') obtienen
+  // «Eliminando...» sin tocar cada archivo.
+  const resolvedLoadingLabel =
+    loadingLabel ?? (actionLabel === t("delete") ? t("deleting") : actionLabel);
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -118,6 +99,16 @@ export function HuemulAlertDialog({
             />
             <AlertDialogTitle>{title}</AlertDialogTitle>
           </div>
+          {alert && (
+            <Alert
+              variant="destructive"
+              className="mt-1 border-destructive/30 bg-destructive/10"
+            >
+              <AlertIcon className="size-4" />
+              {alert.title && <AlertTitle className="line-clamp-none">{alert.title}</AlertTitle>}
+              {alert.description && <AlertDescription>{alert.description}</AlertDescription>}
+            </Alert>
+          )}
           {description && (
             <AlertDialogDescription asChild={typeof description !== "string"}>
               {typeof description === "string" ? description : <div>{description}</div>}
@@ -131,7 +122,7 @@ export function HuemulAlertDialog({
             disabled={isProcessing}
             className="hover:cursor-pointer"
           >
-            {cancelLabel}
+            {cancelLabel ?? t("cancel")}
           </AlertDialogCancel>
 
           <Button
@@ -149,7 +140,11 @@ export function HuemulAlertDialog({
             {actionState === "idle" && ActionIcon && (
               <ActionIcon className="size-4" />
             )}
-            {actionState === "success" ? "Done" : actionLabel}
+            {actionState === "success"
+              ? t("done")
+              : actionState === "loading"
+                ? resolvedLoadingLabel
+                : actionLabel}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -1,0 +1,297 @@
+const translations = {
+  header: {
+    title: { en: "Workflow", es: "Workflow" },
+    workflowsCount: { en: "{{count}} workflows", es: "{{count}} workflows" },
+  },
+  filters: {
+    search: { en: "Search", es: "Búsqueda" },
+    searchPlaceholder: { en: "Search by name or code...", es: "Buscar por nombre o código..." },
+    documentType: { en: "Asset Type", es: "Tipo de Activo" },
+    allDocumentTypes: { en: "All asset types", es: "Todos los tipos de activo" },
+    lifecycleState: { en: "Lifecycle", es: "Ciclo de Vida" },
+    allLifecycleStates: { en: "All states", es: "Todos los estados" },
+    ownerScope: { en: "Owner", es: "Propietario" },
+    allOwners: { en: "All owners", es: "Todos los propietarios" },
+    ownerMe: { en: "Me", es: "Yo" },
+    ownerMeDescription: { en: "Assets you own", es: "Activos propios" },
+    ownerScopeLabel: { en: "Quick filters", es: "Filtros rápidos" },
+    ownerUsersLabel: { en: "Specific user", es: "Usuario específico" },
+    template: { en: "Workflow template", es: "Template de workflow" },
+    allTemplates: { en: "All templates", es: "Todos los templates" },
+    expirationDate: { en: "Expiration Date", es: "Fecha de Expiración" },
+    estimatedPublicationDate: { en: "Est. Publication Date", es: "Fecha Est. de Publicación" },
+    reviewDate: { en: "Review Date", es: "Fecha de Revisión" },
+    auditDate: { en: "Audit Date", es: "Fecha de Auditoría" },
+    pendingAiSuggestion: { en: "AI Suggestions", es: "Sugerencias IA" },
+    unresolvedComments: { en: "Unresolved Comments", es: "Con comentarios sin resolver" },
+    expiringSoon: { en: "Expiring soon", es: "Próximos a expirar" },
+    customFieldsGroup: { en: "Custom Fields", es: "Campos Personalizados" },
+    customFields: { en: "Custom Fields", es: "Campos personalizados" },
+  },
+  columns: {
+    internalCode: { en: "Code", es: "Código" },
+    documentName: { en: "Asset", es: "Activo" },
+    template: { en: "Workflow", es: "Workflow" },
+    lifecycleState: { en: "State", es: "Estado" },
+    lifecycleStepTooltip: { en: "Pending lifecycle step", es: "Paso del ciclo de vida pendiente" },
+    progress: { en: "Progress", es: "Progreso" },
+    currentStep: { en: "Current section", es: "Sección actual" },
+    lastModified: { en: "Last modified", es: "Última modificación" },
+  },
+  emptyState: {
+    empty: { en: "You don't have any assets in progress yet", es: "Aún no hay activos en curso" },
+    emptyDescription: { en: "Start a workflow to see it here", es: "Iniciar un workflow para verlo aquí" },
+    noResults: { en: "No assets found", es: "No se encontraron activos" },
+    noResultsDescription: {
+      en: "No assets in progress match your search",
+      es: "No hay activos en curso que coincidan con la búsqueda",
+    },
+  },
+  actions: {
+    share: { en: "Share", es: "Compartir" },
+    openAsset: { en: "Open in Assets", es: "Abrir en Activos" },
+    openFullscreen: { en: "Open full screen", es: "Abrir en pantalla completa" },
+  },
+  deleteDialog: {
+    title: { en: "Delete workflow item", es: "Eliminar elemento de workflow" },
+    description: {
+      en: "Are you sure you want to delete \"{{name}}\"? This deletes the asset and all its answers. This action cannot be undone.",
+      es: "¿Eliminar \"{{name}}\"? Esto elimina el activo y todas sus respuestas. Esta acción no se puede deshacer.",
+    },
+    success: { en: "Workflow item deleted", es: "Elemento de workflow eliminado" },
+  },
+  panel: {
+    noSelection: { en: "Select a row to view its form fields", es: "Seleccionar una fila para ver los campos del formulario" },
+    noCurrentStep: { en: "This item has no current step", es: "Este elemento no tiene un paso actual" },
+    sectionNotFound: { en: "Section not found in the asset content", es: "No se encontró la sección en el contenido del activo" },
+    loadError: { en: "Failed to load the form fields", es: "Error al cargar los campos del formulario" },
+    edit: { en: "Edit asset", es: "Editar activo" },
+    media: { en: "Resources", es: "Recursos" },
+    stageLabel: { en: "Stage:", es: "Etapa:" },
+    sectionLabel: { en: "Section:", es: "Sección:" },
+    sectionsHeading: { en: "SECTIONS", es: "SECCIONES" },
+    collapseSection: { en: "Collapse section", es: "Colapsar sección" },
+    expandSection: { en: "Expand section", es: "Expandir sección" },
+    otherSectionsNotice: {
+      en: "Showing {{shown}} of {{total}} sections in this asset; the rest aren't forms.",
+      es: "Se muestran {{shown}} de {{total}} secciones del documento; las demás no son formularios.",
+    },
+    meta: {
+      createdBy: { en: "Created by {{name}}", es: "Creado por {{name}}" },
+      editedBy: { en: "Edited by {{name}}", es: "Editado por {{name}}" },
+      editedByAt: { en: "Edited by {{name}} {{when}}", es: "Editado por {{name}} {{when}}" },
+    },
+  },
+  launcher: {
+    label: { en: "START", es: "INICIAR" },
+    title: { en: "START WORKFLOW", es: "INICIAR WORKFLOW" },
+    searchPlaceholder: { en: "Search workflow...", es: "Buscar workflow..." },
+    noMatches: { en: "No workflow matches \"{{query}}\"", es: "Ningún workflow coincide con «{{query}}»" },
+    empty: { en: "No templates available to start", es: "No hay plantillas disponibles para iniciar" },
+    error: { en: "Couldn't load the templates", es: "No pudimos cargar las plantillas" },
+    retry: { en: "Retry", es: "Reintentar" },
+    seeAll: { en: "View all", es: "Ver todos" },
+    seeAllWithTotal: { en: "View all ({{total}})", es: "Ver todos ({{total}})" },
+    hide: { en: "Hide", es: "Ocultar" },
+    show: { en: "Show", es: "Mostrar" },
+    close: { en: "Close", es: "Cerrar" },
+    start: { en: "Start", es: "Iniciar" },
+    starting: { en: "Creating…", es: "Creando…" },
+    shareTemplate: { en: "Share link", es: "Compartir link" },
+    clearSearch: { en: "Clear search", es: "Limpiar búsqueda" },
+    dialogTitle: { en: "All templates", es: "Todas las plantillas" },
+    featured: { en: "★ Featured", es: "★ Destacado" },
+    noResultsTitle: { en: "No results for \"{{query}}\"", es: "Sin resultados para «{{query}}»" },
+    noResultsHint: {
+      en: "Try another name or document type.",
+      es: "Probar con otro nombre o tipo de documento.",
+    },
+    loadMore: { en: "Load more", es: "Cargar más" },
+    shownOfTotal: { en: "Showing {{shown}} of {{total}}", es: "Mostrando {{shown}} de {{total}}" },
+    shown: { en: "Showing {{shown}}", es: "Mostrando {{shown}}" },
+    createError: { en: "Couldn't create the asset", es: "No se pudo crear el activo" },
+  },
+  expressSheet: {
+    welcomeTitle: { en: "General information", es: "Datos generales" },
+    welcomeDescription: { en: "Assign a name to this asset to easily identify it later.", es: "Asignar un nombre a este activo para identificarlo fácilmente más adelante." },
+    name: { en: "Name", es: "Nombre" },
+    namePlaceholder: { en: "e.g. Ergonomic chairs purchase", es: "Ej: Compra de sillas ergonómicas" },
+    description: { en: "Description", es: "Descripción" },
+    descriptionPlaceholder: { en: "Add a description about this asset", es: "Agregar una descripción sobre este activo" },
+    success: { en: "Asset created successfully", es: "Activo creado correctamente" },
+  },
+  wizard: {
+    back: { en: "Back", es: "Atrás" },
+    emptyStep: {
+      advanceTitle: { en: "Nothing to complete here", es: "Nada que completar aquí" },
+      advanceDescription: {
+        en: "There are no pending forms for you at this step. You can move the workflow forward.",
+        es: "No hay formularios pendientes en este paso. El flujo puede avanzar.",
+      },
+      waitingTitle: {
+        en: "This section is pending on another role",
+        es: "Esta sección está pendiente de otro rol",
+      },
+      waitingDescription: {
+        en: "This section hasn't been completed by the person with edit permission. You can't move forward until it's completed.",
+        es: "La sección no ha sido completada por quien tiene permiso de edición. No es posible avanzar hasta que se complete.",
+      },
+      blockedTitle: {
+        en: "There are pending required answers",
+        es: "Hay respuestas obligatorias pendientes",
+      },
+      blockedDescription: {
+        en: "This stage can't be completed until the required fields in the pending sections are answered.",
+        es: "No se puede completar esta etapa hasta responder los campos obligatorios de las secciones pendientes.",
+      },
+      viewAnswers: { en: "View the answers", es: "Ver las respuestas" },
+    },
+    summary: {
+      // answeredCount vive en sections:form.fill.answeredCount (compartido con el modo lector del asset).
+      missingRequired: { en: "{{count}} required pending", es: "{{count}} obligatorias pendientes" },
+      noAnswers: { en: "No answers in this section yet", es: "Esta sección aún no tiene respuestas" },
+    },
+  },
+  // Vista 1 (resumen) del panel de detalle — ver workflow-sections-summary.tsx /
+  // workflow-summary-section-card.tsx.
+  summary: {
+    backLabel: { en: "Summary", es: "Resumen" },
+    card: {
+      view: { en: "View", es: "Ver" },
+      viewTooltip: { en: "View this section's answers", es: "Ver las respuestas de esta sección" },
+      inactive: {
+        en: "Inactive section — it doesn't apply with the current answers",
+        es: "Sección inactiva — no aplica con las respuestas actuales",
+      },
+      pendingOthers: {
+        en: "Pending — you can't answer this section",
+        es: "Pendiente — no puedes responder esta sección",
+      },
+      allAnswered: { en: "All answered", es: "Todo respondido" },
+      optionalPending: { en: "{{count}} optional pending", es: "{{count}} opcionales sin responder" },
+    },
+    empty: {
+      title: { en: "This workflow has no forms", es: "Este workflow no tiene formularios" },
+      description: {
+        en: "There are no form sections to answer in this asset.",
+        es: "No hay secciones de formulario que responder en este activo.",
+      },
+    },
+  },
+  // Vista 2 (sección) del panel de detalle — ver workflow-section-view.tsx / workflow-section-pills.tsx.
+  section: {
+    counter: { en: "Section {{current}} of {{total}}", es: "Sección {{current}} de {{total}}" },
+    pillTooltip: { en: "Go to \"{{name}}\"", es: "Ir a \"{{name}}\"" },
+    indexLabel: { en: "Sections of this asset", es: "Secciones de este activo" },
+    questionsCount: { en: "{{count}} questions", es: "{{count}} preguntas" },
+    readOnlyStep: { en: "Read-only at this step", es: "Solo lectura en este paso" },
+    inactiveNotice: {
+      en: "{{condition}} Meanwhile it is shown without being able to answer.",
+      es: "{{condition}} Mientras tanto se muestra sin poder responder.",
+    },
+    dependency: {
+      prefix: { en: "It activates when {{condition}}.", es: "Se activa cuando {{condition}}." },
+      and: { en: " and ", es: " y " },
+      unknown: {
+        en: "It activates based on the answers of another section.",
+        es: "Se activa según las respuestas de otra sección.",
+      },
+      // Redactados como frase (««Monto» supera 200.000»), no como etiqueta de un select: por eso no
+      // se reusan los de sections:form.formFields.dependency.operators.
+      operators: {
+        eq: { en: "equals", es: "es igual a" },
+        neq: { en: "is different from", es: "es distinto de" },
+        gt: { en: "is greater than", es: "supera" },
+        gte: { en: "is at least", es: "es como mínimo" },
+        lt: { en: "is less than", es: "es menor que" },
+        lte: { en: "is at most", es: "es como máximo" },
+        in: { en: "is one of", es: "es uno de" },
+        not_in: { en: "is not one of", es: "no es uno de" },
+        contains: { en: "includes", es: "incluye" },
+        not_contains: { en: "does not include", es: "no incluye" },
+        is_empty: { en: "is empty", es: "está vacía" },
+        is_not_empty: { en: "is not empty", es: "no está vacía" },
+      },
+    },
+  },
+  share: {
+    dialogTitle: { en: "Share this workflow with your team", es: "Compartir este workflow con el equipo" },
+    templateDescription: {
+      en: "People with access to the organization will be able to independently complete a copy of \"{{name}}\".",
+      es: "Las personas con acceso a la organización podrán completar de forma independiente una copia de \"{{name}}\".",
+    },
+    executionDescription: {
+      en: "People with access to the organization will be able to answer this same asset: \"{{name}}\".",
+      es: "Las personas con acceso a la organización podrán responder este mismo activo: \"{{name}}\".",
+    },
+    copy: { en: "Copy link", es: "Copiar link" },
+    copied: { en: "Copied", es: "Copiado" },
+    copyFailed: { en: "Couldn't copy the link", es: "No se pudo copiar el link" },
+    openInNewTab: { en: "Open in new tab", es: "Abrir en pestaña nueva" },
+  },
+  fill: {
+    readOnlyTitle: { en: "Read only", es: "Solo lectura" },
+    readOnlyNotice: {
+      en: "You don't have permission to answer this form — you can only view it.",
+      es: "No hay permiso para responder este formulario — solo puede verse.",
+    },
+    readOnlyStateNotice: {
+      en: "This asset is {{state}}, fields can't be edited.",
+      es: "Este activo está {{state}}, los campos no se pueden editar.",
+    },
+    readOnlyLifecycleNotice: {
+      en: "Fields can't be edited at this lifecycle stage.",
+      es: "Los campos no se pueden editar en esta etapa del ciclo de vida.",
+    },
+    readOnlyExternalElaborationNotice: {
+      en: "This asset is temporarily read-only while an extension processes it. It will unlock automatically once that response arrives.",
+      es: "Este activo está temporalmente en modo lectura mientras una extensión lo procesa. Se desbloqueará automáticamente en cuanto llegue esa respuesta.",
+    },
+    readOnlySectionNotice: {
+      en: "This section is read-only at this stage — you can view it but not answer it.",
+      es: "Esta sección es de solo lectura en esta etapa — puede verse pero no responderse.",
+    },
+    readOnlyInactiveSectionNotice: {
+      en: "This section is inactive based on your answers — you can view it but not answer it.",
+      es: "Esta sección está inactiva según las respuestas dadas — puede verse pero no responderse.",
+    },
+    notFound: { en: "This link is invalid or incomplete", es: "Este link no es válido o está incompleto" },
+    templateFallbackName: { en: "Workflow", es: "Workflow" },
+    noCreatePermission: {
+      en: "You don't have permission to create an asset from this link.",
+      es: "No hay permiso para crear un activo desde este link.",
+    },
+    createError: {
+      en: "Something went wrong creating this asset.",
+      es: "Ocurrió un error al crear este activo.",
+    },
+    continueLater: { en: "Continue later", es: "Continuar más tarde" },
+    savedTitle: { en: "Answers saved", es: "Respuestas guardadas" },
+    savedDescription: {
+      en: "You can keep completing this asset later from WiseCore. You can close this tab now.",
+      es: "Este activo puede completarse más tarde desde WiseCore. Ya es posible cerrar esta pestaña.",
+    },
+    savedNeedMore: { en: "Need anything else?", es: "¿Algo más?" },
+    savedKeepGoing: { en: "Keep completing", es: "Seguir completando" },
+    savedStartAnother: { en: "Start another asset", es: "Iniciar otro activo" },
+    finished: {
+      answersSentTitle: { en: "Answers for {{name}} submitted", es: "Respuestas de {{name}} enviadas" },
+      sentToApprovalTitle: { en: "{{name}} sent for approval", es: "{{name}} enviado a aprobación" },
+      approvedTitle: { en: "{{name}} approved", es: "{{name}} aprobado" },
+      publishedTitle: { en: "{{name}} published", es: "{{name}} publicado" },
+      archivedTitle: { en: "{{name}} archived", es: "{{name}} archivado" },
+      archivedDescription: {
+        en: "This asset was archived and no longer accepts actions. Its answers can't be viewed from this link anymore. You can close this tab now.",
+        es: "Este activo fue archivado y ya no admite ninguna acción. Tampoco es posible ver sus respuestas desde este link. Ya es posible cerrar esta pestaña.",
+      },
+      description: { en: "You can close this tab now.", es: "Ya es posible cerrar esta pestaña." },
+      publishedDescription: {
+        en: "The data was submitted and the process has finished. You can close this tab now.",
+        es: "Los datos fueron enviados y el proceso ha finalizado. Ya es posible cerrar esta pestaña.",
+      },
+      viewAnswers: { en: "View my answers", es: "Ver mis respuestas" },
+    },
+  },
+}
+
+export default translations

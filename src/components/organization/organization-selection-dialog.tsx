@@ -11,20 +11,21 @@ import {
 } from '@/components/ui/select';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { Label } from '@/components/ui/label';
-import { Building2, CheckCircle, Settings } from 'lucide-react';
+import { Building2, CheckCircle, RefreshCw, Settings } from 'lucide-react';
 import { getUserOrganizations, generateOrganizationToken } from '@/services/organizations';
 import { useOrganization } from '@/contexts/organization-context';
 import { useAuth } from '@/contexts/auth-context';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useTranslation } from 'react-i18next';
 import ProtectedComponent from '../protected-component';
+import { logger } from '@/lib/logger';
+import { authStepUpStore } from '@/lib/auth-step-up-store';
+import { isErrorCode, parseErrorDetail } from '@/lib/error-utils';
+import { AUTH_METHOD_REQUIRED } from '@/hooks/useCompleteLogin';
+import type { AuthMethodRequiredDetail } from '@/types/auth';
 import type { UserOrganization } from '@/types/users';
-
-interface OrganizationSelectionDialogProps {
-  open: boolean;
-  onOpenChange?: (open: boolean) => void;
-  preselectedOrganizationId?: string;
-}
+import type { OrganizationSelectionDialogProps } from '@/types/organizations';
+export type { OrganizationSelectionDialogProps } from '@/types/organizations';
 
 export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrganizationId }: OrganizationSelectionDialogProps) {
   const [selectedOrgId, setSelectedOrgId] = useState<string>(preselectedOrganizationId || '');
@@ -36,7 +37,7 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const { data: organizationsData, isLoading } = useQuery({
+  const { data: organizationsData, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['user-organizations', user?.id],
     queryFn: () => getUserOrganizations(user!.id),
     enabled: open && !!user?.id, // Solo cargar cuando el dialog esté abierto y tengamos user_id
@@ -56,7 +57,7 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
       setSelectedOrganizationId(organizationId);
       setOrganizationToken(orgToken);
       
-      console.log('Organization changed and token generated successfully:', orgToken?.substring(0, 10) + '...');
+      logger.log('Organization changed and token generated successfully:', orgToken?.substring(0, 10) + '...');
       
       // Invalidar todas las queries que dependen de la organización
       queryClient.invalidateQueries({ 
@@ -86,6 +87,15 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
       // Navigation to /${orgId}/home is handled by the context→URL sync
       // in app-layout.tsx. We intentionally don't navigate here to avoid
       // a double-navigation flash.
+    },
+    onError: (error, organizationId) => {
+      // Step-up (docs/sso-frontend.md §2): la organización exige otro método de
+      // acceso. Se abre el diálogo global; el resto de errores sigue al toast.
+      if (!isErrorCode(error, AUTH_METHOD_REQUIRED)) return;
+      const detail = parseErrorDetail<AuthMethodRequiredDetail>(error);
+      if (!detail?.required_auth_flow) return;
+      const organizationName = organizationsData?.find((org: UserOrganization) => org.id === organizationId)?.name ?? null;
+      authStepUpStore.open({ organizationId, organizationName, required: detail.required_auth_flow, source: 'dialog' });
     },
   });
 
@@ -132,9 +142,20 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
       >
         <div className="flex flex-col gap-4 py-2">
           <div className="space-y-4">
-            <Label htmlFor="org-select" className="text-sm font-medium">
-              {t('selection.availableOrganizations')}
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="org-select" className="text-sm font-medium">
+                {t('selection.availableOrganizations')}
+              </Label>
+              <HuemulButton
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                icon={RefreshCw}
+                tooltip={t('common:refresh')}
+                loading={isFetching}
+                onClick={() => refetch()}
+              />
+            </div>
             <Select
               value={selectedOrgId}
               onValueChange={setSelectedOrgId}

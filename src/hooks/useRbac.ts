@@ -1,22 +1,44 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useOrganization } from "@/contexts/organization-context"
 import { getRoles, createRole, getPermissions, getRolePermissions, getUserRoles, getUserAllRoles, assignRolesToUser, updateRole, deleteRole, getRoleWithAllUsers, assignUsersToRole, cloneRole } from "@/services/rbac"
-import { toast } from "sonner"
+import { userQueryKeys } from "@/hooks/useUsers"
+import type { UpdateRoleData } from "@/types/rbac"
 
-// Query keys
+// Query keys. Cada key lleva el orgId activo justo después del segmento
+// discriminante (['rbac', 'roles', orgId, ...]), así cambiar de organización
+// no pinta el cache de la organización anterior (mismo bug ya corregido en
+// /models — ver ia context/rbac-audit-guide.md, 14ª pasada de /roles). Los
+// `invalidateQueries` por prefijo siguen matcheando porque orgId se resuelve
+// igual (vía useOrganization) tanto al armar la key de la query como al
+// invalidar desde la mutación.
 export const rbacQueryKeys = {
   all: ['rbac'] as const,
-  roles: () => [...rbacQueryKeys.all, 'roles'] as const,
-  permissions: () => [...rbacQueryKeys.all, 'permissions'] as const,
-  rolePermissions: (roleId: string, search?: string) => [...rbacQueryKeys.all, 'rolePermissions', roleId, search ?? ''] as const,
-  userRoles: (userId: string) => [...rbacQueryKeys.all, 'userRoles', userId] as const,
-  userAllRoles: (userId: string, page?: number, pageSize?: number, search?: string) => [...rbacQueryKeys.all, 'userAllRoles', userId, page ?? 1, pageSize ?? 10, search ?? ''] as const,
-  roleWithAllUsers: (roleId: string, page?: number, pageSize?: number, search?: string) => [...rbacQueryKeys.all, 'roleWithAllUsers', roleId, page ?? 1, pageSize ?? 10, search ?? ''] as const,
+  roles: (orgId?: string | null) => [...rbacQueryKeys.all, 'roles', orgId ?? 'none'] as const,
+  permissions: (orgId?: string | null) => [...rbacQueryKeys.all, 'permissions', orgId ?? 'none'] as const,
+  rolePermissions: (orgId: string | null | undefined, roleId: string, search?: string) =>
+    [...rbacQueryKeys.all, 'rolePermissions', orgId ?? 'none', roleId, search ?? ''] as const,
+  userRoles: (orgId: string | null | undefined, userId: string) =>
+    [...rbacQueryKeys.all, 'userRoles', orgId ?? 'none', userId] as const,
+  userAllRoles: (orgId: string | null | undefined, userId: string, page?: number, pageSize?: number, search?: string) =>
+    [...rbacQueryKeys.all, 'userAllRoles', orgId ?? 'none', userId, page ?? 1, pageSize ?? 100, search ?? ''] as const,
+  roleWithAllUsers: (orgId: string | null | undefined, roleId: string, page?: number, pageSize?: number, search?: string) =>
+    [...rbacQueryKeys.all, 'roleWithAllUsers', orgId ?? 'none', roleId, page ?? 1, pageSize ?? 100, search ?? ''] as const,
+  // Prefijos SIN page/pageSize/search, para invalidar todas las combinaciones
+  // de paginación/búsqueda de un usuario o rol de una sola vez. `invalidateQueries`
+  // matchea por prefijo — una key con page/pageSize/search fijos (como las de
+  // arriba) solo invalida esa combinación exacta y deja estancado el panel si
+  // el usuario estaba en otra página o con otro término de búsqueda.
+  userAllRolesBase: (orgId: string | null | undefined, userId: string) =>
+    [...rbacQueryKeys.all, 'userAllRoles', orgId ?? 'none', userId] as const,
+  roleWithAllUsersBase: (orgId: string | null | undefined, roleId: string) =>
+    [...rbacQueryKeys.all, 'roleWithAllUsers', orgId ?? 'none', roleId] as const,
 }
 
 // Hook for fetching roles
-export function useRoles(enabled: boolean = true, page: number = 1, pageSize: number = 10, search?: string) {
+export function useRoles(enabled: boolean = true, page: number = 1, pageSize: number = 100, search?: string) {
+  const { selectedOrganizationId } = useOrganization()
   return useQuery({
-    queryKey: [...rbacQueryKeys.roles(), page, pageSize, search ?? ''],
+    queryKey: [...rbacQueryKeys.roles(selectedOrganizationId), page, pageSize, search ?? ''],
     queryFn: () => getRoles(page, pageSize, search),
     placeholderData: (prev) => prev,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -29,9 +51,10 @@ export function useRoles(enabled: boolean = true, page: number = 1, pageSize: nu
 
 // Hook for fetching permissions
 export function usePermissions(enabled: boolean = true) {
+  const { selectedOrganizationId } = useOrganization()
   return useQuery({
-    queryKey: rbacQueryKeys.permissions(),
-    queryFn: getPermissions,
+    queryKey: rbacQueryKeys.permissions(selectedOrganizationId),
+    queryFn: () => getPermissions(),
     staleTime: 10 * 60 * 1000, // 10 minutes - permissions change less frequently
     enabled,
   })
@@ -39,8 +62,9 @@ export function usePermissions(enabled: boolean = true) {
 
 // Hook for fetching permissions of a specific role
 export function useRolePermissions(roleId: string, enabled: boolean = true, search?: string) {
+  const { selectedOrganizationId } = useOrganization()
   return useQuery({
-    queryKey: rbacQueryKeys.rolePermissions(roleId, search),
+    queryKey: rbacQueryKeys.rolePermissions(selectedOrganizationId, roleId, search),
     queryFn: () => getRolePermissions(roleId, search),
     enabled: !!roleId && enabled,
     staleTime: 0, // Always refetch to ensure fresh data
@@ -50,8 +74,9 @@ export function useRolePermissions(roleId: string, enabled: boolean = true, sear
 
 // Hook for fetching user roles
 export function useUserRoles(userId: string, enabled: boolean = true) {
+  const { selectedOrganizationId } = useOrganization()
   return useQuery({
-    queryKey: rbacQueryKeys.userRoles(userId),
+    queryKey: rbacQueryKeys.userRoles(selectedOrganizationId, userId),
     queryFn: () => getUserRoles(userId),
     enabled: !!userId && userId.trim() !== '' && enabled,
     staleTime: 5 * 60 * 1000,
@@ -61,9 +86,10 @@ export function useUserRoles(userId: string, enabled: boolean = true) {
 }
 
 // Hook for fetching all roles with user assignment status
-export function useUserAllRoles(userId: string, enabled: boolean = true, page: number = 1, pageSize: number = 10, search?: string) {
+export function useUserAllRoles(userId: string, enabled: boolean = true, page: number = 1, pageSize: number = 100, search?: string) {
+  const { selectedOrganizationId } = useOrganization()
   return useQuery({
-    queryKey: rbacQueryKeys.userAllRoles(userId, page, pageSize, search),
+    queryKey: rbacQueryKeys.userAllRoles(selectedOrganizationId, userId, page, pageSize, search),
     queryFn: () => getUserAllRoles(userId, page, pageSize, search),
     enabled: !!userId && userId.trim() !== '' && enabled,
     staleTime: 5 * 60 * 1000,
@@ -73,9 +99,10 @@ export function useUserAllRoles(userId: string, enabled: boolean = true, page: n
 }
 
 // Hook for fetching role with all users and their assignment status
-export function useRoleWithAllUsers(roleId: string, enabled: boolean = true, page: number = 1, pageSize: number = 10, search?: string) {
+export function useRoleWithAllUsers(roleId: string, enabled: boolean = true, page: number = 1, pageSize: number = 100, search?: string) {
+  const { selectedOrganizationId } = useOrganization()
   return useQuery({
-    queryKey: rbacQueryKeys.roleWithAllUsers(roleId, page, pageSize, search),
+    queryKey: rbacQueryKeys.roleWithAllUsers(selectedOrganizationId, roleId, page, pageSize, search),
     queryFn: () => getRoleWithAllUsers(roleId, page, pageSize, search),
     enabled: !!roleId && roleId.trim() !== '' && enabled,
     staleTime: 5 * 60 * 1000,
@@ -87,58 +114,67 @@ export function useRoleWithAllUsers(roleId: string, enabled: boolean = true, pag
 // Hook for role mutations
 export function useRoleMutations() {
   const queryClient = useQueryClient()
+  const { selectedOrganizationId } = useOrganization()
 
   const createRoleMutation = useMutation({
     mutationFn: createRole,
+    meta: { successMessage: 'Role created successfully' },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles() })
-      toast.success('Role created successfully')
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles(selectedOrganizationId) })
     },
   })
 
   const updateRoleMutation = useMutation({
-    mutationFn: ({ roleId, data }: { roleId: string; data: any }) => 
+    mutationFn: ({ roleId, data }: { roleId: string; data: UpdateRoleData }) =>
       updateRole(roleId, data),
+    meta: { successMessage: 'Role updated successfully' },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles() })
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles(selectedOrganizationId) })
       // Don't invalidate rolePermissions here - it should only refetch when sheet opens
-      toast.success('Role updated successfully')
     },
   })
 
   const deleteRoleMutation = useMutation({
     mutationFn: deleteRole,
+    meta: { successMessage: 'Role deleted successfully' },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles() })
-      toast.success('Role deleted successfully')
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles(selectedOrganizationId) })
     },
   })
 
   const assignRolesMutation = useMutation({
     mutationFn: ({ userId, roleIds }: { userId: string; roleIds: string[] }) =>
       assignRolesToUser(userId, { role_ids: roleIds }),
+    meta: { successMessage: 'Roles assigned successfully' },
     onSuccess: (_, { userId }) => {
-      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.userRoles(userId) })
-      toast.success('Roles assigned successfully')
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.userRoles(selectedOrganizationId, userId) })
+      // Prefijo (sin page/pageSize/search): cubre al panel sin importar en qué
+      // página/búsqueda estaba parado (ver nota en userAllRolesBase arriba).
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.userAllRolesBase(selectedOrganizationId, userId) })
+      // `users_count` de cada rol y la columna Roles de la tabla de usuarios
+      // (GET /user_roles/users_with_roles) también cambian con esta mutación.
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles(selectedOrganizationId) })
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
     },
   })
 
   const assignUsersToRoleMutation = useMutation({
     mutationFn: ({ roleId, userIds }: { roleId: string; userIds: string[] }) =>
       assignUsersToRole(roleId, userIds),
+    meta: { successMessage: 'Users assigned successfully' },
     onSuccess: (_, { roleId }) => {
-      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roleWithAllUsers(roleId) })
-      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles() })
-      toast.success('Users assigned successfully')
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roleWithAllUsersBase(selectedOrganizationId, roleId) })
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles(selectedOrganizationId) })
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
     },
   })
 
   const cloneRoleMutation = useMutation({
     mutationFn: ({ roleId, copyUsers }: { roleId: string; copyUsers: boolean }) =>
       cloneRole(roleId, { copy_users: copyUsers }),
+    meta: { successMessage: 'Role cloned successfully' },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles() })
-      toast.success('Role cloned successfully')
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles(selectedOrganizationId) })
     },
   })
 

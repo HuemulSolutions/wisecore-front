@@ -1,24 +1,30 @@
 import { HuemulField } from '@/huemul/components/huemul-field';
+import { HuemulButton } from '@/huemul/components/huemul-button';
+import { Separator } from '@/components/ui/separator';
 import { useTranslation } from 'react-i18next';
+import { Plus, Trash2 } from 'lucide-react';
+import { QUESTION_TYPE, NUMERIC_DATA_TYPES, jsonbToInputValue, readFileUploadLimits } from '@/components/sections/question-type-meta';
+import { CustomFieldPreview } from '@/components/custom-fields/custom-field-preview';
+import type { CustomFieldFormFieldsProps, CustomFieldOption } from '@/types/custom-fields';
 
-interface CustomFieldFormFieldsProps {
-  name: string;
-  description: string;
-  dataType: string;
-  masc: string;
-  onNameChange: (value: string) => void;
-  onDescriptionChange: (value: string) => void;
-  onDataTypeChange: (value: string) => void;
-  onMascChange: (value: string) => void;
-  dataTypes: string[];
-  formatDataType: (dataType: string) => string;
-  errors?: {
-    name?: string;
-    description?: string;
-    data_type?: string;
-  };
-  disabled?: boolean;
-  loadingDataTypes?: boolean;
+// Tipos de archivo seleccionables para carga_de_archivos — mismo catálogo que los form fields de sección.
+const FILE_TYPE_OPTIONS = ['pdf', 'docx', 'xlsx', 'png', 'jpg', 'csv'];
+
+export type { CustomFieldFormFieldsProps } from '@/types/custom-fields';
+
+function SectionHeader({ number, label }: { number?: number; label: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      {number !== undefined && (
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[11px] font-semibold text-blue-700">
+          {number}
+        </span>
+      )}
+      <span className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+        {label}
+      </span>
+    </div>
+  );
 }
 
 export default function CustomFieldFormFields({
@@ -26,66 +32,363 @@ export default function CustomFieldFormFields({
   description,
   dataType,
   masc,
+  questionType,
+  options,
+  minValue,
+  maxValue,
+  config,
+  required,
   onNameChange,
   onDescriptionChange,
-  onDataTypeChange,
   onMascChange,
-  dataTypes,
-  formatDataType,
+  onQuestionTypeChange,
+  onOptionsChange,
+  onMinValueChange,
+  onMaxValueChange,
+  onConfigChange,
+  onRequiredChange,
+  questionTypes,
+  formatQuestionType,
   errors = {},
   disabled = false,
-  loadingDataTypes = false,
+  loadingQuestionTypes = false,
 }: CustomFieldFormFieldsProps) {
-  const { t } = useTranslation('custom-fields')
+  const { t } = useTranslation(['custom-fields', 'common', 'sections'])
+
+  const handleAddOption = () => {
+    onOptionsChange([...options, { id: '', label: '' }])
+  }
+
+  const handleRemoveOption = (index: number) => {
+    onOptionsChange(options.filter((_, i) => i !== index))
+  }
+
+  const handleOptionChange = (index: number, field: keyof CustomFieldOption, value: string) => {
+    const updated = options.map((opt, i) =>
+      i === index ? { ...opt, [field]: value } : opt
+    )
+    onOptionsChange(updated)
+  }
+
+  const MASK_APPLICABLE_TYPES = ['string', 'int', 'decimal', 'url']
+
+  const settingsSectionLabel = questionType
+    ? t('form.section.settings', { type: formatQuestionType(questionType) })
+    : t('form.section.settingsGeneric')
+
+  // Cantidad mín/máx de archivos: min_value/max_value (raíz) — fuente de verdad real del
+  // backend. Fallback de lectura a config.min_files/max_files por compatibilidad con
+  // custom fields guardados antes de esta migración (mismo criterio que section-question-type-fields.tsx).
+  const { min: filesMin, max: filesMax } = readFileUploadLimits({
+    min_value: minValue,
+    max_value: maxValue,
+    default_value: config,
+  })
 
   return (
-    <div className="space-y-4">
-      <HuemulField
-        type="text"
-        label={t('columns.name')}
-        name="name"
-        placeholder={t('form.namePlaceholder')}
-        value={name}
-        onChange={(v) => onNameChange(String(v))}
-        disabled={disabled}
-        error={errors.name}
-        required
-      />
-      <HuemulField
-        type="textarea"
-        label={t('columns.description')}
-        name="description"
-        placeholder={t('form.descriptionPlaceholder')}
-        rows={3}
-        value={description}
-        onChange={(v) => onDescriptionChange(String(v))}
-        disabled={disabled}
-        error={errors.description}
-      />
-      <HuemulField
-        type="select"
-        label={t('columns.dataType')}
-        name="data_type"
-        placeholder={t('form.dataTypePlaceholder')}
-        value={dataType}
-        onChange={(v) => onDataTypeChange(String(v))}
-        disabled={disabled || loadingDataTypes}
-        error={errors.data_type}
-        required
-        options={dataTypes.map((type) => ({
-          label: formatDataType(type),
-          value: type,
-        }))}
-      />
-      <HuemulField
-        type="text"
-        label={t('form.maskLabel')}
-        name="masc"
-        placeholder={t('form.maskPlaceholder')}
-        value={masc}
-        onChange={(v) => onMascChange(String(v))}
-        disabled={disabled}
-      />
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <SectionHeader label={t('form.section.preview')} />
+        <CustomFieldPreview
+          name={name}
+          dataType={dataType}
+          questionType={questionType}
+          options={options}
+          minValue={minValue}
+          maxValue={maxValue}
+          minLabel={config.min_label}
+          maxLabel={config.max_label}
+          required={required}
+        />
+      </div>
+
+      <Separator />
+
+      <div className="space-y-4">
+        <SectionHeader number={1} label={t('form.section.definition')} />
+        <HuemulField
+          type="text"
+          label={t('common:name')}
+          name="name"
+          placeholder={t('form.namePlaceholder')}
+          description={t('form.nameHelper')}
+          value={name}
+          onChange={(v) => onNameChange(String(v))}
+          disabled={disabled}
+          error={errors.name}
+          required
+        />
+        <HuemulField
+          type="select"
+          label={t('form.questionTypeSelectLabel')}
+          name="question_type"
+          placeholder={t('form.questionTypeSelectPlaceholder')}
+          value={questionType}
+          onChange={(v) => onQuestionTypeChange(String(v))}
+          disabled={disabled || loadingQuestionTypes}
+          error={errors.question_type}
+          required
+          options={questionTypes.map((qt) => ({
+            label: formatQuestionType(qt.question_type),
+            value: qt.question_type,
+          }))}
+        />
+        <div className="rounded-lg border p-3">
+          <HuemulField
+            type="switch"
+            label={t('form.requiredLabel')}
+            description={t('form.requiredDescription')}
+            value={required}
+            onChange={(v) => onRequiredChange(Boolean(v))}
+            labelFirst
+            disabled={disabled}
+          />
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-4">
+        <SectionHeader number={2} label={settingsSectionLabel} />
+
+        {dataType === 'list' && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium">
+            {t('form.listOptionsLabel')}
+          </p>
+          {errors.options && (
+            <p className="text-sm text-destructive">{errors.options}</p>
+          )}
+          <div className="space-y-2">
+            {options.map((option, index) => (
+              <div key={index} className="flex gap-2 items-start">
+                <div className="flex-1">
+                  <HuemulField
+                    type="text"
+                    label={index === 0 ? t('form.optionIdLabel') : undefined}
+                    name={`option_id_${index}`}
+                    placeholder={t('form.optionIdPlaceholder')}
+                    value={option.id}
+                    onChange={(v) => handleOptionChange(index, 'id', String(v))}
+                    disabled={disabled}
+                    error={errors[`option_${index}_id`]}
+                  />
+                </div>
+                <div className="flex-1">
+                  <HuemulField
+                    type="text"
+                    label={index === 0 ? t('form.optionNameLabel') : undefined}
+                    name={`option_name_${index}`}
+                    placeholder={t('form.optionNamePlaceholder')}
+                    value={option.label}
+                    onChange={(v) => handleOptionChange(index, 'label', String(v))}
+                    disabled={disabled}
+                    error={errors[`option_${index}_name`]}
+                  />
+                </div>
+                <div className={index === 0 ? 'mt-6' : ''}>
+                  <HuemulButton
+                    icon={Trash2}
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={disabled}
+                    onClick={() => handleRemoveOption(index)}
+                    type="button"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <HuemulButton
+            icon={Plus}
+            variant="outline"
+            size="sm"
+            label={t('form.listOptionsAddButton')}
+            disabled={disabled}
+            onClick={handleAddOption}
+            type="button"
+          />
+        </div>
+      )}
+
+      {/* Numérico (respuesta_numerica/decimal): rango min/max. Escala lineal y calificación
+          también usan min_value/max_value pero con su propio widget (bloques siguientes). */}
+      {NUMERIC_DATA_TYPES.includes(dataType) &&
+        questionType !== QUESTION_TYPE.linearScale &&
+        questionType !== QUESTION_TYPE.rating && (
+        <div className="space-y-1">
+          <div className="grid grid-cols-2 gap-3">
+            <HuemulField
+              type="number"
+              label={t('sections:form.formFields.minValue')}
+              value={jsonbToInputValue(minValue)}
+              onChange={(v) => onMinValueChange(v === "" ? null : Number(v))}
+              placeholder={t('sections:form.formFields.noLimit')}
+              allowDecimal={dataType === "decimal"}
+              disabled={disabled}
+            />
+            <HuemulField
+              type="number"
+              label={t('sections:form.formFields.maxValue')}
+              value={jsonbToInputValue(maxValue)}
+              onChange={(v) => onMaxValueChange(v === "" ? null : Number(v))}
+              placeholder={t('sections:form.formFields.noLimit')}
+              allowDecimal={dataType === "decimal"}
+              disabled={disabled}
+            />
+          </div>
+          {errors.min_value && <p className="text-sm text-destructive">{errors.min_value}</p>}
+        </div>
+      )}
+
+      {/* Escala lineal: rango desde/hasta + etiquetas de extremos. */}
+      {questionType === QUESTION_TYPE.linearScale && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <HuemulField
+              type="select"
+              label={t('sections:form.formFields.minValue')}
+              value={String(typeof minValue === 'number' ? minValue : 1)}
+              onChange={(v) => onMinValueChange(Number(v))}
+              options={[0, 1].map((n) => ({ value: String(n), label: String(n) }))}
+              disabled={disabled}
+            />
+            <HuemulField
+              type="select"
+              label={t('sections:form.formFields.maxValue')}
+              value={String(typeof maxValue === 'number' ? maxValue : 5)}
+              onChange={(v) => onMaxValueChange(Number(v))}
+              options={[2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => ({ value: String(n), label: String(n) }))}
+              disabled={disabled}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <HuemulField
+              type="text"
+              label={t('sections:form.formFields.startLabel')}
+              placeholder={t('sections:form.formFields.startLabelPlaceholder')}
+              value={config.min_label ?? ''}
+              onChange={(v) => onConfigChange({ min_label: String(v) })}
+              disabled={disabled}
+            />
+            <HuemulField
+              type="text"
+              label={t('sections:form.formFields.endLabel')}
+              placeholder={t('sections:form.formFields.endLabelPlaceholder')}
+              value={config.max_label ?? ''}
+              onChange={(v) => onConfigChange({ max_label: String(v) })}
+              disabled={disabled}
+            />
+          </div>
+          {errors.min_value && <p className="text-sm text-destructive">{errors.min_value}</p>}
+        </div>
+      )}
+
+      {/* Calificación: cantidad de estrellas (se persiste en max_value). */}
+      {questionType === QUESTION_TYPE.rating && (
+        <HuemulField
+          type="select"
+          label={t('sections:form.formFields.starCount')}
+          value={String(typeof maxValue === 'number' ? maxValue : 5)}
+          onChange={(v) => onMaxValueChange(Number(v))}
+          options={[3, 4, 5, 6, 7, 8, 9, 10].map((n) => ({ value: String(n), label: String(n) }))}
+          disabled={disabled}
+        />
+      )}
+
+      {/* Carga de archivos: tipos permitidos + tamaño máximo + cantidad de archivos. */}
+      {questionType === QUESTION_TYPE.fileUpload && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium">{t('form.allowedTypesLabel')}</p>
+          <div className="flex flex-wrap gap-2">
+            {FILE_TYPE_OPTIONS.map((type) => {
+              const active = (config.allowed_types ?? []).includes(type)
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => {
+                    const current = config.allowed_types ?? []
+                    const next = active ? current.filter((x) => x !== type) : [...current, type]
+                    onConfigChange({ allowed_types: next })
+                  }}
+                  className={`rounded border px-2 py-1 text-xs transition-colors ${
+                    active
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-400'
+                  }`}
+                >
+                  {type}
+                </button>
+              )
+            })}
+          </div>
+          <HuemulField
+            type="select"
+            label={t('sections:form.formFields.maxSize')}
+            value={String(config.max_size_mb ?? 10)}
+            onChange={(v) => onConfigChange({ max_size_mb: Number(v) })}
+            options={[1, 5, 10, 25, 50].map((n) => ({ value: String(n), label: `${n} MB` }))}
+            disabled={disabled}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <HuemulField
+              type="number"
+              label={t('sections:form.formFields.minFiles')}
+              value={filesMin}
+              onChange={(v) => {
+                const n = v === '' ? 0 : Math.min(20, Math.max(0, Number(v)))
+                onMinValueChange(n)
+                onMaxValueChange(Math.max(filesMax, n, 1))
+              }}
+              disabled={disabled}
+            />
+            <HuemulField
+              type="number"
+              label={t('sections:form.formFields.maxFiles')}
+              value={filesMax}
+              onChange={(v) => {
+                const n = v === '' ? 1 : Math.min(20, Math.max(1, Number(v)))
+                onMaxValueChange(n)
+                onMinValueChange(Math.min(filesMin, n))
+              }}
+              disabled={disabled}
+            />
+          </div>
+          {filesMax > 1 && (
+            <p className="text-xs text-muted-foreground">
+              {t('sections:form.formFields.filesHint', { max: filesMax })}
+            </p>
+          )}
+        </div>
+      )}
+
+        {MASK_APPLICABLE_TYPES.includes(dataType) && (
+          <HuemulField
+            type="text"
+            label={t('form.maskLabel')}
+            name="masc"
+            placeholder={t('form.maskPlaceholder')}
+            description={t('form.maskHelper')}
+            value={masc}
+            onChange={(v) => onMascChange(String(v))}
+            disabled={disabled}
+          />
+        )}
+
+        <HuemulField
+          type="textarea"
+          label={t('columns.description')}
+          name="description"
+          placeholder={t('form.descriptionPlaceholder')}
+          rows={3}
+          value={description}
+          onChange={(v) => onDescriptionChange(String(v))}
+          disabled={disabled}
+          error={errors.description}
+        />
+      </div>
     </div>
   );
 }

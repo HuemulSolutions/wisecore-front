@@ -43,3 +43,11 @@ export async function updateEmbeddingProvider(payload: UpdateEmbeddingProviderRe
 export async function deleteEmbeddingProvider(): Promise<void> {
   await httpClient.delete(`${backendUrl}/embedding_provider/`);
 }
+
+export async function testEmbeddingProviderConnection(): Promise<{ ok: boolean }> {
+  const response = await httpClient.post(`${backendUrl}/embedding_provider/test_connection`, {});
+  const data = await response.json();
+  const result = data.data || data;
+  if (!result?.ok) throw new Error();
+  return result;
+}

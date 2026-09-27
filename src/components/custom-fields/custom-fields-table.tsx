@@ -1,117 +1,109 @@
-import { Badge } from "@/components/ui/badge"
-import { Edit2, Trash2, FileText } from "lucide-react"
-import type { CustomField } from "@/types/custom-fields"
-import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
+import { ChevronRight, Settings2 } from "lucide-react"
+import type { CustomField, CustomFieldTableProps } from '@/types/custom-fields'
+export type { CustomFieldTableProps } from '@/types/custom-fields'
+import { HuemulTable, type HuemulTableColumn } from "@/huemul/components/huemul-table"
 import { useTranslation } from "react-i18next"
-
-interface CustomFieldTableProps {
-  customFields: CustomField[]
-  onEditCustomField: (customField: CustomField) => void
-  onDeleteCustomField: (customField: CustomField) => void
-  pagination?: HuemulTablePagination
-  canManage?: boolean
-  isLoading?: boolean
-  isFetching?: boolean
-}
+import { questionTypeLabel } from "@/components/sections/question-type-meta"
+import { formatDate } from "@/components/users"
 
 export function CustomFieldTable({
   customFields,
-  onEditCustomField,
-  onDeleteCustomField,
+  onSelectCustomField,
+  selectedCustomFieldId,
   pagination,
-  canManage = false,
+  canUpdate = false,
+  canDelete = false,
   isLoading = false,
   isFetching = false
 }: CustomFieldTableProps) {
-  const { t, i18n } = useTranslation('custom-fields')
+  const { t } = useTranslation(['custom-fields', 'common'])
+  const { t: tSections } = useTranslation('sections')
 
   const formatDataType = (dataType: string) => {
     const key = dataType as keyof object
     return t(`dataTypes.${key}` as Parameters<typeof t>[0], { defaultValue: dataType })
   }
 
-  // Define columns
+  // El único punto de entrada para borrar es el sheet de edición
+  // (custom-fields-create-edit-sheet.tsx), así que la fila se abre con
+  // canUpdate O canDelete — restringirla solo a canUpdate le quitaría a un
+  // rol con únicamente custom_fields:d toda forma de eliminar.
+  const canOpen = canUpdate || canDelete
+
   const columns: HuemulTableColumn<CustomField>[] = [
     {
       key: "name",
-      label: t('columns.name'),
+      label: t('common:name'),
+      width: "minmax(0,1.4fr)",
       render: (customField) => (
-        <div className="flex flex-col">
-          <span className="text-xs font-medium text-foreground">{customField.name}</span>
-          <span className="text-[10px] text-muted-foreground">
-            ID: {customField.id}
+        <div className="flex min-w-0 flex-col gap-0">
+          <span className="truncate text-[13.5px] font-semibold leading-tight text-[#0f172a]">
+            {customField.name}
+          </span>
+          <span
+            className="truncate text-xs leading-tight text-[#7c8798]"
+            title={customField.description || undefined}
+          >
+            {customField.description || t('columns.noDescription')}
           </span>
         </div>
       )
     },
     {
-      key: "description",
-      label: t('columns.description'),
+      key: "fieldType",
+      label: t('columns.fieldType'),
+      width: "minmax(0,0.9fr)",
       render: (customField) => (
-        <div className="max-w-xs truncate text-xs text-foreground" title={customField.description}>
-          {customField.description || t('columns.noDescription')}
-        </div>
-      )
-    },
-    {
-      key: "dataType",
-      label: t('columns.dataType'),
-      render: (customField) => (
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-          {formatDataType(customField.data_type)}
-        </Badge>
+        <span className="inline-flex max-w-full items-center rounded-full border border-[#e3e9f1] bg-white px-2.5 py-0.5 text-[11.5px] font-medium text-[#475569]">
+          <span className="truncate">
+            {customField.question_type
+              ? questionTypeLabel(customField.question_type, tSections)
+              : formatDataType(customField.data_type)}
+          </span>
+        </span>
       )
     },
     {
       key: "mask",
       label: t('columns.mask'),
-      render: (customField) => (
-        <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded border">
-          {customField.masc || t('columns.none')}
-        </code>
-      )
+      width: "minmax(0,0.7fr)",
+      render: (customField) =>
+        customField.masc ? (
+          <code className="rounded border bg-muted px-1.5 py-0.5 text-[11.5px]">
+            {customField.masc}
+          </code>
+        ) : (
+          <span className="text-xs italic text-[#9aa6b5]">{t('columns.none')}</span>
+        )
     },
     {
       key: "created",
-      label: t('columns.created'),
+      label: t('common:created'),
+      width: "120px",
       render: (customField) => (
-        <span className="text-xs text-foreground">
-          {new Date(customField.created_at).toLocaleDateString(i18n.language, {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-          })}
-        </span>
+        <span className="text-xs text-[#7c8798]">{formatDate(customField.created_at)}</span>
       )
+    },
+    {
+      key: "chevron",
+      label: "",
+      align: "right",
+      width: "40px",
+      render: () =>
+        canOpen ? <ChevronRight className="ml-auto size-[15px] text-[#b6c0cd]" /> : null
     }
   ]
 
-  // Define actions - solo si es admin
-  const actions: HuemulTableAction<CustomField>[] = canManage ? [
-    {
-      key: "edit",
-      label: t('actions.editCustomField'),
-      icon: Edit2,
-      onClick: onEditCustomField,
-      separator: true
-    },
-    {
-      key: "delete",
-      label: t('actions.deleteCustomField'),
-      icon: Trash2,
-      onClick: onDeleteCustomField,
-      destructive: true
-    }
-  ] : []
-
   return (
     <HuemulTable
+      variant="detailed"
       data={customFields}
       columns={columns}
-      actions={actions}
       getRowKey={(customField) => customField.id}
+      onRowClick={canOpen ? onSelectCustomField : undefined}
+      activeKey={selectedCustomFieldId ?? null}
       emptyState={{
-        icon: FileText,
+        icon: Settings2,
         title: t('contentEmptyState.tableEmptyTitle'),
         description: t('contentEmptyState.tableEmptyDescription')
       }}

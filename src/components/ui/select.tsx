@@ -5,9 +5,32 @@ import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 function Select({
+  onValueChange,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />
+  // Radix monta un <select> nativo oculto para que el Select participe del <form>
+  // que lo contiene. Cada vez que el `value` controlado cambia POR CÓDIGO, ese select
+  // dispara un `change` sintético; si el <option> correspondiente todavía no se
+  // registró (el popup nunca se abrió, o el item se acaba de renderizar en este mismo
+  // commit), el navegador deja el value en "" y Radix nos lo devuelve como si el
+  // usuario hubiera elegido algo. Ese eco pisaba el estado del caller (ver el select
+  // "Cuándo se muestra" de section-form-field-card.tsx, que borraba depends_on).
+  // Ningún item seleccionable del proyecto usa value "": descartarlo es seguro.
+  const handleValueChange = React.useCallback(
+    (next: string) => {
+      if (next === "") return;
+      onValueChange?.(next);
+    },
+    [onValueChange],
+  );
+
+  return (
+    <SelectPrimitive.Root
+      data-slot="select"
+      onValueChange={handleValueChange}
+      {...props}
+    />
+  )
 }
 
 function SelectGroup({
@@ -28,7 +51,7 @@ function SelectTrigger({
   children,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
-  size?: "sm" | "default"
+  size?: "sm" | "default" | "xs"
 }) {
   return (
     <SelectPrimitive.Trigger

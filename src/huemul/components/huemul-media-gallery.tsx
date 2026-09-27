@@ -1,0 +1,374 @@
+import { useState } from "react"
+import { AlertCircle, RefreshCw, Inbox, MoreVertical, Sparkles, Trash2 } from "lucide-react"
+import { formatRelativeTime } from "@/lib/format-relative-time"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { cn } from "@/lib/utils"
+import { formatBytes } from "@/lib/format-bytes"
+import { isImage, MediaIcon } from "./huemul-media-icon"
+import type { Media } from "@/types/media"
+import type { ViewMode } from "./huemul-view-toggle"
+
+// ─── Menú de acciones rápidas (regenerar con IA / eliminar) ─────────────────
+
+function MediaActionsMenu({
+  onRegenerate,
+  regenerateLabel,
+  onDelete,
+  deleteLabel,
+  triggerClassName,
+}: {
+  onRegenerate?: () => void
+  regenerateLabel?: string
+  onDelete?: () => void
+  deleteLabel?: string
+  triggerClassName?: string
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={regenerateLabel ?? deleteLabel}
+          onClick={(e) => e.stopPropagation()}
+          className={triggerClassName}
+        >
+          <MoreVertical className="h-3.5 w-3.5" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+        {onRegenerate && (
+          <DropdownMenuItem onClick={onRegenerate}>
+            <Sparkles className="h-3.5 w-3.5 mr-2" />
+            {regenerateLabel}
+          </DropdownMenuItem>
+        )}
+        {onRegenerate && onDelete && <DropdownMenuSeparator />}
+        {onDelete && (
+          <DropdownMenuItem variant="destructive" onClick={onDelete}>
+            <Trash2 className="h-3.5 w-3.5 mr-2" />
+            {deleteLabel}
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+// ─── Miniatura con fallback (blob inexistente / URL caducada) ───────────────
+
+function MediaThumb({
+  contentType,
+  url,
+  alt,
+  imgClassName,
+  iconClassName,
+}: {
+  contentType?: string | null
+  url?: string | null
+  alt: string
+  imgClassName?: string
+  iconClassName?: string
+}) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
+
+  if (isImage(contentType) && url && failedUrl !== url) {
+    return (
+      <img
+        src={url}
+        alt={alt}
+        className={imgClassName}
+        loading="lazy"
+        onError={() => setFailedUrl(url)}
+      />
+    )
+  }
+  return <MediaIcon contentType={contentType} className={iconClassName} />
+}
+
+// ─── Gallery card ─────────────────────────────────────────────────────────────
+
+function MediaCard({
+  item,
+  onClick,
+  onRegenerate,
+  regenerateLabel,
+  onDelete,
+  deleteLabel,
+}: {
+  item: Media
+  onClick: () => void
+  onRegenerate?: (item: Media) => void
+  regenerateLabel?: string
+  onDelete?: (item: Media) => void
+  deleteLabel?: string
+}) {
+  const version = item.current_version
+  const name = item.name ?? version?.original_filename ?? item.id
+  const contentType = version?.content_type
+  const canRegenerate = onRegenerate && isImage(contentType)
+  const hasMenu = canRegenerate || onDelete
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => e.key === "Enter" && onClick()}
+      className="group flex flex-col rounded-lg border bg-card overflow-hidden hover:shadow-md transition-shadow hover:cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <div className="relative aspect-square bg-muted flex items-center justify-center overflow-hidden">
+        <MediaThumb
+          contentType={contentType}
+          url={version?.download_url}
+          alt={name}
+          imgClassName="object-cover w-full h-full group-hover:scale-105 transition-transform duration-200"
+          iconClassName="h-12 w-12 opacity-40"
+        />
+        {version && (
+          <span className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[10px] font-mono px-1.5 py-0.5 rounded">
+            v{version.version_number}
+          </span>
+        )}
+        {hasMenu && (
+          <MediaActionsMenu
+            onRegenerate={canRegenerate ? () => onRegenerate(item) : undefined}
+            regenerateLabel={regenerateLabel}
+            onDelete={onDelete ? () => onDelete(item) : undefined}
+            deleteLabel={deleteLabel}
+            triggerClassName="absolute top-1.5 right-1.5 rounded-md bg-black/60 p-1 text-white transition-colors hover:bg-black/80 hover:cursor-pointer focus-visible:outline-none"
+          />
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1 p-2.5 min-w-0">
+        <p className="text-xs font-medium truncate leading-tight" title={name}>
+          {name}
+        </p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {contentType && (
+            <Badge variant="secondary" className="text-[10px] font-mono px-1 py-0 h-4 truncate max-w-28">
+              {contentType.split("/")[1] ?? contentType}
+            </Badge>
+          )}
+          {item.origin && (
+            <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+              {item.origin}
+            </Badge>
+          )}
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-0.5">
+          {formatBytes(version?.file_size)}
+          {item.created_at && (
+            <> · {formatRelativeTime(item.created_at)}</>
+          )}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ─── List row ─────────────────────────────────────────────────────────────────
+
+function MediaRow({
+  item,
+  onClick,
+  onRegenerate,
+  regenerateLabel,
+  onDelete,
+  deleteLabel,
+}: {
+  item: Media
+  onClick: () => void
+  onRegenerate?: (item: Media) => void
+  regenerateLabel?: string
+  onDelete?: (item: Media) => void
+  deleteLabel?: string
+}) {
+  const version = item.current_version
+  const name = item.name ?? version?.original_filename ?? item.id
+  const contentType = version?.content_type
+  const canRegenerate = onRegenerate && isImage(contentType)
+  const hasMenu = canRegenerate || onDelete
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => e.key === "Enter" && onClick()}
+      className="group flex min-w-0 items-center gap-2 @[400px]/media:gap-3 rounded-lg border bg-card px-3 py-2 hover:shadow-sm transition-shadow hover:cursor-pointer hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <div className="relative h-10 w-10 shrink-0 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+        <MediaThumb
+          contentType={contentType}
+          url={version?.download_url}
+          alt={name}
+          imgClassName="object-cover w-full h-full"
+          iconClassName="h-5 w-5 opacity-50"
+        />
+      </div>
+
+      <p className="flex-1 min-w-0 truncate text-sm font-medium" title={name}>
+        {name}
+      </p>
+
+      {item.origin && (
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 shrink-0 hidden @[420px]/media:inline-flex">
+          {item.origin}
+        </Badge>
+      )}
+      {contentType && (
+        <Badge variant="secondary" className="text-[10px] font-mono px-1.5 py-0 h-5 shrink-0 hidden @[220px]/media:inline-flex">
+          {contentType.split("/")[1] ?? contentType}
+        </Badge>
+      )}
+      <span className="text-xs text-muted-foreground shrink-0 w-16 text-right tabular-nums hidden @[300px]/media:block">
+        {formatBytes(version?.file_size)}
+      </span>
+      {item.created_at && (
+        <span className="text-xs text-muted-foreground shrink-0 hidden @[560px]/media:block w-20 text-right" title={item.created_at}>
+          {formatRelativeTime(item.created_at)}
+        </span>
+      )}
+      {hasMenu && (
+        <MediaActionsMenu
+          onRegenerate={canRegenerate ? () => onRegenerate(item) : undefined}
+          regenerateLabel={regenerateLabel}
+          onDelete={onDelete ? () => onDelete(item) : undefined}
+          deleteLabel={deleteLabel}
+          triggerClassName="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground hover:cursor-pointer focus-visible:outline-none"
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Gallery ──────────────────────────────────────────────────────────────────
+
+export interface HuemulMediaGalleryProps {
+  items: Media[]
+  viewMode: ViewMode
+  isLoading: boolean
+  isFetching: boolean
+  isError: boolean
+  onRetry: () => void
+  onSelect: (item: Media) => void
+  emptyTitle: string
+  emptyDescription: string
+  loadError: string
+  retryLabel?: string
+  /** Ítem "Regenerar con IA" del menú de cada tarjeta/fila de imagen. Ausente = sin menú. */
+  onRegenerate?: (item: Media) => void
+  regenerateLabel?: string
+  /** Ítem "Eliminar" del menú de cada tarjeta/fila. Ausente = sin acción de eliminar. */
+  onDelete?: (item: Media) => void
+  deleteLabel?: string
+  /** Override completo (incluyendo "grid" y el gap) de las clases de la grilla. Default = 2→6 columnas según breakpoint. */
+  gridClassName?: string
+}
+
+export function HuemulMediaGallery({
+  items,
+  viewMode,
+  isLoading,
+  isFetching,
+  isError,
+  onRetry,
+  onSelect,
+  emptyTitle,
+  emptyDescription,
+  loadError,
+  retryLabel = "Retry",
+  onRegenerate,
+  regenerateLabel,
+  onDelete,
+  deleteLabel,
+  gridClassName,
+}: HuemulMediaGalleryProps) {
+  if (isError) {
+    return (
+      <div className="@container/media flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
+        <AlertCircle className="h-8 w-8 text-destructive" />
+        <p className="text-sm font-medium text-destructive">{loadError}</p>
+        <Button variant="outline" size="sm" onClick={onRetry} className="hover:cursor-pointer">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          {retryLabel}
+        </Button>
+      </div>
+    )
+  }
+
+  if (!isLoading && items.length === 0) {
+    return (
+      <div className="@container/media flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
+        <Inbox className="h-8 w-8" />
+        <p className="text-sm font-medium">{emptyTitle}</p>
+        <p className="text-xs">{emptyDescription}</p>
+      </div>
+    )
+  }
+
+  if (viewMode === "list") {
+    return (
+      <div className={cn("@container/media flex flex-col gap-1.5", isFetching && "opacity-60 pointer-events-none")}>
+        {isLoading
+          ? Array.from({ length: 12 }).map((_, i) => (
+              <Skeleton key={i} className="h-14 w-full rounded-lg" />
+            ))
+          : items.map((item) => (
+              <MediaRow
+                key={item.id}
+                item={item}
+                onClick={() => onSelect(item)}
+                onRegenerate={onRegenerate}
+                regenerateLabel={regenerateLabel}
+                onDelete={onDelete}
+                deleteLabel={deleteLabel}
+              />
+            ))}
+      </div>
+    )
+  }
+
+  return (
+    // El container y la grilla deben ser elementos distintos: las variantes
+    // `@[..]/media:` solo aplican a descendientes del contenedor, no a él mismo.
+    <div className="@container/media">
+    <div
+      className={cn(
+        gridClassName ?? "grid grid-cols-2 @[380px]/media:grid-cols-3 @[500px]/media:grid-cols-4 @[760px]/media:grid-cols-5 @[1000px]/media:grid-cols-6 gap-4",
+        isFetching && "opacity-60 pointer-events-none",
+      )}
+    >
+      {isLoading
+        ? Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} className="flex flex-col gap-2">
+              <Skeleton className="aspect-square w-full rounded-lg" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+          ))
+        : items.map((item) => (
+            <MediaCard
+              key={item.id}
+              item={item}
+              onClick={() => onSelect(item)}
+              onRegenerate={onRegenerate}
+              regenerateLabel={regenerateLabel}
+              onDelete={onDelete}
+              deleteLabel={deleteLabel}
+            />
+          ))}
+    </div>
+    </div>
+  )
+}

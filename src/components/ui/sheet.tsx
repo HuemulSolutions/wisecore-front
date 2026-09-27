@@ -46,6 +46,7 @@ function SheetContent({
   className,
   children,
   side = "right",
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
@@ -55,6 +56,26 @@ function SheetContent({
       <SheetOverlay />
       <SheetPrimitive.Content
         data-slot="sheet-content"
+        onInteractOutside={(e) => {
+          // Keep the sheet open when interacting with portaled overlays that
+          // render outside the sheet DOM: Base UI combobox popups, alert
+          // dialogs, nested sheets (e.g. an edit sheet opened from within
+          // this one), and error toasts (their "Ver detalles" button, now
+          // clickable over modal layers — see sonner.tsx). Otherwise
+          // clicking/cancelling them dismisses this sheet.
+          const target = e.target as HTMLElement | null
+          if (
+            target?.closest('[data-slot="combobox-content"]') ||
+            target?.closest('[data-slot="alert-dialog-content"]') ||
+            target?.closest('[data-slot="alert-dialog-overlay"]') ||
+            target?.closest('[data-slot="sheet-content"]') ||
+            target?.closest('[data-slot="sheet-overlay"]') ||
+            target?.closest('[data-sonner-toast]')
+          ) {
+            e.preventDefault()
+          }
+          onInteractOutside?.(e)
+        }}
         className={cn(
           "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-240 data-[state=open]:duration-320",
           side === "right" &&
@@ -70,7 +91,7 @@ function SheetContent({
         {...props}
       >
         {children}
-        <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
+        <SheetPrimitive.Close className="ring-offset-background focus:ring-ring text-muted-foreground hover:bg-muted hover:text-foreground absolute top-4 right-4 inline-flex size-7 items-center justify-center rounded-md transition-colors hover:cursor-pointer focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
           <XIcon className="size-4" />
           <span className="sr-only">Close</span>
         </SheetPrimitive.Close>

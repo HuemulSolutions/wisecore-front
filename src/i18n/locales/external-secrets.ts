@@ -1,0 +1,31 @@
+const translations = {
+  addSecret: { en: "Add Secret", es: "Agregar Secreto" },
+  refresh: { en: "Refresh secrets", es: "Actualizar secretos" },
+  columns: {
+    key: { en: "Key", es: "Clave" },
+    value: { en: "Value", es: "Valor" },
+  },
+  masked: { en: "••••••••", es: "••••••••" },
+  empty: {
+    title: { en: "No secrets yet", es: "Sin secretos aún" },
+    description: { en: "Click \"Add Secret\" to create one.", es: "Hacer clic en \"Agregar Secreto\" para crear uno." },
+  },
+  add: {
+    title: { en: "Add Secret", es: "Agregar Secreto" },
+    description: { en: "Add a new secret to this extension.", es: "Agregar un nuevo secreto a esta extensión." },
+    submitLabel: { en: "Add Secret", es: "Agregar Secreto" },
+    keyLabel: { en: "Key", es: "Clave" },
+    keyPlaceholder: { en: "e.g. N8N Connection Key", es: "ej. Clave de conexión N8N" },
+    valueLabel: { en: "Value", es: "Valor" },
+    valuePlaceholder: { en: "Secret value", es: "Valor secreto" },
+  },
+  edit: {
+    valueHint: { en: "Leave empty to keep the current value", es: "Dejar vacío para mantener el valor actual" },
+  },
+  delete: {
+    title: { en: "Delete Secret", es: "Eliminar Secreto" },
+    description: { en: "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.", es: "¿Eliminar \"{{name}}\"? Esta acción no se puede deshacer." },
+  },
+}
+
+export default translations

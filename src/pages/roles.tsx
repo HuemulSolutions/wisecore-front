@@ -1,25 +1,39 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
+import { useSearchParams } from "react-router-dom"
+import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
+import { useOrganization } from "@/contexts/organization-context"
+import { usePageAccess } from "@/hooks/usePageAccess"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useRoles, useRoleMutations } from "@/hooks/useRbac"
-import { useUsers } from "@/hooks/useUsers"
+import { useRoleUsersStaging } from "@/hooks/useRoleUsersStaging"
+import { useRolePermissionsStaging } from "@/hooks/useRolePermissionsStaging"
+import { useRoleDetailsForm } from "@/hooks/useRoleDetailsForm"
+import { useRolesMap } from "@/contexts/role-refs-context"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
-import { type Role } from "@/services/rbac"
+import { useUrlTab } from "@/hooks/useUrlTab"
+import { type Role, exportRoles } from "@/services/rbac"
+import type { RoleDetailTab } from "@/types/roles"
+import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import CreateRoleSheet from "@/components/roles/roles-create-sheet"
-import EditRoleSheet from "@/components/roles/roles-edit-sheet"
-import AssignRolesSheet from "@/components/roles/roles-assign-sheet"
-import AssignRoleToUsersDialog from "@/components/roles/roles-assign-to-users-sheet"
-import { 
-  RolesLoadingState, 
-  RolesContentEmptyState, 
-  RolesAccessDenied, 
-  RolesSearch, 
+import CreateUserSheet from "@/components/users/users-create-sheet"
+import { RoleDetailPanel, type RoleDetailPanelGuardApi } from "@/components/roles/roles-detail-panel"
+import {
+  RolesLoadingState,
+  RolesContentEmptyState,
+  RolesAccessDenied,
+  RolesSearch,
   RolesTable,
   DeleteRoleDialog,
-  CloneRoleDialog
+  CloneRoleDialog,
+  RolesImportSheet
 } from "@/components/roles"
+
+const ROLE_DETAIL_TABS: readonly RoleDetailTab[] = ['permissions', 'details', 'users', 'hierarchy']
 
 /**
  * Roles management page
@@ -27,42 +41,84 @@ import {
  */
 export default function Roles() {
   useAuth()
-  
+  const { t } = useTranslation('roles')
+
   // State management
   const [searchTerm, setSearchTerm] = useState("")
-  const [editingRole, setEditingRole] = useState<Role | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [assigningUserId, setAssigningUserId] = useState<string | null>(null)
-  const [assigningRoleToUsers, setAssigningRoleToUsers] = useState<Role | null>(null)
   const [deletingRole, setDeletingRole] = useState<Role | null>(null)
   const [cloningRole, setCloningRole] = useState<Role | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [isLoadingUsers] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
+  const [isExportingRoles, setIsExportingRoles] = useState(false)
+  const [showImportSheet, setShowImportSheet] = useState(false)
+  const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set())
+  const [createUserSheetOpen, setCreateUserSheetOpen] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
 
-  // Permissions check
-  const { canAccessRoles, hasPermission, hasAnyPermission, isRootAdmin, isLoading: isLoadingPermissions } = useUserPermissions()
-  
-  // Permisos específicos
-  const canReadRbac = isRootAdmin || hasPermission('rbac:r')
-  const canManageRbac = isRootAdmin || hasAnyPermission(['rbac:c', 'rbac:u', 'rbac:d'])
+  // El rol/tab seleccionados viven en la URL (?role=<id>&tab=users), espejo de
+  // /users — ver src/pages/users.tsx.
+  const selectedRoleId = searchParams.get('role')
+  const { tab: detailTab, setTab: setDetailTab, applyTab } = useUrlTab({
+    tabs: ROLE_DETAIL_TABS,
+    fallback: 'permissions',
+  })
 
-  // Data fetching - solo si tiene permisos de lectura
-  const { data: rolesResponse, isLoading, isFetching, error, refetch: refetchRoles } = useRoles(canReadRbac, page, pageSize, searchTerm)
+  // Permisos: matriz declarativa (ver ia context/rbac-audit-guide.md, 14ª pasada)
+  const { isLoading: isLoadingPermissions } = useUserPermissions()
+  const { selectedOrganizationId, organizationToken } = useOrganization()
+  const { canAccessPage, can } = usePageAccess('roles')
+
+  const canList = can('listRoles')
+  const canCreate = can('createRole')
+  const canUpdate = can('updateRole')
+  const canDelete = can('deleteRole')
+  const canClone = can('cloneRole')
+  const canAssignRoleToUsers = can('assignRoleToUsers')
+  const canListUsers = can('listUsers')
+  const canCreateUser = can('createUser')
+  const canExportRoles = can('exportRoles')
+  const canImportRoles = can('importRoles')
+
+  // Data fetching - solo si tiene permisos de lectura y hay organización activa
+  const { data: rolesResponse, isLoading, isFetching, error, refetch: refetchRoles } = useRoles(
+    canList && !!selectedOrganizationId && !!organizationToken,
+    page,
+    pageSize,
+    searchTerm
+  )
   const { deleteRole, cloneRole } = useRoleMutations()
-  // Users data - we'll use refetch to load on demand, so disable automatic fetching
-  const { data: usersResponse } = useUsers(false)
+  const { byId: rolesById } = useRolesMap(canList)
 
   // Derived data
   const roles = rolesResponse?.data || []
-  const users = usersResponse?.data || []
 
   const { showPageLoader, isTableLoading, isTableFetching } = useTableLoadingState({
     isLoading,
     isFetching,
     hasData: !!rolesResponse,
   })
+
+  // Deep-link: no existe GET /rbac/roles/{id} — se resuelve contra el catálogo
+  // completo (useRolesMap), igual que el nombre del rol padre en jerarquía.
+  const selectedRole = roles.find((r) => r.id === selectedRoleId) ?? (selectedRoleId ? rolesById[selectedRoleId] : null) ?? null
+
+  const staging = useRoleUsersStaging(selectedRole?.id ?? null, {
+    enabled: canListUsers && !!selectedRole,
+    canAssignUsers: canAssignRoleToUsers,
+    expectedAssignedCount: selectedRole?.users_count,
+  })
+  const permsStaging = useRolePermissionsStaging(selectedRole?.id ?? null, {
+    enabled: canUpdate && !!selectedRole,
+    canUpdate,
+  })
+  const detailsForm = useRoleDetailsForm(selectedRole, canUpdate)
+
+  const guardRef = useRef<RoleDetailPanelGuardApi | null>(null)
+  const onRegisterGuard = useCallback((api: RoleDetailPanelGuardApi | null) => {
+    guardRef.current = api
+  }, [])
 
   // Event handlers
 
@@ -75,18 +131,25 @@ export default function Roles() {
     }
   }
 
+  const handleExportRoles = async () => {
+    if (!canExportRoles) return
+    if (selectedExportIds.size === 0) {
+      toast.error(t('exportImport.exportSelectionRequired'))
+      return
+    }
+    setIsExportingRoles(true)
+    try {
+      await exportRoles({ role_ids: [...selectedExportIds] })
+      setSelectedExportIds(new Set())
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('exportImport.exportError'))
+    } finally {
+      setIsExportingRoles(false)
+    }
+  }
+
   const openDialog = {
     create: () => setShowCreateDialog(true),
-    assignToUsers: (role: Role) => {
-      setTimeout(() => {
-        setAssigningRoleToUsers(role)
-      }, 0)
-    },
-    edit: (role: Role) => {
-      setTimeout(() => {
-        setEditingRole(role)
-      }, 0)
-    },
     delete: (role: Role) => {
       setTimeout(() => {
         setDeletingRole(role)
@@ -101,15 +164,12 @@ export default function Roles() {
 
   const closeDialog = {
     create: () => setShowCreateDialog(false),
-    assignToUsers: () => setAssigningRoleToUsers(null),
-    edit: () => setEditingRole(null),
     delete: () => setDeletingRole(null),
-    assignUser: () => setAssigningUserId(null),
     clone: () => setCloningRole(null)
   }
 
   const confirmDeleteRole = async () => {
-    if (!deletingRole) return
+    if (!deletingRole || !canDelete) return
 
     await new Promise<void>((resolve, reject) => {
       deleteRole.mutate(deletingRole.id, {
@@ -120,7 +180,7 @@ export default function Roles() {
   }
 
   const confirmCloneRole = async (copyUsers: boolean) => {
-    if (!cloningRole) return
+    if (!cloningRole || !canClone) return
 
     await new Promise<void>((resolve, reject) => {
       cloneRole.mutate({ roleId: cloningRole.id, copyUsers }, {
@@ -130,108 +190,175 @@ export default function Roles() {
     })
   }
 
+  // Navegación del panel de detalle: siempre a través de la URL — espejo de
+  // /users.
+  const navigateToRole = (roleId: string | null, tab: RoleDetailTab = 'permissions') => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (roleId) {
+        next.set('role', roleId)
+        applyTab(next, tab)
+      } else {
+        next.delete('role')
+        next.delete('tab')
+      }
+      return next
+    }, { replace: true })
+  }
+
+  const handleSelectRole = (role: Role, tab?: RoleDetailTab) => {
+    const targetTab = tab ?? (role.id === selectedRoleId ? detailTab : 'permissions')
+    const proceed = () => navigateToRole(role.id, targetTab)
+    if (guardRef.current) guardRef.current.attemptNavigate(proceed)
+    else proceed()
+  }
+
+  const handleClosePanel = () => navigateToRole(null)
+
+  const handleTabChange = (tab: RoleDetailTab) => {
+    if (!selectedRoleId) return
+    setDetailTab(tab)
+  }
+
   // Early returns for different states
   if (isLoadingPermissions) return <RolesLoadingState />
-  if (!canAccessRoles) return <RolesAccessDenied />
+  if (!canAccessPage) return <RolesAccessDenied />
   if (showPageLoader) return <RolesLoadingState />
 
-  // const totalPermissions = error ? 0 : roles.reduce(
-  //   (acc, role) => acc + (role.permission_num || role.permissions?.length || 0), 
-  //   0
-  // )
-
   return (
-    <div className="bg-background p-2 sm:p-4 md:p-4 lg:p-6">
-      <div className="mx-auto">
-        <RolesSearch
-          searchTerm={searchTerm}
-          onSearchChange={(value) => {
-            setSearchTerm(value)
-            setPage(1)
-          }}
-          rolesCount={rolesResponse?.total ?? roles.length}
-          isRefreshing={isRefreshing}
-          onRefresh={handleRefresh}
-          onCreateRole={openDialog.create}
-          hasError={!!error}
-          canManage={canManageRbac}
-        />
-
-        {/* Show error state or content */}
-        {error ? (
-          <RolesContentEmptyState error={error} onRetry={handleRefresh} />
-        ) : (
-          <RolesTable
-            roles={roles}
-            isTableLoading={isTableLoading}
-            isTableFetching={isTableFetching}
-            isLoadingUsers={isLoadingUsers}
-            onAssignToUsers={openDialog.assignToUsers}
-            onEditRole={openDialog.edit}
-            onDeleteRole={openDialog.delete}
-            onCloneRole={openDialog.clone}
-            canManage={canManageRbac}
-            pagination={{
-              page: rolesResponse?.page || page,
-              pageSize: rolesResponse?.page_size || pageSize,
-              hasNext: rolesResponse?.has_next,
-              hasPrevious: (rolesResponse?.page || page) > 1,
-              onPageChange: (newPage) => setPage(newPage),
-              onPageSizeChange: (newPageSize) => {
-                setPageSize(newPageSize)
-                setPage(1)
-              },
-              pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+    <>
+      <HuemulPageLayout
+        header={
+          <RolesSearch
+            searchTerm={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value)
+              setPage(1)
             }}
+            rolesCount={rolesResponse?.total ?? roles.length}
+            isRefreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            onCreateRole={openDialog.create}
+            hasError={!!error}
+            canCreate={canCreate}
+            onExport={handleExportRoles}
+            onImport={() => setShowImportSheet(true)}
+            canExport={canExportRoles}
+            canImport={canImportRoles}
+            exportSelectedCount={selectedExportIds.size}
+            isExporting={isExportingRoles}
           />
-        )}
+        }
+        headerClassName="p-4 md:p-6 pb-0 md:pb-0"
+        columns={[
+          {
+            content: error ? (
+              <RolesContentEmptyState error={error} onRetry={handleRefresh} />
+            ) : (
+              <RolesTable
+                roles={roles}
+                isTableLoading={isTableLoading}
+                isTableFetching={isTableFetching}
+                onSelectRole={handleSelectRole}
+                selectedRoleId={selectedRoleId}
+                rolesById={rolesById}
+                selectedIds={selectedExportIds}
+                onSelectionChange={setSelectedExportIds}
+                pagination={{
+                  page: rolesResponse?.page || page,
+                  pageSize: rolesResponse?.page_size || pageSize,
+                  hasNext: rolesResponse?.has_next,
+                  hasPrevious: (rolesResponse?.page || page) > 1,
+                  onPageChange: (newPage) => setPage(newPage),
+                  onPageSizeChange: (newPageSize) => {
+                    setPageSize(newPageSize)
+                    setPage(1)
+                  },
+                  pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS
+                }}
+              />
+            ),
+            className: "flex flex-col",
+            minSize: 45,
+          },
+        ]}
+      />
 
-        {/* Dialogs and Sheets */}
-        <CreateRoleSheet
-          open={showCreateDialog}
-          onOpenChange={(open) => !open && closeDialog.create()}
-        />
+      {/* El detalle del rol seleccionado se muestra en un HuemulSheet (no
+          como columna del layout) — se mantiene montado con `open`
+          controlado por la URL para que la animación de cierre corra. */}
+      <RoleDetailPanel
+        open={!!selectedRoleId}
+        role={selectedRole}
+        activeTab={detailTab}
+        onTabChange={handleTabChange}
+        onClose={handleClosePanel}
+        onDeleteRole={() => selectedRole && openDialog.delete(selectedRole)}
+        onCloneRole={() => selectedRole && openDialog.clone(selectedRole)}
+        staging={staging}
+        permsStaging={permsStaging}
+        detailsForm={detailsForm}
+        rolesById={rolesById}
+        canUpdate={canUpdate}
+        canDelete={canDelete}
+        canClone={canClone}
+        canAssignUsers={canAssignRoleToUsers}
+        canListUsers={canListUsers}
+        canCreateUser={canCreateUser}
+        onOpenCreateUserSheet={() => setCreateUserSheetOpen(true)}
+        onRegisterGuard={onRegisterGuard}
+      />
 
-        <EditRoleSheet
-          role={editingRole}
-          open={!!editingRole}
-          onOpenChange={(open) => !open && closeDialog.edit()}
-        />
+      {/* Dialogs and Sheets */}
+      <CreateRoleSheet
+        open={showCreateDialog}
+        onOpenChange={(open) => !open && closeDialog.create()}
+        canCreate={canCreate}
+      />
 
-        <AssignRolesSheet
-          user={users.find(u => u.id === assigningUserId) || null}
-          open={!!assigningUserId}
-          onOpenChange={(open) => !open && closeDialog.assignUser()}
-        />
+      <DeleteRoleDialog
+        open={!!deletingRole}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeDialog.delete()
+          }
+        }}
+        role={deletingRole}
+        onConfirm={confirmDeleteRole}
+        canDelete={canDelete}
+      />
 
-        <AssignRoleToUsersDialog
-          role={assigningRoleToUsers}
-          open={!!assigningRoleToUsers}
-          onOpenChange={(open) => !open && closeDialog.assignToUsers()}
-        />
+      <CloneRoleDialog
+        open={!!cloningRole}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeDialog.clone()
+          }
+        }}
+        role={cloningRole}
+        onConfirm={confirmCloneRole}
+        canClone={canClone}
+      />
 
-        <DeleteRoleDialog
-          open={!!deletingRole}
-          onOpenChange={(open) => {
-            if (!open) {
-              closeDialog.delete()
-            }
-          }}
-          role={deletingRole}
-          onConfirm={confirmDeleteRole}
-        />
+      <RolesImportSheet
+        open={showImportSheet}
+        onOpenChange={(open) => !open && setShowImportSheet(false)}
+        onImportSuccess={handleRefresh}
+        canImport={canImportRoles}
+      />
 
-        <CloneRoleDialog
-          open={!!cloningRole}
-          onOpenChange={(open) => {
-            if (!open) {
-              closeDialog.clone()
-            }
-          }}
-          role={cloningRole}
-          onConfirm={confirmCloneRole}
-        />
-      </div>
-    </div>
+      {/* Sibling del layout — nunca anidado en el panel ni en el popover, ver
+          ia context/inline-create-entity-in-sheet-guide.md. Al crearse, el
+          usuario entra al staging del rol seleccionado como "por agregar". */}
+      <CreateUserSheet
+        open={createUserSheetOpen}
+        onOpenChange={setCreateUserSheetOpen}
+        canCreate={canCreateUser}
+        onSuccess={(user) => {
+          staging.add(user, { created: true })
+          setCreateUserSheetOpen(false)
+        }}
+      />
+    </>
   )
 }

@@ -10,11 +10,21 @@ const translations = {
   noContexts: { en: "No contexts configured", es: "Sin contextos configurados" },
   noContextsDescription: {
     en: "Add context to provide additional information and variables for asset execution.",
-    es: "Agrega contexto para proporcionar información adicional y variables para la ejecución del activo.",
+    es: "Agregar contexto para proporcionar información adicional y variables para la ejecución del activo.",
   },
   noContentAvailable: { en: "No content available", es: "Sin contenido disponible" },
   badgeText: { en: "Text", es: "Texto" },
   badgeDocument: { en: "Asset", es: "Activo" },
+  requiredBadge: { en: "Required", es: "Obligatorio" },
+  optionalBadge: { en: "Optional", es: "Opcional" },
+  pendingContentBadge: { en: "Needs content", es: "Falta completar" },
+  metaHasContent: { en: "Has content", es: "Con contenido" },
+  metaNoContent: { en: "No content", es: "Sin contenido" },
+  removeAction: { en: "Remove", es: "Quitar" },
+  requiredBanner: {
+    en: "{{count}} required context item(s) missing content — blocks AI generation.",
+    es: "Faltan completar {{count}} contexto(s) obligatorio(s) — bloquea la generación con IA.",
+  },
   editContextTitle: { en: "Edit Context", es: "Editar Contexto" },
   deleteContextTitle: { en: "Delete Context", es: "Eliminar Contexto" },
   toast: {
@@ -27,48 +37,116 @@ const translations = {
     title: { en: "Add Text Context", es: "Agregar Contexto de Texto" },
     description: {
       en: "Enter a name and content for the text context.",
-      es: "Ingresa un nombre y contenido para el contexto de texto.",
+      es: "Ingresar un nombre y contenido para el contexto de texto.",
     },
     tabText: { en: "Text Context", es: "Contexto de Texto" },
     tabDocument: { en: "Asset Context", es: "Contexto de Activo" },
     addTextButton: { en: "Add Text Context", es: "Agregar Contexto de Texto" },
     addDocumentButton: { en: "Add Asset Context", es: "Agregar Contexto de Activo" },
     contextName: { en: "Context Name", es: "Nombre del Contexto" },
-    contextNamePlaceholder: { en: "Enter context name", es: "Ingresa el nombre del contexto" },
+    contextNamePlaceholder: { en: "Enter context name", es: "Ingresar el nombre del contexto" },
+    required: { en: "Required", es: "Obligatorio" },
+    requiredDescription: {
+      en: "Blocks AI generation until this context has content.",
+      es: "Bloquea la generación con IA hasta que este contexto tenga contenido.",
+    },
     contextContent: { en: "Context Content", es: "Contenido del Contexto" },
-    contextContentPlaceholder: { en: "Enter context content", es: "Ingresa el contenido del contexto" },
+    contextContentPlaceholder: { en: "Enter context content", es: "Ingresar el contenido del contexto" },
     selectDocument: { en: "Select Asset", es: "Seleccionar Activo" },
     toastTextAdded: { en: "Text context added successfully", es: "Contexto de texto agregado exitosamente" },
     toastDocumentAdded: { en: "Asset context added successfully", es: "Contexto de activo agregado exitosamente" },
-    validationFillFields: { en: "Please fill in all fields", es: "Por favor completa todos los campos" },
-    validationSelectFile: { en: "Please select a file", es: "Por favor selecciona un archivo" },
+    validationFillFields: { en: "Please fill in the name (and the content, unless marked as required)", es: "Completar el nombre (y el contenido, salvo que sea obligatorio)" },
+    validationSelectFile: { en: "Please select a file", es: "Seleccionar un archivo" },
   },
   // context-edit-dialog.tsx
   editDialog: {
     title: { en: "Edit Context", es: "Editar Contexto" },
     description: {
       en: "Update the name and content of this context.",
-      es: "Actualiza el nombre y el contenido de este contexto.",
+      es: "Actualizar el nombre y el contenido de este contexto.",
     },
     saveChanges: { en: "Save Changes", es: "Guardar Cambios" },
     contextName: { en: "Context Name", es: "Nombre del Contexto" },
-    contextNamePlaceholder: { en: "Enter context name", es: "Ingresa el nombre del contexto" },
+    contextNamePlaceholder: { en: "Enter context name", es: "Ingresar el nombre del contexto" },
+    required: { en: "Required", es: "Obligatorio" },
+    requiredDescription: {
+      en: "Blocks AI generation until this context has content.",
+      es: "Bloquea la generación con IA hasta que este contexto tenga contenido.",
+    },
     contextContent: { en: "Context Content", es: "Contenido del Contexto" },
-    contextContentPlaceholder: { en: "Enter context content", es: "Ingresa el contenido del contexto" },
+    contextContentPlaceholder: { en: "Enter context content", es: "Ingresar el contenido del contexto" },
   },
   // context-delete-dialog.tsx
   deleteDialog: {
     title: { en: "Delete Context", es: "Eliminar Contexto" },
     description: {
       en: "Are you sure you want to delete this context? This action cannot be undone and may affect asset execution.",
-      es: "¿Estás seguro de que deseas eliminar este contexto? Esta acción no se puede deshacer y puede afectar la ejecución del activo.",
+      es: "¿Eliminar este contexto? Esta acción no se puede deshacer y puede afectar la ejecución del activo.",
     },
-    deleteButton: { en: "Delete", es: "Eliminar" },
   },
   // context-content.tsx
   content: {
     collapse: { en: "Collapse", es: "Colapsar" },
     expand: { en: "Expand", es: "Expandir" },
+  },
+  // templates-context-tab.tsx / templates-context-dialog.tsx — contexto a
+  // nivel de TEMPLATE. Namespace compartido con el de documento (mismo
+  // recurso), pero con textos propios: acá no hay contexto de archivo y el
+  // sustantivo es "plantilla", no "activo".
+  templateTab: {
+    title: { en: "Context", es: "Contexto" },
+    description: {
+      en: "Text context copied to every asset created from this template. \"Required\" is inherited too, but only for assets created after the change — existing assets keep what they had.",
+      es: "Contexto de texto que se copia a cada activo creado desde esta plantilla. \"Obligatorio\" también se hereda, pero solo en activos creados después del cambio — los activos existentes conservan lo que tenían.",
+    },
+    count: { en: "{{count}} contexts", es: "{{count}} contextos" },
+    addButton: { en: "Add source", es: "Agregar fuente" },
+    empty: { en: "Nothing here yet", es: "Todavía no hay nada acá" },
+    emptyHint: {
+      en: "Without context, the AI only uses the prompt and the marked sections.",
+      es: "Sin contexto, la IA solo usa el prompt y las secciones marcadas.",
+    },
+    editTitle: { en: "Edit context", es: "Editar contexto" },
+    deleteTitle: { en: "Delete context", es: "Eliminar contexto" },
+    createDialog: {
+      title: { en: "Add context", es: "Agregar contexto" },
+      description: {
+        en: "Enter a name and content for the context.",
+        es: "Ingresar un nombre y contenido para el contexto.",
+      },
+      submit: { en: "Add", es: "Agregar" },
+    },
+    editDialog: {
+      title: { en: "Edit context", es: "Editar contexto" },
+      description: {
+        en: "Update the name and content of this context.",
+        es: "Actualizar el nombre y el contenido de este contexto.",
+      },
+      submit: { en: "Save changes", es: "Guardar cambios" },
+    },
+    deleteDialog: {
+      title: { en: "Delete context", es: "Eliminar contexto" },
+      description: {
+        en: "Are you sure you want to delete this context? This action cannot be undone. It won't affect assets already created from this template.",
+        es: "¿Eliminar este contexto? Esta acción no se puede deshacer. No afecta a los activos ya creados desde esta plantilla.",
+      },
+    },
+    fields: {
+      name: { en: "Context name", es: "Nombre del contexto" },
+      namePlaceholder: { en: "Enter context name", es: "Ingresar el nombre del contexto" },
+      required: { en: "Required", es: "Obligatorio" },
+      requiredDescription: {
+        en: "Blocks AI generation on inheriting assets until this context has content.",
+        es: "Bloquea la generación con IA en los activos que lo heredan hasta que este contexto tenga contenido.",
+      },
+      content: { en: "Context content", es: "Contenido del contexto" },
+      contentPlaceholder: { en: "Enter context content", es: "Ingresar el contenido del contexto" },
+    },
+    toast: {
+      created: { en: "Context added successfully", es: "Contexto agregado exitosamente" },
+      updated: { en: "Context updated successfully", es: "Contexto actualizado exitosamente" },
+      deleted: { en: "Context deleted successfully", es: "Contexto eliminado exitosamente" },
+    },
   },
   // assets-context-sheet.tsx
   sheet: {
@@ -77,12 +155,12 @@ const translations = {
     title: { en: "Asset Context", es: "Contexto del Activo" },
     description: {
       en: "Configure asset context, variables, and execution environment.",
-      es: "Configura el contexto del activo, variables y entorno de ejecución.",
+      es: "Configurar el contexto del activo, variables y entorno de ejecución.",
     },
     documentLabel: { en: "Asset: {{name}}", es: "Activo: {{name}}" },
     documentDescription: {
       en: "Set up context variables, user permissions, and environmental settings that influence asset execution and content generation.",
-      es: "Configura variables de contexto, permisos de usuario y ajustes del entorno que influyen en la ejecución y generación de contenido del activo.",
+      es: "Configurar variables de contexto, permisos de usuario y ajustes del entorno que influyen en la ejecución y generación de contenido del activo.",
     },
   },
 }

@@ -1,25 +1,12 @@
 import * as React from 'react';
 
 import type { OurFileRouter } from '@/lib/uploadthing';
-import type {
-  ClientUploadedFileData,
-  UploadFilesOptions,
-} from 'uploadthing/types';
+import type { UseUploadFileProps, UploadedFile } from '@/types/editor';
+export type { UploadedFile }
 
 import { generateReactHelpers } from '@uploadthing/react';
 import { toast } from 'sonner';
 import { z } from 'zod';
-
-export type UploadedFile<T = unknown> = ClientUploadedFileData<T>;
-
-interface UseUploadFileProps
-  extends Pick<
-    UploadFilesOptions<OurFileRouter['editorUploader']>,
-    'headers' | 'onUploadBegin' | 'onUploadProgress' | 'skipPolling'
-  > {
-  onUploadComplete?: (file: UploadedFile) => void;
-  onUploadError?: (error: unknown) => void;
-}
 
 export function useUploadFile({
   onUploadComplete,

@@ -1,9 +1,28 @@
 import { ApiError } from '@/types/api-error';
+import { logger } from '@/lib/logger';
 
-let loginToken: string | null = null;
-let organizationToken: string | null = null;
-let organizationId: string | null = null;
-let onUnauthorized: (() => void) | null = null;
+// AuthProvider/OrganizationProvider restauran estos tokens en useEffect, que
+// corre después del primer commit; jwt-utils los lee de forma síncrona (en el
+// primer render) para calcular permisos. Sin esta hidratación, ese primer
+// render ve una sesión "vacía" y dispara redirects espurios (ver
+// permissions-context.tsx). Hidratar acá desde localStorage evita la carrera.
+function readStored(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+
+const storedOrgToken = readStored('organizationToken');
+const storedOrgId = readStored('selectedOrganizationId');
+// Sólo se considera válida la org cuando están AMBOS, igual que el restore
+// de OrganizationProvider — así httpClient y el contexto nunca discrepan.
+const hasStoredOrg = !!storedOrgToken && !!storedOrgId;
+
+let loginToken: string | null = readStored('auth_token');
+let organizationToken: string | null = hasStoredOrg ? storedOrgToken : null;
+let organizationId: string | null = hasStoredOrg ? storedOrgId : null;
+/** Por qué se cierra la sesión: token vencido/inválido (401) o usuario ya no activo. */
+export type SessionEndReason = 'expired' | 'inactive';
+
+let onUnauthorized: ((reason: SessionEndReason) => void) | null = null;
 
 export const httpClient = {
   setLoginToken(token: string | null) {
@@ -30,7 +49,7 @@ export const httpClient = {
     return organizationId;
   },
 
-  setOnUnauthorized(callback: () => void) {
+  setOnUnauthorized(callback: (reason: SessionEndReason) => void) {
     onUnauthorized = callback;
   },
 
@@ -70,25 +89,36 @@ export const httpClient = {
     const isTokenEndpoint = url.includes('/users/') && url.includes('/token');
     const isUserRolesTokenEndpoint = url.includes('/user_roles/user_token');
     const isUserOrganizationsEndpoint = url.includes('/users/organizations');
+    // OJO: `/auth-sso/` y `/auth_types/` NO matchean a propósito — necesitan el token de
+    // organización porque el backend lee `is_org_admin` de ese JWT (docs/sso-frontend.md).
     const isAuthEndpoint = url.includes('/auth/');
-    const isOrganizationsEndpoint = url.includes('/organizations') && !url.includes('/users/organizations');
-    
+    // `/organizations/{org activa}/...` va con el token de esa organización: el backend
+    // autoriza al org admin por `is_org_admin`, que solo viaja ahí (y el token de org
+    // también lleva `is_root_admin`, así que los endpoints solo-root siguen andando).
+    const organizationPathId = url.match(/\/organizations\/([^/?#]+)/)?.[1];
+    const isActiveOrganizationEndpoint =
+      !!organizationToken && !!organizationPathId && organizationPathId === organizationId;
+    const isOrganizationsEndpoint =
+      url.includes('/organizations') && !url.includes('/users/organizations') && !isActiveOrganizationEndpoint;
+
     // Usar loginToken para:
     // 1. Generar token organizacional (/users/{id}/token)
     // 2. Generar token de usuario-rol (/user_roles/user_token)
-    // 3. Obtener organizaciones del usuario (/users/organizations) 
+    // 3. Obtener organizaciones del usuario (/users/organizations)
     // 4. Endpoints de auth (/auth/*)
-    // 5. Listar todas las organizaciones (/organizations)
+    // 5. Listar organizaciones (/organizations) y operar sobre otra organización que la
+    //    activa (root admin cross-org)
     const shouldUseLoginToken = isTokenEndpoint || isUserRolesTokenEndpoint || isUserOrganizationsEndpoint || isAuthEndpoint || isOrganizationsEndpoint;
     // Use organizationToken for org-scoped requests, but fallback to loginToken if not available
     // This allows root admin to access Global Admin without selecting an organization
     const tokenToUse = shouldUseLoginToken ? loginToken : (organizationToken || loginToken);
     
-    console.log(`[httpClient] ${options.method || 'GET'} ${url}`);
-    console.log(`[httpClient] Using ${shouldUseLoginToken ? 'login' : 'organization'} token:`, tokenToUse?.substring(0, 10) + '...');
+    logger.log(`[httpClient] ${options.method || 'GET'} ${url}`);
+    logger.log(`[httpClient] Using ${shouldUseLoginToken ? 'login' : 'organization'} token:`, tokenToUse?.substring(0, 10) + '...');
     
-    // Add auth token if available
-    if (tokenToUse) {
+    // Add auth token if available. Un servicio puede forzar otro token pasando
+    // `Authorization` explícito.
+    if (tokenToUse && !headers.has('Authorization')) {
       headers.set('Authorization', `Bearer ${tokenToUse}`);
     }
 
@@ -98,7 +128,7 @@ export const httpClient = {
     // (permite a servicios consultar organizaciones diferentes a la seleccionada)
     if (organizationId && !isAuthEndpoint && !headers.has('X-Org-Id')) {
       headers.set('X-Org-Id', organizationId);
-      console.log(`[httpClient] Using organization ID:`, organizationId);
+      logger.log(`[httpClient] Using organization ID:`, organizationId);
     }
 
     // Ensure Content-Type is set for requests with body (except FormData)
@@ -128,7 +158,7 @@ export const httpClient = {
         const apiError = new ApiError(errorData);
         
         // Log transaction_id for debugging
-        console.error(`[API Error] Transaction ID: ${apiError.transactionId}`, {
+        logger.error(`[API Error] Transaction ID: ${apiError.transactionId}`, {
           code: apiError.code,
           message: apiError.message,
           detail: apiError.detail,
@@ -138,24 +168,36 @@ export const httpClient = {
 
         // Handle 401 specifically - only logout for token issues, not permission issues
         if (response.status === 401 && onUnauthorized) {
-          const isRolePermissionError = 
+          const isRolePermissionError =
             apiError.code === 'FORBIDDEN' ||
             apiError.code === 'INSUFFICIENT_PERMISSIONS' ||
             apiError.detail.includes('no tiene ningún rol') ||
             apiError.detail.includes('no permission') ||
             apiError.detail.includes('insufficient privileges') ||
             apiError.detail.includes('access denied');
-          
+
           if (!isRolePermissionError) {
-            onUnauthorized();
+            onUnauthorized('expired');
+            // Marca que este error ya disparó logout/redirect, para que
+            // error-utils no intente mostrar un toast sobre algo que ya
+            // está siendo manejado (ver handleApiError).
+            apiError.handled = true;
           }
+        }
+
+        // Un usuario desactivado o pendiente ya no obtiene token de ninguna
+        // organización (POST /user_roles/user_token): la sesión no sirve y se
+        // cierra como un token vencido, con su propio mensaje.
+        if (response.status === 403 && apiError.code === 'USER_NOT_ACTIVE' && onUnauthorized) {
+          onUnauthorized('inactive');
+          apiError.handled = true;
         }
 
         throw apiError;
       }
 
       // Fallback for non-standard error responses (shouldn't happen with new backend)
-      console.warn('[httpClient] Received non-standard error response:', errorData);
+      logger.warn('[httpClient] Received non-standard error response:', errorData);
       
       // Handle 401 for legacy error format
       if (response.status === 401 && onUnauthorized) {
@@ -169,7 +211,7 @@ export const httpClient = {
           detail.includes('access denied');
         
         if (!isRolePermissionError) {
-          onUnauthorized();
+          onUnauthorized('expired');
         }
       }
 
