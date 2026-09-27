@@ -4,6 +4,8 @@ const translations = {
     addAuthType: { en: "Add connection", es: "Agregar conexión" },
     searchPlaceholder: { en: "Search connections...", es: "Buscar conexiones..." },
     authTypesCount: { en: "{{count}} connections", es: "{{count}} conexiones" },
+    organizationFilter: { en: "Filter by organization", es: "Filtrar por organización" },
+    allOrganizations: { en: "All organizations", es: "Todas las organizaciones" },
   },
   columns: {
     type: { en: "Type", es: "Tipo" },
@@ -18,8 +20,10 @@ const translations = {
     google: { en: "Google", es: "Google" },
   },
   scope: {
-    global: { en: "Global", es: "Global" },
     organization: { en: "This organization", es: "Esta organización" },
+  },
+  badges: {
+    readOnly: { en: "Built-in", es: "Integrada" },
   },
   status: {
     active: { en: "Active", es: "Activa" },
@@ -40,7 +44,7 @@ const translations = {
     allowedHostedDomains: { en: "Allowed Google Workspace domains", es: "Dominios de Google Workspace permitidos" },
     allowedHostedDomainsHint: { en: "One per line or comma-separated. Personal @gmail.com accounts are never allowed.", es: "Uno por línea o separados por coma. Las cuentas personales @gmail.com nunca se permiten." },
     emailDomains: { en: "Email domains claimed by this connection", es: "Dominios de correo que reclama esta conexión" },
-    emailDomainsHint: { en: "Users with these email domains are routed to this connection on sign-in. A domain can belong to one active connection only.", es: "Los usuarios con estos dominios se dirigen a esta conexión al iniciar sesión. Un dominio solo puede pertenecer a una conexión activa." },
+    emailDomainsHint: { en: "Users with these email domains are routed to this connection on sign-in. A domain can belong to only one active connection of this organization (other organizations can use it too).", es: "Los usuarios con estos dominios se dirigen a esta conexión al iniciar sesión. Un dominio solo puede pertenecer a una conexión activa de esta organización (otras organizaciones también pueden usarlo)." },
     listPlaceholder: { en: "One value per line", es: "Un valor por línea" },
     domainsPlaceholder: { en: "example.com\nsubsidiary.example.com", es: "empresa.com\nfilial.empresa.com" },
     autoProvision: { en: "Automatic user provisioning", es: "Alta automática de usuarios" },
@@ -57,10 +61,10 @@ const translations = {
     leaveEmptyToKeep: { en: "Leave empty to keep the current secret.", es: "Dejar vacío para conservar el secreto actual." },
     isActive: { en: "Active", es: "Activa" },
     isActiveHint: { en: "Inactive connections cannot be used to sign in and release their domains.", es: "Una conexión inactiva no sirve para iniciar sesión y libera sus dominios." },
-    scope: { en: "Scope", es: "Ámbito" },
-    scopeGlobal: { en: "Global (all organizations)", es: "Global (todas las organizaciones)" },
-    scopeHint: { en: "Root admin only: a global connection can be assigned to members of any organization.", es: "Solo root admin: una conexión global puede asignarse a miembros de cualquier organización." },
-    internalHint: { en: "The email-code method is built in and cannot be changed.", es: "El método por código de correo es fijo y no se puede cambiar." },
+    organization: { en: "Organization", es: "Organización" },
+    organizationPlaceholder: { en: "Select the organization", es: "Seleccionar la organización" },
+    organizationHint: { en: "Every connection belongs to one organization and can only be assigned to its members.", es: "Cada conexión pertenece a una organización y solo se puede asignar a sus miembros." },
+    internalHint: { en: "Built-in email-code method of this organization. It cannot be edited or removed.", es: "Método por código de correo integrado de esta organización. No se puede editar ni eliminar." },
   },
   validation: {
     nameRequired: { en: "Name is required", es: "El nombre es obligatorio" },
@@ -69,6 +73,7 @@ const translations = {
     allowedHostedDomainsRequired: { en: "Add at least one Google Workspace domain", es: "Agregar al menos un dominio de Google Workspace" },
     invalidDomain: { en: "One or more domains are not valid", es: "Uno o más dominios no son válidos" },
     clientSecretRequired: { en: "Client secret is required", es: "El client secret es obligatorio" },
+    organizationRequired: { en: "Organization is required", es: "La organización es obligatoria" },
   },
   toasts: {
     created: { en: "Connection created", es: "Conexión creada" },

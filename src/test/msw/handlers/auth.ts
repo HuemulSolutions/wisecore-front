@@ -8,7 +8,7 @@ import { http } from 'msw'
 
 import { backendUrl } from '@/config'
 import { makeLoginToken } from '@/test/jwt'
-import { activeUser, authFlow, INTERNAL_CONNECTION_ID, ORG_A_ID } from '@/test/fixtures'
+import { activeUser, authFlow, ORG_A_ID } from '@/test/fixtures'
 import { respondApiError, respondHttp400, respondOk } from '../respond'
 
 export const VALID_CODE = '123456'
@@ -21,7 +21,8 @@ export function loginTokenFor(overrides: Record<string, unknown> = {}): string {
   return makeLoginToken({
     sub: activeUser.id,
     email: activeUser.email,
-    auth_type_id: INTERNAL_CONNECTION_ID,
+    // El login por código viaja con el autenticador fijo `internal` (no apunta a ninguna fila).
+    auth_type_id: 'internal',
     login_org_id: ORG_A_ID,
     ...overrides,
   })

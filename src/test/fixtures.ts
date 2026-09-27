@@ -11,7 +11,9 @@ export const USER_ID = '11111111-1111-1111-1111-111111111111'
 export const ROOT_ADMIN_ID = '99999999-9999-4999-8999-999999999999'
 export const MICROSOFT_CONNECTION_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
 export const GOOGLE_CONNECTION_ID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+/** La INTERNAL de Org A: cada organización tiene la suya. */
 export const INTERNAL_CONNECTION_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+export const INTERNAL_ORG_B_CONNECTION_ID = 'ffffffff-ffff-4fff-8fff-ffffffffffff'
 
 export const activeUser: User = {
   id: USER_ID,
@@ -21,7 +23,8 @@ export const activeUser: User = {
   status: 'active',
   activated_at: '2026-01-01T00:00:00Z',
   external_id: null,
-  auth_type_id: INTERNAL_CONNECTION_ID,
+  // Columna legacy: el backend la devuelve siempre en null.
+  auth_type_id: null,
   is_root_admin: false,
   photo_url: null,
   user_metadata: null,
@@ -95,19 +98,28 @@ export const authFlow = {
   }),
 }
 
-/** Conexiones de `GET /auth_types` (Fase 5/6): interna global, Microsoft de Org A y Google inactiva de Org A. */
+/**
+ * Conexiones de `GET /auth_types` (Fase 5/6). Todas son de una organización: la interna de
+ * Org A, Microsoft de Org A, Google inactiva de Org A y la interna de Org B.
+ */
 export const internalConnection: AuthType = {
   id: INTERNAL_CONNECTION_ID,
   name: 'Internal Authentication',
   type: 'internal',
   params: null,
-  organization_id: null,
+  organization_id: ORG_A_ID,
   is_active: true,
   email_domains: [],
   has_client_secret: false,
   is_sso: false,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
+}
+
+export const internalConnectionOrgB: AuthType = {
+  ...internalConnection,
+  id: INTERNAL_ORG_B_CONNECTION_ID,
+  organization_id: ORG_B_ID,
 }
 
 export const microsoftConnection: AuthType = {
@@ -140,5 +152,6 @@ export const googleConnection: AuthType = {
 
 /** Método de membresía tal como lo devuelven `GET /organizations/{id}/users` y `GET /users/organizations`. */
 export const internalMembership = { id: INTERNAL_CONNECTION_ID, name: 'Internal Authentication', type: 'internal' }
+export const internalMembershipOrgB = { id: INTERNAL_ORG_B_CONNECTION_ID, name: 'Internal Authentication', type: 'internal' }
 export const microsoftMembership = { id: MICROSOFT_CONNECTION_ID, name: 'Microsoft Contoso', type: 'microsoft' }
 export const googleMembership = { id: GOOGLE_CONNECTION_ID, name: 'Google Workspace', type: 'google' }

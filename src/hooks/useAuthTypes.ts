@@ -41,10 +41,11 @@ export function useAuthTypes(options?: { enabled?: boolean; search?: string; org
 
 /**
  * Conexiones que se pueden asignar a una membresía de `organizationId` (por
- * defecto la organización activa): `INTERNAL`, globales activas o activas de esa
- * organización (docs/sso-frontend.md, Fase 6; misma regla que
- * `validate_connection_for_organization` en el backend). El root admin puede
- * mirar otra organización desde `/organizations`, por eso el id es explícito.
+ * defecto la organización activa): las activas de ESA organización, su `INTERNAL`
+ * incluida (docs/sso-frontend.md, Fase 6; misma regla que
+ * `validate_connection_for_organization` en el backend: no hay conexiones
+ * globales). El root admin puede mirar otra organización desde `/organizations`,
+ * por eso el id es explícito.
  */
 export function useEligibleAuthTypes(options: { organizationId?: string | null; enabled?: boolean } = {}) {
   const { selectedOrganizationId } = useOrganization()
@@ -53,7 +54,7 @@ export function useEligibleAuthTypes(options: { organizationId?: string | null; 
   const eligible = useMemo(
     () =>
       (query.data ?? []).filter(
-        (item) => item.is_active && (item.organization_id === null || item.organization_id === organizationId),
+        (item) => item.is_active && item.organization_id === organizationId,
       ),
     [query.data, organizationId],
   )

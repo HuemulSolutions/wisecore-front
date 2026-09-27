@@ -46,7 +46,7 @@ export interface AuthTypeFormValues {
   allowedTenantIdsText: string
   allowedHostedDomainsText: string
   autoProvision: AutoProvision
-  /** '' = global (solo root admin). */
+  /** Organización de la conexión (la elige solo el root admin al crear; '' = sin elegir). */
   organizationId: string
 }
 
@@ -88,11 +88,22 @@ export type AuthTypeFormErrorKey =
   | 'allowedHostedDomains'
   | 'emailDomains'
   | 'clientSecret'
+  | 'organizationId'
 
-/** Devuelve los campos inválidos con la clave de i18n (`validation.*`) del mensaje. */
-export function validateAuthTypeForm(values: AuthTypeFormValues, mode: 'create' | 'edit', hasSecret: boolean): Partial<Record<AuthTypeFormErrorKey, string>> {
+/**
+ * Devuelve los campos inválidos con la clave de i18n (`validation.*`) del mensaje.
+ * `requireOrganization`: el root admin crea siempre dentro de una organización (no hay
+ * conexiones globales).
+ */
+export function validateAuthTypeForm(
+  values: AuthTypeFormValues,
+  mode: 'create' | 'edit',
+  hasSecret: boolean,
+  options: { requireOrganization?: boolean } = {},
+): Partial<Record<AuthTypeFormErrorKey, string>> {
   const errors: Partial<Record<AuthTypeFormErrorKey, string>> = {}
   if (!values.name.trim()) errors.name = 'validation.nameRequired'
+  if (options.requireOrganization && !values.organizationId) errors.organizationId = 'validation.organizationRequired'
   if (!isSsoAuthType(values.type)) return errors
 
   if (!values.clientId.trim()) errors.clientId = 'validation.clientIdRequired'
@@ -145,8 +156,9 @@ export function buildCreateRequest(values: AuthTypeFormValues, options: { includ
     request.email_domains = parseDomainList(values.emailDomainsText)
     if (values.clientSecret.trim()) request.client_secret = values.clientSecret.trim()
   }
-  if (options.includeOrganization) {
-    request.organization_id = values.organizationId || null
+  // Nunca `null`: el backend no acepta conexiones sin organización.
+  if (options.includeOrganization && values.organizationId) {
+    request.organization_id = values.organizationId
   }
   return request
 }

@@ -17,7 +17,8 @@ export function normalizeAuthType(raw: Partial<AuthType> & Record<string, unknow
     name: String(raw.name ?? ''),
     type: type as AuthType['type'],
     params: (raw.params as AuthType['params']) ?? null,
-    organization_id: (raw.organization_id as string | null | undefined) ?? null,
+    // Toda conexión es de una organización; '' solo si un backend viejo no la manda.
+    organization_id: String(raw.organization_id ?? ''),
     is_active: raw.is_active ?? true,
     email_domains: Array.isArray(raw.email_domains) ? (raw.email_domains as string[]) : [],
     has_client_secret: raw.has_client_secret ?? false,
