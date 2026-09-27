@@ -52,7 +52,9 @@ export function AuthOrganizationPicker({
 
   return (
     <div className={cn('flex flex-col gap-6', className)} {...props}>
-      <HuemulFieldGroup>
+      {/* `min-w-0`: un <fieldset> toma por defecto el ancho de su contenido
+          (min-content) y una fila larga desbordaba la tarjeta. */}
+      <HuemulFieldGroup className="min-w-0">
         {onBack && (
           <div className="w-full flex justify-start mb-4">
             <HuemulButton variant="ghost" size="sm" icon={ArrowLeft} iconClassName="h-4 w-4" label={t('otp.back')} onClick={onBack} type="button" />
@@ -79,9 +81,12 @@ export function AuthOrganizationPicker({
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#4464f7] text-white">
                       <Building2 className="h-4 w-4" aria-hidden />
                     </span>
-                    <span className="truncate font-medium text-gray-900">{organization.name}</span>
+                    <span className="truncate font-medium text-gray-900" title={organization.name}>{organization.name}</span>
                   </span>
-                  <AuthMethodBadge type={methodType} name={organization.method.name} />
+                  {/* El código por correo es el método por defecto: solo se señala el SSO. */}
+                  {methodType !== 'internal' && (
+                    <AuthMethodBadge type={methodType} name={organization.method.name} className="min-w-0 max-w-[50%]" />
+                  )}
                 </button>
               </li>
             )
