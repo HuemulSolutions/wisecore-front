@@ -1,38 +1,16 @@
 import type { SupportedProvider, CreateLLMProviderRequest, LLMProvider } from './core'
 
-export interface CreateProviderDialogProps {
+export interface ProviderSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Proveedor a editar; `null` para conectar uno nuevo. */
+  provider: LLMProvider | null
   supportedProviders: SupportedProvider[]
+  /** Cantidad de modelos que usan el proveedor (bloquea su eliminación si > 0). */
+  modelCount: number
+  isSaving: boolean
   onSubmit: (data: CreateLLMProviderRequest) => void
-  isCreating: boolean
-  canCreate: boolean
-}
-
-export interface DeleteProviderDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  provider: any | null
-  onAction: () => Promise<void>
+  onDelete: () => Promise<void>
+  canSave: boolean
   canDelete: boolean
-}
-
-export interface EditProviderDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  provider: LLMProvider | null
-  supportedProviders: SupportedProvider[]
-  onSubmit: (data: CreateLLMProviderRequest) => void
-  isUpdating: boolean
-  canUpdate: boolean
-}
-
-export interface ProviderApiKeyDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  provider: LLMProvider | null
-  supportedProviders: SupportedProvider[]
-  onSubmit: (data: CreateLLMProviderRequest) => void
-  isUpdating: boolean
-  canUpdate: boolean
 }

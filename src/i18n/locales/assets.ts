@@ -468,6 +468,8 @@ const translations = {
     diffSuggestionLabel: { en: "AI suggestion", es: "Sugerencia de IA" },
     diffAccept: { en: "Accept suggestion", es: "Aceptar sugerencia" },
     diffReject: { en: "Reject suggestion", es: "Rechazar sugerencia" },
+    aiSuggestionCommentsTitle: { en: "The AI will add {{count}} comment(s)", es: "La IA agregará {{count}} comentario(s)" },
+    aiSuggestionCommentsFailed: { en: "The suggestion was accepted, but some AI comments could not be created.", es: "La sugerencia se aceptó, pero no se pudieron crear algunos comentarios de la IA." },
     diffDismiss: { en: "Cancel", es: "Cancelar" },
     reviewStatusEditing: { en: "Drafting", es: "Elaborando" },
     reviewStatusReviewing: { en: "Reviewing", es: "Revisando" },

@@ -1,3 +1,11 @@
+/** Método de autenticación asignado a una membresía (docs/sso-frontend.md, Fase 6). */
+export interface MembershipAuthType {
+  id: string;
+  name: string;
+  /** `internal` | `microsoft` | `google` (mismos valores que `AuthType.type`). */
+  type: string;
+}
+
 export interface OrganizationUser {
   id: string;
   email: string;
@@ -5,6 +13,9 @@ export interface OrganizationUser {
   last_name: string;
   status: string;
   is_org_admin: boolean;
+  /** Ausente en backends anteriores al SSO; `null` en membresías legacy sin método. */
+  auth_type_id?: string | null;
+  auth_type?: MembershipAuthType | null;
 }
 
 export interface OrganizationUsersResponse {

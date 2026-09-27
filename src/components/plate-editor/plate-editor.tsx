@@ -49,6 +49,19 @@ function sanitizeNodes(nodes: unknown[]): Value {
     };
   }) as Value;
 }
+
+/**
+ * Markdown → Plate value, pintando como marks `comment_<id>` los marcadores
+ * `{{COMMENT:<ref>}}…{{/COMMENT}}` de las sugerencias de IA (nunca quedan tokens visibles).
+ */
+function deserializeMarkdownWithComments(
+  editor: PlateEditor,
+  markdown: string,
+  resolveCommentRef: (ref: string) => string | null = defaultResolveCommentRef,
+): Value {
+  const nodes = editor.getApi(MarkdownPlugin).markdown.deserialize(markdownToCommentSentinels(markdown));
+  return applyCommentSentinels(sanitizeNodes(nodes as unknown[]), resolveCommentRef);
+}
 import { Plate, usePlateEditor, usePlateState, usePluginOption, useEditorRef, useEditorSelector } from 'platejs/react';
 import type { PlateEditor } from 'platejs/react';
 import { SuggestionPlugin } from '@platejs/suggestion/react';
@@ -123,6 +136,7 @@ import { MarkdownPlugin } from '@platejs/markdown';
 import { FontSizePlugin, FontColorPlugin, FontBackgroundColorPlugin } from '@platejs/basic-styles/react';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/logger';
+import { applyCommentSentinels, defaultResolveCommentRef, markdownToCommentSentinels } from '@/lib/plate-comment-markers';
 import { DiscussionFocusSync } from '@/components/plate-editor/components/discussion-focus-sync';
 import { DiscussionSync } from '@/components/plate-editor/components/discussion-sync';
 import { EditorErrorBoundary } from '@/components/plate-editor/components/editor-error-boundary';
@@ -433,7 +447,7 @@ function SectionEditorToolbar({
   );
 }
 
-import type { PlateRichEditorRef, PlateRichEditorProps } from '@/types/plate-editor'
+import type { PlateRichEditorRef, PlateRichEditorProps, ResetContentOptions } from '@/types/plate-editor'
 export type { PlateRichEditorRef, PlateRichEditorProps } from '@/types/plate-editor'
 
 // ─── Media reference toolbar button ──────────────────────────────────────────
@@ -533,10 +547,9 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
   React.useImperativeHandle(ref, () => ({
     getMarkdown: () => editor.getApi(MarkdownPlugin).markdown.serialize(),
     getValue: () => editor.children as Value,
-    resetContent: (markdown: string) => {
+    resetContent: (markdown: string, options?: ResetContentOptions) => {
       try {
-        const nodes = editor.getApi(MarkdownPlugin).markdown.deserialize(markdown);
-        editor.tf.setValue(sanitizeNodes(nodes as unknown[]));
+        editor.tf.setValue(deserializeMarkdownWithComments(editor, markdown, options?.resolveCommentRef));
       } catch (e) {
         logger.error('Failed to reset editor content:', e);
       }
@@ -554,8 +567,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
   React.useEffect(() => {
     if (initialMarkdown) {
       try {
-        const nodes = editor.getApi(MarkdownPlugin).markdown.deserialize(initialMarkdown);
-        editor.tf.setValue(sanitizeNodes(nodes as unknown[]));
+        editor.tf.setValue(deserializeMarkdownWithComments(editor, initialMarkdown));
       } catch (e) {
         logger.error('Failed to deserialize initial markdown:', e);
       }

@@ -2,6 +2,7 @@ import { GitCompare } from 'lucide-react';
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import MarkdownDiffViewer from '@/components/MarkdownDiffViewer';
 import { useTranslation } from 'react-i18next';
+import { collectCommentFragmentsFromMarkdown, stripCommentMarkers } from '@/lib/plate-comment-markers';
 import type { AiSuggestionDiffDialogProps } from '@/types/assets';
 export type { AiSuggestionDiffDialogProps } from '@/types/assets';
 
@@ -11,11 +12,15 @@ export function AiSuggestionDiffDialog({
     sectionOutput,
     aiSuggestionInstruction,
     aiSuggestionContent,
+    aiSuggestionComments,
     aiPreview,
     onAccept,
     onReject,
 }: AiSuggestionDiffDialogProps) {
     const { t } = useTranslation('assets');
+    const suggestionMarkdown = aiPreview ?? aiSuggestionContent ?? '';
+    const newComments = (aiSuggestionComments ?? []).filter((c) => c.is_new && c.body);
+    const fragments = collectCommentFragmentsFromMarkdown(suggestionMarkdown);
 
     return (
         <HuemulDialog
@@ -47,13 +52,32 @@ export function AiSuggestionDiffDialog({
         >
             <MarkdownDiffViewer
                 oldContent={sectionOutput.replace(/\\n/g, "\n")}
-                newContent={aiPreview ?? aiSuggestionContent ?? ''}
+                newContent={stripCommentMarkers(suggestionMarkdown)}
                 oldLabel={t('section.diffCurrentLabel')}
                 newLabel={t('section.diffSuggestionLabel')}
                 defaultMode='rendered'
                 showModeToggle={false}
                 showRenderedDiffPanel={false}
             />
+            {newComments.length > 0 && (
+                <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-sm font-medium text-amber-900">
+                        {t('section.aiSuggestionCommentsTitle', { count: newComments.length })}
+                    </p>
+                    <ul className="mt-2 space-y-2">
+                        {newComments.map((c) => (
+                            <li key={c.ref} className="text-sm text-gray-700">
+                                {fragments.get(c.ref) && (
+                                    <blockquote className="mb-0.5 border-l-2 border-amber-300 pl-2 text-xs text-gray-500">
+                                        {fragments.get(c.ref)}
+                                    </blockquote>
+                                )}
+                                {c.body}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
         </HuemulDialog>
     );
 }

@@ -15,9 +15,11 @@ export interface HomeTabsListProps {
   /** `null` = badge omitido (conteo indeterminado, ver spec Punto 2). */
   myWorkCount: HomeWorkGroupCount | null;
   showAllAssetsTab: boolean;
+  /** Total de "Todos los activos" — `null`/`undefined` (con filtros o búsqueda activa, o sin resolver) omite el contador en vez de mostrar uno filtrado. */
+  allAssetsCount?: number | null;
 }
 
-export function HomeTabsList({ myWorkCount, showAllAssetsTab }: HomeTabsListProps) {
+export function HomeTabsList({ myWorkCount, showAllAssetsTab, allAssetsCount }: HomeTabsListProps) {
   const { t } = useTranslation('home');
 
   return (
@@ -33,6 +35,11 @@ export function HomeTabsList({ myWorkCount, showAllAssetsTab }: HomeTabsListProp
       {showAllAssetsTab && (
         <TabsTrigger value="all" className={TAB_TRIGGER_CLASS}>
           {t('tabs.allAssets')}
+          {allAssetsCount != null && (
+            <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-2xs font-semibold tabular-nums text-muted-foreground">
+              {allAssetsCount}
+            </span>
+          )}
         </TabsTrigger>
       )}
       <TabsTrigger value="team" className={TAB_TRIGGER_CLASS}>

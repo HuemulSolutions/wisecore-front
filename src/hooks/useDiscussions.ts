@@ -95,6 +95,7 @@ function mapApiDiscussionToPlate(
     createdAt: parseApiDate(d.created_at),
     isResolved: d.is_resolved,
     userId: d.created_by ?? '',
+    authorType: d.author_type,
     documentContent: d.document_content,
     sectionExecutionId: d.section_execution_id,
     executionId: d.execution_id,

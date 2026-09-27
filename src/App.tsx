@@ -3,13 +3,16 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/auth-context";
 import { OrganizationProvider } from "./contexts/organization-context";
 import { PermissionsProvider } from "./contexts/permissions-context";
-import { ProtectedRoute } from "./components/auth/auth-protected-route";
+import { RequireAuth } from "./components/auth/auth-protected-route";
 import { ProtectedRoute as PermissionProtectedRoute } from "./components/auth/auth-protected-route-with-permissions";
 import AppLayout from "./components/layout/app-layout";
 import { HuemulAppLoading } from "./huemul/components/huemul-app-loading";
 import Home from "./pages/home";
 import { RootRedirect } from "./components/organization/root-redirect";
 import { RBAC_PAGES } from "./lib/rbac-matrix";
+import { SsoCallbackPage } from "./pages/sso-callback";
+import { LoginEntryPage } from "./pages/login-entry";
+import { AuthMethodRequiredDialog } from "./components/auth/auth-method-required-dialog";
 
 // Páginas cargadas de forma perezosa: cada una se descarga solo cuando el
 // usuario navega a su ruta, en vez de entrar todas al bundle inicial.
@@ -43,9 +46,17 @@ export default function App() {
     <AuthProvider>
       <OrganizationProvider>
         <PermissionsProvider>
-          <ProtectedRoute>
-            <Suspense fallback={<HuemulAppLoading />}>
+          {/* Step-up de autenticación (docs/sso-frontend.md): un solo montaje, dentro de los providers. */}
+          <AuthMethodRequiredDialog />
+          <Suspense fallback={<HuemulAppLoading />}>
             <Routes>
+          {/* Rutas PÚBLICAS (docs/sso-frontend.md): fuera de RequireAuth pero dentro de los
+              providers. Son hermanas con segmentos estáticos, así que el comodín "*" de abajo
+              no las captura sin importar el orden. */}
+          <Route path="/auth/sso/callback" element={<SsoCallbackPage />} />
+          <Route path="/login" element={<LoginEntryPage />} />
+
+          <Route element={<RequireAuth />}>
           {/* Root redirect — sends user to /:orgId/home */}
           <Route path="/" element={<RootRedirect />} />
 
@@ -108,7 +119,7 @@ export default function App() {
               </PermissionProtectedRoute>
             } />
             <Route path="auth-types" element={
-              <PermissionProtectedRoute requireRootAdmin={RBAC_PAGES["auth-types"].requireRootAdmin} showErrorPage>
+              <PermissionProtectedRoute requireOrgAdmin={RBAC_PAGES["auth-types"].requireOrgAdmin} showErrorPage>
                 <AuthTypes />
               </PermissionProtectedRoute>
             } />
@@ -224,9 +235,9 @@ export default function App() {
 
           {/* Catch-all: redirect unknown paths to root */}
           <Route path="*" element={<RootRedirect />} />
+          </Route>
             </Routes>
             </Suspense>
-        </ProtectedRoute>
         </PermissionsProvider>
       </OrganizationProvider>
     </AuthProvider>

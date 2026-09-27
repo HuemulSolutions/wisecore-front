@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react'
 import type { AddSectionExecutionRequest } from '@/services/section_execution'
 import type { CustomFieldDocument } from '@/types/custom-fields'
+import type { AiSuggestionComment } from '@/types/section-execution'
 
 // ----------------------------------------
 // Add Custom Field
@@ -95,6 +96,8 @@ export interface AiSuggestionDiffDialogProps {
   sectionOutput: string
   aiSuggestionInstruction?: string | null
   aiSuggestionContent?: string | null
+  /** Comentarios anclados que la IA propone (is_new) — se listan bajo el diff. */
+  aiSuggestionComments?: AiSuggestionComment[]
   aiPreview: string | null
   onAccept: () => Promise<void>
   onReject: () => Promise<void>

@@ -1,4 +1,5 @@
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { saveReturnUrl } from '@/lib/return-url';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/auth-context';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
@@ -14,30 +15,30 @@ export type { ProtectedRouteWithPermissionsProps as ProtectedRouteProps } from '
 
 /**
  * Componente que protege rutas basado en autenticación y permisos
- * 
+ *
  * Primero verifica autenticación, luego verifica permisos
- * 
+ *
  * NOTA sobre roles de admin:
  * - isRootAdmin: Solo da acceso a rutas con requireRootAdmin=true (admin técnico)
  * - isOrgAdmin: Hace bypass de permisos para rutas de organización (admin de negocio)
- * 
+ *
  * Ejemplos de uso:
- * 
+ *
  * // Solo autenticación
  * <ProtectedRoute>
  *   <Dashboard />
  * </ProtectedRoute>
- * 
+ *
  * // Requiere permiso específico
  * <ProtectedRoute permission="user:c">
  *   <CreateUserPage />
  * </ProtectedRoute>
- * 
+ *
  * // Solo para root admin (rutas técnicas/administrativas)
  * <ProtectedRoute requireRootAdmin>
  *   <AdminPanel />
  * </ProtectedRoute>
- * 
+ *
  * // Con redirección personalizada
  * <ProtectedRoute permission="asset:r" redirectTo="/dashboard">
  *   <AssetsPage />
@@ -55,6 +56,7 @@ export function ProtectedRoute({
   resourceAction,
   resourceActions,
   requireRootAdmin = false,
+  requireOrgAdmin = false,
   redirectTo = '/home',
   showErrorPage = false,
 }: ProtectedRouteProps) {
@@ -70,12 +72,17 @@ export function ProtectedRoute({
     hasRole,
     hasAnyRole,
   } = useUserPermissions();
-  const { organizationToken } = useOrganization();
+  const { organizationToken, selectedOrganizationId } = useOrganization();
   const { orgId } = useParams<{ orgId: string }>();
 
-  // If we're on an org-scoped route but the org token hasn't been generated
-  // yet (e.g. deep-link OrgSync is in progress), wait before checking perms.
-  const orgTokenPending = !!orgId && orgId !== '_' && !organizationToken;
+  // En una ruta de organización, los permisos (incluido `isOrgAdmin`) tienen que
+  // ser de ESA organización: se espera mientras no haya token de org o mientras
+  // el contexto siga en otra (OrgSync en curso tras pegar un link, o un step-up
+  // abierto). Sin esto, el token de la org anterior abriría la ruta.
+  const urlOrgId = orgId && orgId !== '_' ? orgId : null;
+  const orgContextPending =
+    !!urlOrgId &&
+    (!organizationToken || selectedOrganizationId?.toLowerCase() !== urlOrgId.toLowerCase());
 
   // There's an org token but PermissionsProvider hasn't resolved a valid
   // (non-empty) permissions read yet — e.g. right after a hard deep-link
@@ -87,7 +94,7 @@ export function ProtectedRoute({
 
   // Mostrar loading mientras se cargan datos. El header ya está montado
   // (AppLayout), así que solo el cuerpo muestra el skeleton.
-  if (authLoading || permissionsLoading || orgTokenPending || permissionsNeverLoaded) {
+  if (authLoading || permissionsLoading || orgContextPending || permissionsNeverLoaded) {
     return <PageSkeleton />;
   }
 
@@ -97,12 +104,13 @@ export function ProtectedRoute({
   }
 
   // Si no se requieren permisos específicos, permitir acceso
-  const needsPermissionCheck = permission || 
-                              (permissions && permissions.length > 0) || 
-                              role || 
-                              (roles && roles.length > 0) || 
-                              resource || 
-                              requireRootAdmin;
+  const needsPermissionCheck = permission ||
+                              (permissions && permissions.length > 0) ||
+                              role ||
+                              (roles && roles.length > 0) ||
+                              resource ||
+                              requireRootAdmin ||
+                              requireOrgAdmin;
 
   if (!needsPermissionCheck) {
     return <>{children}</>;
@@ -118,6 +126,16 @@ export function ProtectedRoute({
   // aquí durante la ventana entre el logout y el primer refresh forzado.
   if (requireRootAdmin) {
     if (isRootAdmin && hasLoadedPermissionsOnce) {
+      return <>{children}</>;
+    }
+    return showErrorPage ? <AccessDeniedPage /> : <Navigate to={redirectTo} replace />;
+  }
+
+  // Rutas de administración de la organización sin recurso propio (p. ej.
+  // conexiones de autenticación): root admin O admin de la org activa. Misma
+  // defensa `hasLoadedPermissionsOnce` que arriba.
+  if (requireOrgAdmin) {
+    if ((isRootAdmin || isOrgAdmin) && hasLoadedPermissionsOnce) {
       return <>{children}</>;
     }
     return showErrorPage ? <AccessDeniedPage /> : <Navigate to={redirectTo} replace />;
@@ -175,8 +193,8 @@ export function ProtectedRoute({
   if (!hasAccess) {
     // Persist the intended URL so we can restore it after login / token refresh.
     const intended = window.location.pathname + window.location.search;
-    if (intended !== redirectTo && intended !== '/') {
-      sessionStorage.setItem('returnUrl', intended);
+    if (intended !== redirectTo) {
+      saveReturnUrl(intended);
     }
     return showErrorPage ? <AccessDeniedPage /> : <Navigate to={redirectTo} replace />;
   }

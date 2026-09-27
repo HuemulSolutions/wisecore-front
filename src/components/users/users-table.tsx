@@ -7,6 +7,7 @@ import { HuemulTable, type HuemulTableColumn } from "@/huemul/components/huemul-
 import { useRolesMap } from "@/contexts/role-refs-context"
 import { roleRowSwatch } from "@/lib/reference-colors"
 import type { UserTableProps } from '@/types/users'
+import { MembershipAuthMethodField } from '@/components/organization/membership-auth-method-field'
 export type { UserTableProps } from '@/types/users'
 
 // Helper functions
@@ -50,12 +51,35 @@ export default function UserTable({
   onSelectUser,
   selectedUserId,
   canListRoles = false,
+  organizationId,
+  canEditAuthMethod = false,
   pagination,
   isLoading = false,
   isFetching = false
 }: UserTableProps) {
   const { t } = useTranslation(['users', 'common'])
   const { byId: rolesById } = useRolesMap(canListRoles)
+
+  // La columna solo existe con organización activa y backend que trae el
+  // método de la membresía (`auth_type` en `users_with_roles`, docs/sso.md §5).
+  const showAuthMethod = !!organizationId && users.some((user) => user.auth_type !== undefined)
+
+  const authMethodColumn: HuemulTableColumn<User> = {
+    key: "auth_method",
+    label: t('users:columns.authMethod'),
+    width: "minmax(0,0.9fr)",
+    render: (user) => (
+      // El select no debe abrir el panel del usuario al interactuar con él.
+      <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <MembershipAuthMethodField
+          member={user}
+          organizationId={organizationId!}
+          canEdit={canEditAuthMethod}
+          className={canEditAuthMethod ? "w-full max-w-52" : undefined}
+        />
+      </div>
+    )
+  }
 
   const columns: HuemulTableColumn<User>[] = [
     {
@@ -124,6 +148,7 @@ export default function UserTable({
         )
       }
     },
+    ...(showAuthMethod ? [authMethodColumn] : []),
     {
       key: "status",
       label: t('common:status'),

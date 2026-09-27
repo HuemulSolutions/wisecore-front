@@ -13,11 +13,11 @@ export function HistorySectionDetail({ entry }: { entry: HistoryEntryVM<SectionH
   const [copied, setCopied] = useState(false);
   const { raw } = entry;
 
-  // El backend no resuelve {{MEDIA:<uuid>}}/URLs de blob dentro de previous_text/
-  // new_text (a diferencia de /documents/{id}/content) — ver
-  // respuestas/backend-media-historial-seccion.md. Se normalizan a sentinelas antes
-  // del diff y se renderizan como miniatura/tarjeta después, resueltas con el mismo
-  // mapa de media del documento (MediaUrlContext) que usa el resto de la sección.
+  // El backend resuelve {{MEDIA:<uuid>}} a URL firmada (estable por respuesta) en
+  // previous_text/new_text — ver respuestas/resolucion-media-historial-seccion.md;
+  // un token que sobrevive = media borrado/sin acceso. Se normalizan a sentinelas
+  // antes del diff y se renderizan como miniatura/tarjeta después; MediaUrlContext
+  // solo renueva la firma si el sheet está bajo el provider del documento.
   const previousText = raw.previous_text ?? "";
   const { oldContent, newContent, transformHtml } = useMediaRefDiff(previousText, raw.new_text);
 

@@ -20,6 +20,13 @@ export interface OrganizationDetailsFormApi {
   tokenLimit: number | null
   setMaxUsers: (v: number | null) => void
   setTokenLimit: (v: number | null) => void
+  /**
+   * Método de autenticación por defecto de la organización (`default_auth_type_id`,
+   * `null` = código por email). Solo trackeado y enviado con `manageDefaultAuthMethod`
+   * (root admin: el PATCH es root-only).
+   */
+  defaultAuthTypeId: string | null
+  setDefaultAuthTypeId: (v: string | null) => void
   /** Gate adicional para `HuemulPanelSaveBar` — `isDirty` sin nombre vacío. */
   canSave: boolean
   isDirty: boolean

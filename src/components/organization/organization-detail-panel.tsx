@@ -36,6 +36,10 @@ export interface OrganizationDetailPanelProps {
   canManageMembers?: boolean
   /** Root-admin-only (`/global-admin`): límites de sistema en el tab Detalles. */
   canManageSystemLimits?: boolean
+  /** Root admin o admin de esta organización: cambiar el método de autenticación de cada miembro. */
+  canEditAuthMethod?: boolean
+  /** Root-admin-only: método de autenticación por defecto en el tab Detalles. */
+  canManageDefaultAuthMethod?: boolean
   onRegisterGuard?: (api: OrganizationDetailPanelGuardApi | null) => void
 }
 
@@ -54,6 +58,8 @@ export function OrganizationDetailPanel({
   canSetAdmin,
   canManageMembers = false,
   canManageSystemLimits = false,
+  canEditAuthMethod = false,
+  canManageDefaultAuthMethod = false,
   onRegisterGuard,
 }: OrganizationDetailPanelProps) {
   const { t } = useTranslation(["organizations", "common"])
@@ -180,14 +186,19 @@ export function OrganizationDetailPanel({
                 organization={displayOrganization}
                 form={detailsForm}
                 canManageSystemLimits={canManageSystemLimits}
+                canManageDefaultAuthMethod={canManageDefaultAuthMethod}
               />
             </TabsContent>
             <TabsContent value="users" className="m-0 h-full">
+              {/* `key` por organización: el panel queda montado al cambiar de fila y
+                  el estado del tab (método del próximo miembro, diálogos) es de UNA org. */}
               <OrganizationDetailUsersTab
+                key={displayOrganization.id}
                 organization={displayOrganization}
                 canListUsers={canListUsers}
                 canSetAdmin={canSetAdmin}
                 canManageMembers={canManageMembers}
+                canEditAuthMethod={canEditAuthMethod}
               />
             </TabsContent>
           </div>

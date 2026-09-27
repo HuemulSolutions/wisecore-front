@@ -22,3 +22,12 @@ export interface EditAuthTypeDialogProps {
   /** Root admin (único eje de esta página, no existe recurso `auth_type` propio). Default `false`. */
   canManage?: boolean
 }
+
+export interface AuthTypeFormDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  /** null = alta; con valor = edición. */
+  authType?: AuthType | null
+  /** Root admin u org admin (eje `requireOrgAdmin` de la matriz RBAC). Default `false`. */
+  canManage?: boolean
+}

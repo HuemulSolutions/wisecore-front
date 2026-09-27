@@ -2,13 +2,22 @@ import type { Value } from 'platejs'
 import type { ReactNode } from 'react'
 import type { EditorMediaUploadTarget } from '@/contexts/media-reference-context'
 
+export interface ResetContentOptions {
+  /**
+   * Resuelve el `ref` de un marcador `{{COMMENT:<ref>}}` al id de discusión con el que se pinta
+   * el mark `comment_<id>`. Devolver null deja el fragmento como texto plano. Por defecto solo
+   * se conservan refs con forma de UUID (discusiones preexistentes).
+   */
+  resolveCommentRef?: (ref: string) => string | null;
+}
+
 export interface PlateRichEditorRef {
   /** Serialize the current editor content to Markdown */
   getMarkdown: () => string;
   /** Return the current editor content as Plate Value (JSON nodes) */
   getValue: () => Value;
   /** Reset the editor content from a markdown string */
-  resetContent: (markdown: string) => void;
+  resetContent: (markdown: string, options?: ResetContentOptions) => void;
   /** Reset the editor content directly from a Plate Value (preserves comment marks) */
   resetValue: (value: Value) => void;
 }

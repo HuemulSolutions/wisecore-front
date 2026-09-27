@@ -13,7 +13,10 @@
   actions: {
     uploadDocument: { en: "Upload Asset", es: "Subir Activo" },
     createAsset: { en: "Create Asset", es: "Crear Activo" },
+    refreshing: { en: "Refreshing…", es: "Actualizando…" },
   },
+
+  refreshed: { en: "Refreshed", es: "Actualizado" },
 
   // Subtítulo del saludo, armado en JSX a partir de fragmentos (mismo patrón
   // que ya usaba este archivo para "fecha · notificaciones sin leer") — no hay
@@ -21,12 +24,15 @@
   // <span> propio en vez de embeber markup en la traducción.
   subtitle: {
     pendingPrefix: { en: "You have", es: "Tienes" },
-    // "N cosas por hacer" — cuenta interina, ver homeWorkGroupCounts.ts.
-    pendingSuffix: { en: "things to do", es: "cosas por hacer" },
-    // Se usa cuando el conteo del grupo real es indeterminado (has_next=true,
-    // spec Punto 2 pendiente) — no se fuerza un número que no se puede probar.
-    pendingUnknown: { en: "You have pending work", es: "Tienes trabajo pendiente" },
+    pendingSuffix: { en: "pending", es: "pendientes" },
+    // Conteo no exacto (`N+`): el número es un piso, no un total probado.
+    pendingApproxSuffix: { en: "+ pending", es: "+ pendientes" },
     dueSoonSuffix: { en: "due this week", es: "vencen esta semana" },
+    upToDate: { en: "You're all caught up", es: "Estás al día" },
+    firstTime: {
+      en: "Get your organization ready in {{count}} steps. Once assets are moving, you'll see here what you need to review, approve or publish.",
+      es: "Deja tu organización lista en {{count}} pasos. Cuando haya activos en movimiento, aquí verás lo que te toca revisar, aprobar o publicar.",
+    },
   },
 
   tabs: {
@@ -35,17 +41,28 @@
     teamActivity: { en: "Team activity", es: "Actividad del equipo" },
   },
 
+  commentsPopover: {
+    open: { en: "View unresolved comments", es: "Ver comentarios sin resolver" },
+    title: { en: "Comments", es: "Comentarios" },
+    documentScope: { en: "Whole document", es: "Todo el documento" },
+    unknownSection: { en: "Untitled section", es: "Sección sin título" },
+    unknownAuthor: { en: "Unknown user", es: "Usuario desconocido" },
+    empty: { en: "No unresolved comments", es: "No hay comentarios sin resolver" },
+    error: { en: "Could not load the comments.", es: "No se pudieron cargar los comentarios." },
+    viewFullAsset: { en: "View full asset", es: "Ver activo completo" },
+  },
+
   workGroups: {
     approved: {
-      title: { en: "Approved, ready to publish", es: "Aprobados, listos para publicar" },
-      meta: { en: "Sorted by publication date", es: "Ordenado por fecha de publicación" },
-      empty: { en: "No assets waiting to publish", es: "Sin activos pendientes de publicar" },
+      title: { en: "Yours, approved and ready to publish", es: "Tus aprobados, listos para publicar" },
+      meta: { en: "Only publishing is left", es: "Solo falta publicarlos" },
+      empty: { en: "You have no assets pending publication", es: "No tienes activos pendientes de publicar" },
       actionPublish: { en: "Publish", es: "Publicar" },
     },
     review: {
-      title: { en: "Awaiting your review", es: "Esperando tu revisión" },
-      meta: { en: "Sorted by time waiting", es: "Ordenado por antigüedad" },
-      empty: { en: "Nothing waiting for your review", es: "Nada esperando tu revisión" },
+      title: { en: "Awaiting your review", es: "Esperan tu revisión" },
+      meta: { en: "Oldest first", es: "Más antiguos primero" },
+      empty: { en: "You have no pending reviews", es: "No tienes revisiones pendientes" },
       // Sin botones inline todavía — backend entregó `lifecycle_permissions`
       // por fila pero no `lifecycle_status` (can_advance/can_rollback/
       // advance_blockers), que es lo que hace falta para decidir qué botón
@@ -56,8 +73,8 @@
     },
     approval: {
       title: { en: "Awaiting your approval", es: "Esperan tu aprobación" },
-      meta: { en: "Sorted by time waiting", es: "Ordenado por antigüedad" },
-      empty: { en: "Nothing waiting for your approval", es: "Nada esperando tu aprobación" },
+      meta: { en: "By publication date", es: "Por fecha de publicación" },
+      empty: { en: "You have no pending approvals", es: "No tienes aprobaciones pendientes" },
       actionSecondary: { en: "Reject", es: "Rechazar" },
       actionPrimary: { en: "Approve", es: "Aprobar" },
     },
@@ -67,33 +84,65 @@
       actionPrimary: { en: "Reply", es: "Responder" },
     },
     common: {
-      viewRemaining: { en: "View {{count}} more", es: "Ver las {{count}} restantes" },
+      viewRemaining: { en: "View the {{count}} remaining in All assets", es: "Ver los {{count}} restantes en Todos los activos" },
+      viewRemainingOne: { en: "View the remaining one in All assets", es: "Ver el restante en Todos los activos" },
+      open: { en: "Open", es: "Abrir" },
+      published: { en: "Published: {{name}}", es: "Publicado: {{name}}" },
+      showingOf: { en: "Showing 2 of {{count}}", es: "Mostrando 2 de {{count}}" },
       viewAll: { en: "View all", es: "Ver todas" },
       countApprox: { en: "{{count}}+", es: "{{count}}+" },
       collapse: { en: "Collapse", es: "Colapsar" },
       expand: { en: "Expand", es: "Expandir" },
-      errorTitle: { en: "We couldn't load this group", es: "No pudimos cargar este grupo" },
-      updatedAgo: { en: "updated {{time}}", es: "hace {{time}}" },
+      errorTitle: {
+        en: "We couldn't load this group. The others are still up to date.",
+        es: "No pudimos cargar este grupo. Los demás siguen al día.",
+      },
+      // Una variante por cubo de `getRelativeTimeBucket` — la frase se arma
+      // entera acá (no se concatena `formatRelativeTime`, que ya trae
+      // "Ayer"/"hace 3m" redactado y daba "esperando hace Ayer").
+      updatedAgo: {
+        justNow: { en: "updated just now", es: "actualizado hace un momento" },
+        minutes: { en: "updated {{count}}m ago", es: "actualizado hace {{count}}m" },
+        hours: { en: "updated {{count}}h ago", es: "actualizado hace {{count}}h" },
+        yesterday: { en: "updated yesterday", es: "actualizado ayer" },
+        date: { en: "updated on {{date}}", es: "actualizado el {{date}}" },
+      },
       // `lifecycle_state_since` — entrada al estado actual, distinto de
       // `updatedAgo` (última edición de contenido). Ver spec Punto 6.
-      pendingSince: { en: "waiting {{time}}", es: "esperando hace {{time}}" },
-      publishesOn: { en: "publishes on {{date}}", es: "publica el {{date}}" },
-      undoUnavailable: {
-        en: "Done. This action can't be undone yet.",
-        es: "Listo. Esta acción todavía no se puede deshacer.",
+      pendingSince: {
+        justNow: { en: "waiting since just now", es: "en espera desde hace un momento" },
+        minutes: { en: "waiting for {{count}}m", es: "en espera desde hace {{count}}m" },
+        hours: { en: "waiting for {{count}}h", es: "en espera desde hace {{count}}h" },
+        yesterday: { en: "waiting since yesterday", es: "en espera desde ayer" },
+        date: { en: "waiting since {{date}}", es: "en espera desde el {{date}}" },
       },
+      publishesOn: { en: "publishes on {{date}}", es: "publica el {{date}}" },
     },
   },
 
   rail: {
+    collapse: { en: "Collapse", es: "Colapsar" },
+    expand: { en: "Expand", es: "Expandir" },
     overview: {
       title: { en: "Overview", es: "Panorama" },
       scopeOrganization: { en: "Organization", es: "Organización" },
-      scopeMine: { en: "Just mine", es: "Solo lo mío" },
+      scopeMine: { en: "Personal", es: "Personal" },
+      hintDefault: { en: "Click an indicator to filter the table", es: "Clic en un indicador para filtrar la tabla" },
+      hintActive: { en: "Filter applied · click again to remove it", es: "Filtro aplicado · clic de nuevo para quitarlo" },
+      hintReadOnly: { en: "Read-only: you can't access the asset list", es: "Solo consulta: no tienes acceso a la lista de activos" },
       errorFallback: { en: "Couldn't load the overview", es: "No se pudo cargar el panorama" },
+      unavailable: {
+        title: { en: "Overview not available", es: "Panorama no disponible" },
+        description: {
+          en: "Your role doesn't include organization statistics. Your pending work is still complete.",
+          es: "Tu rol no incluye las estadísticas de la organización. Tu trabajo pendiente sigue completo.",
+        },
+      },
     },
     continue: {
       title: { en: "Continue where you left off", es: "Continuar donde quedaste" },
+      subtitle: { en: "Latest assets you edited", es: "Últimos activos que editaste" },
+      viewAll: { en: "View all your recent activity", es: "Ver toda tu actividad reciente" },
     },
     gettingStarted: {
       title: { en: "Getting started", es: "Puesta en marcha" },
@@ -101,49 +150,51 @@
       // proveedor de LLM/embeddings no entra en un cálculo de minutos
       // confiable como sí lo hacían los otros pasos.
       stepCount: { en: "{{done}} of {{total}}", es: "{{done}} de {{total}}" },
-      subtitle: {
-        en: "{{count}} steps and your organization is operational. This card disappears once completed.",
-        es: "{{count}} pasos y tu organización queda operativa. Esta tarjeta desaparece al completarlos.",
-      },
-      dismissBanner: { en: "Getting started · {{done}} of {{total}} · Continue", es: "Puesta en marcha · {{done}} de {{total}} · Continuar" },
+      // Banner compacto (checklist oculta, primera vez) y link del rail.
+      hiddenBanner: { en: "{{done}} of {{total}} · missing: {{step}}", es: "{{done}} de {{total}} · falta: {{step}}" },
+      hiddenLink: { en: "Getting started hidden · {{done}} of {{total}} · Resume", es: "Puesta en marcha oculta · {{done}} de {{total}} · Retomar" },
+      hide: { en: "Hide for now", es: "Ocultar por ahora" },
+      resume: { en: "Resume", es: "Retomar" },
+      done: { en: "Done", es: "Listo" },
+      adminOnly: { en: "Set up by an administrator", es: "Lo configura un administrador" },
       steps: {
         defaultLlm: {
-          title: { en: "Set up your default LLM", es: "Configura tu LLM predeterminado" },
+          title: { en: "Choose the default language model", es: "Elige el modelo de lenguaje por defecto" },
           description: {
-            en: "The AI model that generation and assistance features will use",
-            es: "El modelo de IA que van a usar las funcionalidades de generación y asistencia",
+            en: "Used by assisted writing and asset summaries",
+            es: "Lo usan la redacción asistida y los resúmenes de activos",
           },
-          action: { en: "Configure", es: "Configurar" },
+          action: { en: "Choose", es: "Elegir" },
         },
         embeddingProvider: {
-          title: { en: "Set up your embedding provider", es: "Configura el proveedor de embeddings" },
+          title: { en: "Connect an embeddings provider", es: "Conecta un proveedor de embeddings" },
           description: {
-            en: "Needed for semantic search and similarity-based AI features",
-            es: "Necesario para la búsqueda semántica y las funcionalidades de IA que dependen de similitud",
+            en: "Enables semantic search over content",
+            es: "Habilita la búsqueda semántica sobre el contenido",
           },
-          action: { en: "Configure", es: "Configurar" },
+          action: { en: "Connect", es: "Conectar" },
         },
         assetType: {
           title: { en: "Define your first asset type", es: "Define tu primer tipo de activo" },
           description: {
             en: "The fields and lifecycle your documents will follow",
-            es: "Los campos y el ciclo de vida que van a seguir tus documentos",
+            es: "Los campos y el ciclo de vida que seguirán tus documentos",
           },
           action: { en: "Define", es: "Definir" },
         },
         firstAsset: {
           title: { en: "Create or upload your first asset", es: "Crea o sube tu primer activo" },
           description: {
-            en: "Start from a template or import an existing file",
-            es: "Empieza desde una plantilla o importa un archivo existente",
+            en: "From a template or by importing an existing file",
+            es: "Desde una plantilla o importando un archivo existente",
           },
           action: { en: "Create", es: "Crear" },
         },
         inviteTeam: {
           title: { en: "Invite your team", es: "Invita a tu equipo" },
           description: {
-            en: "Assign review and approval roles so the flow works",
-            es: "Asigna roles de revisión y aprobación para que el flujo funcione",
+            en: "Assign who reviews and who approves so the flow moves forward",
+            es: "Asigna quién revisa y quién aprueba para que el flujo avance",
           },
           action: { en: "Invite", es: "Invitar" },
         },
@@ -153,17 +204,65 @@
 
   emptyState: {
     firstTime: {
-      title: { en: "Your pending work will show up here", es: "Aquí verás tu trabajo pendiente" },
+      title: { en: "You have nothing pending yet", es: "Todavía no tienes nada pendiente" },
       description: {
-        en: "Reviews, approvals and comments appear in this list as soon as your team starts moving assets.",
-        es: "Revisiones, aprobaciones y comentarios aparecen en esta lista en cuanto tu equipo empiece a mover activos.",
+        en: "Once your team starts moving assets, this list sorts itself into three groups:",
+        es: "Cuando tu equipo empiece a mover activos, esta lista se ordena sola en tres grupos:",
+      },
+      groups: {
+        review: { title: { en: "Awaiting your review", es: "Esperan tu revisión" }, subtitle: { en: "You were assigned as reviewer", es: "Te asignaron como revisor" } },
+        approval: { title: { en: "Awaiting your approval", es: "Esperan tu aprobación" }, subtitle: { en: "Your signature decides if it moves on", es: "Tu firma decide si avanza" } },
+        approved: { title: { en: "Your approved assets", es: "Tus aprobados" }, subtitle: { en: "Only publishing is left", es: "Solo falta que los publiques" } },
       },
     },
     noPending: {
-      title: { en: "Nothing pending", es: "No tienes nada pendiente" },
-      description: { en: "Explore the organization's assets", es: "Explora los activos de la organización" },
-      cta: { en: "View all assets", es: "Ver todos los activos" },
+      title: { en: "You're all caught up", es: "Estás al día" },
+      description: {
+        en: "You have no reviews or approvals waiting, and nothing of yours approved and unpublished. If something is assigned to you, it will show up here.",
+        es: "No tienes revisiones ni aprobaciones esperándote, y nada tuyo aprobado sin publicar. Si te asignan algo, aparece aquí.",
+      },
+      explore: { en: "Explore all assets", es: "Explorar todos los activos" },
+      create: { en: "Create asset", es: "Crear activo" },
     },
+  },
+
+  // Aviso cuando la UI descarta un filtro incompatible (el backend responde
+  // 400 PENDING_MY_ACTION_WITH_SEARCH_NOT_SUPPORTED si llegan juntos).
+  filterNotice: {
+    droppedPending: {
+      en: "We removed “{{label}}”: that filter can't be combined with a text search. Clear the search to apply it again.",
+      es: "Quitamos «{{label}}»: ese filtro no se puede combinar con una búsqueda de texto. Borra la búsqueda para volver a aplicarlo.",
+    },
+    droppedQuery: {
+      en: "We removed the search “{{query}}”: “{{label}}” can't be combined with a text search.",
+      es: "Quitamos la búsqueda «{{query}}»: «{{label}}» no se puede combinar con búsqueda de texto.",
+    },
+    dismiss: { en: "Got it", es: "Entendido" },
+  },
+
+  noResults: {
+    titleOne: { en: "No asset matches this filter", es: "Ningún activo cumple este filtro" },
+    titleMany: { en: "No asset matches these {{count}} filters", es: "Ningún activo cumple estos {{count}} filtros" },
+    description: {
+      en: "Remove the filter that restricts the most or broaden the search.",
+      es: "Quita el filtro que más restringe o amplía la búsqueda.",
+    },
+    searchInContent: { en: "Search “{{query}}” in content", es: "Buscar «{{query}}» en el contenido" },
+    clearFilters: { en: "Clear filters", es: "Limpiar filtros" },
+  },
+
+  orgEmpty: {
+    title: { en: "The organization has no assets yet", es: "La organización todavía no tiene activos" },
+    descriptionCreate: {
+      en: "Create one from a template or upload an existing file. It will show up here and in the Overview.",
+      es: "Crea uno desde una plantilla o sube un archivo existente. Aparecerá aquí y en el Panorama.",
+    },
+    descriptionReadOnly: {
+      en: "When someone in your organization creates an asset, it will show up here.",
+      es: "Cuando alguien de tu organización cree un activo, aparecerá aquí.",
+    },
+    upload: { en: "Upload file", es: "Subir archivo" },
+    create: { en: "Create asset", es: "Crear activo" },
   },
 
   filters: {
@@ -178,11 +277,11 @@
     searchTypeContent: { en: "Content", es: "Contenido" },
     lifecycleState: { en: "Lifecycle", es: "Ciclo de Vida" },
     allLifecycleStates: { en: "All states", es: "Todos los estados" },
-    pendingMyAction: { en: "Pending my action", es: "Pendientes de mi acción" },
+    pendingMyAction: { en: "Pending your action", es: "Pendientes de tu acción" },
     allPendingMyAction: { en: "All", es: "Todas" },
-    pendingMyActionReview: { en: "Awaiting my review", es: "Esperando mi revisión" },
-    pendingMyActionApprove: { en: "Awaiting my approval", es: "Esperando mi aprobación" },
-    pendingMyActionAny: { en: "Awaiting my review or approval", es: "Esperando mi revisión o aprobación" },
+    pendingMyActionReview: { en: "Awaiting your review", es: "Esperando tu revisión" },
+    pendingMyActionApprove: { en: "Awaiting your approval", es: "Esperando tu aprobación" },
+    pendingMyActionAny: { en: "Awaiting your review or approval", es: "Esperando tu revisión o aprobación" },
     ownerScope: { en: "Owner", es: "Propietario" },
     allOwners: { en: "All owners", es: "Todos los propietarios" },
     ownerAll: { en: "All", es: "Todos" },
@@ -217,30 +316,30 @@
 
   kpis: {
     owned: {
-      label: { en: "Assets you own", es: "Activos propios" },
+      label: { en: "Your assets", es: "Tus activos" },
     },
     draft: {
       label: { en: "In elaboration", es: "En elaboración" },
     },
     inReview: {
-      label: { en: "Awaiting review", es: "Esperando revisión" },
+      label: { en: "Awaiting review", es: "En espera de revisión" },
     },
     inApproval: {
-      label: { en: "Pending approval", es: "Pendientes de aprobación" },
+      label: { en: "Awaiting approval", es: "En espera de aprobación" },
     },
     approved: {
-      label: { en: "Approved, not yet published", es: "Aprobados, sin publicar" },
+      label: { en: "Approved, unpublished", es: "Aprobados sin publicar" },
     },
     published: {
-      label: { en: "Currently published", es: "Publicados actualmente" },
+      label: { en: "Published", es: "Publicados" },
     },
     expiringSoon: {
-      label: { en: "Expiring in the next 7 days", es: "Vencen en los próximos 7 días" },
+      label: { en: "Expiring soon (next 7 days)", es: "Por vencer (próximos 7 días)" },
     },
     unresolvedComments: {
-      label: { en: "With unresolved comments", es: "Con comentarios sin resolver" },
+      label: { en: "With pending comments", es: "Con comentarios pendientes" },
     },
-    // Bloque "Solo lo mío" — `scope=me` de `GET /documents/statistics`.
+    // Bloque "Personal" — `scope=me` de `GET /documents/statistics`.
     pendingMyReview: {
       label: { en: "Awaiting your review", es: "Esperan tu revisión" },
     },
@@ -248,7 +347,7 @@
       label: { en: "Awaiting your approval", es: "Esperan tu aprobación" },
     },
     approvedOwnedByMe: {
-      label: { en: "Approved, yours", es: "Aprobados tuyos" },
+      label: { en: "Approved by you", es: "Aprobados por ti" },
     },
   },
 
@@ -279,6 +378,7 @@
       description: { en: "Create an asset and run a version to see it here.", es: "Crear un activo y generar una versión para verla aquí." },
     },
     resultsCount: { en: "{{count}} assets found", es: "{{count}} activos encontrados" },
+    you: { en: "You", es: "Tú" },
     actions: {
       openAsset: { en: "Open asset", es: "Abrir activo" },
     },

@@ -1,1 +1,2 @@
-export { EmbeddingProviderEditDialog } from './embedding-provider-edit-dialog'
+export { EmbeddingsTab } from './embeddings-tab'
+export { EmbeddingProviderSheet } from './embedding-provider-sheet'

@@ -5,11 +5,14 @@
 // Core models
 // ========================================
 
+export type DiscussionAuthorType = 'human' | 'ai';
+
 export interface Discussion {
   id: string;
   document_id: string;
   document_content: string;
   is_resolved: boolean;
+  author_type?: DiscussionAuthorType;
   execution_id: string | null;
   section_execution_id: string | null;
   organization_id: string;
@@ -50,6 +53,7 @@ export interface CreateDiscussionRequest {
   execution_id?: string;
   section_execution_id?: string;
   document_content: string;
+  author_type?: DiscussionAuthorType;
 }
 
 export interface CreateDiscussionWithCommentRequest {
@@ -59,6 +63,7 @@ export interface CreateDiscussionWithCommentRequest {
   document_content: string;
   content_rich: string;
   is_public?: boolean;
+  author_type?: DiscussionAuthorType;
 }
 
 export interface CreateDiscussionCommentRequest {
