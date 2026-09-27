@@ -12,6 +12,7 @@ export function CustomFieldPageHeader({
   onCreateCustomField,
   onRefresh,
   isLoading = false,
+  hasError = false,
   searchTerm,
   onSearchChange,
   canCreate = false
@@ -23,14 +24,16 @@ export function CustomFieldPageHeader({
       icon={Settings2}
       title={t('header.title')}
       badges={[
-        { label: "", value: customFieldCount }
+        { label: "", value: t('header.customFieldsCount', { count: customFieldCount }) }
       ]}
       onRefresh={onRefresh}
       isLoading={isLoading}
+      hasError={hasError}
       primaryAction={canCreate ? {
         label: t('header.createCustomField'),
         icon: Plus,
-        onClick: onCreateCustomField
+        onClick: onCreateCustomField,
+        disabled: hasError
       } : undefined}
       searchConfig={{
         placeholder: t('header.searchPlaceholder'),

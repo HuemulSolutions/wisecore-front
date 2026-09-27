@@ -44,6 +44,10 @@ export function Comment(props: CommentItemProps) {
   const userInfo = usePluginOption(discussionPlugin, 'user', comment.userId);
   const currentUserId = usePluginOption(discussionPlugin, 'currentUserId');
   const callbacks = usePluginOption(discussionPlugin, 'callbacks');
+  const discussions = usePluginOption(discussionPlugin, 'discussions');
+  // Solo el primer comentario del hilo lo escribió la IA; las respuestas son humanas.
+  const discussion = discussions.find((d) => d.id === comment.discussionId);
+  const isAiComment = discussion?.authorType === 'ai' && discussion.comments[0]?.id === comment.id;
 
   const updateComment = async (input: {
     id: string;
@@ -147,6 +151,15 @@ export function Comment(props: CommentItemProps) {
             className="border-[#fadfb8] bg-[#fef3e2] px-1.5 py-0 font-semibold text-[10px] text-amber-700"
           >
             {t('discussion.privateBadge')}
+          </Badge>
+        )}
+
+        {isAiComment && (
+          <Badge
+            variant="outline"
+            className="border-[#c9d3fb] bg-[#eef1fe] px-1.5 py-0 font-semibold text-[10px] text-[#4464f7]"
+          >
+            {t('discussion.aiBadge')}
           </Badge>
         )}
 

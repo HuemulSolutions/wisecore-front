@@ -2,8 +2,8 @@ import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitC
 import { cn } from '@/lib/utils';
 import { memo, useState, useEffect, useRef, useContext } from 'react';
 import { SectionCollapseContext } from '@/contexts/section-collapse-context';
-import { useQueryClient } from '@tanstack/react-query';
-import SectionPlateEditor from '@/components/plate-editor/section-plate-editor';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import SectionPlateEditor, { type SectionPlateEditorRef } from '@/components/plate-editor/section-plate-editor';
 import { Button } from "@/components/ui/button";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { executeSingleSection, executeFromSection } from '@/services/generate';
-import { deleteSectionExec, modifyContent, createAiSuggestion, acceptAiSuggestion, rejectAiSuggestion, updateReviewStatus, type ReviewStatus } from '@/services/section_execution';
+import { deleteSectionExec, modifyContent, createAiSuggestion, getAiSuggestion, rejectAiSuggestion, updateReviewStatus, type ReviewStatus } from '@/services/section_execution';
 import { HuemulField } from '@/huemul/components/huemul-field';
 import { AiSuggestionFeedback } from '@/components/execution/ai-suggestion-feedback';
 import { AiSuggestionDiffDialog } from '@/components/assets/dialogs/assets-ai-suggestion-diff-dialog';
@@ -31,6 +31,9 @@ import { handleApiError } from '@/lib/error-utils';
 import { isSectionPermissionDeniedError } from '@/lib/section-permission-errors';
 import { useInvalidateDocumentSectionAccess } from '@/hooks/useDocumentSectionAccess';
 import { logger } from '@/lib/logger';
+import { stripCommentMarkers } from '@/lib/plate-comment-markers';
+import { useAcceptAiSuggestion } from '@/hooks/useAcceptAiSuggestion';
+import { useMarkSectionViewed } from '@/hooks/useMarkSectionViewed';
 import { useTranslation } from 'react-i18next';
 import { AssetFormSection, type AssetFormSectionHandle } from '@/components/assets/content/asset-form-section';
 import { AssetFormSectionReader } from '@/components/assets/content/asset-form-section-reader';
@@ -94,6 +97,15 @@ function SectionExecutionInner({
     useEffect(() => {
         if (readyToEdit) setIsAnsweringInReader(false);
     }, [readyToEdit]);
+
+    // Empezar a responder/editar el formulario = "la vio" (mark_viewed): las tarjetas del lector
+    // se renderizan expandidas, así que el render inicial no es señal de apertura.
+    const markSectionViewed = useMarkSectionViewed(documentId);
+    useEffect(() => {
+        if (sectionType === 'form' && (isEditing || isAnsweringInReader)) {
+            markSectionViewed(sectionExecution);
+        }
+    }, [sectionType, isEditing, isAnsweringInReader, sectionExecution, markSectionViewed]);
     const [isAiEditDialogOpen, setIsAiEditDialogOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     // Ref al form de la sección: el botón Enviar/Cancelar vive en la barra de acciones de acá
@@ -108,6 +120,20 @@ function SectionExecutionInner({
     const [suggestionReadyLocally, setSuggestionReadyLocally] = useState(false);
     const [localSuggestionContent, setLocalSuggestionContent] = useState<string | null>(null);
     const [isDiffOpen, setIsDiffOpen] = useState(false);
+    const plateEditorRef = useRef<SectionPlateEditorRef>(null);
+    const acceptSuggestion = useAcceptAiSuggestion({
+        sectionExecutionId: sectionExecution.id,
+        documentId,
+        organizationId: selectedOrganizationId ?? undefined,
+        editorRef: plateEditorRef,
+    });
+    // Comentarios anclados que propone la IA: solo se leen mientras el diff está abierto.
+    const { data: diffSuggestion } = useQuery({
+        queryKey: ['ai-suggestion-detail', sectionExecution.id],
+        queryFn: () => getAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined),
+        enabled: isDiffOpen && !!selectedOrganizationId,
+        staleTime: 0,
+    });
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isHistorySheetOpen, setIsHistorySheetOpen] = useState(false);
     const [reviewStatus, setReviewStatus] = useState<ReviewStatus | null>(
@@ -168,7 +194,7 @@ function SectionExecutionInner({
 
     // Reporta el estado de colapso de ESTA sección hacia AssetContent — sin esto, el botón
     // "colapsar/expandir todas" del toolbar sólo se entera de su propia última señal, no de un
-    // colapso hecho a mano (botón individual o clickeando el cuerpo en lector). Se desregistra
+    // colapso hecho a mano (botón individual o chevron de la columna del lector). Se desregistra
     // al desmontar.
     useEffect(() => {
         onCollapsedChange?.(sectionExecution.id, isCollapsed);
@@ -230,22 +256,6 @@ function SectionExecutionInner({
                 });
             }
         }, 100);
-    };
-
-    // Click en cualquier parte del cuerpo de una sección (lector, expandida) la colapsa — "desde
-    // donde empieza hasta donde termina", sin una fila de control visible compitiendo con el
-    // contenido. Se excluyen dos casos para no interceptar interacciones reales del contenido:
-    //   1. Elementos interactivos propios de Plate en modo lectura — links, menciones,
-    //      referencias, fechas, media, tablas de datos, toggles (todos se renderizan como nodos
-    //      "void" de Slate, con data-slate-void="true" en su wrapper), además de cualquier
-    //      <a>/<button>/[role]/[tabindex] genérico.
-    //   2. El click final de un arrastre de selección de texto (el usuario estaba seleccionando,
-    //      no pidiendo colapsar).
-    const handleSectionBodyClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        const target = e.target as HTMLElement;
-        if (target.closest('a, button, [role], [tabindex], [data-slate-void="true"]')) return;
-        if (window.getSelection()?.toString()) return;
-        setIsCollapsed(true);
     };
 
     /**
@@ -478,7 +488,7 @@ function SectionExecutionInner({
     };
 
     const displayedContent = (aiPreview !== null && !isDiffOpen)
-        ? aiPreview
+        ? stripCommentMarkers(aiPreview)
         : sectionExecution.output.replace(/\\n/g, "\n");
 
     // Compartido entre secciones form y no-form: dónde deben quedar los archivos que
@@ -495,6 +505,7 @@ function SectionExecutionInner({
     // ver comentario de "no desmontar Plate" más abajo.
     const plateEditor = (
         <SectionPlateEditor
+            ref={plateEditorRef}
             sectionId={sectionExecution.id}
             content={displayedContent}
             plateContent={sectionExecution.plate_content}
@@ -922,7 +933,7 @@ function SectionExecutionInner({
                     <div className="flex gap-2">
                         <Button
                             size="sm"
-                            onClick={() => handleSave(sectionExecution.id, aiPreview || '')}
+                            onClick={() => handleSave(sectionExecution.id, stripCommentMarkers(aiPreview || ''))}
                             disabled={isSaving}
                             className="hover:cursor-pointer"
                         >
@@ -1056,42 +1067,77 @@ function SectionExecutionInner({
                     </div>
                 )
             ) : (
-                /* Editor y lector, no-form: MISMO árbol en ambos modos — el chevron del lector
-                   es un hermano CONDICIONAL (índice estable), nunca una rama alternativa. Si
-                   {plateEditor} cambiara de posición entre modos, React lo desmonta y remonta
-                   (reconstruye un Plate completo, ~25 plugin kits, por sección) en cada toggle
-                   Lector/Editor — ese remount síncrono en todas las secciones a la vez es lo que
-                   congelaba el cambio de modo. En editor el chevron vive en la barra sticky de
-                   arriba; en lector, EXPANDIDA, no hay ningún control visible — el contenido es
-                   lo primordial, sin chrome compitiendo con él — y clickear en cualquier parte
-                   del cuerpo la colapsa (ver handleSectionBodyClick). COLAPSADA sí se muestra el
-                   botón chevron + nombre: único indicio de qué sección es, dado que no hay
-                   contenido visible para mostrar en su lugar. */
-                <div>
-                    {!readyToEdit && isCollapsed && (
-                        <button
-                            type="button"
-                            onClick={() => setIsCollapsed(false)}
-                            className="group/section-toggle mb-1 flex w-full items-center gap-1.5 rounded border-b border-gray-100 py-1 pr-2 text-left hover:bg-gray-50"
-                            title={t('section.expand')}
-                        >
-                            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform duration-200 group-hover/section-toggle:text-gray-600" />
-                            {sectionName && (
-                                <span className="truncate text-xs text-gray-500 group-hover/section-toggle:text-gray-700">
-                                    {sectionName}
-                                </span>
-                            )}
-                        </button>
+                /* Editor y lector, no-form: MISMO árbol en ambos modos — la columna de controles
+                   del lector es un hermano CONDICIONAL (índice estable), nunca una rama
+                   alternativa. Si {plateEditor} cambiara de posición entre modos, React lo
+                   desmonta y remonta (reconstruye un Plate completo, ~25 plugin kits, por
+                   sección) en cada toggle Lector/Editor — ese remount síncrono en todas las
+                   secciones a la vez es lo que congelaba el cambio de modo. En editor el chevron
+                   vive en la barra sticky de arriba; en lector, una columna a la izquierda
+                   (menú ⋮ con historial + chevron, en fila) comparte fila con el contenido. COLAPSADA se
+                   muestra además el nombre de la sección: único indicio de cuál es. */
+                <div className={cn(!readyToEdit && 'flex items-start gap-1')}>
+                    {!readyToEdit && (
+                        <div className="flex shrink-0 items-center gap-0.5 pt-1">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button
+                                        type="button"
+                                        title={t('common:actions')}
+                                        className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-gray-100 hover:cursor-pointer"
+                                    >
+                                        <MoreVertical className="h-3.5 w-3.5 text-gray-400" />
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start">
+                                    <DropdownMenuItem
+                                        className="hover:cursor-pointer"
+                                        onSelect={() => {
+                                            setTimeout(() => setIsHistorySheetOpen(true), 0);
+                                        }}
+                                    >
+                                        <History className="h-4 w-4 mr-2" />
+                                        {t('section.viewHistoryMenu')}
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                            <HuemulButton
+                                variant="ghost"
+                                size="xs"
+                                icon={ChevronDown}
+                                iconClassName={cn(
+                                    'h-3.5 w-3.5 text-gray-400 transition-transform duration-200',
+                                    isCollapsed && '-rotate-90'
+                                )}
+                                className="h-6 w-6 hover:bg-gray-100"
+                                tooltip={isCollapsed ? t('section.expand') : t('section.collapse')}
+                                onClick={() => setIsCollapsed((prev) => !prev)}
+                            />
+                        </div>
                     )}
-                    <div
-                        onClick={!readyToEdit && !isCollapsed ? handleSectionBodyClick : undefined}
-                        className={cn(
-                            readyToEdit ? (isEditing ? 'pt-2 pr-0' : 'pt-4 pr-2 w-full') : 'pt-1 pr-2 w-full',
-                            !readyToEdit && !isCollapsed && 'cursor-pointer',
-                            !isEditing && isCollapsed && 'hidden'
+                    <div className="min-w-0 flex-1">
+                        {!readyToEdit && isCollapsed && (
+                            <button
+                                type="button"
+                                onClick={() => setIsCollapsed(false)}
+                                className="group/section-toggle mb-1 flex w-full items-center rounded border-b border-gray-100 py-1 pr-2 text-left hover:bg-gray-50"
+                                title={t('section.expand')}
+                            >
+                                {sectionName && (
+                                    <span className="truncate text-xs text-gray-500 group-hover/section-toggle:text-gray-700">
+                                        {sectionName}
+                                    </span>
+                                )}
+                            </button>
                         )}
-                    >
-                        {plateEditor}
+                        <div
+                            className={cn(
+                                readyToEdit ? (isEditing ? 'pt-2 pr-0' : 'pt-4 pr-2 w-full') : 'pt-1 pr-2 w-full',
+                                !isEditing && isCollapsed && 'hidden'
+                            )}
+                        >
+                            {plateEditor}
+                        </div>
                     </div>
                 </div>
             )}
@@ -1147,6 +1193,7 @@ function SectionExecutionInner({
             sectionOutput={sectionExecution.output}
             aiSuggestionInstruction={sectionExecution.ai_suggestion_instruction}
             aiSuggestionContent={sectionExecution.ai_suggestion_content}
+            aiSuggestionComments={diffSuggestion?.comments}
             aiPreview={aiPreview}
             onReject={async () => {
                 try {
@@ -1163,7 +1210,7 @@ function SectionExecutionInner({
             }}
             onAccept={async () => {
                 try {
-                    await acceptAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
+                    await acceptSuggestion();
                     await queryClient.refetchQueries({ queryKey: ['document-content', documentId] });
                     setAiPreview(null);
                     setIsDiffOpen(false);

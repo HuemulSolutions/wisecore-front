@@ -1235,8 +1235,8 @@ function HuemulTableInner<T>(
                                 )
                               })}
                             </div>
-                          ) : (
-                            // ── Dropdown menu ──
+                          ) : visibleActions.length === 0 ? null : (
+                            // ── Dropdown menu ── (sin acciones visibles no se dibuja un menú vacío)
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <HuemulButton

@@ -3,6 +3,7 @@
 import { useTranslation } from "react-i18next"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { formatDate } from "@/lib/utils"
+import { MembershipAuthMethodSelect } from "./membership-auth-method-select"
 import type { Organization, OrganizationDetailsFormApi } from "@/types/organizations"
 
 export interface OrganizationDetailDetailsTabProps {
@@ -10,6 +11,8 @@ export interface OrganizationDetailDetailsTabProps {
   form: OrganizationDetailsFormApi
   /** Root-admin-only (`/global-admin`): agrega los 2 campos de límites de sistema. */
   canManageSystemLimits?: boolean
+  /** Root-admin-only (el PATCH es root-only): método de autenticación por defecto para miembros nuevos. */
+  canManageDefaultAuthMethod?: boolean
 }
 
 /**
@@ -20,7 +23,7 @@ export interface OrganizationDetailDetailsTabProps {
  * Eliminar vive en el footer del panel (ver `OrganizationDetailPanel`), no
  * acá — ia context/list-detail-panel-guide.md.
  */
-export function OrganizationDetailDetailsTab({ organization, form, canManageSystemLimits = false }: OrganizationDetailDetailsTabProps) {
+export function OrganizationDetailDetailsTab({ organization, form, canManageSystemLimits = false, canManageDefaultAuthMethod = false }: OrganizationDetailDetailsTabProps) {
   const { t } = useTranslation(['organizations', 'common'])
 
   return (
@@ -71,6 +74,19 @@ export function OrganizationDetailDetailsTab({ organization, form, canManageSyst
             description={t('form.tokenLimitDescription')}
           />
         </>
+      )}
+
+      {canManageDefaultAuthMethod && (
+        <MembershipAuthMethodSelect
+          organizationId={organization.id}
+          value={form.defaultAuthTypeId}
+          canEdit
+          onChange={(authTypeId) => form.setDefaultAuthTypeId(authTypeId)}
+          label={t('detail.defaultAuthMethod')}
+          description={t('detail.defaultAuthMethodDescription')}
+          internalLabel={t('detail.defaultAuthMethodInternal')}
+          disabled={form.isSaving}
+        />
       )}
 
       <div className="rounded-lg border border-border p-3">

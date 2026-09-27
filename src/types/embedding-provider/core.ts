@@ -13,6 +13,16 @@ export interface SupportedEmbeddingProvider {
   is_configured: boolean;
 }
 
+/** Proveedor soportado combinado con el estado de configuración de la organización. */
+export interface EmbeddingProviderOption {
+  name: EmbeddingProviderName;
+  display: string;
+  /** true si es el proveedor que la organización tiene configurado hoy. */
+  isActive: boolean;
+  requiresEndpoint: boolean;
+  requiresDeployment: boolean;
+}
+
 export interface ResponseSchema<T> {
   transaction_id: string;
   data: T;

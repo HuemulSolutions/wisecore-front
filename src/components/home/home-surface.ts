@@ -28,9 +28,9 @@ export const HOME_CARD_TITLE = 'truncate text-sm font-semibold text-foreground';
 export const HOME_RAIL_TITLE = 'text-2xs font-semibold uppercase tracking-[0.04em] text-muted-foreground';
 
 /** Fila dentro de una card. */
-export const HOME_ROW = 'border-b border-divider px-4 py-3 last:border-b-0 hover:bg-muted';
+export const HOME_ROW = 'border-b border-divider px-[15px] py-3 last:border-b-0 hover:bg-muted';
 
-export const HOME_ROW_TITLE = 'truncate text-sm font-medium text-foreground';
+export const HOME_ROW_TITLE = 'truncate text-[13.5px] font-medium text-foreground';
 export const HOME_ROW_META = 'truncate text-xs text-muted-foreground';
 
 /** Link/acción secundaria en texto (pie "Ver las N restantes", CTA de vacío). */

@@ -10,6 +10,32 @@ export interface FormatRelativeTimeOptions {
   absolute?: boolean;
 }
 
+export type RelativeTimeBucket =
+  | { kind: 'justNow' }
+  | { kind: 'minutes'; count: number }
+  | { kind: 'hours'; count: number }
+  | { kind: 'yesterday' }
+  | { kind: 'date'; date: string };
+
+/**
+ * Misma clasificación que `formatRelativeTime`, pero sin texto: para copys que
+ * necesitan armar su propia frase ("en espera desde ayer") en vez de
+ * concatenar el resultado ya redactado ("Ayer") dentro de otra frase.
+ */
+export function getRelativeTimeBucket(dateInput: Date | string): RelativeTimeBucket {
+  const date = dateInput instanceof Date ? dateInput : parseApiDate(dateInput);
+  const now = new Date();
+  const diffMs = Math.max(0, now.getTime() - date.getTime());
+  const diffMinutes = Math.floor(diffMs / 60_000);
+  const diffHours = Math.floor(diffMs / 3_600_000);
+
+  if (diffMinutes < 1) return { kind: 'justNow' };
+  if (diffMinutes < 60) return { kind: 'minutes', count: diffMinutes };
+  if (diffHours < 24) return { kind: 'hours', count: diffHours };
+  if (diffHours < 48) return { kind: 'yesterday' };
+  return { kind: 'date', date: formatRelativeTime(date, { absolute: true }) };
+}
+
 /**
  * Formats a date string from the API into a human-friendly relative time.
  *

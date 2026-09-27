@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react"
 import { useAuthTypes } from "@/hooks/useAuthTypes"
+import { useOrganizationsLookup } from "@/hooks/useOrganizations"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
-import { CreateAuthTypeDialog } from "@/components/auth-types/auth-types-create-dialog"
-import { EditAuthTypeDialog } from "@/components/auth-types/auth-types-edit-dialog"
+import { AuthTypeFormDialog } from "@/components/auth-types/auth-types-form-dialog"
 import { DeleteAuthTypeDialog } from "@/components/auth-types/auth-types-delete-dialog"
 import type { AuthType } from "@/services/auth-types"
 
@@ -28,13 +29,27 @@ export default function AuthTypes() {
   const [deletingAuthType, setDeletingAuthType] = useState<AuthType | null>(null)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  // Solo root admin: '' = conexiones de todas las organizaciones.
+  const [organizationFilter, setOrganizationFilter] = useState("")
 
   const { canAccessPage: canManageAuthTypes, isLoading: isLoadingPermissions } = usePageAccess('auth-types')
+  const { isRootAdmin } = useUserPermissions()
+  const { byId: organizationsById } = useOrganizationsLookup(canManageAuthTypes && isRootAdmin)
+  const organizationOptions = useMemo(
+    () =>
+      Object.values(organizationsById)
+        .map((org) => ({ value: org.id, label: org.name }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    [organizationsById],
+  )
 
-  // Solo hacer la llamada a la API si el usuario es root admin
+  // Solo hacer la llamada a la API si el usuario puede administrar (root u org admin).
+  // El org admin ve siempre las de su organización (el backend la toma del token); el
+  // root admin, las de todas o las de la organización filtrada.
   const { data: authTypes = [], isLoading, isFetching, error, refetch } = useAuthTypes({
     enabled: canManageAuthTypes,
     search: searchTerm || undefined,
+    organizationId: isRootAdmin && organizationFilter ? organizationFilter : undefined,
   })
 
   const pagedAuthTypes = useMemo(
@@ -53,7 +68,7 @@ export default function AuthTypes() {
     return <AuthTypesLoadingState />
   }
 
-  // Verificar si el usuario es root admin
+  // Verificar si el usuario puede administrar conexiones (root u org admin)
   if (!canManageAuthTypes) {
     return <HuemulAccessDenied />
   }
@@ -89,6 +104,18 @@ export default function AuthTypes() {
             onCreateClick={() => setIsCreateDialogOpen(true)}
             hasError={!!error}
             canManage={canManageAuthTypes}
+            organizationFilter={
+              isRootAdmin
+                ? {
+                    value: organizationFilter,
+                    options: organizationOptions,
+                    onChange: (value) => {
+                      setOrganizationFilter(value)
+                      setPage(1)
+                    },
+                  }
+                : undefined
+            }
           />
         }
         headerClassName="p-4 md:p-6 pb-0 md:pb-0"
@@ -119,13 +146,14 @@ export default function AuthTypes() {
         ]}
       />
 
-      <CreateAuthTypeDialog
+      <AuthTypeFormDialog
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
+        authType={null}
         canManage={canManageAuthTypes}
       />
 
-      <EditAuthTypeDialog
+      <AuthTypeFormDialog
         open={!!editingAuthType}
         onOpenChange={(open) => !open && setEditingAuthType(null)}
         authType={editingAuthType}

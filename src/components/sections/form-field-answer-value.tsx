@@ -3,7 +3,6 @@ import { Calculator, FileX } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { HuemulFilePreview } from "@/huemul/components/huemul-file-preview";
-import { isMediaToken } from "@/lib/plate-media-utils";
 import { cn, formatNumber } from "@/lib/utils";
 import type { FormFieldValue } from "@/types/sections/core";
 import {
@@ -15,15 +14,15 @@ import {
   isCalculatedField,
   normalizeSelectionValue,
   readFieldOptions,
-  readFileUploadEntry,
   readFileUploadLimits,
+  resolveFileUploadRow,
   resolveOptionLabels,
   type FileUploadEntryMeta,
 } from "@/components/sections/question-type-meta";
 
-// Metadatos reales (nombre/mime) de un archivo subido en la sesión actual — solo
-// disponibles mientras la sección sigue montada (filePreviews de AssetFormSection).
-// Sin esto, un {{MEDIA:id}} sin resolver se muestra como "archivo no disponible".
+// Metadatos reales (nombre/mime) de un archivo, indexados por su token {{MEDIA:id}}
+// (fileMetaByToken de AssetFormSection). Sin esto, un token se muestra como
+// "archivo no disponible".
 export type FormFieldFilePreview = FileUploadEntryMeta;
 
 interface FormFieldAnswerValueProps {
@@ -31,9 +30,9 @@ interface FormFieldAnswerValueProps {
   /** Valor a mostrar. Si se omite, usa field.value (snapshot del backend). AssetFormSection
    *  pasa answers[field.id], que puede tener ediciones aún no persistidas. */
   value?: unknown;
-  /** Metadatos de archivo(s) subido(s) en la sesión actual, en el mismo orden que el
-   *  array de tokens de `value`/`field.value` (siempre array, de 0 o más elementos). */
-  filePreviews?: FormFieldFilePreview[];
+  /** Metadatos de archivo(s) indexados por token {{MEDIA:id}} — para pintar el valor en
+   *  edición (que guarda tokens, no objetos resueltos). Sin esto un token se ve "no disponible". */
+  fileMetaByToken?: Record<string, FormFieldFilePreview>;
   /** Override de clases del texto plano (tamaño/color) — se mergea sobre "text-sm text-gray-800"
    *  con tailwind-merge. No aplica a rating (HuemulField) ni a fileUpload (grilla de previews),
    *  cuyo render no es texto. Pensado para superficies con paleta propia (ver
@@ -57,7 +56,7 @@ function CalculatedBadge({ t }: { t: ReturnType<typeof useTranslation>["t"] }) {
 // Render de solo lectura de la respuesta de un form field, según su question_type.
 // Extraído de asset-form-section.tsx para reutilizarse también en paneles de consulta
 // (ej. respuestas de secciones anteriores del wizard) sin depender de su estado local.
-export function FormFieldAnswerValue({ field, value, filePreviews, textClassName }: FormFieldAnswerValueProps) {
+export function FormFieldAnswerValue({ field, value, fileMetaByToken, textClassName }: FormFieldAnswerValueProps) {
   const { t } = useTranslation("sections");
   const calculated = isCalculatedField(field);
 
@@ -132,16 +131,12 @@ export function FormFieldAnswerValue({ field, value, filePreviews, textClassName
   }
 
   if (field.question_type === QUESTION_TYPE.fileUpload) {
-    // resolved es siempre un array de tokens/URLs, en el mismo orden que filePreviews.
-    // Dato legado (guardado antes de este cambio) puede seguir siendo un string escalar.
+    // resolved es siempre un array: objetos {url,name,content_type} del snapshot, o tokens
+    // {{MEDIA:id}} (valor en edición) cuyo meta viene en fileMetaByToken.
     const entries = Array.isArray(resolved) ? resolved : [resolved];
-    const rows = entries.map((entry, i) => {
-      const preview = filePreviews?.[i];
-      if (preview) return { broken: false as const, meta: preview };
-      const meta = readFileUploadEntry(entry);
-      if (meta) return { broken: false as const, meta };
-      return isMediaToken(entry) ? { broken: true as const } : null;
-    }).filter((row): row is NonNullable<typeof row> => row !== null);
+    const rows = entries
+      .map((entry) => resolveFileUploadRow(entry, fileMetaByToken))
+      .filter((row): row is NonNullable<typeof row> => row !== null);
 
     if (rows.length === 0) {
       return <span className="text-sm italic text-gray-400">{t("form.fill.noAnswer")}</span>;

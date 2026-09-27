@@ -363,3 +363,12 @@ De infraestructura: `organizationDailyModelTelemetryQueryKeys.list()` no llevaba
 - [ ] Los roles de prueba de la sección correspondiente ejecutados manualmente (o delegados a QA con este mismo checklist).
 - [ ] Si se agregaron entradas a `RBAC_PAGES`, el nav y las rutas siguen mostrando lo mismo que antes para un org admin y para el rol "solo :l/:r" (sin regresiones).
 - [ ] Hallazgos que quedaron fuera de alcance, documentados en la sección "Hallazgos pendientes" de esta guía (no perderlos en un comentario de PR).
+
+
+## Hallazgo 2026-09-25: `/auth-types` pasa a root u org admin
+
+El backend abrió la administración de conexiones de autenticación al org admin de cada organización
+(`auth_type/routes.py`: root admin sobre todo, `is_org_admin` + `X-Org-Id` sobre las propias). La matriz
+declara `requireOrgAdmin` en vez de `requireRootAdmin`, y el guard de ruta ganó la prop homónima con la
+misma defensa `hasLoadedPermissionsOnce`. El `returnUrl` ahora se sanea y centraliza en
+`src/lib/return-url.ts` (cierra el open redirect anotado más arriba).

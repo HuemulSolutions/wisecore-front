@@ -11,11 +11,10 @@ export interface PendingCustomFieldFile {
 }
 
 export interface CustomFieldContentEmptyStateProps {
-  type: "error" | "empty" | "no-results"
+  type: "error" | "empty"
   message?: string
   onRetry?: () => void
   onCreateFirst?: () => void
-  onClearFilters?: () => void
 }
 
 export interface CustomFieldFormFieldsProps {
@@ -101,6 +100,7 @@ export interface CustomFieldPageHeaderProps {
   onCreateCustomField: () => void
   onRefresh: () => void
   isLoading?: boolean
+  hasError?: boolean
   searchTerm: string
   onSearchChange: (value: string) => void
   canCreate?: boolean
@@ -108,7 +108,8 @@ export interface CustomFieldPageHeaderProps {
 
 export interface CustomFieldTableProps {
   customFields: CustomField[]
-  onEditCustomField: (customField: CustomField) => void
+  onSelectCustomField: (customField: CustomField) => void
+  selectedCustomFieldId?: string | null
   pagination?: HuemulTablePagination
   canUpdate?: boolean
   canDelete?: boolean

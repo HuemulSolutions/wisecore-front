@@ -10,10 +10,23 @@ export interface AddSectionExecutionRequest {
   reference_execution_id?: string;
 }
 
+/**
+ * Comentario anclado propuesto/preservado por la IA. Se vincula por `ref` con el marcador
+ * `{{COMMENT:<ref>}}...{{/COMMENT}}` dentro de `content`. `is_new: true` → `body` trae el texto
+ * plano y hay que crear la discusión; `is_new: false` → `ref` es el `discussion_id` real y
+ * `body` es null (la discusión ya existe).
+ */
+export interface AiSuggestionComment {
+  ref: string;
+  body: string | null;
+  is_new: boolean;
+}
+
 export interface AiSuggestionStatus {
   status: 'pending' | 'completed' | 'failed' | null;
   content: string | null;
   instruction: string | null;
+  comments?: AiSuggestionComment[];
   error: string | null;
 }
 

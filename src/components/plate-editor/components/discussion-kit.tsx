@@ -3,6 +3,7 @@
 import type { Value } from 'platejs';
 
 import type { TComment } from '@/components/ui/comment';
+import type { DiscussionAuthorType } from '@/types/discussions';
 
 import { createPlatePlugin } from 'platejs/react';
 
@@ -12,6 +13,8 @@ export type TDiscussion = {
   createdAt: Date;
   isResolved: boolean;
   userId: string;
+  /** 'ai' cuando la discusión la creó una sugerencia de IA aceptada. */
+  authorType?: DiscussionAuthorType;
   documentContent?: string;
   /** section_execution_id of the section this thread belongs to. Absent on
    * discussions optimistically created before the backend round-trip. */

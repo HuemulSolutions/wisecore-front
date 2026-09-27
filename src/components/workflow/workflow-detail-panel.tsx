@@ -27,6 +27,7 @@ import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { isExternalElaborationLocked, EXTERNAL_ELABORATION_POLL_MS } from "@/lib/lifecycle-access"
 import { workflowQueryKeys } from "@/hooks/useWorkflows"
 import { invalidateExecutionLifecycleSteps } from "@/hooks/useLifecycle"
+import { useMarkSectionViewed } from "@/hooks/useMarkSectionViewed"
 import type { AssetContentResponse } from "@/types/assets"
 import type { WorkflowRowRef } from "@/types/workflow"
 import type { WorkflowTemplateItem, CreateExpressResult } from "@/types/templates"
@@ -251,6 +252,13 @@ export function WorkflowDetailPanel({
     resetKey: row?.execution_id ?? template?.id,
     startInSection: !row,
   })
+
+  // Entrar a una sección (tarjeta, píldora, Anterior/Siguiente, "Ir a la sección", express) =
+  // "la vio": el backend lo necesita para completar secciones sin preguntas obligatorias.
+  const markSectionViewed = useMarkSectionViewed(documentId ?? undefined)
+  React.useEffect(() => {
+    if (view === "section") markSectionViewed(activeSection)
+  }, [view, activeSection, markSectionViewed])
 
   // Autoguardado (PATCH /form_values): parchea en el caché solo la sección devuelta,
   // sin refetch de /content — mismo patrón que assets-content.tsx. También refresca

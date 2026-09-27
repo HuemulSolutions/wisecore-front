@@ -24,7 +24,7 @@ import type { LucideIcon } from "lucide-react";
 import type { TFunction } from "i18next";
 import type { CustomFieldDataType } from "@/types/custom-fields/core";
 import type { FormFieldConfig, FormFieldOption, FormFieldValue, SectionFormField } from "@/types/sections/core";
-import { isMediaToken } from "@/lib/plate-media-utils";
+import { isMediaToken, mediaTokenFor } from "@/lib/plate-media-utils";
 
 // question_type que referencia un custom field
 export const CUSTOM_FIELD_QUESTION_TYPE = "custom_field";
@@ -243,15 +243,15 @@ export interface FileUploadEntryMeta {
   url: string;
   name?: string;
   contentType?: string;
+  /** id del media, si el backend lo incluye en la entrada — permite rearmar el token al guardar. */
+  mediaId?: string;
 }
 
 // Decodifica UNA entrada de value de carga_de_archivos. El backend devuelve
-// {url, name, content_type} (mismo shape que CustomFieldValueFile); dato legado guardado
-// antes de ese cambio puede seguir siendo una URL firmada plana. Devuelve null cuando la
+// {url, name, content_type} (mismo shape que CustomFieldValueFile). Devuelve null cuando la
 // entrada no es un archivo mostrable: token {{MEDIA:...}} sin resolver (media borrada o sin
 // acceso, que el caller pinta como "archivo no disponible") o cualquier otra forma.
 export function readFileUploadEntry(entry: unknown): FileUploadEntryMeta | null {
-  if (typeof entry === "string") return entry.startsWith("http") ? { url: entry } : null;
   if (entry && typeof entry === "object") {
     const o = entry as Record<string, unknown>;
     if (typeof o.url === "string" && o.url) {
@@ -259,10 +259,36 @@ export function readFileUploadEntry(entry: unknown): FileUploadEntryMeta | null 
         url: o.url,
         name: typeof o.name === "string" ? o.name : undefined,
         contentType: typeof o.content_type === "string" ? o.content_type : undefined,
+        mediaId: typeof o.media_id === "string" && o.media_id ? o.media_id : undefined,
       };
     }
   }
   return null;
+}
+
+// Convierte una entrada de value de carga_de_archivos al token {{MEDIA:<uuid>}} que el
+// backend exige al guardar (PATCH form_values/form_answer rechaza URLs u objetos resueltos
+// con 400 INVALID_FILE_UPLOAD_VALUE). Un token (incluido el roto, sin resolver) se devuelve
+// tal cual; un objeto resuelto solo se puede convertir si trae media_id. null = no convertible.
+export function fileUploadEntryToToken(entry: unknown): string | null {
+  if (isMediaToken(entry)) return entry;
+  const meta = readFileUploadEntry(entry);
+  return meta?.mediaId ? mediaTokenFor(meta.mediaId) : null;
+}
+
+// Resuelve una entrada guardada (token u objeto resuelto) a lo que se pinta: el meta de una
+// subida de esta sesión / del snapshot (indexado por token), el meta del propio objeto, o
+// "roto" (token sin resolver, sin meta). null = entrada que no se muestra.
+export function resolveFileUploadRow(
+  entry: unknown,
+  metaByToken?: Record<string, FileUploadEntryMeta>,
+): { broken: false; meta: FileUploadEntryMeta } | { broken: true; meta: null } | null {
+  if (isMediaToken(entry)) {
+    const meta = metaByToken?.[entry];
+    return meta ? { broken: false, meta } : { broken: true, meta: null };
+  }
+  const meta = readFileUploadEntry(entry);
+  return meta ? { broken: false, meta } : null;
 }
 
 // question_types de selección single / multi — usados para normalizar el value que

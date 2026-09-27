@@ -84,7 +84,7 @@ export function GlobalAdminOrganizationsSection({ canManage }: GlobalAdminOrgani
 
   // `manageSystemLimits: true` — a diferencia de /organizations, acá se
   // editan max_users/token_limit.
-  const detailsForm = useOrganizationDetailsForm(selectedOrganization, canManage, true)
+  const detailsForm = useOrganizationDetailsForm(selectedOrganization, canManage, true, canManage)
 
   const guardRef = useRef<OrganizationDetailPanelGuardApi | null>(null)
   const onRegisterGuard = useCallback((api: OrganizationDetailPanelGuardApi | null) => {
@@ -220,6 +220,8 @@ export function GlobalAdminOrganizationsSection({ canManage }: GlobalAdminOrgani
         canSetAdmin={canManage}
         canManageMembers={canManage}
         canManageSystemLimits={canManage}
+        canEditAuthMethod={canManage}
+        canManageDefaultAuthMethod={canManage}
         onRegisterGuard={onRegisterGuard}
       />
 

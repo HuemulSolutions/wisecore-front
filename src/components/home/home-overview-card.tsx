@@ -3,7 +3,9 @@ import { AlertCircle, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getErrorMessage } from '@/lib/error-utils';
 import { toneDot, toneStyle, type ColorHue } from '@/lib/lifecycle-colors';
-import { HOME_CARD_MUTED, HOME_CARD_HEADER, HOME_RAIL_TITLE } from './home-surface';
+import { useHomeCardCollapsed } from '@/hooks/useHomeCardCollapsed';
+import { HOME_CARD_MUTED, HOME_RAIL_TITLE } from './home-surface';
+import { HomeCollapsibleHeader } from './home-collapsible-header';
 
 export interface HomeOverviewRow {
   key: string;
@@ -11,7 +13,7 @@ export interface HomeOverviewRow {
   value: number;
   /** Hue del dominio (ver `lifecycle-colors.ts`) — resuelve punto, fondo activo y color del valor. */
   hue: ColorHue;
-  /** KPI de alarma ("Por expirar"): el valor se pinta en rojo aunque el filtro no esté aplicado. */
+  /** KPI de alarma ("Por expirar"): el valor se pinta en ámbar cuando es > 0, aunque el filtro no esté aplicado. */
   alert?: boolean;
   /** Este KPI es el filtro actualmente aplicado en "Todos los activos" — ver `selectOverviewKpi` en home.tsx. */
   active?: boolean;
@@ -26,17 +28,24 @@ export interface HomeOverviewCardProps {
   /** `documents/statistics` falló — en vez de pintar los 8+3 KPIs en `0` (un dato falso), se reemplaza toda la lista por este error state con reintento. */
   error?: unknown;
   onRetry?: () => void;
+  /**
+   * `false` cuando el usuario no tiene `listExecutions`: los KPIs son solo
+   * consulta (no hay tabla que filtrar), así que las filas no son clicables y
+   * el hint lo explica.
+   */
+  interactive?: boolean;
 }
 
-function OverviewRowButton({ row, isLoading }: { row: HomeOverviewRow; isLoading: boolean }) {
+function OverviewRowButton({ row, isLoading, interactive }: { row: HomeOverviewRow; isLoading: boolean; interactive: boolean }) {
   return (
     <button
       type="button"
       onClick={row.onClick}
-      disabled={isLoading}
+      disabled={isLoading || !interactive}
       className={cn(
-        'flex w-full items-center justify-between gap-2 px-4 py-2 text-left hover:cursor-pointer disabled:cursor-default',
-        row.active ? toneStyle(row.hue).soft : 'hover:bg-muted',
+        'flex w-full items-center justify-between gap-2 px-4 py-2 text-left disabled:cursor-default',
+        interactive && 'hover:cursor-pointer',
+        row.active ? toneStyle(row.hue).soft : interactive && 'hover:bg-muted',
       )}
     >
       <span className="flex min-w-0 items-center gap-2">
@@ -46,7 +55,7 @@ function OverviewRowButton({ row, isLoading }: { row: HomeOverviewRow; isLoading
       <span
         className={cn(
           'shrink-0 text-sm font-semibold tabular-nums',
-          row.active ? '' : row.alert ? toneStyle('red').text : 'text-foreground',
+          row.active ? '' : row.alert && row.value > 0 ? toneStyle('amber').text : 'text-foreground',
         )}
       >
         {isLoading ? '···' : row.value}
@@ -69,17 +78,28 @@ function OverviewRowButton({ row, isLoading }: { row: HomeOverviewRow; isLoading
  * (`scope=me`: pendientes de mi revisión/aprobación, aprobados míos); los 8
  * de abajo siguen etiquetados con el label estático "Organización".
  */
-export function HomeOverviewCard({ rows, isLoading, personalRows, error, onRetry }: HomeOverviewCardProps) {
+export function HomeOverviewCard({ rows, isLoading, personalRows, error, onRetry, interactive = true }: HomeOverviewCardProps) {
   const { t } = useTranslation('home');
   const { t: tCommon } = useTranslation('common');
+  const [collapsed, toggleCollapsed] = useHomeCardCollapsed('overview');
+
+  // Hint del header: explica qué pasa al clickear según el estado actual.
+  const hasActive = [...rows, ...(personalRows ?? [])].some((r) => r.active);
+  const hint = !interactive
+    ? t('rail.overview.hintReadOnly')
+    : hasActive
+      ? t('rail.overview.hintActive')
+      : t('rail.overview.hintDefault');
 
   return (
     <div className={HOME_CARD_MUTED}>
-      <div className={HOME_CARD_HEADER}>
-        <span className={HOME_RAIL_TITLE}>{t('rail.overview.title')}</span>
-        <span className="text-2xs text-muted-foreground">{t('rail.overview.scopeOrganization')}</span>
-      </div>
-      {error ? (
+      <HomeCollapsibleHeader collapsed={collapsed} onToggle={toggleCollapsed}>
+        <span className="flex items-start justify-between gap-2">
+          <span className={HOME_RAIL_TITLE}>{t('rail.overview.title')}</span>
+          {!collapsed && <span className="max-w-[170px] text-right text-2xs text-muted-foreground">{hint}</span>}
+        </span>
+      </HomeCollapsibleHeader>
+      {collapsed ? null : error ? (
         <div className="flex flex-col items-center gap-2 px-4 py-6 text-center">
           <AlertCircle className="h-6 w-6 text-destructive" />
           <p className="text-xs text-muted-foreground">{getErrorMessage(error, t('rail.overview.errorFallback'))}</p>
@@ -100,13 +120,14 @@ export function HomeOverviewCard({ rows, isLoading, personalRows, error, onRetry
             <div className="border-b border-divider pb-1">
               <div className={cn('px-4 pt-2.5 pb-1', HOME_RAIL_TITLE)}>{t('rail.overview.scopeMine')}</div>
               {personalRows.map((row) => (
-                <OverviewRowButton key={row.key} row={row} isLoading={isLoading} />
+                <OverviewRowButton key={row.key} row={row} isLoading={isLoading} interactive={interactive} />
               ))}
             </div>
           )}
           <div className="pb-1">
+            <div className={cn('px-4 pt-2.5 pb-1', HOME_RAIL_TITLE)}>{t('rail.overview.scopeOrganization')}</div>
             {rows.map((row) => (
-              <OverviewRowButton key={row.key} row={row} isLoading={isLoading} />
+              <OverviewRowButton key={row.key} row={row} isLoading={isLoading} interactive={interactive} />
             ))}
           </div>
         </>

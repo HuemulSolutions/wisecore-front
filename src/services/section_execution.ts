@@ -208,7 +208,25 @@ export async function answerSectionFormQuestion(
     return data.data as FormAnswerPayload;
 }
 
-// â”€â”€â”€ Section History â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Marca la sección form como vista (setea form_viewed_at, idempotente). Sin esto, una sección
+// sin preguntas obligatorias y con opcionales sin responder queda answers_status "pending" para
+// siempre. Sin body; la respuesta no se usa.
+export async function markSectionViewed(
+    sectionExecutionId: string,
+    organizationId?: string
+): Promise<void> {
+    const headers: Record<string, string> = {};
+    if (organizationId) {
+        headers['X-Org-Id'] = organizationId;
+    }
+    await httpClient.post(
+        `${backendUrl}/section_executions/${sectionExecutionId}/mark_viewed`,
+        {},
+        { headers }
+    );
+}
+
+// â”€â”€â”€ Section Historyâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function getSectionExecutionHistory(
     sectionExecutionId: string,
