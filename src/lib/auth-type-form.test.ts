@@ -37,20 +37,16 @@ describe('auth-type-form', () => {
     ])
   })
 
-  it('crear microsoft manda params, dominios, secreto y ámbito (root admin)', () => {
-    const request = buildCreateRequest(
-      {
-        ...EMPTY_AUTH_TYPE_FORM,
-        name: ' Microsoft Contoso ',
-        type: 'microsoft',
-        clientId: 'app-1',
-        allowedTenantIdsText: 't1\nt2',
-        emailDomainsText: 'Contoso.example.com',
-        clientSecret: 's3cr3t',
-        organizationId: 'org-a',
-      },
-      { includeOrganization: true },
-    )
+  it('crear microsoft manda params, dominios y secreto; nunca organization_id (el backend usa la org del token)', () => {
+    const request = buildCreateRequest({
+      ...EMPTY_AUTH_TYPE_FORM,
+      name: ' Microsoft Contoso ',
+      type: 'microsoft',
+      clientId: 'app-1',
+      allowedTenantIdsText: 't1\nt2',
+      emailDomainsText: 'Contoso.example.com',
+      clientSecret: 's3cr3t',
+    })
     expect(request).toEqual({
       name: 'Microsoft Contoso',
       type: 'microsoft',
@@ -58,25 +54,13 @@ describe('auth-type-form', () => {
       params: { client_id: 'app-1', tenant_id: null, allowed_tenant_ids: ['t1', 't2'], auto_provision: 'off' },
       email_domains: ['contoso.example.com'],
       client_secret: 's3cr3t',
-      organization_id: 'org-a',
     })
-  })
-
-  it('el root admin sin organización elegida: no se manda organization_id (nunca null) y la validación lo exige', () => {
-    const values = { ...EMPTY_AUTH_TYPE_FORM, name: 'x', type: 'microsoft' as const, clientId: 'app', tenantId: 'tenant-1', clientSecret: 's' }
-    const request = buildCreateRequest(values, { includeOrganization: true })
     expect('organization_id' in request).toBe(false)
-
-    expect(validateAuthTypeForm(values, 'create', false, { requireOrganization: true }).organizationId).toBe('validation.organizationRequired')
-    expect(validateAuthTypeForm({ ...values, organizationId: 'org-a' }, 'create', false, { requireOrganization: true }).organizationId).toBeUndefined()
-    // El org admin no elige organización: el backend la toma del token.
-    expect(validateAuthTypeForm(values, 'create', false).organizationId).toBeUndefined()
   })
 
   it('un tenant_id single-tenant sin lista se usa como allowed_tenant_ids; google exige hosted domains', () => {
     const ms = buildCreateRequest(
       { ...EMPTY_AUTH_TYPE_FORM, name: 'x', type: 'microsoft', clientId: 'app', tenantId: 'tenant-1', clientSecret: 's' },
-      { includeOrganization: false },
     )
     expect(ms.params).toMatchObject({ tenant_id: 'tenant-1', allowed_tenant_ids: ['tenant-1'] })
     expect(ms.organization_id).toBeUndefined()
@@ -85,7 +69,6 @@ describe('auth-type-form', () => {
     expect(errors.allowedHostedDomains).toBe('validation.allowedHostedDomainsRequired')
     const okGoogle = buildCreateRequest(
       { ...EMPTY_AUTH_TYPE_FORM, name: 'g', type: 'google', clientId: 'app', allowedHostedDomainsText: 'contoso.example.com', autoProvision: 'pending', clientSecret: 's' },
-      { includeOrganization: false },
     )
     expect(okGoogle.params).toEqual({ client_id: 'app', allowed_hosted_domains: ['contoso.example.com'], auto_provision: 'pending' })
   })

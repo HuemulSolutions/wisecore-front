@@ -18,17 +18,8 @@ export interface AuthTypesSearchProps {
   onRefresh: () => void
   onCreateClick: () => void
   hasError?: boolean
-  /** Root admin (único eje de esta página, no existe recurso `auth_type` propio). Default `false`. */
+  /** Root admin u org admin de la organización activa. Default `false`. */
   canManage?: boolean
-  /**
-   * Filtro por organización (solo root admin, que ve las conexiones de todas).
-   * `value === ''` = todas las organizaciones.
-   */
-  organizationFilter?: {
-    value: string
-    options: { value: string; label: string }[]
-    onChange: (value: string) => void
-  }
 }
 
 export interface AuthTypesTableProps {

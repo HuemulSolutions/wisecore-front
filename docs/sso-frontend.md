@@ -47,7 +47,8 @@ POST /user_roles/user_token → 403 {error:{code:"AUTH_METHOD_REQUIRED",
   403 CONNECTION_DISABLED (sin step-up: lo resuelve un admin)
   403 USER_NOT_ACTIVE → el front cierra la sesión con el mensaje de cuenta inactiva
 GET/POST/PUT/DELETE /auth_types  (internal|microsoft|google; organization_id, is_active, email_domains,
-  has_client_secret, is_sso; client_secret write-only; lectura para todos, escritura root u org admin)
+  has_client_secret, is_sso; client_secret write-only; lectura para todos, escritura root u org admin;
+  siempre las de la organización del token de organización, también para el root admin: sin org, ninguna)
 POST /auth-sso/{connection_id}/link → {authorize_url}; GET /auth-sso/identities/me
 ```
 
@@ -78,7 +79,7 @@ no-root intenta pasar a SSO a un root admin) y `ORGANIZATION_USER_LIMIT_REACHED`
 | 2 | Router público: `RequireAuth` como layout route, `/auth/sso/callback` (`SsoCallbackPage`) y `/login` fuera del guard. | Bloque "Fase 2" del target sin `todo`. |
 | 3 | Máquina de estados del login (`useLoginFlow`), `useCompleteLogin` (auto-selección por `login_org_id`), selector de organización con badges, pantalla de redirección al IdP. | Bloque "Fase 3". |
 | 4 | Step-up `AUTH_METHOD_REQUIRED`: store + `AuthMethodRequiredDialog`, captura en el diálogo de organización y en el OrgSync de `AppLayout`, anti-loop. | Bloque "Fase 4". |
-| 5 | Admin de conexiones: tipos `microsoft`/`google`, formulario por tipo, tabla, eje `requireOrgAdmin` en RBAC. Desde el backend #343 toda conexión es de una organización: el root admin elige la organización al crear (obligatoria, por defecto la seleccionada) y filtra por organización; la `internal` de cada org aparece como "Integrada", sin editar ni borrar. | Bloque "Fase 5". |
+| 5 | Admin de conexiones: tipos `microsoft`/`google`, formulario por tipo, tabla, eje `requireOrgAdmin` en RBAC. Desde el backend #343 toda conexión es de una organización, y desde `seba-auth-types-root-scope` el alcance es la organización activa para todos, también para el root admin: la página exige organización activa (sin ella muestra "Organización requerida" y el menú no la ofrece), no hay selector "Todas las organizaciones" ni columna de ámbito, la conexión se crea en la org activa sin elegirla, y `MembershipAuthMethodSelect` queda en solo lectura cuando la organización mostrada no es la activa; la `internal` de cada org aparece como "Integrada", sin editar ni borrar. | Bloque "Fase 5". |
 | 6 | Método de autenticación por membresía: `MembershipAuthMethodSelect` (badge o select de conexiones elegibles por organización), select por miembro en el tab Usuarios de `/organizations` y `/global-admin` (root o admin de esa org), método para nuevos miembros al agregar, `default_auth_type_id` en el tab Detalles (root), método por organización en el tab Organizaciones de `/users` (root). Backend: `GET /users/organizations` con `auth_type` por membresía. | Tests de `organization-detail-users-tab`, `organization-detail-details-tab` y `users-detail-organizations-tab`. |
 | Iteración 3 | Invitaciones por correo, sheet "Cuentas vinculadas". | — |
 

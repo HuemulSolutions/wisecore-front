@@ -66,14 +66,16 @@ function useConnections(list: unknown[] = connections) {
 }
 
 const rootSession = { token: makeLoginToken({ sub: rootAdmin.id, is_root_admin: true }), user: rootAdmin }
+// El root admin también opera con un token de organización: la lista es de ESA organización.
+const rootOrg = { id: ORG_A_ID, token: makeOrgToken({ sub: rootAdmin.id, is_root_admin: true, permissions: [] }) }
 const orgAdminSession = { token: makeLoginToken({ sub: activeUser.id }), user: activeUser }
 const orgAdminOrg = { id: ORG_A_ID, token: makeOrgToken({ sub: activeUser.id, is_org_admin: true, permissions: [] }) }
 const plainUserOrg = { id: ORG_A_ID, token: makeOrgToken({ sub: activeUser.id, is_org_admin: false, permissions: ['asset:r'] }) }
 
 describe('AuthTypes · página y RBAC', () => {
-  it('muestra tipo, ámbito, dominios, estado y secreto por conexión', async () => {
+  it('muestra tipo, dominios, estado y secreto por conexión (sin columna de ámbito: todas son de la org activa)', async () => {
     useConnections()
-    renderWithProviders(<AuthTypesPage />, { session: rootSession, route: `/${ORG_A_ID}/auth-types` })
+    renderWithProviders(<AuthTypesPage />, { session: rootSession, org: rootOrg, route: `/${ORG_A_ID}/auth-types` })
 
     const table = await screen.findByRole('table')
     const rows = within(table).getAllByRole('row').slice(1)
@@ -81,7 +83,7 @@ describe('AuthTypes · página y RBAC', () => {
 
     const microsoft = rows.find((r) => within(r).queryByText('Microsoft Contoso'))!
     expect(within(microsoft).getByText('Microsoft Entra ID')).toBeInTheDocument()
-    expect(await within(microsoft).findByText('Org A')).toBeInTheDocument()
+    expect(within(microsoft).queryByText('Org A')).not.toBeInTheDocument()
     expect(within(microsoft).getByText('contoso.example.com')).toBeInTheDocument()
     expect(within(microsoft).getByText('+1')).toBeInTheDocument()
     expect(within(microsoft).getByText('Active')).toBeInTheDocument()
@@ -93,33 +95,47 @@ describe('AuthTypes · página y RBAC', () => {
 
     // Toda conexión es de una organización: la INTERNAL es la de Org A y se marca como integrada.
     const internal = rows.find((r) => within(r).queryByText('Internal Authentication'))!
-    expect(await within(internal).findByText('Org A')).toBeInTheDocument()
     expect(within(internal).getByText('Built-in')).toBeInTheDocument()
     expect(within(table).queryByText('Global')).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: 'Filter by organization' })).not.toBeInTheDocument()
   })
 
-  it('el root admin filtra por organización; sin filtro pide las de todas', async () => {
-    const orgParams: Array<string | null> = []
+  it('el root admin pide solo las de la organización activa: token de organización, X-Org-Id y sin organization_id', async () => {
+    const requests: Array<{ orgParam: string | null; orgHeader: string | null; auth: string | null }> = []
     useConnections()
     server.use(
       http.get(`${backendUrl}/auth_types/`, ({ request }) => {
-        orgParams.push(new URL(request.url).searchParams.get('organization_id'))
+        requests.push({
+          orgParam: new URL(request.url).searchParams.get('organization_id'),
+          orgHeader: request.headers.get('X-Org-Id'),
+          auth: request.headers.get('Authorization'),
+        })
         return respondOk(connections)
       }),
     )
-    const { user } = renderWithProviders(<AuthTypesPage />, { session: rootSession, route: `/${ORG_A_ID}/auth-types` })
+    renderWithProviders(<AuthTypesPage />, { session: rootSession, org: rootOrg, route: `/${ORG_A_ID}/auth-types` })
 
     await screen.findByRole('table')
-    expect(orgParams[0]).toBeNull()
+    expect(requests).toHaveLength(1)
+    expect(requests[0].orgParam).toBeNull()
+    expect(requests[0].orgHeader).toBe(ORG_A_ID)
+    expect(requests[0].auth).toBe(`Bearer ${rootOrg.token}`)
+  })
 
-    await user.click(screen.getByRole('combobox', { name: 'Filter by organization' }))
-    await user.click(within(await screen.findByRole('listbox')).getByText('Org A'))
-    await waitFor(() => expect(orgParams).toContain(ORG_A_ID))
+  it('el root admin sin organización activa no ve ninguna conexión ni consulta el backend', async () => {
+    let calls = 0
+    useConnections()
+    server.use(http.get(`${backendUrl}/auth_types/`, () => { calls += 1; return respondOk(connections) }))
+    renderWithProviders(<AuthTypesPage />, { session: rootSession, route: '/_/auth-types' })
+
+    expect(await screen.findByText('Organization required')).toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(calls).toBe(0)
   })
 
   it('un backend viejo sin los campos nuevos se normaliza sin romper la tabla (y nunca como "Global")', async () => {
     useConnections([{ id: 'legacy', name: 'Legacy', type: 'microsoft', params: { client_id: 'x' }, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }])
-    renderWithProviders(<AuthTypesPage />, { session: rootSession, route: `/${ORG_A_ID}/auth-types` })
+    renderWithProviders(<AuthTypesPage />, { session: rootSession, org: rootOrg, route: `/${ORG_A_ID}/auth-types` })
 
     const table = await screen.findByRole('table')
     const row = within(table).getAllByRole('row')[1]
@@ -252,55 +268,25 @@ describe('AuthTypeFormDialog', () => {
     expect(screen.getByText('Built-in email-code method of this organization. It cannot be edited or removed.')).toBeInTheDocument()
   })
 
-  it('el root admin elige la organización al crear (obligatoria): no hay opción Global', async () => {
+  it('el root admin no elige organización al crear: la conexión nace en la org activa y no se manda organization_id', async () => {
     useConnections()
     const bodies: Array<Record<string, unknown>> = []
+    const headers: Array<string | null> = []
     server.use(
       http.post(`${backendUrl}/auth_types/`, async ({ request }) => {
         bodies.push((await request.json()) as Record<string, unknown>)
+        headers.push(request.headers.get('X-Org-Id'))
         return respondOk(connections[1])
       }),
     )
-    const { user } = renderWithProviders(<AuthTypeFormDialog open onOpenChange={() => {}} authType={null} canManage />, { session: rootSession })
-
-    expect(await screen.findByText('Organization')).toBeInTheDocument()
-    await user.type(screen.getByPlaceholderText('e.g. Microsoft Contoso'), 'Org MS')
-    await user.type(screen.getByPlaceholderText('Application (client) ID from the identity provider'), 'app-1')
-    const textareas = screen.getAllByRole('textbox').filter((el) => el.tagName === 'TEXTAREA')
-    await user.type(textareas[0], 't1')
-    await user.type(screen.getByPlaceholderText('Paste the client secret'), 's3cr3t')
-
-    // Sin organización seleccionada no se envía nada.
-    await user.click(screen.getByRole('button', { name: 'Create' }))
-    expect(await screen.findByText('Organization is required')).toBeInTheDocument()
-    expect(bodies).toHaveLength(0)
-
-    await user.click(screen.getByRole('combobox', { name: /organization/i }))
-    const listbox = await screen.findByRole('listbox')
-    expect(within(listbox).queryByText(/global/i)).not.toBeInTheDocument()
-    await user.click(within(listbox).getByText('Org A'))
-    await user.click(screen.getByRole('button', { name: 'Create' }))
-
-    await waitFor(() => expect(bodies).toHaveLength(1))
-    expect(bodies[0].organization_id).toBe(ORG_A_ID)
-  })
-
-  it('el root admin con una organización seleccionada la trae por defecto', async () => {
-    useConnections()
-    const bodies: Array<Record<string, unknown>> = []
-    server.use(
-      http.post(`${backendUrl}/auth_types/`, async ({ request }) => {
-        bodies.push((await request.json()) as Record<string, unknown>)
-        return respondOk(connections[1])
-      }),
-    )
-    const rootOrg = { id: ORG_A_ID, token: makeOrgToken({ sub: rootAdmin.id, is_root_admin: true, permissions: [] }) }
     const { user } = renderWithProviders(<AuthTypeFormDialog open onOpenChange={() => {}} authType={null} canManage />, {
       session: rootSession,
       org: rootOrg,
     })
 
     await user.type(await screen.findByPlaceholderText('e.g. Microsoft Contoso'), 'Org MS')
+    expect(screen.queryByText('Organization')).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /organization/i })).not.toBeInTheDocument()
     await user.type(screen.getByPlaceholderText('Application (client) ID from the identity provider'), 'app-1')
     const textareas = screen.getAllByRole('textbox').filter((el) => el.tagName === 'TEXTAREA')
     await user.type(textareas[0], 't1')
@@ -308,7 +294,8 @@ describe('AuthTypeFormDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Create' }))
 
     await waitFor(() => expect(bodies).toHaveLength(1))
-    expect(bodies[0].organization_id).toBe(ORG_A_ID)
+    expect('organization_id' in bodies[0]).toBe(false)
+    expect(headers[0]).toBe(ORG_A_ID)
   })
 
   it('el alta ofrece solo los tipos que el formulario sabe construir (aunque la API devuelva otros)', async () => {

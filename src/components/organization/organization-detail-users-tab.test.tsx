@@ -41,6 +41,8 @@ function useMembers(list: unknown[] = members) {
 }
 
 const rootSession = { token: makeLoginToken({ sub: rootAdmin.id, is_root_admin: true }), user: rootAdmin }
+// El root admin opera sobre Org A con su token de organización: las conexiones son de ESA org.
+const rootOrg = { id: ORG_A_ID, token: makeOrgToken({ sub: rootAdmin.id, is_root_admin: true, permissions: [] }) }
 const orgAdminSession = { token: makeLoginToken({ sub: activeUser.id }), user: activeUser }
 const orgAdminOrg = { id: ORG_A_ID, token: makeOrgToken({ sub: activeUser.id, is_org_admin: true, permissions: [] }) }
 
@@ -66,7 +68,7 @@ describe('OrganizationDetailUsersTab · método de autenticación por miembro', 
     useMembers([{ id: 'u-old', email: 'old@example.com', name: 'Old', last_name: 'Backend', status: 'active', is_org_admin: false }])
     renderWithProviders(
       <OrganizationDetailUsersTab organization={organization} canListUsers canSetAdmin={false} canEditAuthMethod />,
-      { session: rootSession },
+      { session: rootSession, org: rootOrg },
     )
 
     await screen.findByText('Old Backend')
@@ -134,7 +136,7 @@ describe('OrganizationDetailUsersTab · método de autenticación por miembro', 
     useMembers()
     const { user } = renderWithProviders(
       <OrganizationDetailUsersTab organization={organization} canListUsers canSetAdmin={false} canEditAuthMethod />,
-      { session: rootSession },
+      { session: rootSession, org: rootOrg },
     )
 
     await screen.findByText('Linus Torvalds')
@@ -162,7 +164,7 @@ describe('OrganizationDetailUsersTab · método de autenticación por miembro', 
     )
     const { user } = renderWithProviders(
       <OrganizationDetailUsersTab organization={organization} canListUsers canSetAdmin canManageMembers canEditAuthMethod />,
-      { session: rootSession },
+      { session: rootSession, org: rootOrg },
     )
 
     const methodSelect = await screen.findByLabelText('Sign-in method for new members')
@@ -191,7 +193,7 @@ describe('OrganizationDetailUsersTab · método de autenticación por miembro', 
     )
     const { user } = renderWithProviders(
       <OrganizationDetailUsersTab organization={{ ...organization, default_auth_type_id: internalMembership.id }} canListUsers canSetAdmin canManageMembers canEditAuthMethod />,
-      { session: rootSession },
+      { session: rootSession, org: rootOrg },
     )
 
     await user.click(await screen.findByRole('button', { name: /add user/i }))
