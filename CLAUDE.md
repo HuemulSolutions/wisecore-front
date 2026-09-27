@@ -45,6 +45,8 @@ Existe una carpeta `ia context/` en la raíz del proyecto con guías de arquitec
 | Configurar, disparar o auditar la elaboración externa del ciclo de vida (step `edit` procesado por un sistema externo) | `ia context/elaboracion-externa-guide.md` |
 | Agregar un tooltip, ayuda contextual al pasar el mouse, o texto recortado (`truncate`/`line-clamp`) que deba mostrar su contenido completo | `ia context/tooltip-guide.md` |
 | Agregar/tocar un `refetchInterval` (polling), o diagnosticar un endpoint que se sigue llamando sin parar tras fallar (5xx/network error) | `ia context/refetch-interval-polling-guide.md` |
+| Escribir o correr tests automatizados (vitest + Testing Library + msw), agregar un caso a un plan de pruebas baseline/target | `ia context/testing-guide.md` |
+| Tocar el login, la selección de organización, el SSO corporativo (Microsoft/Google) o la página de conexiones de autenticación | `docs/sso-frontend.md` (plan por fases y plan de pruebas) |
 
 Cuando una tarea involucra varias guías, leerlas todas antes de empezar.
 
@@ -72,4 +74,5 @@ El nuevo archivo debe seguir la misma estructura que los existentes:
 - Toda superficie que muestre datos provenientes del backend debe ofrecer un botón de refresh para recargarlos (`PageHeader` en páginas, toolbar strip en tabs/paneles). Exentos: comboboxes/selects/catálogos de formularios. Ver `ia context/refresh-button-guide.md`.
 - Todo tooltip es el atributo `title=` nativo de HTML. No existe primitivo Radix Tooltip en el repo. Ver `ia context/tooltip-guide.md`.
 - Los tipos compartidos van en `src/types/`; los tipos locales de un solo componente se pueden mantener en el archivo.
+- Todo cambio en `src/` debe dejar `npm run test` verde; los tests nuevos siguen `ia context/testing-guide.md`.
 - Al terminar una tarea que modificó archivos, proponer un mensaje de commit (español, corto, estilo del historial reciente vía `git log`). No ejecutar el commit salvo pedido explícito.

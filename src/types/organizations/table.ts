@@ -12,6 +12,8 @@ export interface Organization {
   updated_at?: string
   max_users?: number | null
   token_limit?: number | null
+  /** Método que reciben los miembros nuevos; `null` = código por email (docs/sso-frontend.md, Fase 6). */
+  default_auth_type_id?: string | null
 }
 
 // `OrganizationTableProps` (kebab: editar/eliminar/set-admin) se retiró:

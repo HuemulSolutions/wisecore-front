@@ -544,3 +544,22 @@ const { data } = useFooBars({ enabled: !!orgId && canList })
   <DeleteButton />
 </ProtectedComponent>
 ```
+
+
+## Eje `requireOrgAdmin` (conexiones de autenticación)
+
+Además de `requireRootAdmin`, `RbacPageSpec` acepta `requireOrgAdmin: true`: la página es accesible
+para el root admin **o** para el admin de la organización activa (`is_org_admin` del token de
+organización). Se usa para configuración de la organización sin `PermissionResource` propio, hoy
+solo `auth-types` (docs/sso-frontend.md, Fase 5). `resolvePageAccess`, `PermissionProtectedRoute`
+(`requireOrgAdmin`) y `HeaderSettingsMenu` lo resuelven con la misma regla; no la dupliques.
+
+## Método de autenticación por membresía (Fase 6 del SSO)
+
+Cambiar el método de un miembro (`PATCH /organizations/{id}/users/{user}/auth-method`) no es un permiso
+RBAC: el backend lo autoriza al root admin o al admin de **esa** organización (`is_org_admin` del token de
+organización + `X-Org-Id` igual al path). En el front, `pages/organizations.tsx` calcula
+`canEditAuthMethod = isRootAdmin || (isOrgAdmin && org.id === selectedOrganizationId)` y `/global-admin`
+pasa `true`. El método por defecto de la organización y el método al agregar un miembro son root-only
+(`PATCH /organizations/{id}` y `POST /organizations/{id}/users` lo son en el backend). No inventar un
+permiso `organization:*` para esto.

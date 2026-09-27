@@ -2,8 +2,7 @@ import { useState, useMemo } from "react"
 import { useAuthTypes } from "@/hooks/useAuthTypes"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
-import { CreateAuthTypeDialog } from "@/components/auth-types/auth-types-create-dialog"
-import { EditAuthTypeDialog } from "@/components/auth-types/auth-types-edit-dialog"
+import { AuthTypeFormDialog } from "@/components/auth-types/auth-types-form-dialog"
 import { DeleteAuthTypeDialog } from "@/components/auth-types/auth-types-delete-dialog"
 import type { AuthType } from "@/services/auth-types"
 
@@ -31,7 +30,7 @@ export default function AuthTypes() {
 
   const { canAccessPage: canManageAuthTypes, isLoading: isLoadingPermissions } = usePageAccess('auth-types')
 
-  // Solo hacer la llamada a la API si el usuario es root admin
+  // Solo hacer la llamada a la API si el usuario puede administrar (root u org admin)
   const { data: authTypes = [], isLoading, isFetching, error, refetch } = useAuthTypes({
     enabled: canManageAuthTypes,
     search: searchTerm || undefined,
@@ -53,7 +52,7 @@ export default function AuthTypes() {
     return <AuthTypesLoadingState />
   }
 
-  // Verificar si el usuario es root admin
+  // Verificar si el usuario puede administrar conexiones (root u org admin)
   if (!canManageAuthTypes) {
     return <HuemulAccessDenied />
   }
@@ -119,13 +118,14 @@ export default function AuthTypes() {
         ]}
       />
 
-      <CreateAuthTypeDialog
+      <AuthTypeFormDialog
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
+        authType={null}
         canManage={canManageAuthTypes}
       />
 
-      <EditAuthTypeDialog
+      <AuthTypeFormDialog
         open={!!editingAuthType}
         onOpenChange={(open) => !open && setEditingAuthType(null)}
         authType={editingAuthType}

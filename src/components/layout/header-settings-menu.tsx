@@ -42,7 +42,7 @@ export function HeaderSettingsMenu({ organizationToken, onOpenApiTokens }: Heade
     if (entry.kind === "action") {
       return !entry.requireOrgAdmin || (isOrgAdmin && !!organizationToken)
     }
-    return resolvePageAccess(RBAC_PAGES[entry.page], { hasAnyPermission, isRootAdmin })
+    return resolvePageAccess(RBAC_PAGES[entry.page], { hasAnyPermission, isRootAdmin, isOrgAdmin })
   }
 
   const entryPath = (entry: Extract<HeaderMenuEntry, { kind: "page" }>): string =>
