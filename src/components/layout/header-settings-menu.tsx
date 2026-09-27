@@ -4,7 +4,7 @@ import { Settings, Check } from "lucide-react"
 import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { resolvePageAccess } from "@/hooks/usePageAccess"
-import { RBAC_PAGES } from "@/lib/rbac-matrix"
+import { RBAC_PAGES, type RbacPageSpec } from "@/lib/rbac-matrix"
 import { SETTINGS_MENU_GROUPS, type HeaderMenuEntry } from "@/lib/header-menu"
 import { Button } from "@/components/ui/button"
 import {
@@ -42,7 +42,12 @@ export function HeaderSettingsMenu({ organizationToken, onOpenApiTokens }: Heade
     if (entry.kind === "action") {
       return !entry.requireOrgAdmin || (isOrgAdmin && !!organizationToken)
     }
-    return resolvePageAccess(RBAC_PAGES[entry.page], { hasAnyPermission, isRootAdmin, isOrgAdmin })
+    const page = RBAC_PAGES[entry.page] as RbacPageSpec
+    // Una página de administración de la organización (p. ej. conexiones de
+    // autenticación) no tiene sentido sin organización activa: el backend acota
+    // por la org del token para todos, también para el root admin.
+    if (page.requireOrgAdmin && !organizationToken) return false
+    return resolvePageAccess(page, { hasAnyPermission, isRootAdmin, isOrgAdmin })
   }
 
   const entryPath = (entry: Extract<HeaderMenuEntry, { kind: "page" }>): string =>

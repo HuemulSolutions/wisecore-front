@@ -49,7 +49,7 @@ export function MembershipAuthMethodSelect({
   internalLabel,
 }: MembershipAuthMethodSelectProps) {
   const { t } = useTranslation(["organizations", "auth", "common"])
-  const { eligible, isLoading } = useEligibleAuthTypes({ organizationId, enabled: canEdit })
+  const { eligible, isLoading, isOtherOrganization } = useEligibleAuthTypes({ organizationId, enabled: canEdit })
 
   const internal = useMemo(() => eligible.find((item) => item.type === "internal") ?? null, [eligible])
   const resolvedValue = value ?? current?.id ?? internal?.id ?? ""
@@ -83,6 +83,22 @@ export function MembershipAuthMethodSelect({
 
   if (!canEdit) {
     return <AuthMethodBadge type={current?.type ?? "internal"} name={current?.name ?? null} className={className} />
+  }
+
+  // Las conexiones son de la organización activa: el backend no entrega las de
+  // otra a nadie, tampoco al root admin. Mirando otra organización (p. ej. desde
+  // `/organizations`) solo se muestra el método actual, con la indicación de
+  // entrar a esa organización para cambiarlo.
+  if (isOtherOrganization) {
+    return (
+      <span
+        className={className}
+        title={t("organizations:detail.authMethodOtherOrganization")}
+        data-testid="membership-auth-method-other-organization"
+      >
+        <AuthMethodBadge type={current?.type ?? "internal"} name={current?.name ?? null} />
+      </span>
+    )
   }
 
   return (

@@ -13,14 +13,16 @@ import { useOrganizationDetailsForm } from '@/hooks/useOrganizationDetailsForm'
 import { renderWithProviders } from '@/test/render'
 import { server } from '@/test/msw/server'
 import { respondOk } from '@/test/msw/respond'
-import { googleConnection, internalConnection, internalConnectionOrgB, microsoftConnection, ORG_A_ID, ORG_B_ID, rootAdmin } from '@/test/fixtures'
-import { makeLoginToken } from '@/test/jwt'
+import { googleConnection, internalConnection, microsoftConnection, ORG_A_ID, ORG_B_ID, rootAdmin } from '@/test/fixtures'
+import { makeLoginToken, makeOrgToken } from '@/test/jwt'
 import type { Organization } from '@/types/organizations'
 
 const orgA: Organization = { id: ORG_A_ID, name: 'Org A', default_auth_type_id: null }
 const orgB: Organization = { id: ORG_B_ID, name: 'Org B', default_auth_type_id: null }
 
 const rootSession = { token: makeLoginToken({ sub: rootAdmin.id, is_root_admin: true }), user: rootAdmin }
+// El root admin está logueado en Org A; las conexiones de Org B no se le entregan.
+const rootOrg = { id: ORG_A_ID, token: makeOrgToken({ sub: rootAdmin.id, is_root_admin: true, permissions: [] }) }
 
 function Harness() {
   const [organization, setOrganization] = useState<Organization>(orgA)
@@ -51,16 +53,13 @@ describe('OrganizationDetailPanel · tab Usuarios', () => {
   it('el método elegido para nuevos miembros no se arrastra a otra organización', async () => {
     server.use(
       http.get(`${backendUrl}/organizations/:orgId/users`, () => respondOk([], { page: 1, page_size: 100, has_next: false })),
-      // Cada organización tiene su propia INTERNAL: Org B solo ve la suya.
-      http.get(`${backendUrl}/auth_types/`, ({ request }) =>
-        respondOk(
-          new URL(request.url).searchParams.get('organization_id') === ORG_B_ID
-            ? [internalConnectionOrgB]
-            : [internalConnection, microsoftConnection, googleConnection],
-        ),
-      ),
+      // El backend entrega solo las conexiones de la organización del token (Org A).
+      http.get(`${backendUrl}/auth_types/`, ({ request }) => {
+        expect(request.headers.get('X-Org-Id')).toBe(ORG_A_ID)
+        return respondOk([internalConnection, microsoftConnection, googleConnection])
+      }),
     )
-    const { user } = renderWithProviders(<Harness />, { session: rootSession })
+    const { user } = renderWithProviders(<Harness />, { session: rootSession, org: rootOrg })
 
     const methodA = await screen.findByLabelText('Sign-in method for new members')
     await waitFor(() => expect(methodA).toBeEnabled())
@@ -71,8 +70,10 @@ describe('OrganizationDetailPanel · tab Usuarios', () => {
     // El sheet es modal: el "cambio de fila" se simula fuera de él (en la app lo hace la URL).
     fireEvent.click(screen.getByRole('button', { name: 'open Org B', hidden: true }))
 
-    const methodB = await screen.findByLabelText('Sign-in method for new members')
-    await waitFor(() => expect(methodB).toHaveTextContent('Internal Authentication'))
+    // Org B no es la organización activa: el método de nuevos miembros queda en solo
+    // lectura (badge) y no arrastra el "Microsoft Contoso" elegido para Org A.
+    const methodB = await screen.findByTestId('membership-auth-method-other-organization')
+    expect(screen.queryByLabelText('Sign-in method for new members')).not.toBeInTheDocument()
     expect(methodB).not.toHaveTextContent('Microsoft Contoso')
   })
 })

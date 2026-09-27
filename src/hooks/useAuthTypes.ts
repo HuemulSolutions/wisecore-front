@@ -16,26 +16,31 @@ import {
 // Query keys
 export const authTypeQueryKeys = {
   all: ['auth-types'] as const,
-  list: (search?: string, organizationId?: string | null, onlyActive?: boolean) =>
-    [...authTypeQueryKeys.all, 'list', search ?? '', organizationId ?? '', onlyActive ? 'active' : 'all'] as const,
+  // La lista es de la organización activa: la key la incluye para que al cambiar de
+  // organización no se muestre la lista cacheada de la anterior.
+  list: (organizationId: string | null, search?: string, onlyActive?: boolean) =>
+    [...authTypeQueryKeys.all, 'list', organizationId ?? '', search ?? '', onlyActive ? 'active' : 'all'] as const,
   types: () => [...authTypeQueryKeys.all, 'types'] as const,
   detail: (id: string) => [...authTypeQueryKeys.all, 'detail', id] as const,
 }
 
-// Hook for fetching auth types
-export function useAuthTypes(options?: { enabled?: boolean; search?: string; organizationId?: string | null; onlyActive?: boolean }) {
+/**
+ * Conexiones de la organización activa. El backend las acota por el claim `org_id`
+ * del token de organización para todos los usuarios (root admin incluido); sin
+ * organización activa no se consulta.
+ */
+export function useAuthTypes(options?: { enabled?: boolean; search?: string; onlyActive?: boolean }) {
+  const { selectedOrganizationId, organizationToken } = useOrganization()
   const search = options?.search || undefined
-  const organizationId = options?.organizationId ?? undefined
   const onlyActive = options?.onlyActive ?? false
+  const hasOrganization = !!selectedOrganizationId && !!organizationToken
   return useQuery({
-    queryKey: authTypeQueryKeys.list(search, organizationId, onlyActive),
-    // `organization_id` solo lo honra el backend para root admin; para el org
-    // admin la visibilidad la fija `X-Org-Id` y el filtro de abajo hace el resto.
-    queryFn: () => getAuthTypes(search, { organizationId, onlyActive }),
+    queryKey: authTypeQueryKeys.list(selectedOrganizationId, search, onlyActive),
+    queryFn: () => getAuthTypes(search, { onlyActive }),
     placeholderData: (prev) => prev,
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 0, // No retries to avoid multiple error requests
-    enabled: options?.enabled ?? true,
+    enabled: (options?.enabled ?? true) && hasOrganization,
   })
 }
 
@@ -43,22 +48,29 @@ export function useAuthTypes(options?: { enabled?: boolean; search?: string; org
  * Conexiones que se pueden asignar a una membresía de `organizationId` (por
  * defecto la organización activa): las activas de ESA organización, su `INTERNAL`
  * incluida (docs/sso-frontend.md, Fase 6; misma regla que
- * `validate_connection_for_organization` en el backend: no hay conexiones
- * globales). El root admin puede mirar otra organización desde `/organizations`,
- * por eso el id es explícito.
+ * `validate_connection_for_organization` en el backend).
+ *
+ * Solo se resuelven para la organización activa: el backend no entrega
+ * conexiones de otra organización a nadie, tampoco al root admin. Cuando
+ * `organizationId` es otra (p. ej. el root admin mirando otra organización desde
+ * `/organizations`), `isOtherOrganization` es `true` y `eligible` queda vacío.
  */
 export function useEligibleAuthTypes(options: { organizationId?: string | null; enabled?: boolean } = {}) {
   const { selectedOrganizationId } = useOrganization()
   const organizationId = options.organizationId ?? selectedOrganizationId
-  const query = useAuthTypes({ enabled: options.enabled ?? true, organizationId, onlyActive: true })
+  const isOtherOrganization =
+    !!organizationId && (!selectedOrganizationId || organizationId.toLowerCase() !== selectedOrganizationId.toLowerCase())
+  const query = useAuthTypes({ enabled: (options.enabled ?? true) && !isOtherOrganization, onlyActive: true })
   const eligible = useMemo(
     () =>
-      (query.data ?? []).filter(
-        (item) => item.is_active && item.organization_id === organizationId,
-      ),
-    [query.data, organizationId],
+      isOtherOrganization
+        ? []
+        : (query.data ?? []).filter(
+            (item) => item.is_active && item.organization_id.toLowerCase() === (organizationId ?? '').toLowerCase(),
+          ),
+    [query.data, organizationId, isOtherOrganization],
   )
-  return { ...query, eligible }
+  return { ...query, eligible, isOtherOrganization }
 }
 
 // Hook for fetching available auth type types

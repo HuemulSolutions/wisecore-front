@@ -14,7 +14,6 @@ import {
   activeUser,
   googleConnection,
   internalConnection,
-  internalConnectionOrgB,
   internalMembershipOrgB,
   internalMembership,
   MICROSOFT_CONNECTION_ID,
@@ -26,16 +25,18 @@ import {
   orgB,
   rootAdmin,
 } from '@/test/fixtures'
-import { makeLoginToken } from '@/test/jwt'
+import { makeLoginToken, makeOrgToken } from '@/test/jwt'
 
 const rootSession = { token: makeLoginToken({ sub: rootAdmin.id, is_root_admin: true }), user: rootAdmin }
+// El root admin está logueado en Org A: solo ve y asigna las conexiones de Org A.
+const rootOrg = { id: ORG_A_ID, token: makeOrgToken({ sub: rootAdmin.id, is_root_admin: true, permissions: [] }) }
 
 function rowOf(name: string) {
   return screen.getByText(name).closest('div.rounded-lg') as HTMLElement
 }
 
 describe('UsersDetailOrganizationsTab · método por membresía', () => {
-  it('muestra el método de cada organización y lo cambia con el organization_id de esa fila', async () => {
+  it('muestra el método de cada organización; solo se cambia el de la organización activa (las otras, solo lectura)', async () => {
     const calls: Array<{ url: string; orgHeader: string | null; body: Record<string, unknown> }> = []
     server.use(
       http.get(`${backendUrl}/users/organizations`, () =>
@@ -45,28 +46,29 @@ describe('UsersDetailOrganizationsTab · método por membresía', () => {
         ]),
       ),
       http.get(`${backendUrl}/auth_types/`, ({ request }) => {
-        // El root admin pide las conexiones de la organización de cada fila; cada una
-        // tiene su propia INTERNAL (no hay conexiones globales).
-        const orgId = new URL(request.url).searchParams.get('organization_id')
-        return respondOk(orgId === ORG_A_ID ? [internalConnection, microsoftConnection, googleConnection] : [internalConnectionOrgB])
+        // El backend acota por la organización del token (Org A), también para el root
+        // admin, e ignora cualquier `organization_id` de la query.
+        expect(new URL(request.url).searchParams.get('organization_id')).toBeNull()
+        expect(request.headers.get('X-Org-Id')).toBe(ORG_A_ID)
+        return respondOk([internalConnection, microsoftConnection, googleConnection])
       }),
       http.patch(`${backendUrl}/organizations/:orgId/users/:userId/auth-method`, async ({ request, params }) => {
         calls.push({ url: String(params.orgId), orgHeader: request.headers.get('X-Org-Id'), body: (await request.json()) as Record<string, unknown> })
         return respondOk({ user_id: activeUser.id, organization_id: params.orgId, auth_type_id: MICROSOFT_CONNECTION_ID, auth_type: microsoftMembership })
       }),
     )
-    const { user } = renderWithProviders(<UsersDetailOrganizationsTab user={activeUser} canManageMembers />, { session: rootSession })
+    const { user } = renderWithProviders(<UsersDetailOrganizationsTab user={activeUser} canManageMembers />, { session: rootSession, org: rootOrg })
 
     await screen.findByText('Org A')
     const triggerA = within(rowOf('Org A')).getByRole('combobox')
-    const triggerB = within(rowOf('Org B')).getByRole('combobox')
     await waitFor(() => expect(triggerA).toHaveTextContent('Internal Authentication'))
-    await waitFor(() => expect(triggerB).toHaveTextContent('Internal Authentication'))
 
-    // La conexión de Org A no se ofrece en Org B.
-    await user.click(triggerB)
-    expect(within(await screen.findByRole('listbox')).queryByText('Microsoft Contoso')).not.toBeInTheDocument()
-    await user.keyboard('{Escape}')
+    // Org B no es la organización activa: se muestra el método actual, sin select, con la
+    // indicación de entrar a esa organización para cambiarlo (sus conexiones no se piden).
+    expect(within(rowOf('Org B')).queryByRole('combobox')).not.toBeInTheDocument()
+    const readOnlyB = within(rowOf('Org B')).getByTestId('membership-auth-method-other-organization')
+    expect(readOnlyB).toHaveAttribute('title', 'Sign in to this organization to change the sign-in method.')
+    expect(within(readOnlyB).queryByText('Microsoft Contoso')).not.toBeInTheDocument()
 
     await user.click(triggerA)
     await user.click(within(await screen.findByRole('listbox')).getByText('Microsoft Contoso'))
