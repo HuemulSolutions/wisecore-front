@@ -1,5 +1,7 @@
 import { useState, useMemo } from "react"
 import { useAuthTypes } from "@/hooks/useAuthTypes"
+import { useOrganizationsLookup } from "@/hooks/useOrganizations"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { AuthTypeFormDialog } from "@/components/auth-types/auth-types-form-dialog"
@@ -27,13 +29,27 @@ export default function AuthTypes() {
   const [deletingAuthType, setDeletingAuthType] = useState<AuthType | null>(null)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  // Solo root admin: '' = conexiones de todas las organizaciones.
+  const [organizationFilter, setOrganizationFilter] = useState("")
 
   const { canAccessPage: canManageAuthTypes, isLoading: isLoadingPermissions } = usePageAccess('auth-types')
+  const { isRootAdmin } = useUserPermissions()
+  const { byId: organizationsById } = useOrganizationsLookup(canManageAuthTypes && isRootAdmin)
+  const organizationOptions = useMemo(
+    () =>
+      Object.values(organizationsById)
+        .map((org) => ({ value: org.id, label: org.name }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    [organizationsById],
+  )
 
-  // Solo hacer la llamada a la API si el usuario puede administrar (root u org admin)
+  // Solo hacer la llamada a la API si el usuario puede administrar (root u org admin).
+  // El org admin ve siempre las de su organización (el backend la toma del token); el
+  // root admin, las de todas o las de la organización filtrada.
   const { data: authTypes = [], isLoading, isFetching, error, refetch } = useAuthTypes({
     enabled: canManageAuthTypes,
     search: searchTerm || undefined,
+    organizationId: isRootAdmin && organizationFilter ? organizationFilter : undefined,
   })
 
   const pagedAuthTypes = useMemo(
@@ -88,6 +104,18 @@ export default function AuthTypes() {
             onCreateClick={() => setIsCreateDialogOpen(true)}
             hasError={!!error}
             canManage={canManageAuthTypes}
+            organizationFilter={
+              isRootAdmin
+                ? {
+                    value: organizationFilter,
+                    options: organizationOptions,
+                    onChange: (value) => {
+                      setOrganizationFilter(value)
+                      setPage(1)
+                    },
+                  }
+                : undefined
+            }
           />
         }
         headerClassName="p-4 md:p-6 pb-0 md:pb-0"

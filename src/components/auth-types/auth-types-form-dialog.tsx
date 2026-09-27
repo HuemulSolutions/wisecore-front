@@ -3,9 +3,11 @@
  *
  * Un solo diálogo para `create` y `edit`: los campos dependen del tipo
  * (`microsoft` / `google`), el secreto es write-only (en edición se muestra
- * "configurado" y se envía solo si el usuario escribe uno nuevo) y el ámbito
- * Global/organización lo elige solo el root admin al crear; el org admin crea
- * siempre en su organización (el backend lo fuerza desde `X-Org-Id`).
+ * "configurado" y se envía solo si el usuario escribe uno nuevo) y la
+ * organización la elige solo el root admin al crear (obligatoria, por defecto la
+ * seleccionada: no hay conexiones globales); el org admin crea siempre en su
+ * organización (el backend la toma del token). La `internal` de cada organización
+ * no se crea ni se edita acá: es de solo lectura.
  */
 import { useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -16,6 +18,7 @@ import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { Badge } from "@/components/ui/badge"
 import { useAuthTypeMutations, useAuthTypeTypes } from "@/hooks/useAuthTypes"
 import { useOrganizationsLookup } from "@/hooks/useOrganizations"
+import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import {
   EMPTY_AUTH_TYPE_FORM,
@@ -39,6 +42,7 @@ export function AuthTypeFormDialog({ open, onOpenChange, authType = null, canMan
   const { t } = useTranslation(['auth-types', 'common'])
   const mode: 'create' | 'edit' = authType ? 'edit' : 'create'
   const { isRootAdmin } = useUserPermissions()
+  const { selectedOrganizationId } = useOrganization()
   const [values, setValues] = useState<AuthTypeFormValues>(EMPTY_AUTH_TYPE_FORM)
   const [errors, setErrors] = useState<Partial<Record<AuthTypeFormErrorKey, string>>>({})
 
@@ -49,8 +53,12 @@ export function AuthTypeFormDialog({ open, onOpenChange, authType = null, canMan
   useEffect(() => {
     if (!open) return
     setErrors({})
-    setValues(authType ? formValuesFromAuthType(authType) : EMPTY_AUTH_TYPE_FORM)
-  }, [authType, open])
+    setValues(
+      authType
+        ? formValuesFromAuthType(authType)
+        : { ...EMPTY_AUTH_TYPE_FORM, organizationId: isRootAdmin ? (selectedOrganizationId ?? '') : '' },
+    )
+  }, [authType, open, isRootAdmin, selectedOrganizationId])
 
   const isInternal = values.type === 'internal'
   const isSso = isSsoAuthType(values.type)
@@ -58,18 +66,15 @@ export function AuthTypeFormDialog({ open, onOpenChange, authType = null, canMan
   const hasSecret = authType?.has_client_secret ?? false
 
   const typeOptions = useMemo(() => {
-    // Solo lo que este formulario sabe construir (SSO_AUTH_TYPE_KINDS); `internal`
-    // aparece únicamente al editar la conexión global.
-    const available = (authTypeTypes ?? []).filter((type) => isSsoAuthType(type) || (type === 'internal' && mode === 'edit'))
+    // Solo lo que este formulario sabe construir (SSO_AUTH_TYPE_KINDS): la `internal`
+    // la crea el backend con cada organización y no se edita.
+    const available = (authTypeTypes ?? []).filter((type) => isSsoAuthType(type))
     return available.map((type) => ({ value: type, label: t(`types.${type}`, { defaultValue: type }) }))
-  }, [authTypeTypes, mode, t])
+  }, [authTypeTypes, t])
 
-  const scopeOptions = useMemo(
-    () => [
-      { value: '', label: t('fields.scopeGlobal') },
-      ...Object.values(organizationsById).map((org) => ({ value: org.id, label: org.name })),
-    ],
-    [organizationsById, t],
+  const organizationOptions = useMemo(
+    () => Object.values(organizationsById).map((org) => ({ value: org.id, label: org.name })),
+    [organizationsById],
   )
 
   const domainPreview = useMemo(() => parseDomainList(values.emailDomainsText), [values.emailDomainsText])
@@ -82,7 +87,7 @@ export function AuthTypeFormDialog({ open, onOpenChange, authType = null, canMan
   }
 
   const handleSubmit = async () => {
-    const validation = validateAuthTypeForm(values, mode, hasSecret)
+    const validation = validateAuthTypeForm(values, mode, hasSecret, { requireOrganization: showScope })
     if (Object.keys(validation).length > 0) {
       setErrors(validation)
       return Promise.reject(new Error('validation'))
@@ -143,12 +148,15 @@ export function AuthTypeFormDialog({ open, onOpenChange, authType = null, canMan
         {showScope && (
           <HuemulField
             type="select"
-            label={t('fields.scope')}
+            label={t('fields.organization')}
             name="organization_id"
             value={values.organizationId}
-            options={scopeOptions}
+            options={organizationOptions}
             onChange={(value) => set('organizationId', value as string)}
-            helpText={t('fields.scopeHint')}
+            placeholder={t('fields.organizationPlaceholder')}
+            helpText={t('fields.organizationHint')}
+            error={err('organizationId')}
+            required
           />
         )}
         {isSso && (

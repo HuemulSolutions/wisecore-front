@@ -14,6 +14,8 @@ import {
   activeUser,
   googleConnection,
   internalConnection,
+  internalConnectionOrgB,
+  internalMembershipOrgB,
   internalMembership,
   MICROSOFT_CONNECTION_ID,
   microsoftConnection,
@@ -39,13 +41,14 @@ describe('UsersDetailOrganizationsTab · método por membresía', () => {
       http.get(`${backendUrl}/users/organizations`, () =>
         respondOk([
           { ...orgA, auth_type_id: internalMembership.id, auth_type: internalMembership },
-          { ...orgB, auth_type_id: MICROSOFT_CONNECTION_ID, auth_type: microsoftMembership },
+          { ...orgB, auth_type_id: internalMembershipOrgB.id, auth_type: internalMembershipOrgB },
         ]),
       ),
       http.get(`${backendUrl}/auth_types/`, ({ request }) => {
-        // El root admin pide las conexiones de la organización de cada fila.
+        // El root admin pide las conexiones de la organización de cada fila; cada una
+        // tiene su propia INTERNAL (no hay conexiones globales).
         const orgId = new URL(request.url).searchParams.get('organization_id')
-        return respondOk(orgId === ORG_A_ID ? [internalConnection, microsoftConnection, googleConnection] : [internalConnection])
+        return respondOk(orgId === ORG_A_ID ? [internalConnection, microsoftConnection, googleConnection] : [internalConnectionOrgB])
       }),
       http.patch(`${backendUrl}/organizations/:orgId/users/:userId/auth-method`, async ({ request, params }) => {
         calls.push({ url: String(params.orgId), orgHeader: request.headers.get('X-Org-Id'), body: (await request.json()) as Record<string, unknown> })
@@ -58,7 +61,12 @@ describe('UsersDetailOrganizationsTab · método por membresía', () => {
     const triggerA = within(rowOf('Org A')).getByRole('combobox')
     const triggerB = within(rowOf('Org B')).getByRole('combobox')
     await waitFor(() => expect(triggerA).toHaveTextContent('Internal Authentication'))
-    await waitFor(() => expect(triggerB).toHaveTextContent('Microsoft Contoso'))
+    await waitFor(() => expect(triggerB).toHaveTextContent('Internal Authentication'))
+
+    // La conexión de Org A no se ofrece en Org B.
+    await user.click(triggerB)
+    expect(within(await screen.findByRole('listbox')).queryByText('Microsoft Contoso')).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
 
     await user.click(triggerA)
     await user.click(within(await screen.findByRole('listbox')).getByText('Microsoft Contoso'))

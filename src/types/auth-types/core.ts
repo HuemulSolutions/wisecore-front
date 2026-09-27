@@ -1,9 +1,10 @@
 /**
  * Conexiones de autenticación (`/api/v1/auth_types`), contrato de docs/sso-frontend.md §2.
  *
- * Cada fila es una conexión: la `internal` global (código por correo) más N
- * conexiones SSO por organización. `client_secret` es write-only: la API expone
- * solo `has_client_secret`.
+ * Cada fila es una conexión de UNA organización (no hay conexiones globales): la
+ * `internal` de esa organización (código por correo; la crea el backend con la
+ * organización y es de solo lectura) más N conexiones SSO. `client_secret` es
+ * write-only: la API expone solo `has_client_secret`.
  */
 export type AuthTypeKind = 'internal' | 'microsoft' | 'google';
 
@@ -32,8 +33,8 @@ export interface AuthType {
   name: string;
   type: AuthTypeKind;
   params: AuthTypeParams | null;
-  /** null = conexión global (solo root admin). */
-  organization_id: string | null;
+  /** Organización dueña de la conexión (siempre presente). */
+  organization_id: string;
   is_active: boolean;
   email_domains: string[];
   has_client_secret: boolean;
@@ -46,7 +47,8 @@ export interface CreateAuthTypeRequest {
   name: string;
   type: AuthTypeKind;
   params?: AuthTypeParams | null;
-  organization_id?: string | null;
+  /** Obligatorio para el root admin; el org admin crea siempre en la organización de su token. */
+  organization_id?: string;
   email_domains?: string[];
   is_active?: boolean;
   /** Write-only. */

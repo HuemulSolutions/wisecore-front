@@ -1,4 +1,4 @@
-import { Edit2, Trash2, Shield, KeyRound, Globe, Building2 } from "lucide-react"
+import { Edit2, Trash2, Shield, KeyRound, Building2, Lock } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import type { AuthType } from "@/services/auth-types"
@@ -28,17 +28,27 @@ export function AuthTypesTable({
   // el ámbito es siempre "su organización" y no hace falta el catálogo.
   const { byId: organizationsById } = useOrganizationsLookup(isRootAdmin && authTypes.some((a) => a.organization_id))
 
-  const scopeLabel = (authType: AuthType) => {
-    if (!authType.organization_id) return t('scope.global')
-    return organizationsById[authType.organization_id]?.name ?? t('scope.organization')
-  }
+  // Toda conexión es de una organización: el root admin ve su nombre; el org admin, "Esta organización".
+  const scopeLabel = (authType: AuthType) =>
+    organizationsById[authType.organization_id]?.name ?? t('scope.organization')
+
+  // La `internal` de cada organización la crea el backend y es de solo lectura (PUT/DELETE → 403).
+  const isReadOnly = (authType: AuthType) => authType.type === 'internal'
 
   const columns: HuemulTableColumn<AuthType>[] = [
     {
       key: "name",
       label: t('common:name'),
       render: (authType) => (
-        <span className="text-xs font-medium text-foreground">{authType.name}</span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="text-xs font-medium text-foreground">{authType.name}</span>
+          {isReadOnly(authType) && (
+            <Badge variant="outline" className="gap-1 text-[10px]" title={t('fields.internalHint')}>
+              <Lock className="h-3 w-3" aria-hidden />
+              {t('badges.readOnly')}
+            </Badge>
+          )}
+        </span>
       )
     },
     {
@@ -53,7 +63,7 @@ export function AuthTypesTable({
       label: t('columns.scope'),
       render: (authType) => (
         <span className="inline-flex items-center gap-1.5 text-xs text-foreground" title={scopeLabel(authType)}>
-          {authType.organization_id ? <Building2 className="h-3.5 w-3.5" aria-hidden /> : <Globe className="h-3.5 w-3.5" aria-hidden />}
+          <Building2 className="h-3.5 w-3.5" aria-hidden />
           {scopeLabel(authType)}
         </span>
       )
@@ -109,6 +119,7 @@ export function AuthTypesTable({
       label: t('actions.editAuthType'),
       icon: Edit2,
       onClick: onEdit,
+      show: (authType) => !isReadOnly(authType),
       separator: true
     },
     {
@@ -116,8 +127,7 @@ export function AuthTypesTable({
       label: t('actions.deleteAuthType'),
       icon: Trash2,
       onClick: onDelete,
-      // `internal` es global e inmutable: el backend rechaza el borrado.
-      show: (authType) => authType.type !== 'internal',
+      show: (authType) => !isReadOnly(authType),
       destructive: true
     }
   ] : []

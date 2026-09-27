@@ -13,7 +13,7 @@ import { useOrganizationDetailsForm } from '@/hooks/useOrganizationDetailsForm'
 import { renderWithProviders } from '@/test/render'
 import { server } from '@/test/msw/server'
 import { respondOk } from '@/test/msw/respond'
-import { googleConnection, internalConnection, microsoftConnection, ORG_A_ID, ORG_B_ID, rootAdmin } from '@/test/fixtures'
+import { googleConnection, internalConnection, internalConnectionOrgB, microsoftConnection, ORG_A_ID, ORG_B_ID, rootAdmin } from '@/test/fixtures'
 import { makeLoginToken } from '@/test/jwt'
 import type { Organization } from '@/types/organizations'
 
@@ -51,7 +51,14 @@ describe('OrganizationDetailPanel · tab Usuarios', () => {
   it('el método elegido para nuevos miembros no se arrastra a otra organización', async () => {
     server.use(
       http.get(`${backendUrl}/organizations/:orgId/users`, () => respondOk([], { page: 1, page_size: 100, has_next: false })),
-      http.get(`${backendUrl}/auth_types/`, () => respondOk([internalConnection, microsoftConnection, googleConnection])),
+      // Cada organización tiene su propia INTERNAL: Org B solo ve la suya.
+      http.get(`${backendUrl}/auth_types/`, ({ request }) =>
+        respondOk(
+          new URL(request.url).searchParams.get('organization_id') === ORG_B_ID
+            ? [internalConnectionOrgB]
+            : [internalConnection, microsoftConnection, googleConnection],
+        ),
+      ),
     )
     const { user } = renderWithProviders(<Harness />, { session: rootSession })
 

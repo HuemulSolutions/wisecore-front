@@ -62,6 +62,17 @@ describe('auth-type-form', () => {
     })
   })
 
+  it('el root admin sin organización elegida: no se manda organization_id (nunca null) y la validación lo exige', () => {
+    const values = { ...EMPTY_AUTH_TYPE_FORM, name: 'x', type: 'microsoft' as const, clientId: 'app', tenantId: 'tenant-1', clientSecret: 's' }
+    const request = buildCreateRequest(values, { includeOrganization: true })
+    expect('organization_id' in request).toBe(false)
+
+    expect(validateAuthTypeForm(values, 'create', false, { requireOrganization: true }).organizationId).toBe('validation.organizationRequired')
+    expect(validateAuthTypeForm({ ...values, organizationId: 'org-a' }, 'create', false, { requireOrganization: true }).organizationId).toBeUndefined()
+    // El org admin no elige organización: el backend la toma del token.
+    expect(validateAuthTypeForm(values, 'create', false).organizationId).toBeUndefined()
+  })
+
   it('un tenant_id single-tenant sin lista se usa como allowed_tenant_ids; google exige hosted domains', () => {
     const ms = buildCreateRequest(
       { ...EMPTY_AUTH_TYPE_FORM, name: 'x', type: 'microsoft', clientId: 'app', tenantId: 'tenant-1', clientSecret: 's' },

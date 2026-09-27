@@ -3,10 +3,11 @@
  *
  * El método es por usuario + organización y lo fija el admin: acá se muestra
  * (badge) y, con `canEdit`, se cambia con un select de las conexiones
- * elegibles para ESA organización (`INTERNAL`, globales activas o propias de la
- * organización, misma regla que `validate_connection_for_organization` en el
+ * elegibles para ESA organización (sus conexiones activas, su `INTERNAL`
+ * incluida; misma regla que `validate_connection_for_organization` en el
  * backend). `value === null` significa "sin método explícito" y se muestra como
- * la conexión interna (código por email), que es lo que el backend aplica.
+ * la conexión interna de la organización (código por email), que es lo que el
+ * backend aplica.
  */
 import { useMemo } from "react"
 import { useTranslation } from "react-i18next"
