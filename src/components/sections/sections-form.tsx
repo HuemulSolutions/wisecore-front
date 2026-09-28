@@ -20,7 +20,7 @@ import { SECTION_TYPE_META, sectionTypeCards } from "./section-type-meta";
 import { CUSTOM_FIELD_QUESTION_TYPE, QUESTION_TYPE, isCalculatedField, withFieldKey, stripFieldKey, sanitizeFieldDependsOn, type FormFieldDraft } from "./question-type-meta";
 import { formFieldsHaveValidDependencies, sectionHasValidDependencies } from "./validate-form-field-dependencies";
 import { formFieldsHaveValidCalculations } from "./validate-calculation-config";
-import type { FieldDependencyCondition, SectionType } from "@/types/sections/core";
+import type { CalculationPickerContext, FieldDependencyCondition, SectionType } from "@/types/sections/core";
 import type { SectionContextOption } from "@/types/sections/blocks";
 import type { SectionPlateEditorRef } from "@/components/plate-editor/section-plate-editor";
 import { useEditWithAi } from "@/hooks/useEditWithAi";
@@ -473,6 +473,14 @@ export function SectionForm({
     .filter(section => section.type === 'form' && (section.order ?? 0) < currentSectionOrder)
     .flatMap(section => section.form_fields ?? []);
 
+  // Picker `@` de campo_calculado_formula: endpoint available_fields según el nivel.
+  const excludeSectionId = mode === 'edit' ? item?.id : undefined;
+  const calculationContext: CalculationPickerContext | undefined = templateId
+    ? { level: 'template', parentId: templateId, order: currentSectionOrder, excludeSectionId }
+    : documentId
+      ? { level: 'document', parentId: documentId, order: currentSectionOrder, excludeSectionId }
+      : undefined;
+
   // Mismos targets que earlierSectionsFormFields, sin las preguntas puramente visuales
   // (etiqueta/separador no tiene valor sobre el cual condicionar) — usados por la
   // dependencia de la SECCIÓN, que aplica a los 4 tipos de sección.
@@ -596,6 +604,7 @@ export function SectionForm({
             value={formFields}
             onChange={(next) => { setFormFields(next); markDirty(); }}
             earlierSectionsFields={earlierSectionsFormFields}
+            calculationContext={calculationContext}
             isPending={isPending}
           />
         </HuemulTintedFieldset>

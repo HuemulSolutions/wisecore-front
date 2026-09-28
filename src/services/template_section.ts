@@ -1,7 +1,7 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { logger } from "@/lib/logger";
-import type { SectionDependencyConfig, SectionFormField } from "@/types/sections/core";
+import type { AvailableCalculationField, SectionDependencyConfig, SectionFormField } from "@/types/sections/core";
 
 // Las secciones ahora vienen incluidas cuando obtenemos el template por ID
 // No necesitamos un endpoint separado para obtener las secciones
@@ -63,6 +63,24 @@ export async function updateTemplateSection(
     const data = await response.json();
     logger.log('Section updated:', data.data);
     return data.data;
+}
+
+// Campos numéricos de secciones anteriores referenciables desde una fórmula (picker `@`).
+export async function getTemplateSectionAvailableFields(
+    templateId: string,
+    order: number,
+    organizationId: string,
+    excludeTemplateSectionId?: string
+): Promise<AvailableCalculationField[]> {
+    const query = new URLSearchParams({ template_id: templateId, order: order.toString() });
+    if (excludeTemplateSectionId) query.set('exclude_template_section_id', excludeTemplateSectionId);
+    const response = await httpClient.get(`${backendUrl}/template_section_form/available_fields?${query}`, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = await response.json();
+    return (data.data ?? []) as AvailableCalculationField[];
 }
 
 export async function deleteTemplateSection(sectionId: string, organizationId: string) {

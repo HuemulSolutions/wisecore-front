@@ -1,21 +1,16 @@
-import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowRight, FileText, MessageCircle, RefreshCw, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HuemulButton } from '@/huemul/components/huemul-button';
-import { useUsers } from '@/hooks/useUsers';
-import { getDocumentContent } from '@/services/assets';
-import { listDiscussions } from '@/services/discussions';
-import { formatCommentDate } from '@/lib/comment-utils';
+import { useExecutionUnresolvedComments } from '@/hooks/useAllExecutions';
+import { commentPlainText, formatCommentDate } from '@/lib/comment-utils';
 import { parseApiDate } from '@/lib/utils';
-import type { DiscussionComment, DiscussionWithComments } from '@/types/discussions';
 import { HomeAvatar } from './home-avatar';
 
 export interface HomeCommentsPopoverProps {
   organizationId: string;
-  documentId: string;
   executionId: string;
   documentName: string;
   /** Conteo de comentarios sin resolver de la fila (lo que muestra el trigger). */
@@ -25,35 +20,6 @@ export interface HomeCommentsPopoverProps {
   onOpenAsset: () => void;
 }
 
-interface SectionGroup {
-  key: string;
-  name: string | null;
-  threads: DiscussionWithComments[];
-}
-
-/** Los comentarios guardan Plate JSON serializado; acá solo hace falta el texto plano. */
-function plainText(raw: string): string {
-  const collect = (nodes: unknown): string => {
-    if (!Array.isArray(nodes)) return '';
-    return nodes
-      .map((node) => {
-        if (typeof node !== 'object' || node === null) return '';
-        const n = node as { text?: unknown; children?: unknown };
-        if (typeof n.text === 'string') return n.text;
-        return collect(n.children);
-      })
-      .join('');
-  };
-  try {
-    return collect(JSON.parse(raw)).trim();
-  } catch {
-    return raw;
-  }
-}
-
-const byCreatedAt = (a: DiscussionComment, b: DiscussionComment) =>
-  parseApiDate(a.created_at).getTime() - parseApiDate(b.created_at).getTime();
-
 /**
  * Trigger del conteo de comentarios sin resolver de la tabla "Todos los
  * activos": abre un popover de solo lectura con el hilo agrupado por sección
@@ -62,7 +28,6 @@ const byCreatedAt = (a: DiscussionComment, b: DiscussionComment) =>
  */
 export function HomeCommentsPopover({
   organizationId,
-  documentId,
   executionId,
   documentName,
   count,
@@ -79,79 +44,20 @@ export function HomeCommentsPopover({
     </span>
   );
 
-  const discussionsQuery = useQuery({
-    queryKey: ['home', 'comments-popover', 'discussions', documentId, executionId],
-    queryFn: () =>
-      listDiscussions(
-        { document_id: documentId, execution_id: executionId, include_comments: true, page_size: 200 },
-        organizationId,
-      ),
-    enabled: open && canList,
-    staleTime: 30_000,
-  });
-  const contentQuery = useQuery({
-    queryKey: ['home', 'comments-popover', 'sections', documentId, executionId],
-    queryFn: () => getDocumentContent(documentId, organizationId, executionId),
-    enabled: open && canList,
-    staleTime: 30_000,
-  });
-  const { data: usersResponse } = useUsers(open && canList, organizationId);
-
-  const authorName = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const u of usersResponse?.data ?? []) {
-      map.set(u.id, `${u.name} ${u.last_name}`.trim() || u.email);
-    }
-    return (id: string | null | undefined) => (id ? map.get(id) : undefined) ?? t('commentsPopover.unknownAuthor');
-  }, [usersResponse?.data, t]);
-
-  const groups = useMemo<SectionGroup[]>(() => {
-    const open_ = (discussionsQuery.data?.data ?? []).filter(
-      (d): d is DiscussionWithComments => !d.is_resolved && ((d as DiscussionWithComments).comments?.length ?? 0) > 0,
-    );
-    const sections = contentQuery.data?.content ?? [];
-    const bySection = new Map<string, DiscussionWithComments[]>();
-    const documentScope: DiscussionWithComments[] = [];
-    for (const d of open_) {
-      if (!d.section_execution_id) documentScope.push(d);
-      else bySection.set(d.section_execution_id, [...(bySection.get(d.section_execution_id) ?? []), d]);
-    }
-    const result: SectionGroup[] = [];
-    if (documentScope.length > 0) {
-      result.push({ key: '__document__', name: t('commentsPopover.documentScope'), threads: documentScope });
-    }
-    for (const s of sections) {
-      const threads = bySection.get(s.id);
-      if (!threads) continue;
-      result.push({ key: s.id, name: s.section_name || t('commentsPopover.unknownSection'), threads });
-      bySection.delete(s.id);
-    }
-    // Hilos de secciones que ya no existen en el contenido: al final.
-    for (const [key, threads] of bySection) {
-      result.push({ key, name: t('commentsPopover.unknownSection'), threads });
-    }
-    return result;
-  }, [discussionsQuery.data?.data, contentQuery.data?.content, t]);
+  const query = useExecutionUnresolvedComments(organizationId, executionId, open && canList);
+  const sections = query.data?.sections ?? [];
 
   if (!canList) return trigger;
-
-  const isFetching = discussionsQuery.isFetching || contentQuery.isFetching;
-  const isLoading = discussionsQuery.isLoading || contentQuery.isLoading;
-  const isError = discussionsQuery.isError || contentQuery.isError;
-  const refetchAll = () => {
-    void discussionsQuery.refetch();
-    void contentQuery.refetch();
-  };
 
   return (
     // La fila entera abre el activo: frenar el clic acá y dentro del contenido
     // (el Portal de Radix igual propaga eventos React al padre).
-    <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+    <span className="-mx-4 -my-3 block" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+            className="flex w-full items-center px-4 py-3 text-left hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring"
             title={t('commentsPopover.open')}
           >
             {trigger}
@@ -176,8 +82,8 @@ export function HomeCommentsPopover({
                 className="h-6 w-6"
                 icon={RefreshCw}
                 tooltip={t('common:refresh')}
-                loading={isFetching}
-                onClick={refetchAll}
+                loading={query.isFetching}
+                onClick={() => void query.refetch()}
               />
               <HuemulButton
                 variant="ghost"
@@ -191,49 +97,42 @@ export function HomeCommentsPopover({
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-3.5 py-2.5">
-            {isLoading ? (
+            {query.isLoading ? (
               <div className="flex flex-col gap-2">
                 <Skeleton className="h-3 w-24" />
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
               </div>
-            ) : isError ? (
+            ) : query.isError ? (
               <div className="flex flex-col items-start gap-2 text-xs text-muted-foreground">
                 <p>{t('commentsPopover.error')}</p>
-                <HuemulButton variant="outline" label={t('common:retry')} onClick={refetchAll} />
+                <HuemulButton variant="outline" label={t('common:retry')} onClick={() => void query.refetch()} />
               </div>
-            ) : groups.length === 0 ? (
+            ) : sections.length === 0 ? (
               <p className="py-2 text-xs text-muted-foreground">{t('commentsPopover.empty')}</p>
             ) : (
               <div className="flex flex-col gap-3.5">
-                {groups.map((group) => (
-                  <section key={group.key} className="flex flex-col gap-2">
+                {sections.map((section) => (
+                  <section key={section.section_execution_id ?? `__${section.scope}__`} className="flex flex-col gap-2">
                     <h4 className="flex items-center gap-1 text-2xs font-semibold text-muted-foreground">
                       <FileText className="h-3 w-3" />
-                      {group.name}
-                      <span className="font-normal">
-                        · {group.threads.reduce((acc, d) => acc + d.comments.length, 0)}
-                      </span>
+                      {section.scope === 'document'
+                        ? t('commentsPopover.documentScope')
+                        : (section.section_name ?? t('commentsPopover.unknownSection'))}
+                      <span className="font-normal">· {section.count}</span>
                     </h4>
-                    {group.threads.flatMap((d) =>
-                      [...d.comments].sort(byCreatedAt).map((c) => {
-                        const name = authorName(c.user_id ?? c.created_by);
-                        return (
-                          <div key={c.id} className="flex items-start gap-2">
-                            <HomeAvatar name={name} className="h-5 w-5 text-[9px]" />
-                            <div className="min-w-0">
-                              <p className="text-2xs">
-                                <span className="font-semibold text-foreground">{name}</span>{' '}
-                                <span className="text-muted-foreground">{formatCommentDate(parseApiDate(c.created_at))}</span>
-                              </p>
-                              <p className="whitespace-pre-line break-words text-xs text-foreground">
-                                {plainText(c.content_rich)}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      }),
-                    )}
+                    {section.comments.map((c) => (
+                      <div key={c.id} className="flex items-start gap-2">
+                        <HomeAvatar name={c.author.name} className="h-5 w-5 text-[9px]" />
+                        <div className="min-w-0">
+                          <p className="text-2xs">
+                            <span className="font-semibold text-foreground">{c.author.name}</span>{' '}
+                            <span className="text-muted-foreground">{formatCommentDate(parseApiDate(c.created_at))}</span>
+                          </p>
+                          <p className="whitespace-pre-line break-words text-xs text-foreground">{commentPlainText(c.text)}</p>
+                        </div>
+                      </div>
+                    ))}
                   </section>
                 ))}
               </div>

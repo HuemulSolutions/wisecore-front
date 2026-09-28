@@ -46,6 +46,7 @@ import type {
 const VERSION_REQUIRED_CODE = "VERSION_REQUIRED_FOR_APPROVAL"
 const REQUIRED_CUSTOM_FIELDS_CODE = "CUSTOM_FIELD_DOCUMENT_REQUIRED_VALUE_MISSING"
 const REQUIRED_ANSWERS_CODE = "REQUIRED_ANSWERS_PENDING"
+const REJECT_AUTOMATIC_STEP_CODE = "LIFECYCLE_REJECT_TARGET_AUTOMATIC_STEP"
 
 /** Defensa en profundidad: los botones ya no se renderizan sin `asset:u`. */
 const NO_TRANSITION_PERMISSION = "Missing permission to transition the lifecycle"
@@ -263,7 +264,16 @@ export function useLifecycleActions({
     meta: { successMessage: t("lifecycle.successReturn") },
     onError: (error) => {
       setIsRejectDialogOpen(false)
-      handleApiError(error, { fallbackMessage: t("lifecycle.errorReturn") })
+      handleApiError(error, {
+        fallbackMessage: t("lifecycle.errorReturn"),
+        onErrorCode: (code) => {
+          if (code !== REJECT_AUTOMATIC_STEP_CODE) return false
+          // Target cacheado/armado a mano hacia un step automático: se refresca la lista.
+          toast.error(t("lifecycle.errorRejectAutomaticStep"))
+          queryClient.invalidateQueries({ queryKey: ["rollback-targets"] })
+          return true
+        },
+      })
     },
   })
 

@@ -39,9 +39,9 @@ export function MediaVersionRow({ version, isCurrent, onDelete }: MediaVersionRo
       isCurrent && "border-primary/40 bg-primary/5",
     )}>
       <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md bg-muted flex items-center justify-center">
-        {isImage(version.content_type) && version.download_url ? (
+        {isImage(version.content_type) && (version.thumbnail_url ?? version.download_url) ? (
           <img
-            src={version.download_url}
+            src={version.thumbnail_url ?? version.download_url}
             alt={version.original_filename}
             className="h-full w-full object-cover"
             loading="lazy"

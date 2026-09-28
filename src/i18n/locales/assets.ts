@@ -285,6 +285,12 @@ const translations = {
       title: { en: "Waiting for an extension", es: "Esperando a una extensión" },
       description: { en: "This asset is temporarily read-only while an extension processes it. It will unlock automatically once that response arrives.", es: "Este activo está temporalmente en modo lectura mientras una extensión lo procesa. Se desbloqueará automáticamente en cuanto llegue esa respuesta." },
     },
+    externalElaborationErrorNotice: {
+      title: { en: "The extension could not process this step", es: "La extensión no pudo procesar este paso" },
+      fallbackMessage: { en: "No error details available.", es: "Sin detalle del error." },
+      retry: { en: "Retry", es: "Reintentar" },
+    },
+    errorRejectAutomaticStep: { en: "You cannot return to a step processed by an extension. The list of available steps was updated.", es: "No se puede devolver a un paso procesado por una extensión. Se actualizó la lista de pasos disponibles." },
     errorLockedExternalElaboration: { en: "This asset is locked while it awaits a response from an extension. It will unlock automatically once that response arrives.", es: "Este activo está bloqueado mientras espera una respuesta de una extensión. Se desbloqueará automáticamente en cuanto llegue esa respuesta." },
     successAdvance: { en: "Asset advanced successfully!", es: "Activo avanzado correctamente" },
     errorAdvance: { en: "Failed to advance asset. Please try again.", es: "Error al avanzar el activo. Reintentar." },

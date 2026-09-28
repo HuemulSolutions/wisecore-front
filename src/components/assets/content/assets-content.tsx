@@ -98,8 +98,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { useAssetContentPermissions } from '@/hooks/useDocumentAccess';
-import { isExternalElaborationLocked, EXTERNAL_ELABORATION_POLL_MS } from '@/lib/lifecycle-access';
+import { isExternalElaborationLocked, hasExternalElaborationError, isTerminalLifecycleState, EXTERNAL_ELABORATION_POLL_MS } from '@/lib/lifecycle-access';
 import { ExternalElaborationLockBanner } from '@/components/assets/content/external-elaboration-lock-banner';
+import { ExternalElaborationErrorBanner } from '@/components/assets/content/external-elaboration-error-banner';
 import {
   useDocumentSectionAccess,
   useInvalidateDocumentSectionAccess,
@@ -1536,6 +1537,16 @@ export function AssetContent({
     canReadElaborationConfig,
     canReadExternalPublishConfig,
   });
+
+  // Reintento desde el banner de error de elaboración. Mismos gates que
+  // `canRunElaboration` salvo `hasEnabledElaborationConfig`: el error ya prueba que
+  // el step tiene elaboración, y así no se depende del permiso de configuración.
+  const elaborationStatus = documentContent?.lifecycle_status;
+  const canRetryElaboration =
+    lifecycle.canTransition &&
+    !!lifecyclePermissions?.edit &&
+    elaborationStatus?.stage === 'edit' &&
+    !isTerminalLifecycleState(elaborationStatus?.state);
 
   // Set initial view mode based on lifecycle permissions (once per document+execution):
   // - view only  → reader mode, no toggle
@@ -3083,6 +3094,18 @@ export function AssetContent({
                 {isAssetLockedByExternalElaboration && (
                   <div className="sticky top-0 z-(--z-page-sticky-elevated) mb-4">
                     <ExternalElaborationLockBanner />
+                  </div>
+                )}
+
+                {/* Última corrida de elaboración fallida (500, timeout, respuesta mal formada).
+                    Se limpia sola con una corrida posterior no fallida — sin dismiss. */}
+                {hasExternalElaborationError(documentContent?.lifecycle_status) && (
+                  <div className="sticky top-0 z-(--z-page-sticky-elevated) mb-4">
+                    <ExternalElaborationErrorBanner
+                      message={documentContent?.lifecycle_status?.external_elaboration_error_message ?? null}
+                      onRetry={canRetryElaboration ? () => lifecycle.runElaborationMutation.mutate() : undefined}
+                      isRetrying={lifecycle.runElaborationMutation.isPending}
+                    />
                   </div>
                 )}
 

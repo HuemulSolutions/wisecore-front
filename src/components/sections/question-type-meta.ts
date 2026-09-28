@@ -1,3 +1,4 @@
+import { normalizeFormulaConfig } from "./formula-expression";
 import {
   Type,
   AlignLeft,
@@ -79,7 +80,15 @@ export type FormFieldDraft = SectionFormField & { __key: string };
 // Contador compartido para generar claves transitorias únicas de dnd-kit.
 let keySeq = 0;
 export const nextFieldKey = (): string => `ff-${++keySeq}`;
-export const withFieldKey = (f: SectionFormField): FormFieldDraft => ({ ...f, __key: nextFieldKey() });
+// Al cargar una pregunta guardada, una fórmula en formato legado (terms[]/constant) se
+// convierte a expression/fields: el backend solo acepta el formato nuevo al guardar.
+export const withFieldKey = (f: SectionFormField): FormFieldDraft => ({
+  ...f,
+  ...(f.calculation_config?.mode === "formula"
+    ? { calculation_config: normalizeFormulaConfig(f.calculation_config) }
+    : {}),
+  __key: nextFieldKey(),
+});
 
 // Quita la clave transitoria __key antes de enviar el field al backend.
 export const stripFieldKey = (f: FormFieldDraft): SectionFormField => {
@@ -243,12 +252,12 @@ export interface FileUploadEntryMeta {
   url: string;
   name?: string;
   contentType?: string;
-  /** id del media, si el backend lo incluye en la entrada — permite rearmar el token al guardar. */
+  /** id del media (el backend lo incluye en cada entrada) — permite rearmar el token al guardar. */
   mediaId?: string;
 }
 
 // Decodifica UNA entrada de value de carga_de_archivos. El backend devuelve
-// {url, name, content_type} (mismo shape que CustomFieldValueFile). Devuelve null cuando la
+// {url, name, content_type, media_id}. Devuelve null cuando la
 // entrada no es un archivo mostrable: token {{MEDIA:...}} sin resolver (media borrada o sin
 // acceso, que el caller pinta como "archivo no disponible") o cualquier otra forma.
 export function readFileUploadEntry(entry: unknown): FileUploadEntryMeta | null {

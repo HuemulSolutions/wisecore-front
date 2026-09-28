@@ -142,7 +142,6 @@ export function HomeAllAssetsTab({
             // del Panorama de home.
             <HomeCommentsPopover
               organizationId={organizationId}
-              documentId={item.document_id}
               executionId={item.id}
               documentName={item.document_name}
               count={item.unresolved_comments_count}

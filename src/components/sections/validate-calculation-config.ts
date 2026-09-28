@@ -2,7 +2,6 @@ import type {
   ConditionalBranch,
   ConditionalRuleNode,
   FormulaCalculationConfig,
-  FormulaTerm,
   SectionFormField,
 } from "@/types/sections/core";
 import {
@@ -12,6 +11,7 @@ import {
   isCalculatedField,
 } from "./question-type-meta";
 import { validateFieldDependencyConditions } from "./validate-form-field-dependencies";
+import { extractFormulaFieldIds, hasBalancedParentheses, normalizeFormulaConfig } from "./formula-expression";
 
 // Máx. de niveles de anidamiento de un árbol condicional (mismo límite que el backend,
 // ver "ia context/campos-calculados-en-formularios-guide.md"). La raíz cuenta como nivel 1.
@@ -24,19 +24,18 @@ export type CalculationErrorCode =
   | "missingConfig"
   | "configNotAllowed"
   | "modeMismatch"
-  | "emptyTerms"
-  | "termFieldRequired"
+  | "emptyExpression"
+  | "unbalancedParentheses"
   | "termNotFound"
   | "termSelfReference"
   | "termNotNumeric"
   | "termAmbiguous"
-  | "invalidMultiplier"
   | "emptyConditions"
   | "invalidCondition"
   | "nestingTooDeep"
   | "branchValueRequired";
 
-/** `path` localiza el error en el árbol: "terms[1]", "root.if", "root.else.then". */
+/** `path` localiza el error: "expression", "field:subtotal", "root.if", "root.else.then". */
 export interface CalculationConfigError {
   path: string;
   code: CalculationErrorCode;
@@ -44,13 +43,16 @@ export interface CalculationConfigError {
 
 function validateFormula(
   ownFieldId: string,
-  config: FormulaCalculationConfig,
+  rawConfig: FormulaCalculationConfig,
   availableFields: SectionFormField[],
 ): CalculationConfigError[] {
   const errors: CalculationConfigError[] = [];
-  const terms = config.terms ?? [];
-  if (terms.length === 0) {
-    errors.push({ path: "terms", code: "emptyTerms" });
+  // Configs legadas (terms[]) se convierten al abrir el editor; acá se valida ya normalizada.
+  const config = normalizeFormulaConfig(rawConfig);
+  if (!config.expression.trim()) {
+    errors.push({ path: "expression", code: "emptyExpression" });
+  } else if (!hasBalancedParentheses(config.expression)) {
+    errors.push({ path: "expression", code: "unbalancedParentheses" });
   }
 
   // Mismo criterio que validateFieldDependencyConditions: un field_id ambiguo (existe en
@@ -63,13 +65,8 @@ function validateFormula(
   });
   const ownId = ownFieldId.trim();
 
-  terms.forEach((term: FormulaTerm, i: number) => {
-    const path = `terms[${i}]`;
-    const targetId = term.field_id?.trim() ?? "";
-    if (!targetId) {
-      errors.push({ path, code: "termFieldRequired" });
-      return;
-    }
+  extractFormulaFieldIds(config.expression).forEach((targetId) => {
+    const path = `field:${targetId}`;
     if (ownId && targetId === ownId) {
       errors.push({ path, code: "termSelfReference" });
       return;
@@ -84,9 +81,6 @@ function validateFormula(
     }
     if (!NUMERIC_DATA_TYPES.includes(target.data_type as string)) {
       errors.push({ path, code: "termNotNumeric" });
-    }
-    if (term.multiplier !== undefined && !Number.isFinite(term.multiplier)) {
-      errors.push({ path, code: "invalidMultiplier" });
     }
   });
 

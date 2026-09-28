@@ -87,7 +87,7 @@ function valuesEqual(a: unknown, b: unknown): boolean {
 // (las opciones de config) en campos sin responder, y algunos guardados legacy quedaron con
 // esas opciones mezcladas junto a los ids reales — normalizeSelectionValue descarta el ruido
 // de config y deja solo los ids realmente seleccionados.
-// carga_de_archivos: el backend lee objetos {url,name,content_type[,media_id]} pero al guardar
+// carga_de_archivos: el backend lee objetos {url,name,content_type,media_id} pero al guardar
 // solo acepta tokens {{MEDIA:id}} — se guarda en answers el token (no el objeto resuelto);
 // lo que se muestra sale de fileMetaByToken (ver buildInitialFileMeta).
 function buildInitialAnswers(fields: FormFieldValue[]): AnswerMap {
@@ -97,8 +97,7 @@ function buildInitialAnswers(fields: FormFieldValue[]): AnswerMap {
     const isSingle = SINGLE_SELECT_QUESTION_TYPES.includes(f.question_type ?? "");
     let value = isMulti || isSingle ? normalizeSelectionValue(f.value, isMulti) : f.value;
     if (f.question_type === QUESTION_TYPE.fileUpload && Array.isArray(value)) {
-      // Sin media_id el objeto no es convertible: se deja tal cual (nunca se reenvía si el
-      // usuario no toca el campo; si lo toca, validateFormFieldValue lo frena antes del PATCH).
+      // Sin media_id (caso anómalo) el objeto no es convertible: se deja tal cual.
       value = value.map((e) => fileUploadEntryToToken(e) ?? e);
     }
     map[f.id] = hasAnswer(value) ? value : null;

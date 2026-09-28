@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
 import type { ConditionalRuleNode, SectionFormField } from "@/types/sections/core";
-import { buildFormulaPreview } from "./formula-preview";
+import { normalizeFormulaConfig, renderFormulaPreview } from "./formula-expression";
 
 // Cuenta reglas y profundidad máxima de un árbol condicional, para el resumen de una
 // línea (no evalúa el árbol — solo lo describe, igual criterio que el resto del front con
@@ -30,7 +30,8 @@ export function describeCalculationConfig(
   if (!config) return "";
 
   if (config.mode === "formula") {
-    return buildFormulaPreview(config, fields) || t("sections:form.formFields.calculated.formula.emptyState");
+    const { expression } = normalizeFormulaConfig(config);
+    return renderFormulaPreview(expression, fields) || t("sections:form.formFields.calculated.formula.emptyState");
   }
 
   const { rules, maxDepth } = countRules(config.root, 1);

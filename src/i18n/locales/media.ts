@@ -107,6 +107,7 @@ const translations = {
     uploadingVersion: { en: "Uploading version…", es: "Subiendo versión…" },
     uploadVersionSuccess: { en: "New version uploaded successfully", es: "Nueva versión subida correctamente" },
     uploadVersionError: { en: "Failed to upload version", es: "Error al subir la versión" },
+    downloadError: { en: "Failed to download the file", es: "Error al descargar el archivo" },
     dropTitle: { en: "Drop to create v{{version}}", es: "Suelta para crear la v{{version}}" },
     dropHint: {
       en: "The current version moves to history, nothing is lost.",
