@@ -14,7 +14,7 @@ export function isImage(contentType?: string | null): boolean {
 
 // ─── Upload gate (accepted file types when creating/versioning media) ──────────
 
-export const MEDIA_UPLOAD_EXTENSIONS = ["pdf", "docx", "xlsx", "png", "jpg", "csv", "pptx", "txt"] as const
+export const MEDIA_UPLOAD_EXTENSIONS = ["pdf", "docx", "xlsx", "png", "jpg", "jpeg", "csv", "pptx", "txt"] as const
 export const MEDIA_UPLOAD_ACCEPT = MEDIA_UPLOAD_EXTENSIONS.map((ext) => `.${ext}`).join(",")
 
 export function hasAllowedMediaExtension(filename: string): boolean {
@@ -55,11 +55,12 @@ export function contentTypeFromFilename(filename?: string | null): string | unde
   return ext ? EXTENSION_MIME[ext] : undefined
 }
 
-// Extensiones filtrables por tipo — MEDIA_UPLOAD_EXTENSIONS menos "csv": su MIME
-// varía entre navegador/SO (text/csv vs application/vnd.ms-excel) y el backend
-// hace match exacto contra media_type, así que incluirlo filtraría mal. CSV sigue
-// siendo subible, solo no aparece como opción del filtro.
-export const MEDIA_TYPE_FILTER_EXTENSIONS = MEDIA_UPLOAD_EXTENSIONS.filter((ext) => ext !== "csv")
+// Extensiones filtrables por tipo — MEDIA_UPLOAD_EXTENSIONS menos "csv" (su MIME
+// varía entre navegador/SO: text/csv vs application/vnd.ms-excel, y el backend
+// hace match exacto contra media_type, así que incluirlo filtraría mal) y menos
+// "jpeg" (mismo MIME image/jpeg que "jpg", ya cubierto por esa opción). Ambas
+// extensiones siguen siendo subibles, solo no aparecen duplicadas/rotas en el filtro.
+export const MEDIA_TYPE_FILTER_EXTENSIONS = MEDIA_UPLOAD_EXTENSIONS.filter((ext) => ext !== "csv" && ext !== "jpeg")
 
 export function getMediaTypeOptions(t: TFunction): { value: string; label: string }[] {
   return MEDIA_TYPE_FILTER_EXTENSIONS.map((ext) => ({
