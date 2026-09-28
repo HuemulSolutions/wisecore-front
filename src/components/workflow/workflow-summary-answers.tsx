@@ -32,11 +32,14 @@ export function WorkflowSummaryAnswers({ questions, emptyLabel }: WorkflowSummar
   }
 
   return (
-    <div className="flex flex-col gap-[8px] pl-[35px]">
+    <div className="flex flex-col pl-[35px]">
       {answered.map((field) => {
         const clamp = !NON_TEXT_QUESTION_TYPES.has(field.question_type);
         return (
-          <div key={field.id} className="flex items-baseline gap-[14px]">
+          <div
+            key={field.id}
+            className="flex items-baseline gap-[14px] border-b border-[#eef1f6] pb-[8px] pt-[8px] first:pt-0 last:border-b-0 last:pb-0"
+          >
             <p className="w-[40%] shrink-0 text-[12.5px] leading-[1.45] text-[#64748b]">{field.field_name}</p>
             <div className="min-w-0 flex-1">
               <FormFieldAnswerValue
