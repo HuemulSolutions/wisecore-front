@@ -12,6 +12,8 @@ export interface MediaVersion {
   file_size: number
   content_type: string
   download_url: string
+  /** Miniatura (300px). `null` = no hay: usar `download_url` (original). */
+  thumbnail_url: string | null
   created_at: string
   created_by: string | null
 }

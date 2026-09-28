@@ -205,6 +205,14 @@ export interface LifecycleStatus {
    * Ausente en payloads cacheados de antes de este campo — leer siempre `=== true`.
    */
   is_locked_external_elaboration?: boolean;
+  /**
+   * `true` si la corrida de elaboración más reciente del step vigente falló (HTTP 500, timeout de
+   * 10 min, respuesta mal formada). Se limpia sola con una corrida posterior no fallida.
+   * Ausente en payloads viejos — leer siempre `=== true`.
+   */
+  has_external_elaboration_error?: boolean;
+  /** Mensaje de error de esa corrida, para mostrar al usuario. */
+  external_elaboration_error_message?: string | null;
 }
 
 /**

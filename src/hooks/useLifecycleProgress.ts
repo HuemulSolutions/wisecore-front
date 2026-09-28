@@ -127,10 +127,18 @@ export function useLifecycleProgress({
       ? (() => {
           const stepsInStage = ordered.filter((s) => s.type === currentStage)
           if (stepsInStage.length === 0) return null
-          const items = stepsInStage.map((s) => ({
+          // `rollback-targets` excluye los steps automáticos (elaboración externa): no
+          // se puede volver a ellos, pero igual están hechos. Por eso `done` también
+          // cubre a los que preceden al actual dentro del grupo secuencial.
+          const currentIndexInStage = stepsInStage.findIndex((s) => s.id === currentStepId)
+          const items = stepsInStage.map((s, index) => ({
             id: s.id,
             name: s.name,
-            state: (completedIds.has(s.id) ? "done" : s.id === currentStepId ? "current" : "upcoming") as
+            state: ((completedIds.has(s.id) || (currentIndexInStage !== -1 && index < currentIndexInStage))
+              ? "done"
+              : s.id === currentStepId
+                ? "current"
+                : "upcoming") as
               | "done"
               | "current"
               | "upcoming",

@@ -164,3 +164,37 @@ export interface ExecutionVersionSuggestionResponse {
   data: ExecutionVersionSuggestion
   transaction_id: string
 }
+
+export interface UnresolvedCommentAuthor {
+  id: string
+  name: string
+  photo_url: string | null
+}
+
+export interface UnresolvedComment {
+  id: string
+  discussion_id: string
+  text: string
+  author: UnresolvedCommentAuthor
+  created_at: string
+  is_public: boolean
+}
+
+export type UnresolvedCommentsScope = 'document' | 'section'
+
+export interface UnresolvedCommentsSection {
+  section_execution_id: string | null
+  section_name: string | null
+  scope: UnresolvedCommentsScope
+  order: number
+  count: number
+  comments: UnresolvedComment[]
+}
+
+export interface ExecutionUnresolvedComments {
+  execution_id: string
+  document_id: string
+  document_name: string
+  total_count: number
+  sections: UnresolvedCommentsSection[]
+}

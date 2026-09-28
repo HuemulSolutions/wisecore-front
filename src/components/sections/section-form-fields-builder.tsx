@@ -18,7 +18,7 @@ import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useCustomFieldMutations } from "@/hooks/useCustomFields";
 import { getCustomFields } from "@/services/custom-fields";
 import { CreateEditCustomFieldSheet } from "@/components/custom-fields/custom-fields-create-edit-sheet";
-import type { SectionFormField } from "@/types/sections/core";
+import type { CalculationPickerContext, SectionFormField } from "@/types/sections/core";
 import type { CustomField, CustomFieldDataType } from "@/types/custom-fields/core";
 import type { FetchOptionsParams, FetchOptionsResult } from "@/types/huemul/field";
 import { SectionFormFieldCard } from "./section-form-field-card";
@@ -35,12 +35,15 @@ import {
   withFieldKey,
   type FormFieldDraft,
 } from "./question-type-meta";
+import { EMPTY_FORMULA_CONFIG } from "./formula-expression";
 
 interface SectionFormFieldsBuilderProps {
   value: FormFieldDraft[];
   onChange: (next: FormFieldDraft[]) => void;
   /** Preguntas de secciones con order menor a la actual, disponibles para depends_on cross-sección. */
   earlierSectionsFields?: SectionFormField[];
+  /** Dónde vive la sección (plantilla/documento + order): habilita el picker `@` del endpoint available_fields. */
+  calculationContext?: CalculationPickerContext;
   isPending?: boolean;
 }
 
@@ -48,6 +51,7 @@ export function SectionFormFieldsBuilder({
   value,
   onChange,
   earlierSectionsFields = [],
+  calculationContext,
   isPending,
 }: SectionFormFieldsBuilderProps) {
   const { t } = useTranslation(["sections", "custom-fields"]);
@@ -250,7 +254,7 @@ export function SectionFormFieldsBuilder({
           return {
             ...f, question_type: questionType, data_type: "decimal", custom_field_id: null,
             required: false, min_value: null, max_value: null, default_value: null,
-            calculation_config: { mode: "formula", terms: [], constant: 0, round_decimals: 2 },
+            calculation_config: EMPTY_FORMULA_CONFIG,
           };
         }
 
@@ -385,6 +389,7 @@ export function SectionFormFieldsBuilder({
                     questionTypes={questionTypes}
                     fetchCustomFieldOptions={fetchCustomFieldOptions}
                     availableDependencyFields={availableDependencyFields}
+                    formulaPicker={{ context: calculationContext, ownSectionFields: value.slice(0, index) }}
                     isPending={isPending}
                     initiallyExpanded={field.__key === forceOpenKey || !field.field_name}
                     canMoveUp={index > 0}

@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { FieldDependencyCondition, SectionFormField } from "@/types/sections/core";
+import type { FormulaPickerSource } from "./section-calculated-field-editor";
 import type { QuestionType } from "@/types/question-types";
 import type { FetchOptionsParams, FetchOptionsResult } from "@/types/huemul/field";
 import { SectionQuestionTypeFields } from "./section-question-type-fields";
@@ -35,6 +36,7 @@ interface SectionFormFieldCardProps {
   questionTypes: QuestionType[];
   fetchCustomFieldOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
   availableDependencyFields: SectionFormField[];
+  formulaPicker?: FormulaPickerSource;
   isPending?: boolean;
   initiallyExpanded?: boolean;
   canMoveUp: boolean;
@@ -57,6 +59,7 @@ export function SectionFormFieldCard({
   questionTypes,
   fetchCustomFieldOptions,
   availableDependencyFields,
+  formulaPicker,
   isPending,
   initiallyExpanded,
   canMoveUp,
@@ -243,6 +246,7 @@ export function SectionFormFieldCard({
               <SectionQuestionTypeFields
                 field={field}
                 availableDependencyFields={availableDependencyFields}
+                formulaPicker={formulaPicker}
                 fetchCustomFieldOptions={fetchCustomFieldOptions}
                 isPending={isPending}
                 onUpdate={onUpdate}

@@ -1,4 +1,3 @@
-import { isMediaToken } from "@/lib/plate-media-utils";
 import type { FormFieldValue } from "@/types/sections/core";
 import { NUMERIC_DATA_TYPES, QUESTION_TYPE, hasAnswer, readFileUploadLimits } from "./question-type-meta";
 
@@ -13,8 +12,7 @@ export type FormFieldValueErrorKey =
   | "valueTooSmall"
   | "valueTooBig"
   | "tooFewFiles"
-  | "tooManyFiles"
-  | "invalidFileReference";
+  | "tooManyFiles";
 
 export interface FormFieldValueError {
   key: FormFieldValueErrorKey;
@@ -57,12 +55,10 @@ export function validateFormFieldValue(field: FormFieldValue, value: unknown): F
     return { key: "invalidEmail" };
   }
 
-  // carga_de_archivos: value es siempre un array de tokens (contrato de backend). Una entrada
-  // que no sea token {{MEDIA:id}} (objeto resuelto sin media_id) el backend la rechaza con
-  // 400 INVALID_FILE_UPLOAD_VALUE — se frena acá.
+  // carga_de_archivos: value es un array de tokens {{MEDIA:id}} (los objetos resueltos del
+  // backend ya se convierten al armar las respuestas, gracias a su media_id).
   if (questionType === QUESTION_TYPE.fileUpload) {
     const list = Array.isArray(value) ? value : [value];
-    if (!list.every(isMediaToken)) return { key: "invalidFileReference" };
     const { min, max } = readFileUploadLimits(field);
     if (list.length < min) return { key: "tooFewFiles", params: { min } };
     if (list.length > max) return { key: "tooManyFiles", params: { max } };

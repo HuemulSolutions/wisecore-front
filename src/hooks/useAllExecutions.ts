@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { getAllExecutions } from '@/services/executions'
+import { getAllExecutions, getExecutionUnresolvedComments } from '@/services/executions'
 import type { UseAllExecutionsOptions } from '@/types/execution'
 export type { UseAllExecutionsOptions }
 
@@ -10,6 +10,8 @@ export const executionQueryKeys = {
   listBase: () => [...executionQueryKeys.all, 'list'] as const,
   list: (organizationId: string, params: Omit<UseAllExecutionsOptions, 'enabled'>) =>
     [...executionQueryKeys.listBase(), organizationId, params] as const,
+  unresolvedComments: (organizationId: string, executionId: string) =>
+    [...executionQueryKeys.all, 'unresolved-comments', organizationId, executionId] as const,
 }
 
 // ─── List query ───────────────────────────────────────────────────────────────
@@ -112,6 +114,22 @@ export function useAllExecutions(organizationId: string, options: UseAllExecutio
     placeholderData: (prev) => prev,
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
+    retry: 0,
+  })
+}
+
+// ─── Comentarios sin resolver (popover de Home) ───────────────────────────────
+
+export function useExecutionUnresolvedComments(
+  organizationId: string,
+  executionId: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: executionQueryKeys.unresolvedComments(organizationId, executionId),
+    queryFn: () => getExecutionUnresolvedComments(executionId, organizationId),
+    enabled: enabled && !!organizationId && !!executionId,
+    staleTime: 30_000,
     retry: 0,
   })
 }

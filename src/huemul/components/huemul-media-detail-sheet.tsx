@@ -6,6 +6,7 @@ import { formatAbsoluteDate } from "@/lib/format-relative-time"
 
 import { useMediaVersions, useMediaMutations } from "@/hooks/useMedia"
 import { handleApiError } from "@/lib/error-utils"
+import { getMediaDownloadUrl } from "@/services/media"
 import { HuemulSheet } from "./huemul-sheet"
 import { HuemulAlertDialog } from "./huemul-alert-dialog"
 import { HuemulInfoDisplay, HuemulInfoGroup, HuemulInfoItem } from "./huemul-info-display"
@@ -92,7 +93,25 @@ export function HuemulMediaDetailSheet({
   // `item.current_version` es un snapshot que el padre no refresca tras subir
   // una versión nueva: se deriva la actual desde `useMediaVersions`.
   const currentVersion = versions.find((v) => v.is_current) ?? versions[0] ?? item?.current_version ?? null
-  const nextVersionNumber = (versions[0]?.version_number ?? 0) + 1
+  const currentFromVersions = !!currentVersion && versions.some((v) => v.id === currentVersion.id)
+
+  // Si la versión viene del snapshot del listado, su `download_url` es la miniatura:
+  // se pide el original antes de descargar.
+  async function handleDownloadCurrent() {
+    if (!currentVersion || !item) return
+    if (currentFromVersions) {
+      downloadVersion(currentVersion)
+      return
+    }
+    try {
+      const url = await getMediaDownloadUrl(organizationId, item.id, currentVersion.version_number)
+      downloadVersion({ ...currentVersion, download_url: url })
+    } catch (err) {
+      handleApiError(err, { fallbackMessage: t("detail.downloadError") })
+    }
+  }
+
+  const nextVersionNumber =(versions[0]?.version_number ?? 0) + 1
 
   const displayedName = nameOverride ?? item?.name ?? null
   const displayedSummary = summaryOverride ?? item?.summary ?? null
@@ -175,7 +194,7 @@ export function HuemulMediaDetailSheet({
               uploading={uploadMediaVersion.isPending}
               sheetOpen={open}
               canUpload={canCreate}
-              onDownload={() => downloadVersion(currentVersion)}
+              onDownload={() => void handleDownloadCurrent()}
               onPickFile={() => versionFileInputRef.current?.click()}
               onFileDropped={uploadVersionFile}
             />

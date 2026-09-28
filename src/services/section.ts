@@ -1,7 +1,7 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { logger } from "@/lib/logger";
-import type { SectionDependencyConfig, SectionFormField } from "@/types/sections/core";
+import type { AvailableCalculationField, SectionDependencyConfig, SectionFormField } from "@/types/sections/core";
 
 export async function createSection(
     sectionData: {
@@ -70,6 +70,23 @@ export async function updateSection(
     return data.data;
 }
 
+// Campos numéricos de secciones anteriores referenciables desde una fórmula (picker `@`).
+export async function getSectionAvailableFields(
+    documentId: string,
+    order: number,
+    organizationId: string,
+    excludeSectionId?: string
+): Promise<AvailableCalculationField[]> {
+    const query = new URLSearchParams({ document_id: documentId, order: order.toString() });
+    if (excludeSectionId) query.set('exclude_section_id', excludeSectionId);
+    const response = await httpClient.get(`${backendUrl}/section_form/available_fields?${query}`, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = await response.json();
+    return (data.data ?? []) as AvailableCalculationField[];
+}
 
 export async function updateSectionsOrder(sections: { section_id: string; order: number }[], organizationId: string, executionId?: string) {
     const body: { new_order: { section_id: string; order: number }[]; execution_id?: string } = { new_order: sections };

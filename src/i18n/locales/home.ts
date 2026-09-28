@@ -46,7 +46,6 @@
     title: { en: "Comments", es: "Comentarios" },
     documentScope: { en: "Whole document", es: "Todo el documento" },
     unknownSection: { en: "Untitled section", es: "Sección sin título" },
-    unknownAuthor: { en: "Unknown user", es: "Usuario desconocido" },
     empty: { en: "No unresolved comments", es: "No hay comentarios sin resolver" },
     error: { en: "Could not load the comments.", es: "No se pudieron cargar los comentarios." },
     viewFullAsset: { en: "View full asset", es: "Ver activo completo" },

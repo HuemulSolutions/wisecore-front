@@ -3,7 +3,7 @@ import { httpClient } from "@/lib/http-client";
 import { logger } from "@/lib/logger";
 import { toDateParam } from "@/lib/date-params";
 import { ApiError } from "@/types/api-error";
-import type { Execution, ExecutionsResponse, GetExecutionsParams, RollbackTarget, RollbackStep, RollbackTargetsResponse, ExecutionVersionSuggestion, ExecutionVersionSuggestionResponse, ExecutionSectionsStatusResponse } from "@/types/execution";
+import type { Execution, ExecutionsResponse, GetExecutionsParams, RollbackTarget, RollbackStep, RollbackTargetsResponse, ExecutionVersionSuggestion, ExecutionVersionSuggestionResponse, ExecutionSectionsStatusResponse, ExecutionUnresolvedComments } from "@/types/execution";
 import type { AvailableDocxTemplate, AvailableDocxTemplatesResponse } from "@/types/docx-templates";
 import type { AdvanceLifecycleResponse, CompleteLifecycleStepResponse, RunElaborationResponse } from "@/types/lifecycle";
 
@@ -151,6 +151,16 @@ export async function getExecutionSectionsStatus(executionId: string, organizati
     const data = await response.json();
     logger.log('Sections status fetched:', data.data);
     return data.data as ExecutionSectionsStatusResponse;
+}
+
+export async function getExecutionUnresolvedComments(executionId: string, organizationId: string): Promise<ExecutionUnresolvedComments> {
+    const response = await httpClient.get(`${backendUrl}/execution/${executionId}/unresolved-comments`, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = await response.json();
+    return data.data as ExecutionUnresolvedComments;
 }
 
 export async function createExecution(documentId: string, organizationId: string) {
