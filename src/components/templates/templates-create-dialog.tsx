@@ -93,7 +93,7 @@ export function CreateTemplateDialog({
       description={t('create.description')}
       icon={FileCode}
       maxWidth="w-full sm:max-w-2xl lg:max-w-3xl"
-      cancelLabel={t('create.cancelLabel', { defaultValue: 'Cancel' })}
+      cancelLabel={t('create.cancelLabel')}
       saveAction={{
         label: t('create.submitLabel'),
         onClick: handleCreate,
