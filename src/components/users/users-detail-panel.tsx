@@ -162,7 +162,23 @@ export function UserDetailPanel({
 
   const handleClose = () => attemptNavigate(onClose)
 
-  if (!displayUser) return null
+  // Deep-link a una entidad que aún no llegó: el sheet abre ya, con skeleton, y pasa al contenido
+  // real cuando displayUser se resuelve (ver ia context/sheet-instant-open-skeleton-guide.md).
+  if (!displayUser) {
+    if (!open) return null
+    return (
+      <HuemulSheet
+        open
+        onOpenChange={(next) => { if (!next) handleClose() }}
+        title={t("common:loading")}
+        size="lg"
+        bodyLoading
+        showFooter={false}
+      >
+        {null}
+      </HuemulSheet>
+    )
+  }
 
   const pendingSummary = showRolesTab && staging ? [
     staging.addedCount > 0 ? t("detail.pendingAdded", { count: staging.addedCount }) : null,

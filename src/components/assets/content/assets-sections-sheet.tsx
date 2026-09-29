@@ -75,7 +75,7 @@ export function SectionSheet({
     autoSelectedActiveRef.current = false;
   }, [selectedFile?.id, executionInfo?.id, executionId]);
 
-  const { data: sectionsConfig } = useQuery<SectionsConfigResponse>({
+  const { data: sectionsConfig, isLoading: isLoadingSectionsConfig } = useQuery<SectionsConfigResponse>({
     queryKey: ['document-sections-config', selectedFile?.id, selectedConfigExecutionId],
     queryFn: () => getDocumentSectionsConfig(selectedFile!.id, selectedOrganizationId!, selectedConfigExecutionId || undefined),
     enabled: isOpen && selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
@@ -328,8 +328,9 @@ export function SectionSheet({
         side="right"
         maxWidth="sm:max-w-[90vw] lg:max-w-[800px]"
         showFooter={false}
+        bodyLoading={isLoadingSectionsConfig}
         headerExtra={
-          canEditSections ? (
+          canEditSections && !isLoadingSectionsConfig ? (
           <div className="flex items-center gap-2">
             {hasTemplateId && (
               <DropdownMenu>

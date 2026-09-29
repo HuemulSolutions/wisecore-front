@@ -411,6 +411,7 @@ export function ExecuteSheet({
         description={t('sheet.description')}
         icon={Play}
         showFooter={false}
+        bodyLoading={isActuallyLoadingFullDocument && !executeDocumentMutation.isPending}
         maxWidth="w-full sm:max-w-[90vw] lg:max-w-[900px]"
         headerExtra={
           <HuemulButton

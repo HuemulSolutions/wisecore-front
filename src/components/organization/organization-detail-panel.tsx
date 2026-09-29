@@ -99,7 +99,23 @@ export function OrganizationDetailPanel({
 
   const handleClose = () => attemptNavigate(onClose)
 
-  if (!displayOrganization) return null
+  // Deep-link a una entidad que aún no llegó: el sheet abre ya, con skeleton, y pasa al contenido
+  // real cuando displayOrganization se resuelve (ver ia context/sheet-instant-open-skeleton-guide.md).
+  if (!displayOrganization) {
+    if (!open) return null
+    return (
+      <HuemulSheet
+        open
+        onOpenChange={(next) => { if (!next) handleClose() }}
+        title={t("common:loading")}
+        size="lg"
+        bodyLoading
+        showFooter={false}
+      >
+        {null}
+      </HuemulSheet>
+    )
+  }
 
   const showDetailsSaveBar = activeTab === "details" && canUpdate && (detailsForm.isDirty || detailsForm.isSaving)
 

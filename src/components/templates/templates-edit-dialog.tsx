@@ -48,7 +48,7 @@ export function EditTemplateDialog({
   // (y de instructions) sin importar desde qué call-site se abrió el dialog
   // (ver "ia context/": editar desde el sidebar del listado no debe apagar
   // en silencio flags que el listado no trae).
-  const { data: templateDetail } = useQuery({
+  const { data: templateDetail, isLoading: isLoadingDetail } = useQuery({
     queryKey: ['template', templateId],
     queryFn: () => getTemplateById(templateId, organizationId),
     enabled: open && !!templateId && !!organizationId,
@@ -93,6 +93,7 @@ export function EditTemplateDialog({
       title={t('edit.title')}
       description={t('edit.description')}
       icon={Edit3}
+      bodyLoading={isLoadingDetail}
       maxWidth="w-full sm:max-w-2xl lg:max-w-3xl"
       saveAction={{
         label: t('edit.submitLabel'),
