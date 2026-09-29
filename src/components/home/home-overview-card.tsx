@@ -95,7 +95,10 @@ export function HomeOverviewCard({ rows, isLoading, personalRows, error, onRetry
     <div className={cn(HOME_CARD_MUTED, 'flex flex-col overflow-hidden', collapsed ? 'shrink-0' : 'min-h-0')}>
       <HomeCollapsibleHeader collapsed={collapsed} onToggle={toggleCollapsed}>
         <span className="flex items-start justify-between gap-2">
-          <span className={HOME_RAIL_TITLE}>{t('rail.overview.title')}</span>
+          <span className="min-w-0">
+            <span className={HOME_RAIL_TITLE}>{t('rail.overview.title')}</span>
+            <p className="text-2xs text-muted-foreground">{t('rail.overview.subtitle')}</p>
+          </span>
           {!collapsed && <span className="max-w-[170px] text-right text-2xs text-muted-foreground">{hint}</span>}
         </span>
       </HomeCollapsibleHeader>
