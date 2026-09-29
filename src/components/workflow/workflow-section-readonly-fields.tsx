@@ -35,7 +35,7 @@ export function WorkflowSectionReadonlyFields({ section }: WorkflowSectionReadon
               {field.field_name}
               {field.required && <span className="text-destructive"> *</span>}
             </p>
-            <div className="rounded-md bg-muted/50 px-3 py-2 text-sm leading-normal">
+            <div className="rounded-md border border-input bg-transparent px-3 py-2 text-sm leading-normal shadow-xs">
               {isActive ? (
                 <FormFieldAnswerValue field={field} textClassName="text-sm text-foreground" />
               ) : (
