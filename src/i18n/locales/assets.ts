@@ -879,6 +879,7 @@ const translations = {
       error: { en: "Couldn't load related assets", es: "No se pudieron cargar los activos relacionados" },
       untitledRelation: { en: "Relation", es: "Relación" },
       rowActions: { en: "Row actions", es: "Acciones de la fila" },
+      relationPrefix: { en: "Relation: {{name}}", es: "Relación: {{name}}" },
       removeRelation: { en: "Remove relation", es: "Eliminar relación" },
       removeRelationTitle: { en: "Remove relation", es: "Eliminar relación" },
       removeRelationDescription: {
@@ -887,7 +888,6 @@ const translations = {
       },
       removeRelationSuccess: { en: "Relation removed", es: "Relación eliminada" },
       removeRelationError: { en: "Couldn't remove the relation", es: "No se pudo eliminar la relación" },
-      relationPrefix: { en: "Relation: {{name}}", es: "Relación: {{name}}" },
       openInThisTab: { en: "Open in this tab", es: "Abrir en esta pestaña" },
       collapse: { en: "Collapse", es: "Colapsar" },
       expand: { en: "Expand", es: "Expandir" },
