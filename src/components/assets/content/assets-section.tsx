@@ -519,6 +519,7 @@ function SectionExecutionInner({
             organizationId={selectedOrganizationId ?? undefined}
             mediaUploadTarget={mediaUploadTarget}
             toolbarTopOffset="36px"
+            flushReadOnly
             onCreateSectionFromSelection={readyToEdit && canEditSections ? onCreateSectionFromSelection : undefined}
         />
     );

@@ -487,6 +487,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
     enableComments = true,
     enableCreateSection = true,
     toolbarTopOffset,
+    flushReadOnly,
     organizationId,
     mediaUploadTarget,
   }, ref) {
@@ -627,7 +628,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
               <Editor
                 placeholder={t('placeholder')}
                 variant={variant === 'section' ? 'section' : undefined}
-                className={readOnly ? 'pb-2 pt-1' : undefined}
+                className={readOnly ? cn('pb-2 pt-1', flushReadOnly && 'px-0 sm:px-0') : undefined}
               />
             </EditorContainer>
 

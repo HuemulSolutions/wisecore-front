@@ -103,6 +103,7 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
   enableCreateSection = true,
   hideActions = false,
   toolbarTopOffset,
+  flushReadOnly,
   onValueChange,
   organizationId,
   mediaUploadTarget,
@@ -284,6 +285,7 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
         enableComments={enableComments}
         enableCreateSection={enableCreateSection}
         toolbarTopOffset={toolbarTopOffset}
+        flushReadOnly={flushReadOnly}
         organizationId={organizationId}
         onAfterDiscussionMutation={onAutoSavePlateContent ? () => {
           // Read current editor state and persist plate_content silently so comment marks

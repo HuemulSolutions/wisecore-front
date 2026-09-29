@@ -82,6 +82,8 @@ export interface SectionPlateEditorProps {
    * above the editor in an asset section panel). Defaults to 0.
    */
   toolbarTopOffset?: string;
+  /** Sin padding horizontal en solo lectura (alinea el texto con el contenedor). */
+  flushReadOnly?: boolean;
   /**
    * Fired on every editor change with the current raw Plate Value.
    * Useful for form fields that store the Plate Value directly.
