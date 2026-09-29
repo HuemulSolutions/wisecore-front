@@ -1,9 +1,10 @@
+import type { ReactNode } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { HuemulAnswersStatusBadge } from "@/huemul/components/huemul-answers-status-badge";
 import { HuemulButton } from "@/huemul/components/huemul-button";
-import { WorkflowSummaryAnswers } from "@/components/workflow/workflow-summary-answers";
+import { FormSectionSummaryAnswers } from "@/components/sections/form-section-summary-answers";
 import { computeSectionStats } from "@/components/workflow/workflow-section-stats";
 import { resolveSectionCardState } from "@/components/workflow/workflow-section-card-state";
 import {
@@ -16,39 +17,62 @@ import {
 import { cn } from "@/lib/utils";
 import type { ContentSection } from "@/types/assets";
 
-export interface WorkflowSummarySectionCardProps {
-  section: ContentSection;
-  /** Posición 1-based en formSections, para el círculo. */
+/** Subconjunto de ContentSection que la tarjeta lee — permite pasar también la ejecución de sección del asset. */
+export type FormSectionSummarySource = Pick<
+  ContentSection,
+  | "form_fields"
+  | "answers_status"
+  | "missing_required"
+  | "is_visible"
+  | "can_answer"
+  | "can_edit"
+  | "section_name"
+>;
+
+export interface FormSectionSummaryCardProps {
+  section: FormSectionSummarySource;
+  /** Posición 1-based de la sección, para el círculo. */
   index: number;
-  /** canAnswerSpecificSection(section) del panel. */
+  /** Permiso efectivo de responder la sección (canAnswerSpecificSection en workflow). */
   canAnswer: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Abre la vista 2 en esta sección (Responder/Editar/Ver). */
-  onOpenSection: () => void;
+  /** Acción del botón del pie (Responder/Editar/Ver según el estado de la sección). */
+  onAction: () => void;
+  /** Reemplaza el botón del pie (ej. "Dejar de editar" mientras se responde inline). */
+  footerAction?: ReactNode;
+  /** Botones extra en el header, junto al chevron (ej. historial). */
+  headerActions?: ReactNode;
+  /** Si viene, reemplaza la lista de respuestas del cuerpo (ej. formulario rellenable inline). */
+  children?: ReactNode;
 }
 
 /**
- * Una tarjeta del resumen (vista 1, ver workflow-sections-summary.tsx): estado visual y pie
- * (siempre visibles, incluso colapsada) resueltos por resolveSectionCardState — misma fuente
- * que pinta el punto de la píldora de la vista 2, para que nunca diverjan.
+ * Tarjeta de resumen de una sección form — única para el panel de workflow
+ * (workflow-sections-summary.tsx) y el modo lector del asset (asset-form-section-reader.tsx):
+ * estado visual y pie (siempre visibles, incluso colapsada) resueltos por resolveSectionCardState
+ * — misma fuente que pinta el punto de la píldora de la vista 2, para que nunca diverjan.
  *
  * Dibuja su propio Collapsible en vez de HuemulNumberedStatusCard/HuemulSectionCard: la spec
  * pide un pie INSET (ml-[35px], sin fondo, borde superior fino) y un cuerpo sin borde superior,
- * y ambos componentes tienen esos slots full-bleed y son consumidos tal cual por otra superficie
- * (asset-form-section-reader.tsx / assets-types) que no debe cambiar.
+ * y ambos componentes tienen esos slots full-bleed y los consumen otras superficies
+ * (assets-types) que no deben cambiar.
  */
-export function WorkflowSummarySectionCard({
+export function FormSectionSummaryCard({
   section,
   index,
   canAnswer,
   open,
   onOpenChange,
-  onOpenSection,
-}: WorkflowSummarySectionCardProps) {
+  onAction,
+  footerAction,
+  headerActions,
+  children,
+}: FormSectionSummaryCardProps) {
   const { t } = useTranslation(["workflow", "sections"]);
-  const { questions } = computeSectionStats(section);
-  const state = resolveSectionCardState(section, canAnswer);
+  const full = section as ContentSection;
+  const { fields } = computeSectionStats(full);
+  const state = resolveSectionCardState(full, canAnswer);
   const ActionIcon = SUMMARY_ACTION_ICONS[state.action.kind];
 
   return (
@@ -87,6 +111,7 @@ export function WorkflowSummarySectionCard({
               </p>
             </div>
           </CollapsibleTrigger>
+          {headerActions}
           <CollapsibleTrigger
             className="group mt-[2px] flex h-[22px] w-[22px] shrink-0 items-center justify-center text-[#94a3b8]"
             title={t(open ? "panel.collapseSection" : "panel.expandSection")}
@@ -97,26 +122,28 @@ export function WorkflowSummarySectionCard({
         </div>
 
         <CollapsibleContent>
-          <WorkflowSummaryAnswers questions={questions} emptyLabel={t("wizard.summary.noAnswers")} />
+          {children ?? <FormSectionSummaryAnswers fields={fields} emptyLabel={t("sections:form.fill.emptyForm")} />}
         </CollapsibleContent>
 
         <div className="ml-[35px] flex flex-wrap items-center justify-between gap-[10px] border-t border-[#eef1f6] pt-[10px]">
           <p className={cn("text-[12px] font-medium", SUMMARY_FOOTER_TEXT_STYLES[state.footerTone])}>
             {t(state.footerTextKey, state.footerTextParams)}
           </p>
-          <HuemulButton
-            variant="outline"
-            size="sm"
-            icon={ActionIcon}
-            iconPosition="right"
-            iconClassName="h-[13px] w-[13px]"
-            label={t(state.action.labelKey)}
-            onClick={onOpenSection}
-            className={cn(
-              "h-[30px] rounded-[7px] px-[12px] text-[12.5px] font-semibold",
-              SUMMARY_ACTION_STYLES[state.action.kind],
-            )}
-          />
+          {footerAction ?? (
+            <HuemulButton
+              variant="outline"
+              size="sm"
+              icon={ActionIcon}
+              iconPosition="right"
+              iconClassName="h-[13px] w-[13px]"
+              label={t(state.action.labelKey)}
+              onClick={onAction}
+              className={cn(
+                "h-[30px] rounded-[7px] px-[12px] text-[12.5px] font-semibold",
+                SUMMARY_ACTION_STYLES[state.action.kind],
+              )}
+            />
+          )}
         </div>
       </div>
     </Collapsible>

@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { WorkflowSummarySectionCard } from "@/components/workflow/workflow-summary-section-card";
+import { FormSectionSummaryCard } from "@/components/sections/form-section-summary-card";
 import type { ContentSection } from "@/types/assets";
 
 export interface WorkflowSectionsSummaryProps {
@@ -21,7 +21,7 @@ export interface WorkflowSectionsSummaryProps {
 
 /**
  * Vista 1 (resumen) del panel de detalle de workflow: una tarjeta colapsable por sección form
- * del documento, con su estado y sus respuestas — ver workflow-summary-section-card.tsx. El
+ * del documento, con su estado y sus respuestas — ver form-section-summary-card.tsx. El
  * pie de cada tarjeta (estado + acción) queda visible aunque esté colapsada.
  */
 export function WorkflowSectionsSummary({
@@ -53,14 +53,14 @@ export function WorkflowSectionsSummary({
       </div>
 
       {sections.map((section, index) => (
-        <WorkflowSummarySectionCard
+        <FormSectionSummaryCard
           key={section.id}
           section={section}
           index={index + 1}
           canAnswer={sectionCanAnswer(section)}
           open={expandedSectionIds.has(section.id)}
           onOpenChange={(open) => onToggleSection(section.id, open)}
-          onOpenSection={() => onOpenSection(index)}
+          onAction={() => onOpenSection(index)}
         />
       ))}
 

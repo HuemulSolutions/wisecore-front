@@ -36,13 +36,13 @@ interface FormFieldAnswerValueProps {
   /** Override de clases del texto plano (tamaño/color) — se mergea sobre "text-sm text-gray-800"
    *  con tailwind-merge. No aplica a rating (HuemulField) ni a fileUpload (grilla de previews),
    *  cuyo render no es texto. Pensado para superficies con paleta propia (ver
-   *  workflow-summary-answers.tsx). */
+   *  form-section-summary-answers.tsx). */
   textClassName?: string;
 }
 
 // Badge "Calculado" con tooltip — marca visualmente los campos campo_calculado_formula/
 // campo_calculado_condicional en toda superficie de solo lectura (esta función es el único
-// punto de render de una respuesta, así que agregarlo acá alcanza para todas: FormAnswersList,
+// punto de render de una respuesta, así que agregarlo acá alcanza para todas: FormSectionSummaryAnswers,
 // AssetFormSectionReader, WorkflowSectionsSummary y la propia vista de edición).
 function CalculatedBadge({ t }: { t: ReturnType<typeof useTranslation>["t"] }) {
   return (

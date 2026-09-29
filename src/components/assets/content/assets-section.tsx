@@ -1017,7 +1017,7 @@ function SectionExecutionInner({
                        Colapso controlado desde acá (open/onOpenChange) — mismo estado que gobierna las
                        secciones no-form, así "colapsar todas" también alcanza a los forms. */
                     <AssetFormSectionReader
-                        section={{ form_fields: sectionExecution.form_fields, answers_status: sectionExecution.answers_status }}
+                        section={sectionExecution}
                         sectionName={sectionName}
                         sectionIndex={sectionIndex ?? 0}
                         canAnswer={canAnswerInReader}
