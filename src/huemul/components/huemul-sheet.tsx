@@ -36,11 +36,14 @@ const SHEET_SIZE_CLASSES: Record<HuemulSheetSize, string> = {
 function ActionButton({
   action,
   isLoading,
+  blocked = false,
   onClickAction,
   defaultVariant = "secondary",
 }: {
   action: HuemulSheetAction;
   isLoading: boolean;
+  /** Cuerpo cargando (`bodyLoading`): la acción queda deshabilitada sin mostrar spinner. */
+  blocked?: boolean;
   onClickAction: () => void;
   defaultVariant?: HuemulSheetAction["variant"];
 }) {
@@ -50,7 +53,7 @@ function ActionButton({
   const button = (
     <Button
       variant={action.variant ?? defaultVariant}
-      disabled={action.disabled || loading}
+      disabled={action.disabled || loading || blocked}
       className="hover:cursor-pointer"
       onClick={onClickAction}
     >
@@ -79,6 +82,7 @@ export function HuemulSheet({
   iconClassName,
   iconVariant = "plain",
   bodyLoading = false,
+  bodySkeleton,
   showFooter = true,
   showCancelButton = true,
   cancelLabel,
@@ -243,6 +247,7 @@ export function HuemulSheet({
                           key={action.label}
                           action={action}
                           isLoading={extraLoading[globalIndex] ?? false}
+                          blocked={bodyLoading}
                           defaultVariant="outline"
                           onClickAction={() =>
                             handleActionClick(
@@ -263,6 +268,7 @@ export function HuemulSheet({
                       <ActionButton
                         action={saveAction}
                         isLoading={saveLoading}
+                        blocked={bodyLoading}
                         defaultVariant="default"
                         onClickAction={() =>
                           handleActionClick(saveAction, setSaveLoading, true)
@@ -281,20 +287,23 @@ export function HuemulSheet({
 
         {/* ── Body ───────────────────────────────────────────────────── */}
         <div
+          aria-busy={bodyLoading || undefined}
           className={cn(
             "flex-1 overflow-y-auto px-6 py-2 scrollbar-gutter-stable",
             bodyClassName,
           )}
         >
           {bodyLoading ? (
-            <div className="space-y-4">
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-4 w-2/3" />
-              <Skeleton className="h-4 w-full" />
-            </div>
+            (bodySkeleton ?? (
+              <div className="space-y-4">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-4 w-full" />
+              </div>
+            ))
           ) : (
             children
           )}
@@ -329,6 +338,7 @@ export function HuemulSheet({
                     key={action.label}
                     action={action}
                     isLoading={extraLoading[globalIndex] ?? false}
+                    blocked={bodyLoading}
                     defaultVariant="secondary"
                     onClickAction={() =>
                       handleActionClick(
@@ -349,6 +359,7 @@ export function HuemulSheet({
                 <ActionButton
                   action={saveAction!}
                   isLoading={saveLoading}
+                  blocked={bodyLoading}
                   defaultVariant="default"
                   onClickAction={() =>
                     handleActionClick(saveAction!, setSaveLoading, true)

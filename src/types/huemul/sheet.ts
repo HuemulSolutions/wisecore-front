@@ -34,7 +34,13 @@ export interface HuemulSheetProps {
   icon?: LucideIcon;
   iconClassName?: string;
   iconVariant?: HuemulSheetIconVariant;
+  /**
+   * Cuerpo cargando: muestra un skeleton en vez de `children` y deshabilita guardar/acciones extra
+   * (Cancelar sigue activo). El sheet abre siempre al instante — ver ia context/sheet-instant-open-skeleton-guide.md.
+   */
   bodyLoading?: boolean;
+  /** Skeleton propio para `bodyLoading` (por defecto, 6 filas genéricas). */
+  bodySkeleton?: ReactNode;
   showFooter?: boolean;
   showCancelButton?: boolean;
   cancelLabel?: string;

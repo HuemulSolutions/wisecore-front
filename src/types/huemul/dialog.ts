@@ -20,7 +20,10 @@ export interface HuemulDialogProps {
   icon?: LucideIcon;
   iconClassName?: string;
   showCloseButton?: boolean;
+  /** Cuerpo cargando: skeleton en vez de `children` y guardar/acciones extra deshabilitados. */
   bodyLoading?: boolean;
+  /** Skeleton propio para `bodyLoading` (por defecto, 6 filas genéricas). */
+  bodySkeleton?: React.ReactNode;
   showFooter?: boolean;
   showCancelButton?: boolean;
   cancelLabel?: string;
