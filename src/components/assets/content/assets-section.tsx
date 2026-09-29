@@ -1,4 +1,4 @@
-import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitCompare, History, Eye, XCircle, Clock, ChevronDown } from 'lucide-react';
+import { MoreVertical, SlidersHorizontal, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitCompare, History, Eye, XCircle, Clock, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { memo, useState, useEffect, useRef, useContext } from 'react';
 import { SectionCollapseContext } from '@/contexts/section-collapse-context';
@@ -37,6 +37,7 @@ import { useTranslation } from 'react-i18next';
 import { AssetFormSection, type AssetFormSectionHandle } from '@/components/assets/content/asset-form-section';
 import { AssetFormSectionReader } from '@/components/assets/content/asset-form-section-reader';
 import { useOverflowTitle } from '@/hooks/useOverflowTitle';
+import { SectionDefinitionSheet } from '@/components/assets/content/components/section-definition-sheet';
 import { SectionBarButton, SectionBarDivider } from '@/components/assets/content/components/section-bar-button';
 import {
   ANSWERS_PILL_CLASS,
@@ -144,6 +145,7 @@ function SectionExecutionInner({
         staleTime: 0,
     });
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isDefinitionSheetOpen, setIsDefinitionSheetOpen] = useState(false);
     const [isHistorySheetOpen, setIsHistorySheetOpen] = useState(false);
     const [reviewStatus, setReviewStatus] = useState<ReviewStatus | null>(
         (sectionExecution.review_status as ReviewStatus) ?? null
@@ -176,6 +178,9 @@ function SectionExecutionInner({
     const canEdit = sectionType !== 'reference' && (sectionType !== 'form' || formHasEditableFields); // Manual, AI y form (con campos editables) pueden editarse
     const canAiEdit = sectionType !== 'reference' && sectionType !== 'form'; // Manual y AI pueden usar AI edit
     const canDelete = sectionType !== 'reference'; // Manual, AI y form pueden eliminarse, reference no
+    // Editar la definición (nombre, prompt, dependencias…) aplica a todos los tipos, incluida reference:
+    // mismo criterio que el sheet global de Secciones. Requiere la definición viva (section_id).
+    const canEditDefinition = canEditSections && !isExecutionApproved && !!sectionExecution.section_id && !!documentId;
 
     // Check if there's an execution in progress. 'approving' no cuenta como
     // "en progreso de generación": la sección ya terminó, solo falta aprobar.
@@ -704,22 +709,32 @@ function SectionExecutionInner({
                             <div className="flex items-center">
                                 {interleaveGroups(
                                     [
-                                        onOpenExecuteSheet && !isExecutionApproved && canExecute && canEditSections && !!sectionExecution.section_id && (
+                                        ((onOpenExecuteSheet && !isExecutionApproved && canExecute && canEditSections && !!sectionExecution.section_id) || canEditDefinition) && (
                                             <div key="run" className="flex items-center gap-px">
-                                                <SectionBarButton
-                                                    tone="primary"
-                                                    icon={Play}
-                                                    label={t('section.run')}
-                                                    tooltip={
-                                                        isExecutionInProgress
-                                                            ? t('section.executionInProgress')
-                                                            : generationBlocked
-                                                                ? (cannotGenerateReason ?? t('section.openExecuteSheet'))
-                                                                : t('section.openExecuteSheet')
-                                                    }
-                                                    onClick={onOpenExecuteSheet}
-                                                    disabled={isExecutionInProgress || generationBlocked}
-                                                />
+                                                {onOpenExecuteSheet && !isExecutionApproved && canExecute && canEditSections && !!sectionExecution.section_id && (
+                                                    <SectionBarButton
+                                                        tone="primary"
+                                                        icon={Play}
+                                                        label={t('section.run')}
+                                                        tooltip={
+                                                            isExecutionInProgress
+                                                                ? t('section.executionInProgress')
+                                                                : generationBlocked
+                                                                    ? (cannotGenerateReason ?? t('section.openExecuteSheet'))
+                                                                    : t('section.openExecuteSheet')
+                                                        }
+                                                        onClick={onOpenExecuteSheet}
+                                                        disabled={isExecutionInProgress || generationBlocked}
+                                                    />
+                                                )}
+                                                {canEditDefinition && (
+                                                    <SectionBarButton
+                                                        tone="secondary"
+                                                        icon={SlidersHorizontal}
+                                                        tooltip={t('section.editDefinition')}
+                                                        onClick={() => setIsDefinitionSheetOpen(true)}
+                                                    />
+                                                )}
                                             </div>
                                         ),
                                         ((!isExecutionApproved && canEdit && canEditSections) || (!isExecutionApproved && canAiEdit && canEditSections)) && (
@@ -843,6 +858,17 @@ function SectionExecutionInner({
                                                 {t('section.executeFromSection')}
                                             </DropdownMenuItem>
                                         </>
+                                    )}
+                                    {canEditDefinition && (
+                                        <DropdownMenuItem
+                                            className='hover:cursor-pointer'
+                                            onSelect={() => {
+                                                setTimeout(() => setIsDefinitionSheetOpen(true), 0);
+                                            }}
+                                        >
+                                            <SlidersHorizontal className="h-4 w-4 mr-2" />
+                                            {t('section.editDefinition')}
+                                        </DropdownMenuItem>
                                     )}
                                     {!isEditing && !isExecutionApproved && canEdit && canEditSections && (
                                         <DropdownMenuItem
@@ -1170,6 +1196,16 @@ function SectionExecutionInner({
             onOpenChange={handleDeleteDialogChange}
             onAction={handleDelete}
         />
+
+        {canEditDefinition && sectionExecution.section_id && documentId && (
+            <SectionDefinitionSheet
+                open={isDefinitionSheetOpen}
+                onOpenChange={setIsDefinitionSheetOpen}
+                documentId={documentId}
+                executionId={executionId}
+                sectionId={sectionExecution.section_id}
+            />
+        )}
 
         {/* Execution Configuration Dialog */}
         <ExecutionConfigDialog
