@@ -531,6 +531,31 @@ describe('httpClient · modo administrador', () => {
     unsubscribe()
   })
 
+  it('un ROOT_ADMIN_REQUIRED atrasado con un token anterior no borra el token nuevo', async () => {
+    rootLogin()
+    elevate('elev-old')
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    server.use(
+      http.get(`${backendUrl}/users/`, async () => {
+        await gate
+        return respondApiError(403, 'ROOT_ADMIN_REQUIRED', 'Root admin access required')
+      }),
+    )
+
+    const pending = httpClient.get(`${backendUrl}/users/`).catch((e: unknown) => e)
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    // Mientras viaja con el token viejo, ya se verificó un código nuevo.
+    rootElevationStore.setElevation('elev-new', Date.now() + 30 * 60 * 1000)
+    release()
+    const error = (await pending) as ApiError
+
+    expect(error.code).toBe('ROOT_ADMIN_REQUIRED')
+    expect(rootElevationStore.getToken()).toBe('elev-new')
+  })
+
   it('403 ROOT_ADMIN_REQUIRED limpia el token y se lanza sin diálogo', async () => {
     rootLogin()
     elevate('elev-1')

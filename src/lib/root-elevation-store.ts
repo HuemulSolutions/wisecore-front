@@ -145,15 +145,15 @@ export const rootElevationStore = {
     emit()
   },
 
-  /** Sale del modo administrador (botón "salir", 403 `ROOT_ADMIN_REQUIRED`, cambio de sesión). */
+  /** Sale del modo administrador a pedido del usuario (badge, menú) o por cierre de sesión. */
   clear(): void {
     clearToken()
   },
 
   /**
-   * El backend rechazó `token` (vencido o inválido): sale del modo solo si ese sigue
-   * siendo el token vigente. Una respuesta atrasada de una request enviada antes de
-   * verificar un código nuevo no debe borrar el token recién obtenido.
+   * El backend rechazó `token` (vencido, inválido o el usuario ya no es root): sale del
+   * modo solo si ese sigue siendo el token vigente. Una respuesta atrasada de una request
+   * enviada con un token anterior, o desde otra sesión, no borra el token actual.
    */
   discard(token: string | null): void {
     if (token !== null && state.token === token) clearToken()

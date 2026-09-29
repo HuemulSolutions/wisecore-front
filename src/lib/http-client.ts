@@ -264,13 +264,16 @@ async function send(url: string, options: RequestInit, isRetry: boolean): Promis
         apiError.handled = true;
       }
 
+      // Un 403 del modo administrador solo descarta el token que llevaba esta request: una
+      // respuesta atrasada (token anterior u otra sesión) no borra el modo vigente.
+      const sentElevation = headers.get(ROOT_ELEVATION_HEADER);
       if (response.status === 403 && apiError.code === 'ROOT_ADMIN_REQUIRED') {
-        rootElevationStore.clear();
+        rootElevationStore.discard(sentElevation);
       }
 
       const elevationReason = response.status === 403 ? ROOT_ELEVATION_RETRY_REASONS[apiError.code] : undefined;
       if (elevationReason) {
-        return retryWithRootElevation(url, options, isRetry, apiError, elevationReason, headers.get(ROOT_ELEVATION_HEADER), sentBy);
+        return retryWithRootElevation(url, options, isRetry, apiError, elevationReason, sentElevation, sentBy);
       }
 
       throw apiError;
