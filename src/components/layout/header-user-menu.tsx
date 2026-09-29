@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next"
-import { User, SlidersHorizontal, BellRing, Bell, LogOut } from "lucide-react"
+import { User, SlidersHorizontal, BellRing, Bell, LogOut, ShieldCheck, ShieldOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -27,6 +27,13 @@ interface HeaderUserMenuProps {
   onOpenNotifications: () => void
   onOpenSubscriptions: () => void
   onSignOut: () => void
+  /** Pista `is_root_admin` del token: solo decide si se ofrece el modo administrador. */
+  isRootAdmin?: boolean
+  /** Modo administrador activo (token de elevación vigente en memoria). */
+  isAdminMode?: boolean
+  adminModeRemainingMinutes?: number
+  onEnterAdminMode?: () => void
+  onExitAdminMode?: () => void
 }
 
 const getUserInitials = (firstName: string, lastName: string): string => {
@@ -51,6 +58,11 @@ export function HeaderUserMenu({
   onOpenNotifications,
   onOpenSubscriptions,
   onSignOut,
+  isRootAdmin = false,
+  isAdminMode = false,
+  adminModeRemainingMinutes = 0,
+  onEnterAdminMode,
+  onExitAdminMode,
 }: HeaderUserMenuProps) {
   const { t } = useTranslation("layout")
 
@@ -102,6 +114,20 @@ export function HeaderUserMenu({
           <DropdownMenuItem className="hover:cursor-pointer" onSelect={onOpenSubscriptions}>
             <Bell className="h-4 w-4 mr-2" />
             {t("header.mySubscriptions")}
+          </DropdownMenuItem>
+        )}
+        {/* Modo administrador (docs/sso-frontend.md §2.1): es de la cuenta logueada, no de la
+            organización, por eso vive en este menú y no en el de configuración. */}
+        {isRootAdmin && !isAdminMode && onEnterAdminMode && (
+          <DropdownMenuItem className="hover:cursor-pointer" onSelect={onEnterAdminMode}>
+            <ShieldCheck className="h-4 w-4 mr-2" />
+            {t("header.adminMode.enter")}
+          </DropdownMenuItem>
+        )}
+        {isRootAdmin && isAdminMode && onExitAdminMode && (
+          <DropdownMenuItem className="hover:cursor-pointer" onSelect={onExitAdminMode}>
+            <ShieldOff className="h-4 w-4 mr-2" />
+            {t("header.adminMode.exit", { minutes: adminModeRemainingMinutes })}
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />

@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { useSearchParams } from "react-router-dom"
 import { ShieldCheck } from "lucide-react"
@@ -8,6 +9,8 @@ import { GlobalAdminOrganizationsSection, GlobalAdminUsersSection } from "@/comp
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { useUrlTab } from "@/hooks/useUrlTab"
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
+import { HuemulButton } from "@/huemul/components/huemul-button"
+import { useRootElevation } from "@/hooks/useRootElevation"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
 
@@ -52,6 +55,20 @@ export default function GlobalAdminPage() {
     }, { replace: true })
   }
 
+  // Todo lo de esta pantalla es de root: el backend exige el modo administrador en cada
+  // request. Al entrar sin él se pide el código de una vez (en vez de una ronda de 403),
+  // y las secciones no montan (ni disparan queries) hasta tener el token. Se decide una
+  // sola vez por montaje: si se entró ya en modo administrador y después el usuario sale
+  // (badge, menú) o vence, no se vuelve a pedir solo; queda el botón "Enter admin mode".
+  const adminMode = useRootElevation()
+  const { require: requireAdminMode } = adminMode
+  const entryDecided = useRef(false)
+  useEffect(() => {
+    if (isLoadingPermissions || !canAccessPage || entryDecided.current) return
+    entryDecided.current = true
+    if (!adminMode.isElevated) void requireAdminMode()
+  }, [isLoadingPermissions, canAccessPage, adminMode.isElevated, requireAdminMode])
+
   if (isLoadingPermissions) return <PageSkeleton />
 
   if (!canAccessPage) {
@@ -60,6 +77,25 @@ export default function GlobalAdminPage() {
         variant="inline"
         icon={ShieldCheck}
         description={t('accessDenied.description')}
+      />
+    )
+  }
+
+  if (!adminMode.isElevated) {
+    return (
+      <HuemulAccessDenied
+        variant="inline"
+        icon={ShieldCheck}
+        title={t('adminMode.title')}
+        description={t('adminMode.description')}
+        action={
+          <HuemulButton
+            label={t('adminMode.enter')}
+            icon={ShieldCheck}
+            onClick={() => void adminMode.enter()}
+            disabled={adminMode.isPrompting}
+          />
+        }
       />
     )
   }

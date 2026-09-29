@@ -130,15 +130,14 @@ export function getUserRoles(): string[] {
   return orgInfo?.roles || [];
 }
 
+// Los helpers de permisos leen solo los permisos del token de organización. Ser root
+// admin NO da permisos sobre el contenido (igual que `permissions-context` y que
+// `require_permissions` del backend); la UI de permisos pasa por `useUserPermissions`.
+
 /**
  * Verifica si el usuario tiene un permiso específico
  */
 export function hasPermission(permission: Permission | string): boolean {
-  // Root admins tienen todos los permisos
-  if (isRootAdmin()) {
-    return true;
-  }
-  
   const userPermissions = getUserPermissions();
   return userPermissions.includes(permission);
 }
@@ -147,11 +146,6 @@ export function hasPermission(permission: Permission | string): boolean {
  * Verifica si el usuario tiene alguno de los permisos especificados
  */
 export function hasAnyPermission(permissions: (Permission | string)[]): boolean {
-  // Root admins tienen todos los permisos
-  if (isRootAdmin()) {
-    return true;
-  }
-  
   const userPermissions = getUserPermissions();
   return permissions.some(permission => userPermissions.includes(permission));
 }
@@ -160,11 +154,6 @@ export function hasAnyPermission(permissions: (Permission | string)[]): boolean 
  * Verifica si el usuario tiene todos los permisos especificados
  */
 export function hasAllPermissions(permissions: (Permission | string)[]): boolean {
-  // Root admins tienen todos los permisos
-  if (isRootAdmin()) {
-    return true;
-  }
-  
   const userPermissions = getUserPermissions();
   return permissions.every(permission => userPermissions.includes(permission));
 }

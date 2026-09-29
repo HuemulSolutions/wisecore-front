@@ -13,6 +13,7 @@ import { RBAC_PAGES } from "./lib/rbac-matrix";
 import { SsoCallbackPage } from "./pages/sso-callback";
 import { LoginEntryPage } from "./pages/login-entry";
 import { AuthMethodRequiredDialog } from "./components/auth/auth-method-required-dialog";
+import { RootElevationDialog } from "./components/auth/root-elevation-dialog";
 
 // Páginas cargadas de forma perezosa: cada una se descarga solo cuando el
 // usuario navega a su ruta, en vez de entrar todas al bundle inicial.
@@ -48,6 +49,8 @@ export default function App() {
         <PermissionsProvider>
           {/* Step-up de autenticación (docs/sso-frontend.md): un solo montaje, dentro de los providers. */}
           <AuthMethodRequiredDialog />
+          {/* Modo administrador (docs/sso-frontend.md §2.1): código al correo para acciones de root. */}
+          <RootElevationDialog />
           <Suspense fallback={<HuemulAppLoading />}>
             <Routes>
           {/* Rutas PÚBLICAS (docs/sso-frontend.md): fuera de RequireAuth pero dentro de los

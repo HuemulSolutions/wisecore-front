@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { httpClient } from '@/lib/http-client';
+import { rootElevationStore } from '@/lib/root-elevation-store';
 import { queryClient } from '@/lib/query-client';
 import { logger } from '@/lib/logger';
 import { sessionEvents } from '@/lib/session-events';
@@ -91,6 +92,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     httpClient.setLoginToken(null);
     httpClient.setOrganizationToken(null);
     httpClient.setOrganizationId(null);
+    // El modo administrador es de esta sesión: un 401 o un logout también lo cierran.
+    rootElevationStore.clear();
   };
 
   const logout = () => {

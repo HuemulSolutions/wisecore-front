@@ -25,6 +25,13 @@ const DEDICATED_ERROR_MESSAGES: Record<string, string> = {
   CONNECTION_DISABLED: 'auth:ssoErrors.connection_disabled',
   ROOT_ADMIN_METHOD_RESTRICTED: 'auth:errors.rootAdminMethodRestricted',
   ORGANIZATION_USER_LIMIT_REACHED: 'auth:errors.organizationUserLimitReached',
+  // Modo administrador (docs/sso-frontend.md §2.1). `httpClient` ya pidió el código y
+  // reintentó; estos mensajes solo aparecen si eso no alcanzó (p. ej. otro 403 en el
+  // reintento). Si el usuario canceló, el error llega `handled` y no hay toast.
+  ROOT_ELEVATION_REQUIRED: 'auth:errors.rootElevationRequired',
+  ROOT_ELEVATION_EXPIRED: 'auth:errors.rootElevationExpired',
+  ROOT_ELEVATION_INVALID: 'auth:errors.rootElevationExpired',
+  ROOT_ADMIN_REQUIRED: 'auth:errors.rootAdminRequired',
 };
 
 /**
@@ -88,7 +95,9 @@ export function handleApiError(
     // Códigos con mensaje propio y traducido en vez del texto crudo del backend.
     const dedicatedMessageKey = DEDICATED_ERROR_MESSAGES[error.code];
     if (dedicatedMessageKey) {
-      if (showToast) {
+      // `handled`: httpClient ya resolvió el caso (p. ej. el usuario canceló el código del
+      // modo administrador); no se apila un toast sobre esa decisión.
+      if (showToast && !error.handled) {
         toast.error(i18n.t(dedicatedMessageKey));
       }
       return;

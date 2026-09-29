@@ -16,6 +16,12 @@ const translations = {
     notifications: { en: "Notifications", es: "Notificaciones" },
     mySubscriptions: { en: "My Subscriptions", es: "Mis Suscripciones" },
     signOut: { en: "Sign out", es: "Cerrar sesión" },
+    adminMode: {
+      enter: { en: "Enter admin mode", es: "Entrar al modo administrador" },
+      exit: { en: "Exit admin mode ({{minutes}} min left)", es: "Salir del modo administrador (quedan {{minutes}} min)" },
+      badge: { en: "Admin mode · {{minutes}} min", es: "Modo administrador · {{minutes}} min" },
+      badgeTitle: { en: "Root admin actions are enabled for {{minutes}} more minutes. Click to exit admin mode.", es: "Las acciones de root admin están habilitadas por {{minutes}} minutos más. Clic para salir del modo administrador." },
+    },
   },
   settings: {
     groups: {

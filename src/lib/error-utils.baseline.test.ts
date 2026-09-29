@@ -52,4 +52,31 @@ describe('error-utils', () => {
     ])
     toastError.mockRestore()
   })
+
+  it('handleApiError traduce los códigos del modo administrador (Fase 7)', () => {
+    const toastError = vi.spyOn(toast, 'error').mockImplementation(() => '')
+    handleApiError(apiError(403, 'ROOT_ELEVATION_REQUIRED', 'raw'))
+    handleApiError(apiError(403, 'ROOT_ELEVATION_EXPIRED', 'raw'))
+    handleApiError(apiError(403, 'ROOT_ELEVATION_INVALID', 'raw'))
+    handleApiError(apiError(403, 'ROOT_ADMIN_REQUIRED', 'raw'))
+
+    expect(toastError.mock.calls.map(([message]) => message)).toEqual([
+      'This action requires admin mode.',
+      'Admin mode expired. Enter it again to continue.',
+      'Admin mode expired. Enter it again to continue.',
+      'Your account is no longer a root admin.',
+    ])
+    toastError.mockRestore()
+  })
+
+  it('handleApiError no muestra el mensaje dedicado de un error ya manejado (el usuario canceló el código)', () => {
+    const toastError = vi.spyOn(toast, 'error').mockImplementation(() => '')
+    const error = apiError(403, 'ROOT_ELEVATION_REQUIRED', 'raw')
+    error.handled = true
+
+    handleApiError(error)
+
+    expect(toastError).not.toHaveBeenCalled()
+    toastError.mockRestore()
+  })
 })

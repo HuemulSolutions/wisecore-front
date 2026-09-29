@@ -26,6 +26,8 @@ import { useAuth } from "@/contexts/auth-context"
 import { RBAC_PAGES } from "@/lib/rbac-matrix"
 import { HeaderSettingsMenu } from "@/components/layout/header-settings-menu"
 import { HeaderUserMenu } from "@/components/layout/header-user-menu"
+import { HeaderAdminModeBadge } from "@/components/layout/header-admin-mode-badge"
+import { useRootElevation } from "@/hooks/useRootElevation"
 
 import { ChatbotProvider } from "@/contexts/chatbot-provider"
 import { NavKnowledgeProvider } from "@/contexts/nav-knowledge-provider"
@@ -228,6 +230,8 @@ export default function AppLayout() {
     isOrgAdmin,
     hasAnyPermission,
   } = useUserPermissions()
+  // Modo administrador (docs/sso-frontend.md §2.1): `isRootAdmin` solo decide si se ofrece.
+  const adminMode = useRootElevation()
 
   // Badge y entrada de notificaciones: ambas abren una LECTURA, así que se
   // gatean con `notification:l|r` y no con el helper `canAccessNotifications`
@@ -698,6 +702,9 @@ export default function AppLayout() {
                 v{packageInfo.version}
               </div>
               
+              {/* Modo administrador activo: minutos restantes; clic para salir. */}
+              <HeaderAdminModeBadge isRootAdmin={isRootAdmin} />
+
               {/* Settings dropdown */}
               <HeaderSettingsMenu
                 organizationToken={organizationToken}
@@ -716,6 +723,11 @@ export default function AppLayout() {
                   onOpenNotifications={handleOpenNotifications}
                   onOpenSubscriptions={handleOpenSubscriptions}
                   onSignOut={handleSignOut}
+                  isRootAdmin={isRootAdmin}
+                  isAdminMode={adminMode.isElevated}
+                  adminModeRemainingMinutes={adminMode.remainingMinutes}
+                  onEnterAdminMode={() => void adminMode.enter()}
+                  onExitAdminMode={adminMode.exit}
                 />
               )}
             </div>
