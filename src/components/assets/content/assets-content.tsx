@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell, Sparkles, MessageSquareText, BookOpen, Maximize, Minimize, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell,MessageSquareText, BookOpen, Maximize, Minimize, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { SectionCollapseContext, type CollapseAllSignal } from "@/contexts/section-collapse-context";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
@@ -29,7 +29,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useRecentAssets } from "@/hooks/useRecentAssets";
 import { DocumentAccessControl } from "@/components/assets/content/assets-access-control";
 import { HuemulButton } from "@/huemul/components/huemul-button";
-import { HuemulExpandableText } from "@/huemul/components/huemul-expandable-text";
+import { AssetsTemplateInstructionsCard } from "./assets-template-instructions-card";
 import { HuemulTruncatedText } from "@/huemul/components/huemul-truncated-text";
 import { AssetsNotificationsSheet } from "@/components/assets/content/assets-notifications-sheet";
 import { AssetsDiscussionsSheet } from "@/components/assets/content/assets-discussions-sheet";
@@ -3528,26 +3528,10 @@ export function AssetContent({
                         <div className={`prose prose-gray prose-sm md:prose-base max-w-full${deferredViewChrome.isViewMode ? ' [&>*+*]:mt-0' : ''}`}>
                           {/* Template instructions callout - shown once at the top */}
                           {documentContent.template_instructions?.trim() && (
-                            <div className="not-prose mb-4">
-                              <HuemulExpandableText
-                                collapsible
-                                text={documentContent.template_instructions.trim()}
-                                collapsedLines={1}
-                                expandedMaxHeight={100}
-                                showMoreLabel={t('content.instructionsShowMore')}
-                                showLessLabel={t('content.instructionsShowLess')}
-                                triggerClassName="rounded-lg border border-gray-200 bg-white px-3 py-2"
-                                className="rounded-lg border border-gray-200 bg-white px-4 py-2.5"
-                                leading={
-                                  <span className="flex items-center gap-1.5 shrink-0">
-                                    <Sparkles className="h-3.5 w-3.5 text-blue-500" />
-                                    <span className="text-sm font-medium text-gray-700">
-                                      {t('content.instructionsTitle')}
-                                    </span>
-                                  </span>
-                                }
-                              />
-                            </div>
+                            <AssetsTemplateInstructionsCard
+                              instructions={documentContent.template_instructions.trim()}
+                              templateName={documentContent.template_name}
+                            />
                           )}
                           {Array.isArray(documentContent.content) ? (
                             // New format: array of sections with separators.

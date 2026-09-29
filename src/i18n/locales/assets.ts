@@ -737,9 +737,7 @@ const translations = {
     sourceTemplate: { en: "Inherited from template", es: "Heredada de la plantilla" },
   },
   content: {
-    instructionsTitle: { en: "Instructions", es: "Instrucciones" },
-    instructionsShowMore: { en: "Show more", es: "Ver más" },
-    instructionsShowLess: { en: "Show less", es: "Ver menos" },
+    templateInstructionsTitle: { en: "Template instructions", es: "Instrucciones de la plantilla" },
     welcomeTitle: { en: "Welcome to Assets", es: "Bienvenido a Activos" },
     welcomeDescriptionWithPermissions: { en: "Create your first asset or select an existing one to get started with your asset workflow.", es: "Crear el primer activo o seleccionar uno existente para comenzar con el flujo de trabajo de activos." },
     welcomeDescriptionNoPermissions: { en: "Select an existing asset to get started or contact your administrator for permissions to create new assets.", es: "Seleccionar un activo existente para comenzar o contactar al administrador para obtener permisos de creación." },
