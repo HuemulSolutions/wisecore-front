@@ -145,6 +145,9 @@ export const httpClient = {
  */
 async function send(url: string, options: RequestInit, isRetry: boolean): Promise<Response> {
   const headers = new Headers(options.headers);
+  // La sesión con la que sale la request: un 403 que vuelve después de un logout/login
+  // no debe pedirle el código a otra persona ni repetir la acción con sus credenciales.
+  const sentBy = loginToken;
   
   // Determinar qué token usar basado en la URL
   const isTokenEndpoint = url.includes('/users/') && url.includes('/token');
@@ -267,7 +270,7 @@ async function send(url: string, options: RequestInit, isRetry: boolean): Promis
 
       const elevationReason = response.status === 403 ? ROOT_ELEVATION_RETRY_REASONS[apiError.code] : undefined;
       if (elevationReason) {
-        return retryWithRootElevation(url, options, isRetry, apiError, elevationReason, headers.get(ROOT_ELEVATION_HEADER));
+        return retryWithRootElevation(url, options, isRetry, apiError, elevationReason, headers.get(ROOT_ELEVATION_HEADER), sentBy);
       }
 
       throw apiError;
@@ -310,6 +313,11 @@ async function send(url: string, options: RequestInit, isRetry: boolean): Promis
  * 403 de elevación: pide el código (un solo diálogo aunque fallen varias requests a la
  * vez) y repite la misma request una vez con el token nuevo. Si el usuario cancela,
  * el error sale marcado `handled` para no apilar un toast sobre su propia decisión.
+ *
+ * Solo dentro de la misma sesión que envió la request (`sentBy`): si entre el envío y
+ * la respuesta, o mientras el diálogo está abierto, se cerró la sesión o entró otra
+ * persona, el error se lanza tal cual. Cambiar de organización no cuenta: es el mismo
+ * usuario (el login token no cambia).
  */
 async function retryWithRootElevation(
   url: string,
@@ -318,7 +326,10 @@ async function retryWithRootElevation(
   apiError: ApiError,
   reason: RootElevationReason,
   sentToken: string | null,
+  sentBy: string | null,
 ): Promise<Response> {
+  const sameSession = () => loginToken === sentBy;
+  if (!sameSession()) throw apiError;
   rootElevationStore.discard(sentToken);
   if (isRetry || url.includes(ROOT_ELEVATION_ENDPOINT) || !isRootAdmin()) {
     throw apiError;
@@ -333,5 +344,6 @@ async function retryWithRootElevation(
     apiError.handled = true;
     throw apiError;
   }
+  if (!sameSession()) throw apiError;
   return send(url, options, true);
 }

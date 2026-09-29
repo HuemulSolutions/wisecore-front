@@ -173,6 +173,36 @@ describe('RootElevationDialog', () => {
     await waitFor(() => expect(screen.queryByTestId('root-elevation-dialog')).not.toBeInTheDocument())
   })
 
+  it('cancelar con el verify en vuelo no activa el modo cuando por fin responde', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let answered = false
+    server.use(
+      http.post(`${backendUrl}/auth/root-elevation/verify`, async () => {
+        await gate
+        answered = true
+        return respondOk({ elevation_token: 'late-token', expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() })
+      }),
+    )
+    const { user } = renderDialog()
+    const pending = openPrompt('required')
+    await screen.findByText(/Enter the 6-digit code we sent to/)
+
+    await user.type(otpInput(), VALID_CODE)
+    await user.click(screen.getByRole('button', { name: 'Enter admin mode' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await expect(pending).resolves.toBe(false)
+
+    release()
+    await waitFor(() => expect(answered).toBe(true))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    expect(rootElevationStore.getToken()).toBeNull()
+    expect(rootElevationStore.getSnapshot()).toEqual({ expiresAt: null, prompt: null })
+  })
+
   it('cancelar sin verificar no guarda token y la sesión sigue intacta', async () => {
     const { user } = renderDialog()
     const pending = openPrompt('required')

@@ -70,7 +70,7 @@ function RootElevationDialogContent({ promptId, reason }: { promptId: number; re
   const verifyMutation = useMutation({
     mutationFn: (otpCode: string) => verifyRootElevationCode(otpCode),
     onSuccess: (result) => {
-      rootElevationStore.resolve(result.elevation_token, Date.parse(result.expires_at))
+      rootElevationStore.resolve(promptId, result.elevation_token, Date.parse(result.expires_at))
     },
     onError: () => {
       setCode('')

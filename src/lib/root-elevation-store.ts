@@ -174,8 +174,13 @@ export const rootElevationStore = {
     return promise
   },
 
-  /** El código se verificó: guarda el token y libera a quienes esperaban. */
-  resolve(token: string, expiresAt: number): void {
+  /**
+   * El código del pedido `promptId` se verificó: guarda el token y libera a quienes
+   * esperaban. Si ese pedido ya no es el vigente (se canceló, cambió la sesión o se abrió
+   * otro mientras el verify viajaba), se ignora: una respuesta tardía no activa el modo.
+   */
+  resolve(promptId: number, token: string, expiresAt: number): void {
+    if (state.snapshot.prompt?.id !== promptId) return
     rootElevationStore.setElevation(token, expiresAt)
     settlePending(true)
   },

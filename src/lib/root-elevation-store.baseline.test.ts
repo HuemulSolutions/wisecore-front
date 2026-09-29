@@ -81,7 +81,7 @@ describe('rootElevationStore · pedido de código', () => {
     // El motivo es el del pedido que abrió el diálogo.
     expect(rootElevationStore.getSnapshot().prompt).toMatchObject({ reason: 'required' })
 
-    rootElevationStore.resolve('elev-token', Date.now() + THIRTY_MINUTES)
+    rootElevationStore.resolve(rootElevationStore.getSnapshot().prompt!.id, 'elev-token', Date.now() + THIRTY_MINUTES)
 
     await expect(first).resolves.toBe(true)
     expect(rootElevationStore.getSnapshot().prompt).toBeNull()
@@ -107,6 +107,36 @@ describe('rootElevationStore · pedido de código', () => {
 
     expect(second).not.toBe(first)
     expect(rootElevationStore.getSnapshot().prompt).toMatchObject({ reason: 'manual' })
+  })
+
+  it('un verify que responde después de cancelar su pedido no activa el modo', async () => {
+    const pending = rootElevationStore.requestElevation('required')
+    const promptId = rootElevationStore.getSnapshot().prompt!.id
+    rootElevationStore.cancel()
+    await expect(pending).resolves.toBe(false)
+
+    rootElevationStore.resolve(promptId, 'late-token', Date.now() + THIRTY_MINUTES)
+
+    expect(rootElevationStore.getToken()).toBeNull()
+    expect(rootElevationStore.getSnapshot()).toEqual({ expiresAt: null, prompt: null })
+  })
+
+  it('el verify de un pedido viejo no resuelve el pedido nuevo', async () => {
+    const first = rootElevationStore.requestElevation('required')
+    const oldId = rootElevationStore.getSnapshot().prompt!.id
+    rootElevationStore.cancel()
+    await first
+    const second = rootElevationStore.requestElevation('manual')
+    const newId = rootElevationStore.getSnapshot().prompt!.id
+
+    rootElevationStore.resolve(oldId, 'late-token', Date.now() + THIRTY_MINUTES)
+
+    expect(rootElevationStore.getToken()).toBeNull()
+    expect(rootElevationStore.getSnapshot().prompt).toMatchObject({ id: newId, reason: 'manual' })
+
+    rootElevationStore.resolve(newId, 'fresh-token', Date.now() + THIRTY_MINUTES)
+    await expect(second).resolves.toBe(true)
+    expect(rootElevationStore.getToken()).toBe('fresh-token')
   })
 
   it.each(['login', 'logout'] as const)('el evento de sesión %s limpia el token y cancela un pedido abierto', async (reason) => {

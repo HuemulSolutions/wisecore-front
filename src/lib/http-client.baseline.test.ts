@@ -295,15 +295,15 @@ describe('httpClient · modo administrador', () => {
   /** Simula el diálogo: cuando se abre un pedido, lo resuelve con `token` (o lo cancela). */
   function answerPrompt(token: string | null) {
     const seen: string[] = []
-    let last: unknown = null
+    let lastId: number | null = null
     const unsubscribe = rootElevationStore.subscribe(() => {
       const prompt = rootElevationStore.getSnapshot().prompt
       // El store emite varias veces por pedido (abrir, guardar token, cerrar): contar cada pedido una vez.
-      if (!prompt || prompt === last) return
-      last = prompt
+      if (!prompt || prompt.id === lastId) return
+      lastId = prompt.id
       seen.push(prompt.reason)
       queueMicrotask(() => {
-        if (token) rootElevationStore.resolve(token, Date.now() + 30 * 60 * 1000)
+        if (token) rootElevationStore.resolve(prompt.id, token, Date.now() + 30 * 60 * 1000)
         else rootElevationStore.cancel()
       })
     })
@@ -457,6 +457,78 @@ describe('httpClient · modo administrador', () => {
     expect(rootElevationStore.getToken()).toBe('elev-new')
     expect(prompt.seen).toEqual([])
     prompt.unsubscribe()
+  })
+
+  it('un 403 que vuelve después de cambiar de sesión no pide el código ni reintenta con la sesión nueva', async () => {
+    rootLogin()
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const calls: (string | null)[] = []
+    server.use(
+      http.post(`${backendUrl}/organizations/`, async ({ request }) => {
+        calls.push(request.headers.get('Authorization'))
+        await gate
+        return respondApiError(403, 'ROOT_ELEVATION_REQUIRED', 'Root admin mode required')
+      }),
+    )
+    const prompt = answerPrompt('elev-new')
+
+    const pending = httpClient.post(`${backendUrl}/organizations/`, { name: 'De A' }).catch((e: unknown) => e)
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    // Mientras viaja, A cierra sesión y entra B (también root).
+    httpClient.setLoginToken(makeLoginToken({ sub: 'user-b', is_root_admin: true }))
+    release()
+    const error = (await pending) as ApiError
+
+    expect(error.code).toBe('ROOT_ELEVATION_REQUIRED')
+    expect(error.handled).toBeFalsy()
+    expect(prompt.seen).toEqual([])
+    expect(calls).toHaveLength(1)
+    prompt.unsubscribe()
+  })
+
+  it('si la sesión cambia con el diálogo abierto, verificar no reintenta la request con la sesión nueva', async () => {
+    rootLogin()
+    const calls = rootOnly('post', '/organizations/', 'ROOT_ELEVATION_REQUIRED')
+    // El "diálogo" cambia la sesión antes de verificar.
+    const unsubscribe = rootElevationStore.subscribe(() => {
+      const prompt = rootElevationStore.getSnapshot().prompt
+      if (!prompt) return
+      queueMicrotask(() => {
+        httpClient.setLoginToken(makeLoginToken({ sub: 'user-b', is_root_admin: true }))
+        rootElevationStore.resolve(prompt.id, 'elev-new', Date.now() + 30 * 60 * 1000)
+      })
+    })
+
+    const error = (await httpClient.post(`${backendUrl}/organizations/`, { name: 'De A' }).catch((e: unknown) => e)) as ApiError
+
+    expect(error.code).toBe('ROOT_ELEVATION_REQUIRED')
+    expect(calls).toHaveLength(1)
+    unsubscribe()
+  })
+
+  it('cambiar de organización con la request en vuelo sí reintenta: es la misma sesión', async () => {
+    rootLogin()
+    httpClient.setOrganizationToken('org-a')
+    httpClient.setOrganizationId('org-a')
+    const calls = rootOnly('get', '/users/', 'ROOT_ELEVATION_REQUIRED')
+    const unsubscribe = rootElevationStore.subscribe(() => {
+      const prompt = rootElevationStore.getSnapshot().prompt
+      if (!prompt) return
+      queueMicrotask(() => {
+        httpClient.setOrganizationToken('org-b')
+        httpClient.setOrganizationId('org-b')
+        rootElevationStore.resolve(prompt.id, 'elev-new', Date.now() + 30 * 60 * 1000)
+      })
+    })
+
+    const response = await httpClient.get(`${backendUrl}/users/`)
+
+    expect(response.ok).toBe(true)
+    expect(calls.map((c) => c.elevation)).toEqual([null, 'elev-new'])
+    unsubscribe()
   })
 
   it('403 ROOT_ADMIN_REQUIRED limpia el token y se lanza sin diálogo', async () => {
