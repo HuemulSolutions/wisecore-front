@@ -5,7 +5,6 @@ import { SectionCollapseContext } from '@/contexts/section-collapse-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import SectionPlateEditor, { type SectionPlateEditorRef } from '@/components/plate-editor/section-plate-editor';
 import { Button } from "@/components/ui/button";
-import { HuemulButton } from "@/huemul/components/huemul-button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ExecutionConfigDialog, { type ExecutionConfig } from '@/components/execution/execution-config-dialog';
 import { DeleteSectionDialog } from '@/components/assets/dialogs/assets-delete-section-dialog';
@@ -37,10 +36,20 @@ import { useMarkSectionViewed } from '@/hooks/useMarkSectionViewed';
 import { useTranslation } from 'react-i18next';
 import { AssetFormSection, type AssetFormSectionHandle } from '@/components/assets/content/asset-form-section';
 import { AssetFormSectionReader } from '@/components/assets/content/asset-form-section-reader';
-import { HuemulAnswersStatusBadge } from '@/huemul/components/huemul-answers-status-badge';
+import { useOverflowTitle } from '@/hooks/useOverflowTitle';
+import { SectionBarButton, SectionBarDivider } from '@/components/assets/content/components/section-bar-button';
+import {
+  ANSWERS_PILL_CLASS,
+  REVIEW_STATUS_DOT_COLOR,
+  interleaveGroups,
+  reviewSelectClass,
+  type AnswersPillTone,
+} from '@/components/assets/content/components/section-bar-styles';
 import { QUESTION_TYPE, formatFieldValueForCopy, isFieldAnswerable, isFieldVisible } from '@/components/sections/question-type-meta';
 import type { SectionExecutionProps } from '@/types/assets';
 export type { SectionExecutionProps } from '@/types/assets';
+
+const SECTION_BAR_BADGE_CLASS = 'inline-flex h-[22px] items-center rounded-md bg-[#f1f5f9] px-2 text-[11.5px] font-semibold text-[#475569]';
 
 // Constante a nivel de módulo (no array literal inline): una referencia
 // estable evita recrear el array de tabs en cada render del sheet de historial.
@@ -159,6 +168,7 @@ function SectionExecutionInner({
     const [localExecutionMode, setLocalExecutionMode] = useState<'single' | 'from'>('single');
     const isMobile = useIsMobile();
     const { t } = useTranslation(["assets", "common", "sections", "execute"]);
+    const { ref: chipNameRef, title: chipNameTitle } = useOverflowTitle<HTMLSpanElement>(sectionName || '');
     const isExecutionApproved = executionStatus === 'approved';
 
     // Determine which actions are available based on section type
@@ -458,7 +468,18 @@ function SectionExecutionInner({
     };
 
     const normalizedSectionType = sectionType ?? 'manual';
-    const sectionTypeLabel = normalizedSectionType.charAt(0).toUpperCase() + normalizedSectionType.slice(1);
+    const SECTION_TYPE_LABEL_KEY = {
+        ai: 'section.typeAi',
+        manual: 'section.typeManual',
+        reference: 'section.typeReference',
+        form: 'section.typeForm',
+    } as const;
+    const sectionTypeLabel = t(SECTION_TYPE_LABEL_KEY[normalizedSectionType as keyof typeof SECTION_TYPE_LABEL_KEY] ?? 'section.typeManual');
+    const answersPillTone: AnswersPillTone = !sectionCanAnswer
+        ? 'inactive'
+        : sectionExecution.answers_status === 'completed'
+            ? 'completed'
+            : 'pending';
 
     const handleSendAiEdit = async (prompt: string) => {
         try {
@@ -518,7 +539,7 @@ function SectionExecutionInner({
             sectionExecutionId={sectionExecution.id}
             organizationId={selectedOrganizationId ?? undefined}
             mediaUploadTarget={mediaUploadTarget}
-            toolbarTopOffset="36px"
+            toolbarTopOffset="42px"
             flushReadOnly
             onCreateSectionFromSelection={readyToEdit && canEditSections ? onCreateSectionFromSelection : undefined}
         />
@@ -562,222 +583,209 @@ function SectionExecutionInner({
         <div ref={containerRef} className={`${readyToEdit ? 'p-2' : 'py-0 px-2'} relative`}>
             {/* Action Buttons - Always sticky */}
             {readyToEdit && (
-                <div className="sticky top-0 z-(--z-page-sticky) justify-end py-1 px-2 bg-white backdrop-blur-sm -mx-2 -mt-2 mb-2 max-w-full w-full flex items-center">
-                    {/* Left side: section info + review status */}
-                    <div className="mr-auto flex items-center gap-1.5">
-                        {/* Además de informativo, es un segundo trigger de colapso (el chevron
-                            de más abajo es el principal — este chip no siempre está presente). */}
-                        {(sectionName || sectionType) && (
+                <div
+                    className={cn(
+                        'sticky top-0 z-(--z-page-sticky) -ml-[14px] -mr-[10px] -mt-2 mb-2 flex w-[calc(100%+24px)] max-w-none flex-wrap items-center gap-[10px] border-l-2 bg-[rgba(255,255,255,.97)] py-[6px] pl-[14px] pr-[8px]',
+                        isEditing ? 'border-l-[#2563eb]' : 'border-l-transparent'
+                    )}
+                >
+                    {/* Además de informativo, es un segundo trigger de colapso (el chevron
+                        de más abajo es el principal — este chip no siempre está presente). */}
+                    {(sectionName || sectionType) && (
+                        <button
+                            type="button"
+                            onClick={() => setIsCollapsed((prev) => !prev)}
+                            className={cn(
+                                'flex h-7 items-center gap-2 rounded-lg px-[11px] transition-[filter] hover:cursor-pointer hover:brightness-[.97]',
+                                sectionCanAnswer ? 'bg-[#eff5ff]' : 'bg-[#f1f5f9]'
+                            )}
+                            title={isCollapsed ? t('section.expand') : t('section.collapse')}
+                        >
+                            <span
+                                ref={chipNameRef}
+                                title={chipNameTitle}
+                                className={cn(
+                                    'max-w-60 truncate text-[12.5px] font-semibold',
+                                    sectionCanAnswer ? 'text-[#2563eb]' : 'text-[#64748b]'
+                                )}
+                            >
+                                {sectionIndex !== undefined && `${sectionIndex + 1}. `}
+                                {sectionName || t('section.untitled')}
+                            </span>
+                            <span
+                                aria-hidden
+                                className={cn('h-[3px] w-[3px] rounded-full opacity-50', sectionCanAnswer ? 'bg-[#2563eb]' : 'bg-[#64748b]')}
+                            />
+                            <span
+                                className={cn(
+                                    'text-[10.5px] font-bold uppercase tracking-[.06em]',
+                                    sectionCanAnswer ? 'text-[#6b8fe8]' : 'text-[#64748b]'
+                                )}
+                            >
+                                {sectionTypeLabel}
+                            </span>
+                        </button>
+                    )}
+
+                    {/* Permiso de sección por ciclo de vida: solo lectura en esta etapa aunque
+                        el resto del documento sea editable (ver readOnlyBySectionRule arriba). */}
+                    {readOnlyBySectionRule && (
+                        <span className={SECTION_BAR_BADGE_CLASS} title={t('section.readOnlyByLifecycleRuleTooltip')}>
+                            {t('section.readOnlyBadge')}
+                        </span>
+                    )}
+
+                    {/* Sección con depends_on propio no cumplido, mostrada por show_when_inactive:true */}
+                    {!sectionCanAnswer && (
+                        <span className={SECTION_BAR_BADGE_CLASS} title={t('form.fill.sectionInactive', { ns: 'sections' })}>
+                            {t('form.fill.sectionInactive', { ns: 'sections' })}
+                        </span>
+                    )}
+
+                    {/* Estado de respuestas (form: solo lectura, calculado por el backend). */}
+                    {sectionType === 'form' && (
+                        <span
+                            className={cn(
+                                'inline-flex h-6 items-center gap-1.5 rounded-xl px-2.5 text-xs font-semibold',
+                                ANSWERS_PILL_CLASS[answersPillTone].pill
+                            )}
+                        >
+                            <span aria-hidden className={cn('h-1.5 w-1.5 rounded-full', ANSWERS_PILL_CLASS[answersPillTone].dot)} />
+                            {answersPillTone === 'inactive'
+                                ? t('form.fill.sectionInactive', { ns: 'sections' })
+                                : t(answersPillTone === 'completed' ? 'section.answersStatusCompleted' : 'section.answersStatusPending')}
+                        </span>
+                    )}
+
+                    {/* Estado de revisión (no-form): selector manual. */}
+                    {sectionType !== 'form' && !isEditing && (
+                        <HuemulField
+                            type="select"
+                            label=""
+                            value={reviewStatus ?? ''}
+                            onChange={(v) => handleReviewStatusChange(v as ReviewStatus)}
+                            disabled={isUpdatingReviewStatus || !canEditSections}
+                            placeholder={t('section.reviewStatusPlaceholder')}
+                            options={[
+                                { value: 'editing', label: t('section.reviewStatusEditing'), color: REVIEW_STATUS_DOT_COLOR.editing },
+                                { value: 'reviewing', label: t('section.reviewStatusReviewing'), color: REVIEW_STATUS_DOT_COLOR.reviewing },
+                                { value: 'finished', label: t('section.reviewStatusFinished'), color: REVIEW_STATUS_DOT_COLOR.finished },
+                                { value: 'rejected', label: t('section.reviewStatusRejected'), color: REVIEW_STATUS_DOT_COLOR.rejected },
+                            ]}
+                            className="w-auto"
+                            selectSize="xs"
+                            inputClassName={reviewSelectClass(reviewStatus, !canEditSections)}
+                        />
+                    )}
+
+                    {/* Espaciador */}
+                    <div className="flex-1" />
+
+                    {/* Edición de formulario: "Dejar de editar" reemplaza las acciones normales, Copiar se mantiene */}
+                    {isEditing && sectionType === 'form' && (
+                        <div className="flex items-center gap-2">
+                            <SectionBarButton tone="tertiary" icon={Copy} tooltip={t('section.copyContent')} onClick={handleCopy} />
                             <button
                                 type="button"
-                                onClick={() => setIsCollapsed((prev) => !prev)}
-                                className="flex items-center rounded-md border border-blue-100 bg-blue-50/55 px-2.5 py-1 backdrop-blur-[1px] hover:bg-blue-100/70 hover:cursor-pointer transition-colors"
-                                title={isCollapsed ? t('section.expand') : t('section.collapse')}
-                            >
-                                <span className="max-w-60 truncate text-xs font-medium text-blue-700/80">
-                                    {sectionName || t('section.untitled')}
-                                </span>
-                                <span className="mx-1.5 text-[10px] text-blue-300">•</span>
-                                <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-600/70">
-                                    {sectionTypeLabel}
-                                </span>
-                            </button>
-                        )}
-                        {/* Permiso de sección por ciclo de vida: solo lectura en esta etapa aunque
-                            el resto del documento sea editable (ver readOnlyBySectionRule arriba). */}
-                        {readOnlyBySectionRule && (
-                            <div
-                                className="flex items-center rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1"
-                                title={t('section.readOnlyByLifecycleRuleTooltip')}
-                            >
-                                <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-600">
-                                    {t('section.readOnlyByLifecycleRule')}
-                                </span>
-                            </div>
-                        )}
-
-                        {/* Sección con depends_on propio no cumplido, mostrada por show_when_inactive:true */}
-                        {!sectionCanAnswer && (
-                            <div
-                                className="flex items-center rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1"
-                                title={t('form.fill.sectionInactive', { ns: 'sections' })}
-                            >
-                                <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                                    {t('form.fill.sectionInactive', { ns: 'sections' })}
-                                </span>
-                            </div>
-                        )}
-
-                        {/* Review Status - inline with section info. Form: badge de solo lectura
-                            (answers_status, calculado por el backend). No-form: selector manual. */}
-                        {!isEditing && (
-                            sectionType === 'form' ? (
-                                <HuemulAnswersStatusBadge status={sectionExecution.answers_status} />
-                            ) : (
-                                <HuemulField
-                                    type="select"
-                                    label=""
-                                    value={reviewStatus ?? ''}
-                                    onChange={(v) => handleReviewStatusChange(v as ReviewStatus)}
-                                    disabled={isUpdatingReviewStatus || !canEditSections}
-                                    placeholder={t('section.reviewStatusPlaceholder')}
-                                    options={[
-                                        { value: 'editing', label: t('section.reviewStatusEditing'), color: '#3b82f6' },
-                                        { value: 'reviewing', label: t('section.reviewStatusReviewing'), color: '#f59e0b' },
-                                        { value: 'finished', label: t('section.reviewStatusFinished'), color: '#22c55e' },
-                                        { value: 'rejected', label: t('section.reviewStatusRejected'), color: '#ef4444' },
-                                    ]}
-                                    className="w-auto"
-                                    selectSize="xs"
-                                    inputClassName="w-auto py-[3px] px-2 text-[10px] font-medium border-gray-200 bg-gray-50/80 shadow-none hover:bg-gray-100 hover:cursor-pointer [&_svg]:h-3 [&_svg]:w-3 [&_svg]:opacity-50"
-                                />
-                            )
-                        )}
-                    </div>
-
-                    {/* Edición de formulario: Cancelar/Enviar reemplazan las acciones normales, Copiar se mantiene */}
-                    {isEditing && sectionType === 'form' && (
-                        <div className="flex items-center gap-1">
-                            <HuemulButton
-                                variant="ghost"
-                                size="sm"
-                                icon={Copy}
-                                iconClassName="h-3.5 w-3.5 text-gray-600"
-                                className="h-7 w-7 hover:bg-gray-100"
-                                tooltip={t('section.copyContent')}
-                                onClick={handleCopy}
-                            />
-                            <HuemulButton
-                                variant="outline"
-                                size="sm"
-                                icon={Eye}
-                                loading={isFormSaving}
                                 disabled={isFormSaving}
-                                label={isFormSaving ? t('common:saving') : t('sections:form.fill.doneEditing')}
                                 onClick={() => formSectionRef.current?.exit()}
-                            />
+                                className="inline-flex h-[30px] items-center gap-1.5 rounded-[7px] bg-[#0f172a] px-3 text-[12.5px] font-semibold text-white transition-colors hover:cursor-pointer hover:bg-[#1e293b] disabled:cursor-not-allowed disabled:opacity-70"
+                            >
+                                {isFormSaving ? <Loader2 className="h-[15px] w-[15px] animate-spin" /> : <Eye className="h-[15px] w-[15px] stroke-[1.9]" />}
+                                {isFormSaving ? t('common:saving') : t('sections:form.fill.doneEditing')}
+                            </button>
                         </div>
                     )}
 
                     {!isEditing && (
                     <>
-                        {/* Desktop: Direct Action Buttons */}
+                        {/* Desktop: acciones directas en tres grupos [Ejecutar] | [Editar · IA] | [Copiar · Historial · Eliminar] */}
                         {!isMobile && (
-                            <div className="flex items-center gap-1">
-                                {onOpenExecuteSheet && !isExecutionApproved && canExecute && canEditSections && !!sectionExecution.section_id && (
-                                    <HuemulButton
-                                        variant="ghost"
-                                        size="sm"
-                                        icon={Play}
-                                        iconClassName="h-3.5 w-3.5 text-blue-600"
-                                        className="h-7 w-7 hover:bg-blue-50"
-                                        tooltip={
-                                            isExecutionInProgress
-                                                ? t('section.executionInProgress')
-                                                : generationBlocked
-                                                    ? cannotGenerateReason
-                                                    : t('section.openExecuteSheet')
-                                        }
-                                        onClick={onOpenExecuteSheet}
-                                        disabled={isExecutionInProgress || generationBlocked}
-                                    />
-                                )}
-
-                                {!isEditing && !isExecutionApproved && canAiEdit && canEditSections && (
-                                    <div className="relative">
-                                        <HuemulButton
-                                            variant="ghost"
-                                            size="sm"
-                                            icon={showSuggestionReady ? GitCompare : Bot}
-                                            iconClassName={cn(
-                                                'h-3.5 w-3.5 transition-colors duration-300',
-                                                showSuggestionReady ? 'text-amber-600' : 'text-blue-600'
+                            <div className="flex items-center">
+                                {interleaveGroups(
+                                    [
+                                        onOpenExecuteSheet && !isExecutionApproved && canExecute && canEditSections && !!sectionExecution.section_id && (
+                                            <div key="run" className="flex items-center gap-px">
+                                                <SectionBarButton
+                                                    tone="primary"
+                                                    icon={Play}
+                                                    label={t('section.run')}
+                                                    tooltip={
+                                                        isExecutionInProgress
+                                                            ? t('section.executionInProgress')
+                                                            : generationBlocked
+                                                                ? (cannotGenerateReason ?? t('section.openExecuteSheet'))
+                                                                : t('section.openExecuteSheet')
+                                                    }
+                                                    onClick={onOpenExecuteSheet}
+                                                    disabled={isExecutionInProgress || generationBlocked}
+                                                />
+                                            </div>
+                                        ),
+                                        ((!isExecutionApproved && canEdit && canEditSections) || (!isExecutionApproved && canAiEdit && canEditSections)) && (
+                                            <div key="edit" className="flex items-center gap-px">
+                                                {!isExecutionApproved && canEdit && canEditSections && (
+                                                    <SectionBarButton
+                                                        tone="secondary"
+                                                        icon={Edit}
+                                                        tooltip={t('section.editSection')}
+                                                        onClick={handleStartEditing}
+                                                    />
+                                                )}
+                                                {!isExecutionApproved && canAiEdit && canEditSections && (
+                                                    <SectionBarButton
+                                                        tone="secondary"
+                                                        icon={showSuggestionReady ? GitCompare : Bot}
+                                                        iconClassName={showSuggestionReady ? 'text-amber-600' : undefined}
+                                                        className={cn(
+                                                            isAiSuggestionActive && !suggestionReadyLocally && 'pointer-events-none opacity-40'
+                                                        )}
+                                                        tooltip={
+                                                            showSuggestionReady
+                                                                ? t('section.viewAiSuggestion')
+                                                                : isAiSuggestionActive
+                                                                    ? t('section.suggestionInProgress')
+                                                                    : t('section.askAiToEdit')
+                                                        }
+                                                        onClick={() => {
+                                                            if (suggestionReadyLocally) {
+                                                                handleAiSuggestionView(localSuggestionContent ?? '');
+                                                            } else if (hasPendingSuggestion) {
+                                                                handleViewSuggestion();
+                                                            } else {
+                                                                setIsAiEditDialogOpen(true);
+                                                            }
+                                                        }}
+                                                    >
+                                                        {showSuggestionReady && (
+                                                            <span className={cn(
+                                                                'absolute right-1 top-1 h-2 w-2 rounded-full bg-amber-500',
+                                                                suggestionReadyLocally && 'animate-pulse'
+                                                            )} />
+                                                        )}
+                                                    </SectionBarButton>
+                                                )}
+                                            </div>
+                                        ),
+                                        <div key="tail" className="flex items-center gap-px">
+                                            <SectionBarButton tone="tertiary" icon={Copy} tooltip={t('section.copyContent')} onClick={handleCopy} />
+                                            <SectionBarButton
+                                                tone="tertiary"
+                                                icon={History}
+                                                tooltip={t('section.viewHistory')}
+                                                onClick={() => setIsHistorySheetOpen(true)}
+                                            />
+                                            {!isExecutionApproved && canDelete && canEditSections && (
+                                                <SectionBarButton
+                                                    tone="danger"
+                                                    icon={Trash2}
+                                                    tooltip={t('section.deleteSection')}
+                                                    onClick={() => openDeleteDialog()}
+                                                />
                                             )}
-                                            className={cn(
-                                                'h-7 w-7 transition-all duration-300',
-                                                showSuggestionReady ? 'hover:bg-amber-50' : 'hover:bg-blue-50',
-                                                isAiSuggestionActive && !suggestionReadyLocally && 'opacity-40 pointer-events-none'
-                                            )}
-                                            tooltip={
-                                                showSuggestionReady
-                                                    ? t('section.viewAiSuggestion')
-                                                    : isAiSuggestionActive
-                                                        ? t('section.suggestionInProgress')
-                                                        : t('section.askAiToEdit')
-                                            }
-                                            onClick={() => {
-                                                if (suggestionReadyLocally) {
-                                                    handleAiSuggestionView(localSuggestionContent ?? '');
-                                                } else if (hasPendingSuggestion) {
-                                                    handleViewSuggestion();
-                                                } else {
-                                                    setIsAiEditDialogOpen(true);
-                                                }
-                                            }}
-                                        />
-                                        {showSuggestionReady && (
-                                            <span className={cn(
-                                                'absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-500 transition-all duration-300',
-                                                suggestionReadyLocally && 'animate-pulse'
-                                            )} />
-                                        )}
-                                    </div>
-                                )}
-
-                                {!isEditing && !isExecutionApproved && canEdit && canEditSections && (
-                                    <HuemulButton
-                                        variant="ghost"
-                                        size="sm"
-                                        icon={Edit}
-                                        iconClassName="h-3.5 w-3.5 text-gray-600"
-                                        className="h-7 w-7 hover:bg-gray-100"
-                                        tooltip={t('section.editSection')}
-                                        onClick={handleStartEditing}
-                                    />
-                                )}
-
-                                <HuemulButton
-                                    variant="ghost"
-                                    size="sm"
-                                    icon={Copy}
-                                    iconClassName="h-3.5 w-3.5 text-gray-600"
-                                    className="h-7 w-7 hover:bg-gray-100"
-                                    tooltip={t('section.copyContent')}
-                                    onClick={handleCopy}
-                                />
-
-                                <HuemulButton
-                                    variant="ghost"
-                                    size="sm"
-                                    icon={History}
-                                    iconClassName="h-3.5 w-3.5 text-gray-600"
-                                    className="h-7 w-7 hover:bg-gray-100"
-                                    tooltip={t('section.viewHistory')}
-                                    onClick={() => setIsHistorySheetOpen(true)}
-                                />
-
-                                {/* {onCopyLink && (
-                                    <HuemulButton
-                                        variant="ghost"
-                                        size="sm"
-                                        icon={Link2}
-                                        iconClassName="h-3.5 w-3.5 text-gray-600"
-                                        className="h-7 w-7 hover:bg-gray-100"
-                                        tooltip={t('section.copyLink')}
-                                        onClick={onCopyLink}
-                                    />
-                                )} */}
-
-                                {!isEditing && !isExecutionApproved && canDelete && canEditSections && (
-                                    <HuemulButton
-                                        variant="ghost"
-                                        size="sm"
-                                        icon={Trash2}
-                                        iconClassName="h-3.5 w-3.5 text-red-600"
-                                        className="h-7 w-7 hover:bg-red-50"
-                                        tooltip={t('section.deleteSection')}
-                                        onClick={() => openDeleteDialog()}
-                                    />
+                                        </div>,
+                                    ],
+                                    (i) => <SectionBarDivider key={`divider-${i}`} />
                                 )}
                             </div>
                         )}
@@ -786,8 +794,13 @@ function SectionExecutionInner({
                         {isMobile && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <button className="p-1 rounded-md hover:bg-gray-100 hover:cursor-pointer">
-                                        <MoreVertical className="h-4 w-4 text-gray-600" />
+                                    <button
+                                        type="button"
+                                        title={t('common:actions')}
+                                        aria-label={t('common:actions')}
+                                        className="flex h-[30px] w-[30px] items-center justify-center rounded-[7px] text-[#94a3b8] hover:cursor-pointer hover:bg-[#f1f5f9] hover:text-[#0f172a]"
+                                    >
+                                        <MoreVertical className="h-[15px] w-[15px] stroke-[1.9]" />
                                     </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
@@ -896,21 +909,19 @@ function SectionExecutionInner({
                         )}
 
                         {/* Colapsar/expandir sección — navegación, no una acción de edición,
-                            por eso vive fuera del dropdown móvil y de los grupos anteriores. Con
-                            etiqueta de texto (no sólo ícono+tooltip): un ícono desnudo entre
-                            tantos otros de la barra es fácil de pasar por alto. */}
-                        <HuemulButton
-                            variant="ghost"
-                            size="sm"
-                            icon={ChevronDown}
-                            iconClassName={cn(
-                                'h-3.5 w-3.5 text-gray-600 transition-transform duration-200',
-                                !isCollapsed && 'rotate-180'
-                            )}
-                            label={isCollapsed ? t('common:expand') : t('common:collapse')}
-                            className="h-7 px-2 text-gray-600 hover:bg-gray-100 hover:text-gray-800 transition-colors ml-1"
+                            por eso vive fuera del dropdown móvil y de los grupos anteriores. */}
+                        <SectionBarDivider className="mx-[3px]" />
+                        <button
+                            type="button"
+                            title={isCollapsed ? t('common:expand') : t('common:collapse')}
+                            aria-label={isCollapsed ? t('common:expand') : t('common:collapse')}
                             onClick={() => setIsCollapsed((prev) => !prev)}
-                        />
+                            className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-md text-[#94a3b8] transition-colors hover:cursor-pointer hover:bg-[#f1f5f9] hover:text-[#475569]"
+                        >
+                            <ChevronDown
+                                className={cn('h-3.5 w-3.5 transition-transform duration-200', !isCollapsed && 'rotate-180')}
+                            />
+                        </button>
                     </>
                     )}
 
@@ -918,7 +929,7 @@ function SectionExecutionInner({
             )}
             
             {isAiSuggestionActive && (
-                <div className="mb-3 sticky top-9 z-(--z-page-sticky-secondary) shadow-lg">
+                <div className="mb-3 sticky top-[42px] z-(--z-page-sticky-secondary) shadow-lg">
                     <AiSuggestionFeedback
                         sectionExecutionId={sectionExecution.id}
                         onCompleted={handleAiSuggestionCompleted}
@@ -929,7 +940,7 @@ function SectionExecutionInner({
                 </div>
             )}
             {aiPreview !== null && !isAiSuggestionActive && !isDiffOpen && (
-                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between sticky top-9 z-(--z-page-sticky-secondary) shadow-lg">
+                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between sticky top-[42px] z-(--z-page-sticky-secondary) shadow-lg">
                     <span className="text-sm text-amber-800">{t('section.aiPreviewReady')}</span>
                     <div className="flex gap-2">
                         <Button
@@ -1074,25 +1085,35 @@ function SectionExecutionInner({
                    desmonta y remonta (reconstruye un Plate completo, ~25 plugin kits, por
                    sección) en cada toggle Lector/Editor — ese remount síncrono en todas las
                    secciones a la vez es lo que congelaba el cambio de modo. En editor el chevron
-                   vive en la barra sticky de arriba; en lector, una columna a la izquierda
-                   (menú ⋮ con historial + chevron, en fila) comparte fila con el contenido. COLAPSADA se
-                   muestra además el nombre de la sección: único indicio de cuál es. */
-                <div className={cn(!readyToEdit && 'flex items-start gap-1')}>
+                   vive en la barra sticky de arriba; en lector, una columna flotante en el margen
+                   derecho (fuera de la columna de lectura: menú ⋮ con historial + chevron) casi
+                   invisible. COLAPSADA se muestra además una pastilla con el nombre de la sección:
+                   único indicio de cuál es. */
+                <div className={cn(!readyToEdit && 'relative')}>
                     {!readyToEdit && (
-                        <div className="flex shrink-0 items-center gap-0.5 pt-1">
+                        <div
+                            className={cn(
+                                'absolute top-[2px] flex flex-col gap-[2px]',
+                                isMobile ? 'right-0' : '-right-[44px]'
+                            )}
+                        >
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <button
                                         type="button"
                                         title={t('common:actions')}
-                                        className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-gray-100 hover:cursor-pointer"
+                                        aria-label={t('common:actions')}
+                                        className="flex h-7 w-7 items-center justify-center rounded-[7px] bg-transparent text-[#cbd5e1] transition-colors hover:cursor-pointer hover:bg-[#f1f5f9] hover:text-[#334155]"
                                     >
-                                        <MoreVertical className="h-3.5 w-3.5 text-gray-400" />
+                                        <MoreVertical className="h-4 w-4" />
                                     </button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start">
+                                <DropdownMenuContent
+                                    align="end"
+                                    className="w-[180px] rounded-[10px] border-0 bg-white p-[5px] shadow-[0_0_0_1px_#e2e8f0,0_18px_36px_-14px_rgba(15,23,42,.28)]"
+                                >
                                     <DropdownMenuItem
-                                        className="hover:cursor-pointer"
+                                        className="h-8 text-[13px] font-medium hover:cursor-pointer focus:bg-[#f1f5f9]"
                                         onSelect={() => {
                                             setTimeout(() => setIsHistorySheetOpen(true), 0);
                                         }}
@@ -1102,38 +1123,36 @@ function SectionExecutionInner({
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
-                            <HuemulButton
-                                variant="ghost"
-                                size="xs"
-                                icon={ChevronDown}
-                                iconClassName={cn(
-                                    'h-3.5 w-3.5 text-gray-400 transition-transform duration-200',
-                                    isCollapsed && '-rotate-90'
-                                )}
-                                className="h-6 w-6 hover:bg-gray-100"
-                                tooltip={isCollapsed ? t('section.expand') : t('section.collapse')}
+                            <button
+                                type="button"
+                                title={isCollapsed ? t('section.expand') : t('section.collapse')}
+                                aria-label={isCollapsed ? t('section.expand') : t('section.collapse')}
                                 onClick={() => setIsCollapsed((prev) => !prev)}
-                            />
+                                className="flex h-7 w-7 items-center justify-center rounded-[7px] bg-transparent text-[#cbd5e1] transition-colors hover:cursor-pointer hover:bg-[#f1f5f9] hover:text-[#334155]"
+                            >
+                                <ChevronDown
+                                    className={cn('h-4 w-4 transition-transform duration-200', isCollapsed && '-rotate-90')}
+                                />
+                            </button>
                         </div>
                     )}
-                    <div className="min-w-0 flex-1">
+                    <div className={cn('min-w-0', !readyToEdit && isMobile && 'pr-9')}>
                         {!readyToEdit && isCollapsed && (
                             <button
                                 type="button"
                                 onClick={() => setIsCollapsed(false)}
-                                className="group/section-toggle mb-1 flex w-full items-center rounded border-b border-gray-100 py-1 pr-2 text-left hover:bg-gray-50"
+                                className="mb-1 inline-flex h-[30px] max-w-full items-center gap-1 rounded-lg bg-[#f8fafc] px-3 text-left hover:cursor-pointer hover:bg-[#f1f5f9]"
                                 title={t('section.expand')}
                             >
-                                {sectionName && (
-                                    <span className="truncate text-xs text-gray-500 group-hover/section-toggle:text-gray-700">
-                                        {sectionName}
-                                    </span>
-                                )}
+                                <span className="truncate text-[13px] font-semibold text-[#475569]">
+                                    {sectionName || t('section.untitled')}
+                                </span>
+                                <span className="shrink-0 text-[13px] text-[#94a3b8]">· {t('section.contentHidden')}</span>
                             </button>
                         )}
                         <div
                             className={cn(
-                                readyToEdit ? (isEditing ? 'pt-2 pr-0' : 'pt-4 pr-2 w-full') : 'pt-1 pr-2 w-full',
+                                readyToEdit ? (isEditing ? 'pt-2 pr-0' : 'pt-4 pr-2 w-full') : 'pt-1 w-full',
                                 !isEditing && isCollapsed && 'hidden'
                             )}
                         >

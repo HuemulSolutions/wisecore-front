@@ -3071,6 +3071,9 @@ export function AssetContent({
               className={cn(
                 deferredViewChrome.isViewMode ? 'pt-2 md:pt-3 pb-4 md:pb-5' : 'py-4 md:py-5',
                 'px-4 md:px-6 contain-[inline-size]',
+                // Lector: las acciones de cada sección flotan a right:-44px de la columna de
+                // lectura (ver assets-section.tsx) — este padding derecho les reserva el margen.
+                deferredViewChrome.isViewMode && 'md:pr-14',
                 // Señal de "árbol de secciones cambiando" (modo Lector/Editor o colapsar/expandir
                 // todas) con retardo: si el commit diferido llega antes de los 100ms (el caso
                 // normal tras el fix de remount del Plate) el usuario no llega a ver ninguna
