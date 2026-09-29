@@ -32,7 +32,6 @@ export function useRootElevation() {
     isElevated: expiresAt !== null,
     expiresAt,
     remainingMinutes: Math.max(1, Math.ceil(remainingMs / 60_000)),
-    isPrompting: snapshot.prompt !== null,
     enter,
     exit,
     /** Pide el código porque una pantalla lo necesita para cargar (p. ej. `/global-admin`). */

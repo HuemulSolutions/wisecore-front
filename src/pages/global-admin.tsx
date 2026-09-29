@@ -89,11 +89,13 @@ export default function GlobalAdminPage() {
         title={t('adminMode.title')}
         description={t('adminMode.description')}
         action={
+          // Sin `disabled` mientras el diálogo está abierto: queda detrás del overlay modal
+          // (y `enter` reutiliza el pedido abierto), y un botón deshabilitado no recibe el
+          // foco que Radix le devuelve al cerrar el diálogo.
           <HuemulButton
             label={t('adminMode.enter')}
             icon={ShieldCheck}
             onClick={() => void adminMode.enter()}
-            disabled={adminMode.isPrompting}
           />
         }
       />

@@ -39,6 +39,13 @@ export function RootElevationDialog() {
 function RootElevationDialogContent({ promptId, reason }: { promptId: number; reason: RootElevationReason }) {
   const { t } = useTranslation('auth')
   const [code, setCode] = useState('')
+  // Sin `DialogTrigger` (lo abre el store), Radix no sabe a dónde devolver el foco y lo deja
+  // en <body>: se recuerda quién lo tenía al abrirse (el botón que disparó la acción).
+  const [returnFocusTo] = useState(() => (document.activeElement instanceof HTMLElement ? document.activeElement : null))
+  const restoreFocus = (event: Event) => {
+    event.preventDefault()
+    if (returnFocusTo?.isConnected) returnFocusTo.focus()
+  }
 
   // El envío inicial es una query con clave por pedido, no una mutación disparada en un
   // efecto: en StrictMode el desmontaje simulado desengancha la mutación en curso y su
@@ -101,6 +108,7 @@ function RootElevationDialogContent({ promptId, reason }: { promptId: number; re
       icon={ShieldCheck}
       maxWidth="sm:max-w-md"
       showFooter={false}
+      onCloseAutoFocus={restoreFocus}
     >
       <div className="flex flex-col gap-4 py-2" data-testid="root-elevation-dialog">
         {codeRequest.isPending && (

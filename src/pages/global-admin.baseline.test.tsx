@@ -93,6 +93,24 @@ describe('/global-admin · modo administrador', () => {
     expect(requests.organizations).toEqual([])
   })
 
+  it('cancelar el código devuelve el foco al botón "Enter admin mode"', async () => {
+    // Regresión (review de #268): el botón se deshabilitaba mientras el diálogo estaba
+    // abierto y Radix no podía devolverle el foco al cerrar (quedaba en <body>).
+    globalAdminBackend()
+    const { user } = renderPage()
+    await screen.findByText(/Enter the 6-digit code we sent to/)
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByTestId('root-elevation-dialog')).not.toBeInTheDocument())
+
+    const enter = screen.getByRole('button', { name: 'Enter admin mode' })
+    await user.click(enter)
+    await screen.findByText(/Enter the 6-digit code we sent to/)
+    await user.keyboard('{Escape}')
+
+    await waitFor(() => expect(screen.queryByTestId('root-elevation-dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(enter).toHaveFocus())
+  })
+
   it('si se entró ya en modo administrador y el usuario sale, no vuelve a pedir el código solo', async () => {
     // Regresión (prueba manual): "Go to Global Admin" remonta la página ya elevada; al salir
     // por el badge la página abría el diálogo por su cuenta.
