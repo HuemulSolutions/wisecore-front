@@ -57,7 +57,8 @@ export function AssetsTemplateInstructionsCard({
       {open && (
         <div
           id={bodyId}
-          className="flex flex-col gap-[6px] pb-[14px] pl-[46px] pr-[16px] pt-0 text-[13px] leading-[1.6] text-[#334155]"
+          tabIndex={0}
+          className="flex max-h-[150px] flex-col gap-[6px] overflow-y-auto pb-[14px] pl-[46px] pr-[16px] pt-0 text-[13px] leading-[1.6] text-[#334155]"
         >
           {paragraphs.map((p, i) => (
             <p key={i} className="m-0">
