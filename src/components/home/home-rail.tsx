@@ -52,7 +52,7 @@ export function HomeRail({
   const { t } = useTranslation('home');
 
   return (
-    <div className="flex w-[306px] shrink-0 flex-col gap-3">
+    <div className="flex min-h-0 w-[306px] shrink-0 flex-col gap-3 overflow-y-auto">
       {showGettingStarted && (
         <HomeGettingStartedCard
           steps={onboarding.steps}
@@ -75,7 +75,7 @@ export function HomeRail({
         />
       )}
       {!isFirstTime && !showOverview && (
-        <div className="rounded-lg border border-dashed border-border px-4 py-3">
+        <div className="shrink-0 rounded-lg border border-dashed border-border px-4 py-3">
           <p className="text-xs font-semibold text-foreground">{t('rail.overview.unavailable.title')}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{t('rail.overview.unavailable.description')}</p>
         </div>

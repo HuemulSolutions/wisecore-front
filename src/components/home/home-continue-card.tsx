@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { cn } from '@/lib/utils';
 import { useOrgNavigate } from '@/hooks/useOrgRouter';
 import { formatRelativeTime } from '@/lib/format-relative-time';
 import { useHomeCardCollapsed } from '@/hooks/useHomeCardCollapsed';
@@ -26,14 +27,14 @@ export function HomeContinueCard({ recentAssets, onViewAll }: HomeContinueCardPr
   if (recentAssets.length === 0) return null;
 
   return (
-    <div className={HOME_CARD_MUTED}>
+    <div className={cn(HOME_CARD_MUTED, 'flex flex-col overflow-hidden', collapsed ? 'shrink-0' : 'min-h-0')}>
       <HomeCollapsibleHeader collapsed={collapsed} onToggle={toggleCollapsed}>
         <span className={HOME_RAIL_TITLE}>{t('rail.continue.title')}</span>
         <p className="text-2xs text-muted-foreground">{t('rail.continue.subtitle')}</p>
       </HomeCollapsibleHeader>
       {!collapsed && (
       <>
-      <div className="pb-1">
+      <div className="min-h-0 overflow-y-auto pb-1">
         {recentAssets.map((asset) => (
           <button
             key={asset.id}
@@ -53,7 +54,7 @@ export function HomeContinueCard({ recentAssets, onViewAll }: HomeContinueCardPr
         ))}
       </div>
       {onViewAll && (
-        <div className="border-t border-divider px-4 py-2.5 text-center">
+        <div className="shrink-0 border-t border-divider px-4 py-2.5 text-center">
           <button type="button" onClick={onViewAll} className={HOME_LINK}>
             {t('rail.continue.viewAll')}
           </button>
