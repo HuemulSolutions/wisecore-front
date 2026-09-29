@@ -8,6 +8,7 @@ import { FormSectionSummaryAnswers } from "@/components/sections/form-section-su
 import { computeSectionStats } from "@/components/workflow/workflow-section-stats";
 import { resolveSectionCardState } from "@/components/workflow/workflow-section-card-state";
 import {
+  SUMMARY_ACTION_BUTTON_CLASS,
   SUMMARY_ACTION_ICONS,
   SUMMARY_ACTION_STYLES,
   SUMMARY_CARD_SHELL,
@@ -138,10 +139,7 @@ export function FormSectionSummaryCard({
               iconClassName="h-[13px] w-[13px]"
               label={t(state.action.labelKey)}
               onClick={onAction}
-              className={cn(
-                "h-[30px] rounded-[7px] px-[12px] text-[12.5px] font-semibold",
-                SUMMARY_ACTION_STYLES[state.action.kind],
-              )}
+              className={cn(SUMMARY_ACTION_BUTTON_CLASS, SUMMARY_ACTION_STYLES[state.action.kind])}
             />
           )}
         </div>

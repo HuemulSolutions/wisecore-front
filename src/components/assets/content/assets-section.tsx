@@ -1265,14 +1265,16 @@ function areSectionPropsEqual(prev: SectionExecutionProps, next: SectionExecutio
     ...Object.keys(next.sectionExecution),
   ]);
   // `output` (markdown) is a single string compare — cheap even for a huge section.
-  // `plate_content`/`form_fields` never change without `output` also changing, so
-  // skip their per-item walk (shallowEqualValue over every JSON string / field
-  // object) when output didn't move. Without this, every render of AssetContent
-  // (e.g. each 2s execution-status poll) re-scans the full serialized content of
-  // every section just to conclude nothing changed.
+  // `plate_content` never changes without `output` also changing, so skip its per-item
+  // walk (shallowEqualValue over every JSON string) when output didn't move. Without this,
+  // every render of AssetContent (e.g. each 2s execution-status poll) re-scans the full
+  // serialized content of every section just to conclude nothing changed.
+  // `form_fields` SÍ se compara siempre: el parche de PATCH /form_values
+  // (applyFormValuesPatch) lo reemplaza sin tocar `output`, y saltarlo dejaba el modo
+  // lector con las respuestas viejas hasta refrescar la página.
   const outputChanged = !Object.is(prev.sectionExecution.output, next.sectionExecution.output);
   for (const key of sectionKeys) {
-    if (!outputChanged && (key === 'plate_content' || key === 'form_fields')) continue;
+    if (!outputChanged && key === 'plate_content') continue;
     const k = key as keyof typeof next.sectionExecution;
     if (!shallowEqualValue(prev.sectionExecution[k], next.sectionExecution[k])) return false;
   }

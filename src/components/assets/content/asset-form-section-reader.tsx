@@ -2,6 +2,8 @@ import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Eye, History } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
+import { SUMMARY_ACTION_BUTTON_CLASS, SUMMARY_ACTION_STYLES } from "@/components/workflow/workflow-summary-styles";
+import { cn } from "@/lib/utils";
 import { FormSectionSummaryCard, type FormSectionSummarySource } from "@/components/sections/form-section-summary-card";
 
 interface AssetFormSectionReaderProps {
@@ -60,8 +62,11 @@ export function AssetFormSectionReader({
   const doneAction = isAnswering ? (
     <HuemulButton
       variant="outline"
-      size="xs"
+      size="sm"
       icon={Eye}
+      iconPosition="right"
+      iconClassName="h-[13px] w-[13px]"
+      className={cn(SUMMARY_ACTION_BUTTON_CLASS, SUMMARY_ACTION_STYLES.edit)}
       loading={isSaving}
       disabled={isSaving}
       label={isSaving ? t("common:saving") : t("sections:form.fill.doneEditing")}

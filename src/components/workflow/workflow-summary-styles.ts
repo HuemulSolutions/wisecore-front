@@ -27,6 +27,10 @@ export const SUMMARY_FOOTER_TEXT_STYLES: Record<"success" | "danger" | "muted", 
   muted: "text-[#64748b]",
 };
 
+/** Tamaño/tipografía del botón del pie de la tarjeta — compartido por el botón de acción y por
+ *  cualquier botón que lo reemplace (ej. "Dejar de editar" en assets). */
+export const SUMMARY_ACTION_BUTTON_CLASS = "h-[30px] rounded-[7px] px-[12px] text-[12.5px] font-semibold";
+
 export type WorkflowSummaryActionKind = "answer" | "edit" | "view";
 
 export const SUMMARY_ACTION_ICONS: Record<WorkflowSummaryActionKind, LucideIcon> = {
