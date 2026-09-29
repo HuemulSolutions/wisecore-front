@@ -1,6 +1,11 @@
 /**
- * En una ruta de organización, el guard evalúa permisos (incluido `isOrgAdmin`)
- * solo cuando el contexto activo es de ESA organización.
+ * BASELINE · guard de rutas con permisos (docs/sso-frontend.md §5.3).
+ *
+ * - En una ruta de organización, el guard evalúa permisos (incluido `isOrgAdmin`)
+ *   solo cuando el contexto activo es de ESA organización.
+ * - `requireRootAdmin` abre la ruta con la pista `is_root_admin` del token de login.
+ *   El guard solo muestra la UI: la autorización real de las acciones de root es el
+ *   modo administrador (`X-Root-Elevation`), que el backend exige request por request.
  */
 import { Route, Routes } from 'react-router-dom'
 import { screen } from '@testing-library/react'
@@ -59,5 +64,41 @@ describe('ProtectedRoute · contexto de organización', () => {
     renderAuthTypesRoute('_', { session: rootSession })
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(screen.queryByText('auth types page')).not.toBeInTheDocument()
+  })
+})
+
+function renderGlobalAdminRoute(session: typeof orgAdminSession, org?: typeof orgAdminOfA) {
+  return renderWithProviders(
+    <Routes>
+      <Route
+        path="/global-admin"
+        element={
+          <ProtectedRoute requireRootAdmin redirectTo="/home">
+            <div>global admin page</div>
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/home" element={<div>home page</div>} />
+    </Routes>,
+    { session, org, route: '/global-admin' },
+  )
+}
+
+describe('ProtectedRoute · requireRootAdmin', () => {
+  it('el root admin entra con solo el token de login (sin organización activa)', async () => {
+    renderGlobalAdminRoute(rootSession)
+    expect(await screen.findByText('global admin page')).toBeInTheDocument()
+  })
+
+  it('un usuario común es redirigido', async () => {
+    renderGlobalAdminRoute(orgAdminSession)
+    expect(await screen.findByText('home page')).toBeInTheDocument()
+    expect(screen.queryByText('global admin page')).not.toBeInTheDocument()
+  })
+
+  it('el org admin no entra: ser admin de una organización no es ser root', async () => {
+    renderGlobalAdminRoute(orgAdminSession, orgAdminOfA)
+    expect(await screen.findByText('home page')).toBeInTheDocument()
+    expect(screen.queryByText('global admin page')).not.toBeInTheDocument()
   })
 })

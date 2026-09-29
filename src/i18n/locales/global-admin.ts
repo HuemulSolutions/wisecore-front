@@ -27,6 +27,15 @@ const translations = {
       es: "No hay permisos para acceder a la Configuración de Administración Global.",
     },
   },
+  // Modo administrador (docs/sso-frontend.md §2.1): sin él no se carga nada de esta pantalla.
+  adminMode: {
+    title: { en: "Admin mode required", es: "Se requiere el modo administrador" },
+    description: {
+      en: "Global Admin actions require verifying your identity with a code sent to your email. Admin mode lasts 30 minutes.",
+      es: "Las acciones de Administración Global requieren verificar tu identidad con un código enviado a tu correo. El modo administrador dura 30 minutos.",
+    },
+    enter: { en: "Enter admin mode", es: "Entrar al modo administrador" },
+  },
   // Sin bloque `toast` propio: ambas secciones ahora usan los hooks
   // compartidos (`useOrganizationMutations`, `useUserMutations`), cuyos
   // toasts salen de los namespaces `organizations`/`users` vía

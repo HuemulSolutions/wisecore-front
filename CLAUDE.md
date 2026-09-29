@@ -47,7 +47,7 @@ Existe una carpeta `ia context/` en la raíz del proyecto con guías de arquitec
 | Trabajar con campos calculados de formulario (`campo_calculado_formula` con expresión `@campo` / `campo_calculado_condicional`), su picker, validación o recálculo | `ia context/campos-calculados-en-formularios-guide.md` |
 | Agregar/tocar un `refetchInterval` (polling), o diagnosticar un endpoint que se sigue llamando sin parar tras fallar (5xx/network error) | `ia context/refetch-interval-polling-guide.md` |
 | Escribir o correr tests automatizados (vitest + Testing Library + msw), agregar un caso a un plan de pruebas baseline/target | `ia context/testing-guide.md` |
-| Tocar el login, la selección de organización, el SSO corporativo (Microsoft/Google) o la página de conexiones de autenticación | `docs/sso-frontend.md` (plan por fases y plan de pruebas) |
+| Tocar el login, la selección de organización, el SSO corporativo (Microsoft/Google), la página de conexiones de autenticación, el modo administrador o cualquier acción de root admin (`X-Root-Elevation`) | `docs/sso-frontend.md` (plan por fases y plan de pruebas) |
 
 Cuando una tarea involucra varias guías, leerlas todas antes de empezar.
 

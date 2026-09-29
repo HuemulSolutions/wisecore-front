@@ -4,15 +4,41 @@
  * Defaults pensados para el camino feliz del login por código de UNA organización.
  * Cada test sobreescribe lo que necesite con `server.use(...)`.
  */
-import { http } from 'msw'
+import { http, type HttpHandler, type HttpResponseResolver } from 'msw'
 
 import { backendUrl } from '@/config'
 import { makeLoginToken } from '@/test/jwt'
-import { activeUser, authFlow, ORG_A_ID } from '@/test/fixtures'
+import { activeUser, authFlow, ORG_A_ID, rootAdmin } from '@/test/fixtures'
 import { respondApiError, respondHttp400, respondOk } from '../respond'
 
 export const VALID_CODE = '123456'
 export const VALID_HANDOFF_CODE = 'handoff-ok'
+/** Token que devuelve el `verify` por defecto del modo administrador. */
+export const ROOT_ELEVATION_TOKEN = 'elevation-token-ok'
+
+/**
+ * Endpoint solo-root (docs/sso-frontend.md §2.1): sin `X-Root-Elevation` válido responde
+ * 403 `ROOT_ELEVATION_REQUIRED`, como `require_root_admin` del backend; con él, delega en
+ * `resolver`.
+ */
+export function rootOnlyHandler(
+  method: 'get' | 'post' | 'put' | 'patch' | 'delete',
+  path: string,
+  resolver: HttpResponseResolver,
+): HttpHandler {
+  return http[method](`${backendUrl}${path}`, (info) => {
+    if (info.request.headers.get('X-Root-Elevation') !== ROOT_ELEVATION_TOKEN) {
+      return respondApiError(
+        403,
+        'ROOT_ELEVATION_REQUIRED',
+        'Root admin mode required',
+        'Verify your identity with an email code to perform root admin actions.',
+        `/api/v1${path}`,
+      )
+    }
+    return resolver(info)
+  })
+}
 
 /** Códigos de handoff ya canjeados: el backend los acepta una sola vez. */
 export const consumedHandoffCodes = new Set<string>()
@@ -29,6 +55,21 @@ export function loginTokenFor(overrides: Record<string, unknown> = {}): string {
 }
 
 export const authHandlers = [
+  // Modo administrador: camino feliz de un root activo.
+  http.post(`${backendUrl}/auth/root-elevation/code`, () =>
+    respondOk({ message: 'Verification code sent to your email.', email: rootAdmin.email, expires_at: '2026-01-01T00:15:00Z' }),
+  ),
+  http.post(`${backendUrl}/auth/root-elevation/verify`, async ({ request }) => {
+    const body = (await request.json()) as { code?: string }
+    if (body.code !== VALID_CODE) {
+      return respondHttp400('Invalid code.')
+    }
+    return respondOk({ elevation_token: ROOT_ELEVATION_TOKEN, expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() })
+  }),
+  http.get(`${backendUrl}/auth/root-elevation/status`, () =>
+    respondOk({ is_root_admin: false, elevated: false, expires_at: null }),
+  ),
+
   http.post(`${backendUrl}/auth/codes`, async ({ request }) => {
     const body = (await request.json()) as { email?: string; purpose?: string }
     if (body.purpose === 'signup') {
