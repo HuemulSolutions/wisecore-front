@@ -45,6 +45,7 @@ la pantalla, y agrega la regla de idioma para textos nuevos.
 | Un link para compartir a pantalla completa sin header/nav | `ia context/fullscreen-share-route-guide.md` |
 | Una entidad plana agrupada en carpetas dentro de una tabla, con drag & drop | `ia context/tabla-agrupada-drag-and-drop-guide.md` |
 | Tooltips, ayudas contextuales al hover, o texto recortado (`truncate`/`line-clamp`) | `ia context/tooltip-guide.md` |
+| Sheet/dialog/panel que carga datos (abrir al instante con skeleton) | `ia context/sheet-instant-open-skeleton-guide.md` |
 
 Si la tarea toca varias filas, leé todas las guías que apliquen antes de
 empezar — es la misma regla que ya establece CLAUDE.md, esta tabla solo la

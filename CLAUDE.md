@@ -44,6 +44,7 @@ Existe una carpeta `ia context/` en la raíz del proyecto con guías de arquitec
 | Redactar un pedido de cambio o reporte de bug para el equipo de backend | `ia context/backend-change-request-guide.md` |
 | Configurar, disparar o auditar la elaboración externa del ciclo de vida (step `edit` procesado por un sistema externo) | `ia context/elaboracion-externa-guide.md` |
 | Agregar un tooltip, ayuda contextual al pasar el mouse, o texto recortado (`truncate`/`line-clamp`) que deba mostrar su contenido completo | `ia context/tooltip-guide.md` |
+| Abrir un sheet/dialog/panel lateral que carga datos del backend (apertura instantánea con skeleton, deep-link, prefetch, `bodyLoading`) | `ia context/sheet-instant-open-skeleton-guide.md` |
 | Trabajar con campos calculados de formulario (`campo_calculado_formula` con expresión `@campo` / `campo_calculado_condicional`), su picker, validación o recálculo | `ia context/campos-calculados-en-formularios-guide.md` |
 | Agregar/tocar un `refetchInterval` (polling), o diagnosticar un endpoint que se sigue llamando sin parar tras fallar (5xx/network error) | `ia context/refetch-interval-polling-guide.md` |
 | Escribir o correr tests automatizados (vitest + Testing Library + msw), agregar un caso a un plan de pruebas baseline/target | `ia context/testing-guide.md` |
@@ -74,6 +75,7 @@ El nuevo archivo debe seguir la misma estructura que los existentes:
 - Los layouts de página usan `HuemulPageLayout`; no crear estructuras de layout ad-hoc.
 - Toda superficie que muestre datos provenientes del backend debe ofrecer un botón de refresh para recargarlos (`PageHeader` en páginas, toolbar strip en tabs/paneles). Exentos: comboboxes/selects/catálogos de formularios. Ver `ia context/refresh-button-guide.md`.
 - Todo tooltip es el atributo `title=` nativo de HTML. No existe primitivo Radix Tooltip en el repo. Ver `ia context/tooltip-guide.md`.
+- Todo sheet/dialog/panel que dependa de datos del backend se abre al instante y muestra un skeleton en el cuerpo (`bodyLoading={isLoading}`); nunca condicionar `open`/montaje a que existan datos ni mostrar spinner suelto o estado vacío falso. Ver `ia context/sheet-instant-open-skeleton-guide.md`.
 - Los tipos compartidos van en `src/types/`; los tipos locales de un solo componente se pueden mantener en el archivo.
 - Todo cambio en `src/` debe dejar `npm run test` verde; los tests nuevos siguen `ia context/testing-guide.md`.
 - Al terminar una tarea que modificó archivos, proponer un mensaje de commit (español, corto, estilo del historial reciente vía `git log`). No ejecutar el commit salvo pedido explícito.
