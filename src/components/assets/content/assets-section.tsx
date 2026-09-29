@@ -37,6 +37,7 @@ import { useTranslation } from 'react-i18next';
 import { AssetFormSection, type AssetFormSectionHandle } from '@/components/assets/content/asset-form-section';
 import { AssetFormSectionReader } from '@/components/assets/content/asset-form-section-reader';
 import { useOverflowTitle } from '@/hooks/useOverflowTitle';
+import { sectionsConfigQueryOptions } from '@/components/assets/content/components/section-definition-query';
 import { SectionDefinitionSheet } from '@/components/assets/content/components/section-definition-sheet';
 import { SectionBarButton, SectionBarDivider } from '@/components/assets/content/components/section-bar-button';
 import {
@@ -181,6 +182,12 @@ function SectionExecutionInner({
     // Editar la definición (nombre, prompt, dependencias…) aplica a todos los tipos, incluida reference:
     // mismo criterio que el sheet global de Secciones. Requiere la definición viva (section_id).
     const canEditDefinition = canEditSections && !isExecutionApproved && !!sectionExecution.section_id && !!documentId;
+    // La definición completa sale de sections_config: se precalienta al acercar el cursor/foco al
+    // botón (o al abrir el menú móvil) para que el sheet aparezca ya con el formulario listo.
+    const prefetchDefinition = () => {
+        if (!canEditDefinition || !documentId || !selectedOrganizationId) return;
+        void queryClient.prefetchQuery(sectionsConfigQueryOptions(documentId, selectedOrganizationId, executionId));
+    };
 
     // Check if there's an execution in progress. 'approving' no cuenta como
     // "en progreso de generación": la sección ya terminó, solo falta aprobar.
@@ -733,6 +740,7 @@ function SectionExecutionInner({
                                                         icon={SlidersHorizontal}
                                                         tooltip={t('section.editDefinition')}
                                                         onClick={() => setIsDefinitionSheetOpen(true)}
+                                                        onPrefetch={prefetchDefinition}
                                                     />
                                                 )}
                                             </div>
@@ -807,7 +815,7 @@ function SectionExecutionInner({
 
                         {/* Mobile: Dropdown Menu */}
                         {isMobile && (
-                            <DropdownMenu>
+                            <DropdownMenu onOpenChange={(isOpen) => { if (isOpen) prefetchDefinition(); }}>
                                 <DropdownMenuTrigger asChild>
                                     <button
                                         type="button"

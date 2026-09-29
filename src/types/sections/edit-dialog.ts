@@ -17,4 +17,6 @@ export interface EditSectionDialogProps {
   executionId?: string;
   /** Nombre del contenedor (plantilla/activo) — arma el subtítulo dinámico del sheet. */
   containerName?: string;
+  /** La definición aún se está cargando: el sheet abre ya, con skeleton en el cuerpo y guardar deshabilitado. */
+  loading?: boolean;
 }

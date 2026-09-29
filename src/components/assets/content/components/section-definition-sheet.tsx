@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -6,9 +6,8 @@ import { EditSectionDialog } from '@/components/sections/sections-edit-sheet';
 import { useOrganization } from '@/contexts/organization-context';
 import { useInvalidateDocumentSectionAccess } from '@/hooks/useDocumentSectionAccess';
 import { handleApiError } from '@/lib/error-utils';
-import { getDocumentSectionsConfig } from '@/services/assets';
+import { sectionsConfigQueryOptions } from '@/components/assets/content/components/section-definition-query';
 import { updateSection } from '@/services/section';
-import type { SectionsConfigResponse } from '@/types/assets';
 import type { EditFormItem, EditFormItemForBackend } from '@/types/sections';
 
 interface SectionDefinitionSheetProps {
@@ -40,12 +39,18 @@ export function SectionDefinitionSheet({
   const { selectedOrganizationId } = useOrganization();
   const invalidateSectionAccess = useInvalidateDocumentSectionAccess();
 
-  const { data: config } = useQuery<SectionsConfigResponse>({
-    queryKey: ['document-sections-config', documentId, executionId ?? null],
-    queryFn: () => getDocumentSectionsConfig(documentId, selectedOrganizationId!, executionId),
+  const { data: config, error: loadError } = useQuery({
+    ...sectionsConfigQueryOptions(documentId, selectedOrganizationId!, executionId),
     enabled: open && !!documentId && !!selectedOrganizationId,
-    staleTime: 30000,
   });
+
+  // Sin la definición no hay nada que editar: cerrar en vez de dejar el skeleton eterno.
+  useEffect(() => {
+    if (open && loadError) {
+      handleApiError(loadError);
+      onOpenChange(false);
+    }
+  }, [open, loadError, onOpenChange]);
 
   const sections = useMemo(
     () => [...(config?.sections ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
@@ -71,14 +76,18 @@ export function SectionDefinitionSheet({
     onError: (error) => handleApiError(error),
   });
 
-  // El form inicializa su estado desde `item` al montar: se monta recién con la definición cargada.
-  if (!open || !item) return null;
+  if (!open) return null;
+
+  // El sheet abre al instante con skeleton; el form (que inicializa su estado desde `item` al
+  // montar) se monta recién cuando la definición llegó — EditSectionDialog lo oculta con `loading`.
+  const placeholder: EditFormItem = { id: sectionId, name: '', prompt: '', order: 0, dependencies: [] };
 
   return (
     <EditSectionDialog
       open={open}
       onOpenChange={onOpenChange}
-      item={item as unknown as EditFormItem}
+      loading={!item}
+      item={item ? (item as unknown as EditFormItem) : placeholder}
       onSave={(data) => updateMutation.mutate(data)}
       existingSections={sections as never}
       hasTemplate={!!templateId}

@@ -1,4 +1,4 @@
-import { http } from 'msw'
+import { http, delay } from 'msw'
 import { screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -49,6 +49,19 @@ describe('SectionDefinitionSheet', () => {
     server.use(http.get(`${backendUrl}/documents/${DOC_ID}/sections_config`, () => respondOk(sectionsConfig)))
     renderSheet(true)
     expect(await screen.findByText('Configure section')).toBeInTheDocument()
+    expect(await screen.findByDisplayValue('Alcance del proyecto')).toBeInTheDocument()
+  })
+
+  it('abre al instante con skeleton: el sheet aparece antes de que llegue la definición', async () => {
+    server.use(
+      http.get(`${backendUrl}/documents/${DOC_ID}/sections_config`, async () => {
+        await delay(400)
+        return respondOk(sectionsConfig)
+      }),
+    )
+    renderSheet(true)
+    expect(await screen.findByText('Configure section')).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('Alcance del proyecto')).not.toBeInTheDocument()
     expect(await screen.findByDisplayValue('Alcance del proyecto')).toBeInTheDocument()
   })
 })

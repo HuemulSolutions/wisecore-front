@@ -16,6 +16,8 @@ interface SectionBarButtonProps {
   tooltip: string;
   disabled?: boolean;
   onClick?: () => void;
+  /** Precalentar datos antes del click (hover con mouse / foco con teclado). */
+  onPrefetch?: () => void;
   className?: string;
   iconClassName?: string;
   /** Adornos posicionados sobre el botón (ej. punto de sugerencia IA). */
@@ -33,6 +35,7 @@ export function SectionBarButton({
   tooltip,
   disabled = false,
   onClick,
+  onPrefetch,
   className,
   iconClassName,
   children,
@@ -44,6 +47,8 @@ export function SectionBarButton({
       aria-label={tooltip}
       disabled={disabled}
       onClick={onClick}
+      onPointerEnter={onPrefetch}
+      onFocus={onPrefetch}
       className={cn(
         'relative inline-flex h-[30px] min-w-[30px] shrink-0 items-center justify-center gap-1.5 rounded-[7px] border-0 text-[12.5px] font-semibold transition-colors hover:cursor-pointer',
         disabled ? SECTION_BAR_DISABLED_CLASS : SECTION_BAR_TONE_CLASS[tone],

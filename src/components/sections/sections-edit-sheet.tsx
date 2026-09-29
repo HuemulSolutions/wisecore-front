@@ -23,6 +23,7 @@ export function EditSectionDialog({
   templateId,
   executionId,
   containerName,
+  loading = false,
 }: EditSectionDialogProps) {
   const [isFormValid, setIsFormValid] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -91,11 +92,12 @@ export function EditSectionDialog({
       cancelLabel={t("common:cancel")}
       onCancel={handleCancel}
       maxWidth="w-full sm:max-w-[860px]"
+      bodyLoading={loading}
       footerLeft={<span className="text-xs text-[#64748b]">{t("sections:form.propagate.footerNote")}</span>}
       saveAction={{
         label: isGenerating ? t("sections:editDialog.generating") : t("sections:editDialog.save"),
         icon: Edit3,
-        disabled: !isFormValid || isGenerating,
+        disabled: loading || !isFormValid || isGenerating,
         closeOnSuccess: false,
         onClick: () => {
           (document.getElementById("edit-section-form") as HTMLFormElement)?.requestSubmit();

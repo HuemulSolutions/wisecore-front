@@ -27,6 +27,16 @@ describe('SectionBarButton', () => {
     expect(onClick).toHaveBeenCalledTimes(1)
   })
 
+  it('dispara onPrefetch al hacer hover y al enfocar', async () => {
+    const onPrefetch = vi.fn()
+    render(<SectionBarButton tone="secondary" icon={Play} tooltip="Definición" onPrefetch={onPrefetch} />)
+    const button = screen.getByRole('button', { name: 'Definición' })
+    await userEvent.hover(button)
+    expect(onPrefetch).toHaveBeenCalledTimes(1)
+    button.focus()
+    expect(onPrefetch).toHaveBeenCalledTimes(2)
+  })
+
   it('deshabilitado: no dispara onClick y el title vive en un span envolvente', async () => {
     const onClick = vi.fn()
     render(<SectionBarButton tone="primary" icon={Play} tooltip="En progreso" disabled onClick={onClick} />)
