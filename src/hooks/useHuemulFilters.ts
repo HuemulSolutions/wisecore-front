@@ -161,7 +161,9 @@ export function useHuemulFilters({
         }
         case 'async-combobox': {
           if (Array.isArray(value)) {
-            label = `${def.label}: ${(value as string[]).join(', ')}`
+            // Los nombres los cachea el panel al elegir; con un valor venido de la URL (sin
+            // nombre todavía) se muestran los ids hasta que el usuario toque el filtro.
+            label = `${def.label}: ${selectedLabels[def.key] ?? (value as string[]).join(', ')}`
           } else {
             const resolved = selectedLabels[def.key]
             label = `${def.label}: ${resolved ?? value}`

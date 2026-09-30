@@ -1,7 +1,19 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { toDateParam } from "@/lib/date-params";
-import type { SearchType, SearchResultSection, SearchResultExecution, ServiceSearchResultDocument, SearchResponse, SearchParams } from "@/types/search";
+import type {
+    SearchType,
+    SearchResultSection,
+    SearchResultExecution,
+    ServiceSearchResultDocument,
+    SearchResponse,
+    SearchParams,
+    SearchPassagesParams,
+    SearchPassagesResponse,
+    SearchFeedbackRequest,
+    SearchLogFeedbackItem,
+    SearchLogsResponse,
+} from "@/types/search";
 
 export type { SearchType, SearchResultSection, SearchResultExecution, ServiceSearchResultDocument as SearchResultDocument, SearchResponse, SearchParams };
 
@@ -72,4 +84,75 @@ export async function search({
     });
     const data: SearchResponse = await response.json();
     return data;
+}
+
+/**
+ * Búsqueda por pasajes (`GET /search/passages`): híbrida (significado + palabras + código y
+ * nombre del activo) y, con `highPrecision`, reordenada por el LLM de rerank de la
+ * organización (503 RERANK_LLM_NOT_CONFIGURED si no hay uno marcado).
+ */
+export async function searchPassages({
+    organizationId,
+    query,
+    topK = 12,
+    versionScope = 'official',
+    lifecycleStates,
+    documentTypeIds,
+    templateId,
+    ownerScope,
+    customFieldFilter,
+    searchIn,
+    highPrecision = false,
+}: SearchPassagesParams): Promise<SearchPassagesResponse> {
+    const params = new URLSearchParams();
+    params.set('query', query);
+    params.set('top_k', String(topK));
+    params.set('version_scope', versionScope);
+    params.set('high_precision', String(highPrecision));
+    lifecycleStates?.forEach((state) => params.append('lifecycle_state', state));
+    documentTypeIds?.forEach((id) => params.append('document_type_id', id));
+    if (templateId) params.set('template_id', templateId);
+    if (ownerScope) params.set('owner_scope', ownerScope);
+    customFieldFilter?.forEach((f) => params.append('custom_field_filter', f));
+    searchIn?.forEach((scope) => params.append('search_in', scope));
+
+    const response = await httpClient.get(`${backendUrl}/search/passages?${params.toString()}`, {
+        headers: { 'X-Org-Id': organizationId },
+    });
+    const data = await response.json();
+    return data.data as SearchPassagesResponse;
+}
+
+/** Feedback útil / no útil sobre un pasaje o sobre la búsqueda completa. */
+export async function createSearchFeedback(organizationId: string, body: SearchFeedbackRequest): Promise<{ id: string }> {
+    const response = await httpClient.post(`${backendUrl}/search/feedback`, body, {
+        headers: { 'X-Org-Id': organizationId },
+    });
+    const data = await response.json();
+    return data.data;
+}
+
+/** Búsquedas registradas, las más recientes primero (solo org admins). */
+export async function getSearchLogs(
+    organizationId: string,
+    { page = 1, pageSize = 50, onlyWithFeedback = false }: { page?: number; pageSize?: number; onlyWithFeedback?: boolean } = {},
+): Promise<SearchLogsResponse> {
+    const params = new URLSearchParams({
+        page: String(page),
+        page_size: String(pageSize),
+        only_with_feedback: String(onlyWithFeedback),
+    });
+    const response = await httpClient.get(`${backendUrl}/search/logs?${params.toString()}`, {
+        headers: { 'X-Org-Id': organizationId },
+    });
+    return response.json();
+}
+
+/** Feedback registrado para una búsqueda (solo org admins). */
+export async function getSearchLogFeedback(organizationId: string, searchLogId: string): Promise<SearchLogFeedbackItem[]> {
+    const response = await httpClient.get(`${backendUrl}/search/logs/${searchLogId}/feedback`, {
+        headers: { 'X-Org-Id': organizationId },
+    });
+    const data = await response.json();
+    return (data.data ?? []) as SearchLogFeedbackItem[];
 }
