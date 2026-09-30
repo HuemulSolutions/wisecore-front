@@ -373,6 +373,45 @@ export function lifecycleStageTone(stage: string | null | undefined): StageToneC
   return STAGE_TONE_CLASSES[(stage && LIFECYCLE_STAGE_HUE[stage]) || FALLBACK_HUE]
 }
 
+export interface PhaseBlockClasses {
+  /** Fondo + borde del bloque de fase del header. */
+  container: string
+  /** Texto del nombre del grupo. */
+  text: string
+  /** Punto de 7px. */
+  dot: string
+  /** Separador vertical entre la fase y el botón principal. */
+  divider: string
+}
+
+/** Bloque "grupo · fase" del header de assets. `edit` y `review` llevan los hex del diseño; el resto sigue el mismo patrón 50/200/700/600/300. */
+const PHASE_BLOCK_CLASSES: Record<string, PhaseBlockClasses> = {
+  blue: {
+    container: "bg-[#eff5ff] border-[#cfe0fd]",
+    text: "text-[#1d4ed8]",
+    dot: "bg-[#2563eb]",
+    divider: "bg-[#93c5fd]",
+  },
+  amber: {
+    container: "bg-[#fffbeb] border-[#fde68a]",
+    text: "text-[#b45309]",
+    dot: "bg-[#d97706]",
+    divider: "bg-[#fcd34d]",
+  },
+  slate: { container: "bg-slate-50 border-slate-200", text: "text-slate-700", dot: "bg-slate-600", divider: "bg-slate-300" },
+  violet: { container: "bg-violet-50 border-violet-200", text: "text-violet-700", dot: "bg-violet-600", divider: "bg-violet-300" },
+  teal: { container: "bg-teal-50 border-teal-200", text: "text-teal-700", dot: "bg-teal-600", divider: "bg-teal-300" },
+  green: { container: "bg-green-50 border-green-200", text: "text-green-700", dot: "bg-green-600", divider: "bg-green-300" },
+  stone: { container: "bg-stone-50 border-stone-200", text: "text-stone-700", dot: "bg-stone-600", divider: "bg-stone-300" },
+  gray: { container: "bg-gray-50 border-gray-200", text: "text-gray-700", dot: "bg-gray-600", divider: "bg-gray-300" },
+}
+
+/** Clases del bloque de fase del header según `LifecycleStatus.stage`. */
+export function lifecycleStagePhaseBlock(stage: string | null | undefined): PhaseBlockClasses {
+  const hue = (stage && LIFECYCLE_STAGE_HUE[stage]) || FALLBACK_HUE
+  return PHASE_BLOCK_CLASSES[hue] ?? PHASE_BLOCK_CLASSES[FALLBACK_HUE]
+}
+
 /** Tono genérico (para casos como "Devolver a", que es advertencia y no una etapa del dominio). */
 export function toneStyle(hue: ColorHue): StageToneClasses {
   return STAGE_TONE_CLASSES[hue]

@@ -22,6 +22,8 @@ export interface ContextSheetProps {
   /** `isExternalElaborationLocked(documentContent?.lifecycle_status)` del caller — ver ia context/elaboracion-externa-guide.md. */
   isExternalElaborationLocked?: boolean
   showTrigger?: boolean
+  /** Reemplaza las clases del trigger en desktop (el header de assets lo usa para el estilo azul de la barra de herramientas). */
+  triggerClassName?: string
 }
 
 // ----------------------------------------
@@ -44,6 +46,8 @@ export interface DependenciesSheetProps {
   /** `isExternalElaborationLocked(documentContent?.lifecycle_status)` del caller — ver ia context/elaboracion-externa-guide.md. */
   isExternalElaborationLocked?: boolean
   showTrigger?: boolean
+  /** Reemplaza las clases del trigger en desktop (el header de assets lo usa para el estilo azul de la barra de herramientas). */
+  triggerClassName?: string
 }
 
 // ----------------------------------------
@@ -132,6 +136,8 @@ export interface SectionSheetProps {
   /** `isExternalElaborationLocked(documentContent?.lifecycle_status)` del caller — ver ia context correspondiente. */
   isExternalElaborationLocked?: boolean
   showTrigger?: boolean
+  /** Reemplaza las clases del trigger en desktop (el header de assets lo usa para el estilo azul de la barra de herramientas). */
+  triggerClassName?: string
 }
 
 export interface SectionsConfigExecution {

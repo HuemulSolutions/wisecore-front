@@ -151,14 +151,22 @@ export interface LifecycleActionsController {
 
 export interface HuemulLifecycleActionsProps {
   controller: LifecycleActionsController
-  /** `compact` = pill row inside a shaded box (mobile header); `row` = plain inline row (desktop metadata row / panels). */
-  variant?: 'compact' | 'row'
+  /**
+   * `compact` = pill row inside a shaded box (mobile header); `row` = plain inline row (desktop metadata row / panels);
+   * `header` = solo acciones secundarias en ghost (header desktop de assets) — Completar/Publicar viven en `HuemulLifecyclePhaseBlock`.
+   */
+  variant?: 'compact' | 'row' | 'header'
   /** Render the "re-lanzar publish externo" button inline. Assets' desktop row hides it behind the more-options dropdown instead. */
   showRerunExternalPublish?: boolean
   /** Render el botón de disparo manual de elaboración externa. Omitir donde la superficie no lo ofrece (ej. WorkflowDetailPanel). Default false. */
   showRunElaboration?: boolean
   /** Oculta el botón "Completar" (status.can_advance) aunque el permiso lo habilite — para superficies que ya lo ofrecen en otro lugar (ej. footer del wizard de /workflow). Default false. */
   hideComplete?: boolean
+  className?: string
+}
+
+export interface HuemulLifecyclePhaseBlockProps {
+  controller: LifecycleActionsController
   className?: string
 }
 

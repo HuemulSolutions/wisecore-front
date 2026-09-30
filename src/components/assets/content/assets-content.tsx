@@ -66,6 +66,9 @@ import { getDefaultLLM } from "@/services/llms";
 import { useLifecycleActions } from "@/hooks/useLifecycleActions";
 import { HuemulLifecycleStageBadge } from "@/huemul/components/huemul-lifecycle-stage-badge";
 import { HuemulLifecycleActions } from "@/huemul/components/huemul-lifecycle-actions";
+import { HuemulLifecyclePhaseBlock } from "@/huemul/components/huemul-lifecycle-phase-block";
+import { Separator } from "@/components/ui/separator";
+import { useUnreadNotificationsCount } from "@/hooks/useUnreadNotificationsCount";
 import { HuemulLifecycleSheets } from "@/huemul/components/huemul-lifecycle-sheets";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { getTemplateById } from "@/services/templates";
@@ -176,6 +179,13 @@ const ASSET_HISTORY_TABS: AssetHistoryTab[] = ['lifecycle', 'changes'];
  */
 const ASSET_CONTENT_LAYOUT_ID = "asset-content-layout";
 
+/** Fila 3 del header (modo Editor): botones de texto azules (Secciones / Dependencias / Contexto). */
+const TOOLBAR_TEXT_BUTTON =
+  "h-[30px] gap-1.5 rounded-md px-2.5 text-[13px] font-[550] text-blue-700 hover:bg-blue-50 hover:text-blue-700 hover:cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-blue-500/40 [&_svg]:size-[15px]!";
+/** Fila 3 del header: botones de icono del grupo segmentado de la derecha. */
+const TOOLBAR_ICON_BUTTON =
+  "h-7 w-[30px] rounded-md p-0 text-slate-600 hover:bg-white hover:text-slate-900 hover:cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-blue-500/40";
+
 export function AssetContent({
   selectedFile,
   selectedExecutionId,
@@ -208,6 +218,7 @@ export function AssetContent({
   const { ref: desktopHeaderRef, width: desktopHeaderWidth } = useElementWidth<HTMLDivElement>();
   const isDesktopHeaderNarrow = desktopHeaderWidth > 0 && desktopHeaderWidth < 640;
   const { selectedOrganizationId } = useOrganization();
+  const unreadNotificationsCount = useUnreadNotificationsCount(selectedOrganizationId);
   const { canCreate, canList, canUpdate, canDelete, canAccessTemplates, canAccessAssets, canAccessDiagrams, isOrgAdmin, hasPermission } = useUserPermissions();
   const { can } = usePageAccess('asset');
   const { can: canMedia } = usePageAccess('media');
@@ -2709,357 +2720,347 @@ export function AssetContent({
           </div>
         )}
         
-        {/* Header Section */}
+        {/* Header Section — 3 filas pegadas arriba del contenido: título/acciones, versión/ciclo de vida y (solo Editor) barra de herramientas. */}
         {!isMobile && !isContentError && (
-        <div ref={desktopHeaderRef} className="bg-white border-b border-gray-200 shadow-sm py-3 px-5 md:px-6 z-(--z-page-header) shrink-0" data-desktop-header>
-          <div className="space-y-2.5">
-            {/* Title and Type Section */}
-            {!isMobile && (
-              <div className="flex items-start justify-between gap-4">
-                {isLoadingContent && !documentContent ? (
-                  <div className="flex flex-col gap-2 flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2.5">
-                      <Skeleton className="h-6 w-52" />
-                      <div className="flex items-center gap-2">
-                        <Skeleton className="h-7 w-7 rounded-full" />
-                        <Skeleton className="h-7 w-7 rounded-full" />
-                        <Skeleton className="h-7 w-24 rounded-lg" />
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <Skeleton className="h-3.5 w-28" />
-                        <Skeleton className="h-7 w-24 rounded-lg" />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Skeleton className="h-3.5 w-20" />
-                        <Skeleton className="h-4 w-14 rounded" />
-                      </div>
-                    </div>
+        <div ref={desktopHeaderRef} className="bg-white border-b border-slate-200 shadow-[0_6px_16px_-14px_rgba(15,23,42,0.3)] z-(--z-page-header) shrink-0" data-desktop-header>
+          {isLoadingContent && !documentContent ? (
+            <>
+              <div className="flex items-center gap-3 pt-[18px] pr-5 pl-6">
+                <Skeleton className="h-[22px] w-16 rounded-md" />
+                <Skeleton className="h-6 w-52 flex-1 max-w-xs" />
+                <div className="ml-auto flex items-center gap-1">
+                  <Skeleton className="h-8 w-44 rounded-[9px]" />
+                  <Skeleton className="h-8 w-8 rounded-lg" />
+                  <Skeleton className="h-8 w-8 rounded-lg" />
+                  <Skeleton className="h-8 w-8 rounded-lg" />
+                </div>
+              </div>
+              <div className="flex items-center gap-3 pt-3 pb-4 pr-5 pl-6">
+                <Skeleton className="h-8 w-56 rounded-lg" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="ml-auto h-8 w-64 rounded-lg" />
+              </div>
+            </>
+          ) : (
+            <div className="animate-in fade-in duration-300">
+              {/* Fila 1 — código + título + acciones */}
+              <div className="flex items-center gap-3 pt-[18px] pr-5 pl-6">
+                <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                  {documentContent?.internal_code && (
+                    <span className="inline-flex h-[22px] shrink-0 items-center rounded-md bg-slate-100 px-[7px] font-mono text-[11.5px] font-semibold text-slate-600">
+                      {documentContent.internal_code}
+                    </span>
+                  )}
+                  <HuemulTruncatedText
+                    as="h1"
+                    text={documentContent?.document_name || selectedFile.name}
+                    className="cursor-default text-[18px] font-[650] tracking-[-0.015em] text-slate-900"
+                  />
+                  <HuemulButton
+                    requiredAccess="edit"
+                    checkGlobalPermissions={true}
+                    resource="asset"
+                    lifecyclePermissions={lifecyclePermissions}
+                    onClick={openEditDialog}
+                    size="sm"
+                    variant="ghost"
+                    icon={Pencil}
+                    iconClassName="h-3.5 w-3.5"
+                    aria-label={t('content.editDocument')}
+                    tooltip={t('content.editDocument')}
+                    className="h-7 w-7 shrink-0 p-0 text-slate-400 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                  />
+                </div>
+                {/* Mismo orden siempre (memoria muscular): modo, comentarios, notificaciones, menú, pantalla completa. */}
+                <div className="flex shrink-0 items-center gap-0.5">
+                  {canSwitchToEditorMode && (
+                    <ViewModeToggle
+                      isViewMode={isViewMode}
+                      onSwitchToReader={() => { preserveScrollPosition(); setIsViewMode(true); }}
+                      onSwitchToEditor={() => { preserveScrollPosition(); setIsViewMode(false); }}
+                      compact={isDesktopHeaderNarrow}
+                    />
+                  )}
+                  {canSwitchToEditorMode && (canListDiscussions || canListNotifications || !isViewOnly || !!(onOpenFullscreen || onExitFullscreen)) && (
+                    <Separator orientation="vertical" className="mx-2 h-5 bg-slate-200" />
+                  )}
+                  {canListDiscussions && (
+                    <HuemulButton
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 gap-1.5 rounded-lg px-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-500/40 transition-colors hover:cursor-pointer"
+                      aria-label={t('content.discussions.commentsTooltip')}
+                      tooltip={t('content.discussions.commentsTooltip')}
+                      onClick={() => setIsDiscussionsSheetOpen(true)}
+                    >
+                      <MessageSquareText className="h-4 w-4" />
+                      {openDiscussionsCount > 0 && (
+                        <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-blue-50 px-1 text-[11px] font-bold text-blue-700">
+                          {openDiscussionsCount}
+                        </span>
+                      )}
+                    </HuemulButton>
+                  )}
+                  {canListNotifications && (
+                    <HuemulButton
+                      size="sm"
+                      variant="ghost"
+                      className="relative h-8 w-8 p-0 text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-500/40 transition-colors hover:cursor-pointer"
+                      aria-label={t('content.notificationsTooltip')}
+                      tooltip={t('content.notificationsTooltip')}
+                      onClick={() => setIsNotificationsSheetOpen(true)}
+                    >
+                      <Bell className="h-4 w-4" />
+                      {unreadNotificationsCount > 0 && (
+                        <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-2 ring-white" aria-hidden="true" />
+                      )}
+                    </HuemulButton>
+                  )}
+                  {!isViewOnly && (
+                    <MoreOptionsDropdown
+                      isViewMode={isViewMode}
+                      dropdownAlign="end"
+                      lifecyclePermissions={lifecyclePermissions}
+                      frontendPermissions={frontendPermissions}
+                      lifecycleStatus={documentContent?.lifecycle_status}
+                      finalLifecycleStage={lifecycle.finalLifecycleStage}
+                      selectedExecutionId={selectedExecutionId}
+                      selectedVersionLabel={getExecutionCompactLabel(selectedExecutionInfo)}
+                      hasTemplateName={!!documentContent?.template_name}
+                      canCreateTemplate={canCreate('template')}
+                      canManageGrants={can('manageAssetLifecycleGrants')}
+                      canCloneVersion={can('createVersion')}
+                      canExportVersion={can('exportVersion')}
+                      canDeleteVersion={can('deleteVersion')}
+                      isRefreshing={isRefreshingContent}
+                      isLoadingContent={isLoadingContent}
+                      hasTocItems={!!documentContent?.content}
+                      isDocumentType={selectedFile.type === 'document'}
+                      hasDocumentContent={!!documentContent?.content}
+                      isTocSidebarOpen={isTocSidebarOpen}
+                      canCompareVersions={selectedFile.type === 'document' && allExecutions?.length > 1}
+                      onCompareVersions={() => setIsVersionCompareSheetOpen(true)}
+                      onRejectLifecycle={() => lifecycle.setIsRejectDialogOpen(true)}
+                      onCheckLifecycle={() => lifecycle.setIsCheckDialogOpen(true)}
+                      onPublish={() => lifecycle.setIsPublishDialogOpen(true)}
+                      onArchive={() => lifecycle.setIsArchiveDialogOpen(true)}
+                      onRestore={() => lifecycle.setIsRestoreDialogOpen(true)}
+                      onRefresh={handleRefreshContent}
+                      onToggleToc={() => setIsTocSidebarOpen((prev) => !prev)}
+                      onOpenInfo={() => setIsInfoSheetOpen(true)}
+                      onOpenLifecycleHistory={() => setIsLifecycleHistorySheetOpen(true)}
+                      isFullscreen={isFullscreen}
+                      onOpenFullscreen={isFullscreen ? onExitFullscreen : onOpenFullscreen}
+                      canAccessDiagrams={canAccessDiagrams}
+                      onOpenDiagrams={() => setIsDiagramsSheetOpen(true)}
+                      canAccessMedia={canMedia('listMedia')}
+                      onOpenMedia={() => { setMediaSheetScope(null); setIsMediaSheetOpen(true); }}
+                      onOpenPermissions={() => setIsPermissionsSheetOpen(true)}
+                      onOpenSections={() => setIsSectionSheetOpen(true)}
+                      onOpenDependencies={() => setIsDependenciesSheetOpen(true)}
+                      onOpenContext={() => setIsContextSheetOpen(true)}
+                      onClone={() => openCloneDialog()}
+                      onCloneToNew={() => openCloneToNewDocumentSheet()}
+                      onCreateTemplate={() => setIsCreateTemplateFromDocumentDialogOpen(true)}
+                      onExportMarkdown={handleExportMarkdown}
+                      onExportWord={handleExportWord}
+                      onExportCustomWord={handleExportCustomWord}
+                      onExportExcel={handleExportExcel}
+                      onExportVersion={handleExportVersion}
+                      onDeleteVersion={() => openDeleteDialog('execution')}
+                      onDeleteDocument={() => openDeleteDialog('document')}
+                      isRerunningExternalPublish={lifecycle.runExternalPublishMutation.isPending}
+                      onRerunExternalPublish={() => lifecycle.runExternalPublishMutation.mutate()}
+                    />
+                  )}
+                  {/* Botón de pantalla completa: en modo Editor vive en el toolbar (fila 3), acá sólo en modo Lector — es el único
+                      camino de entrada cuando el dropdown de arriba no se renderiza (isViewOnly) — ver ia context/fullscreen-share-route-guide.md */}
+                  {deferredViewChrome.isViewMode && (onOpenFullscreen || onExitFullscreen) && (
+                    <HuemulButton
+                      size="sm"
+                      variant="ghost"
+                      icon={isFullscreen ? Minimize : Maximize}
+                      iconClassName="h-4 w-4"
+                      className="h-8 w-8 p-0 text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-500/40 transition-colors hover:cursor-pointer"
+                      aria-label={isFullscreen ? t('content.exitFullscreen') : t('content.openFullscreen')}
+                      tooltip={isFullscreen ? t('content.exitFullscreen') : t('content.openFullscreen')}
+                      onClick={isFullscreen ? onExitFullscreen : onOpenFullscreen}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Fila 2 — versión + fecha + estados de proceso a la izquierda; acciones secundarias + fase/acción principal a la derecha */}
+              <div className="flex flex-wrap items-center gap-3 pt-3 pb-4 pr-5 pl-6">
+                {selectedFile.type === 'document' && allExecutions?.length > 0 && (
+                  <VersionSelectorDropdown
+                    allExecutions={allExecutions}
+                    selectedExecutionId={selectedExecutionId}
+                    documentExecutionId={documentContent?.execution_id}
+                    lifecyclePermissions={lifecyclePermissions}
+                    isCreatingPending={executeDocumentMutation.isPending}
+                    hasExecutionInProcess={hasExecutionInProcess}
+                    canGenerate={canGenerate}
+                    cannotGenerateReason={cannotGenerateReason}
+                    onCreateExecution={handleCreateExecutionFromHeader}
+                    onSelectExecution={(id) => guardedAction(() => {
+                      onPreserveScroll?.();
+                      setSelectedExecutionId(id);
+                      queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
+                      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, id] });
+                    })}
+                    onOpenVersionManagement={() => setIsVersionManagementSheetOpen(true)}
+                    onRenameVersion={frontendPermissions.canEditSections ? (exec) => {
+                      setExecutionToRename({ id: exec.id, name: exec.name });
+                      setTimeout(() => setIsRenameVersionDialogOpen(true), 0);
+                    } : undefined}
+                    dropdownAlign="start"
+                    isLatest={!!selectedExecutionInfo?.isLatest}
+                  />
+                )}
+                {selectedExecutionInfo && (
+                  <span className="inline-flex h-8 shrink-0 items-center gap-1.5 text-[12.5px] text-slate-500">
+                    <Clock className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
+                    {selectedExecutionInfo.formattedDate}
+                  </span>
+                )}
+                {hasExecutionInProcess && (
+                  <span className="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full bg-blue-50 px-2.5 text-xs font-semibold text-blue-700" role="status">
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-600" aria-hidden="true" />
+                    {t('content.generatingVersion')}
+                  </span>
+                )}
+                {isAssetLockedByExternalElaboration && (
+                  <span className="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full bg-amber-50 px-2.5 text-xs font-semibold text-amber-700" role="status">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-600" aria-hidden="true" />
+                    {t('content.externalElaborationRunning')}
+                  </span>
+                )}
+                <div className="flex-1" />
+                {documentContent?.lifecycle_status && (
+                  <>
+                    <HuemulLifecycleActions controller={lifecycle} variant="header" showRunElaboration />
+                    <HuemulLifecyclePhaseBlock controller={lifecycle} />
+                  </>
+                )}
+              </div>
+
+              {/* Fila 3 — barra de herramientas, solo en modo Editor. Cuelga de `deferredViewChrome` (no de
+                  `isViewMode` directo) para que aparezca/desaparezca en el mismo commit que la lista de
+                  secciones — ver comentario junto a la declaración de `deferredViewChrome`. */}
+              {!deferredViewChrome.isViewMode && (
+                <div className="ml-6 mr-5 flex items-center justify-between gap-2 border-t border-slate-100 pt-2 pb-2.5 animate-in fade-in duration-300">
+                  <div className="flex min-w-0 items-center gap-1">
+                    {frontendPermissions.canAccessSectionSheet && (
+                      <SectionSheet
+                        selectedFile={selectedFile}
+                        fullDocument={fullDocument}
+                        isOpen={isSectionSheetOpen}
+                        onOpenChange={handleSectionSheetOpenChange}
+                        executionId={selectedExecutionId}
+                        executionInfo={selectedExecutionInfo}
+                        lifecyclePermissions={lifecyclePermissions}
+                        stage={documentContent?.lifecycle_status?.stage}
+                        isExternalElaborationLocked={isAssetLockedByExternalElaboration}
+                        showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
+                        triggerClassName={TOOLBAR_TEXT_BUTTON}
+                      />
+                    )}
+                    {frontendPermissions.canAccessSectionSheet && (
+                      <DependenciesSheet
+                        selectedFile={selectedFile}
+                        isOpen={isDependenciesSheetOpen}
+                        onOpenChange={setIsDependenciesSheetOpen}
+                        documentName={documentContent?.document_name}
+                        lifecyclePermissions={lifecyclePermissions}
+                        stage={documentContent?.lifecycle_status?.stage}
+                        isExternalElaborationLocked={isAssetLockedByExternalElaboration}
+                        showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
+                        triggerClassName={TOOLBAR_TEXT_BUTTON}
+                      />
+                    )}
+                    {frontendPermissions.canAccessSectionSheet && (
+                      <ContextSheet
+                        selectedFile={selectedFile}
+                        isOpen={isContextSheetOpen}
+                        onOpenChange={setIsContextSheetOpen}
+                        documentName={documentContent?.document_name}
+                        lifecyclePermissions={lifecyclePermissions}
+                        stage={documentContent?.lifecycle_status?.stage}
+                        isExternalElaborationLocked={isAssetLockedByExternalElaboration}
+                        showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
+                        triggerClassName={TOOLBAR_TEXT_BUTTON}
+                      />
+                    )}
                   </div>
-                ) : (
-                  <div className="flex flex-col gap-1.5 flex-1 min-w-0 animate-in fade-in duration-300">
-                    <div className="flex items-center justify-between gap-2.5">
-                      <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
-                        <HuemulTruncatedText
-                          as="h1"
-                          text={documentContent?.document_name || selectedFile.name}
-                          className="text-lg font-semibold text-gray-900 cursor-default"
-                        />
+
+                  <div className="flex shrink-0 items-center gap-0.5 rounded-[9px] bg-slate-50 p-0.5 ring-1 ring-inset ring-[#eef1f6]">
+                    <HuemulButton
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleRefreshContent}
+                      disabled={isRefreshingContent || isLoadingContent}
+                      icon={RefreshCw}
+                      iconClassName={`h-3.5 w-3.5 ${isRefreshingContent ? 'animate-spin' : ''}`}
+                      className={TOOLBAR_ICON_BUTTON}
+                      aria-label={t('content.refreshContent')}
+                      tooltip={t('content.refreshContent')}
+                    />
+
+                    {/* Colapsar/expandir todas las secciones - solo aplica al formato nuevo (array) */}
+                    {selectedFile.type === 'document' && Array.isArray(documentContent?.content) &&
+                     (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
+                      <HuemulButton
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleToggleCollapseAll}
+                        icon={areAllSectionsCollapsed ? ChevronsUpDown : ChevronsDownUp}
+                        iconClassName="h-3.5 w-3.5"
+                        className={TOOLBAR_ICON_BUTTON}
+                        aria-label={areAllSectionsCollapsed ? t('common:expand') : t('common:collapse')}
+                        tooltip={areAllSectionsCollapsed ? t('common:expand') : t('common:collapse')}
+                      />
+                    )}
+
+                    {/* Índice (TOC): toggle que controla el panel lateral */}
+                    {selectedFile.type === 'document' && documentContent?.content &&
+                     (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
+                      <HuemulButton
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setIsTocSidebarOpen((prev) => !prev)}
+                        icon={List}
+                        iconClassName="h-3.5 w-3.5"
+                        aria-pressed={isTocSidebarOpen}
+                        aria-label={isTocSidebarOpen ? t('content.hideSidebar') : t('content.showSidebar')}
+                        className={cn(
+                          TOOLBAR_ICON_BUTTON,
+                          isTocSidebarOpen && 'bg-white text-blue-700 shadow-[0_1px_2px_rgba(15,23,42,0.08)] hover:text-blue-700'
+                        )}
+                        tooltip={isTocSidebarOpen ? t('content.hideSidebar') : t('content.showSidebar')}
+                      />
+                    )}
+
+                    {(onOpenFullscreen || onExitFullscreen) && (
+                      <>
+                        <span className="mx-0.5 h-4 w-px bg-slate-200" aria-hidden="true" />
                         <HuemulButton
-                          requiredAccess="edit"
-                          checkGlobalPermissions={true}
-                          resource="asset"
-                          lifecyclePermissions={lifecyclePermissions}
-                          onClick={openEditDialog}
                           size="sm"
                           variant="ghost"
-                          icon={Pencil}
+                          onClick={isFullscreen ? onExitFullscreen : onOpenFullscreen}
+                          icon={isFullscreen ? Minimize : Maximize}
                           iconClassName="h-3.5 w-3.5"
-                          tooltip={t('content.editDocument')}
-                          className="h-7 w-7 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                          className={TOOLBAR_ICON_BUTTON}
+                          aria-label={isFullscreen ? t('content.exitFullscreen') : t('content.openFullscreen')}
+                          tooltip={isFullscreen ? t('content.exitFullscreen') : t('content.openFullscreen')}
                         />
-
-                      </div>
-                      {/* Notifications/menu + mode toggle — always in the same position for muscle memory. Version selector lives in the metadata row below. */}
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {canSwitchToEditorMode && (
-                          <ViewModeToggle
-                            isViewMode={isViewMode}
-                            onSwitchToReader={() => { preserveScrollPosition(); setIsViewMode(true); }}
-                            onSwitchToEditor={() => { preserveScrollPosition(); setIsViewMode(false); }}
-                            compact={isDesktopHeaderNarrow}
-                          />
-                        )}
-                        {canSwitchToEditorMode && (canListDiscussions || canListNotifications || !isViewOnly || !!(onOpenFullscreen || onExitFullscreen)) && (
-                          <div className="h-5 w-px bg-gray-200 mx-0.5" aria-hidden="true" />
-                        )}
-                        {canListDiscussions && (
-                          <div className="relative">
-                            <HuemulButton
-                              size="sm"
-                              variant="ghost"
-                              icon={MessageSquareText}
-                              iconClassName="h-4 w-4"
-                              className="h-7 w-7 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
-                              tooltip={t('content.discussions.commentsTooltip')}
-                              onClick={() => setIsDiscussionsSheetOpen(true)}
-                            />
-                            {openDiscussionsCount > 0 && (
-                              <span className="-top-0.5 -right-0.5 absolute inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 font-medium text-[10px] text-white">
-                                {openDiscussionsCount}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        {canListNotifications && (
-                          <HuemulButton
-                            size="sm"
-                            variant="ghost"
-                            icon={Bell}
-                            iconClassName="h-4 w-4"
-                            className="h-7 w-7 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
-                            tooltip={t('content.notificationsTooltip')}
-                            onClick={() => setIsNotificationsSheetOpen(true)}
-                          />
-                        )}
-                        {!isViewOnly && (
-                          <MoreOptionsDropdown
-                            isViewMode={isViewMode}
-                            dropdownAlign="end"
-                            lifecyclePermissions={lifecyclePermissions}
-                            frontendPermissions={frontendPermissions}
-                            lifecycleStatus={documentContent?.lifecycle_status}
-                            finalLifecycleStage={lifecycle.finalLifecycleStage}
-                            selectedExecutionId={selectedExecutionId}
-                            selectedVersionLabel={getExecutionCompactLabel(selectedExecutionInfo)}
-                            hasTemplateName={!!documentContent?.template_name}
-                            canCreateTemplate={canCreate('template')}
-                            canManageGrants={can('manageAssetLifecycleGrants')}
-                            canCloneVersion={can('createVersion')}
-                            canExportVersion={can('exportVersion')}
-                            canDeleteVersion={can('deleteVersion')}
-                            isRefreshing={isRefreshingContent}
-                            isLoadingContent={isLoadingContent}
-                            hasTocItems={!!documentContent?.content}
-                            isDocumentType={selectedFile.type === 'document'}
-                            hasDocumentContent={!!documentContent?.content}
-                            isTocSidebarOpen={isTocSidebarOpen}
-                            canCompareVersions={selectedFile.type === 'document' && allExecutions?.length > 1}
-                            onCompareVersions={() => setIsVersionCompareSheetOpen(true)}
-                            onRejectLifecycle={() => lifecycle.setIsRejectDialogOpen(true)}
-                            onCheckLifecycle={() => lifecycle.setIsCheckDialogOpen(true)}
-                            onPublish={() => lifecycle.setIsPublishDialogOpen(true)}
-                            onArchive={() => lifecycle.setIsArchiveDialogOpen(true)}
-                            onRestore={() => lifecycle.setIsRestoreDialogOpen(true)}
-                            onRefresh={handleRefreshContent}
-                            onToggleToc={() => setIsTocSidebarOpen((prev) => !prev)}
-                            onOpenInfo={() => setIsInfoSheetOpen(true)}
-                            onOpenLifecycleHistory={() => setIsLifecycleHistorySheetOpen(true)}
-                            isFullscreen={isFullscreen}
-                            onOpenFullscreen={isFullscreen ? onExitFullscreen : onOpenFullscreen}
-                            canAccessDiagrams={canAccessDiagrams}
-                            onOpenDiagrams={() => setIsDiagramsSheetOpen(true)}
-                            canAccessMedia={canMedia('listMedia')}
-                            onOpenMedia={() => { setMediaSheetScope(null); setIsMediaSheetOpen(true); }}
-                            onOpenPermissions={() => setIsPermissionsSheetOpen(true)}
-                            onOpenSections={() => setIsSectionSheetOpen(true)}
-                            onOpenDependencies={() => setIsDependenciesSheetOpen(true)}
-                            onOpenContext={() => setIsContextSheetOpen(true)}
-                            onClone={() => openCloneDialog()}
-                            onCloneToNew={() => openCloneToNewDocumentSheet()}
-                            onCreateTemplate={() => setIsCreateTemplateFromDocumentDialogOpen(true)}
-                            onExportMarkdown={handleExportMarkdown}
-                            onExportWord={handleExportWord}
-                            onExportCustomWord={handleExportCustomWord}
-                            onExportExcel={handleExportExcel}
-                            onExportVersion={handleExportVersion}
-                            onDeleteVersion={() => openDeleteDialog('execution')}
-                            onDeleteDocument={() => openDeleteDialog('document')}
-                            isRerunningExternalPublish={lifecycle.runExternalPublishMutation.isPending}
-                            onRerunExternalPublish={() => lifecycle.runExternalPublishMutation.mutate()}
-                          />
-                        )}
-                        {/* Botón de pantalla completa: en modo Editor vive en el toolbar de
-                            TOC (RIGHT GROUP), acá sólo se muestra en modo Lector — es el único
-                            camino de entrada cuando el dropdown de arriba no se renderiza
-                            (isViewOnly) — ver ia context/fullscreen-share-route-guide.md */}
-                        {deferredViewChrome.isViewMode && (onOpenFullscreen || onExitFullscreen) && (
-                          <HuemulButton
-                            size="sm"
-                            variant="ghost"
-                            icon={isFullscreen ? Minimize : Maximize}
-                            iconClassName="h-4 w-4"
-                            className="h-7 w-7 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
-                            tooltip={isFullscreen ? t('content.exitFullscreen') : t('content.openFullscreen')}
-                            onClick={isFullscreen ? onExitFullscreen : onOpenFullscreen}
-                          />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Metadata Row - date + version selector left, stage + lifecycle buttons right (both modes) */}
-                    <div className="flex items-center justify-between gap-2">
-                      {/* Left: date + version selector */}
-                      <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600 min-w-0">
-                        {selectedExecutionInfo && (
-                          <span className="inline-flex h-7 items-center gap-1.5 shrink-0">
-                            <Clock className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                            {selectedExecutionInfo.formattedDate}
-                          </span>
-                        )}
-                        {selectedFile.type === 'document' && allExecutions?.length > 0 && (
-                          <VersionSelectorDropdown
-                            allExecutions={allExecutions}
-                            selectedExecutionId={selectedExecutionId}
-                            documentExecutionId={documentContent?.execution_id}
-                            lifecyclePermissions={lifecyclePermissions}
-                            isCreatingPending={executeDocumentMutation.isPending}
-                            hasExecutionInProcess={hasExecutionInProcess}
-                            canGenerate={canGenerate}
-                            cannotGenerateReason={cannotGenerateReason}
-                            onCreateExecution={handleCreateExecutionFromHeader}
-                            onSelectExecution={(id) => guardedAction(() => {
-                              onPreserveScroll?.();
-                              setSelectedExecutionId(id);
-                              queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
-                              queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, id] });
-                            })}
-                            onOpenVersionManagement={() => setIsVersionManagementSheetOpen(true)}
-                            onRenameVersion={frontendPermissions.canEditSections ? (exec) => {
-                              setExecutionToRename({ id: exec.id, name: exec.name });
-                              setTimeout(() => setIsRenameVersionDialogOpen(true), 0);
-                            } : undefined}
-                            dropdownAlign="start"
-                            isLatest={!!selectedExecutionInfo?.isLatest}
-                          />
-                        )}
-                      </div>
-                      {/* Right: stage label + lifecycle action buttons in a shaded box — mismo patrón
-                          que el header móvil (bg-gray-50) y que ViewModeToggle / el selector de versiones. */}
-                      {documentContent?.lifecycle_status && (
-                        <div className="flex items-center gap-2 shrink-0 bg-gray-50 px-2 py-1 rounded-lg">
-                          <HuemulLifecycleStageBadge status={documentContent.lifecycle_status} className="h-7" />
-                          <HuemulLifecycleActions controller={lifecycle} variant="row" showRunElaboration />
-                        </div>
-                      )}
-                    </div>
-
+                      </>
+                    )}
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Action Buttons Section - editor mode only. Cuelga de `deferredViewChrome` (no de
-                `isViewMode` directo) para que aparezca/desaparezca en el mismo commit que la
-                lista de secciones — ver comentario junto a la declaración de `deferredViewChrome`. */}
-            {!deferredViewChrome.isViewMode && (isLoadingContent && !documentContent ? (
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5">
-                  <Skeleton className="h-7 w-10 rounded-md" />
-                  <Skeleton className="h-7 w-20 rounded-md" />
-                  <Skeleton className="h-7 w-24 rounded-md" />
-                  <Skeleton className="h-7 w-18 rounded-md" />
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <Skeleton className="h-7 w-26.5 rounded-md" />
-                  <Skeleton className="h-7 w-8 rounded-md" />
-                  <Skeleton className="h-7 w-8 rounded-md" />
-                  <Skeleton className="h-7 w-8 rounded-md" />
-                  <Skeleton className="h-7 w-8 rounded-md" />
-                </div>
-              </div>
-            ) : (
-            <div className="flex items-center justify-between gap-2 animate-in fade-in duration-300">
-              {/* LEFT GROUP - Sections, Dependencies, Context */}
-              <div className="flex items-center gap-1.5 min-w-0">
-                {/* Sections sheet */}
-                {frontendPermissions.canAccessSectionSheet && (
-                  <SectionSheet
-                    selectedFile={selectedFile}
-                    fullDocument={fullDocument}
-                    isOpen={isSectionSheetOpen}
-                    onOpenChange={handleSectionSheetOpenChange}
-                    executionId={selectedExecutionId}
-                    executionInfo={selectedExecutionInfo}
-                    lifecyclePermissions={lifecyclePermissions}
-                    stage={documentContent?.lifecycle_status?.stage}
-                    isExternalElaborationLocked={isAssetLockedByExternalElaboration}
-                    showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
-                  />
-                )}
-
-                {/* Dependencies, Context */}
-                {frontendPermissions.canAccessSectionSheet && (
-                  <DependenciesSheet
-                    selectedFile={selectedFile}
-                    isOpen={isDependenciesSheetOpen}
-                    onOpenChange={setIsDependenciesSheetOpen}
-                    documentName={documentContent?.document_name}
-                    lifecyclePermissions={lifecyclePermissions}
-                    stage={documentContent?.lifecycle_status?.stage}
-                    isExternalElaborationLocked={isAssetLockedByExternalElaboration}
-                    showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
-                  />
-                )}
-
-                {frontendPermissions.canAccessSectionSheet && (
-                  <ContextSheet
-                    selectedFile={selectedFile}
-                    isOpen={isContextSheetOpen}
-                    onOpenChange={setIsContextSheetOpen}
-                    documentName={documentContent?.document_name}
-                    lifecyclePermissions={lifecyclePermissions}
-                    stage={documentContent?.lifecycle_status?.stage}
-                    isExternalElaborationLocked={isAssetLockedByExternalElaboration}
-                    showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
-                  />
-                )}
-              </div>
-
-              {/* RIGHT GROUP - Refresh, TOC Toggle */}
-              <div className="flex items-center gap-1.5 min-w-0">
-                <HuemulButton
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleRefreshContent}
-                  disabled={isRefreshingContent || isLoadingContent}
-                  icon={RefreshCw}
-                  iconClassName={`h-3.5 w-3.5 ${isRefreshingContent ? 'animate-spin' : ''}`}
-                  className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors hover:cursor-pointer"
-                  tooltip={t('content.refreshContent')}
-                />
-
-                {/* Collapse/expand all sections - only applies to the new (array) content format */}
-                {selectedFile.type === 'document' && Array.isArray(documentContent?.content) &&
-                 (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
-                  <HuemulButton
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleToggleCollapseAll}
-                    icon={areAllSectionsCollapsed ? ChevronsUpDown : ChevronsDownUp}
-                    iconClassName="h-3.5 w-3.5"
-                    label={areAllSectionsCollapsed ? t('common:expand') : t('common:collapse')}
-                    className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors hover:cursor-pointer"
-                  />
-                )}
-
-                {/* TOC Toggle button - desktop only */}
-                {selectedFile.type === 'document' && documentContent?.content &&
-                 (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
-                  <HuemulButton
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setIsTocSidebarOpen((prev) => !prev)}
-                    icon={List}
-                    iconClassName="h-3.5 w-3.5"
-                    className={`h-7 px-2 transition-colors hover:cursor-pointer ${
-                      isTocSidebarOpen
-                        ? 'bg-gray-200 text-gray-900 hover:bg-gray-300'
-                        : 'text-gray-600 hover:bg-gray-200 hover:text-gray-800'
-                    }`}
-                    tooltip={isTocSidebarOpen ? t('content.hideSidebar') : t('content.showSidebar')}
-                  />
-                )}
-
-                {/* Fullscreen toggle — en modo Lector vive en el header, acá sólo en modo Editor */}
-                {(onOpenFullscreen || onExitFullscreen) && (
-                  <HuemulButton
-                    size="sm"
-                    variant="ghost"
-                    onClick={isFullscreen ? onExitFullscreen : onOpenFullscreen}
-                    icon={isFullscreen ? Minimize : Maximize}
-                    iconClassName="h-3.5 w-3.5"
-                    className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors hover:cursor-pointer"
-                    tooltip={isFullscreen ? t('content.exitFullscreen') : t('content.openFullscreen')}
-                  />
-                )}
-
-              </div>
+              )}
             </div>
-            ))}
-            
-          </div>
+          )}
         </div>
         )}
 
