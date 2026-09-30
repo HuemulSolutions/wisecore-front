@@ -13,8 +13,8 @@ export interface AssetsDetailPanelRailProps {
 }
 
 /**
- * Rail vertical de 52px del panel de detalle del activo: cuatro destinos
- * (Índice/Campos/Archivos/Vínculos, filtrados por permiso) + chevron de colapso.
+ * Rail vertical de 52px del panel de detalle del activo: chevron de colapso arriba +
+ * cuatro destinos (Índice/Campos/Archivos/Vínculos, filtrados por permiso).
  * El activo se resalta con los tokens `--adp-accent-bg`/`--adp-accent-fg`.
  */
 export function AssetsDetailPanelRail({
@@ -33,6 +33,17 @@ export function AssetsDetailPanelRail({
       className="flex h-full w-13 shrink-0 flex-col items-center border-r py-2"
       style={{ backgroundColor: "var(--adp-rail-bg, var(--muted))", borderColor: "var(--adp-border, var(--border))" }}
     >
+      <button
+        type="button"
+        onClick={onToggleCollapse}
+        title={isCollapsed ? expandLabel : collapseLabel}
+        className="mb-2 flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:cursor-pointer hover:bg-muted hover:text-foreground"
+      >
+        <ChevronRight
+          className="h-3.5 w-3.5 transition-transform duration-180"
+          style={{ transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)" }}
+        />
+      </button>
       <div className="flex flex-1 flex-col items-center gap-1">
         {visibleItems.map((item) => {
           const Icon = item.icon;
@@ -67,17 +78,6 @@ export function AssetsDetailPanelRail({
           );
         })}
       </div>
-      <button
-        type="button"
-        onClick={onToggleCollapse}
-        title={isCollapsed ? expandLabel : collapseLabel}
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:cursor-pointer hover:bg-muted hover:text-foreground"
-      >
-        <ChevronRight
-          className="h-3.5 w-3.5 transition-transform duration-180"
-          style={{ transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)" }}
-        />
-      </button>
     </div>
   );
 }
