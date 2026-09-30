@@ -2354,10 +2354,7 @@ export function AssetContent({
 
   return (
     <DiscussionFocusProvider onResolve={handleDiscussionFocusResolved}>
-    <ResizablePanelGroup id={ASSET_CONTENT_LAYOUT_ID} direction="horizontal" className=" bg-gray-50">
-      {/* Document Content */}
-      <ResizablePanel defaultSize={80}>
-        <div className="flex-1 flex flex-col min-w-0 h-full">
+    <div className="flex flex-col h-full min-w-0 bg-gray-50">
         {/* Mobile Header with Toggle */}
         {isMobile && !isContentError && (
           <div className="bg-white border-b border-gray-200 shadow-sm py-2 px-4 z-(--z-page-header) shrink-0 min-h-20" data-mobile-header>
@@ -3066,6 +3063,11 @@ export function AssetContent({
         </div>
         )}
 
+    {/* Header a todo el ancho; contenido y panel de detalle quedan debajo */}
+    <ResizablePanelGroup id={ASSET_CONTENT_LAYOUT_ID} direction="horizontal" className="flex-1 min-h-0">
+      {/* Document Content */}
+      <ResizablePanel defaultSize={80}>
+        <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* Content Section - Now with ScrollArea and scroll restoration */}
         <div className="flex-1 bg-white min-w-0 overflow-hidden px-1">
           <ScrollArea className="h-full max-w-full">
@@ -3740,6 +3742,7 @@ export function AssetContent({
         </>
       )}
     </ResizablePanelGroup>
+    </div>
 
       <ChatbotContextSync
         sourceKey="asset-content"
