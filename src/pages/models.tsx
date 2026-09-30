@@ -315,11 +315,11 @@ export default function Models() {
 
   const updateEmbeddingMutation = useMutation({
     mutationFn: updateEmbeddingProvider,
-    onSuccess: () => {
+    onSuccess: (updated) => {
       invalidateEmbeddings()
       invalidateStatus()
       setEmbeddingSheet((s) => ({ ...s, open: false }))
-      showModelsToast(t('toast.embeddingUpdated'))
+      showModelsToast(updated?.model_changed ? t('toast.embeddingUpdatedReindex') : t('toast.embeddingUpdated'))
     },
   })
 

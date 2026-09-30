@@ -314,6 +314,14 @@ const translations = {
       es: "Los embeddings convierten el contenido de tus documentos en una representación numérica para que la búsqueda encuentre resultados por significado. Tu organización usa un solo proveedor a la vez.",
     },
     active: { en: "Active", es: "Activo" },
+    indexBuilding: {
+      en: "Search is being rebuilt with this provider. Until it finishes, searching by meaning may return fewer results. Refresh to see the progress.",
+      es: "La búsqueda se está reconstruyendo con este proveedor. Hasta que termine, buscar por significado puede devolver menos resultados. Actualiza para ver el avance.",
+    },
+    indexFailed: {
+      en: "Search couldn't be rebuilt with this provider. Test the connection and save the provider again to retry.",
+      es: "No se pudo reconstruir la búsqueda con este proveedor. Prueba la conexión y vuelve a guardar el proveedor para reintentar.",
+    },
     testIdle: { en: "Test the connection to confirm it responds", es: "Prueba la conexión para confirmar que responde" },
     testTesting: { en: "Testing…", es: "Probando…" },
     testOk: { en: "Connection verified just now", es: "Conexión verificada recién" },
@@ -362,8 +370,8 @@ const translations = {
     },
     providerLabel: { en: "Provider", es: "Proveedor" },
     replaceNotice: {
-      en: "When you save, {{next}} replaces {{current}} as the active provider.",
-      es: "Al guardar, {{next}} reemplaza a {{current}} como proveedor activo.",
+      en: "When you save, {{next}} replaces {{current}} as the active provider and every document is indexed again. Until it finishes, searching by meaning returns fewer or no results.",
+      es: "Al guardar, {{next}} reemplaza a {{current}} como proveedor activo y todos los documentos se vuelven a indexar. Hasta que termine, la búsqueda por significado devuelve menos resultados o ninguno.",
     },
     apiKeyLabel: { en: "API key", es: "Clave API" },
     apiKeyHelp: {
@@ -424,6 +432,10 @@ const translations = {
     },
     embeddingConfigured: { en: "Embeddings provider configured", es: "Proveedor de embeddings configurado" },
     embeddingUpdated: { en: "Embeddings provider updated", es: "Proveedor de embeddings actualizado" },
+    embeddingUpdatedReindex: {
+      en: "Embeddings provider updated. The model changed, so search is being rebuilt.",
+      es: "Proveedor de embeddings actualizado. Cambió el modelo, así que la búsqueda se está reconstruyendo.",
+    },
     embeddingDeleted: { en: "Embeddings provider disconnected", es: "Proveedor de embeddings desconectado" },
   },
   errors: {
