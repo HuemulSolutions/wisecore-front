@@ -1,4 +1,5 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import type { ImperativePanelHandle } from "react-resizable-panels";
 import { useQueryClient } from "@tanstack/react-query";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 import { AssetContent } from "@/components/assets";
@@ -10,7 +11,9 @@ import { ExpandedFoldersProvider } from "@/hooks/use-expanded-folders";
 import { useAssetNavigation } from "@/hooks/useAssetNavigation";
 import { useScrollPreservation } from "@/hooks/useScrollPreservation";
 import { NavKnowledgeHeader, NavKnowledgeContent } from "@/components/layout/nav-knowledge";
-import { useNavKnowledgeRefresh, useNavKnowledgePagination } from "@/contexts/nav-knowledge-context";
+import { NavKnowledgeRail } from "@/components/layout/nav-knowledge-rail";
+import { useNavKnowledge, useNavKnowledgeRefresh, useNavKnowledgePagination } from "@/contexts/nav-knowledge-context";
+import { useKnowledgePanelCollapsed } from "@/hooks/useKnowledgePanelCollapsed";
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
 import { HuemulPagination } from "@/huemul/components/huemul-pagination";
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
@@ -34,6 +37,22 @@ function AssetsContent() {
   const invalidateSectionAccess = useInvalidateDocumentSectionAccess();
   const { page, pageSize, hasNext, hasPrevious, setPage } = useNavKnowledgePagination();
   const canListLibrary = can('listAssets') || can('listFolders');
+  const { setIsSearchOpen } = useNavKnowledge();
+
+  // Colapso del panel de knowledge: el panel imperativo hace el resize y
+  // onCollapse/onExpand mantienen el flag persistido en sync (incluye colapso por drag).
+  const knowledgePanelRef = useRef<ImperativePanelHandle>(null);
+  const [isKnowledgeCollapsed, setIsKnowledgeCollapsed] = useKnowledgePanelCollapsed(selectedOrganizationId);
+  const toggleKnowledgePanel = useCallback(() => {
+    const panel = knowledgePanelRef.current;
+    if (!panel) return;
+    if (panel.isCollapsed()) panel.expand();
+    else panel.collapse();
+  }, []);
+  const handleRailSearch = useCallback(() => {
+    knowledgePanelRef.current?.expand();
+    setIsSearchOpen(true);
+  }, [setIsSearchOpen]);
 
   // Asset navigation (URL parsing, breadcrumb, selected file)
   const {
@@ -101,22 +120,28 @@ function AssetsContent() {
         className="bg-gray-50"
         columns={[
           {
-            content: (
+            content: isKnowledgeCollapsed ? (
+              <NavKnowledgeRail onExpand={toggleKnowledgePanel} onSearch={handleRailSearch} />
+            ) : (
               <div className="flex flex-col h-full bg-white border-r">
                 <div className="py-2">
-                  <NavKnowledgeHeader />
+                  <NavKnowledgeHeader onCollapse={toggleKnowledgePanel} />
                 </div>
                 <ScrollArea className="flex-1 min-h-0" type="hover">
                   <NavKnowledgeContent />
                 </ScrollArea>
               </div>
             ),
-            defaultSize: isWisyOpen ? 15 : 20,
+            panelRef: knowledgePanelRef,
+            defaultSize: isKnowledgeCollapsed ? 4 : isWisyOpen ? 15 : 20,
             minSize: isWisyOpen ? 10 : 12,
             collapsible: true,
-            collapsedSize: 0,
+            collapsedSize: 4,
+            onCollapse: () => setIsKnowledgeCollapsed(true),
+            onExpand: () => setIsKnowledgeCollapsed(false),
             className: "overflow-hidden [scrollbar-gutter:auto]",
             footer: {
+              show: !isKnowledgeCollapsed,
               content: (
                 <HuemulPagination
                   page={page}

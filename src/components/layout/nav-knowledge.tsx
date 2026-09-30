@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, RefreshCw, Edit, Trash2, FileUp, FileJson, FolderUp, ShieldCheck, Sparkles, SearchX } from "lucide-react"
+import { File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, RefreshCw, Edit, Trash2, FileUp, FolderUp, ShieldCheck, Sparkles, SearchX, ChevronLeft } from "lucide-react"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -11,13 +11,8 @@ import type { MenuAction } from "@/types/menu-action"
 import {
   SidebarGroup,
 } from "@/components/ui/sidebar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
+import { NavKnowledgeCreateMenu } from "@/components/layout/nav-knowledge-create-menu"
 import { HuemulPanelHeader } from "@/huemul/components/huemul-panel-header"
 import { HuemulPanelEmptyState } from "@/huemul/components/huemul-panel-empty-state"
 import { FileTree } from "@/components/assets/content/assets-file-tree"
@@ -59,13 +54,14 @@ export interface NavKnowledgeHeaderProps {
    * refresh en su `PageHeader` (un botón por contenedor, no por endpoint).
    */
   showRefresh?: boolean
+  /** Si se pasa, muestra el botón para colapsar el panel a su rail. */
+  onCollapse?: () => void
 }
 
-export function NavKnowledgeHeader({ showRefresh = true }: NavKnowledgeHeaderProps = {}) {
+export function NavKnowledgeHeader({ showRefresh = true, onCollapse }: NavKnowledgeHeaderProps = {}) {
   const { t } = useTranslation('layout')
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch } = useNavKnowledge()
-  const { canCreate, isOrgAdmin, hasAnyPermission, canManageGroupFolders } = useUserPermissions()
+  const { fileTreeRef, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch } = useNavKnowledge()
   const [isRefreshingTree, setIsRefreshingTree] = useState(false)
 
   const handleRefreshTree = async () => {
@@ -76,18 +72,6 @@ export function NavKnowledgeHeader({ showRefresh = true }: NavKnowledgeHeaderPro
       setIsRefreshingTree(false)
     }
   }
-
-  const canCreateAsset = canCreate('asset')
-  const canCreateFolder = canCreate('folder')
-  // POST /folder/ con parent_folder_id: "root" requiere folder:c y (is_org_admin o folder:manage_groups).
-  const canCreateGroupFolder = canCreateFolder && canManageGroupFolders
-  // Requiere poder listar AMBOS catálogos: sin systems no hay cascada, sin functionalities no hay qué elegir.
-  const canBrowseExternalCatalog =
-    isOrgAdmin ||
-    (hasAnyPermission(['external_system:l', 'external_system:r']) &&
-      hasAnyPermission(['external_functionality:l', 'external_functionality:r']))
-  const canImportFromExternal = canCreateAsset && canBrowseExternalCatalog
-  const hasAnyCreatePermission = canCreateAsset || canCreateFolder
 
   if (!selectedOrganizationId) {
     return null
@@ -108,82 +92,17 @@ export function NavKnowledgeHeader({ showRefresh = true }: NavKnowledgeHeaderPro
       isRefreshing={isRefreshingTree}
       actions={
         <>
-          {hasAnyCreatePermission && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6 hover:cursor-pointer">
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {canCreateAsset && (
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      setTimeout(() => handleCreateAsset(), 0)
-                    }}
-                    className="hover:cursor-pointer"
-                  >
-                    <File className="mr-2 h-4 w-4" />
-                    {t('knowledge.newAsset')}
-                  </DropdownMenuItem>
-                )}
-                {canCreateAsset && (
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      setTimeout(() => handleImportAsset(), 0)
-                    }}
-                    className="hover:cursor-pointer"
-                  >
-                    <FileUp className="mr-2 h-4 w-4" />
-                    {t('knowledge.importAsset')}
-                  </DropdownMenuItem>
-                )}
-                {canImportFromExternal && (
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      setTimeout(() => handleImportAssetFromExternal(), 0)
-                    }}
-                    className="hover:cursor-pointer"
-                  >
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    {t('knowledge.importAssetFromExternal')}
-                  </DropdownMenuItem>
-                )}
-                {canCreateAsset && (
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      setTimeout(() => handleImportConfig(), 0)
-                    }}
-                    className="hover:cursor-pointer"
-                  >
-                    <FileJson className="mr-2 h-4 w-4" />
-                    {t('knowledge.importConfig')}
-                  </DropdownMenuItem>
-                )}
-                {canCreateFolder && (
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      setTimeout(() => handleCreateFolder(), 0)
-                    }}
-                    className="hover:cursor-pointer"
-                  >
-                    <Folder className="mr-2 h-4 w-4" />
-                    {t('knowledge.newFolder')}
-                  </DropdownMenuItem>
-                )}
-                {canCreateGroupFolder && (
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      setTimeout(() => handleCreateGroupFolder(), 0)
-                    }}
-                    className="hover:cursor-pointer"
-                  >
-                    <FolderKanban className="mr-2 h-4 w-4" />
-                    {t('knowledge.newGroupFolder')}
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <NavKnowledgeCreateMenu />
+          {onCollapse && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 hover:cursor-pointer"
+              onClick={onCollapse}
+              title={t('knowledge.collapse')}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
           )}
         </>
       }
