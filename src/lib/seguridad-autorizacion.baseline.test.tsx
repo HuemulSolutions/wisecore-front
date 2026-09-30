@@ -17,6 +17,7 @@ import { useWisyAccess } from '@/hooks/useWisyAccess'
 import { fixSection } from '@/services/generate'
 import { getOrganizationMembers } from '@/services/users'
 import { server } from '@/test/msw/server'
+import { ApiError } from '@/types/api-error'
 import { renderWithProviders } from '@/test/render'
 import { activeUser, ORG_A_ID } from '@/test/fixtures'
 import { makeLoginToken, makeOrgToken } from '@/test/jwt'
@@ -35,7 +36,12 @@ describe('IA de secciones (SSE)', () => {
       http.post(`${backendUrl}/generation/fix_section`, ({ request }) => {
         seen.push(request.headers.get('Authorization') ?? '')
         return HttpResponse.json(
-          { error: { code: 'INSUFFICIENT_PERMISSIONS', message: 'Forbidden', detail: 'section_execution:u' } },
+          {
+            transaction_id: 't-1',
+            status_code: 403,
+            timestamp: '2026-09-30T00:00:00Z',
+            error: { code: 'INSUFFICIENT_PERMISSIONS', message: 'Forbidden', detail: 'section_execution:u', path: '/generation/fix_section' },
+          },
           { status: 403 },
         )
       }),
@@ -52,8 +58,11 @@ describe('IA de secciones (SSE)', () => {
       onClose,
     })
 
-    expect(onError).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()
+    // El error del backend llega entero (código incluido) para que la UI lo muestre.
+    const received = onError.mock.calls[0][0]
+    expect(ApiError.isApiError(received)).toBe(true)
+    expect(received.code).toBe('INSUFFICIENT_PERMISSIONS')
     // Esperar un ciclo de reintento de fetchEventSource: no debe haber un segundo pedido.
     await new Promise((resolve) => setTimeout(resolve, 1200))
     expect(seen).toEqual(['Bearer org-token'])

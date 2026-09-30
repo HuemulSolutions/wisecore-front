@@ -292,6 +292,7 @@ export function SectionForm({
         },
         onError: (error) => {
           logger.error('Error generating prompt:', error);
+          handleApiError(error);
         },
         onClose: () => {
           setIsGenerating(false);

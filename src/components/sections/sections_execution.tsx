@@ -176,8 +176,9 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                                         const normalized = chunk.replace(/\\n/g, "\n");
                                         setAiPreview(prev => (prev ?? '') + normalized);
                                     },
-                                    onError: (e: Event) => {
+                                    onError: (e: Error) => {
                                         logger.error('AI edit error', e);
+                                        handleApiError(e);
                                         setIsAiProcessing(false);
                                     },
                                     onClose: () => {

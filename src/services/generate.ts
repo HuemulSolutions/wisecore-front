@@ -1,3 +1,4 @@
+import { ApiError } from "@/types/api-error";
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { logger } from "@/lib/logger";
@@ -67,14 +68,17 @@ async function* ssePostStream(
     signal,
     async onopen(response) {
       if (response.ok) return;
-      // Un 4xx/5xx trae el error uniforme del backend: se propaga su mensaje en vez del
-      // "Expected content-type" genérico de la librería.
-      const body = await response.json().catch(() => null);
-      throw new Error(body?.error?.message || `HTTP ${response.status}`);
+      // Un 4xx/5xx trae el error uniforme del backend: se propaga como `ApiError` (código,
+      // mensaje y detalle) en vez del "Expected content-type" genérico de la librería.
+      throw await ApiError.fromResponse(response, `HTTP ${response.status}`);
     },
     onerror(err) {
       logger.error("SSE connection error:", err);
-      push({ event: "error", data: (err as Error)?.message || "Connection error" });
+      push({
+        event: "error",
+        data: (err as Error)?.message || "Connection error",
+        error: err instanceof Error ? err : undefined,
+      });
       closed = true;
       if (resolveEvent) {
         resolveEvent();
@@ -270,7 +274,7 @@ export const fixSection = async (params: FixSectionParams): Promise<void> => {
             } else if (event.event === 'error') {
                 logger.error('Error SSE:', event.data);
                 // Notify UI and cancel the stream immediately
-                onError(new Event('error'));
+                onError(('error' in event && event.error) || new Error(event.data));
                 controller.abort();
                 break;
             }
@@ -278,7 +282,7 @@ export const fixSection = async (params: FixSectionParams): Promise<void> => {
         onClose();
     } catch (error) {
         logger.error('Error en la correcciÃ³n de la secciÃ³n:', error);
-        onError(error as Event);
+        onError(error instanceof Error ? error : new Error(String(error)));
         onClose();
     }
 }
@@ -301,7 +305,7 @@ export const redactPrompt = async (params: RedactPromptParams): Promise<void> =>
             } else if (event.event === 'error') {
                 logger.error('Error SSE:', event.data);
                 // Notify UI and cancel the stream immediately
-                onError(new Event('error'));
+                onError(('error' in event && event.error) || new Error(event.data));
                 controller.abort();
                 break;
             }
@@ -309,7 +313,7 @@ export const redactPrompt = async (params: RedactPromptParams): Promise<void> =>
         onClose();
     } catch (error) {
         logger.error('Error en la redacciÃ³n del prompt:', error);
-        onError(error as Event);
+        onError(error instanceof Error ? error : new Error(String(error)));
         onClose();
     }
 }

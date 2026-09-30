@@ -1,6 +1,7 @@
 import type { EventSourceMessage } from '@microsoft/fetch-event-source';
 
-export type SSEErrorEvent = { event: 'error'; data: string };
+/** `error`: el error real (un `ApiError` si el backend respondió con el formato uniforme). */
+export type SSEErrorEvent = { event: 'error'; data: string; error?: Error };
 export type SSEEvent = EventSourceMessage | SSEErrorEvent;
 
 export interface ExecuteGenerationParams {
@@ -18,7 +19,7 @@ export interface FixSectionParams {
   content: string;
   organizationId: string;
   onData: (text: string) => void;
-  onError: (error: Event) => void;
+  onError: (error: Error) => void;
   onClose: () => void;
 }
 
@@ -27,7 +28,7 @@ export interface RedactPromptParams {
   content?: string;
   organizationId: string;
   onData: (text: string) => void;
-  onError: (error: Event) => void;
+  onError: (error: Error) => void;
   onClose: () => void;
 }
 
