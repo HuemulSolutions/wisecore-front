@@ -2,6 +2,18 @@ export type MediaLevel = 'organization' | 'document_type' | 'document' | 'execut
 
 // ─── Main entities ────────────────────────────────────────────────────────────
 
+/**
+ * Estado del análisis del archivo para la búsqueda (PR backend #356). Solo viene en la
+ * `current_version` de list, get, picker, upload, patch y version; no en `/versions`.
+ * - `completed`: el texto o la descripción ya está en el índice.
+ * - `pending`: indexable y todavía sin procesar (hay un job en cola).
+ * - `not_analyzed`: imagen sin LLM de análisis de imágenes configurado.
+ * - `failed`: la extracción falló.
+ * - `skipped`: el archivo no tiene texto útil (vacío, protegido...).
+ * - `null`: la extensión no se indexa.
+ */
+export type MediaAnalysisStatus = 'completed' | 'pending' | 'not_analyzed' | 'failed' | 'skipped'
+
 export interface MediaVersion {
   id: string
   media_id: string
@@ -14,6 +26,7 @@ export interface MediaVersion {
   download_url: string
   /** Miniatura (300px). `null` = no hay: usar `download_url` (original). */
   thumbnail_url: string | null
+  analysis_status?: MediaAnalysisStatus | null
   created_at: string
   created_by: string | null
 }

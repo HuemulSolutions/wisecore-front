@@ -89,6 +89,35 @@ const translations = {
       versionsHeading: { en: "Versions", es: "Versiones" },
     },
   },
+  analysis: {
+    label: { en: "Search", es: "Búsqueda" },
+    completed: { en: "Searchable", es: "Se puede buscar" },
+    completedHint: {
+      en: "Its content is already indexed: it shows up in searches that include files.",
+      es: "Su contenido ya está indexado: aparece en las búsquedas que incluyen archivos.",
+    },
+    pending: { en: "Analyzing", es: "Analizando" },
+    pendingHint: {
+      en: "It will be searchable in a few minutes.",
+      es: "Se va a poder buscar en unos minutos.",
+    },
+    notAnalyzed: { en: "Not analyzed", es: "No analizado" },
+    notAnalyzedHint: {
+      en: "Not analyzed: no model is configured for image analysis. It can't be found in searches until one is assigned.",
+      es: "No analizado: falta configurar el modelo de análisis de imágenes. No se puede encontrar en las búsquedas hasta que se asigne uno.",
+    },
+    failed: { en: "Analysis failed", es: "Falló el análisis" },
+    failedHint: {
+      en: "Its content couldn't be read. Upload a new version to try again.",
+      es: "No se pudo leer su contenido. Sube una versión nueva para reintentar.",
+    },
+    skipped: { en: "No text", es: "Sin texto" },
+    skippedHint: {
+      en: "The file has no text to search (empty, protected or only images).",
+      es: "El archivo no tiene texto para buscar (vacío, protegido o solo imágenes).",
+    },
+    goToModels: { en: "Configure model", es: "Configurar modelo" },
+  },
   detail: {
     details: { en: "Details", es: "Detalles" },
     name: { en: "Name", es: "Nombre" },
