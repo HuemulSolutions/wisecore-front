@@ -180,6 +180,7 @@ function FilterControl({ def, value, onChange, onSelectedLabel }: FilterControlP
               multiSelect
               value={Array.isArray(value) ? (value as string[]) : []}
               onValueChange={(v) => onChange(def.key, v as string[])}
+              onSelectedLabelChange={(label) => onSelectedLabel?.(def.key, label)}
               fetchOptions={def.fetchOptions}
               placeholder={def.placeholder}
               pageSize={def.pageSize}

@@ -64,6 +64,14 @@ export function EmbeddingsTab({
     <div className="flex flex-col gap-5">
       <p className="max-w-3xl text-[13px] leading-relaxed text-[#64748b]">{t('embeddings.intro')}</p>
 
+      {/* Reemplazar el proveedor o cambiarle el modelo reindexa todo (PR backend #356). */}
+      {configured?.index_status === 'building' && (
+        <HuemulNotice tone="blue">{t('embeddings.indexBuilding')}</HuemulNotice>
+      )}
+      {configured?.index_status === 'failed' && (
+        <HuemulNotice tone="red">{t('embeddings.indexFailed')}</HuemulNotice>
+      )}
+
       {configured && active ? (
         <>
           <section className="overflow-hidden rounded-[12px] border border-[#e1e6ed] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)]">

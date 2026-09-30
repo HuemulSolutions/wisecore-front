@@ -38,6 +38,25 @@ const translations = {
       view: { en: "View", es: "Ver" },
       configure: { en: "Configure", es: "Configurar" },
     },
+    assigned: { en: "Assigned", es: "Asignado" },
+    optional: { en: "Optional", es: "Opcional" },
+    choose: { en: "Choose model", es: "Elegir modelo" },
+    rerank: {
+      label: { en: "Higher precision search", es: "Búsqueda de mayor precisión" },
+      description: {
+        en: "Optional. Reorders search results with this model when someone asks for higher precision. Without a model marked here, that search is not available: the default model is never used for it.",
+        es: "Opcional. Reordena los resultados de la búsqueda con este modelo cuando alguien pide mayor precisión. Sin un modelo marcado acá, esa búsqueda no está disponible: nunca se usa el modelo predeterminado.",
+      },
+      none: { en: "No model", es: "Sin modelo" },
+    },
+    imageAnalysis: {
+      label: { en: "Image analysis", es: "Análisis de imágenes" },
+      description: {
+        en: "Optional. Describes uploaded images so they can be found in searches. Without a model marked here, images are not analyzed: the default model is never used for it.",
+        es: "Opcional. Describe las imágenes que se suben para poder encontrarlas en las búsquedas. Sin un modelo marcado acá, las imágenes no se analizan: nunca se usa el modelo predeterminado.",
+      },
+      none: { en: "No model", es: "Sin modelo" },
+    },
   },
   providers: {
     title: { en: "Connected providers", es: "Proveedores conectados" },
@@ -69,6 +88,19 @@ const translations = {
     },
     default: { en: "Default", es: "Predeterminado" },
     setDefault: { en: "Set as default", es: "Establecer como predeterminado" },
+    purposes: {
+      menu: { en: "Use for…", es: "Usar para…" },
+      rerank: { en: "Higher precision search", es: "Búsqueda de mayor precisión" },
+      image_analysis: { en: "Image analysis", es: "Análisis de imágenes" },
+      chipRerank: { en: "Precise search", es: "Búsqueda precisa" },
+      chipImageAnalysis: { en: "Images", es: "Imágenes" },
+      use: { en: "Use for {{purpose}}", es: "Usar para {{purpose}}" },
+      stop: { en: "Stop using for {{purpose}}", es: "Dejar de usar para {{purpose}}" },
+      missingCapability: {
+        en: "This model can't be used for this: it needs {{caps}}.",
+        es: "Este modelo no sirve para esto: necesita {{caps}}.",
+      },
+    },
     priceLegend: { en: "input · output", es: "entrada · salida" },
     noPrice: { en: "No price", es: "Sin precio" },
     noPriceHint: { en: "costs aren't estimated", es: "no se estiman costos" },
@@ -282,6 +314,14 @@ const translations = {
       es: "Los embeddings convierten el contenido de tus documentos en una representación numérica para que la búsqueda encuentre resultados por significado. Tu organización usa un solo proveedor a la vez.",
     },
     active: { en: "Active", es: "Activo" },
+    indexBuilding: {
+      en: "Search is being rebuilt with this provider. Until it finishes, searching by meaning may return fewer results. Refresh to see the progress.",
+      es: "La búsqueda se está reconstruyendo con este proveedor. Hasta que termine, buscar por significado puede devolver menos resultados. Actualiza para ver el avance.",
+    },
+    indexFailed: {
+      en: "Search couldn't be rebuilt with this provider. Test the connection and save the provider again to retry.",
+      es: "No se pudo reconstruir la búsqueda con este proveedor. Prueba la conexión y vuelve a guardar el proveedor para reintentar.",
+    },
     testIdle: { en: "Test the connection to confirm it responds", es: "Prueba la conexión para confirmar que responde" },
     testTesting: { en: "Testing…", es: "Probando…" },
     testOk: { en: "Connection verified just now", es: "Conexión verificada recién" },
@@ -330,8 +370,8 @@ const translations = {
     },
     providerLabel: { en: "Provider", es: "Proveedor" },
     replaceNotice: {
-      en: "When you save, {{next}} replaces {{current}} as the active provider.",
-      es: "Al guardar, {{next}} reemplaza a {{current}} como proveedor activo.",
+      en: "When you save, {{next}} replaces {{current}} as the active provider and every document is indexed again. Until it finishes, searching by meaning returns fewer or no results.",
+      es: "Al guardar, {{next}} reemplaza a {{current}} como proveedor activo y todos los documentos se vuelven a indexar. Hasta que termine, la búsqueda por significado devuelve menos resultados o ninguno.",
     },
     apiKeyLabel: { en: "API key", es: "Clave API" },
     apiKeyHelp: {
@@ -381,8 +421,21 @@ const translations = {
     modelUpdated: { en: "Model updated", es: "Modelo actualizado" },
     modelDeleted: { en: "Model deleted", es: "Modelo eliminado" },
     defaultUpdated: { en: "{{name}} is now the default model", es: "{{name}} es ahora el modelo predeterminado" },
+    purposeSet: { en: "{{name}} is now used for {{purpose}}", es: "{{name}} se usa ahora para {{purpose}}" },
+    purposeCleared: {
+      en: "No model is used for {{purpose}} anymore",
+      es: "Ya no hay modelo para {{purpose}}",
+    },
+    mediaScanEnqueued: {
+      en: "Images that weren't analyzed will be analyzed in the next few minutes.",
+      es: "Las imágenes que no se habían analizado se van a analizar en los próximos minutos.",
+    },
     embeddingConfigured: { en: "Embeddings provider configured", es: "Proveedor de embeddings configurado" },
     embeddingUpdated: { en: "Embeddings provider updated", es: "Proveedor de embeddings actualizado" },
+    embeddingUpdatedReindex: {
+      en: "Embeddings provider updated. The model changed, so search is being rebuilt.",
+      es: "Proveedor de embeddings actualizado. Cambió el modelo, así que la búsqueda se está reconstruyendo.",
+    },
     embeddingDeleted: { en: "Embeddings provider disconnected", es: "Proveedor de embeddings desconectado" },
   },
   errors: {
@@ -390,6 +443,18 @@ const translations = {
     failedToLoadModels: { en: "Failed to load models", es: "Error al cargar modelos" },
     failedToLoadEmbeddings: { en: "Failed to load embeddings provider", es: "Error al cargar el proveedor de embeddings" },
     errorLoadingData: { en: "There was an error loading the data. Please try again.", es: "Hubo un error al cargar los datos. Reintentar." },
+    missingCapability: {
+      en: "This model doesn't have the capabilities this use needs. Edit its capabilities or choose another model.",
+      es: "Este modelo no tiene las capacidades que necesita este uso. Edita sus capacidades o elige otro modelo.",
+    },
+    purposeRequiresCapability: {
+      en: "This model is used for higher precision search or image analysis, and that needs the capability you removed. Assign another model to that use first.",
+      es: "Este modelo se usa para la búsqueda de mayor precisión o el análisis de imágenes, y eso necesita la capacidad que quitaste. Asigna primero otro modelo a ese uso.",
+    },
+    capabilityLockedByPurpose: {
+      en: "Required because this model is used for {{purpose}}.",
+      es: "Obligatoria porque este modelo se usa para {{purpose}}.",
+    },
   },
 }
 

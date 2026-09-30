@@ -152,9 +152,11 @@ export function HuemulCombobox({
   const handleMultiChange = React.useCallback(
     (next: HuemulComboboxOption[]) => {
       onValueChange(next.map((o) => o.value))
+      // En multi, los labels van unidos por coma (para chips); sin selección, undefined.
+      onSelectedLabelChange?.(next.length ? next.map((o) => o.label).join(", ") : undefined)
       setSearch("")
     },
-    [onValueChange],
+    [onValueChange, onSelectedLabelChange],
   )
 
   // ── Async loading ─────────────────────────────────────────────────────────

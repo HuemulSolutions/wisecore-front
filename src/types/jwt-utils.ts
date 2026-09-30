@@ -60,6 +60,7 @@ export type PermissionResource =
   | 'discussion'
   | 'tag'
   | 'chatbot'
+  | 'search'
   | 'role_doctype';
 
 export type Permission = `${PermissionResource}:${PermissionAction}` | 'folder:manage_groups';

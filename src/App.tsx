@@ -41,6 +41,7 @@ const MediaPage = lazy(() => import("./pages/media"));
 const WorkflowPage = lazy(() => import("./pages/workflow"));
 const WorkflowFillPage = lazy(() => import("./pages/workflow-fill"));
 const TokenUsagePage = lazy(() => import("./pages/token-usage"));
+const SearchLogsPage = lazy(() => import("./pages/search-logs"));
 
 export default function App() {
   return (
@@ -203,6 +204,11 @@ export default function App() {
             <Route path="token-usage" element={
               <PermissionProtectedRoute permissions={[...RBAC_PAGES["token-usage"].routePermissions]}>
                 <TokenUsagePage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="search-logs" element={
+              <PermissionProtectedRoute requireOrgAdmin={RBAC_PAGES["search-logs"].requireOrgAdmin} showErrorPage>
+                <SearchLogsPage />
               </PermissionProtectedRoute>
             } />
             <Route path="workflow" element={

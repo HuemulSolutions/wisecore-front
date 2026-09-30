@@ -15,6 +15,8 @@ import type { Execution } from '@/types/execution';
 import { formatRelativeTime, formatAbsoluteDate } from '@/lib/format-relative-time';
 import { cn } from '@/lib/utils';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { useOrgNavigate } from '@/hooks/useOrgRouter';
+import { usePageAccess } from '@/hooks/usePageAccess';
 import { HomeAvatar } from './home-avatar';
 import { HomeCommentsPopover } from './home-comments-popover';
 import { HOME_CARD } from './home-surface';
@@ -108,6 +110,15 @@ export function HomeAllAssetsTab({
   const { t } = useTranslation('home');
   const { canList } = useUserPermissions();
   const canListDiscussions = canList('discussion');
+  // Búsqueda por pasajes (/search, PR backend #356): la tabla sigue siendo de versiones y el
+  // enlace lleva la misma consulta a la vista que devuelve los fragmentos que responden.
+  const { can: canSearch } = usePageAccess('search');
+  const canSearchPassages = canSearch('searchPassages');
+  const navigate = useOrgNavigate();
+  const openPassages = useCallback(
+    (q: string) => navigate(`/search?${new URLSearchParams({ q, mode: 'advanced' }).toString()}`),
+    [navigate],
+  );
 
   // Clic en la fila abre el activo — mismo patrón que el resto de las tablas
   // `variant="detailed"` del repo (users/roles/organizations/global-admin):
@@ -273,6 +284,9 @@ export function HomeAllAssetsTab({
         {query && searchType !== 'content' && (
           <HuemulButton variant="outline" label={t('noResults.searchInContent', { query })} onClick={() => onFilterChange('searchType', 'content')} />
         )}
+        {query && canSearchPassages && (
+          <HuemulButton variant="outline" label={t('noResults.searchPassages')} onClick={() => openPassages(query)} />
+        )}
         <HuemulButton label={t('noResults.clearFilters')} onClick={onClearAll} />
       </div>
     </div>
@@ -305,6 +319,13 @@ export function HomeAllAssetsTab({
             )}
           </div>
           <HuemulFilterChips chips={chips} onRemove={onChipRemove} onClearAll={onClearAll} className="shrink-0 border-b border-divider px-3 py-2" />
+          {query && canSearchPassages && !isEmptyResult && (
+            <div className="flex shrink-0 items-center gap-2 border-b border-divider bg-primary/5 px-3 py-1.5 text-xs text-foreground">
+              <Search className="h-3.5 w-3.5 shrink-0 text-primary" />
+              <p className="flex-1">{t('passagesHint.text')}</p>
+              <HuemulButton variant="ghost" size="sm" label={t('passagesHint.action')} onClick={() => openPassages(query)} />
+            </div>
+          )}
           {notice && (
             <div className="flex shrink-0 items-start gap-2 border-b border-divider bg-primary/5 px-3 py-2 text-xs text-foreground">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />

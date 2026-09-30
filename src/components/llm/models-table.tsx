@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Check, Loader2, Pencil, Plus, Radio, Search, Star, Trash2, X } from "lucide-react"
+import { Check, Loader2, Pencil, Plus, Radio, Search, SlidersHorizontal, Star, Trash2, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import { useDebounce } from "@/hooks/use-debounce"
@@ -10,11 +10,86 @@ import { HuemulNotice } from "@/huemul/components/huemul-notice"
 import { HuemulPagination } from "@/huemul/components/huemul-pagination"
 import { ModelsProviderAvatar } from "@/components/llm/models-provider-avatar"
 import { ModelsContentEmptyState } from "@/components/llm/models-content-empty-state"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { LLM_PURPOSES, isMarkedForPurpose, missingPurposeCapabilities } from "@/lib/llm-capabilities"
 import type { LLM, ModelsTableProps, ModelTestState } from "@/types/models"
 export type { ModelsTableProps } from "@/types/models"
 
 const GRID_COLUMNS = "minmax(0,1.3fr) 170px minmax(0,1.2fr) 150px 300px"
 const SEARCH_DEBOUNCE_MS = 400
+
+/**
+ * Menú "Usar para…": marcar o quitar el modelo para la búsqueda de mayor precisión y el
+ * análisis de imágenes. Un propósito cuya capability le falta al modelo queda deshabilitado
+ * con el motivo en `title` (el backend respondería 400 LLM_MISSING_CAPABILITY).
+ */
+function PurposeMenu({
+  model,
+  onSetPurpose,
+  onClearPurpose,
+}: {
+  model: LLM
+  onSetPurpose: ModelsTableProps["onSetPurpose"]
+  onClearPurpose: ModelsTableProps["onClearPurpose"]
+}) {
+  const { t } = useTranslation('models')
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          title={t('table.purposes.menu')}
+          aria-label={t('table.purposes.menu')}
+          className="flex size-8 items-center justify-center rounded-[8px] border border-[#dfe4ec] bg-white text-[#475569] hover:cursor-pointer hover:border-[#93b4f5]"
+        >
+          <SlidersHorizontal className="size-3.5" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuLabel className="text-xs text-[#7c8798]">{t('table.purposes.menu')}</DropdownMenuLabel>
+        {LLM_PURPOSES.map((purpose) => {
+          const purposeName = t(`table.purposes.${purpose}`)
+          if (isMarkedForPurpose(model, purpose)) {
+            return (
+              <DropdownMenuItem key={purpose} onSelect={() => onClearPurpose(purpose)} className="hover:cursor-pointer">
+                <X className="mr-2 size-3.5" />
+                {t('table.purposes.stop', { purpose: purposeName })}
+              </DropdownMenuItem>
+            )
+          }
+          const missing = missingPurposeCapabilities(model, purpose)
+          const reason = missing.length
+            ? t('table.purposes.missingCapability', {
+                caps: missing.map((cap) => t(`capabilities.${cap}.label`, { defaultValue: cap })).join(', '),
+              })
+            : undefined
+          return (
+            <DropdownMenuItem
+              key={purpose}
+              disabled={missing.length > 0}
+              title={reason}
+              onSelect={() => onSetPurpose(model, purpose)}
+              className="flex-col items-start hover:cursor-pointer"
+            >
+              <span className="flex items-center">
+                <Check className="mr-2 size-3.5" />
+                {t('table.purposes.use', { purpose: purposeName })}
+              </span>
+              {reason && <span className="pl-5.5 text-[11px] leading-snug text-[#7c8798]">{reason}</span>}
+            </DropdownMenuItem>
+          )
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
 
 function TestButton({ state, onClick }: { state: ModelTestState | undefined; onClick: () => void }) {
   const { t } = useTranslation('models')
@@ -66,6 +141,8 @@ export function ModelsTable({
   onTest,
   onEdit,
   onSetDefault,
+  onSetPurpose,
+  onClearPurpose,
   onDelete,
   onReviewProvider,
   onAddModel,
@@ -226,6 +303,22 @@ export function ModelsTable({
                               {t('table.default')}
                             </span>
                           )}
+                          {model.is_rerank_default && (
+                            <span
+                              title={t('table.purposes.rerank')}
+                              className="shrink-0 rounded-full border border-[#cfe0ff] bg-[#eef4ff] px-2 py-px text-[10px] font-semibold text-[#1d4ed8]"
+                            >
+                              {t('table.purposes.chipRerank')}
+                            </span>
+                          )}
+                          {model.is_image_analysis_default && (
+                            <span
+                              title={t('table.purposes.image_analysis')}
+                              className="shrink-0 rounded-full border border-[#e4d7fb] bg-[#f5f0ff] px-2 py-px text-[10px] font-semibold text-[#6d28d9]"
+                            >
+                              {t('table.purposes.chipImageAnalysis')}
+                            </span>
+                          )}
                         </span>
                         <span className="truncate font-mono text-xs text-[#7c8798]">{model.internal_name}</span>
                       </div>
@@ -299,6 +392,9 @@ export function ModelsTable({
                       ) : (
                         <>
                           {canTestModel && <TestButton state={testState} onClick={() => onTest(model)} />}
+                          {canUpdateModel && (
+                            <PurposeMenu model={model} onSetPurpose={onSetPurpose} onClearPurpose={onClearPurpose} />
+                          )}
                           {canUpdateModel && (
                             <button
                               type="button"
