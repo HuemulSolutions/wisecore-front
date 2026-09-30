@@ -312,6 +312,14 @@ export const RBAC_PAGES = {
       deleteProvider: "llm_provider:d",
     },
   },
+  "search-logs": {
+    // Búsquedas registradas y su feedback (GET /search/logs, PR backend #356). El backend
+    // exige search:c + `is_org_admin` (`_require_org_admin` en search/routes.py): no hay un
+    // permiso propio. `requireOrgAdmin` también deja pasar al root admin (resolvePageAccess);
+    // la página le muestra un aviso si no es admin de la organización, en vez de un 403.
+    route: "search-logs",
+    requireOrgAdmin: true,
+  },
   "auth-types": {
     route: "auth-types",
     // Conexiones de autenticación (docs/sso-frontend.md, Fase 5). No existe

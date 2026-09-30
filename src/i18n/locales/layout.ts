@@ -47,6 +47,7 @@ const translations = {
     externalSystems: { en: "Extensions", es: "Extensiones" },
     apiTokens: { en: "API Tokens", es: "Tokens de API" },
     tokenUsage: { en: "Usage & costs", es: "Uso y costos" },
+    searchLogs: { en: "Search feedback", es: "Opiniones de búsqueda" },
     advanced: { en: "Advanced", es: "Avanzado" },
   },
   knowledge: {

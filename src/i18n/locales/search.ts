@@ -79,6 +79,48 @@ const translations = {
     configureModel: { en: "Choose model", es: "Elegir modelo" },
     downloadError: { en: "The file couldn't be downloaded", es: "No se pudo descargar el archivo" },
   },
+  logs: {
+    title: { en: "Search feedback", es: "Opiniones de búsqueda" },
+    subtitle: {
+      en: "Searches made from the search page and the assistant, with what users said about the results.",
+      es: "Las búsquedas hechas desde el buscador y el asistente, con lo que opinaron los usuarios de los resultados.",
+    },
+    onlyWithFeedback: { en: "Only with feedback", es: "Solo con opinión" },
+    onlyOrgAdmins: {
+      en: "Only organization admins can see the search log.",
+      es: "Solo los administradores de la organización pueden ver el registro de búsquedas.",
+    },
+    empty: { en: "No searches yet", es: "Todavía no hay búsquedas" },
+    emptyWithFeedback: { en: "No searches with feedback yet", es: "Todavía no hay búsquedas con opinión" },
+    emptyDescription: {
+      en: "Searches by passage and from the assistant are recorded here.",
+      es: "Acá quedan registradas las búsquedas por pasaje y las del asistente.",
+    },
+    rerankApplied: { en: "Reordered with higher precision", es: "Reordenada con mayor precisión" },
+    columns: {
+      query: { en: "Search", es: "Búsqueda" },
+      source: { en: "Source", es: "Origen" },
+      feedback: { en: "Feedback", es: "Opinión" },
+      results: { en: "Results", es: "Resultados" },
+      date: { en: "Date", es: "Fecha" },
+    },
+    sources: {
+      api: { en: "Search", es: "Buscador" },
+      chatbot: { en: "Assistant", es: "Asistente" },
+    },
+    detail: {
+      query: { en: "Search", es: "Búsqueda" },
+      results: { en: "{{count}} results", es: "{{count}} resultados" },
+      close: { en: "Close", es: "Cerrar" },
+      openSearch: { en: "Repeat this search", es: "Repetir esta búsqueda" },
+      feedback: { en: "Feedback", es: "Opiniones" },
+      loading: { en: "Loading…", es: "Cargando…" },
+      noFeedback: { en: "No feedback for this search", es: "Esta búsqueda no tiene opiniones" },
+      aboutPassage: { en: "About result #{{position}}", es: "Sobre el resultado n.º {{position}}" },
+      aboutSearch: { en: "About the whole search", es: "Sobre toda la búsqueda" },
+      filters: { en: "Filters", es: "Filtros" },
+    },
+  },
   feedback: {
     searchQuestion: { en: "Were these results useful?", es: "¿Te sirvieron estos resultados?" },
     passageQuestion: { en: "Useful?", es: "¿Te sirvió?" },

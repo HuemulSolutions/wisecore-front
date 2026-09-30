@@ -14,6 +14,7 @@ import {
   KeyRound,
   Zap,
   Coins,
+  MessageSquareText,
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react"
@@ -98,6 +99,7 @@ export const SETTINGS_MENU_GROUPS: HeaderMenuGroup[] = [
     entries: [
       { kind: "page", page: "advanced", icon: Zap, labelKey: "settings.advanced" },
       { kind: "page", page: "token-usage", icon: Coins, labelKey: "settings.tokenUsage" },
+      { kind: "page", page: "search-logs", icon: MessageSquareText, labelKey: "settings.searchLogs" },
     ],
   },
   {
