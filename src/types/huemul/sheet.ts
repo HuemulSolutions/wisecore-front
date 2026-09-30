@@ -81,5 +81,7 @@ export interface HuemulSheetProps {
    */
   footerContent?: ReactNode;
   onOpenAutoFocus?: (event: Event) => void;
+  /** Clases extra del overlay (ej. `bg-slate-900/30`); por defecto `bg-black/50`. */
+  overlayClassName?: string;
   children: ReactNode;
 }

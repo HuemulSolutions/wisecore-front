@@ -12,8 +12,7 @@ import {
   Workflow,
   ShieldCheck,
   BetweenHorizontalStart,
-  Link2,
-  Users,
+  BookOpen,
   Copy,
   GitCompare,
   FileCode,
@@ -125,8 +124,7 @@ interface MoreOptionsDropdownProps {
   onOpenMedia: () => void;
   onOpenPermissions: () => void;
   onOpenSections: () => void;
-  onOpenDependencies: () => void;
-  onOpenContext: () => void;
+  onOpenSources: () => void;
   onClone: () => void;
   onCloneToNew: () => void;
   onCreateTemplate: () => void;
@@ -186,8 +184,7 @@ export function MoreOptionsDropdown({
   onOpenMedia,
   onOpenPermissions,
   onOpenSections,
-  onOpenDependencies,
-  onOpenContext,
+  onOpenSources,
   onClone,
   onCloneToNew,
   onCreateTemplate,
@@ -452,18 +449,11 @@ export function MoreOptionsDropdown({
                 {t("content.sectionsLabel")}
               </DropdownMenuItem>
               <DropdownMenuItem
-                onSelect={() => setTimeout(onOpenDependencies, 0)}
+                onSelect={() => setTimeout(onOpenSources, 0)}
                 className={itemClass}
               >
-                <Link2 className="h-4 w-4" />
-                {t("content.dependenciesLabel")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => setTimeout(onOpenContext, 0)}
-                className={itemClass}
-              >
-                <Users className="h-4 w-4" />
-                {t("content.contextLabel")}
+                <BookOpen className="h-4 w-4" />
+                {t("content.sourcesLabel")}
               </DropdownMenuItem>
             </>
           )}

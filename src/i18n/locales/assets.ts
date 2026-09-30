@@ -812,6 +812,7 @@ const translations = {
     sectionsLabel: { en: "Sections", es: "Secciones" },
     dependenciesLabel: { en: "Dependencies", es: "Dependencias" },
     contextLabel: { en: "Context", es: "Contexto" },
+    sourcesLabel: { en: "Sources", es: "Fuentes" },
     reader: { en: "Reader", es: "Lector" },
     editor: { en: "Editor", es: "Editor" },
     viewModeLabel: { en: "View mode", es: "Modo de vista" },

@@ -101,6 +101,7 @@ export function HuemulSheet({
   headerContent,
   footerContent,
   onOpenAutoFocus,
+  overlayClassName,
   children,
 }: HuemulSheetProps) {
   // Default traducido del botón de cancelar: sin esto los sheets que no pasan
@@ -177,6 +178,7 @@ export function HuemulSheet({
       <SheetContent
         side={side}
         onOpenAutoFocus={onOpenAutoFocus}
+        overlayClassName={overlayClassName}
         {...(!description && { "aria-describedby": undefined })}
         className={cn(
           "flex flex-col gap-0 p-0",

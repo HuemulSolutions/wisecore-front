@@ -18,7 +18,8 @@ import { createSectionExecution, type AddSectionExecutionRequest } from "@/servi
 import { OtherVersionExecutionBanner } from "@/components/execution/other-version-execution-banner";
 import { ExecutionStatusBanner } from "@/components/execution/execution-status-banner";
 import { ChatbotContextSync } from "@/components/chatbot/chatbot-context-sync";
-import { DependenciesSheet, ContextSheet, TemplateConfigSheet, ExecuteSheet, SectionSheet } from "@/components/assets/content";
+import { TemplateConfigSheet, ExecuteSheet, SectionSheet } from "@/components/assets/content";
+import { AssetsSourcesSheet, useSourcesPendingCount } from "@/components/assets/content/sources";
 import { VersionManagementSheet } from "@/components/assets/content/assets-version-management-sheet";
 import { AssetVersionCompareSheet } from "@/components/assets/content/asset-version-compare-sheet";
 import { AssetsInfoSheet } from "@/components/assets/content/assets-info-sheet";
@@ -624,7 +625,7 @@ export function AssetContent({
   }, [activeTab, canListCustomFields, canListExecutionRelationships]);
   const [isTocSidebarOpen, setIsTocSidebarOpen] = useState(true);
   const [isSectionSheetOpen, setIsSectionSheetOpen] = useState(false);
-  const [isDependenciesSheetOpen, setIsDependenciesSheetOpen] = useState(false);
+  const [isSourcesSheetOpen, setIsSourcesSheetOpen] = useState(false);
 
   // Close TOC when Wisy panel opens
   useEffect(() => {
@@ -632,7 +633,6 @@ export function AssetContent({
       setIsTocSidebarOpen(false);
     }
   }, [isGlobalPanelOpen]);
-  const [isContextSheetOpen, setIsContextSheetOpen] = useState(false);
   const [isInfoSheetOpen, setIsInfoSheetOpen] = useState(false);
   const [isVersionManagementSheetOpen, setIsVersionManagementSheetOpen] = useState(false);
   const [isVersionCompareSheetOpen, setIsVersionCompareSheetOpen] = useState(false);
@@ -1521,6 +1521,9 @@ export function AssetContent({
     isViewOnly,
     canSwitchToEditorMode,
   } = useAssetContentPermissions(lifecyclePermissions, documentContent?.lifecycle_status);
+
+  // Fuentes obligatorias sin contenido (badge del botón "Fuentes"); comparte caché con el panel.
+  const pendingSourcesCount = useSourcesPendingCount(selectedFile?.id, frontendPermissions.canAccessSectionSheet);
 
   // Execution lifecycle transitions (complete/return, publish, archive, restore,
   // assign version, re-run external publish) — shared controller also used by
@@ -2525,37 +2528,21 @@ export function AssetContent({
               )}
 
               {frontendPermissions.canAccessSectionSheet && (
-                <DependenciesSheet
-                  selectedFile={selectedFile}
-                  isOpen={isDependenciesSheetOpen}
-                  onOpenChange={(open: boolean | ((prevState: boolean) => boolean)) => {
-                    if (!open) preserveScrollPosition();
-                    setIsDependenciesSheetOpen(open);
-                  }}
-                  isMobile={isMobile}
-                  documentName={documentContent?.document_name}
-                  lifecyclePermissions={lifecyclePermissions}
-                  stage={documentContent?.lifecycle_status?.stage}
-                  isExternalElaborationLocked={isAssetLockedByExternalElaboration}
-                />
+                <HuemulButton
+                  size="sm"
+                  variant="ghost"
+                  aria-label={t('content.sourcesLabel')}
+                  tooltip={t('content.sourcesLabel')}
+                  className="relative h-7 w-7 p-0 rounded-full text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors"
+                  onClick={() => setIsSourcesSheetOpen(true)}
+                >
+                  <BookOpen className="h-4 w-4" />
+                  {pendingSourcesCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white" aria-hidden="true" />
+                  )}
+                </HuemulButton>
               )}
 
-              {frontendPermissions.canAccessSectionSheet && (
-                <ContextSheet
-                  selectedFile={selectedFile}
-                  isOpen={isContextSheetOpen}
-                  onOpenChange={(open: boolean | ((prevState: boolean) => boolean)) => {
-                    if (!open) preserveScrollPosition();
-                    setIsContextSheetOpen(open);
-                  }}
-                  isMobile={isMobile}
-                  documentName={documentContent?.document_name}
-                  lifecyclePermissions={lifecyclePermissions}
-                  isExternalElaborationLocked={isAssetLockedByExternalElaboration}
-                  stage={documentContent?.lifecycle_status?.stage}
-                />
-              )}
-              
               {/* Secondary Action Buttons */}
               {/* Execution Dropdown - only show for documents with executions */}
               {selectedFile.type === 'document' && allExecutions?.length > 0 && (
@@ -2857,8 +2844,7 @@ export function AssetContent({
                       onOpenMedia={() => { setMediaSheetScope(null); setIsMediaSheetOpen(true); }}
                       onOpenPermissions={() => setIsPermissionsSheetOpen(true)}
                       onOpenSections={() => setIsSectionSheetOpen(true)}
-                      onOpenDependencies={() => setIsDependenciesSheetOpen(true)}
-                      onOpenContext={() => setIsContextSheetOpen(true)}
+                      onOpenSources={() => setIsSourcesSheetOpen(true)}
                       onClone={() => openCloneDialog()}
                       onCloneToNew={() => openCloneToNewDocumentSheet()}
                       onCreateTemplate={() => setIsCreateTemplateFromDocumentDialogOpen(true)}
@@ -2966,31 +2952,26 @@ export function AssetContent({
                         triggerClassName={TOOLBAR_TEXT_BUTTON}
                       />
                     )}
-                    {frontendPermissions.canAccessSectionSheet && (
-                      <DependenciesSheet
-                        selectedFile={selectedFile}
-                        isOpen={isDependenciesSheetOpen}
-                        onOpenChange={setIsDependenciesSheetOpen}
-                        documentName={documentContent?.document_name}
-                        lifecyclePermissions={lifecyclePermissions}
-                        stage={documentContent?.lifecycle_status?.stage}
-                        isExternalElaborationLocked={isAssetLockedByExternalElaboration}
-                        showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
-                        triggerClassName={TOOLBAR_TEXT_BUTTON}
-                      />
-                    )}
-                    {frontendPermissions.canAccessSectionSheet && (
-                      <ContextSheet
-                        selectedFile={selectedFile}
-                        isOpen={isContextSheetOpen}
-                        onOpenChange={setIsContextSheetOpen}
-                        documentName={documentContent?.document_name}
-                        lifecyclePermissions={lifecyclePermissions}
-                        stage={documentContent?.lifecycle_status?.stage}
-                        isExternalElaborationLocked={isAssetLockedByExternalElaboration}
-                        showTrigger={frontendPermissions.canEditSections && !deferredViewChrome.isViewMode}
-                        triggerClassName={TOOLBAR_TEXT_BUTTON}
-                      />
+                    {frontendPermissions.canAccessSectionSheet && frontendPermissions.canEditSections && (
+                      <HuemulButton
+                        size="sm"
+                        variant="ghost"
+                        className={TOOLBAR_TEXT_BUTTON}
+                        tooltip={t('content.sourcesLabel')}
+                        onClick={() => setIsSourcesSheetOpen(true)}
+                      >
+                        <BookOpen className="h-3.5 w-3.5" />
+                        <span>{t('content.sourcesLabel')}</span>
+                        {pendingSourcesCount > 0 && (
+                          <span
+                            className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-amber-100 px-1 text-[11px] font-bold text-amber-700"
+                            title={t('sources:summary.pending', { count: pendingSourcesCount })}
+                          >
+                            {pendingSourcesCount}
+                            <span className="sr-only"> {t('sources:summary.pending', { count: pendingSourcesCount })}</span>
+                          </span>
+                        )}
+                      </HuemulButton>
                     )}
                   </div>
 
@@ -3490,7 +3471,7 @@ export function AssetContent({
                                               variant="outline"
                                               onClick={() => {
                                                 preserveScrollPosition();
-                                                setIsContextSheetOpen(true);
+                                                setIsSourcesSheetOpen(true);
                                               }}
                                             >
                                               <BookOpen className="h-4 w-4 mr-2" />
@@ -3849,6 +3830,26 @@ export function AssetContent({
         executionName={selectedExecutionInfo?.name}
         onAction={() => disapproveMutation.mutateAsync()}
       />
+
+      {frontendPermissions.canAccessSectionSheet && (
+        <AssetsSourcesSheet
+          selectedFile={selectedFile}
+          isOpen={isSourcesSheetOpen}
+          onOpenChange={(open) => {
+            if (!open) preserveScrollPosition();
+            setIsSourcesSheetOpen(open);
+          }}
+          documentName={documentContent?.document_name}
+          lifecyclePermissions={lifecyclePermissions}
+          stage={documentContent?.lifecycle_status?.stage}
+          isExternalElaborationLocked={isAssetLockedByExternalElaboration}
+          isViewMode={isViewMode}
+          onSwitchToEditor={() => {
+            preserveScrollPosition();
+            setIsViewMode(false);
+          }}
+        />
+      )}
 
       <HuemulLifecycleSheets
         controller={lifecycle}

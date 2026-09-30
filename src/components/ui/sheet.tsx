@@ -47,13 +47,16 @@ function SheetContent({
   children,
   side = "right",
   onInteractOutside,
+  overlayClassName,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
+  /** Clases extra del overlay (ej. un velo más claro que el `bg-black/50` por defecto). */
+  overlayClassName?: string
 }) {
   return (
     <SheetPortal>
-      <SheetOverlay />
+      <SheetOverlay className={overlayClassName} />
       <SheetPrimitive.Content
         data-slot="sheet-content"
         onInteractOutside={(e) => {

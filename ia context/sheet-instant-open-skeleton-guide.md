@@ -112,6 +112,8 @@ useEffect(() => {
 }, [open, loadError, onOpenChange])
 ```
 
+**Excepción — error en el propio panel:** cuando el diseño pide un bloque de error con "Reintentar" (panel de Fuentes, `assets/content/sources/sources-states.tsx`), el sheet se queda abierto, `bodyLoading` pasa a `false` y el cuerpo muestra ese bloque. Sigue valiendo lo de fondo: nunca un skeleton eterno ni un estado vacío falso; el error se distingue del vacío con `isError` (sin datos) y el botón hace `refetch()`.
+
 ## 7. Animación de cierre
 
 `if (!open) return null` corta la animación de salida del sheet. Aceptable solo si no hay estado interno que resetear (`section-definition-sheet.tsx`, `assets-types-lifecycle-step-sheet.tsx`); preferir dejar el sheet montado con `open={false}`.
