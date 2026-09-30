@@ -119,7 +119,6 @@ import { withRefresh } from '@/lib/query-utils';
 import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
 import { ContentErrorState } from './content-error-state';
 // TODO: Integrate these hooks gradually to replace inline mutations
-// import { useDocumentMutations } from './hooks/useDocumentMutations';
 // import { useCustomFieldMutations } from './hooks/useCustomFieldMutations';
 // import { useExecutionState } from './hooks/useExecutionState';
 
@@ -3636,8 +3635,7 @@ export function AssetContent({
                             </HuemulButton>
                             
                             <HuemulButton
-                              requiredAccess={["edit", "create"]}
-                              requireAll={false}
+                              requiredAccess={["create"]}
                               checkGlobalPermissions={true}
                               resource="version"
                               lifecyclePermissions={lifecyclePermissions}

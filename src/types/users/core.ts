@@ -36,6 +36,28 @@ export interface User {
   roles: UserRole[]
 }
 
+/**
+ * Miembro del directorio de la organización (`GET /user_roles/members`): lo que cualquier
+ * miembro puede ver de otro para mostrar su nombre o avatar. El listado completo, con roles y
+ * datos personales, es `UsersResponse` (`user:l`).
+ */
+export interface OrganizationMember {
+  id: string
+  name: string | null
+  last_name: string | null
+  email: string
+  photo_url: string | null
+}
+
+export interface OrganizationMembersResponse {
+  data: OrganizationMember[]
+  transaction_id: string
+  page: number
+  page_size: number
+  has_next: boolean
+  timestamp: string
+}
+
 export interface UsersResponse {
   data: User[]
   transaction_id: string

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { History } from "lucide-react";
-import { useUsers } from "@/hooks/useUsers";
+import { useMembers } from "@/hooks/useUsers";
 import { HuemulTabCount } from "@/huemul/components/huemul-tab-count";
 import { HuemulLoadMoreFooter } from "@/huemul/components/huemul-load-more-footer";
 import { parseApiDate } from "@/lib/utils";
@@ -56,7 +56,7 @@ export function useAssetHistory({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const { data: usersData, isFetching: isFetchingUsers, refetch: refetchUsers } = useUsers(
+  const { data: usersData, isFetching: isFetchingUsers, refetch: refetchUsers } = useMembers(
     open,
     organizationId,
     1,

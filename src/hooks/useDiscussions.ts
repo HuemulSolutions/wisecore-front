@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useOrganization } from '@/contexts/organization-context';
 import i18n from '@/i18n';
 import { parseApiDate } from '@/lib/utils';
-import { useUsers } from '@/hooks/useUsers';
+import { useMembers } from '@/hooks/useUsers';
 import {
   listDiscussions,
   createDiscussionWithComment,
@@ -113,10 +113,12 @@ export function useDiscussions(
   const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
 
-  // Fetch org users for avatar / name resolution
-  const { data: usersResponse } = useUsers(
+  // Directorio de la organización para resolver nombre y avatar (cualquier miembro lo ve).
+  const { data: usersResponse } = useMembers(
     !!selectedOrganizationId,
     selectedOrganizationId ?? undefined,
+    1,
+    1000,
   );
 
   // ── Users map ───────────────────────────────────────────────────────

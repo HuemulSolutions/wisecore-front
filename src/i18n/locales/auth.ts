@@ -49,6 +49,9 @@ const translations = {
     rootElevationRequired: { en: "This action requires admin mode.", es: "Esta acción requiere el modo administrador." },
     rootElevationExpired: { en: "Admin mode expired. Enter it again to continue.", es: "El modo administrador venció. Volver a entrar para continuar." },
     rootAdminRequired: { en: "Your account is no longer a root admin.", es: "Tu cuenta ya no es root admin." },
+    insufficientPermissions: { en: "You don't have permission to do this. Ask an administrator of your organization for access.", es: "No tienes permiso para hacer esto. Pedir acceso a un administrador de la organización." },
+    orgMembershipRequired: { en: "You are not a member of this organization.", es: "No eres miembro de esta organización." },
+    invalidOrganization: { en: "The selected organization is not valid. Select an organization again.", es: "La organización seleccionada no es válida. Volver a seleccionar una organización." },
   },
   invitations: {
     created: { en: "Invitation sent", es: "Invitación enviada" },

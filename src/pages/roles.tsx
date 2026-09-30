@@ -110,7 +110,7 @@ export default function Roles() {
     expectedAssignedCount: selectedRole?.users_count,
   })
   const permsStaging = useRolePermissionsStaging(selectedRole?.id ?? null, {
-    enabled: canUpdate && !!selectedRole,
+    enabled: can('readRolePermissions') && !!selectedRole,
     canUpdate,
   })
   const detailsForm = useRoleDetailsForm(selectedRole, canUpdate)
@@ -314,6 +314,7 @@ export default function Roles() {
         open={showCreateDialog}
         onOpenChange={(open) => !open && closeDialog.create()}
         canCreate={canCreate}
+        canListPermissionCatalog={can('listPermissionCatalog')}
       />
 
       <DeleteRoleDialog
@@ -338,6 +339,7 @@ export default function Roles() {
         role={cloningRole}
         onConfirm={confirmCloneRole}
         canClone={canClone}
+        canCopyUsers={canUpdate}
       />
 
       <RolesImportSheet

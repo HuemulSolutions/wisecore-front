@@ -150,8 +150,8 @@ const translations = {
   importConfig: {
     title: { en: "Import portable configuration", es: "Importar configuración portable" },
     description: {
-      en: "Import assets from a portable configuration JSON file previously exported from a version.",
-      es: "Importa activos desde un archivo JSON de configuración portable exportado previamente desde una versión.",
+      en: "Import assets from a portable configuration JSON file previously exported from a version. Imported versions start as drafts, without a version number.",
+      es: "Importa activos desde un archivo JSON de configuración portable exportado previamente desde una versión. Las versiones importadas entran como borrador, sin número de versión.",
     },
     submitLabel: { en: "Import", es: "Importar" },
     success: { en: "{{count}} asset(s) imported successfully", es: "{{count}} activo(s) importado(s) correctamente" },
@@ -280,7 +280,8 @@ const translations = {
     restoreConfirm: { en: "Restore", es: "Restaurar" },
     successRestore: { en: "Asset restored successfully!", es: "Activo restaurado correctamente" },
     errorRestore: { en: "Failed to restore asset. Please try again.", es: "Error al restaurar el activo. Reintentar." },
-    errorLocked: { en: "This version already finished its lifecycle and can no longer be edited. Refresh to see its current state.", es: "Esta versión ya terminó su ciclo de vida y no se puede editar. Actualizar para ver su estado actual." },
+    errorLocked: { en: "This version is in approval or later and can no longer be edited. Create a new version if changes are needed.", es: "Esta versión está en aprobación o más adelante y ya no se puede editar. Crear una nueva versión si hacen falta cambios." },
+    errorPermissionDenied: { en: "Your role can't do this at the current lifecycle stage of this asset.", es: "Tu rol no puede hacer esto en la etapa actual del ciclo de vida de este activo." },
     lockedExternalElaborationNotice: {
       title: { en: "Waiting for an extension", es: "Esperando a una extensión" },
       description: { en: "This asset is temporarily read-only while an extension processes it. It will unlock automatically once that response arrives.", es: "Este activo está temporalmente en modo lectura mientras una extensión lo procesa. Se desbloqueará automáticamente en cuanto llegue esa respuesta." },

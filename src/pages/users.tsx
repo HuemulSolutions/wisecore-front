@@ -126,7 +126,7 @@ export default function UsersPage() {
   // pueda agregar el rol recién creado sin pasar por el panel — ver
   // ia context/inline-create-entity-in-sheet-guide.md.
   const staging = useUserRolesStaging(selectedUser?.id ?? null, {
-    enabled: canListRoles && !!selectedUser,
+    enabled: can('readUserRoles') && !!selectedUser,
     canAssignRoles,
     expectedAssignedCount: selectedUser?.roles?.length,
   })
@@ -358,6 +358,7 @@ export default function UsersPage() {
         open={createRoleSheetOpen}
         onOpenChange={setCreateRoleSheetOpen}
         canCreate={canCreateRole}
+        canListPermissionCatalog={can('listPermissionCatalog')}
         initialName={createRoleInitialName}
         onCreated={(role) => {
           staging.add(role, { created: true })

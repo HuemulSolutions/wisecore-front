@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
 import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import type { CustomWordExportSheetProps } from '@/types/assets';
 export type { CustomWordExportSheetProps } from '@/types/assets';
 
@@ -33,6 +34,10 @@ export function CustomWordExportDialog({
   const { selectedOrganizationId } = useOrganization();
   const { t } = useTranslation(["assets", "common"]);
   const queryClient = useQueryClient();
+  // Exportar solo exige leer la versión, pero subir una plantilla la guarda en el asset
+  // (`POST /docx_templates/{document_id}`), que el backend exige con `docx_template:c`.
+  const { canCreate } = useUserPermissions();
+  const canUploadTemplate = canCreate('docx_template');
 
   const availableTemplatesKey = ['available-docx-templates-execution', selectedExecutionId, selectedOrganizationId];
 
@@ -145,6 +150,8 @@ export function CustomWordExportDialog({
           <div className="flex-1 overflow-y-auto py-4">
             <div className="space-y-6">
               {/* File Upload Section */}
+              {canUploadTemplate && (
+              <>
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-gray-900">
                   {t('exportCustomWord.uploadNewTemplate')}
@@ -207,6 +214,8 @@ export function CustomWordExportDialog({
                   <span className="px-3 bg-white text-gray-500 font-medium">{t('exportCustomWord.or')}</span>
                 </div>
               </div>
+              </>
+              )}
 
               {/* Use Existing Template Section */}
               <div className="space-y-3">

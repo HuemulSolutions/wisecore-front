@@ -1,3 +1,4 @@
+import { ApiError } from '@/types/api-error';
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { downloadBlobResponse } from "@/lib/blob-download";
@@ -189,8 +190,7 @@ export async function exportTemplates(organizationId: string, body: ExportTempla
     });
 
     if (!response.ok) {
-        const errorBody = await response.json().catch(() => null);
-        throw new Error(errorBody?.message ?? 'Error al exportar templates');
+        throw await ApiError.fromResponse(response, 'Error al exportar templates');
     }
 
     await downloadBlobResponse(response, 'templates_export.json');
