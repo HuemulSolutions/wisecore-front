@@ -146,7 +146,7 @@ docx_template · template · template_section · section
 section_execution · version · llm_provider · llm · rbac
 role_folder · external_system · external_functionality
 external_parameter · external_secret · token_usage · notification
-custom_fields · media · canvas · discussion
+custom_fields · media · canvas · discussion · search
 ```
 
 (Lista completa y con tipos en `src/types/jwt-utils.ts` → `PermissionResource`.)

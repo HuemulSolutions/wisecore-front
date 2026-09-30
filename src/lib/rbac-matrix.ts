@@ -265,15 +265,19 @@ export const RBAC_PAGES = {
     },
   },
   search: {
-    // No existe recurso `search` en PermissionResource: GET /search/ devuelve
-    // documentos y cada resultado abre /asset/{id}, cuyo guard exige
-    // asset:l|r — se gatea con la lectura del recurso que sirve, mismo
-    // criterio que `listLogs: external_functionality:l|r`.
+    // El backend exige `search:c` en /search/, /search/passages y /search/feedback
+    // (init_org.sql: 'search:c' = "Make a search"). Antes se gateaba con asset:l|r
+    // y un rol sin search:c veía la página y recibía 403. Abrir un resultado sigue
+    // pidiendo asset:r|l (guard de /asset/{id}).
     route: "search",
-    routePermissions: ["asset:l", "asset:r"],
+    routePermissions: ["search:c"],
     nav: { title: "Search", orgScoped: true },
     features: {
-      performSearch: ["asset:l", "asset:r"],
+      performSearch: "search:c",
+      // Búsqueda por pasajes (GET /search/passages) y feedback útil/no útil
+      // (POST /search/feedback): mismo permiso que buscar.
+      searchPassages: "search:c",
+      sendSearchFeedback: "search:c",
       openAsset: ["asset:r", "asset:l"],
       filterByAssetType: ["asset_type:l", "asset_type:r"],
       filterByTemplate: ["template:l", "template:r"],

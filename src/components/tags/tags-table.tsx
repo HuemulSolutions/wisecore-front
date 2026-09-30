@@ -30,7 +30,9 @@ export function TagsTable({
   // tag:r — ver etiquetas no implica poder ver templates/asset types/docs.
   const canViewTemplates = hasAnyPermission(['template:l', 'template:r'])
   const canViewAssetTypes = hasAnyPermission(['asset_type:l', 'asset_type:r'])
-  const canViewDocuments = hasAnyPermission(['asset:l', 'asset:r'])
+  // "Ver documentos" abre /search?tag_id=…, que exige search:c (y abrir cada
+  // resultado, asset:l|r): se piden los dos.
+  const canViewDocuments = hasAnyPermission(['search:c']) && hasAnyPermission(['asset:l', 'asset:r'])
 
   const columns: HuemulTableColumn<Tag>[] = [
     {
