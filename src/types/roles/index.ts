@@ -12,6 +12,8 @@ export interface CloneRoleDialogProps {
   onConfirm: (copyUsers: boolean) => Promise<void>
   /** rbac:c — sin default: secure-by-default. */
   canClone: boolean
+  /** rbac:u — copiar los usuarios del rol origen los asigna al nuevo. Sin default. */
+  canCopyUsers: boolean
 }
 
 export interface RolesContentEmptyStateProps {
@@ -24,6 +26,11 @@ export interface CreateRoleSheetProps {
   onOpenChange: (open: boolean) => void
   /** rbac:c — sin default: secure-by-default. */
   canCreate: boolean
+  /**
+   * rbac:l — `GET /rbac/permissions`, el catálogo del selector de permisos. Sin él, el rol se
+   * crea sin permisos (se asignan después). Sin default.
+   */
+  canListPermissionCatalog: boolean
   /**
    * Rol recién creado. Lo usan las superficies que lo consumen en el acto
    * (p. ej. la matriz de permisos por rol, que lo agrega como fila).

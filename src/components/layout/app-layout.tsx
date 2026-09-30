@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
 import { clearReturnUrl, consumeReturnUrl, saveReturnUrl } from '@/lib/return-url'
 import { authStepUpStore } from '@/lib/auth-step-up-store'
-import { isErrorCode, parseErrorDetail } from '@/lib/error-utils'
+import { handleApiError, isErrorCode, parseErrorDetail } from '@/lib/error-utils'
 import { AUTH_METHOD_REQUIRED } from '@/hooks/useCompleteLogin'
 import type { AuthMethodRequiredDetail } from '@/types/auth'
 import { Home, Search, LayoutTemplate, BookText, Menu, Network, Workflow } from "lucide-react"
@@ -329,7 +329,9 @@ export default function AppLayout() {
           }
         }
         // If token generation fails (user doesn't have access), redirect
-        // with the current org, or show org selection dialog
+        // with the current org, or show org selection dialog. Antes se volvía en silencio:
+        // se avisa por qué (no es miembro, id inválido, etc.) con el mensaje del error.
+        handleApiError(error, { showDetailsAction: false })
         if (selectedOrganizationId) {
           const pathWithoutOrg = stripOrgPrefix(location.pathname)
           rawNavigate(`/${selectedOrganizationId}${pathWithoutOrg}${location.search}`, { replace: true })

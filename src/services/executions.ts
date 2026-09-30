@@ -163,19 +163,6 @@ export async function getExecutionUnresolvedComments(executionId: string, organi
     return data.data as ExecutionUnresolvedComments;
 }
 
-export async function createExecution(documentId: string, organizationId: string) {
-    logger.log(`Creating execution for document ID: ${documentId}`);
-    const response = await httpClient.post(`${backendUrl}/execution/${documentId}`, {}, {
-        headers: {
-            'X-Org-Id': organizationId,
-        },
-    });
-
-    const data = await response.json();
-    logger.log('Execution created:', data.data);
-    return data.data;
-}
-
 export async function executeDocument({
     documentId,
     llmId,
@@ -283,7 +270,7 @@ async function exportExecutionFile(executionId: string, exportType: 'markdown' |
     });
     
     if (!response.ok) {
-        throw new Error(`Error al exportar la ejecuciÃ³n a ${exportType}`);
+        throw await ApiError.fromResponse(response, `Error al exportar la ejecuciÃ³n a ${exportType}`);
     }
 
     // Obtener el contenido del archivo y el nombre del archivo desde los headers

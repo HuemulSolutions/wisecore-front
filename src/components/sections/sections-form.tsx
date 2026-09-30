@@ -24,6 +24,7 @@ import type { CalculationPickerContext, FieldDependencyCondition, SectionType } 
 import type { SectionContextOption } from "@/types/sections/blocks";
 import type { SectionPlateEditorRef } from "@/components/plate-editor/section-plate-editor";
 import { useEditWithAi } from "@/hooks/useEditWithAi";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { handleApiError } from "@/lib/error-utils";
 import { logger } from "@/lib/logger";
 import type { SectionFormProps } from '@/types/sections';
@@ -51,6 +52,13 @@ export function SectionForm({
   const { t } = useTranslation(['sections', 'templates']);
   const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
+  // `POST /generation/redact_section_prompt` exige alguno de estos permisos.
+  const { hasAnyPermission, hasPermission, hasAllPermissions } = useUserPermissions();
+  const canRedactPrompt = hasAnyPermission(["section:c", "section:u", "template_section:c", "template_section:u"]);
+  // Propagar escribe en otro recurso: el backend exige su permiso además del de la acción.
+  const canPropagateToDocuments = hasPermission("section:c");
+  const canPropagateToSections = hasPermission("section:u");
+  const canPropagateToTemplate = hasAllPermissions(["template_section:c", "template_section:u"]);
   const promptEditorRef = useRef<SectionPlateEditorRef>(null);
   const manualEditorRef = useRef<SectionPlateEditorRef>(null);
   const isInitialSyncDone = useRef(false);
@@ -619,7 +627,7 @@ export function SectionForm({
           onPromptChange={handlePromptChange}
           isPending={isPending}
           isGenerating={isGenerating}
-          canGeneratePrompt={!!name.trim()}
+          canGeneratePrompt={!!name.trim() && canRedactPrompt}
           onGeneratePrompt={handleGeneratePrompt}
           canEditWithAi={true}
           isEditingWithAi={editWithAiMutation.isPending}
@@ -693,13 +701,13 @@ export function SectionForm({
       />
 
       <SectionPropagationFields
-        showToDocuments={mode === 'create' && !!templateId}
+        showToDocuments={mode === 'create' && !!templateId && canPropagateToDocuments}
         propagateToDocuments={propagateToAssets}
         onPropagateToDocumentsChange={(checked) => { setPropagateToAssets(checked); markDirty(); }}
-        showToSections={mode === 'edit' && isTemplateSection}
+        showToSections={mode === 'edit' && isTemplateSection && canPropagateToSections}
         propagateToSections={propagatePrompt}
         onPropagateToSectionsChange={(checked) => { setPropagatePrompt(checked); markDirty(); }}
-        showToTemplate={mode === 'edit' && hasTemplate}
+        showToTemplate={mode === 'edit' && hasTemplate && canPropagateToTemplate}
         propagateToTemplate={propagateToTemplate}
         onPropagateToTemplateChange={(checked) => { setPropagateToTemplate(checked); markDirty(); }}
         disabled={isPending}

@@ -6,13 +6,13 @@ import { HuemulField } from "@/huemul/components/huemul-field"
 import type { CloneRoleDialogProps } from '@/types/roles'
 export type { CloneRoleDialogProps } from '@/types/roles'
 
-export function CloneRoleDialog({ open, onOpenChange, role, onConfirm, canClone }: CloneRoleDialogProps) {
+export function CloneRoleDialog({ open, onOpenChange, role, onConfirm, canClone, canCopyUsers }: CloneRoleDialogProps) {
   const { t } = useTranslation('roles')
   const [copyUsers, setCopyUsers] = useState(false)
 
   const handleConfirm = async () => {
     if (!canClone) return
-    await onConfirm(copyUsers)
+    await onConfirm(canCopyUsers && copyUsers)
     setCopyUsers(false)
   }
 
@@ -38,15 +38,17 @@ export function CloneRoleDialog({ open, onOpenChange, role, onConfirm, canClone 
         icon: Copy,
       }}
     >
-      <div className="py-2">
-        <HuemulField
-          type="switch"
-          label={t('clone.copyUsers')}
-          description={t('clone.copyUsersDescription')}
-          value={copyUsers}
-          onChange={(val) => setCopyUsers(val as boolean)}
-        />
-      </div>
+      {canCopyUsers && (
+        <div className="py-2">
+          <HuemulField
+            type="switch"
+            label={t('clone.copyUsers')}
+            description={t('clone.copyUsersDescription')}
+            value={copyUsers}
+            onChange={(val) => setCopyUsers(val as boolean)}
+          />
+        </div>
+      )}
     </HuemulDialog>
   )
 }

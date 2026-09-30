@@ -1,3 +1,4 @@
+import { ApiError } from '@/types/api-error';
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { downloadBlobResponse } from "@/lib/blob-download";
@@ -323,8 +324,7 @@ export async function exportDocuments(organizationId: string, body: ExportDocume
   });
 
   if (!response.ok) {
-    const errorBody = await response.json().catch(() => null);
-    throw new Error(errorBody?.message ?? 'Error al exportar documentos');
+    throw await ApiError.fromResponse(response, 'Error al exportar documentos');
   }
 
   await downloadBlobResponse(response, 'documents_export.json');

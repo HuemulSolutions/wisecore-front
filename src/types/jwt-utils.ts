@@ -58,6 +58,8 @@ export type PermissionResource =
   | 'media'
   | 'canvas'
   | 'discussion'
-  | 'tag';
+  | 'tag'
+  | 'chatbot'
+  | 'role_doctype';
 
 export type Permission = `${PermissionResource}:${PermissionAction}` | 'folder:manage_groups';

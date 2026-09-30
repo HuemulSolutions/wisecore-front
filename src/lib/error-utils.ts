@@ -32,6 +32,12 @@ const DEDICATED_ERROR_MESSAGES: Record<string, string> = {
   ROOT_ELEVATION_EXPIRED: 'auth:errors.rootElevationExpired',
   ROOT_ELEVATION_INVALID: 'auth:errors.rootElevationExpired',
   ROOT_ADMIN_REQUIRED: 'auth:errors.rootAdminRequired',
+  // Autorización (auditoría del backend, PR #355). El permiso exacto que falta queda en el
+  // log (`detail`); al usuario le basta saber que no tiene acceso y a quién pedírselo.
+  INSUFFICIENT_PERMISSIONS: 'auth:errors.insufficientPermissions',
+  LIFECYCLE_PERMISSION_DENIED: 'assets:lifecycle.errorPermissionDenied',
+  ORG_MEMBERSHIP_REQUIRED: 'auth:errors.orgMembershipRequired',
+  INVALID_ORG_HEADER: 'auth:errors.invalidOrganization',
 };
 
 /**

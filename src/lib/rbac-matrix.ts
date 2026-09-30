@@ -211,7 +211,9 @@ export const RBAC_PAGES = {
       // media:c) queda como paso 2 — ver ia context/rbac-audit-guide.md.
       readAsset: ["asset:r", "asset:l"],
       updateAssetContent: "asset:u", // secciones, formularios, autosave, IA, review status
-      createVersion: "asset:c", // crear ejecución, clonar versión / a nuevo documento
+      // Clonar versión (mismo asset o a uno nuevo) y crear una versión vacía: el backend exige
+      // `version:c` (POST /execution/{id}/clone, POST /execution/{document_id}).
+      createVersion: "version:c",
       deleteVersion: "asset:d", // borrar versión y borrar documento
       exportVersion: "asset:r",
 
@@ -332,9 +334,10 @@ export const RBAC_PAGES = {
     route: "users",
     routePermissions: ["user:r", "user:l"],
     features: {
-      // GET /user_roles/users_with_roles — el mismo endpoint que ya se gatea
-      // con user:l|r desde el filtro de /token-usage.
-      listUsers: ["user:l", "user:r"],
+      // GET /user_roles/users_with_roles — el backend exige `user:l`.
+      listUsers: "user:l",
+      // GET /user_roles/user_all_roles/{id} — roles del usuario seleccionado (`user:r`).
+      readUserRoles: "user:r",
       createUser: "user:c",
       // Editar + aprobar/rechazar altas (POST /users/{id}/approve|reject):
       // tres formas de mutar un usuario ya existente.
@@ -354,8 +357,8 @@ export const RBAC_PAGES = {
       // Vía "Clonar" del popover "Agregar rol".
       cloneRole: "rbac:c",
       // GET /rbac/permissions — catálogo que alimenta CreateRoleSheet cuando
-      // se abre desde el popover (vía "Con permisos").
-      listPermissionCatalog: ["rbac:l", "rbac:r"],
+      // se abre desde el popover (vía "Con permisos"). El backend exige `rbac:l`.
+      listPermissionCatalog: "rbac:l",
     },
   },
   roles: {
@@ -376,13 +379,17 @@ export const RBAC_PAGES = {
       // criterio que `manageLifecycle: asset_type:u`).
       assignRoleToUsers: "rbac:u",
       // GET /rbac/permissions — catálogo que alimenta el selector de permisos
-      // de los sheets de crear/editar.
-      listPermissionCatalog: ["rbac:l", "rbac:r"],
-      exportRoles: ["rbac:l", "rbac:r"],
+      // de los sheets de crear/editar. El backend exige `rbac:l`.
+      listPermissionCatalog: "rbac:l",
+      // POST /rbac/roles/export — el backend exige `rbac:l`.
+      exportRoles: "rbac:l",
+      // GET /rbac/roles/{id}/permissions_with_status — tab Permisos del detalle (`rbac:r`).
+      readRolePermissions: "rbac:r",
       // on_conflict=overwrite pisa roles existentes: exige crear y actualizar.
       importRoles: { all: ["rbac:c", "rbac:u"] },
       // Tab "Usuarios" del panel de detalle del rol (espejo de /users).
-      listUsers: ["user:l", "user:r"],
+      // GET /user_roles/role_with_all_users exige `user:l`.
+      listUsers: "user:l",
       // Botón "Crear usuario" inline desde el popover "Agregar usuario" del
       // panel del rol (mismo patrón que createUser en RBAC_PAGES.users).
       createUser: "user:c",
@@ -398,7 +405,8 @@ export const RBAC_PAGES = {
       deleteAssetType: "asset_type:d",
       cloneAssetType: "asset_type:c",
       exportAssetTypes: "asset_type:r",
-      importAssetTypes: { all: ["asset_type:c", "asset_type:u"] },
+      // El JSON concede niveles de acceso a roles: el backend exige además `role_doctype:c`.
+      importAssetTypes: { all: ["asset_type:c", "asset_type:u", "role_doctype:c"] },
       // Lifecycle y vínculos template↔asset_type son sub-recursos del asset
       // type: el endpoint que validan es /document_types/{id}/..., de ahí
       // asset_type:u en vez de un recurso propio.
@@ -530,7 +538,8 @@ export const RBAC_PAGES = {
       listLlms: ["llm:l", "llm:r"],
       createExecution: "section_execution:c",
       listExecutions: ["section_execution:l", "section_execution:r"],
-      wordExport: "version:r",
+      // Exporta con una plantilla DOCX del template: listar esas plantillas exige `docx_template:l`.
+      wordExport: { all: ["version:r", "docx_template:l"] },
     },
   },
   "external-systems": {

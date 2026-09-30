@@ -1,3 +1,4 @@
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -69,6 +70,8 @@ export function SectionSheet({
   // AND que no haya un ElaborationRun bloqueando la execution (el backend rechaza
   // crear/renombrar/borrar/reordenar sección con el mismo 409 mientras dura).
   const canEditSections = !!(lifecyclePermissions?.edit || lifecyclePermissions?.create) && stage === 'edit' && can('updateAssetContent') && !isExternalElaborationLocked;
+  // Documento → plantilla escribe en la plantilla y lee el asset: el backend exige `template:u` + `asset:r`.
+  const canSyncToTemplate = useUserPermissions().hasAllPermissions(['template:u', 'asset:r']);
 
   useEffect(() => {
     setSelectedConfigExecutionId(executionInfo?.id || executionId || null);
@@ -354,6 +357,7 @@ export function SectionSheet({
                     {t('common:update')}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  {canSyncToTemplate && (
                   <DropdownMenuItem
                     className="hover:cursor-pointer px-4 py-3"
                     onSelect={() => {
@@ -368,6 +372,7 @@ export function SectionSheet({
                       </span>
                     </div>
                   </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     className="hover:cursor-pointer px-4 py-3"
                     onSelect={() => {

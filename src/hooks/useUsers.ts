@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { getUsers, getUserById, approveUser, rejectUser, deleteUser, updateUser, createUser, getUserOrganizations, updateUserRootAdmin, getGlobalUsers } from "@/services/users"
+import { getUsers, getOrganizationMembers, getUserById, approveUser, rejectUser, deleteUser, updateUser, createUser, getUserOrganizations, updateUserRootAdmin, getGlobalUsers } from "@/services/users"
 import type { UpdateUserData } from "@/types/users"
 
 // Query keys
@@ -16,6 +16,14 @@ export const userQueryKeys = {
   ] as const,
   detail: (id: string) => [...userQueryKeys.all, 'detail', id] as const,
   organizations: (userId?: string) => [...userQueryKeys.all, 'organizations', userId] as const,
+  members: (organizationId?: string, page?: number, pageSize?: number, search?: string) => [
+    ...userQueryKeys.all,
+    'members',
+    organizationId ?? 'all',
+    page,
+    pageSize,
+    search ?? ''
+  ] as const,
 }
 
 /**
@@ -47,6 +55,24 @@ export function useUsers(enabled: boolean = true, organizationId?: string, page:
     retry: 0, // No retries to avoid multiple error requests
     enabled,
     placeholderData: (prev) => prev, // Keep previous data while loading new page
+  })
+}
+
+/**
+ * Directorio de la organización (`GET /user_roles/members`). Para mostrar nombres o avatares
+ * de otros miembros donde el usuario no necesariamente tiene `user:l` (discusiones, historial,
+ * dueño de un asset). Para la administración de usuarios usar `useUsers`.
+ */
+export function useMembers(enabled: boolean = true, organizationId?: string, page: number = 1, pageSize: number = 100, search?: string) {
+  return useQuery({
+    queryKey: userQueryKeys.members(organizationId, page, pageSize, search),
+    queryFn: () => getOrganizationMembers(organizationId, page, pageSize, search),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 0,
+    enabled: enabled && !!organizationId,
+    placeholderData: (prev) => prev,
   })
 }
 

@@ -190,9 +190,22 @@ async function send(url: string, options: RequestInit, isRetry: boolean): Promis
   // (no incluir para endpoints de auth, pero sí para endpoints de token y otros)
   // IMPORTANTE: No sobrescribir si el servicio ya pasó un X-Org-Id específico
   // (permite a servicios consultar organizaciones diferentes a la seleccionada)
-  if (organizationId && !isAuthEndpoint && !headers.has('X-Org-Id')) {
+  // Las organizaciones del usuario y la colección `/organizations` viven en la base admin y no
+  // usan `X-Org-Id`. No se les manda el de la org activa: si el usuario ya no es miembro de
+  // ella, el backend respondería 403 `ORG_MEMBERSHIP_REQUIRED` y el selector quedaría vacío.
+  const isOrganizationsCollection = /\/organizations\/?(?:[?#]|$)/.test(url);
+  const skipsOrgHeader = isAuthEndpoint || isUserOrganizationsEndpoint || isOrganizationsCollection;
+  if (organizationId && !skipsOrgHeader && !headers.has('X-Org-Id')) {
     headers.set('X-Org-Id', organizationId);
     logger.log(`[httpClient] Using organization ID:`, organizationId);
+  }
+
+  // Un servicio que arma el header con `organizationId ?? ''` o `organizationId!` sin org
+  // manda "", "null" o "undefined". El backend lo trata como una organización inválida o
+  // ausente (400); mejor no mandarlo y que responda como una request sin organización.
+  const orgHeader = headers.get('X-Org-Id');
+  if (orgHeader !== null && ['', 'null', 'undefined'].includes(orgHeader.trim())) {
+    headers.delete('X-Org-Id');
   }
 
   // Ensure Content-Type is set for requests with body (except FormData)
