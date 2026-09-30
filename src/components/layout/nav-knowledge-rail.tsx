@@ -20,17 +20,18 @@ export function NavKnowledgeRail({ onExpand, onSearch }: NavKnowledgeRailProps) 
 
   return (
     <div
-      className="flex h-full w-full flex-col items-center gap-1 border-r py-2"
-      style={{ backgroundColor: "var(--adp-rail-bg, var(--muted))", borderColor: "var(--adp-border, var(--border))" }}
+      className="flex h-full w-full flex-col items-center gap-1 border-r bg-white py-2"
+      style={{ borderColor: "var(--adp-border, var(--border))" }}
     >
       <button
         type="button"
         onClick={onExpand}
         title={t('knowledge.expand')}
-        className="mb-1 flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:cursor-pointer hover:bg-muted hover:text-foreground"
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:cursor-pointer hover:bg-muted hover:text-foreground"
       >
-        <ChevronRight className="h-3.5 w-3.5" />
+        <ChevronRight className="h-4 w-4" />
       </button>
+      <div className="mb-1 h-px w-8 shrink-0 bg-border" />
       <Button
         variant="ghost"
         size="icon"

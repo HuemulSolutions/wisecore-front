@@ -14,6 +14,7 @@ import { NavKnowledgeHeader, NavKnowledgeContent } from "@/components/layout/nav
 import { NavKnowledgeRail } from "@/components/layout/nav-knowledge-rail";
 import { useNavKnowledge, useNavKnowledgeRefresh, useNavKnowledgePagination } from "@/contexts/nav-knowledge-context";
 import { useKnowledgePanelCollapsed } from "@/hooks/useKnowledgePanelCollapsed";
+import { useCollapsedPanelSize } from "@/hooks/useCollapsedPanelSize";
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
 import { HuemulPagination } from "@/huemul/components/huemul-pagination";
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
@@ -27,6 +28,8 @@ import { useInvalidateDocumentSectionAccess } from "@/hooks/useDocumentSectionAc
  * Main content component for the Assets page
  * Handles document navigation, URL management, and scroll preservation
  */
+const ASSETS_LAYOUT_ID = "assets-page-layout";
+
 function AssetsContent() {
   const queryClient = useQueryClient();
   const navigate = useOrgNavigate();
@@ -43,6 +46,7 @@ function AssetsContent() {
   // onCollapse/onExpand mantienen el flag persistido en sync (incluye colapso por drag).
   const knowledgePanelRef = useRef<ImperativePanelHandle>(null);
   const [isKnowledgeCollapsed, setIsKnowledgeCollapsed] = useKnowledgePanelCollapsed(selectedOrganizationId);
+  const knowledgeCollapsedSize = useCollapsedPanelSize({ groupId: ASSETS_LAYOUT_ID, panelRef: knowledgePanelRef });
   const toggleKnowledgePanel = useCallback(() => {
     const panel = knowledgePanelRef.current;
     if (!panel) return;
@@ -117,6 +121,7 @@ function AssetsContent() {
     <div className="relative h-full">
       {isLoadingDocument && <LoadingOverlay />}
       <HuemulPageLayout
+        id={ASSETS_LAYOUT_ID}
         className="bg-gray-50"
         columns={[
           {
@@ -133,10 +138,10 @@ function AssetsContent() {
               </div>
             ),
             panelRef: knowledgePanelRef,
-            defaultSize: isKnowledgeCollapsed ? 4 : isWisyOpen ? 15 : 20,
+            defaultSize: isKnowledgeCollapsed ? knowledgeCollapsedSize : isWisyOpen ? 15 : 20,
             minSize: isWisyOpen ? 10 : 12,
             collapsible: true,
-            collapsedSize: 4,
+            collapsedSize: knowledgeCollapsedSize,
             onCollapse: () => setIsKnowledgeCollapsed(true),
             onExpand: () => setIsKnowledgeCollapsed(false),
             className: "overflow-hidden [scrollbar-gutter:auto]",

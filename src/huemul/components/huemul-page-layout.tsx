@@ -203,6 +203,7 @@ function renderColumnInner(
  * ```
  */
 export function HuemulPageLayout({
+  id,
   header,
   showHeader = true,
   columns,
@@ -253,7 +254,7 @@ export function HuemulPageLayout({
             {renderColumnInner(normalizedColumns[0], withHandle)}
           </div>
         ) : (
-          <ResizablePanelGroup direction={direction} className="h-full">
+          <ResizablePanelGroup id={id} direction={direction} className="h-full">
             {normalizedColumns.map((col, index) => (
               <React.Fragment key={col.panelId}>
                 {index > 0 && (

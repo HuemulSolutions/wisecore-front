@@ -25,6 +25,7 @@ import { AssetsInfoSheet } from "@/components/assets/content/assets-info-sheet";
 import AssetLifecycleSheet from "@/components/assets/dialogs/assets-lifecycle-sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useElementWidth } from "@/hooks/useElementWidth";
+import { useCollapsedPanelSize } from "@/hooks/useCollapsedPanelSize";
 import { useAuth } from "@/contexts/auth-context";
 import { useRecentAssets } from "@/hooks/useRecentAssets";
 import { DocumentAccessControl } from "@/components/assets/content/assets-access-control";
@@ -173,6 +174,8 @@ const ASSET_HISTORY_TABS: AssetHistoryTab[] = ['lifecycle', 'changes'];
  * Main component for displaying and managing document/template content.
  * Handles content rendering, version management, executions, and user interactions.
  */
+const ASSET_CONTENT_LAYOUT_ID = "asset-content-layout";
+
 export function AssetContent({
   selectedFile,
   selectedExecutionId,
@@ -588,6 +591,7 @@ export function AssetContent({
   const [activeTab, setActiveTab] = useState<AssetDetailPanelTab>('index');
   const [isDetailPanelCollapsed, setIsDetailPanelCollapsed] = useState(false);
   const detailPanelRef = useRef<ImperativePanelHandle>(null);
+  const detailCollapsedSize = useCollapsedPanelSize({ groupId: ASSET_CONTENT_LAYOUT_ID, panelRef: detailPanelRef });
   // Los custom fields son un recurso propio (custom_fields), no del asset: el tab
   // y su query exigen el permiso de listarlos.
   const canListCustomFields = can('listCustomFields');
@@ -2350,7 +2354,7 @@ export function AssetContent({
 
   return (
     <DiscussionFocusProvider onResolve={handleDiscussionFocusResolved}>
-    <ResizablePanelGroup direction="horizontal" className=" bg-gray-50">
+    <ResizablePanelGroup id={ASSET_CONTENT_LAYOUT_ID} direction="horizontal" className=" bg-gray-50">
       {/* Document Content */}
       <ResizablePanel defaultSize={80}>
         <div className="flex-1 flex flex-col min-w-0 h-full">
@@ -3684,7 +3688,7 @@ export function AssetContent({
             defaultSize={22}
             minSize={16}
             collapsible
-            collapsedSize={4}
+            collapsedSize={detailCollapsedSize}
             onCollapse={() => setIsDetailPanelCollapsed(true)}
             onExpand={() => setIsDetailPanelCollapsed(false)}
           >

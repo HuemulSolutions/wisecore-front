@@ -37,13 +37,14 @@ export function AssetsDetailPanelRail({
         type="button"
         onClick={onToggleCollapse}
         title={isCollapsed ? expandLabel : collapseLabel}
-        className="mb-2 flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:cursor-pointer hover:bg-muted hover:text-foreground"
+        className="mb-1 flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:cursor-pointer hover:bg-muted hover:text-foreground"
       >
         <ChevronRight
-          className="h-3.5 w-3.5 transition-transform duration-180"
+          className="h-4 w-4 transition-transform duration-180"
           style={{ transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)" }}
         />
       </button>
+      <div className="mb-2 h-px w-8 shrink-0 bg-border" />
       <div className="flex flex-1 flex-col items-center gap-1">
         {visibleItems.map((item) => {
           const Icon = item.icon;
