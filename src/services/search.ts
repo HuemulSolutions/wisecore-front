@@ -56,7 +56,7 @@ export async function search({
     if (document_type_id != null) params.set('document_type_id', document_type_id);
     if (template_id != null) params.set('template_id', template_id);
     // Sin confirmar contra backend — ver nota en types/search/core.ts.
-    if (tag_id != null) params.set('tag_id', tag_id);
+    tag_id?.forEach((id) => params.append('tag_id', id));
     if (created_by != null) params.set('created_by', created_by);
     if (lifecycle_state != null) params.set('lifecycle_state', lifecycle_state);
     if (owner_scope != null) params.set('owner_scope', owner_scope);
@@ -100,19 +100,36 @@ export async function searchPassages({
     documentTypeIds,
     templateId,
     ownerScope,
+    createdBy,
+    tagIds,
+    hasUnresolvedComments,
+    hasPendingAiSuggestion,
+    businessDates,
     customFieldFilter,
     searchIn,
     highPrecision = false,
+    page,
+    pageSize,
 }: SearchPassagesParams): Promise<SearchPassagesResponse> {
     const params = new URLSearchParams();
     params.set('query', query);
-    params.set('top_k', String(topK));
+    // page_size manda sobre top_k en el backend; top_k queda para quien no pagina.
+    if (pageSize != null) params.set('page_size', String(pageSize));
+    else params.set('top_k', String(topK));
+    if (page != null) params.set('page', String(page));
     params.set('version_scope', versionScope);
     params.set('high_precision', String(highPrecision));
     lifecycleStates?.forEach((state) => params.append('lifecycle_state', state));
     documentTypeIds?.forEach((id) => params.append('document_type_id', id));
     if (templateId) params.set('template_id', templateId);
     if (ownerScope) params.set('owner_scope', ownerScope);
+    if (createdBy) params.set('created_by', createdBy);
+    tagIds?.forEach((id) => params.append('tag_id', id));
+    if (hasUnresolvedComments != null) params.set('has_unresolved_comments', String(hasUnresolvedComments));
+    if (hasPendingAiSuggestion != null) params.set('has_pending_ai_suggestion', String(hasPendingAiSuggestion));
+    Object.entries(businessDates ?? {}).forEach(([key, value]) => {
+        if (value) params.set(key, toDateParam(value));
+    });
     customFieldFilter?.forEach((f) => params.append('custom_field_filter', f));
     searchIn?.forEach((scope) => params.append('search_in', scope));
 

@@ -1,9 +1,14 @@
+import type { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export interface HuemulSegmentedOption<T extends string = string> {
   value: T
   label: string
   disabled?: boolean
+  /** Texto de ayuda nativo (tooltip) de la opción. */
+  title?: string
+  /** Ícono opcional a la izquierda del texto. */
+  icon?: LucideIcon
 }
 
 export interface HuemulSegmentedControlProps<T extends string = string> {
@@ -57,6 +62,7 @@ export function HuemulSegmentedControl<T extends string = string>({
       {options.map((option) => {
         const isActive = option.value === value
         const isDisabled = disabled || option.disabled
+        const Icon = option.icon
         return (
           <button
             key={option.value}
@@ -64,12 +70,13 @@ export function HuemulSegmentedControl<T extends string = string>({
             role="radio"
             aria-checked={isActive}
             disabled={isDisabled}
+            title={option.title}
             onClick={() => {
               if (isDisabled || isActive) return
               onChange(option.value)
             }}
             className={cn(
-              "h-[26px] rounded-[6px] px-3 text-[12.5px] font-medium transition-colors",
+              "inline-flex h-[26px] items-center justify-center gap-1 rounded-[6px] px-3 text-[12.5px] font-medium transition-colors",
               isActive
                 ? "bg-white text-[#0f172a] shadow-[0_1px_2px_rgba(15,23,42,0.08)]"
                 : "text-[#64748b] hover:text-[#334155]",
@@ -77,6 +84,7 @@ export function HuemulSegmentedControl<T extends string = string>({
               optionClassName,
             )}
           >
+            {Icon && <Icon className="size-3.5" aria-hidden />}
             {option.label}
           </button>
         )

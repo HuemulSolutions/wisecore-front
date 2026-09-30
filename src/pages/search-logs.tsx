@@ -204,7 +204,7 @@ export default function SearchLogsPage() {
               organizationId={selectedOrganizationId ?? ""}
               onClose={() => selectLog(null)}
               onOpenSearch={() =>
-                navigate(`/search?${new URLSearchParams({ q: selected.query, view: "passages" }).toString()}`)
+                navigate(`/search?${new URLSearchParams({ q: selected.query, mode: selected.rerank_applied ? "deep" : "advanced" }).toString()}`)
               }
             />
           ) : null,

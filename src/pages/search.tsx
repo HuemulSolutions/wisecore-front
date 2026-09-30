@@ -2,7 +2,7 @@ import { useMemo, useEffect, useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Search, FileText, AlertTriangle, X } from "lucide-react";
+import { Search, FileText, AlertTriangle, X, Sparkles } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,12 +28,24 @@ import { useOrganization } from "@/contexts/organization-context";
 import { DocumentResult } from "@/components/search/search-document-result";
 import { SearchPassageResult } from "@/components/search/search-passage-result";
 import { SearchPassageFeedback } from "@/components/search/search-passage-feedback";
+import { SearchPassageGroup } from "@/components/search/search-passage-group";
+import { HuemulSegmentedControl } from "@/huemul/components/huemul-segmented-control";
+import { HuemulPagination } from "@/huemul/components/huemul-pagination";
+import { groupPassagesByAsset } from "@/lib/search-passages";
+import {
+  GROUPED_PAGE_SIZE,
+  PASSAGES_PAGE_SIZE,
+  parseDisplayFromURL,
+  parseModeFromURL,
+  type PassageDisplay,
+  type SearchMode,
+} from "@/lib/search-mode";
 import { SearchResultsSkeleton } from "@/components/search/search-results-skeleton";
 import { HuemulNotice } from "@/huemul/components/huemul-notice";
 import { useSearchPassages } from "@/hooks/useSearchPassages";
 import { useOrgPath } from "@/hooks/useOrgRouter";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
-import type { SearchIn, SearchPassagesParams, VersionScope } from "@/types/search";
+import type { SearchIn, SearchPassagesBusinessDates, SearchPassagesParams, VersionScope } from "@/types/search";
 import { getErrorMessage } from "@/lib/error-utils";
 import { ApiError } from "@/types/api-error";
 import type { FetchOptionsParams, FetchOptionsResult } from "@/huemul/components/huemul-field";
@@ -62,21 +74,16 @@ function parseDateRange(params: URLSearchParams, prefix: string): HuemulDateRang
   return { date, from, to };
 }
 
-/** `documents`: /search/ agrupado por activo (lo de siempre). `passages`: /search/passages. */
-type ResultView = "documents" | "passages";
-
 function parseValuesFromURL(params: URLSearchParams): HuemulFilterValues {
   const values: HuemulFilterValues = {
     query: params.get("q") ?? "",
-    resultView: (params.get("view") as ResultView) || "documents",
     searchType: (params.get("search_type") as SearchType) || "semantic",
     documentTypeId: params.get("document_type_id") ?? "",
     documentTypeIds: params.getAll("document_type_ids"),
     versionScope: (params.get("version_scope") as VersionScope) || "official",
     includeFiles: params.get("include_files") === "true",
-    highPrecision: params.get("high_precision") === "true",
     templateId: params.get("template_id") ?? "",
-    tagId: params.get("tag_id") ?? "",
+    tagIds: params.getAll("tag_id"),
     ownerValue: params.get("owner") ?? "",
     lifecycleState: params.get("lifecycle_state") ?? "__all__",
     filterWithLlm: params.get("filter_with_llm") !== "false",
@@ -90,19 +97,19 @@ function parseValuesFromURL(params: URLSearchParams): HuemulFilterValues {
   return values;
 }
 
-function buildURLFromValues(values: HuemulFilterValues): URLSearchParams {
+function buildURLFromValues(values: HuemulFilterValues, mode: SearchMode, display: PassageDisplay): URLSearchParams {
   const params = new URLSearchParams();
   const query = String(values.query ?? "").trim();
   if (query) params.set("q", query);
-  if (values.resultView === "passages") params.set("view", "passages");
-  params.set("search_type", String(values.searchType ?? "semantic"));
-  ((values.documentTypeIds as string[] | undefined) ?? []).filter(Boolean).forEach((id) => params.append("document_type_ids", id));
+  params.set("mode", mode);
+  if (mode !== "classic" && display === "asset") params.set("group", "asset");
+  if (mode === "classic") params.set("search_type", String(values.searchType ?? "semantic"));
+  asList(values.documentTypeIds).forEach((id) => params.append("document_type_ids", id));
   if (values.versionScope && values.versionScope !== "official") params.set("version_scope", String(values.versionScope));
   if (values.includeFiles) params.set("include_files", "true");
-  if (values.highPrecision) params.set("high_precision", "true");
   if (values.documentTypeId) params.set("document_type_id", String(values.documentTypeId));
   if (values.templateId) params.set("template_id", String(values.templateId));
-  if (values.tagId) params.set("tag_id", String(values.tagId));
+  asList(values.tagIds).forEach((id) => params.append("tag_id", id));
   if (values.ownerValue) params.set("owner", String(values.ownerValue));
   if (values.lifecycleState && values.lifecycleState !== "__all__") {
     params.set("lifecycle_state", String(values.lifecycleState));
@@ -124,7 +131,21 @@ function buildURLFromValues(values: HuemulFilterValues): URLSearchParams {
   return params;
 }
 
+/** Lista de ids de un filtro múltiple; tolera `''` (un filtro sin def por permisos). */
+const asList = (v: HuemulFilterValue): string[] => (Array.isArray(v) ? (v as string[]).filter(Boolean) : []);
 const dr = (v: HuemulFilterValue): HuemulDateRangeValue => (v as HuemulDateRangeValue | undefined) ?? {};
+
+/** Las cuatro fechas de negocio con el nombre del query param (`expiration_date_from`, …). */
+function businessDatesFromValues(values: HuemulFilterValues): SearchPassagesBusinessDates {
+  const dates: Record<string, string> = {};
+  for (const prefix of DATE_PREFIXES) {
+    const v = dr(values[DATE_KEY_BY_PREFIX[prefix]]);
+    if (v.date) dates[`${prefix}_date`] = v.date;
+    if (v.from) dates[`${prefix}_date_from`] = v.from;
+    if (v.to) dates[`${prefix}_date_to`] = v.to;
+  }
+  return dates as SearchPassagesBusinessDates;
+}
 
 export default function SearchPage() {
   const { t } = useTranslation(["search", "common"]);
@@ -189,8 +210,11 @@ export default function SearchPage() {
   // — lets `filterDefs` toggle the LLM filter's visibility without a cycle
   // (filterDefs → hook → values → filterDefs).
   const currentSearchType = (searchParams.get("search_type") as SearchType) || "semantic";
-  // Misma técnica para la vista: los filtros que /search/passages no admite se ocultan.
-  const isPassages = (searchParams.get("view") as ResultView) === "passages";
+  // El modo y la presentación no son filtros: "Limpiar filtros" no los toca.
+  const [mode, setMode] = useState<SearchMode>(() => parseModeFromURL(searchParams));
+  const [display, setDisplay] = useState<PassageDisplay>(() => parseDisplayFromURL(searchParams));
+  const [page, setPage] = useState(1);
+  const isPassages = mode !== "classic";
   const buildPath = useOrgPath();
   const { canAccessModels, canRead } = useUserPermissions();
 
@@ -217,28 +241,6 @@ export default function SearchPage() {
         group: groupSearch,
         label: t("page.searchPlaceholder"),
         placeholder: t("page.searchPlaceholder"),
-      },
-      {
-        key: "resultView",
-        type: "select",
-        toolbar: true,
-        group: groupSearch,
-        label: t("filters.resultView"),
-        allValue: "documents",
-        inputClassName: "w-36",
-        options: [
-          { value: "documents", label: t("filters.viewDocuments") },
-          { value: "passages", label: t("filters.viewPassages") },
-        ],
-      },
-      {
-        key: "highPrecision",
-        type: "boolean",
-        toolbar: true,
-        group: groupSearch,
-        label: t("filters.highPrecision"),
-        chipLabel: t("filters.highPrecision"),
-        hidden: !isPassages,
       },
       {
         key: "searchType",
@@ -270,7 +272,8 @@ export default function SearchPage() {
               fetchOptions: fetchAssetTypes,
               pageSize: 20,
             },
-            // Por pasajes se pueden elegir varios tipos a la vez ("políticas y procedimientos").
+            // Avanzada y Profunda aceptan varios tipos a la vez ("políticas y procedimientos");
+            // /search/ acepta uno. Al cambiar de modo el valor pasa de una clave a la otra.
             {
               key: "documentTypeIds",
               type: "async-combobox" as const,
@@ -310,15 +313,13 @@ export default function SearchPage() {
             },
           ]
         : []),
-      // Sin confirmar contra backend que /search/ acepte tag_id — ver
-      // types/search/core.ts. La UI queda lista igual; si el backend lo
-      // ignora, el filtro simplemente no aplica.
+      // Varias etiquetas se combinan con OR, en los tres modos.
       ...(canFilterByTag
         ? [
             {
-              key: "tagId",
+              key: "tagIds",
               type: "async-combobox" as const,
-              hidden: isPassages,
+              multiSelect: true,
               group: classification,
               label: t("filters.tag"),
               placeholder: t("filters.all"),
@@ -335,7 +336,6 @@ export default function SearchPage() {
         ? ({
             key: "ownerValue",
             type: "async-combobox",
-            hidden: isPassages,
             group: classification,
             label: t("filters.ownerScope"),
             placeholder: t("filters.allOwners"),
@@ -350,7 +350,6 @@ export default function SearchPage() {
         : ({
             key: "ownerValue",
             type: "select",
-            hidden: isPassages,
             group: classification,
             label: t("filters.ownerScope"),
             allValue: "",
@@ -376,10 +375,10 @@ export default function SearchPage() {
           { value: "finalized", label: tAssets("lifecycle.stateLabels.finalized") },
         ],
       },
-      { key: "expirationDate", type: "date-range", group: dates, label: t("filters.expirationDate"), hidden: isPassages },
-      { key: "estimatedPublicationDate", type: "date-range", group: dates, label: t("filters.estimatedPublicationDate"), hidden: isPassages },
-      { key: "reviewDate", type: "date-range", group: dates, label: t("filters.reviewDate"), hidden: isPassages },
-      { key: "auditDate", type: "date-range", group: dates, label: t("filters.auditDate"), hidden: isPassages },
+      { key: "expirationDate", type: "date-range", group: dates, label: t("filters.expirationDate") },
+      { key: "estimatedPublicationDate", type: "date-range", group: dates, label: t("filters.estimatedPublicationDate") },
+      { key: "reviewDate", type: "date-range", group: dates, label: t("filters.reviewDate") },
+      { key: "auditDate", type: "date-range", group: dates, label: t("filters.auditDate") },
       ...(canFilterByCustomField
         ? [
             {
@@ -407,8 +406,8 @@ export default function SearchPage() {
         activeWhen: false,
         hidden: isPassages || currentSearchType !== "semantic",
       },
-      { key: "hasUnresolvedComments", type: "boolean", group: other, label: t("filters.unresolvedComments"), hidden: isPassages },
-      { key: "hasPendingAiSuggestion", type: "boolean", group: other, label: t("filters.pendingAiSuggestion"), hidden: isPassages },
+      { key: "hasUnresolvedComments", type: "boolean", group: other, label: t("filters.unresolvedComments") },
+      { key: "hasPendingAiSuggestion", type: "boolean", group: other, label: t("filters.pendingAiSuggestion") },
       {
         key: "includeFiles",
         type: "boolean",
@@ -463,8 +462,46 @@ export default function SearchPage() {
 
   // Persist filter state to the URL (text only changes on Enter, selects on pick → no spam).
   useEffect(() => {
-    setSearchParams(buildURLFromValues(values), { replace: true });
-  }, [values, setSearchParams]);
+    setSearchParams(buildURLFromValues(values, mode, display), { replace: true });
+  }, [values, mode, display, setSearchParams]);
+
+  // Otra consulta, otro filtro, otro modo u otra presentación: vuelta a la página 1.
+  useEffect(() => {
+    setPage(1);
+  }, [values, mode, display]);
+
+  const chipLabel = useCallback(
+    (key: string) => {
+      const chip = chips.find((c) => c.key === key);
+      if (!chip) return undefined;
+      const sep = chip.label.indexOf(": ");
+      return sep === -1 ? undefined : chip.label.slice(sep + 2);
+    },
+    [chips],
+  );
+
+  const changeMode = useCallback(
+    (next: SearchMode) => {
+      // El tipo de activo es único en la Clásica y múltiple en las otras: se traslada.
+      const single = String(values.documentTypeId ?? "");
+      const multi = asList(values.documentTypeIds);
+      if (next === "classic" && mode !== "classic" && multi.length) {
+        const label = chipLabel("documentTypeIds")?.split(", ")[0];
+        setValue("documentTypeId", multi[0]);
+        setSelectedLabel("documentTypeId", label);
+        setValue("documentTypeIds", []);
+        setSelectedLabel("documentTypeIds", undefined);
+      } else if (next !== "classic" && mode === "classic" && single) {
+        const label = chipLabel("documentTypeId");
+        setValue("documentTypeIds", [single]);
+        setSelectedLabel("documentTypeIds", label);
+        setValue("documentTypeId", "");
+        setSelectedLabel("documentTypeId", undefined);
+      }
+      setMode(next);
+    },
+    [values.documentTypeId, values.documentTypeIds, mode, chipLabel, setValue, setSelectedLabel],
+  );
 
   // "Nothing until search": active when there's query text or any real filter
   // (filterWithLlm alone does not trigger a search, matching prior behavior).
@@ -481,7 +518,7 @@ export default function SearchPage() {
   const aud = dr(values.auditDate);
 
   const { data: searchResponse, isLoading, isError, error, refetch } = useQuery<SearchResponse>({
-    queryKey: ["search", values, selectedOrganizationId],
+    queryKey: ["search", values, selectedOrganizationId, mode],
     queryFn: () =>
       search({
         query: String(values.query ?? ""),
@@ -489,7 +526,7 @@ export default function SearchPage() {
         search_type: searchTypeForQuery,
         document_type_id: (values.documentTypeId as string) || null,
         template_id: (values.templateId as string) || null,
-        tag_id: (values.tagId as string) || null,
+        tag_id: asList(values.tagIds),
         owner_scope: values.ownerValue === "__me__" ? "me" : undefined,
         created_by: values.ownerValue && values.ownerValue !== "__me__" ? String(values.ownerValue) : undefined,
         lifecycle_state:
@@ -525,18 +562,27 @@ export default function SearchPage() {
     if (!isPassages || !selectedOrganizationId) return null;
     const lifecycle = values.lifecycleState && values.lifecycleState !== "__all__" ? [String(values.lifecycleState)] : undefined;
     const customFields = (values.customFieldFilter as string[] | undefined)?.filter(Boolean);
+    const owner = String(values.ownerValue ?? "");
     return {
       organizationId: selectedOrganizationId,
       query: String(values.query ?? "").trim(),
       versionScope: (values.versionScope as VersionScope) || "official",
       lifecycleStates: lifecycle,
-      documentTypeIds: ((values.documentTypeIds as string[] | undefined) ?? []).filter(Boolean),
+      documentTypeIds: asList(values.documentTypeIds),
       templateId: (values.templateId as string) || null,
+      tagIds: asList(values.tagIds),
+      ownerScope: owner === "__me__" ? "me" : undefined,
+      createdBy: owner && owner !== "__me__" ? owner : null,
+      hasUnresolvedComments: (values.hasUnresolvedComments as boolean) || undefined,
+      hasPendingAiSuggestion: (values.hasPendingAiSuggestion as boolean) || undefined,
+      businessDates: businessDatesFromValues(values),
       customFieldFilter: customFields?.length ? customFields : undefined,
       searchIn: (values.includeFiles ? ["executions", "media"] : ["executions"]) as SearchIn[],
-      highPrecision: Boolean(values.highPrecision),
+      highPrecision: mode === "deep",
+      page,
+      pageSize: display === "asset" ? GROUPED_PAGE_SIZE : PASSAGES_PAGE_SIZE,
     };
-  }, [isPassages, selectedOrganizationId, values]);
+  }, [isPassages, selectedOrganizationId, values, mode, page, display]);
 
   const passagesQuery = useSearchPassages(passagesParams, {
     enabled: isPassages && hasActiveSearch && !!organizationToken && can("searchPassages"),
@@ -548,6 +594,15 @@ export default function SearchPage() {
   const canDownloadMedia = canRead("media");
 
   const canSearch = !!queryDraft.trim() || hasActiveSearch;
+  const passageGroups = useMemo(
+    () => (display === "asset" && passagesResponse ? groupPassagesByAsset(passagesResponse.passages) : []),
+    [display, passagesResponse],
+  );
+  const modeOptions = [
+    { value: "classic" as const, label: t("modes.classic.label"), title: t("modes.classic.hint") },
+    { value: "advanced" as const, label: t("modes.advanced.label"), title: t("modes.advanced.hint") },
+    { value: "deep" as const, label: t("modes.deep.label"), title: t("modes.deep.hint"), icon: Sparkles },
+  ];
 
   if (isLoadingPermissions) {
     return (
@@ -599,7 +654,27 @@ export default function SearchPage() {
       </div>
 
       {/* Filter controls (left-aligned) */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <HuemulSegmentedControl
+          value={mode}
+          options={modeOptions}
+          onChange={changeMode}
+          ariaLabel={t("modes.label")}
+          className="w-auto shrink-0"
+          optionClassName="px-4"
+        />
+        {isPassages && (
+          <HuemulSegmentedControl
+            value={display}
+            options={[
+              { value: "passage" as const, label: t("display.passage") },
+              { value: "asset" as const, label: t("display.asset") },
+            ]}
+            onChange={setDisplay}
+            ariaLabel={t("display.label")}
+            className="w-auto shrink-0"
+          />
+        )}
         <HuemulFilterButton count={activeCount} open={open} onToggle={() => setOpen(!open)} />
         <HuemulFilterInline
           filters={filterDefs}
@@ -661,8 +736,8 @@ export default function SearchPage() {
                           <HuemulButton
                             variant="outline"
                             size="sm"
-                            label={t("passages.searchWithout")}
-                            onClick={() => setValue("highPrecision", false)}
+                            label={t("passages.searchAdvanced")}
+                            onClick={() => changeMode("advanced")}
                             className="h-7 text-xs"
                           />
                           {canAccessModels && (
@@ -709,7 +784,10 @@ export default function SearchPage() {
                         <h2 className="text-sm font-semibold text-foreground">
                           {t("passages.title")}{" "}
                           <span className="font-normal text-muted-foreground">
-                            · {t("passages.count", { count: passagesResponse.passages.length })}
+                            ·{" "}
+                            {page > 1 || passagesResponse.has_next
+                              ? t("passages.countPaged", { page, count: passagesResponse.passages.length })
+                              : t("passages.count", { count: passagesResponse.passages.length })}
                           </span>
                         </h2>
                         {canSendFeedback && passagesResponse.search_log_id && selectedOrganizationId && (
@@ -726,16 +804,36 @@ export default function SearchPage() {
                           {t("passages.rankedWith", { name: passagesResponse.high_precision.llm_name })}
                         </p>
                       )}
-                      {passagesResponse.passages.map((passage) => (
-                        <SearchPassageResult
-                          key={`${passagesResponse.search_log_id ?? "log"}-${passage.passage_id}`}
-                          passage={passage}
-                          organizationId={selectedOrganizationId ?? ""}
-                          searchLogId={passagesResponse.search_log_id}
-                          canSendFeedback={canSendFeedback}
-                          canDownloadMedia={canDownloadMedia}
+                      {display === "asset"
+                        ? passageGroups.map((group) => (
+                            <SearchPassageGroup
+                              key={`${passagesResponse.search_log_id ?? "log"}-${group.documentId}`}
+                              group={group}
+                              organizationId={selectedOrganizationId ?? ""}
+                              searchLogId={passagesResponse.search_log_id}
+                              canSendFeedback={canSendFeedback}
+                            />
+                          ))
+                        : passagesResponse.passages.map((passage) => (
+                            <SearchPassageResult
+                              key={`${passagesResponse.search_log_id ?? "log"}-${passage.passage_id}`}
+                              passage={passage}
+                              organizationId={selectedOrganizationId ?? ""}
+                              searchLogId={passagesResponse.search_log_id}
+                              canSendFeedback={canSendFeedback}
+                              canDownloadMedia={canDownloadMedia}
+                            />
+                          ))}
+                      {(page > 1 || passagesResponse.has_next) && (
+                        <HuemulPagination
+                          page={page}
+                          pageSize={passagesResponse.page_size ?? passagesParams?.pageSize ?? PASSAGES_PAGE_SIZE}
+                          hasNext={Boolean(passagesResponse.has_next)}
+                          hasPrevious={page > 1}
+                          onPageChange={setPage}
+                          variant="bare"
                         />
-                      ))}
+                      )}
                     </div>
                   )}
                 </div>

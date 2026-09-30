@@ -116,7 +116,7 @@ export function HomeAllAssetsTab({
   const canSearchPassages = canSearch('searchPassages');
   const navigate = useOrgNavigate();
   const openPassages = useCallback(
-    (q: string) => navigate(`/search?${new URLSearchParams({ q, view: 'passages' }).toString()}`),
+    (q: string) => navigate(`/search?${new URLSearchParams({ q, mode: 'advanced' }).toString()}`),
     [navigate],
   );
 

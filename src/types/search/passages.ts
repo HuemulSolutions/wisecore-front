@@ -77,7 +77,19 @@ export interface SearchPassagesResponse {
   high_precision: SearchPassagesHighPrecision
   passages: SearchPassage[]
   timings_ms: Record<string, number>
+  page?: number
+  page_size?: number
+  has_next?: boolean
 }
+
+/** Fechas de negocio con el mismo nombre que el query param del backend. */
+export type SearchPassagesBusinessDates = Partial<Record<
+  | 'expiration_date' | 'expiration_date_from' | 'expiration_date_to'
+  | 'estimated_publication_date' | 'estimated_publication_date_from' | 'estimated_publication_date_to'
+  | 'review_date' | 'review_date_from' | 'review_date_to'
+  | 'audit_date' | 'audit_date_from' | 'audit_date_to',
+  string
+>>
 
 export interface SearchPassagesParams {
   organizationId: string
@@ -88,9 +100,16 @@ export interface SearchPassagesParams {
   documentTypeIds?: string[]
   templateId?: string | null
   ownerScope?: 'me'
+  createdBy?: string | null
+  tagIds?: string[]
+  hasUnresolvedComments?: boolean
+  hasPendingAiSuggestion?: boolean
+  businessDates?: SearchPassagesBusinessDates
   customFieldFilter?: string[]
   searchIn?: SearchIn[]
   highPrecision?: boolean
+  page?: number
+  pageSize?: number
 }
 
 export interface SearchFeedbackRequest {

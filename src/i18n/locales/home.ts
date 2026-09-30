@@ -241,10 +241,10 @@
 
   passagesHint: {
     text: {
-      en: "Looking for an answer rather than an asset? Passage search shows the fragments that answer.",
-      es: "¿Buscas una respuesta más que un activo? La búsqueda por pasajes muestra los fragmentos que responden.",
+      en: "Looking for an answer rather than an asset? Advanced search shows the passages that answer.",
+      es: "¿Buscas una respuesta más que un activo? La búsqueda Avanzada muestra los pasajes que responden.",
     },
-    action: { en: "Search passages", es: "Buscar pasajes" },
+    action: { en: "Search in Advanced mode", es: "Buscar en modo Avanzada" },
   },
   noResults: {
     titleOne: { en: "No asset matches this filter", es: "Ningún activo cumple este filtro" },

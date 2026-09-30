@@ -9,11 +9,36 @@ const translations = {
     clearSearch: { en: "Clear search", es: "Limpiar búsqueda" },
     supportingDocuments: { en: "Supporting Assets", es: "Activos de Soporte" },
   },
+  modes: {
+    label: { en: "Search mode", es: "Modo de búsqueda" },
+    classic: {
+      label: { en: "Classic", es: "Clásica" },
+      hint: {
+        en: "The previous search engine: lists assets by semantic, title, code or content match (~2 s).",
+        es: "El buscador anterior: lista activos por coincidencia semántica, de título, código o contenido (~2 s).",
+      },
+    },
+    advanced: {
+      label: { en: "Advanced", es: "Avanzada" },
+      hint: {
+        en: "Finds the passages that answer, combining meaning, exact words and asset codes (~2–4 s).",
+        es: "Encuentra los pasajes que responden, combinando significado, palabras exactas y códigos de activo (~2–4 s).",
+      },
+    },
+    deep: {
+      label: { en: "Deep", es: "Profunda" },
+      hint: {
+        en: "Like Advanced, and an AI model reorders the best passages for higher precision (~8–12 s).",
+        es: "Como la Avanzada, y un modelo de IA reordena los mejores pasajes para más precisión (~8–12 s).",
+      },
+    },
+  },
+  display: {
+    label: { en: "Show", es: "Mostrar" },
+    passage: { en: "By passage", es: "Por fragmento" },
+    asset: { en: "Grouped by asset", es: "Agrupado por activo" },
+  },
   filters: {
-    resultView: { en: "Results", es: "Resultados" },
-    viewDocuments: { en: "By asset", es: "Por activo" },
-    viewPassages: { en: "By passage", es: "Por pasaje" },
-    highPrecision: { en: "Higher precision", es: "Mayor precisión" },
     assetTypes: { en: "Asset types", es: "Tipos de activo" },
     versionScope: { en: "Versions", es: "Versiones" },
     versionScopeOfficial: { en: "Official only", es: "Solo la oficial" },
@@ -52,6 +77,9 @@ const translations = {
   passages: {
     title: { en: "Passages that answer", es: "Pasajes que responden" },
     count: { en: "{{count}} passages", es: "{{count}} pasajes" },
+    countPaged: { en: "page {{page}} · {{count}} passages", es: "página {{page}} · {{count}} pasajes" },
+    groupCount: { en: "{{count}} passages", es: "{{count}} pasajes" },
+    openSection: { en: "Open section", es: "Abrir sección" },
     open: { en: "Open", es: "Abrir" },
     showMore: { en: "Show more", es: "Ver más" },
     showLess: { en: "Show less", es: "Ver menos" },
@@ -75,7 +103,7 @@ const translations = {
       en: "Higher precision search isn't available: your organization hasn't chosen a model for it.",
       es: "La búsqueda de mayor precisión no está disponible: tu organización no eligió un modelo para eso.",
     },
-    searchWithout: { en: "Search without higher precision", es: "Buscar sin mayor precisión" },
+    searchAdvanced: { en: "Search in Advanced mode", es: "Buscar en modo Avanzada" },
     configureModel: { en: "Choose model", es: "Elegir modelo" },
     downloadError: { en: "The file couldn't be downloaded", es: "No se pudo descargar el archivo" },
   },

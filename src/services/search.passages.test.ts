@@ -51,6 +51,51 @@ describe('services/search · pasajes', () => {
     expect(result.high_precision.llm_name).toBe('gpt-6-luna')
   })
 
+  it('manda los filtros del buscador anterior y la paginación', async () => {
+    let url: URL | null = null
+    server.use(
+      http.get(`${backendUrl}/search/passages`, ({ request }) => {
+        url = new URL(request.url)
+        return respondOk({ ...EMPTY_RESPONSE, page: 2, page_size: 30, has_next: true })
+      }),
+    )
+    const result = await searchPassages({
+      organizationId: 'org-1',
+      query: 'vacaciones',
+      tagIds: ['tag-1', 'tag-2'],
+      createdBy: 'user-1',
+      hasUnresolvedComments: true,
+      hasPendingAiSuggestion: false,
+      businessDates: { expiration_date_from: '2027-01-01', audit_date: '2027-05-01' },
+      page: 2,
+      pageSize: 30,
+    })
+    expect(url!.searchParams.getAll('tag_id')).toEqual(['tag-1', 'tag-2'])
+    expect(url!.searchParams.get('created_by')).toBe('user-1')
+    expect(url!.searchParams.get('has_unresolved_comments')).toBe('true')
+    expect(url!.searchParams.get('has_pending_ai_suggestion')).toBe('false')
+    expect(url!.searchParams.get('expiration_date_from')).toBe('2027-01-01')
+    expect(url!.searchParams.get('audit_date')).toBe('2027-05-01')
+    expect(url!.searchParams.get('page')).toBe('2')
+    expect(url!.searchParams.get('page_size')).toBe('30')
+    expect(url!.searchParams.has('top_k')).toBe(false)
+    expect(result.has_next).toBe(true)
+  })
+
+  it('sin paginar sigue mandando top_k (chatbot, MCP y SDK)', async () => {
+    let url: URL | null = null
+    server.use(
+      http.get(`${backendUrl}/search/passages`, ({ request }) => {
+        url = new URL(request.url)
+        return respondOk(EMPTY_RESPONSE)
+      }),
+    )
+    await searchPassages({ organizationId: 'org-1', query: 'x' })
+    expect(url!.searchParams.get('top_k')).toBe('12')
+    expect(url!.searchParams.has('page')).toBe(false)
+    expect(url!.searchParams.has('tag_id')).toBe(false)
+  })
+
   it('propaga el 503 con su código cuando la organización no eligió LLM de rerank', async () => {
     server.use(
       http.get(`${backendUrl}/search/passages`, () =>
