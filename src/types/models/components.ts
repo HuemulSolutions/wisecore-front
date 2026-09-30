@@ -35,13 +35,29 @@ export interface ModelsStatusCardsProps {
   canCreateProvider: boolean
   canCreateModel: boolean
   canViewEmbeddings: boolean
-  /** Puede ir a la tabla de modelos para elegir uno para un propósito. */
+  /** Puede elegir, cambiar o quitar el modelo de un propósito desde su fila (selector). */
   canChoosePurposeModel: boolean
+  /** Todos los modelos de la organización: el selector de propósito los lista. */
+  models: LLM[]
+  /** Hay un cambio de propósito en curso (deshabilita los selectores). */
+  isPurposePending: boolean
   onTestDefault: () => void
   onConnectProvider: () => void
   onAddModel: () => void
   onGoToEmbeddings: () => void
-  onChoosePurposeModel: () => void
+  onSetPurpose: (model: LLM, purpose: LlmPurpose) => void
+  onClearPurpose: (purpose: LlmPurpose) => void
+}
+
+export interface ModelsPurposePickerProps {
+  purpose: LlmPurpose
+  models: LLM[]
+  triggerLabel: string
+  isPending: boolean
+  canCreateModel: boolean
+  onSelect: (model: LLM) => void
+  onClear: () => void
+  onAddModel: () => void
 }
 
 export interface ModelsProvidersStripProps {

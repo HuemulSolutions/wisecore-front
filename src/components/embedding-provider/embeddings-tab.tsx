@@ -17,6 +17,47 @@ function DetailRow({ label, value, mono = true }: { label: string; value: string
   )
 }
 
+/**
+ * Opción de proveedor de embeddings. La misma tarjeta sin proveedor ("Configurar") y con uno
+ * activo ("Usar este proveedor"), para que la pestaña no cambie de disposición.
+ */
+function EmbeddingOptionCard({
+  name,
+  display,
+  description,
+  actionLabel,
+  primary,
+  onAction,
+}: {
+  name: EmbeddingProviderName
+  display: string
+  description: string
+  actionLabel?: string
+  primary: boolean
+  onAction: () => void
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-[12px] border border-[#e1e6ed] bg-white p-[18px] shadow-[0_1px_2px_rgba(15,23,42,0.05)]">
+      <div className="flex items-center gap-3">
+        <ModelsProviderAvatar type={name} />
+        <span className="text-[14px] font-semibold text-[#0f172a]">{display}</span>
+      </div>
+      <p className="flex-1 text-[12.5px] leading-snug text-[#64748b]">{description}</p>
+      {actionLabel && (
+        <div>
+          <HuemulButton
+            size="sm"
+            variant={primary ? undefined : "outline"}
+            label={actionLabel}
+            onClick={onAction}
+            className="h-8 text-xs"
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function EmbeddingsTab({
   configured,
   options,
@@ -173,27 +214,17 @@ export function EmbeddingsTab({
           {canCreate && others.length > 0 && (
             <section className="flex flex-col gap-2.5">
               <h2 className="text-[14px] font-semibold text-[#0f172a]">{t('embeddings.switchTitle')}</h2>
-              <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-1 gap-[14px] md:grid-cols-2">
                 {others.map((option) => (
-                  <div
+                  <EmbeddingOptionCard
                     key={option.name}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-[11px] border border-[#e1e6ed] bg-white px-[18px] py-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)]"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <ModelsProviderAvatar type={option.name} size="sm" />
-                      <div className="flex min-w-0 flex-col">
-                        <span className="truncate text-[13.5px] font-semibold text-[#0f172a]">{option.display}</span>
-                        <span className="truncate text-xs text-[#7c8798]">{describe(option.name)}</span>
-                      </div>
-                    </div>
-                    <HuemulButton
-                      size="sm"
-                      variant="outline"
-                      label={t('embeddings.useProvider')}
-                      onClick={() => onChooseProvider(option.name)}
-                      className="h-8 text-xs"
-                    />
-                  </div>
+                    name={option.name}
+                    display={option.display}
+                    description={describe(option.name)}
+                    actionLabel={t('embeddings.useProvider')}
+                    primary={false}
+                    onAction={() => onChooseProvider(option.name)}
+                  />
                 ))}
               </div>
             </section>
@@ -204,23 +235,15 @@ export function EmbeddingsTab({
           <HuemulNotice tone="amber">{t('embeddings.notConfiguredBanner')}</HuemulNotice>
           <div className="grid grid-cols-1 gap-[14px] md:grid-cols-2">
             {options.map((option) => (
-              <div key={option.name} className="flex flex-col gap-3 rounded-[12px] border border-[#e1e6ed] bg-white p-[18px] shadow-[0_1px_2px_rgba(15,23,42,0.05)]">
-                <div className="flex items-center gap-3">
-                  <ModelsProviderAvatar type={option.name} />
-                  <span className="text-[14px] font-semibold text-[#0f172a]">{option.display}</span>
-                </div>
-                <p className="text-[12.5px] leading-snug text-[#64748b]">{describe(option.name)}</p>
-                {canCreate && (
-                  <div>
-                    <HuemulButton
-                      size="sm"
-                      label={t('embeddings.configure')}
-                      onClick={() => onChooseProvider(option.name)}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                )}
-              </div>
+              <EmbeddingOptionCard
+                key={option.name}
+                name={option.name}
+                display={option.display}
+                description={describe(option.name)}
+                actionLabel={canCreate ? t('embeddings.configure') : undefined}
+                primary
+                onAction={() => onChooseProvider(option.name)}
+              />
             ))}
           </div>
         </>

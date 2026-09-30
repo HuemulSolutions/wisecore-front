@@ -41,6 +41,22 @@ const translations = {
     assigned: { en: "Assigned", es: "Asignado" },
     optional: { en: "Optional", es: "Opcional" },
     choose: { en: "Choose model", es: "Elegir modelo" },
+    change: { en: "Change", es: "Cambiar" },
+    picker: {
+      requires: { en: "Requires: {{caps}}", es: "Requiere: {{caps}}" },
+      search: { en: "Search models", es: "Buscar modelos" },
+      noModels: {
+        en: "There are no models yet. Add one to use it here.",
+        es: "Todavía no hay modelos. Agrega uno para usarlo acá.",
+      },
+      noCompatible: {
+        en: "No model has the required capabilities ({{caps}}). Enable them on a model or add a new one.",
+        es: "Ningún modelo tiene las capacidades requeridas ({{caps}}). Habilítalas en un modelo o agrega uno nuevo.",
+      },
+      noResults: { en: "No models match your search.", es: "Ningún modelo coincide con la búsqueda." },
+      incompatible: { en: "Missing capabilities", es: "Sin las capacidades requeridas" },
+      addModel: { en: "Add model", es: "Agregar modelo" },
+    },
     rerank: {
       label: { en: "Higher precision search", es: "Búsqueda de mayor precisión" },
       description: {

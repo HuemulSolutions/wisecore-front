@@ -479,10 +479,10 @@ export default function Models() {
         className="bg-[#f3f5f8]"
         header={
           <div>
-            <div className="bg-white px-7 pt-7">
+            <div className="bg-white px-7 pt-5">
               <ModelsHeader onRefresh={handleRefresh} isLoading={isRefreshing || fetchingLLMs} />
             </div>
-            <div className="bg-white px-7 pb-4">
+            <div className="bg-white px-7 pb-3">
               <ModelsStatusCards
                 isLoading={loadingStatus && !configStatus}
                 defaultModel={defaultModel}
@@ -500,8 +500,11 @@ export default function Models() {
                 canCreateProvider={canCreateProvider}
                 canCreateModel={canCreateModel}
                 canViewEmbeddings={canListProviders}
-                canChoosePurposeModel={canListModels && canUpdateModel && allLlms.length > 0}
-                onChoosePurposeModel={() => setActiveTab('models')}
+                canChoosePurposeModel={canListModels && canUpdateModel}
+                models={allLlms}
+                isPurposePending={setPurposeMutation.isPending || clearPurposeMutation.isPending}
+                onSetPurpose={(model, purpose) => setPurposeMutation.mutate({ model, purpose })}
+                onClearPurpose={(purpose) => clearPurposeMutation.mutate(purpose)}
                 onTestDefault={() => {
                   if (!defaultModel) return
                   if (canListModels) setActiveTab('models')
@@ -540,7 +543,7 @@ export default function Models() {
             content: (
               <>
                   {canListModels && (
-                    <TabsContent value="models" className="flex min-h-0 flex-1 flex-col gap-5">
+                    <TabsContent value="models" className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
                       {hasError ? (
                         <ModelsContentEmptyState
                           type="error"
