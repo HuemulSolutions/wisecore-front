@@ -1,6 +1,14 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
-import type { LLM, LLMsResponse, CreateLLMRequest, LlmConfigurationStatusData, LlmConfigurationStatusResponse } from "@/types/models";
+import type {
+    LLM,
+    LLMsResponse,
+    CreateLLMRequest,
+    LlmConfigurationStatusData,
+    LlmConfigurationStatusResponse,
+    LlmPurpose,
+    SetLlmPurposeResponse,
+} from "@/types/models";
 
 // Re-export types for backward compatibility
 export type { LLM, LLMsResponse, CreateLLMRequest } from "@/types/models";
@@ -58,6 +66,18 @@ export async function deleteLLM(llmId: string): Promise<void> {
 
 export async function setDefaultLLM(llmId: string): Promise<void> {
     await httpClient.patch(`${backendUrl}/llms/${llmId}/set_default`, {});
+}
+
+/** Marca `llmId` para `purpose` y desmarca el anterior. 400 LLM_MISSING_CAPABILITY si no tiene la capability. */
+export async function setLLMForPurpose(llmId: string, purpose: LlmPurpose): Promise<SetLlmPurposeResponse> {
+    const response = await httpClient.patch(`${backendUrl}/llms/${llmId}/set_default_for/${purpose}`, {});
+    const data = await response.json();
+    return data.data || data;
+}
+
+/** Deja la organización sin LLM para `purpose` (rerank: la búsqueda precisa responde 503; imágenes: no se analizan). */
+export async function clearLLMForPurpose(purpose: LlmPurpose): Promise<void> {
+    await httpClient.delete(`${backendUrl}/llms/default_for/${purpose}`);
 }
 
 export async function getDefaultLLM(): Promise<LLM> {

@@ -38,6 +38,10 @@ const DEDICATED_ERROR_MESSAGES: Record<string, string> = {
   LIFECYCLE_PERMISSION_DENIED: 'assets:lifecycle.errorPermissionDenied',
   ORG_MEMBERSHIP_REQUIRED: 'auth:errors.orgMembershipRequired',
   INVALID_ORG_HEADER: 'auth:errors.invalidOrganization',
+  // LLM por propósito (rerank / análisis de imágenes). La UI ya deshabilita las opciones
+  // inválidas; esto es el eco si el catálogo cambió entre la carga y el clic.
+  LLM_MISSING_CAPABILITY: 'models:errors.missingCapability',
+  LLM_PURPOSE_REQUIRES_CAPABILITY: 'models:errors.purposeRequiresCapability',
 };
 
 /**

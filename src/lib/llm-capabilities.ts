@@ -18,6 +18,48 @@ export function hasCapability(model: { capabilities?: string[] }, cap: LLMCapabi
   return !!model.capabilities?.includes(cap)
 }
 
+/**
+ * Capabilities que exige cada propósito. Copia de `PURPOSE_REQUIRED_CAPABILITIES` del
+ * backend (`src/modules/llm/models.py`): si no coinciden, el backend responde 400
+ * `LLM_MISSING_CAPABILITY` y la UI habría ofrecido una opción inválida.
+ */
+export const PURPOSE_REQUIRED_CAPABILITIES = {
+  rerank: ['text_input', 'text_output'],
+  image_analysis: ['image_input'],
+} as const satisfies Record<string, readonly LLMCapability[]>
+
+export type LLMPurposeKey = keyof typeof PURPOSE_REQUIRED_CAPABILITIES
+
+export const LLM_PURPOSES = Object.keys(PURPOSE_REQUIRED_CAPABILITIES) as LLMPurposeKey[]
+
+/** Capabilities que le faltan a `model` para `purpose` (vacío = puede usarse). */
+export function missingPurposeCapabilities(
+  model: { capabilities?: string[] },
+  purpose: LLMPurposeKey,
+): LLMCapability[] {
+  return PURPOSE_REQUIRED_CAPABILITIES[purpose].filter((cap) => !hasCapability(model, cap))
+}
+
+/** Si `model` está marcado para `purpose`. */
+export function isMarkedForPurpose(
+  model: { is_rerank_default?: boolean; is_image_analysis_default?: boolean },
+  purpose: LLMPurposeKey,
+): boolean {
+  return purpose === 'rerank' ? !!model.is_rerank_default : !!model.is_image_analysis_default
+}
+
+/** Capabilities que no se pueden quitar del modelo porque las exige un propósito marcado. */
+export function lockedCapabilities(model: {
+  is_rerank_default?: boolean
+  is_image_analysis_default?: boolean
+}): Set<LLMCapability> {
+  const locked = new Set<LLMCapability>()
+  for (const purpose of LLM_PURPOSES) {
+    if (isMarkedForPurpose(model, purpose)) PURPOSE_REQUIRED_CAPABILITIES[purpose].forEach((cap) => locked.add(cap))
+  }
+  return locked
+}
+
 export type ConnectionTestKind = 'chat' | 'image'
 
 /**

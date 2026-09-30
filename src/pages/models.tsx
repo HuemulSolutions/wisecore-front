@@ -24,6 +24,8 @@ import {
   updateLLMModel,
   deleteLLM,
   setDefaultLLM,
+  setLLMForPurpose,
+  clearLLMForPurpose,
   testLLMConnection,
 } from '@/services/llms'
 import { testImageGenerationConnection } from '@/services/image-generation'
@@ -51,7 +53,8 @@ import {
 import { ProviderSheet } from '@/components/llm-provider'
 import { EmbeddingsTab, EmbeddingProviderSheet } from '@/components/embedding-provider'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import type { LLM, CreateLLMRequest, ModelDialogSubmitData, ModelTestState } from '@/types/models'
+import type { LLM, CreateLLMRequest, LlmPurpose, ModelDialogSubmitData, ModelTestState } from '@/types/models'
+import { mediaQueryKeys } from '@/hooks/useMedia'
 import type { CreateLLMProviderRequest, LLMProvider } from '@/types/llm-provider'
 import type {
   EmbeddingProviderName,
@@ -166,6 +169,8 @@ export default function Models() {
   }, [allLlms])
 
   const defaultModel = allLlms.find((llm) => llm.is_default) ?? null
+  const rerankModel = allLlms.find((llm) => llm.is_rerank_default) ?? null
+  const imageAnalysisModel = allLlms.find((llm) => llm.is_image_analysis_default) ?? null
   const isFirstModel = allLlms.length === 0
 
   // ── Estado de configuración (tarjetas) ───────────────────────────────────
@@ -270,6 +275,31 @@ export default function Models() {
       invalidateModels()
       invalidateStatus()
       showModelsToast(t('toast.defaultUpdated', { name: model.name }))
+    },
+  })
+
+  const purposeName = (purpose: LlmPurpose) => t(`table.purposes.${purpose}`)
+
+  const setPurposeMutation = useMutation({
+    mutationFn: ({ model, purpose }: { model: LLM; purpose: LlmPurpose }) => setLLMForPurpose(model.id, purpose),
+    onSuccess: (result, { model, purpose }) => {
+      invalidateModels()
+      invalidateStatus()
+      showModelsToast(t('toast.purposeSet', { name: model.name, purpose: purposeName(purpose) }))
+      // Marcar el LLM de imágenes encola el análisis de las que quedaron `not_analyzed`.
+      if (result?.media_scan_enqueued) {
+        showModelsToast(t('toast.mediaScanEnqueued'))
+        queryClient.invalidateQueries({ queryKey: mediaQueryKeys.all })
+      }
+    },
+  })
+
+  const clearPurposeMutation = useMutation({
+    mutationFn: (purpose: LlmPurpose) => clearLLMForPurpose(purpose),
+    onSuccess: (_, purpose) => {
+      invalidateModels()
+      invalidateStatus()
+      showModelsToast(t('toast.purposeCleared', { purpose: purposeName(purpose) }))
     },
   })
 
@@ -464,10 +494,14 @@ export default function Models() {
                 embeddingConfigured={embeddingConfigured}
                 embeddingWorking={embeddingWorking}
                 embeddingProviderName={embeddingActiveName}
+                rerankModel={rerankModel}
+                imageAnalysisModel={imageAnalysisModel}
                 canTest={canTestModel}
                 canCreateProvider={canCreateProvider}
                 canCreateModel={canCreateModel}
                 canViewEmbeddings={canListProviders}
+                canChoosePurposeModel={canListModels && canUpdateModel && allLlms.length > 0}
+                onChoosePurposeModel={() => setActiveTab('models')}
                 onTestDefault={() => {
                   if (!defaultModel) return
                   if (canListModels) setActiveTab('models')
@@ -538,6 +572,8 @@ export default function Models() {
                             onTest={runModelTest}
                             onEdit={(model) => setModelSheet({ open: true, model })}
                             onSetDefault={(model) => setDefaultMutation.mutate(model)}
+                            onSetPurpose={(model, purpose) => setPurposeMutation.mutate({ model, purpose })}
+                            onClearPurpose={(purpose) => clearPurposeMutation.mutate(purpose)}
                             onDelete={async (model) => {
                               if (!canDeleteModel) return
                               await deleteLLMMutation.mutateAsync(model.id)

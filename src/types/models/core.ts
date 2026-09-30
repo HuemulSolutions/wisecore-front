@@ -16,6 +16,10 @@ export interface LLM {
     updated_at?: string;
   };
   is_default?: boolean;
+  /** LLM que la organización marcó para la búsqueda de mayor precisión (rerank). Uno por org, sin fallback. */
+  is_rerank_default?: boolean;
+  /** LLM que la organización marcó para analizar imágenes. Uno por org, sin fallback. */
+  is_image_analysis_default?: boolean;
   capabilities?: string[];
   /** USD por 1.000.000 de tokens de entrada. null si no tiene tarifa configurada. */
   input_price_per_1m_tokens?: number | null;
@@ -43,10 +47,26 @@ export interface LlmConfigurationStatusItem {
   is_working: boolean;
 }
 
+/** Estado de un propósito opcional: solo si hay un LLM marcado (sin probe de red). */
+export interface LlmPurposeStatusItem {
+  is_configured: boolean;
+}
+
 export interface LlmConfigurationStatusData {
   embedding: LlmConfigurationStatusItem;
   default_llm: LlmConfigurationStatusItem;
+  rerank?: LlmPurposeStatusItem;
+  image_analysis?: LlmPurposeStatusItem;
 }
+
+/** Propósitos con LLM propio (PATCH /llms/{id}/set_default_for/{purpose}). */
+export type LlmPurpose = 'rerank' | 'image_analysis';
+
+/** Respuesta de marcar un LLM para un propósito. */
+export type SetLlmPurposeResponse = LLM & {
+  /** true si marcar el LLM de imágenes encoló el análisis de las imágenes pendientes. */
+  media_scan_enqueued?: boolean;
+};
 
 export interface LlmConfigurationStatusResponse {
   data: LlmConfigurationStatusData;

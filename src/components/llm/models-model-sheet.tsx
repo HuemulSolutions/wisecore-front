@@ -2,7 +2,8 @@ import { useEffect, useState } from "react"
 import { Blocks } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
-import { LLM_CAPABILITIES } from "@/lib/llm-capabilities"
+import { LLM_CAPABILITIES, LLM_PURPOSES, PURPOSE_REQUIRED_CAPABILITIES, isMarkedForPurpose } from "@/lib/llm-capabilities"
+import type { LLMCapability } from "@/lib/llm-capabilities"
 import { modelIdentifierPlaceholder } from "@/lib/llm-provider-ui"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulNotice } from "@/huemul/components/huemul-notice"
@@ -76,8 +77,22 @@ export function ModelSheet({
         ? t('modelSheet.internalNameHelpAzure')
         : t('modelSheet.internalNameHelp')
 
-  const toggleCapability = (cap: string) =>
+  // Capabilities que exige un propósito para el que este modelo está marcado: quitarlas
+  // haría responder 400 LLM_PURPOSE_REQUIRES_CAPABILITY al guardar.
+  const lockedBy = new Map<string, string>()
+  if (model) {
+    for (const purpose of LLM_PURPOSES) {
+      if (!isMarkedForPurpose(model, purpose)) continue
+      for (const cap of PURPOSE_REQUIRED_CAPABILITIES[purpose] as readonly LLMCapability[]) {
+        lockedBy.set(cap, t(`table.purposes.${purpose}`))
+      }
+    }
+  }
+
+  const toggleCapability = (cap: string) => {
+    if (lockedBy.has(cap) && capabilities.includes(cap)) return
     setCapabilities((prev) => (prev.includes(cap) ? prev.filter((c) => c !== cap) : [...prev, cap]))
+  }
 
   const handleSave = () => {
     if (!canSave) return
@@ -194,15 +209,19 @@ export function ModelSheet({
           <div className="grid grid-cols-2 gap-2">
             {LLM_CAPABILITIES.map((cap) => {
               const checked = capabilities.includes(cap)
+              const lockedPurpose = checked ? lockedBy.get(cap) : undefined
               return (
                 <button
                   key={cap}
                   type="button"
                   role="checkbox"
                   aria-checked={checked}
+                  aria-disabled={!!lockedPurpose}
+                  title={lockedPurpose ? t('errors.capabilityLockedByPurpose', { purpose: lockedPurpose }) : undefined}
                   onClick={() => toggleCapability(cap)}
                   className={cn(
                     "flex items-start gap-2 rounded-[10px] border p-2.5 text-left transition-colors hover:cursor-pointer",
+                    lockedPurpose && "cursor-not-allowed hover:cursor-not-allowed",
                     checked ? "border-[#2563eb] bg-[#f5f9ff]" : errors.capabilities ? "border-[#f3a19a]" : "border-[#dfe4ec] hover:border-[#93b4f5]",
                   )}
                 >
