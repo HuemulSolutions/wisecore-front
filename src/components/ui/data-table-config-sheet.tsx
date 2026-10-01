@@ -36,6 +36,8 @@ export interface DataTableConfigSheetProps {
   initial?: DataTableElement | DataTableConfig | null;
   /** `snapshot` viene de la última respuesta `ok` de la vista previa (o `null` si no hubo). */
   onConfirm: (config: DataTableConfig, snapshot: DataTableSnapshot | null) => void;
+  /** Foco al cerrar el sheet: el llamador lo devuelve al editor para que reaparezca el toolbar del nodo. */
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 const DEFAULT_LIMIT = 10;
@@ -55,7 +57,13 @@ interface PreviousConfig {
  *
  * El catálogo (fuentes/columnas/filtros) viene de `/data-table/sources` — nada hardcodeado acá.
  */
-export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }: DataTableConfigSheetProps) {
+export function DataTableConfigSheet({
+  open,
+  onOpenChange,
+  initial,
+  onConfirm,
+  onCloseAutoFocus,
+}: DataTableConfigSheetProps) {
   const { t } = useTranslation(['editor', 'assets']);
   const { selectedOrganizationId } = useOrganization();
   const sourcesQuery = useDataTableSources(selectedOrganizationId || undefined);
@@ -243,6 +251,7 @@ export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }:
       size="wide"
       bodyClassName="flex min-h-0 flex-1 flex-col overflow-y-auto p-0 lg:flex-row lg:overflow-hidden"
       onOpenAutoFocus={(e) => e.preventDefault()}
+      onCloseAutoFocus={onCloseAutoFocus}
       cancelLabel={t('editor:dataTable.sheet.cancel')}
       footerLeft={
         <p className="text-xs text-[#64748b]">

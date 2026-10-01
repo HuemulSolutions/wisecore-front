@@ -36,6 +36,16 @@ export function DataTableToolbarButton(props: React.ComponentProps<typeof Toolba
         },
         { select: true },
       );
+    },
+    [editor],
+  );
+
+  // El foco se devuelve al editor recién cuando el sheet terminó de cerrarse: si se hace dentro de
+  // `onConfirm`, Radix lo manda después al botón del toolbar y el toolbar flotante del nodo
+  // (que exige editor enfocado + nodo seleccionado) no aparece.
+  const handleCloseAutoFocus = React.useCallback(
+    (event: Event) => {
+      event.preventDefault();
       editor.tf.focus();
     },
     [editor],
@@ -47,7 +57,12 @@ export function DataTableToolbarButton(props: React.ComponentProps<typeof Toolba
         <Table2 />
       </ToolbarButton>
 
-      <DataTableConfigSheet open={open} onOpenChange={setOpen} onConfirm={handleConfirm} />
+      <DataTableConfigSheet
+        open={open}
+        onOpenChange={setOpen}
+        onConfirm={handleConfirm}
+        onCloseAutoFocus={handleCloseAutoFocus}
+      />
     </>
   );
 }

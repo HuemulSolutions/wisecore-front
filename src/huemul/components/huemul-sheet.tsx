@@ -101,6 +101,7 @@ export function HuemulSheet({
   headerContent,
   footerContent,
   onOpenAutoFocus,
+  onCloseAutoFocus,
   overlayClassName,
   children,
 }: HuemulSheetProps) {
@@ -178,6 +179,7 @@ export function HuemulSheet({
       <SheetContent
         side={side}
         onOpenAutoFocus={onOpenAutoFocus}
+        onCloseAutoFocus={onCloseAutoFocus}
         overlayClassName={overlayClassName}
         {...(!description && { "aria-describedby": undefined })}
         className={cn(

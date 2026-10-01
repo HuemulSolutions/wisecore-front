@@ -81,6 +81,8 @@ export interface HuemulSheetProps {
    */
   footerContent?: ReactNode;
   onOpenAutoFocus?: (event: Event) => void;
+  /** Al cerrar, Radix devuelve el foco al trigger; `preventDefault()` permite mandarlo a otro lado. */
+  onCloseAutoFocus?: (event: Event) => void;
   /** Clases extra del overlay (ej. `bg-slate-900/30`); por defecto `bg-black/50`. */
   overlayClassName?: string;
   children: ReactNode;

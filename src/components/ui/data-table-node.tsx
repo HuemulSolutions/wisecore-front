@@ -58,6 +58,19 @@ export function DataTableElementNode(props: PlateElementProps<DataTableElement>)
     [editor, element],
   );
 
+  // Al cerrar el sheet Radix devolvería el foco al botón "Configurar" (que se desmonta junto con el
+  // toolbar); se manda al editor con el nodo seleccionado para que el toolbar reaparezca.
+  const handleCloseAutoFocus = React.useCallback(
+    (event: Event) => {
+      event.preventDefault();
+      const path = editor.api.findPath(element);
+      const start = path ? editor.api.start(path) : undefined;
+      if (start) editor.tf.select(start);
+      editor.tf.focus();
+    },
+    [editor, element],
+  );
+
   const content = (
     <PlateElement {...props} className="max-w-full overflow-x-auto py-5">
       <div contentEditable={false}>
@@ -115,6 +128,7 @@ export function DataTableElementNode(props: PlateElementProps<DataTableElement>)
         onOpenChange={setConfigOpen}
         initial={element}
         onConfirm={handleConfirmConfig}
+        onCloseAutoFocus={handleCloseAutoFocus}
       />
     </>
   );
