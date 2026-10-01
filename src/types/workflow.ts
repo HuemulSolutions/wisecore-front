@@ -19,6 +19,8 @@ export interface WorkflowItem {
   internal_code: string
   document_name: string
   template_name: string
+  /** Nombre de la relación tipo de asset × template; la UI lo prefiere a `template_name`. */
+  relation_name?: string | null
   lifecycle_state: ExecutionLifecycleState
   /** Null cuando la etapa actual no tiene steps configurables (approved/published/archived) o sin ejecución todavía. */
   current_lifecycle_step: WorkflowLifecycleStep | null

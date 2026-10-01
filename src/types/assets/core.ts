@@ -289,6 +289,8 @@ export interface AssetContentResponse {
     content_hash: string | null;
     template_id: string | null;
     template_name: string | null;
+    /** Nombre de la relación tipo de asset × template; la UI lo prefiere a `template_name`. */
+    relation_name?: string | null;
     template_instructions?: string | null;
     document_type: DocumentType;
     executions: ExecutionInfo[];

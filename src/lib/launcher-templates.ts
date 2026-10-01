@@ -14,7 +14,7 @@ export function sortLaunchTemplates(items: WorkflowTemplateItem[]): WorkflowTemp
 }
 
 /** El mismo template se repite por relación: el título visible prefiere la relación. */
-export function templateTitle(item: WorkflowTemplateItem): string {
+export function templateTitle(item: Pick<WorkflowTemplateItem, "name" | "relation_name">): string {
   return item.relation_name || item.name
 }
 

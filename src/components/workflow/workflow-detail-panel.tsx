@@ -23,6 +23,7 @@ import { useOrganization } from "@/contexts/organization-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { useOrgPath } from "@/hooks/useOrgRouter"
 import { buildExecutionSharePath } from "@/lib/workflow-share-url"
+import { templateTitle } from "@/lib/launcher-templates"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { isExternalElaborationLocked, EXTERNAL_ELABORATION_POLL_MS } from "@/lib/lifecycle-access"
 import { workflowQueryKeys } from "@/hooks/useWorkflows"
@@ -279,7 +280,7 @@ export function WorkflowDetailPanel({
   // Fallback a `data` (respuesta de /content): la vista compartida solo trae
   // los IDs de la URL, sin el WorkflowItem completo con nombre/código.
   const documentName =
-    editedAsset?.name ?? row?.document_name ?? createdDoc?.name ?? template?.name ?? data?.document_name
+    editedAsset?.name ?? row?.document_name ?? createdDoc?.name ?? (template ? templateTitle(template) : undefined) ?? data?.document_name
   const internalCode = editedAsset?.internalCode ?? row?.internal_code ?? data?.internal_code ?? undefined
   const lifecycleExecutionId = executionId ?? data?.execution_id
 
@@ -470,7 +471,7 @@ export function WorkflowDetailPanel({
       <WorkflowPanelHeader
         documentName={documentName}
         internalCode={internalCode}
-        templateName={data?.template_name}
+        templateName={data?.relation_name || data?.template_name || (template ? templateTitle(template) : undefined)}
         isFullscreen={isFullscreen}
         createdBy={data?.created_by_user}
         updatedBy={data?.updated_by_user}

@@ -89,8 +89,8 @@ export function WorkflowTable({
       label: t("columns.template"),
       width: "minmax(180px,1fr)",
       render: (item) => (
-        <span className="block max-w-sm truncate" title={item.template_name}>
-          {item.template_name}
+        <span className="block max-w-sm truncate" title={item.relation_name || item.template_name}>
+          {item.relation_name || item.template_name}
         </span>
       ),
     },
