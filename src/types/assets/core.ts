@@ -497,6 +497,8 @@ export interface DocumentSectionAccessItem {
   name?: string;
   order?: number;
   can_edit?: boolean | null;
+  /** Tipo de la sección, si el backend lo manda. */
+  section_type?: 'ai' | 'manual' | 'reference' | 'form';
 }
 
 export interface LibraryContentProps {

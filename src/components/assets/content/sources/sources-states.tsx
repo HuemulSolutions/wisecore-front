@@ -6,10 +6,20 @@ import { cn } from "@/lib/utils";
 
 /** Esqueleto con la estructura de la tabla: título de grupo + filas con ícono y dos líneas. Dos columnas en ancho. */
 export function SourcesSkeleton({ narrow }: { narrow: boolean }) {
+  const { t } = useTranslation("sources");
   const groups = [3, 2];
+  // Anchos variables por fila (ciclan): evita un bloque uniforme que no se parece a una lista real.
+  const titleWidths = ["w-3/4", "w-2/3", "w-5/6"];
+  const subtitleWidths = ["w-1/2", "w-2/5", "w-3/5"];
 
   return (
-    <div data-testid="sources-skeleton" className={cn("grid gap-x-6 gap-y-[18px] pt-[18px]", narrow ? "grid-cols-1" : "grid-cols-2")}>
+    <div
+      data-testid="sources-skeleton"
+      role="status"
+      aria-busy="true"
+      aria-label={t("skeleton.label")}
+      className={cn("grid gap-x-6 gap-y-[18px] pt-[18px]", narrow ? "grid-cols-1" : "grid-cols-2")}
+    >
       {groups.map((rows, groupIndex) => (
         <div key={groupIndex} className="flex flex-col gap-3">
           <Skeleton className="h-4 w-40" />
@@ -17,8 +27,8 @@ export function SourcesSkeleton({ narrow }: { narrow: boolean }) {
             <div key={rowIndex} className="flex items-center gap-3">
               <Skeleton className="h-8 w-8 shrink-0 rounded-lg" />
               <div className="flex flex-1 flex-col gap-1.5">
-                <Skeleton className="h-3.5 w-3/4" />
-                <Skeleton className="h-3 w-1/2" />
+                <Skeleton className={cn("h-3.5", titleWidths[(groupIndex + rowIndex) % titleWidths.length])} />
+                <Skeleton className={cn("h-3", subtitleWidths[(groupIndex + rowIndex) % subtitleWidths.length])} />
               </div>
             </div>
           ))}

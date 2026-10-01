@@ -21,6 +21,8 @@ import { SourcesTextForm, type SourcesTextFormValues } from "./sources-text-form
 import { SourcesPendingAlert } from "./sources-pending-alert";
 import { SourcesTable } from "./sources-table";
 import { SourcesEmpty, SourcesError, SourcesSkeleton } from "./sources-states";
+import { getSourcesState, isSourcesState, type SourcesState } from "./sources-state";
+import { useDevStateOverride } from "../hooks/useDevStateOverride";
 
 /** Por debajo de este ancho de cuerpo la tabla pasa a filas de dos líneas y las tarjetas a una columna. */
 const NARROW_BODY_WIDTH = 560;
@@ -78,10 +80,13 @@ export function AssetsSourcesSheet({
     lifecyclePermissions?.edit
   );
   const hasEditPermission = !!(lifecyclePermissions?.create || lifecyclePermissions?.edit) && stage === "edit";
-  const canEdit = hasEditPermission && !isExternalElaborationLocked && !isViewMode;
+  // `?sourcesState=` (solo en desarrollo) fuerza un estado para previsualizarlo.
+  const devState = useDevStateOverride<SourcesState>("sourcesState", isSourcesState);
+  const isLocked = isExternalElaborationLocked || devState === "locked";
+  const canEdit = hasEditPermission && !isLocked && !isViewMode;
 
   let noticeKind: SourcesNoticeKind | null = null;
-  if (isExternalElaborationLocked) noticeKind = "external";
+  if (isLocked) noticeKind = "external";
   else if (!hasEditPermission) noticeKind = "readOnly";
   else if (isViewMode) noticeKind = "reader";
 
@@ -191,9 +196,27 @@ export function AssetsSourcesSheet({
 
   const disabledPickerIds = [documentId, ...sources.groups.assets.map((row) => row.dependency.document_id)];
   const hasAnySource = sources.totalCount > 0 || actions.uploads.length > 0;
-  const showEmpty = !hasAnySource && !textForm;
+  const state: SourcesState =
+    devState ??
+    getSourcesState({
+      isLoading: sources.isLoading,
+      isError: sources.isError,
+      isFetching: sources.isFetching,
+      hasAnySource: hasAnySource || !!textForm,
+      hasActiveUploads: actions.uploads.length > 0,
+      isLocked,
+    });
 
   if (!canAccess) return null;
+
+  const addCards = (
+    <SourcesAddCards
+      narrow={narrow}
+      onLinkAsset={() => setPickerOpen(true)}
+      onUploadFile={() => uploadInputRef.current?.click()}
+      onPasteText={() => setTextForm({ mode: "create" })}
+    />
+  );
 
   // ── Encabezado a medida: título, descripción, pills de resumen y refresh ──
   const header = (
@@ -250,24 +273,18 @@ export function AssetsSourcesSheet({
         overlayClassName="bg-slate-900/30"
         className="shadow-[-16px_0_40px_-18px_rgba(15,23,42,0.35)] ring-1 ring-gray-200"
         bodyClassName="pt-[18px] pb-7"
-        bodyLoading={sources.isLoading}
+        bodyLoading={state === "loading"}
         bodySkeleton={<SourcesSkeleton narrow={narrow} />}
       >
         <div ref={bodyRef} className="flex flex-col gap-[18px]">
-          {sources.isError ? (
+          {state === "error" ? (
             <SourcesError onRetry={() => void sources.refetch()} isRetrying={sources.isFetching} />
           ) : (
             <>
               {noticeKind && <SourcesNotice kind={noticeKind} onSwitchToEditor={onSwitchToEditor} />}
 
-              {canEdit && (
-                <SourcesAddCards
-                  narrow={narrow}
-                  onLinkAsset={() => setPickerOpen(true)}
-                  onUploadFile={() => uploadInputRef.current?.click()}
-                  onPasteText={() => setTextForm({ mode: "create" })}
-                />
-              )}
+              {/* Con fuentes, agregar va arriba; en el estado vacío va debajo de los pasos. */}
+              {canEdit && state !== "empty" && addCards}
 
               {canEdit && textForm && (
                 <SourcesTextForm
@@ -286,8 +303,11 @@ export function AssetsSourcesSheet({
                 />
               )}
 
-              {showEmpty ? (
-                <SourcesEmpty />
+              {state === "empty" ? (
+                <>
+                  <SourcesEmpty />
+                  {canEdit && addCards}
+                </>
               ) : (
                 hasAnySource && (
                   <SourcesTable

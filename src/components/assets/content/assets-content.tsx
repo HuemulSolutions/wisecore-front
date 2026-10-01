@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell,MessageSquareText, Library, Maximize, Minimize, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Play, List, FolderTree, FileIcon, Clock, Copy, FileX, RefreshCw, Pencil, Bell,MessageSquareText, Library, Maximize, Minimize, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { SectionCollapseContext, type CollapseAllSignal } from "@/contexts/section-collapse-context";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
@@ -122,7 +122,13 @@ import { useGlobalPanel } from '@/contexts/global-panel-context';
 // Utilities and hooks
 import { withRefresh } from '@/lib/query-utils';
 import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
-import { ContentErrorState } from './content-error-state';
+import { isSectionContentEmpty } from './utils/section-content';
+import { getContentState, isContentState, type ContentState } from './content-state';
+import { useDevStateOverride } from './hooks/useDevStateOverride';
+import { isVersionBannerVariant } from './version-banner-variants';
+import { VersionBannerPreview } from './version-banner-preview';
+import { buildContentStates } from './content-states-config';
+import { AssetContentStates, type GeneratingProgress } from './assets-content-states';
 // TODO: Integrate these hooks gradually to replace inline mutations
 // import { useDocumentMutations } from './hooks/useDocumentMutations';
 // import { useCustomFieldMutations } from './hooks/useCustomFieldMutations';
@@ -139,34 +145,6 @@ import { CUSTOM_FIELD_DOCUMENTS_PAGE_SIZE, customFieldDocumentsQueryKeys } from 
 // misma query key, un solo fetch. También es el tamaño del paginado CLIENTE del tab
 // "Campos" del panel de detalle (mismo número, un solo fetch cubre ambos usos).
 const CUSTOM_FIELDS_PAGE_SIZE = CUSTOM_FIELD_DOCUMENTS_PAGE_SIZE;
-
-/** Recursively extract all text from a Plate JSON node. */
-function extractPlateText(node: unknown): string {
-  if (!node || typeof node !== 'object') return '';
-  if ('text' in node) return (node as { text: string }).text || '';
-  const el = node as { children?: unknown[] };
-  if (Array.isArray(el.children)) return el.children.map(extractPlateText).join('');
-  return '';
-}
-
-/**
- * Check whether a section has no visible content.
- * Checks plate_content (primary render source) when available, then falls back to markdown.
- */
-function isSectionContentEmpty(section: ContentSection): boolean {
-  // If plate_content exists, it's used as the primary render source
-  if (section.plate_content && section.plate_content.length > 0) {
-    const allText = section.plate_content
-      .map((s) => { try { return extractPlateText(JSON.parse(s)); } catch { return ''; } })
-      .join('');
-    if (allText.trim() === '') return true;
-    return false;
-  }
-  // Fallback: check markdown content
-  return !section.content || section.content.trim() === '';
-}
-
-
 
 // Constante a nivel de módulo (no array literal inline): una referencia
 // estable evita recrear el array de tabs en cada render del sheet de historial.
@@ -1478,33 +1456,6 @@ export function AssetContent({
     );
   }, [documentContent?.executions, documentExecutions]);
 
-  // Check if there's a pending execution that can be resumed
-  const hasPendingExecution = useMemo(() => {
-    const executions = documentContent?.executions || documentExecutions;
-    if (!executions) return false;
-    return executions.some((execution: any) => 
-      execution.status === 'pending'
-    );
-  }, [documentContent?.executions, documentExecutions]);
-
-  // Check if there's a new pending execution (never executed)
-  const hasNewPendingExecution = useMemo(() => {
-    const executions = documentContent?.executions || documentExecutions;
-    if (!executions) return false;
-    const pendingExecution = executions.find((execution: any) => 
-      execution.status === 'pending'
-    );
-    if (!pendingExecution) return false;
-    // Check if any section has generated content (output)
-    // `pendingExecution.sections` viene embebido acá (no de `GET /execution/{id}`,
-    // que sí filtra por `view` — ver "ia context/permisos-seccion-lifecycle-guide.md" §5).
-    // Si esta lista empezara a filtrarse también, un usuario sin acceso a todas
-    // las secciones podría dar un falso negativo — no confirmado hoy.
-    return !pendingExecution.sections?.some((section: any) =>
-      section.output && section.output.trim().length > 0
-    );
-  }, [documentContent?.executions, documentExecutions]);
-
   // Get the active execution ID (running, pending, or failed) from document executions
 
   // Lifecycle permissions from the document content response
@@ -2020,6 +1971,122 @@ export function AssetContent({
       toast.success(t('section.linkCopied'));
     });
   }, [t]);
+
+  // ── Estado del contenido central ─────────────────────────────────────────
+  // Único origen de verdad: getContentState. Las secciones salen de la lista de acceso
+  // (GET /documents/{id}/sections, ya cargada arriba), así que no hace falta `fullDocument`.
+  const hasExecutions = (allExecutions?.length ?? 0) > 0;
+  const hasRenderableContent = !!documentContent?.content;
+  const isSectionRun = !!currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from');
+  const derivedContentState = getContentState(
+    { isLoading: isLoadingContent || sectionAccess.isLoading, isError: isContentError },
+    {
+      canView: canViewContent,
+      status: selectedExecutionInfo?.status ?? isSelectedVersionExecuting?.status,
+      isGeneratingFull: !!isSelectedVersionExecuting && !dismissedExecutionBanners.has(isSelectedVersionExecuting.id),
+      hasExecutions,
+      hasContent: hasRenderableContent,
+      sectionCount: sectionAccess.sections.length,
+    },
+    { isSectionRun },
+  );
+
+  // Previsualización en desarrollo: `?state=<ContentState>` fuerza un estado y `?banner=<variante>`
+  // muestra un VersionBanner de ejemplo. Sin efecto en producción (ver useDevStateOverride).
+  const devContentState = useDevStateOverride<ContentState>('state', isContentState);
+  const devBannerVariant = useDevStateOverride('banner', isVersionBannerVariant);
+  const contentState = devContentState ?? derivedContentState;
+
+  const contentStateConfigs = useMemo(
+    () =>
+      buildContentStates(
+        t,
+        {
+          sections: (devContentState && sectionAccess.sections.length === 0
+            ? Array.from({ length: 3 }, (_, i) => ({
+                id: `dev-${i}`,
+                name: `${t('section.untitled')} ${i + 1}`,
+                section_type: (['manual', 'ai', 'ai'] as const)[i],
+              }))
+            : sectionAccess.sections
+          ).map((section, index) => ({
+            name: section.name || t('section.untitled'),
+            type: section.section_type,
+            runStatus: (() => {
+              if (devContentState === 'runFailed' && section.id.startsWith('dev-')) {
+                return (['done', 'failed', 'pending'] as const)[index];
+              }
+              const status = executionRun.sectionsTrusted ? executionRun.getSectionStatus(index) : undefined;
+              if (status === 'done') return 'done' as const;
+              if (status === 'failed') return 'failed' as const;
+              return status ? ('pending' as const) : undefined;
+            })(),
+            missingContext: isCannotGenerateContextRelated && section.section_type === 'ai',
+          })),
+          importFileName: selectedExecutionInfo?.name ?? null,
+          failureMessage: selectedExecutionInfo?.status_message ?? null,
+          isMissingDependencyFailure: isMissingDependencyFailure(selectedExecutionInfo?.status_message),
+          phases: lifecycle.progress.isAvailable ? lifecycle.progress.phases : [],
+          stage: documentContent?.lifecycle_status?.stage,
+        },
+        {
+          retryLoad: () => refetchContent(),
+          isRetryingLoad: isFetchingContent,
+          backToAssets: () => navigate('/asset', { replace: true }),
+          retryGeneration: handleCreateExecutionFromHeader,
+          isGenerating: executeDocumentMutation.isPending || hasExecutionInProcess,
+          canGenerate,
+          cannotGenerateReason,
+          editSections: () => {
+            preserveScrollPosition();
+            setIsSectionSheetOpen(true);
+          },
+          addSections: () => {
+            preserveScrollPosition();
+            setIsSectionSheetOpen(true);
+          },
+          startGeneration: handleCreateExecutionFromHeader,
+          configureContext:
+            isCannotGenerateContextRelated && frontendPermissions.canAccessSectionSheet
+              ? () => {
+                  preserveScrollPosition();
+                  setIsSourcesSheetOpen(true);
+                }
+              : undefined,
+          startWithoutImport: handleAddSection,
+          lifecyclePermissions,
+        },
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      t,
+      devContentState,
+      sectionAccess.sections,
+      executionRun.sectionsTrusted,
+      executionRun.sections,
+      isCannotGenerateContextRelated,
+      selectedExecutionInfo,
+      lifecycle.progress,
+      documentContent?.lifecycle_status?.stage,
+      isFetchingContent,
+      executeDocumentMutation.isPending,
+      hasExecutionInProcess,
+      canGenerate,
+      cannotGenerateReason,
+      frontendPermissions.canAccessSectionSheet,
+      lifecyclePermissions,
+    ],
+  );
+
+  // Progreso de la generación completa: secciones con texto vs. total de la plantilla.
+  const generatingProgress = useMemo<GeneratingProgress | undefined>(() => {
+    const total = sectionAccess.sections.length;
+    if (total === 0) return undefined;
+    const done = Array.isArray(documentContent?.content)
+      ? documentContent.content.filter((section: ContentSection) => !isSectionContentEmpty(section)).length
+      : 0;
+    return { current: Math.min(done + 1, total), total, name: sectionAccess.sections[done]?.name };
+  }, [documentContent?.content, sectionAccess.sections]);
 
   // Handle export to markdown
   const handleExportMarkdown = async () => {
@@ -3080,6 +3147,8 @@ export function AssetContent({
             >
             {selectedFile.type === 'document' ? (
               <>
+                {devBannerVariant && <VersionBannerPreview variant={devBannerVariant} className="mb-4" />}
+
                 {/* Bloqueo por ElaborationRun en curso — antes que cualquier otro banner,
                     es el aviso más específico sobre por qué no se puede editar ahora mismo. */}
                 {isAssetLockedByExternalElaboration && (
@@ -3133,6 +3202,7 @@ export function AssetContent({
                   <div className="sticky top-0 z-(--z-page-sticky-elevated) mb-4">
                     <ExecutionStatusBanner
                       executionId={isSelectedVersionExecuting.id}
+                      progress={generatingProgress ? Math.round(((generatingProgress.current - 1) / generatingProgress.total) * 100) : undefined}
                       onExecutionComplete={() => {
                         logger.log('🔄 Current version execution completed, refreshing content...');
                         
@@ -3182,464 +3252,94 @@ export function AssetContent({
                   </div>
                 )}
 
-                {isLoadingContent || sectionAccess.isLoading ? (
-                  // Show skeleton loader with consistent height to prevent layout shift.
-                  // También cubre sectionAccess: sin la lista de secciones con `view`, no hay
-                  // forma de saber si alguna del array de /content debe ocultarse.
-                  <div className="space-y-6 animate-pulse min-h-150">
-                    {/* Title skeleton */}
-                    <div className="h-8 bg-gray-200 rounded w-3/4"></div>
-                    
-                    {/* Paragraph skeletons */}
-                    <div className="space-y-3 pt-4">
-                      <div className="h-4 bg-gray-200 rounded"></div>
-                      <div className="h-4 bg-gray-200 rounded w-5/6"></div>
-                      <div className="h-4 bg-gray-200 rounded w-4/6"></div>
-                    </div>
-                    
-                    {/* Section separator */}
-                    <div className="h-px bg-gray-200 my-8"></div>
-                    
-                    {/* Another section */}
-                    <div className="h-6 bg-gray-200 rounded w-2/3"></div>
-                    <div className="space-y-3 pt-4">
-                      <div className="h-4 bg-gray-200 rounded"></div>
-                      <div className="h-4 bg-gray-200 rounded w-4/5"></div>
-                      <div className="h-4 bg-gray-200 rounded w-3/5"></div>
-                      <div className="h-4 bg-gray-200 rounded w-5/6"></div>
-                    </div>
-                    
-                    {/* Section separator */}
-                    <div className="h-px bg-gray-200 my-8"></div>
-                    
-                    {/* Another section */}
-                    <div className="h-6 bg-gray-200 rounded w-1/2"></div>
-                    <div className="space-y-3 pt-4">
-                      <div className="h-4 bg-gray-200 rounded"></div>
-                      <div className="h-4 bg-gray-200 rounded w-5/6"></div>
-                      <div className="h-4 bg-gray-200 rounded w-4/6"></div>
-                      <div className="h-4 bg-gray-200 rounded w-3/5"></div>
-                    </div>
-                    
-                    {/* Loading indicator at the bottom */}
-                    <div className="flex items-center justify-center pt-8">
-                      <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
-                      <span className="ml-2 text-sm text-gray-500">{t('content.loadingDocument')}</span>
-                    </div>
-                  </div>
-                ) : isContentError ? (
-                  // Show error state when content fails to load
-                  <ContentErrorState 
+                {contentState !== 'ready' ? (
+                  <AssetContentStates
+                    state={contentState}
+                    config={contentStateConfigs[contentState]}
                     error={contentError}
                     onRetry={() => refetchContent()}
+                    generatingProgress={generatingProgress}
                   />
-                ) : !canViewContent ? (
-                  // Show access-denied state when user has no lifecycle permissions on this document
-                  <div className="h-full flex items-center justify-center min-h-[calc(100vh-300px)] p-4">
-                    <div className="text-center max-w-sm">
-                      <div className="mb-4 inline-flex items-center justify-center w-14 h-14 rounded-full bg-gray-100">
-                        <Lock className="h-7 w-7 text-gray-400" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('content.accessRestricted')}</h3>
-                      <p className="text-sm text-gray-500">
-                        {t('content.accessRestrictedDescription')}
-                      </p>
-                    </div>
-                  </div>
-                ) : isSelectedVersionExecuting && isSelectedVersionExecuting.status !== 'import_failed' && !dismissedExecutionBanners.has(isSelectedVersionExecuting.id) && !(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) ? (
-                  // Show skeleton when viewing a version that is currently executing (full/full-single mode ONLY) — not for import_failed
-                  <div className="space-y-6 min-h-150">
-                    {/* Skeleton for document content */}
-                    <div className="animate-pulse space-y-4">
-                      {/* Title skeleton */}
-                      <div className="h-8 bg-blue-200 rounded w-3/4"></div>
-                      
-                      {/* Paragraph skeletons */}
-                      <div className="space-y-3 pt-4">
-                        <div className="h-4 bg-blue-200 rounded"></div>
-                        <div className="h-4 bg-blue-200 rounded w-5/6"></div>
-                        <div className="h-4 bg-blue-200 rounded w-4/6"></div>
-                      </div>
-                      
-                      {/* Section separator */}
-                      <div className="h-px bg-blue-200 my-8"></div>
-                      
-                      {/* Another section */}
-                      <div className="h-6 bg-blue-200 rounded w-2/3"></div>
-                      <div className="space-y-3 pt-4">
-                        <div className="h-4 bg-blue-200 rounded"></div>
-                        <div className="h-4 bg-blue-200 rounded w-4/5"></div>
-                        <div className="h-4 bg-blue-200 rounded w-3/5"></div>
-                        <div className="h-4 bg-blue-200 rounded w-5/6"></div>
-                      </div>
-                      
-                      {/* Section separator */}
-                      <div className="h-px bg-blue-200 my-8"></div>
-                      
-                      {/* Another section */}
-                      <div className="h-6 bg-blue-200 rounded w-1/2"></div>
-                      <div className="space-y-3 pt-4">
-                        <div className="h-4 bg-blue-200 rounded"></div>
-                        <div className="h-4 bg-blue-200 rounded w-5/6"></div>
-                        <div className="h-4 bg-blue-200 rounded w-4/6"></div>
-                        <div className="h-4 bg-blue-200 rounded w-3/5"></div>
-                      </div>
-                      
-                      {/* Section separator */}
-                      <div className="h-px bg-blue-200 my-8"></div>
-                      
-                      {/* Another section */}
-                      <div className="h-6 bg-blue-200 rounded w-3/5"></div>
-                      <div className="space-y-3 pt-4">
-                        <div className="h-4 bg-blue-200 rounded"></div>
-                        <div className="h-4 bg-blue-200 rounded w-5/6"></div>
-                        <div className="h-4 bg-blue-200 rounded w-2/3"></div>
-                      </div>
-                      
-                      {/* Loading indicator at the bottom */}
-                      <div className="flex items-center justify-center pt-8">
-                        <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
-                        <span className="ml-2 text-sm text-blue-600 font-medium">{t('content.generatingContent')}</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  // Lógica mejorada para manejar diferentes estados de ejecución
-                  (() => {
-                    // Check if the current execution has failed
-                    const hasFailedExecution = selectedExecutionInfo?.status === 'failed';
-                    const hasImportFailed = selectedExecutionInfo?.status === 'import_failed';
-                    
-                    // Si no hay ejecuciones o no hay contenido
-                    if ((!documentExecutions || documentExecutions.length === 0) || (!documentContent?.content)) {
-                      return (
-                        <div className="h-full flex items-center justify-center min-h-[calc(100vh-300px)] p-4">
-                          <Empty className="max-w-full">
-                            <div className="p-8 text-center">
-                              {hasImportFailed ? (
-                                <div className="max-w-full mx-auto">
-                                  <div className="bg-linear-to-br from-red-50 to-red-100/50 border-2 border-red-200 rounded-2xl p-8 shadow-lg">
-                                    <div className="mb-6 inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 border-4 border-red-200">
-                                      <AlertCircle className="h-8 w-8 text-red-600" />
-                                    </div>
-                                    <h3 className="text-2xl font-bold text-red-900 mb-3">
-                                      {t('content.importFailed')}
-                                    </h3>
-                                    <p className="text-base text-red-800/90 mb-2 leading-relaxed max-w-full mx-auto">
-                                      {selectedExecutionInfo?.status_message || t('content.importFailedDescription')}
-                                    </p>
-                                    <p className="text-xs text-red-600/70 mt-6">
-                                      {t('content.supportedFormats')}
-                                    </p>
-                                  </div>
-                                </div>
-                              ) : hasFailedExecution ? (
-                                <>
-                                  <div className="max-w-full mx-auto">
-                                    <div className="bg-linear-to-br from-red-50 to-red-100/50 border-2 border-red-200 rounded-2xl p-8 shadow-lg">
-                                      {/* Icon Container with Animation */}
-                                      <div className="mb-6 inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 border-4 border-red-200">
-                                        <AlertCircle className="h-8 w-8 text-red-600 animate-pulse" />
-                                      </div>
-                                      
-                                      {/* Title */}
-                                      <h3 className="text-2xl font-bold text-red-900 mb-3">
-                                        {t('content.executionFailed')}
-                                      </h3>
-                                      
-                                      {/* Description */}
-                                      <p className="text-base text-red-800/90 mb-6 leading-relaxed max-w-full mx-auto">
-                                        {isMissingDependencyFailure(selectedExecutionInfo?.status_message)
-                                          ? t('content.executionFailedMissingDependencyDescription')
-                                          : t('content.executionFailedDescription')}
-                                      </p>
-                                      
-                                      {/* Action Buttons */}
-                                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                                        <HuemulButton
-                                          requiredAccess={["create"]}
-                                          requireAll={false}
-                                          checkGlobalPermissions={true}
-                                          resource="version"
-                                          lifecyclePermissions={lifecyclePermissions}
-                                          onClick={handleCreateExecutionFromHeader}
-                                          disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate}
-                                          size="lg"
-                                          title={!canGenerate ? cannotGenerateReason : undefined}
-                                          className={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate
-                                            ? "hover:cursor-not-allowed bg-gray-300 text-gray-500"
-                                            : "hover:cursor-pointer bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg transition-all"
-                                          }
-                                        >
-                                          {executeDocumentMutation.isPending ? (
-                                            <>
-                                              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                                              {t('content.retrying')}
-                                            </>
-                                          ) : (
-                                            <>
-                                              <RefreshCw className="h-5 w-5 mr-2" />
-                                              {t('content.retryExecution')}
-                                            </>
-                                          )}
-                                        </HuemulButton>
-                                        <HuemulButton
-                                          requiredAccess={["edit", "create"]}
-                                          requireAll={false}
-                                          checkGlobalPermissions={true}
-                                          resource="section"
-                                          lifecyclePermissions={lifecyclePermissions}
-                                          onClick={() => {
-                                            preserveScrollPosition();
-                                            setIsSectionSheetOpen(true);
-                                          }}
-                                          variant="outline"
-                                          size="lg"
-                                          className="border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 transition-all"
-                                        >
-                                          <Pencil className="h-5 w-5 mr-2" />
-                                          {t('content.editSections')}
-                                        </HuemulButton>
-                                      </div>
-                                      
-                                      {/* Additional Help Text */}
-                                      <p className="text-xs text-red-600/70 mt-6">
-                                        {t('content.commonIssues')}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </>
-                              ) : (
-                                <>
-                                  <EmptyIcon>
-                                    <Zap className="h-12 w-12" />
-                                  </EmptyIcon>
-                                  <EmptyTitle>{t('content.setupDocument', { name: documentContent?.document_name || selectedFile.name })}</EmptyTitle>
-                                  <EmptyDescription>
-                                    {!canGenerate
-                                      ? cannotGenerateReason
-                                      : fullDocument?.sections?.length > 0
-                                        ? t('content.readyWithAi')
-                                        : t('content.readyWithSections')
-                                    }
-                                  </EmptyDescription>
-                                  {!hasFailedExecution && !hasImportFailed && (
-                                    <EmptyActions>
-                                      {fullDocument?.sections?.length === 0 ? (
-                                        <HuemulButton
-                                          requiredAccess={["edit", "create"]}
-                                          requireAll={false}
-                                          checkGlobalPermissions={true}
-                                          resource="section"
-                                          lifecyclePermissions={lifecyclePermissions}
-                                          onClick={() => setIsSectionSheetOpen(true)}
-                                          className="hover:cursor-pointer bg-primary hover:bg-primary/90"
-                                        >
-                                          <BetweenHorizontalStart className="h-4 w-4 mr-2" />
-                                          {t('content.addSections')}
-                                        </HuemulButton>
-                                      ) : (
-                                        <>
-                                          <HuemulButton
-                                            requiredAccess={["create"]}
-                                            requireAll={false}
-                                            checkGlobalPermissions={true}
-                                            resource="version"
-                                            lifecyclePermissions={lifecyclePermissions}
-                                            onClick={handleCreateExecutionFromHeader}
-                                            disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate}
-                                            title={!canGenerate ? cannotGenerateReason : undefined}
-                                            className={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate
-                                              ? "hover:cursor-not-allowed bg-gray-300 text-gray-500"
-                                              : "bg-primary hover:bg-primary/90"
-                                            }
-                                          >
-                                            {executeDocumentMutation.isPending ? (
-                                              <>
-                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                {t('common:executing')}
-                                              </>
-                                            ) : (
-                                              <>
-                                                <Zap className="h-4 w-4 mr-2" />
-                                                {hasNewPendingExecution ? t('content.startExecution') : hasPendingExecution ? t('content.continueExecution') : t('content.generateContent')}
-                                              </>
-                                            )}
-                                          </HuemulButton>
-                                          {isCannotGenerateContextRelated && frontendPermissions.canAccessSectionSheet && (
-                                            <HuemulButton
-                                              variant="outline"
-                                              onClick={() => {
-                                                preserveScrollPosition();
-                                                setIsSourcesSheetOpen(true);
-                                              }}
-                                            >
-                                              <Library className="h-4 w-4 mr-2" />
-                                              {t('content.configureContext')}
-                                            </HuemulButton>
-                                          )}
-                                          <HuemulButton
-                                            requiredAccess={["edit", "create"]}
-                                            requireAll={false}
-                                            checkGlobalPermissions={true}
-                                            resource="section"
-                                            lifecyclePermissions={lifecyclePermissions}
-                                            onClick={() => {
-                                              onPreserveScroll?.();
-                                              setIsSectionSheetOpen(true);
-                                            }}
-                                            variant="outline"
-                                          >
-                                            <Plus className="h-4 w-4 mr-2" />
-                                            {t('content.addMoreSections')}
-                                          </HuemulButton>
-                                        </>
-                                      )}
-                                    </EmptyActions>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          </Empty>
-                        </div>
-                      );
-                    }
-                    
-                    // Si hay contenido disponible, renderizar el contenido
-                    if (documentContent?.content) {
-                      return (
-                        <MediaUrlProvider freshUrls={mediaUrlsData?.media_urls ?? null}>
-                        <MentionRefsProvider assetIds={mentionAssetIds} organizationId={selectedOrganizationId ?? undefined}>
-                        <RoleRefsProvider enabled={hasRoleReferences}>
-                        <DocumentDataProvider
-                          documentId={selectedFile?.id}
+                ) : documentContent ? (
+                  <>
+                    <MediaUrlProvider freshUrls={mediaUrlsData?.media_urls ?? null}>
+                    <MentionRefsProvider assetIds={mentionAssetIds} organizationId={selectedOrganizationId ?? undefined}>
+                    <RoleRefsProvider enabled={hasRoleReferences}>
+                    <DocumentDataProvider
+                      documentId={selectedFile?.id}
+                      organizationId={selectedOrganizationId}
+                      executionId={selectedExecutionId || documentContent?.execution_id || null}
+                    >
+                    <div className={`prose prose-gray prose-sm md:prose-base max-w-full${deferredViewChrome.isViewMode ? ' [&>*+*]:mt-0' : ''}`}>
+                      {/* Template instructions callout - shown once at the top */}
+                      {documentContent.template_instructions?.trim() && (
+                        <AssetsTemplateInstructionsCard
+                          instructions={documentContent.template_instructions.trim()}
+                          templateName={documentContent.template_name}
+                        />
+                      )}
+                      {Array.isArray(documentContent.content) ? (
+                        // New format: array of sections with separators.
+                        // Lista extraída y memoizada — ver assets-sections-list.tsx
+                        // para el porqué (evitar que cada re-render de AssetContent
+                        // recorra y reconstruya las N secciones). El check de
+                        // formato sigue sobre `documentContent.content` (no sobre
+                        // `deferredContent`) para que TS siga angostando ese mismo
+                        // campo al formato legado (string) en la rama `else` de
+                        // abajo — angostar una expresión distinta (deferredContent)
+                        // no angosta esta.
+                        <SectionCollapseContext.Provider value={deferredCollapseSignal}>
+                          <AssetsSectionsList
+                            content={deferredContent ?? documentContent.content}
+                            sectionEmptiness={sectionEmptiness}
+                            isViewMode={deferredViewChrome.isViewMode}
+                            showEditorActions={deferredViewChrome.showEditorActions}
+                            canEditSections={frontendPermissions.canEditSections}
+                            isMobile={isMobile}
+                            sectionAccess={sectionAccess}
+                            documentId={selectedFile?.id}
+                            currentExecutionId={currentExecutionId}
+                            currentExecutionMode={currentExecutionMode}
+                            selectedExecutionId={selectedExecutionId}
+                            selectedExecutionStatus={selectedExecutionInfo?.status}
+                            isSectionInScope={executionRun.isSectionInScope}
+                            getDisplaySectionStatus={getDisplaySectionStatus}
+                            canGenerate={canGenerate}
+                            cannotGenerateReason={cannotGenerateReason}
+                            onSectionUpdate={handleSectionUpdate}
+                            onAddSectionAtPosition={handleAddSectionAtPosition}
+                            onExecutionStartForSection={handleSectionExecutionStart}
+                            onOpenExecuteSheetForSection={handleCreateExecutionFromSection}
+                            onCreateSectionFromSelectionForSection={handleCreateSectionFromSelection}
+                            onCopyLink={handleCopySectionLink}
+                            onSectionCollapsedChange={handleSectionCollapsedChange}
+                          />
+                        </SectionCollapseContext.Provider>
+                      ) : (
+                        // Legacy format: single string content
+                        <Markdown>{documentContent.content}</Markdown>
+                      )}
+                      {/* Sección al final del contenido: se muestra siempre que la
+                          versión visible tenga documentos relacionados (lector y edición),
+                          scrolleando junto con el resto — NO fija al pie del panel. */}
+                      {canListExecutionRelationships && (
+                        <AssetsRelatedDocumentsBlock
                           organizationId={selectedOrganizationId}
-                          executionId={selectedExecutionId || documentContent?.execution_id || null}
-                        >
-                        <div className={`prose prose-gray prose-sm md:prose-base max-w-full${deferredViewChrome.isViewMode ? ' [&>*+*]:mt-0' : ''}`}>
-                          {/* Template instructions callout - shown once at the top */}
-                          {documentContent.template_instructions?.trim() && (
-                            <AssetsTemplateInstructionsCard
-                              instructions={documentContent.template_instructions.trim()}
-                              templateName={documentContent.template_name}
-                            />
-                          )}
-                          {Array.isArray(documentContent.content) ? (
-                            // New format: array of sections with separators.
-                            // Lista extraída y memoizada — ver assets-sections-list.tsx
-                            // para el porqué (evitar que cada re-render de AssetContent
-                            // recorra y reconstruya las N secciones). El check de
-                            // formato sigue sobre `documentContent.content` (no sobre
-                            // `deferredContent`) para que TS siga angostando ese mismo
-                            // campo al formato legado (string) en la rama `else` de
-                            // abajo — angostar una expresión distinta (deferredContent)
-                            // no angosta esta.
-                            <SectionCollapseContext.Provider value={deferredCollapseSignal}>
-                              <AssetsSectionsList
-                                content={deferredContent ?? documentContent.content}
-                                sectionEmptiness={sectionEmptiness}
-                                isViewMode={deferredViewChrome.isViewMode}
-                                showEditorActions={deferredViewChrome.showEditorActions}
-                                canEditSections={frontendPermissions.canEditSections}
-                                isMobile={isMobile}
-                                sectionAccess={sectionAccess}
-                                documentId={selectedFile?.id}
-                                currentExecutionId={currentExecutionId}
-                                currentExecutionMode={currentExecutionMode}
-                                selectedExecutionId={selectedExecutionId}
-                                selectedExecutionStatus={selectedExecutionInfo?.status}
-                                isSectionInScope={executionRun.isSectionInScope}
-                                getDisplaySectionStatus={getDisplaySectionStatus}
-                                canGenerate={canGenerate}
-                                cannotGenerateReason={cannotGenerateReason}
-                                onSectionUpdate={handleSectionUpdate}
-                                onAddSectionAtPosition={handleAddSectionAtPosition}
-                                onExecutionStartForSection={handleSectionExecutionStart}
-                                onOpenExecuteSheetForSection={handleCreateExecutionFromSection}
-                                onCreateSectionFromSelectionForSection={handleCreateSectionFromSelection}
-                                onCopyLink={handleCopySectionLink}
-                                onSectionCollapsedChange={handleSectionCollapsedChange}
-                              />
-                            </SectionCollapseContext.Provider>
-                          ) : (
-                            // Legacy format: single string content
-                            <Markdown>{documentContent.content}</Markdown>
-                          )}
-                          {/* Sección al final del contenido: se muestra siempre que la
-                              versión visible tenga documentos relacionados (lector y edición),
-                              scrolleando junto con el resto — NO fija al pie del panel. */}
-                          {canListExecutionRelationships && (
-                            <AssetsRelatedDocumentsBlock
-                              organizationId={selectedOrganizationId}
-                              executionId={relatedExecutionId}
-                              currentDocumentId={selectedFile?.id}
-                              isViewMode={deferredViewChrome.isViewMode}
-                              canListAssetTypes={can('listAssetTypes')}
-                              canLinkAssets={can('openDiagramsCanvas')}
-                              canDeleteRelationship={can('deleteExecutionRelationship')}
-                            />
-                          )}
-                        </div>
-                        </DocumentDataProvider>
-                        </RoleRefsProvider>
-                        </MentionRefsProvider>
-                        </MediaUrlProvider>
-                      );
-                    }
-
-                    // Si no hay contenido disponible, mostrar mensaje
-                    return (
-                      <div className="flex items-center justify-center h-full min-h-100">
-                        <div className="text-center">
-                          <File className="h-16 w-16 mx-auto mb-4 text-primary opacity-40" />
-                          <p className="text-lg font-medium text-gray-500">{t('content.noContentTitle')}</p>
-                          <p className="text-sm text-gray-400 mt-1 mb-6">{t('content.noContentDescription')}</p>
-                          
-                          <div className="flex gap-3 justify-center">
-                            <HuemulButton
-                              requiredAccess={["edit", "create"]}
-                              requireAll={false}
-                              checkGlobalPermissions={true}
-                              resource="section"
-                              lifecyclePermissions={lifecyclePermissions}
-                              variant="outline" 
-                              onClick={handleAddSection}
-                              className="hover:cursor-pointer border-primary text-primary hover:bg-primary hover:text-white transition-colors duration-200"
-                            >
-                              <BetweenHorizontalStart className="h-4 w-4 mr-2" />
-                              {t('content.addSection')}
-                            </HuemulButton>
-                            
-                            <HuemulButton
-                              requiredAccess={["edit", "create"]}
-                              requireAll={false}
-                              checkGlobalPermissions={true}
-                              resource="version"
-                              lifecyclePermissions={lifecyclePermissions}
-                              variant="outline"
-                              onClick={handleCreateExecutionFromHeader}
-                              disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !canGenerate}
-                              title={!canGenerate ? cannotGenerateReason : undefined}
-                              className="hover:cursor-pointer border-primary text-primary hover:bg-primary hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {executeDocumentMutation.isPending ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  {t('common:executing')}
-                                </>
-                              ) : (
-                                <>
-                                  <Play className="h-4 w-4 mr-2" />
-                                  {t('content.executeNewVersion')}
-                                </>
-                              )}
-                            </HuemulButton>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()
-                )}
+                          executionId={relatedExecutionId}
+                          currentDocumentId={selectedFile?.id}
+                          isViewMode={deferredViewChrome.isViewMode}
+                          canListAssetTypes={can('listAssetTypes')}
+                          canLinkAssets={can('openDiagramsCanvas')}
+                          canDeleteRelationship={can('deleteExecutionRelationship')}
+                        />
+                      )}
+                    </div>
+                    </DocumentDataProvider>
+                    </RoleRefsProvider>
+                    </MentionRefsProvider>
+                    </MediaUrlProvider>
+                  </>
+                ) : null}
               </>
             ) : (
               <div className="bg-gray-50 p-4 rounded-lg">

@@ -1,6 +1,6 @@
 import { MoreVertical, SlidersHorizontal, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitCompare, History, Eye, XCircle, Clock, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { memo, useState, useEffect, useRef, useContext } from 'react';
+import { memo, useState, useEffect, useRef, useContext, useMemo } from 'react';
 import { SectionCollapseContext } from '@/contexts/section-collapse-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import SectionPlateEditor, { type SectionPlateEditorRef } from '@/components/plate-editor/section-plate-editor';
@@ -48,6 +48,7 @@ import {
   type AnswersPillTone,
 } from '@/components/assets/content/components/section-bar-styles';
 import { QUESTION_TYPE, formatFieldValueForCopy, isFieldAnswerable, isFieldVisible } from '@/components/sections/question-type-meta';
+import { isSectionContentEmpty } from '@/components/assets/content/utils/section-content';
 import type { SectionExecutionProps } from '@/types/assets';
 export type { SectionExecutionProps } from '@/types/assets';
 
@@ -480,6 +481,14 @@ function SectionExecutionInner({
     };
 
     const normalizedSectionType = sectionType ?? 'manual';
+    // Sección manual sin texto, en modo editor y fuera de edición: se muestra una caja de ayuda en vez de
+    // un editor en blanco. El editor sigue montado (solo se oculta) para no reconstruir Plate.
+    const isManualEmpty = useMemo(
+        () => normalizedSectionType === 'manual' && isSectionContentEmpty(sectionExecution),
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- depende solo del texto; `sectionExecution` cambia de identidad en cada render
+        [normalizedSectionType, sectionExecution.output, sectionExecution.plate_content],
+    );
+    const showManualEmptyBox = isManualEmpty && readyToEdit && !isEditing && !isSectionRunActive;
     const SECTION_TYPE_LABEL_KEY = {
         ai: 'section.typeAi',
         manual: 'section.typeManual',
@@ -1184,10 +1193,15 @@ function SectionExecutionInner({
                                 <span className="shrink-0 text-[13px] text-[#94a3b8]">· {t('section.contentHidden')}</span>
                             </button>
                         )}
+                        {showManualEmptyBox && !isCollapsed && (
+                            <div className="mt-4 mr-2 rounded-lg bg-[#f8fafc] p-3.5 text-center text-[13px] text-[#94a3b8]">
+                                {t('section.emptyManual')}
+                            </div>
+                        )}
                         <div
                             className={cn(
                                 readyToEdit ? (isEditing ? 'pt-2 pr-0' : 'pt-4 pr-2 w-full') : 'pt-1 w-full',
-                                !isEditing && isCollapsed && 'hidden'
+                                ((!isEditing && isCollapsed) || showManualEmptyBox) && 'hidden'
                             )}
                         >
                             {plateEditor}

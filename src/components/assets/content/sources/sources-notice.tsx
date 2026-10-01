@@ -11,7 +11,7 @@ interface SourcesNoticeProps {
 }
 
 const TONES: Record<SourcesNoticeKind, { box: string; dot: string; title: string }> = {
-  external: { box: "bg-blue-50 ring-blue-200", dot: "bg-blue-600", title: "text-blue-700" },
+  external: { box: "bg-amber-50 ring-amber-200", dot: "bg-amber-500", title: "text-amber-800" },
   reader: { box: "bg-slate-50 ring-slate-200", dot: "bg-slate-400", title: "text-slate-700" },
   readOnly: { box: "bg-slate-50 ring-slate-200", dot: "bg-slate-400", title: "text-slate-700" },
 };

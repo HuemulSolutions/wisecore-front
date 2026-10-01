@@ -20,8 +20,8 @@ const translations = {
   notice: {
     externalTitle: { en: "External elaboration in progress", es: "Elaboración externa en curso" },
     externalText: {
-      en: "While it lasts, sources can be viewed but not changed.",
-      es: "Mientras dure, las fuentes se pueden ver pero no modificar.",
+      en: "While it lasts, sources can be viewed but not changed. Editing returns when it finishes.",
+      es: "Mientras dure, las fuentes se pueden ver pero no modificar. La edición vuelve cuando termine.",
     },
     readerTitle: { en: "Reader mode", es: "Modo lectura" },
     readerText: {
@@ -161,13 +161,19 @@ const translations = {
     },
     retry: { en: "Retry", es: "Reintentar" },
   },
+  skeleton: {
+    label: { en: "Loading sources", es: "Cargando fuentes" },
+  },
   empty: {
     title: { en: "This asset has no sources yet", es: "Este activo aún no tiene fuentes" },
     description: {
       en: "Sources are the material the AI consults when drafting. You can add them at any time.",
       es: "Las fuentes son el material que la IA consulta al redactar. Puedes sumarlas en cualquier momento.",
     },
-    step1: { en: "Choose a source", es: "Elegir una fuente" },
+    step1: {
+      en: "Choose a source: a WiseCore asset, a file or pasted text",
+      es: "Elegir una fuente: un activo de WiseCore, un archivo o un texto pegado",
+    },
     step2: { en: "Mark the required ones", es: "Marcar las obligatorias" },
     step3: { en: "Generate with AI", es: "Generar con IA" },
   },

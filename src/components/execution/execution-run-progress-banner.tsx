@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Clock, XCircle, CheckCircle, RefreshCw } from 'lucide-react';
+import { XCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { VersionBanner } from '@/components/assets/content/version-banner';
+import type { VersionBannerTone } from '@/components/assets/content/version-banner-variants';
 import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
-import { executionStatusBannerStyle, executionStatusDot } from '@/lib/lifecycle-colors';
-import { Button } from '@/components/ui/button';
 import type { ExecutionRunProgressBannerProps } from '@/types/execution';
 
 export type { ExecutionRunProgressBannerProps } from '@/types/execution';
@@ -117,107 +116,50 @@ export function ExecutionRunProgressBanner({
   const isFailure = phase === 'failed';
   const isCancelled = phase === 'cancelled';
 
-  // Mapear la fase de UI al `status` de ejecución que entiende `lib/lifecycle-colors.ts`,
-  // fuente única de color para el eje de ejecución.
-  const statusForColor = isFailure
-    ? 'failed'
+  const tone: VersionBannerTone | undefined = isFailure
+    ? 'red'
     : isCancelled
-      ? 'cancelled'
+      ? 'gray'
       : succeededAndFresh
-        ? 'completed'
-        : phase === 'arming'
-          ? 'pending'
-          : 'running';
-  const tone = executionStatusBannerStyle(statusForColor);
+        ? 'green'
+        : undefined;
 
-  const display = isFailure
-    ? {
-        icon: <XCircle className={cn('h-5 w-5', tone.icon)} />,
-        title: t('executionRun.title.failed'),
-        description: isMissingDependencyFailure(failureMessage)
-          ? t('executionRun.description.missingDependency')
-          : t('executionRun.description.failed'),
-      }
+  const title = isFailure
+    ? t('executionRun.title.failed')
     : isCancelled
-      ? {
-          icon: <XCircle className={cn('h-5 w-5', tone.icon)} />,
-          title: t('executionRun.title.cancelled'),
-          description: undefined,
-        }
+      ? t('executionRun.title.cancelled')
       : succeededAndFresh
-        ? {
-            icon: <CheckCircle className={cn('h-5 w-5', tone.icon)} />,
-            title: t('executionRun.title.succeeded'),
-            description: undefined,
-          }
+        ? t('executionRun.title.succeeded')
         : phase === 'arming'
-          ? {
-              icon: <Clock className={cn('h-5 w-5', tone.icon)} />,
-              title: t('executionRun.title.arming'),
-              description: undefined,
-            }
-          : {
-              icon: <Loader2 className={cn('h-5 w-5 animate-spin', tone.icon)} />,
-              title: t('executionRun.title.running'),
-              description: currentSectionName
-                ? t('executionRun.currentSection', { section: currentSectionName })
-                : undefined,
-            };
+          ? t('executionRun.title.arming')
+          : t('executionRun.title.running');
+
+  const text = isFailure
+    ? isMissingDependencyFailure(failureMessage)
+      ? t('executionRun.description.missingDependency')
+      : t('executionRun.description.failed')
+    : phase === 'running' && currentSectionName
+      ? t('executionRun.currentSection', { section: currentSectionName })
+      : undefined;
 
   const showProgress = progress.total > 1;
   const progressPct = showProgress ? Math.round((progress.done / progress.total) * 100) : 0;
   const showRefresh = phase === 'arming' || phase === 'running';
 
   return (
-    <div className={cn('border-l-4 p-4 rounded-lg', tone.bg, tone.border, className)}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start space-x-3 flex-1 min-w-0">
-          <div className="shrink-0 mt-0.5">{display.icon}</div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className={cn('text-sm font-medium', tone.text)}>{display.title}</p>
-              {showProgress && (
-                <span className="text-xs text-gray-500">
-                  {t('executionRun.progress', { done: progress.done, total: progress.total })}
-                </span>
-              )}
-            </div>
-            {display.description && (
-              <p className="text-xs text-gray-600 mt-1 truncate">{display.description}</p>
-            )}
-            {showProgress && (
-              <div className="mt-2 h-1.5 w-full max-w-xs rounded-full bg-gray-200 overflow-hidden">
-                <div
-                  className={cn('h-full rounded-full transition-all', executionStatusDot(statusForColor))}
-                  style={{ width: `${progressPct}%` }}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center space-x-1 shrink-0">
-          {showRefresh && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onRefresh}
-              className="hover:cursor-pointer"
-              title={t('executionRun.refreshStatus')}
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDismiss}
-            className="hover:cursor-pointer"
-            title={t('executionRun.dismiss')}
-          >
-            <XCircle className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-    </div>
+    <VersionBanner
+      variant="partialRun"
+      tone={tone}
+      pulsing={phase === 'arming' || (phase === 'running' && !succeededAndFresh)}
+      title={title}
+      text={text}
+      progress={showProgress ? progressPct : undefined}
+      progressLabel={showProgress ? t('executionRun.progress', { done: progress.done, total: progress.total }) : undefined}
+      className={className}
+      actions={[
+        ...(showRefresh ? [{ label: t('executionRun.refreshStatus'), icon: RefreshCw, onClick: onRefresh }] : []),
+        { icon: XCircle, title: t('executionRun.dismiss'), onClick: handleDismiss },
+      ]}
+    />
   );
 }

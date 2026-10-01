@@ -90,7 +90,10 @@ describe('AssetsSourcesSheet — estados', () => {
 
     renderSheet()
 
-    expect(await screen.findByTestId('sources-skeleton')).toBeInTheDocument()
+    const skeleton = await screen.findByTestId('sources-skeleton')
+    expect(skeleton).toBeInTheDocument()
+    expect(skeleton).toHaveAttribute('aria-busy', 'true')
+    expect(skeleton).toHaveAccessibleName('Loading sources')
     expect(screen.queryByText('This asset has no sources yet')).not.toBeInTheDocument()
 
     release()
@@ -118,18 +121,22 @@ describe('AssetsSourcesSheet — estados', () => {
     expect(screen.queryByText("We couldn't load the sources")).not.toBeInTheDocument()
   })
 
-  it('vacío: pasos numerados y tarjetas de agregar encima', async () => {
+  it('vacío: pasos numerados y tarjetas de agregar debajo', async () => {
     mockSources()
     renderSheet()
 
     expect(await screen.findByText('This asset has no sources yet')).toBeInTheDocument()
-    expect(screen.getByText('Choose a source')).toBeInTheDocument()
+    expect(screen.getByText('Choose a source: a WiseCore asset, a file or pasted text')).toBeInTheDocument()
     expect(screen.getByText('Mark the required ones')).toBeInTheDocument()
     expect(screen.getByText('Generate with AI')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Link asset/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Upload file/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Paste text/ })).toBeInTheDocument()
     expect(screen.queryByTestId('sources-summary')).not.toBeInTheDocument()
+    // Las tres acciones para agregar van después de los pasos
+    const steps = screen.getByText('Mark the required ones')
+    const linkAsset = screen.getByRole('button', { name: /Link asset/ })
+    expect(steps.compareDocumentPosition(linkAsset) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('con datos: grupos, resumen, alerta de pendientes y estados por fila', async () => {
@@ -165,13 +172,14 @@ describe('AssetsSourcesSheet — estados', () => {
 })
 
 describe('AssetsSourcesSheet — avisos y solo lectura', () => {
-  it('elaboración externa en curso: aviso azul y nada editable', async () => {
+  it('elaboración externa en curso: aviso ámbar y nada editable', async () => {
     mockSources([dependency], [filePending])
     renderSheet({ isExternalElaborationLocked: true })
 
     const notice = await screen.findByTestId('sources-notice')
     expect(notice).toHaveAttribute('data-kind', 'external')
-    expect(notice).toHaveTextContent('While it lasts, sources can be viewed but not changed.')
+    expect(notice).toHaveClass('bg-amber-50')
+    expect(notice).toHaveTextContent('While it lasts, sources can be viewed but not changed. Editing returns when it finishes.')
     expect(screen.queryByRole('button', { name: /Link asset/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Remove:/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Complete:/ })).not.toBeInTheDocument()

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOrganization } from '@/contexts/organization-context';
 import { getDocumentSections } from '@/services/assets';
-import type { ContentSection } from '@/types/assets';
+import type { ContentSection, DocumentSectionAccessItem } from '@/types/assets';
 
 /**
  * Permiso por sección resuelto por el backend, leído de `GET /documents/{id}/sections`
@@ -18,6 +18,8 @@ export interface SectionAccessMap {
   allowedIds: Set<string> | null;
   /** Solo contiene entradas con `can_edit` explícito (`true`/`false`); `null`/ausente no se guarda. */
   canEditById: Map<string, boolean>;
+  /** Secciones visibles para el usuario (id, nombre y orden), tal como las devuelve el backend. */
+  sections: DocumentSectionAccessItem[];
   isLoading: boolean;
   isError: boolean;
   refetch: () => void;
@@ -40,7 +42,7 @@ export function useDocumentSectionAccess(
 
   return useMemo<SectionAccessMap>(() => {
     if (isError || !data) {
-      return { allowedIds: null, canEditById: new Map(), isLoading, isError, refetch };
+      return { allowedIds: null, canEditById: new Map(), sections: [], isLoading, isError, refetch };
     }
     const allowedIds = new Set<string>();
     const canEditById = new Map<string, boolean>();
@@ -50,7 +52,7 @@ export function useDocumentSectionAccess(
         canEditById.set(item.id, item.can_edit);
       }
     }
-    return { allowedIds, canEditById, isLoading, isError, refetch };
+    return { allowedIds, canEditById, sections: data, isLoading, isError, refetch };
   }, [data, isError, isLoading, refetch]);
 }
 

@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { FileIcon, FileCode, FileText } from "lucide-react";
-import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
-import { HuemulButton } from "@/huemul/components/huemul-button";
+import { HuemulScreenState } from "@/huemul/components/huemul-screen-state";
+import { buildNoSelectionState } from "@/components/assets/content/content-states-config";
+import type { ScreenStateConfig } from "@/types/huemul";
 import { CreateTemplateDialog } from "@/components/templates/templates-create-dialog";
 import { TemplateConfigSheet } from "@/components/assets/content/assets-template-sheet";
 import { useOrganization } from "@/contexts/organization-context";
@@ -38,49 +38,40 @@ export function AssetEmptyContent({ currentFolderId, onPreserveScroll }: AssetEm
     return null;
   }
 
+  const canCreateTemplateAction = canAccessTemplates && canCreate('template');
+  const canCreateAssetAction = canAccessAssets && canCreate('asset');
+  const screenState: ScreenStateConfig = {
+    ...buildNoSelectionState(t),
+    actions: [
+      ...(canCreateTemplateAction
+        ? [
+            {
+              label: t('content.createTemplate'),
+              onClick: () => {
+                onPreserveScroll?.();
+                setIsCreateTemplateSheetOpen(true);
+              },
+            },
+          ]
+        : []),
+      ...(canCreateAssetAction
+        ? [
+            {
+              label: t('content.createAsset'),
+              onClick: () => {
+                onPreserveScroll?.();
+                openCreateAssetDialog(currentFolderId);
+              },
+            },
+          ]
+        : []),
+    ],
+  };
+
   return (
     <>
-      <div className="h-full bg-gray-50 flex items-center justify-center p-4">
-        <Empty>
-          <div className="p-8 text-center">
-            <EmptyIcon>
-              <FileIcon className="h-12 w-12" />
-            </EmptyIcon>
-            <EmptyTitle>{t('content.welcomeTitle')}</EmptyTitle>
-            <EmptyDescription>
-              {(canAccessTemplates && canCreate('template')) || (canAccessAssets && canCreate('asset'))
-                ? t('content.welcomeDescriptionWithPermissions')
-                : t('content.welcomeDescriptionNoPermissions')
-              }
-            </EmptyDescription>
-            <EmptyActions>
-              {canAccessTemplates && canCreate('template') && (
-                <HuemulButton
-                  onClick={() => {
-                    onPreserveScroll?.();
-                    setIsCreateTemplateSheetOpen(true);
-                  }}
-                  variant="outline"
-                  icon={FileCode}
-                  iconClassName="h-4 w-4"
-                  label={t('content.createTemplate')}
-                />
-              )}
-              {canAccessAssets && canCreate('asset') && (
-                <HuemulButton
-                  onClick={() => {
-                    onPreserveScroll?.();
-                    openCreateAssetDialog(currentFolderId);
-                  }}
-                  className="bg-[#4464f7] hover:bg-[#3451e6]"
-                  icon={FileText}
-                  iconClassName="h-4 w-4"
-                  label={t('content.createAsset')}
-                />
-              )}
-            </EmptyActions>
-          </div>
-        </Empty>
+      <div className="h-full overflow-auto bg-[#f7f8fa] p-4">
+        <HuemulScreenState config={screenState} />
       </div>
 
       {/* Template Creation Dialog */}
