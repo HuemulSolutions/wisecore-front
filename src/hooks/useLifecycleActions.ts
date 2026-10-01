@@ -472,10 +472,10 @@ export function useLifecycleActions({
 
   // Única fuente para decidir si el sheet de aprobación embebe el selector de
   // versión inline (en vez de bloquear el botón que lo abre, como antes).
+  // `version_required` manda: en tipos no-ISO el backend asigna la versión solo
+  // al aprobar. Si igual la exige, `VERSION_REQUIRED_FOR_APPROVAL` abre el flujo reactivo.
   const canAssignVersionInline =
-    !!lifecyclePermissions?.approve &&
-    (!!lifecycleStatus?.version_required || lifecycleStatus?.state === "in_approval") &&
-    !lifecycleStatus?.version
+    !!lifecyclePermissions?.approve && !!lifecycleStatus?.version_required && !lifecycleStatus?.version
 
   /**
    * Confirma la aprobación asignando la versión en el mismo paso (selector
