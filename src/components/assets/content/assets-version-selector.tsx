@@ -96,8 +96,6 @@ export function VersionSelectorDropdown({
     return index !== -1 ? `v${sortedExecutions.length - index}` : "v1";
   })();
 
-  const statusLabel = (state: ExecutionLifecycleState) => t(`lifecycle.stateLabels.${state}`);
-
   const createBlocked = isCreatingPending || hasExecutionInProcess || !canGenerate;
   const createTitle =
     isCreatingPending || hasExecutionInProcess
@@ -126,7 +124,6 @@ export function VersionSelectorDropdown({
           >
             <StatusDot state={selectedState} />
             <span className="font-semibold text-slate-900">{versionLabel}</span>
-            <span className="font-medium text-slate-500">{statusLabel(selectedState)}</span>
             <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
           </button>
         </DropdownMenuTrigger>
@@ -136,12 +133,7 @@ export function VersionSelectorDropdown({
             {sortedExecutions.map((execution) => {
               const isSelected = targetId === execution.id;
               const state = versionLifecycleState(execution.lifecycle_state);
-              const meta = [
-                statusLabel(state),
-                execution.created_at ? formatAbsoluteDate(execution.created_at) : null,
-              ]
-                .filter(Boolean)
-                .join(" · ");
+              const meta = execution.created_at ? formatAbsoluteDate(execution.created_at) : null;
 
               return (
                 <DropdownMenuItem
@@ -158,7 +150,7 @@ export function VersionSelectorDropdown({
                     <span className="truncate text-[13px] font-semibold text-slate-900">
                       {getExecutionDisplayLabel(execution)}
                     </span>
-                    <span className="truncate text-[11.5px] text-slate-500">{meta}</span>
+                    {meta && <span className="truncate text-[11.5px] text-slate-500">{meta}</span>}
                   </div>
                   {isSelected && <Check className="h-4 w-4 shrink-0 text-blue-600" aria-hidden="true" />}
                 </DropdownMenuItem>

@@ -68,7 +68,7 @@ describe('VersionSelectorDropdown', () => {
     expect(onRenameVersion).toHaveBeenCalledWith({ id: 'e2', name: 'Borrador B' })
   })
 
-  it('cada versión muestra su estado de ciclo de vida, no el status de generación', async () => {
+  it('no muestra el texto del estado de ciclo de vida, solo el punto de color', async () => {
     setup({
       selectedExecutionId: 'e3',
       allExecutions: [
@@ -78,12 +78,12 @@ describe('VersionSelectorDropdown', () => {
       ],
     })
 
-    expect(screen.getByTitle('Switch Version')).toHaveTextContent('Published')
+    expect(screen.getByTitle('Switch Version')).not.toHaveTextContent('Published')
     await userEvent.click(screen.getByTitle('Switch Version'))
     const items = screen.getAllByRole('menuitem')
-    expect(items[0]).toHaveTextContent('Published')
-    expect(items[1]).toHaveTextContent('In Review')
-    expect(items[2]).toHaveTextContent('Elaboration')
+    expect(items[0]).not.toHaveTextContent('Published')
+    expect(items[1]).not.toHaveTextContent('In Review')
+    expect(items[2]).not.toHaveTextContent('Elaboration')
   })
 
   it('no ofrece Renombrar cuando la versión seleccionada está aprobada', async () => {
