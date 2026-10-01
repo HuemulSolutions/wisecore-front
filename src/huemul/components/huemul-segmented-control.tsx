@@ -3,6 +3,8 @@ import { cn } from "@/lib/utils"
 export interface HuemulSegmentedOption<T extends string = string> {
   value: T
   label: string
+  /** Conteo mostrado en gris junto al label. */
+  count?: number
   disabled?: boolean
 }
 
@@ -78,6 +80,9 @@ export function HuemulSegmentedControl<T extends string = string>({
             )}
           >
             {option.label}
+            {option.count !== undefined && (
+              <span className="ml-1.5 font-normal text-[#94a3b8]">{option.count}</span>
+            )}
           </button>
         )
       })}

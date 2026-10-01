@@ -9,7 +9,7 @@
 
 // ─── Catálogo ───────────────────────────────────────────────────────────────
 
-export type DataTableFilterKind = 'multi_enum' | 'date_range' | 'text' | 'boolean'
+export type DataTableFilterKind = 'multi_enum' | 'date_range' | 'text' | 'boolean' | 'asset_type'
 
 export interface DataTableFilterOption {
   value: string

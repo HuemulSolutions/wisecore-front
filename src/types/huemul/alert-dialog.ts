@@ -32,6 +32,8 @@ export interface HuemulAlertDialogProps {
    */
   showSuccessState?: boolean;
   className?: string;
+  /** Clases extra del botón de acción (ej. un rojo propio de la superficie). */
+  actionClassName?: string;
   /**
    * Bloque de alerta destacado que se renderiza sobre la descripción.
    * Uso típico: el primer intento de borrado falló porque la entidad está en
