@@ -6,8 +6,7 @@ import type { WorkflowSectionTone } from "@/components/workflow/workflow-section
 // fija la spec visual — no tokens del tema, y no soporta dark mode (ver "ia context/detail-
 // surface-guide.md" §3ter, misma decisión que huemul-section-card.tsx). `tone` sigue siendo la
 // fuente semántica única (workflow-section-card-state.ts): esta tabla solo la traduce a color
-// para esta tarjeta en particular. Las píldoras de la vista 2 (workflow-section-pills.tsx) NO
-// consumen esta tabla — siguen con toneDot() de lib/lifecycle-colors.ts, sin cambios.
+// para esta tarjeta en particular.
 
 export const SUMMARY_CARD_SHELL = "rounded-[10px] border border-[#e8ecf2] bg-white";
 

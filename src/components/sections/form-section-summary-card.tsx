@@ -52,7 +52,7 @@ export interface FormSectionSummaryCardProps {
  * Tarjeta de resumen de una sección form — única para el panel de workflow
  * (workflow-sections-summary.tsx) y el modo lector del asset (asset-form-section-reader.tsx):
  * estado visual y pie (siempre visibles, incluso colapsada) resueltos por resolveSectionCardState
- * — misma fuente que pinta el punto de la píldora de la vista 2, para que nunca diverjan.
+ * — fuente única del estado de la sección.
  *
  * Dibuja su propio Collapsible en vez de HuemulNumberedStatusCard/HuemulSectionCard: la spec
  * pide un pie INSET (ml-[35px], sin fondo, borde superior fino) y un cuerpo sin borde superior,

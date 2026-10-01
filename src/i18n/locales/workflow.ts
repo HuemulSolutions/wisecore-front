@@ -178,11 +178,9 @@ const translations = {
       },
     },
   },
-  // Vista 2 (sección) del panel de detalle — ver workflow-section-view.tsx / workflow-section-pills.tsx.
+  // Vista 2 (sección) del panel de detalle — ver workflow-section-view.tsx.
   section: {
     counter: { en: "Section {{current}} of {{total}}", es: "Sección {{current}} de {{total}}" },
-    pillTooltip: { en: "Go to \"{{name}}\"", es: "Ir a \"{{name}}\"" },
-    indexLabel: { en: "Sections of this asset", es: "Secciones de este activo" },
     questionsCount: { en: "{{count}} questions", es: "{{count}} preguntas" },
     readOnlyStep: { en: "Read-only at this step", es: "Solo lectura en este paso" },
     inactiveNotice: {

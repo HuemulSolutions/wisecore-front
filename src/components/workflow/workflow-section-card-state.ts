@@ -1,4 +1,3 @@
-import type { ColorHue } from "@/lib/lifecycle-colors";
 import type { WorkflowSummaryActionKind } from "@/components/workflow/workflow-summary-styles";
 import {
   computeSectionStats,
@@ -9,17 +8,6 @@ import {
 import type { ContentSection } from "@/types/assets";
 
 export type WorkflowSectionTone = "success" | "danger" | "info" | "muted";
-
-/** Mismo hue que pinta el punto de la píldora de la vista 2 (workflow-section-pills.tsx, vía
- *  lib/lifecycle-colors.ts) — una sola tabla para que ambas superficies no diverjan. El color
- *  del CÍRCULO de la tarjeta del resumen ya no sale de acá: ver SUMMARY_CIRCLE_STYLES en
- *  workflow-summary-styles.ts (paleta hex literal propia de esa superficie). */
-export const WORKFLOW_SECTION_TONE_HUE: Record<WorkflowSectionTone, ColorHue> = {
-  success: "green",
-  danger: "red",
-  info: "blue",
-  muted: "gray",
-};
 
 export interface WorkflowSectionCardState {
   tone: WorkflowSectionTone;
@@ -44,7 +32,7 @@ export interface WorkflowSectionCardState {
 }
 
 /**
- * Estado visual de una tarjeta de sección del resumen (y de su píldora en la vista 2) —
+ * Estado visual de una tarjeta de sección del resumen —
  * fuente única, sin React. Primera fila que matchea gana. Ver
  * "ia context" del rediseño del panel de workflow para las cuatro reglas y por qué NO existe
  * un quinto estado "azul = en progreso" (en secciones con obligatorias, missing_required === 0
