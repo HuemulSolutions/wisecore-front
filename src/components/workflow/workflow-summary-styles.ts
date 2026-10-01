@@ -13,7 +13,7 @@ export const SUMMARY_CARD_SHELL = "rounded-[10px] border border-[#e8ecf2] bg-whi
 
 export const SUMMARY_CIRCLE_STYLES: Record<WorkflowSectionTone, string> = {
   success: "bg-[#dcfce7] text-[#15803d]",
-  danger: "bg-[#fee2e2] text-[#b91c1c]",
+  danger: "bg-[#fef3c7] text-[#92400e]",
   muted: "bg-[#f1f5f9] text-[#94a3b8]",
   info: "bg-[#eff5ff] text-[#1d4ed8]",
 };
@@ -23,7 +23,7 @@ export const SUMMARY_CIRCLE_STYLES: Record<WorkflowSectionTone, string> = {
  *  campo `footerTone`). */
 export const SUMMARY_FOOTER_TEXT_STYLES: Record<"success" | "danger" | "muted", string> = {
   success: "text-[#15803d]",
-  danger: "text-[#b91c1c]",
+  danger: "text-[#92400e]",
   muted: "text-[#64748b]",
 };
 
