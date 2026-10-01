@@ -121,6 +121,8 @@ export interface StageToneClasses {
   border: string
   /** Fondo suave + texto para bloques destacados ("Próximo paso"). */
   soft: string
+  /** Aro de 4px (`ring-4`) alrededor del punto de la fase actual. */
+  ring: string
 }
 
 /** Clases de tono por hue para el stepper de fases y bloques destacados del progreso de ciclo de vida. */
@@ -130,84 +132,98 @@ const STAGE_TONE_CLASSES: Record<ColorHue, StageToneClasses> = {
     text: "text-slate-700 dark:text-slate-300",
     border: "border-slate-600 dark:border-slate-500",
     soft: "bg-slate-50 text-slate-700 dark:bg-slate-950 dark:text-slate-300",
+    ring: "ring-slate-100 dark:ring-slate-900",
   },
   blue: {
     solid: "bg-blue-600 dark:bg-blue-500",
     text: "text-blue-700 dark:text-blue-300",
     border: "border-blue-600 dark:border-blue-500",
     soft: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+    ring: "ring-blue-100 dark:ring-blue-900",
   },
   amber: {
     solid: "bg-amber-600 dark:bg-amber-500",
     text: "text-amber-700 dark:text-amber-300",
     border: "border-amber-600 dark:border-amber-500",
     soft: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+    ring: "ring-amber-100 dark:ring-amber-900",
   },
   yellow: {
     solid: "bg-yellow-600 dark:bg-yellow-500",
     text: "text-yellow-700 dark:text-yellow-300",
     border: "border-yellow-600 dark:border-yellow-500",
     soft: "bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300",
+    ring: "ring-yellow-100 dark:ring-yellow-900",
   },
   sky: {
     solid: "bg-sky-600 dark:bg-sky-500",
     text: "text-sky-700 dark:text-sky-300",
     border: "border-sky-600 dark:border-sky-500",
     soft: "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
+    ring: "ring-sky-100 dark:ring-sky-900",
   },
   violet: {
     solid: "bg-violet-600 dark:bg-violet-500",
     text: "text-violet-700 dark:text-violet-300",
     border: "border-violet-600 dark:border-violet-500",
     soft: "bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
+    ring: "ring-violet-100 dark:ring-violet-900",
   },
   green: {
     solid: "bg-green-600 dark:bg-green-500",
     text: "text-green-700 dark:text-green-300",
     border: "border-green-600 dark:border-green-500",
     soft: "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300",
+    ring: "ring-green-100 dark:ring-green-900",
   },
   teal: {
     solid: "bg-teal-600 dark:bg-teal-500",
     text: "text-teal-700 dark:text-teal-300",
     border: "border-teal-600 dark:border-teal-500",
     soft: "bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300",
+    ring: "ring-teal-100 dark:ring-teal-900",
   },
   cyan: {
     solid: "bg-cyan-600 dark:bg-cyan-500",
     text: "text-cyan-700 dark:text-cyan-300",
     border: "border-cyan-600 dark:border-cyan-500",
     soft: "bg-cyan-50 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300",
+    ring: "ring-cyan-100 dark:ring-cyan-900",
   },
   gray: {
     solid: "bg-gray-600 dark:bg-gray-500",
     text: "text-gray-700 dark:text-gray-300",
     border: "border-gray-600 dark:border-gray-500",
     soft: "bg-gray-50 text-gray-700 dark:bg-gray-950 dark:text-gray-300",
+    ring: "ring-gray-100 dark:ring-gray-900",
   },
   stone: {
     solid: "bg-stone-600 dark:bg-stone-500",
     text: "text-stone-700 dark:text-stone-300",
     border: "border-stone-600 dark:border-stone-500",
     soft: "bg-stone-50 text-stone-700 dark:bg-stone-950 dark:text-stone-300",
+    ring: "ring-stone-100 dark:ring-stone-900",
   },
   indigo: {
     solid: "bg-indigo-600 dark:bg-indigo-500",
     text: "text-indigo-700 dark:text-indigo-300",
     border: "border-indigo-600 dark:border-indigo-500",
     soft: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300",
+    ring: "ring-indigo-100 dark:ring-indigo-900",
   },
   red: {
     solid: "bg-red-600 dark:bg-red-500",
     text: "text-red-700 dark:text-red-300",
     border: "border-red-600 dark:border-red-500",
     soft: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
+    ring: "ring-red-100 dark:ring-red-900",
   },
   fuchsia: {
     solid: "bg-fuchsia-600 dark:bg-fuchsia-500",
     text: "text-fuchsia-700 dark:text-fuchsia-300",
     border: "border-fuchsia-600 dark:border-fuchsia-500",
     soft: "bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950 dark:text-fuchsia-300",
+    ring: "ring-fuchsia-100 dark:ring-fuchsia-900",
   },
 }
 

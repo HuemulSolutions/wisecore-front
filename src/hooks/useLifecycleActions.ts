@@ -95,7 +95,7 @@ export function useLifecycleActions({
   })
   const finalLifecycleStage = documentTypeData?.data?.final_lifecycle_stage ?? "publish"
 
-  const [isCheckDialogOpen, setIsCheckDialogOpen] = useState(false)
+  const [isCheckDialogOpen, setIsCheckDialogOpenState] = useState(false)
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false)
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false)
@@ -106,6 +106,13 @@ export function useLifecycleActions({
   const [requiredCustomFieldsError, setRequiredCustomFieldsError] = useState<string[]>([])
   const [isAdvanceBlockersDialogOpen, setIsAdvanceBlockersDialogOpen] = useState(false)
   const [advanceBlockersError, setAdvanceBlockersError] = useState<AdvanceBlocker[]>([])
+
+  // Al abrir el sheet de completar se descartan los blockers de un intento
+  // anterior: el 409 se muestra inline en ese sheet y no debe reaparecer viejo.
+  const setIsCheckDialogOpen = (open: boolean) => {
+    if (open) setAdvanceBlockersError([])
+    setIsCheckDialogOpenState(open)
+  }
 
   // Closing the assign-version dialog (by any path — cancel, backdrop click, or
   // after a successful/failed confirm) must drop any pending retry action, or a
@@ -176,11 +183,13 @@ export function useLifecycleActions({
   const advanceBlockers = getAdvanceBlockers(lifecycleStatus)
   const isBlockedByRequiredAnswers = !lifecycleStatus?.can_advance && advanceBlockers.length > 0
 
-  const handleRequiredAnswersError = (error: unknown): boolean => {
+  // `inline`: el sheet de completar muestra los blockers en su propio cuerpo,
+  // así que no se abre el diálogo aparte (lo usa solo `advanceMutation`).
+  const handleRequiredAnswersError = (error: unknown, inline = false): boolean => {
     const blockers = advanceBlockers.length > 0 ? advanceBlockers : parseAdvanceBlockersDetail(error)
     if (blockers.length === 0) return false
     setAdvanceBlockersError(blockers)
-    setIsAdvanceBlockersDialogOpen(true)
+    if (!inline) setIsAdvanceBlockersDialogOpen(true)
     return true
   }
 
@@ -232,11 +241,16 @@ export function useLifecycleActions({
     },
     meta: { successMessage: t("lifecycle.successComplete") },
     onError: (error, variables: { comment?: string; run_external_review?: boolean } | undefined) => {
-      setIsCheckDialogOpen(false)
+      // 409 de obligatorios pendientes: el sheet queda abierto con lo editado
+      // y muestra la caja inline + "Reintentar".
+      let keepOpen = false
       handleApiError(error, {
         fallbackMessage: t("lifecycle.errorComplete"),
         onErrorCode: (code) => {
-          if (code === REQUIRED_ANSWERS_CODE) return handleRequiredAnswersError(error)
+          if (code === REQUIRED_ANSWERS_CODE) {
+            keepOpen = handleRequiredAnswersError(error, true)
+            return keepOpen
+          }
           if (code === REQUIRED_CUSTOM_FIELDS_CODE) return handleRequiredCustomFieldsError(error)
           if (code !== VERSION_REQUIRED_CODE) return false
           setPendingVersionAction({ kind: "complete", options: variables })
@@ -244,6 +258,7 @@ export function useLifecycleActions({
           return true
         },
       })
+      if (!keepOpen) setIsCheckDialogOpen(false)
     },
   })
 

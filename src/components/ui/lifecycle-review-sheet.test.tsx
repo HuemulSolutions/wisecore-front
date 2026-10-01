@@ -8,9 +8,6 @@ vi.mock('@/components/layout/mdx-editor', () => ({ default: () => <div data-test
 vi.mock('@/huemul/components/huemul-version-picker', () => ({
   HuemulVersionPicker: () => <div data-testid="version-picker" />,
 }))
-vi.mock('@/huemul/components/huemul-lifecycle-progress-header', () => ({
-  HuemulLifecycleProgressHeader: () => null,
-}))
 
 function makeController(overrides: Record<string, unknown> = {}): LifecycleActionsController {
   const idle = { isPending: false, mutate: vi.fn() }
@@ -24,7 +21,8 @@ function makeController(overrides: Record<string, unknown> = {}): LifecycleActio
     isSummaryLoading: false,
     handleViewChanges: vi.fn(),
     missingRequiredCustomFields: [],
-    progress: { nextStep: null },
+    progress: { isAvailable: false, phases: [], currentPhase: null, nextStep: null },
+    advanceBlockersError: [],
     hasExternalReview: false,
     checkMutation: idle,
     assignVersionMutation: { isPending: false },
@@ -54,5 +52,68 @@ describe('LifecycleReviewSheet', () => {
     )
 
     expect(screen.getByTestId('version-picker')).toBeInTheDocument()
+  })
+
+  it('con advanceBlockersError muestra la caja inline y el botón pasa a "Reintentar"', () => {
+    const onGoToSection = vi.fn()
+    render(
+      <LifecycleReviewSheet
+        controller={makeController({
+          advanceBlockersError: [
+            { code: 'REQUIRED_ANSWERS_PENDING', section_execution_id: 's1', section_name: 'Sección A', missing_required: 2 },
+          ],
+        })}
+        executionId="e1"
+        organizationId="o1"
+        onGoToSection={onGoToSection}
+      />,
+    )
+
+    expect(screen.getByText('Sección A')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Reintentar|Retry/ })).toBeInTheDocument()
+  })
+
+  it('con campos personalizados obligatorios faltantes deshabilita el botón principal', () => {
+    render(
+      <LifecycleReviewSheet
+        controller={makeController({ isApprovalStep: false, missingRequiredCustomFields: ['Campo X'] })}
+        executionId="e1"
+        organizationId="o1"
+      />,
+    )
+
+    expect(screen.getByText('Campo X')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Complete' })).toBeDisabled()
+  })
+
+  it('con progreso disponible renderiza stepper, pasos de la fase y próximo paso', () => {
+    render(
+      <LifecycleReviewSheet
+        controller={makeController({
+          isApprovalStep: false,
+          progress: {
+            isAvailable: true,
+            phases: [
+              { key: 'edit', label: 'Elaboración', state: 'current' },
+              { key: 'review', label: 'Revisión', state: 'upcoming' },
+            ],
+            currentPhase: {
+              stage: 'edit',
+              label: 'Elaboración',
+              completed: 0,
+              total: 1,
+              steps: [{ id: 'st1', name: 'Redacción', state: 'current', roleNames: ['Editor'] }],
+            },
+            nextStep: { name: 'Revisión legal', stage: 'review', roleNames: ['Legal'] },
+          },
+        })}
+        executionId="e1"
+        organizationId="o1"
+      />,
+    )
+
+    expect(screen.getByText('Redacción')).toBeInTheDocument()
+    expect(screen.getByText('Editor')).toBeInTheDocument()
+    expect(screen.getByText('Revisión legal')).toBeInTheDocument()
   })
 })

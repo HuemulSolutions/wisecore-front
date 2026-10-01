@@ -48,7 +48,16 @@ export function HuemulLifecycleSheets({
         }
       : undefined
 
-  const nextStepBlock = progress.nextStep
+  // El sheet de completar muestra todos los blockers inline (un botón por
+  // sección): cierra el sheet y navega a la sección elegida.
+  const goToSectionFromSheet = controller.onGoToSection
+    ? (sectionExecutionId: string) => {
+        controller.setIsCheckDialogOpen(false)
+        controller.onGoToSection!(sectionExecutionId)
+      }
+    : undefined
+
+  const nextStepBlock =progress.nextStep
     ? {
         label: t("lifecycle.nextStepLabel"),
         value: progress.nextStep.name ?? t(`lifecycle.stageLabels.${progress.nextStep.stage}`, { defaultValue: progress.nextStep.stage }),
@@ -68,6 +77,7 @@ export function HuemulLifecycleSheets({
         organizationId={organizationId}
         existingVersions={existingVersions}
         onGoToCustomFields={goToCustomFields}
+        onGoToSection={goToSectionFromSheet}
       />
 
       <LifecycleRollbackSheet
