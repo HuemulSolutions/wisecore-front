@@ -146,9 +146,12 @@ describe('AssetsSourcesSheet — estados', () => {
     expect(within(summary).getByText('2 pending')).toBeInTheDocument()
 
     expect(screen.getByRole('alert')).toHaveTextContent('There are 2 required sources without content')
-    expect(screen.getAllByText('Content missing')).toHaveLength(2)
-    expect(screen.getAllByText('Ready')).toHaveLength(2)
+    // Sin columna de estado: lo pendiente se marca en la propia fila
+    expect(screen.queryByRole('columnheader', { name: 'Status' })).not.toBeInTheDocument()
+    // La tercera columna (acciones) no tiene título: queda oculta para lectores de pantalla
+    expect(screen.getAllByRole('columnheader').map((el) => el.textContent)).toEqual(['Source', 'Version / detail'])
     expect(screen.getAllByText('No content · blocks AI generation')).toHaveLength(2)
+    expect(document.querySelectorAll('[data-testid="source-row"][data-pending]')).toHaveLength(2)
   })
 
   it('sin pendientes muestra "Completed" y ninguna alerta', async () => {

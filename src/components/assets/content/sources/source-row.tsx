@@ -7,8 +7,8 @@ import type { Dependency, DependencyVersionMode } from "@/types/dependency/sheet
 import type { ContextSourceRow, SourceRow } from "@/types/assets/sources";
 import { SourcesVersionMenu } from "./sources-version-menu";
 
-/** Columnas de la tabla en ancho normal: fuente · versión/detalle · estado · acciones. */
-export const SOURCES_GRID_COLUMNS = "minmax(0,1fr) 150px 116px 72px";
+/** Columnas de la tabla en ancho normal: fuente · versión/detalle · acciones. */
+export const SOURCES_GRID_COLUMNS = "minmax(0,1fr) 150px 72px";
 
 interface SourceRowProps {
   row: SourceRow;
@@ -88,19 +88,6 @@ export function SourceRow({
     </div>
   );
 
-  const status = (
-    <span
-      className={cn(
-        "inline-flex h-[22px] items-center rounded-full px-2.5 text-xs font-semibold ring-1 ring-inset",
-        pending
-          ? "bg-amber-50 text-amber-700 ring-amber-200"
-          : "bg-green-100 text-green-700 ring-green-200"
-      )}
-    >
-      {pending ? t("row.statusMissing") : t("row.statusReady")}
-    </span>
-  );
-
   const nameCell = (
     <div className="min-w-0">
       <div className="flex items-center gap-1">
@@ -133,8 +120,8 @@ export function SourceRow({
       style={
         narrow
           ? {
-              gridTemplateColumns: "minmax(0,1fr) auto auto",
-              gridTemplateAreas: '"name name act" "ver st st"',
+              gridTemplateColumns: "minmax(0,1fr) auto",
+              gridTemplateAreas: '"name act" "ver ver"',
             }
           : { gridTemplateColumns: SOURCES_GRID_COLUMNS }
       }
@@ -144,9 +131,6 @@ export function SourceRow({
       </div>
       <div role="cell" style={narrow ? { gridArea: "ver" } : undefined} className="min-w-0">
         {detail}
-      </div>
-      <div role="cell" style={narrow ? { gridArea: "st" } : undefined}>
-        {status}
       </div>
       <div role="cell" style={narrow ? { gridArea: "act" } : undefined}>
         {actions}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BookOpen, RefreshCw } from "lucide-react";
+import { Library, RefreshCw } from "lucide-react";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulAssetTreePickerDialog } from "@/huemul/components/huemul-asset-tree-picker";
@@ -243,7 +243,7 @@ export function AssetsSourcesSheet({
         open={isOpen}
         onOpenChange={onOpenChange}
         title={t("sheet.title")}
-        icon={BookOpen}
+        icon={Library}
         size="xl"
         showFooter={false}
         headerContent={header}

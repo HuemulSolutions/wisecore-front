@@ -93,7 +93,6 @@ const translations = {
   table: {
     columnSource: { en: "Source", es: "Fuente" },
     columnVersion: { en: "Version / detail", es: "Versión / detalle" },
-    columnStatus: { en: "Status", es: "Estado" },
     groups: {
       assets: {
         title: { en: "Linked assets", es: "Activos vinculados" },
@@ -110,8 +109,6 @@ const translations = {
     },
   },
   row: {
-    statusReady: { en: "Ready", es: "Listo" },
-    statusMissing: { en: "Content missing", es: "Falta contenido" },
     missingMeta: {
       en: "No content · blocks AI generation",
       es: "Sin contenido · bloquea la generación con IA",

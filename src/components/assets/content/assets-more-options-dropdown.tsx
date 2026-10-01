@@ -12,7 +12,7 @@ import {
   Workflow,
   ShieldCheck,
   BetweenHorizontalStart,
-  BookOpen,
+  Library,
   Copy,
   GitCompare,
   FileCode,
@@ -452,7 +452,7 @@ export function MoreOptionsDropdown({
                 onSelect={() => setTimeout(onOpenSources, 0)}
                 className={itemClass}
               >
-                <BookOpen className="h-4 w-4" />
+                <Library className="h-4 w-4" />
                 {t("content.sourcesLabel")}
               </DropdownMenuItem>
             </>

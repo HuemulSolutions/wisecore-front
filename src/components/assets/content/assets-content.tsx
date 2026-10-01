@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell,MessageSquareText, BookOpen, Maximize, Minimize, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, Clock, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Bell,MessageSquareText, Library, Maximize, Minimize, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { SectionCollapseContext, type CollapseAllSignal } from "@/contexts/section-collapse-context";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
@@ -2536,7 +2536,7 @@ export function AssetContent({
                   className="relative h-7 w-7 p-0 rounded-full text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors"
                   onClick={() => setIsSourcesSheetOpen(true)}
                 >
-                  <BookOpen className="h-4 w-4" />
+                  <Library className="h-4 w-4" />
                   {pendingSourcesCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white" aria-hidden="true" />
                   )}
@@ -2960,7 +2960,7 @@ export function AssetContent({
                         tooltip={t('content.sourcesLabel')}
                         onClick={() => setIsSourcesSheetOpen(true)}
                       >
-                        <BookOpen className="h-3.5 w-3.5" />
+                        <Library className="h-3.5 w-3.5" />
                         <span>{t('content.sourcesLabel')}</span>
                         {pendingSourcesCount > 0 && (
                           <span
@@ -3474,7 +3474,7 @@ export function AssetContent({
                                                 setIsSourcesSheetOpen(true);
                                               }}
                                             >
-                                              <BookOpen className="h-4 w-4 mr-2" />
+                                              <Library className="h-4 w-4 mr-2" />
                                               {t('content.configureContext')}
                                             </HuemulButton>
                                           )}

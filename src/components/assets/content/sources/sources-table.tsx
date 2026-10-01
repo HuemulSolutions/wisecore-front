@@ -70,7 +70,6 @@ export function SourcesTable({
         >
           <span role="columnheader">{t("table.columnSource")}</span>
           <span role="columnheader">{t("table.columnVersion")}</span>
-          <span role="columnheader">{t("table.columnStatus")}</span>
           <span role="columnheader" aria-hidden="true" />
         </div>
       )}
