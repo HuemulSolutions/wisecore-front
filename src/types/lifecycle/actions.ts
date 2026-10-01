@@ -171,8 +171,11 @@ export interface HuemulLifecyclePhaseBlockProps {
 }
 
 export interface HuemulLifecycleStageBadgeProps {
-  status: LifecycleStatus | null | undefined
+  /** Solo lee `stage` y `current_group`: acepta un `LifecycleStatus` completo o solo esos dos campos (filas del listado). */
+  status: Pick<LifecycleStatus, 'stage' | 'current_group'> | null | undefined
   className?: string
+  /** El texto hace salto de línea dentro del pill en vez de desbordar — para columnas de tabla angostas. */
+  wrap?: boolean
 }
 
 // ----------------------------------------

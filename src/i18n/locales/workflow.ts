@@ -33,9 +33,10 @@ const translations = {
     documentName: { en: "Asset", es: "Activo" },
     template: { en: "Workflow", es: "Workflow" },
     lifecycleState: { en: "State", es: "Estado" },
-    lifecycleStepTooltip: { en: "Pending lifecycle step", es: "Paso del ciclo de vida pendiente" },
     progress: { en: "Progress", es: "Progreso" },
     currentStep: { en: "Current section", es: "Sección actual" },
+    createdBy: { en: "Created by", es: "Creado por" },
+    createdAt: { en: "Created on", es: "Fecha de creación" },
     lastModified: { en: "Last modified", es: "Última modificación" },
   },
   emptyState: {

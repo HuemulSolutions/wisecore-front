@@ -27,6 +27,10 @@ export interface WorkflowItem {
   progress_percentage: number
   current_step: WorkflowCurrentStep | null
   last_modified_at: string
+  /** Nombre completo de quien creó el workflow. Pendiente de backend (ver respuestas/backend-workflows-listado-creador-fecha-creacion.md): la tabla muestra «—» si falta. */
+  created_by_user_name?: string | null
+  /** Fecha de creación (ISO). Pendiente de backend, igual que `created_by_user_name`. */
+  created_at?: string | null
 }
 
 /**
