@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { useAllLifecycleSteps } from "@/hooks/useLifecycle"
 import { getRollbackTargets } from "@/services/executions"
+import { defaultStepNameStage } from "@/lib/lifecycle-labels"
 import {
   pipelineSortIndex,
   getLifecycleMilestones,
@@ -103,6 +104,12 @@ export function useLifecycleProgress({
   const currentStage = lifecycleStatus?.stage ?? null
 
   const stageLabel = (key: string) => t(`lifecycle.stageLabels.${key}`, { defaultValue: key })
+  // Los nombres por defecto del backend ("Approve", "Review"…) se muestran con la
+  // etiqueta traducida de la etapa; un nombre personalizado se deja tal cual.
+  const localizeStepName = (name: string | null): string | null => {
+    const stage = defaultStepNameStage(name)
+    return stage ? stageLabel(stage) : name
+  }
 
   // ── Stepper de fases ────────────────────────────────────────────────────
   const presentStageTypes = new Set(ordered.map((s) => s.type))
@@ -133,7 +140,7 @@ export function useLifecycleProgress({
           const currentIndexInStage = stepsInStage.findIndex((s) => s.id === currentStepId)
           const items = stepsInStage.map((s, index) => ({
             id: s.id,
-            name: s.name,
+            name: localizeStepName(s.name),
             state: ((completedIds.has(s.id) || (currentIndexInStage !== -1 && index < currentIndexInStage))
               ? "done"
               : s.id === currentStepId
@@ -161,7 +168,7 @@ export function useLifecycleProgress({
   // (`publish`/`archive`/`view`). Es el siguiente step del grupo actual si queda
   // alguno, y si el paso cierra la fase, el siguiente hito del stepper.
   const toNextStep = (step: LifecycleStep): LifecycleNextStep => ({
-    name: step.name,
+    name: localizeStepName(step.name),
     stage: step.type,
     roleNames: step.step_roles.map((r) => r.role_name).filter((name): name is string => !!name),
   })

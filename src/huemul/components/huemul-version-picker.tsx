@@ -186,24 +186,29 @@ export function HuemulVersionPicker({
             <span className="text-xs text-[#64748b]">{t("assignVersion.lastPublished", { version: suggestion.based_on })}</span>
           )}
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-end gap-2">
           {inputs.map((input, index) => (
             <div key={input.key} className="contents">
-              {index > 0 && <span className="text-[#94a3b8]">.</span>}
-              <Input
-                type="text"
-                inputMode="numeric"
-                aria-label={input.label}
-                value={input.value}
-                onChange={(e) => input.setValue(sanitize(e.target.value))}
-                disabled={inputsDisabled}
-                className="h-9 w-[52px] border-[#e2e8f0] px-0 text-center font-mono text-sm focus-visible:border-[#2563eb] focus-visible:ring-[3px] focus-visible:ring-[#dbeafe]"
-              />
+              {index > 0 && <span className="pb-2.5 text-xl font-semibold text-[#94a3b8]">.</span>}
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <Label htmlFor={`version-${input.key}`} className="text-[11px] font-medium text-[#64748b]">
+                  {input.label}
+                </Label>
+                <Input
+                  id={`version-${input.key}`}
+                  type="text"
+                  inputMode="numeric"
+                  value={input.value}
+                  onChange={(e) => input.setValue(sanitize(e.target.value))}
+                  disabled={inputsDisabled}
+                  className="h-12 w-full min-w-0 border-[#e2e8f0] px-0 text-center font-mono text-lg focus-visible:border-[#2563eb] focus-visible:ring-[3px] focus-visible:ring-[#dbeafe]"
+                />
+              </div>
             </div>
           ))}
         </div>
         {chips.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="grid grid-cols-3 gap-2">
             {chips.map((chip) => {
               const selected = chip.values[0] === majorNum && chip.values[1] === minorNum && chip.values[2] === patchNum
               return (
@@ -217,7 +222,7 @@ export function HuemulVersionPicker({
                     setPatch(String(chip.values[2]))
                   }}
                   className={cn(
-                    "rounded-full border px-2.5 py-1 text-xs hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60",
+                    "h-9 rounded-full border px-2.5 text-[13px] hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60",
                     selected ? "border-[#93c5fd] bg-[#eff5ff] text-[#1d4ed8]" : "border-[#e2e8f0] bg-white text-[#475569]",
                   )}
                 >

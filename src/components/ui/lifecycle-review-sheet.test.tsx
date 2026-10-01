@@ -115,5 +115,13 @@ describe('LifecycleReviewSheet', () => {
     expect(screen.getByText('Redacción')).toBeInTheDocument()
     expect(screen.getByText('Editor')).toBeInTheDocument()
     expect(screen.getByText('Revisión legal')).toBeInTheDocument()
+    expect(screen.getAllByText(/Revisión|Review/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Elaboración|Elaboration/).length).toBeGreaterThan(1)
+  })
+
+  it('traduce el nombre de grupo por defecto del backend en el título', () => {
+    render(<LifecycleReviewSheet controller={makeController()} executionId="e1" organizationId="o1" />)
+
+    expect(screen.queryByText(/Approve$/)).not.toBeInTheDocument()
   })
 })

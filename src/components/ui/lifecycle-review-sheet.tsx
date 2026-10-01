@@ -9,7 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import MdxEditor from "@/components/layout/mdx-editor"
 import { cn } from "@/lib/utils"
-import { lifecycleStageTone } from "@/lib/lifecycle-colors"
+import { lifecycleStageTone, lifecycleStagePhaseBlock } from "@/lib/lifecycle-colors"
+import { defaultStepNameStage } from "@/lib/lifecycle-labels"
 import type { LifecycleActionsController, LifecycleCurrentPhaseProgress, LifecyclePhase } from "@/types/lifecycle"
 
 interface LifecycleReviewSheetProps {
@@ -189,10 +190,13 @@ export function LifecycleReviewSheet({
   const isVersionInvalid = showVersionPicker && (!versionValue?.isValid || !!versionValue?.isFetchingSuggestion)
   const isEditorDisabled = isProcessing || (isApprovalStep && isSummaryLoading)
 
-  const group = status?.current_group ?? null
   const currentPhase = progress.isAvailable ? progress.currentPhase : null
   const headerTone = lifecycleStageTone(currentPhase?.stage ?? status?.stage)
   const stageLabel = (key: string) => t(`lifecycle.stageLabels.${key}`, { defaultValue: key })
+  // Nombre por defecto del backend ("Approve") → etiqueta traducida; personalizado → tal cual.
+  const rawGroup = status?.current_group ?? null
+  const groupStage = defaultStepNameStage(rawGroup)
+  const group = groupStage ? stageLabel(groupStage) : rawGroup
 
   const title = isApprovalStep
     ? group
@@ -229,6 +233,11 @@ export function LifecycleReviewSheet({
   const nextStageLabel = nextStep ? stageLabel(nextStep.stage) : ""
   const nextRoles = nextStep?.roleNames.join(", ") ?? ""
   const changesPhase = !!nextStep && nextStep.stage !== currentPhase?.stage
+  const nextTone = lifecycleStagePhaseBlock(nextStep?.stage)
+  const currentTone = lifecycleStagePhaseBlock(currentPhase?.stage ?? status?.stage)
+  const currentStageLabel = currentPhase?.label ?? (status?.stage ? stageLabel(status.stage) : "")
+  // El grupo se omite en los hitos sin step y cuando repite el nombre de la etapa.
+  const nextGroup = nextStep?.name && nextStep.name !== nextStageLabel ? nextStep.name : null
   const nextNote = nextStep
     ? t(
         `lifecycle.reviewSheet.${changesPhase ? "nextStepNoteChange" : "nextStepNoteSame"}${nextRoles ? "_roles" : ""}`,
@@ -286,7 +295,7 @@ export function LifecycleReviewSheet({
       onOpenChange={(open) => !isProcessing && setIsCheckDialogOpen(open)}
       title={title}
       maxWidth="sm:max-w-none"
-      className="w-[460px] max-w-full bg-white shadow-[-20px_0_40px_-20px_rgba(15,23,42,.35)]"
+      className="w-[520px] max-w-full bg-white shadow-[-20px_0_40px_-20px_rgba(15,23,42,.35)]"
       overlayClassName="bg-[rgba(15,23,42,.22)]"
       bodyClassName="flex flex-col gap-[18px] px-[22px] py-[18px]"
       headerContent={headerContent}
@@ -295,13 +304,44 @@ export function LifecycleReviewSheet({
       {currentPhase && <StepsCard currentPhase={currentPhase} />}
 
       {nextStep && (
-        <div className="flex items-start gap-2.5 rounded-[10px] bg-[#fffbeb] px-3.5 py-3">
-          <ArrowRight className="mt-0.5 size-4 shrink-0 text-[#b45309]" />
-          <div className="min-w-0">
-            <p className="text-[11.5px] font-semibold uppercase tracking-[.04em] text-[#b45309]">{t("lifecycle.nextStepLabel")}</p>
-            <p className="truncate text-sm font-semibold text-[#92400e]">{nextStep.name ?? nextStageLabel}</p>
-            <p className="mt-0.5 text-[12.5px] text-[#92400e]">{nextNote}</p>
+        <div className={cn("relative overflow-hidden rounded-[10px] border py-3 pl-4 pr-3.5", nextTone.container)}>
+          <span className={cn("absolute inset-y-0 left-0 w-[3px]", nextTone.dot)} aria-hidden="true" />
+          <div className="mb-2 flex items-center gap-2">
+            <span className={cn("inline-flex size-5 shrink-0 items-center justify-center rounded-full", nextTone.dot)}>
+              <ArrowRight className="size-3 text-white" strokeWidth={3} />
+            </span>
+            <p className={cn("text-[11.5px] font-semibold uppercase tracking-[.04em]", nextTone.text)}>
+              {t("lifecycle.nextStepLabel")}
+            </p>
           </div>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+            {changesPhase && (
+              <>
+                <span className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-full border border-white bg-white/70 px-2.5 text-xs font-medium text-slate-600">
+                  <span className={cn("size-1.5 shrink-0 rounded-full", currentTone.dot)} aria-hidden="true" />
+                  {currentStageLabel}
+                </span>
+                <ArrowRight className="size-3.5 shrink-0 text-slate-400" aria-hidden="true" />
+              </>
+            )}
+            <span className="inline-flex min-w-0 items-center gap-2 text-[15px] font-[650]">
+              <span className={cn("size-2 shrink-0 rounded-full", nextTone.dot)} aria-hidden="true" />
+              {changesPhase || !nextGroup ? (
+                <span className={nextTone.text}>{nextStageLabel}</span>
+              ) : null}
+              {nextGroup && (
+                <>
+                  {changesPhase && (
+                    <span className={cn("opacity-60", nextTone.text)} aria-hidden="true">·</span>
+                  )}
+                  <span className={cn("truncate", changesPhase ? "font-medium text-slate-800" : nextTone.text)} title={nextGroup}>
+                    {nextGroup}
+                  </span>
+                </>
+              )}
+            </span>
+          </div>
+          <p className="mt-2 text-[12.5px] text-slate-600">{nextNote}</p>
         </div>
       )}
 
