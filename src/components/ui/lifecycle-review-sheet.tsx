@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button"
 import MdxEditor from "@/components/layout/mdx-editor"
 import { cn } from "@/lib/utils"
 import { lifecycleStageTone, lifecycleStagePhaseBlock } from "@/lib/lifecycle-colors"
-import { defaultStepNameStage } from "@/lib/lifecycle-labels"
 import type { LifecycleActionsController, LifecycleCurrentPhaseProgress, LifecyclePhase } from "@/types/lifecycle"
 
 interface LifecycleReviewSheetProps {
@@ -193,10 +192,8 @@ export function LifecycleReviewSheet({
   const currentPhase = progress.isAvailable ? progress.currentPhase : null
   const headerTone = lifecycleStageTone(currentPhase?.stage ?? status?.stage)
   const stageLabel = (key: string) => t(`lifecycle.stageLabels.${key}`, { defaultValue: key })
-  // Nombre por defecto del backend ("Approve") → etiqueta traducida; personalizado → tal cual.
-  const rawGroup = status?.current_group ?? null
-  const groupStage = defaultStepNameStage(rawGroup)
-  const group = groupStage ? stageLabel(groupStage) : rawGroup
+  // El nombre del grupo se muestra tal cual lo define el backend, sin traducir.
+  const group = status?.current_group ?? null
 
   const title = isApprovalStep
     ? group

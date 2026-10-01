@@ -119,9 +119,9 @@ describe('LifecycleReviewSheet', () => {
     expect(screen.getAllByText(/Elaboración|Elaboration/).length).toBeGreaterThan(1)
   })
 
-  it('traduce el nombre de grupo por defecto del backend en el título', () => {
+  it('muestra el nombre original del grupo en el título, sin traducir', () => {
     render(<LifecycleReviewSheet controller={makeController()} executionId="e1" organizationId="o1" />)
 
-    expect(screen.queryByText(/Approve$/)).not.toBeInTheDocument()
+    expect(screen.getAllByRole('heading', { name: /Approve$/ }).length).toBeGreaterThan(0)
   })
 })

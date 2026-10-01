@@ -63,32 +63,3 @@ function isKnownStage(stage: string): boolean {
   return (LIFECYCLE_PIPELINE_ORDER as readonly string[]).includes(stage)
 }
 
-/**
- * Nombres que el backend asigna por defecto a los steps/grupos (en inglés o
- * con el nombre de la etapa). Mapean a la clave de `lifecycle.stageLabels`.
- */
-const DEFAULT_STEP_NAME_STAGE: Record<string, string> = {
-  create: "create",
-  creator: "create",
-  creation: "create",
-  edit: "edit",
-  elaboration: "edit",
-  review: "review",
-  approve: "approve",
-  approval: "approve",
-  publish: "publish",
-  publication: "publish",
-  archive: "archive",
-  view: "view",
-  reader: "view",
-}
-
-/**
- * Etapa (clave de `lifecycle.stageLabels`) si `name` es un nombre por defecto
- * del backend, para mostrarlo traducido; `null` si es un nombre personalizado
- * (se muestra tal cual lo configuró el usuario).
- */
-export function defaultStepNameStage(name: string | null | undefined): string | null {
-  if (!name) return null
-  return DEFAULT_STEP_NAME_STAGE[name.trim().toLowerCase()] ?? null
-}
