@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { HuemulAnswersStatusBadge } from "@/huemul/components/huemul-answers-status-badge";
@@ -87,7 +87,7 @@ export function FormSectionSummaryCard({
                 SUMMARY_CIRCLE_STYLES[state.tone],
               )}
             >
-              {state.showCheckIcon ? <Check className="h-[13px] w-[13px]" /> : index}
+              {index}
             </div>
             <div className="min-w-0 flex-1 space-y-[2px]">
               <div className="flex flex-wrap items-center gap-[8px]">

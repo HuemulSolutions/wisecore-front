@@ -28,8 +28,6 @@ export interface WorkflowSectionCardState {
    * opcionales sin responder muestra el texto en gris, no en verde (ver SUMMARY_FOOTER_TEXT_STYLES).
    */
   footerTone: "success" | "danger" | "muted";
-  /** Solo en success: reemplaza el número del círculo por un ✓. */
-  showCheckIcon: boolean;
   isInactive: boolean;
   answeredCount: number;
   totalQuestions: number;
@@ -70,7 +68,6 @@ export function resolveSectionCardState(
     return {
       tone: "muted",
       footerTone: "muted",
-      showCheckIcon: false,
       isInactive: true,
       answeredCount,
       totalQuestions,
@@ -92,7 +89,6 @@ export function resolveSectionCardState(
       return {
         tone: "success",
         footerTone: "muted",
-        showCheckIcon: true,
         isInactive: false,
         answeredCount,
         totalQuestions,
@@ -105,7 +101,6 @@ export function resolveSectionCardState(
     return {
       tone: "success",
       footerTone: "success",
-      showCheckIcon: true,
       isInactive: false,
       answeredCount,
       totalQuestions,
@@ -122,7 +117,6 @@ export function resolveSectionCardState(
     return {
       tone: "info",
       footerTone: "muted",
-      showCheckIcon: false,
       isInactive: false,
       answeredCount,
       totalQuestions,
@@ -142,7 +136,6 @@ export function resolveSectionCardState(
     return {
       tone: "danger",
       footerTone: "danger",
-      showCheckIcon: false,
       isInactive: false,
       answeredCount,
       totalQuestions,
@@ -160,7 +153,6 @@ export function resolveSectionCardState(
   return {
     tone: "info",
     footerTone: "muted",
-    showCheckIcon: false,
     isInactive: false,
     answeredCount,
     totalQuestions,
