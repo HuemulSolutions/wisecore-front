@@ -11,7 +11,34 @@ export interface HuemulTreeNode {
   hasChildren?: boolean
   disabled?: boolean
   metadata?: Record<string, unknown>
+  /** Total de hijos de la carpeta, si el consumidor lo conoce (alimenta el contador "25 de 143"). */
+  childrenTotal?: number
+  /** Cursor de la siguiente página de hijos. No nulo ⇒ el árbol pinta la fila "Mostrar más". */
+  nextCursor?: string | null
+  /** Páginas de hijos ya cargadas: el refresh repite exactamente esas en vez de volver a la primera. */
+  loadedPages?: number
+  isLoadingMore?: boolean
 }
+
+/** Qué página de hijos pide el árbol. `cursor: null` = la primera. */
+export interface HuemulTreePageRequest {
+  cursor: string | null
+  limit: number
+}
+
+/**
+ * Respuesta paginada de `onLoadChildren`. Un consumidor que devuelve un array
+ * plano sigue siendo válido: el árbol lo trata como "todo cargado, sin más
+ * páginas" (ver `normalizeTreePage`).
+ */
+export interface HuemulTreePage {
+  items: HuemulTreeNode[]
+  total?: number
+  hasMore: boolean
+  nextCursor: string | null
+}
+
+export type HuemulTreeLoadResult = HuemulTreeNode[] | HuemulTreePage
 
 export interface HuemulTreeMenuAction {
   variant?: string

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, RefreshCw, Edit, Trash2, FileUp, FolderUp, ShieldCheck, Sparkles, SearchX, ChevronLeft } from "lucide-react"
+import { File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, Edit, Trash2, FileUp, FolderUp, ShieldCheck, Sparkles, ChevronLeft } from "lucide-react"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -14,9 +14,9 @@ import {
 import { Button } from "@/components/ui/button"
 import { NavKnowledgeCreateMenu } from "@/components/layout/nav-knowledge-create-menu"
 import { HuemulPanelHeader } from "@/huemul/components/huemul-panel-header"
-import { HuemulPanelEmptyState } from "@/huemul/components/huemul-panel-empty-state"
+import { NavKnowledgeSearchResults } from "@/components/layout/nav-knowledge-search-results"
 import { FileTree } from "@/components/assets/content/assets-file-tree"
-import type { FileNode } from "@/types/assets"
+import type { FileNode, FileTreePage } from "@/types/assets"
 import { useLocation } from "react-router-dom"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
@@ -26,12 +26,16 @@ import { moveDocument } from "@/services/assets"
 import { toast } from "sonner"
 import { useOptionalEditingGuard } from "@/contexts/editing-guard-context"
 import { ApiError } from "@/types/api-error"
-import { cn } from "@/lib/utils"
 import { logger } from "@/lib/logger"
 import { useNavKnowledge } from "@/contexts/nav-knowledge-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { useLibraryTreeExpansion } from "@/hooks/useLibraryTreeExpansion"
-import { handleFolderActionError, isRootGroupFolderNode, buildFocusedTree } from "@/components/layout/nav-knowledge-utils"
+import { handleFolderActionError, isRootGroupFolderNode, buildFocusedTree, parsePageCursor, toTreePage } from "@/components/layout/nav-knowledge-utils"
+import { TREE_CHILDREN_PAGE_SIZE } from "@/huemul/constants"
+import type { HuemulTreePageRequest } from "@/types/huemul/tree"
+
+// Página de la carga raíz enriquecida (foco + carpetas expandidas resueltas por backend).
+const ROOT_ENRICHED_PAGE_SIZE = 1000
 
 // Las áreas (subcarpetas de Grupal) se distinguen visualmente de una carpeta común.
 function renderKnowledgeFolderIcon(node: FileNode, isExpanded: boolean) {
@@ -124,7 +128,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
   const navigate = useOrgNavigate()
   const location = useLocation()
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, pendingFocusAssetIdRef, revealedNodeId, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleCreateFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, setCommittedSearch, setSearchTerm, rootPage, rootPageSize, setHasNextRootPage } = useNavKnowledge()
+  const { fileTreeRef, pendingFocusAssetIdRef, revealedNodeId, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleCreateFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, setCommittedSearch, setSearchTerm } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
   const [documentTypeIds, setDocumentTypeIds] = useState<Map<string, string>>(new Map())
@@ -187,88 +191,6 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
     return node.folder_type !== 'grupal' && node.folder_type !== 'forms'
   }, [])
 
-  // Refs so handleLoadChildren callback stays stable while always reading latest values
-  const rootPageRef = React.useRef(rootPage)
-  rootPageRef.current = rootPage
-  const rootPageSizeRef = React.useRef(rootPageSize)
-  rootPageSizeRef.current = rootPageSize
-
-  const [searchResults, setSearchResults] = React.useState<FileNode[]>([])
-  const [searchMatchIds, setSearchMatchIds] = React.useState<Set<string>>(new Set())
-  const [isSearching, setIsSearching] = React.useState(false)
-
-  React.useEffect(() => {
-    if (!committedSearch || !selectedOrganizationId || !canListLibrary) {
-      setSearchResults([])
-      setSearchMatchIds(new Set())
-      return
-    }
-    let cancelled = false
-    setIsSearching(true)
-    getLibraryContent(selectedOrganizationId, undefined, 1, 1000, committedSearch)
-      .then((data) => {
-        if (!cancelled) {
-          // Build a map of id -> FileNode for folders
-          const nodeMap = new Map<string, FileNode>()
-          ;(data?.folders ?? []).forEach((folder) => {
-            nodeMap.set(folder.id, {
-              id: folder.id,
-              name: folder.name,
-              type: 'folder',
-              children: [],
-              isExpanded: true,
-              is_grantable: folder.is_grantable,
-            })
-          })
-
-          // Track which nodes are direct matches
-          const matchIds = new Set<string>()
-          ;(data?.folders ?? []).forEach((f) => { if (f.is_match) matchIds.add(f.id) })
-          ;(data?.assets ?? []).forEach((a) => matchIds.add(a.id))
-
-          // Attach assets to their parent folder (or mark as root)
-          const rootAssets: FileNode[] = []
-          ;(data?.assets ?? []).forEach((asset) => {
-            const node: FileNode = {
-              id: asset.id,
-              name: asset.name,
-              type: 'document',
-              document_type: asset.document_type,
-              access_levels: asset.access_levels,
-            }
-            const parentFolder = asset.folder_id ? nodeMap.get(asset.folder_id) : undefined
-            if (parentFolder) {
-              parentFolder.children!.push(node)
-            } else {
-              rootAssets.push(node)
-            }
-          })
-
-          // Build folder hierarchy
-          const roots: FileNode[] = []
-          ;(data?.folders ?? []).forEach((folder) => {
-            const node = nodeMap.get(folder.id)!
-            const parentFolder = folder.parent_folder_id ? nodeMap.get(folder.parent_folder_id) : undefined
-            if (parentFolder) {
-              parentFolder.children!.push(node)
-            } else {
-              roots.push(node)
-            }
-          })
-
-          setSearchMatchIds(matchIds)
-          setSearchResults([...roots, ...rootAssets])
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setSearchResults([])
-      })
-      .finally(() => {
-        if (!cancelled) setIsSearching(false)
-      })
-    return () => { cancelled = true }
-  }, [committedSearch, selectedOrganizationId, canListLibrary])
-
   // Extract active asset ID from URL (pattern: /asset/<folder>/.../<assetId>).
   // The asset (if present) is always the LAST segment — buildUrlPath puts
   // breadcrumb folders first and the file id last.
@@ -312,57 +234,76 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
   // la expansión mientras tanto) lo maneja useLibraryTreeExpansion
   // internamente (refreshOnServerDiffered: true, arriba).
 
-  // Refresh root-level items when pagination changes
-  const isFirstPaginationRender = React.useRef(true)
-  React.useEffect(() => {
-    if (isFirstPaginationRender.current) {
-      isFirstPaginationRender.current = false
-      return
-    }
-    fileTreeRef.current?.refresh()
-  }, [rootPage, rootPageSize, fileTreeRef])
-
+  // Paginación POR NODO: el árbol pide `{ cursor, limit }` y esta función devuelve una
+  // `FileTreePage` (ver ia context/paginacion-por-nodo-arbol-guide.md). Sin cursor es la
+  // primera página de esa carpeta (o de la raíz, `folderId === null`).
   const handleLoadChildren = useCallback(
-    async (folderId: string | null): Promise<FileNode[]> => {
-      if (!selectedOrganizationId) return []
+    async (
+      folderId: string | null,
+      _node?: FileNode,
+      pageRequest?: HuemulTreePageRequest,
+    ): Promise<FileTreePage> => {
+      const emptyPage: FileTreePage = { items: [], hasMore: false, nextCursor: null }
+      if (!selectedOrganizationId) return emptyPage
       // Sin permiso de listar assets ni carpetas no se pega al backend.
-      if (!canListLibrary) return []
+      if (!canListLibrary) return emptyPage
 
+      const isFirstPage = !pageRequest?.cursor
       try {
         const isRoot = folderId === null
+        const { page, pageSize, opaque } = parsePageCursor(
+          pageRequest?.cursor,
+          pageRequest?.limit ?? TREE_CHILDREN_PAGE_SIZE,
+        )
         // El asset activo de la URL solo enfoca la PRIMERA carga root del
         // montaje (revela su cadena de carpetas, como VS Code revela el
         // archivo activo). Un `pendingFocusAssetIdRef` explícito (reveal desde
         // un sheet, asset recién creado) sigue funcionando en cualquier carga.
         // Sin este corte, cada refresh reexpandiría la cadena del asset
-        // abierto por encima de lo que el usuario haya colapsado.
-        const focusAssetId = isRoot
+        // abierto por encima de lo que el usuario haya colapsado. Las páginas
+        // siguientes de la raíz (con cursor) nunca enfocan ni consumen nada.
+        const focusAssetId = isRoot && isFirstPage
           ? (pendingFocusAssetIdRef.current ?? (didInitialRootLoadRef.current ? null : activeAssetIdRef.current))
           : null
-        if (isRoot) didInitialRootLoadRef.current = true
+        if (isRoot && isFirstPage) didInitialRootLoadRef.current = true
         // Consumo único — no debe reusarse en refrescos posteriores no
         // relacionados, ni siquiera si esta carga falla.
-        if (isRoot && pendingFocusAssetIdRef.current) pendingFocusAssetIdRef.current = null
+        if (isRoot && isFirstPage && pendingFocusAssetIdRef.current) pendingFocusAssetIdRef.current = null
 
         let content: LibraryContent
         // `enrichedRootLoad` marca si la respuesta trae is_expanded/foco
         // resueltos server-side (loadRoot decide y hace su propio fallback a
         // carga plana ante 400/404 — ver useLibraryTreeExpansion).
         let enrichedRootLoad = false
+        // Tamaño de página realmente usado: el cursor de respaldo de la página
+        // siguiente debe alinearse con él.
+        let usedPageSize = pageSize
         if (isRoot) {
           const rootResult = await loadRootRef.current({
-            page: rootPageRef.current,
-            pageSize: rootPageSizeRef.current,
+            page,
+            pageSize,
+            // La carga enriquecida nombra carpetas expandidas de cualquier
+            // profundidad y se espera completa: va con página grande. Sus
+            // carpetas llegan sin paginar hasta que el backend pagine esa
+            // respuesta (respuestas/backend-arbol-paginacion-por-carpeta.md §3).
+            enrichedPageSize: ROOT_ENRICHED_PAGE_SIZE,
             focusAssetId,
+            cursor: opaque,
           })
           content = rootResult.content
           enrichedRootLoad = rootResult.enriched
+          if (enrichedRootLoad) usedPageSize = ROOT_ENRICHED_PAGE_SIZE
         } else {
-          content = await getLibraryContent(selectedOrganizationId, folderId!)
-        }
-
-        if (isRoot) {
-          setHasNextRootPage(content.has_next)
+          content = await getLibraryContent(
+            selectedOrganizationId,
+            folderId!,
+            page,
+            pageSize,
+            undefined,
+            undefined,
+            undefined,
+            opaque ? { cursor: opaque } : undefined,
+          )
         }
 
         // Store folder and document names for later use in delete dialog
@@ -407,7 +348,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
         })
 
         if (enrichedRootLoad) {
-          return buildFocusedTree(content)
+          return toTreePage(buildFocusedTree(content), content, page, usedPageSize)
         }
 
         const folderNodes: FileNode[] = (content.folders ?? []).map((item) => ({
@@ -430,7 +371,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
           access_levels: item.access_levels,
         }))
 
-        return [...folderNodes, ...assetNodes]
+        return toTreePage([...folderNodes, ...assetNodes], content, page, usedPageSize)
       } catch (error) {
         logger.error("Error loading folder content:", error)
         if (ApiError.isApiError(error) && (error.statusCode === 404 || error.code === 'FOLDER_NOT_FOUND')) {
@@ -438,14 +379,18 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
         } else {
           toast.error(t('knowledge.errors.folderLoadError'))
         }
-        return []
+        // Un "Mostrar más" fallido propaga el error: el árbol conserva lo ya
+        // cargado y deja la fila para reintentar. Una primera página fallida
+        // se ve como carpeta vacía, igual que antes.
+        if (!isFirstPage) throw error
+        return emptyPage
       }
     },
     [selectedOrganizationId, t, canListLibrary]
   )
 
   const handleRefreshTree = useCallback(
-    () => handleLoadChildren(null),
+    (pageRequest?: HuemulTreePageRequest) => handleLoadChildren(null, undefined, pageRequest),
     [handleLoadChildren]
   )
 
@@ -732,76 +677,18 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
     <>
     <SidebarGroup>
       {committedSearch ? (
-        isSearching ? (
-          <div className="px-4 py-3 flex justify-center">
-            <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
-          </div>
-        ) : searchResults.length === 0 ? (
-          diagramMode ? (
-            <HuemulPanelEmptyState
-              className="mx-3 my-3"
-              icon={SearchX}
-              title={t('knowledge.searchNoResultsTitle', { term: committedSearch })}
-              description={t('knowledge.searchNoResultsDescription')}
-              action={{
-                label: t('knowledge.searchClear'),
-                onClick: () => {
-                  setSearchTerm('')
-                  setCommittedSearch('')
-                },
-              }}
-            />
-          ) : (
-            <div className="px-4 py-3 text-center text-xs text-muted-foreground">
-              {t('knowledge.searchNoResults')}
-            </div>
-          )
-        ) : (
-          <div className="space-y-0.5">
-            {(function renderSearchNodes(nodes: FileNode[], level: number): React.ReactNode {
-              return nodes.map((node, index) => {
-                const isLastChild = index === nodes.length - 1
-                const isFolder = node.type === 'folder'
-                return (
-                  <div key={node.id} className={cn("relative", level > 0 && "ml-4")}>
-                    {level > 0 && (
-                      <div
-                        className="absolute w-px bg-border"
-                        style={{ left: `${level * 12 - 14}px`, top: 0, height: isLastChild ? "1.25rem" : "100%" }}
-                      />
-                    )}
-                    {level > 0 && (
-                      <div
-                        className="absolute top-5 w-3 h-px bg-border"
-                        style={{ left: `${level * 12 - 14}px` }}
-                      />
-                    )}
-                    <button
-                      className={cn(
-                        "group flex w-full items-center gap-1.5 py-0.5 rounded-md transition-colors text-sm hover:bg-accent hover:cursor-pointer text-left",
-                        node.type === 'document' && activeAssetId === node.id && "bg-accent font-medium",
-                        searchMatchIds.has(node.id) && "font-medium",
-                      )}
-                      style={{ paddingLeft: `${level * 12 + 6}px`, paddingRight: '8px' }}
-                      onClick={() => node.type === 'document' && handleFileClick(node)}
-                    >
-                      {isFolder ? (
-                        <Folder className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                      ) : (
-                        <File
-                          className="h-3.5 w-3.5 shrink-0"
-                          style={{ color: node.document_type?.color ?? undefined }}
-                        />
-                      )}
-                      <p className="text-sm truncate">{node.name}</p>
-                    </button>
-                    {node.children && node.children.length > 0 && renderSearchNodes(node.children, level + 1)}
-                  </div>
-                )
-              })
-            })(searchResults, 0)}
-          </div>
-        )
+        <NavKnowledgeSearchResults
+          organizationId={selectedOrganizationId}
+          search={committedSearch}
+          enabled={canListLibrary}
+          diagramMode={diagramMode}
+          activeAssetId={activeAssetId}
+          onOpenAsset={handleFileClick}
+          onClear={() => {
+            setSearchTerm('')
+            setCommittedSearch('')
+          }}
+        />
       ) : (
         <FileTree
           key={selectedOrganizationId}

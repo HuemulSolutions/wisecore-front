@@ -1,9 +1,31 @@
 import type { ReactNode } from 'react'
-import type { HuemulTreeNode, HuemulTreeMenuAction, HuemulTreeToolbarAction, HuemulFileTreeLabels } from './tree'
+import type {
+  HuemulTreeNode,
+  HuemulTreeMenuAction,
+  HuemulTreeToolbarAction,
+  HuemulFileTreeLabels,
+  HuemulTreePageRequest,
+  HuemulTreeLoadResult,
+} from './tree'
 
 export interface HuemulFileTreeProps {
-  onLoadChildren?: (folderId: string | null, node?: HuemulTreeNode) => Promise<HuemulTreeNode[]>
-  onRefresh?: () => Promise<HuemulTreeNode[]>
+  /**
+   * Carga los hijos de una carpeta (`null` = raíz). El 3er argumento pide una
+   * página concreta: un consumidor que lo ignora y devuelve un array sigue
+   * funcionando (carga completa, sin "Mostrar más"). Uno que devuelve
+   * `HuemulTreePage` con `nextCursor` activa la paginación POR NODO: la fila
+   * "Mostrar más" cuelga de la carpeta y solo recarga esa carpeta. Ver
+   * ia context/paginacion-por-nodo-arbol-guide.md.
+   */
+  onLoadChildren?: (
+    folderId: string | null,
+    node?: HuemulTreeNode,
+    page?: HuemulTreePageRequest,
+  ) => Promise<HuemulTreeLoadResult>
+  /** Recarga la raíz. Con paginación, el árbol lo llama una vez por página raíz ya cargada. */
+  onRefresh?: (page?: HuemulTreePageRequest) => Promise<HuemulTreeLoadResult>
+  /** Hijos por página (default `TREE_CHILDREN_PAGE_SIZE`). */
+  childrenPageSize?: number
   onCreateFile?: (parentId: string | null, name: string) => Promise<void>
   onCreateFolder?: (parentId: string | null, name: string) => Promise<void>
   onDelete?: (nodeId: string, nodeType: string) => Promise<void>

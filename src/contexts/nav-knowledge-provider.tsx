@@ -5,7 +5,6 @@ import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { usePageAccess } from "@/hooks/usePageAccess"
-import { DEFAULT_PAGE_SIZE } from "@/huemul/constants"
 import { deleteFolder } from "@/services/folders"
 import { deleteDocument } from "@/services/assets"
 import { CreateAssetSheet } from "@/components/assets/dialogs/assets-create-sheet"
@@ -60,9 +59,6 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [committedSearch, setCommittedSearch] = useState('')
-  const [rootPage, setRootPage] = useState(1)
-  const [rootPageSize, setRootPageSize] = useState(DEFAULT_PAGE_SIZE)
-  const [hasNextRootPage, setHasNextRootPage] = useState(false)
   const [sharingFolder, setSharingFolder] = useState<{ id: string; name: string } | null>(null)
   const { selectedOrganizationId } = useOrganization()
   const { canAccessRoleFolders } = useUserPermissions()
@@ -313,7 +309,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <NavKnowledgeContext.Provider value={{ fileTreeRef, pendingFocusAssetIdRef, revealedNodeId, revealAssetInTree, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage }}>
+    <NavKnowledgeContext.Provider value={{ fileTreeRef, pendingFocusAssetIdRef, revealedNodeId, revealAssetInTree, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch }}>
       {children}
       {renderCreateAssetDialog && (
         <CreateAssetSheet

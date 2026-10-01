@@ -2,7 +2,7 @@ import { toast } from "sonner"
 import { handleApiError } from "@/lib/error-utils"
 import { buildLibraryTree } from "@/lib/library-tree"
 import type { LibraryContent, LibraryContentFolderType } from "@/types/folders"
-import type { FileNode } from "@/types/assets"
+import type { FileNode, FileTreePage } from "@/types/assets"
 
 // Helpers compartidos entre NavKnowledgeProvider (nav-knowledge-provider.tsx) y
 // NavKnowledgeContent (nav-knowledge.tsx). Sin JSX a propósito, para no arrastrar
@@ -30,6 +30,44 @@ export function handleFolderActionError(error: unknown, t: (key: string) => stri
       return true
     },
   })
+}
+
+// Cursor de respaldo mientras el backend no devuelva `next_cursor`: "<página>:<tamaño>".
+// Lleva el tamaño porque la primera carga raíz enriquecida (foco + expandidas) pide una
+// página más grande que las siguientes, y la página 2 debe alinearse con ese tamaño.
+export function encodePageCursor(page: number, pageSize: number): string {
+  return `${page}:${pageSize}`
+}
+
+export interface ParsedTreeCursor {
+  page: number
+  pageSize: number
+  /** Cursor opaco del backend (`next_cursor`), si el recibido no es del formato de respaldo. */
+  opaque?: string
+}
+
+export function parsePageCursor(cursor: string | null | undefined, defaultPageSize: number): ParsedTreeCursor {
+  if (!cursor) return { page: 1, pageSize: defaultPageSize }
+  const match = /^(\d+):(\d+)$/.exec(cursor)
+  if (match) return { page: Number(match[1]), pageSize: Number(match[2]) }
+  return { page: 1, pageSize: defaultPageSize, opaque: cursor }
+}
+
+// Arma la respuesta paginada de un nivel del árbol. Prefiere el `next_cursor`/`total` del
+// backend; sin ellos pagina por número de página (`has_next`) y no hay contador.
+export function toTreePage(
+  items: FileNode[],
+  content: LibraryContent,
+  page: number,
+  pageSize: number,
+): FileTreePage {
+  const nextCursor =
+    content.next_cursor !== undefined
+      ? content.next_cursor
+      : content.has_next
+        ? encodePageCursor(page + 1, pageSize)
+        : null
+  return { items, total: content.total, hasMore: nextCursor !== null, nextCursor }
 }
 
 // Carpeta grupal custom: creada en la raíz real (parent_folder_id: "root"), sin folder_type,

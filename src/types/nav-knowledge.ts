@@ -29,10 +29,4 @@ export interface NavKnowledgeContextValue {
   setSearchTerm: (term: string) => void
   committedSearch: string
   setCommittedSearch: (term: string) => void
-  rootPage: number
-  rootPageSize: number
-  hasNextRootPage: boolean
-  setRootPage: (page: number) => void
-  setRootPageSize: (size: number) => void
-  setHasNextRootPage: (hasNext: boolean) => void
 }

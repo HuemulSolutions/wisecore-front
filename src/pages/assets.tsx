@@ -12,11 +12,10 @@ import { useAssetNavigation } from "@/hooks/useAssetNavigation";
 import { useScrollPreservation } from "@/hooks/useScrollPreservation";
 import { NavKnowledgeHeader, NavKnowledgeContent } from "@/components/layout/nav-knowledge";
 import { NavKnowledgeRail } from "@/components/layout/nav-knowledge-rail";
-import { useNavKnowledge, useNavKnowledgeRefresh, useNavKnowledgePagination } from "@/contexts/nav-knowledge-context";
+import { useNavKnowledge, useNavKnowledgeRefresh } from "@/contexts/nav-knowledge-context";
 import { useKnowledgePanelCollapsed } from "@/hooks/useKnowledgePanelCollapsed";
 import { useCollapsedPanelSize } from "@/hooks/useCollapsedPanelSize";
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
-import { HuemulPagination } from "@/huemul/components/huemul-pagination";
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -38,7 +37,6 @@ function AssetsContent() {
   const { isOpen: isWisyOpen } = useGlobalPanel();
   const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('asset');
   const invalidateSectionAccess = useInvalidateDocumentSectionAccess();
-  const { page, pageSize, hasNext, hasPrevious, setPage } = useNavKnowledgePagination();
   const canListLibrary = can('listAssets') || can('listFolders');
   const { setIsSearchOpen } = useNavKnowledge();
 
@@ -145,18 +143,6 @@ function AssetsContent() {
             onCollapse: () => setIsKnowledgeCollapsed(true),
             onExpand: () => setIsKnowledgeCollapsed(false),
             className: "overflow-hidden [scrollbar-gutter:auto]",
-            footer: {
-              show: !isKnowledgeCollapsed,
-              content: (
-                <HuemulPagination
-                  page={page}
-                  pageSize={pageSize}
-                  hasNext={hasNext}
-                  hasPrevious={hasPrevious}
-                  onPageChange={setPage}
-                />
-              ),
-            },
           },
           {
             content: (

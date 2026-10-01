@@ -35,16 +35,3 @@ export function useNavKnowledgeActions() {
     handleCreateFolder: context?.handleCreateFolder || (() => {}),
   }
 }
-
-// Export hook for accessing pagination state of the root file tree
-export function useNavKnowledgePagination() {
-  const context = useContext(NavKnowledgeContext)
-  return {
-    page: context?.rootPage ?? 1,
-    pageSize: context?.rootPageSize ?? 50,
-    hasNext: context?.hasNextRootPage ?? false,
-    hasPrevious: (context?.rootPage ?? 1) > 1,
-    setPage: context?.setRootPage ?? (() => {}),
-    setPageSize: context?.setRootPageSize ?? (() => {}),
-  }
-}

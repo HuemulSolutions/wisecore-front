@@ -4,6 +4,9 @@ import type { HuemulContentAlign, HuemulContentWidth } from "@/types/huemul"
 /** Page size por defecto para tablas y listas paginadas. */
 export const DEFAULT_PAGE_SIZE = 100
 
+/** Hijos que pide un árbol por carpeta al expandir y en cada "Mostrar más". */
+export const TREE_CHILDREN_PAGE_SIZE = 25
+
 /** Opciones del selector de "items por página". Mínimo 100. */
 export const DEFAULT_PAGE_SIZE_OPTIONS = [100, 250, 500, 1000]
 

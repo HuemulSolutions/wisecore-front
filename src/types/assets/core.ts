@@ -79,6 +79,11 @@ export interface FileNode {
   isRootGroup?: boolean;
   /** Espejo de LibraryContentFolder.is_grantable — viene del backend, no se deriva. */
   is_grantable?: boolean;
+  /** Paginación por nodo del árbol: ver HuemulTreeNode (src/types/huemul/tree.ts). */
+  childrenTotal?: number;
+  nextCursor?: string | null;
+  loadedPages?: number;
+  isLoadingMore?: boolean;
 }
 
 /**
