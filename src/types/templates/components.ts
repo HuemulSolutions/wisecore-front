@@ -153,7 +153,8 @@ export interface TemplateSectionCardProps {
   isOverlay?: boolean;
   isMenuOpen: boolean;
   onMenuOpenChange: (open: boolean) => void;
-  onSave: (sectionId: string, sectionData: object) => void;
+  /** Devolver la promesa de la mutación (`mutateAsync`): el sheet de edición espera antes de cerrar. */
+  onSave: (sectionId: string, sectionData: object) => Promise<unknown> | void;
   onDelete: (sectionId: string, options?: { propagate_to_documents?: boolean }) => Promise<void>;
   onMoveUp: () => void;
   onMoveDown: () => void;

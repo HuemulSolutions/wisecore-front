@@ -91,9 +91,7 @@ export default function SortableSectionSheet({
     }
   };
 
-  const handleEditSave = (sectionData: object) => {
-    onSave(item.id, sectionData);
-  };
+  const handleEditSave = (sectionData: object) => onSave(item.id, sectionData);
 
   const canConfirmDelete = useExecutionDeleteDialog
     ? !!deleteMode && !(deleteMode === "structure_and_current_version" && !currentExecutionId)

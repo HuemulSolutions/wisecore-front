@@ -80,7 +80,6 @@ export function TemplateSectionCard({
   }
 
   const handleEditSave = (sectionData: object) => onSave(section.id, sectionData);
-
   const handleDelete = async () => {
     setIsDeleting(true);
     try {

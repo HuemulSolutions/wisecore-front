@@ -1,5 +1,8 @@
 # Guía: guardado batch delegado al footer del sheet
 
+> Regla general de cualquier sheet que guarda (loader, no cerrar hasta OK, `mutateAsync`):
+> `ia context/sheet-save-await-guide.md`.
+
 ## Cuándo aplica
 
 Usar este patrón cuando un `HuemulSheet` hospeda contenido editable que **no** debe guardarse

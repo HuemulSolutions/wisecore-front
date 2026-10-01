@@ -88,7 +88,7 @@ export function SectionDefinitionSheet({
       onOpenChange={onOpenChange}
       loading={!item}
       item={item ? (item as unknown as EditFormItem) : placeholder}
-      onSave={(data) => updateMutation.mutate(data)}
+      onSave={(data) => updateMutation.mutateAsync(data)}
       existingSections={sections as never}
       hasTemplate={!!templateId}
       documentId={documentId}

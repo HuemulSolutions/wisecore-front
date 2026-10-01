@@ -486,7 +486,7 @@ export function SectionSheet({
                             const payload = selectedConfigExecutionId && canPropagateToExecution
                               ? { ...sectionData, propagate_to_executions: true, execution_id: selectedConfigExecutionId }
                               : sectionData;
-                            updateSectionMutation.mutate({ sectionId, sectionData: payload });
+                            return updateSectionMutation.mutateAsync({ sectionId, sectionData: payload });
                           }}
                           onDelete={async (sectionId: string, options?: { executionId?: string }) => {
                             await deleteSectionMutation.mutateAsync({

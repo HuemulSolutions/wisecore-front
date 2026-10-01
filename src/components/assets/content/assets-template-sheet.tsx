@@ -271,7 +271,7 @@ export function TemplateConfigSheet({
                               item={section}
                               existingSections={orderedSections}
                               onSave={(sectionId: string, sectionData: object) =>
-                                updateSectionMutation.mutate({ sectionId, sectionData })
+                                updateSectionMutation.mutateAsync({ sectionId, sectionData })
                               }
                               onDelete={async (sectionId: string, options?: { propagate_to_documents?: boolean }) => {
                                 await deleteSectionMutation.mutateAsync({ sectionId, options });
