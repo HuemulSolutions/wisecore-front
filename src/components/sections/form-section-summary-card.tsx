@@ -13,7 +13,7 @@ import {
   SUMMARY_ACTION_STYLES,
   SUMMARY_CARD_SHELL,
   SUMMARY_CIRCLE_STYLES,
-  SUMMARY_FOOTER_TEXT_STYLES,
+  SUMMARY_STATUS_TEXT_STYLES,
 } from "@/components/workflow/workflow-summary-styles";
 import { cn } from "@/lib/utils";
 import type { ContentSection } from "@/types/assets";
@@ -75,6 +75,21 @@ export function FormSectionSummaryCard({
   const { fields } = computeSectionStats(full);
   const state = resolveSectionCardState(full, canAnswer);
   const ActionIcon = SUMMARY_ACTION_ICONS[state.action.kind];
+  // Sin permiso para responder no hay botón (solo se ve el resumen): el pie no se dibuja vacío.
+  const footerContent =
+    footerAction ??
+    (state.action.kind === "view" ? null : (
+      <HuemulButton
+        variant="outline"
+        size="sm"
+        icon={ActionIcon}
+        iconPosition="right"
+        iconClassName="h-[13px] w-[13px]"
+        label={t(state.action.labelKey)}
+        onClick={onAction}
+        className={cn(SUMMARY_ACTION_BUTTON_CLASS, SUMMARY_ACTION_STYLES[state.action.kind])}
+      />
+    ));
 
   return (
     <Collapsible open={open} onOpenChange={onOpenChange}>
@@ -104,11 +119,8 @@ export function FormSectionSummaryCard({
                   className="h-[22px] rounded-[11px] px-[9px] py-0 text-[11.5px] font-semibold"
                 />
               </div>
-              <p className="text-[12px] text-[#64748b]">
-                {t("sections:form.fill.answeredCount", {
-                  answered: state.answeredCount,
-                  total: state.totalQuestions,
-                })}
+              <p className={cn("text-[12px] font-medium", SUMMARY_STATUS_TEXT_STYLES[state.statusTone])}>
+                {state.statusParts.map((part) => t(part.key, part.params)).join(" · ")}
               </p>
             </div>
           </CollapsibleTrigger>
@@ -126,23 +138,9 @@ export function FormSectionSummaryCard({
           {children ?? <FormSectionSummaryAnswers fields={fields} emptyLabel={t("sections:form.fill.emptyForm")} />}
         </CollapsibleContent>
 
-        <div className="ml-[35px] flex flex-wrap items-center justify-between gap-[10px] border-t border-[#eef1f6] pt-[10px]">
-          <p className={cn("text-[12px] font-medium", SUMMARY_FOOTER_TEXT_STYLES[state.footerTone])}>
-            {t(state.footerTextKey, state.footerTextParams)}
-          </p>
-          {footerAction ?? (state.action.kind === "view" ? null : (
-            <HuemulButton
-              variant="outline"
-              size="sm"
-              icon={ActionIcon}
-              iconPosition="right"
-              iconClassName="h-[13px] w-[13px]"
-              label={t(state.action.labelKey)}
-              onClick={onAction}
-              className={cn(SUMMARY_ACTION_BUTTON_CLASS, SUMMARY_ACTION_STYLES[state.action.kind])}
-            />
-          ))}
-        </div>
+        {footerContent && (
+          <div className="ml-[35px] flex justify-end border-t border-[#eef1f6] pt-[10px]">{footerContent}</div>
+        )}
       </div>
     </Collapsible>
   );

@@ -17,10 +17,10 @@ export const SUMMARY_CIRCLE_STYLES: Record<WorkflowSectionTone, string> = {
   info: "bg-[#eff5ff] text-[#1d4ed8]",
 };
 
-/** Color del texto de estado del pie — independiente de `tone`: una sección "success" con
+/** Color del mensaje de estado — independiente de `tone`: una sección "success" con
  *  opcionales sin responder muestra el texto en gris, no en verde (ver resolveSectionCardState,
- *  campo `footerTone`). */
-export const SUMMARY_FOOTER_TEXT_STYLES: Record<"success" | "danger" | "muted", string> = {
+ *  campo `statusTone`). */
+export const SUMMARY_STATUS_TEXT_STYLES: Record<"success" | "danger" | "muted", string> = {
   success: "text-[#15803d]",
   danger: "text-[#92400e]",
   muted: "text-[#64748b]",
