@@ -113,7 +113,8 @@ export function ExecuteSheet({
       // El backend devuelve {execution: {...}, job: {...}}
       // Necesitamos acceder a execution.id
       const executionId = executionData.execution?.id || executionData.id;
-      
+      const executionName = executionData.execution?.name ?? executionData.name;
+
       logger.log('📦 Execute Sheet - Raw response:', executionData);
       logger.log('🆔 Extracted execution ID:', executionId);
 
@@ -142,7 +143,7 @@ export function ExecuteSheet({
         ? sectionIdx 
         : undefined;
       
-      onExecutionCreated?.(executionId, executionType, indexToPass);
+      onExecutionCreated?.(executionId, executionType, indexToPass, executionName);
       onOpenChange(false); // Cerrar el sheet inmediatamente
     },
     onError: (error) => {

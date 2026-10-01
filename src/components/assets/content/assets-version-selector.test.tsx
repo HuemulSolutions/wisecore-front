@@ -5,8 +5,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { VersionSelectorDropdown } from './assets-version-selector'
 
 const executions = [
-  { id: 'e2', created_at: '2026-03-10T10:00:00Z', name: 'Borrador B', status: 'draft', version: null },
-  { id: 'e1', created_at: '2026-03-01T10:00:00Z', name: 'Aprobada A', status: 'approved', version: '1.0.0' },
+  { id: 'e2', created_at: '2026-03-10T10:00:00Z', name: 'Borrador B', status: 'completed', lifecycle_state: 'draft', version: null },
+  { id: 'e1', created_at: '2026-03-01T10:00:00Z', name: 'Aprobada A', status: 'completed', lifecycle_state: 'approved', version: '1.0.0' },
 ]
 
 function setup(props: Partial<React.ComponentProps<typeof VersionSelectorDropdown>> = {}) {
@@ -66,6 +66,24 @@ describe('VersionSelectorDropdown', () => {
 
     await userEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
     expect(onRenameVersion).toHaveBeenCalledWith({ id: 'e2', name: 'Borrador B' })
+  })
+
+  it('cada versión muestra su estado de ciclo de vida, no el status de generación', async () => {
+    setup({
+      selectedExecutionId: 'e3',
+      allExecutions: [
+        { id: 'e3', created_at: '2026-03-12T10:00:00Z', name: 'V3', status: 'completed', lifecycle_state: 'published' },
+        { id: 'e2', created_at: '2026-03-10T10:00:00Z', name: 'V2', status: 'completed', lifecycle_state: 'in_review' },
+        { id: 'e1', created_at: '2026-03-01T10:00:00Z', name: 'V1', status: 'completed' },
+      ],
+    })
+
+    expect(screen.getByTitle('Switch Version')).toHaveTextContent('Published')
+    await userEvent.click(screen.getByTitle('Switch Version'))
+    const items = screen.getAllByRole('menuitem')
+    expect(items[0]).toHaveTextContent('Published')
+    expect(items[1]).toHaveTextContent('In Review')
+    expect(items[2]).toHaveTextContent('Elaboration')
   })
 
   it('no ofrece Renombrar cuando la versión seleccionada está aprobada', async () => {

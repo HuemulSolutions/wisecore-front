@@ -66,7 +66,7 @@ export interface ExecuteSheetProps {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
   onSectionSheetOpen: () => void
-  onExecutionCreated?: (executionId: string, mode: 'full' | 'full-single' | 'single' | 'from', sectionIndex?: number) => void
+  onExecutionCreated?: (executionId: string, mode: 'full' | 'full-single' | 'single' | 'from', sectionIndex?: number, executionName?: string) => void
   isMobile?: boolean
   /** Deshabilita el botón "Ejecutar" del sheet (ej. can_generate=false). */
   disabled?: boolean

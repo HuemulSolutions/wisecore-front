@@ -655,6 +655,9 @@ export function AssetContent({
   // de inmediato como "otra versión generando" sin esperar a que /content
   // devuelva la lista de ejecuciones actualizada (ver A4 en el plan).
   const [newVersionExecutionId, setNewVersionExecutionId] = useState<string | null>(null);
+  // Nombre real que devolvió el endpoint de generar (p.ej. "Version 4"); evita
+  // mostrar el nombre provisorio traducido mientras /content no la lista.
+  const [newVersionExecutionName, setNewVersionExecutionName] = useState<string | null>(null);
   const [dismissedExecutionBanners, setDismissedExecutionBanners] = useState<Set<string>>(new Set());
   const [approvingExecutionId, setApprovingExecutionId] = useState<string | null>(null);
   
@@ -763,6 +766,7 @@ export function AssetContent({
       setExecutionStartedAt(null);
       setExecutionRunToken(null);
       setNewVersionExecutionId(null);
+      setNewVersionExecutionName(null);
       setDismissedExecutionBanners(new Set());
       setExecutionContext(null);
       doneSnapshotRef.current.clear();
@@ -811,7 +815,7 @@ export function AssetContent({
   }, [armExecutionTracking, preserveScrollPosition]);
 
   // Handle execution created from Execute Sheet
-  const handleExecutionCreated = (executionId: string, mode: 'full' | 'single' | 'from' | 'full-single', sectionIndex?: number) => {
+  const handleExecutionCreated = (executionId: string, mode: 'full' | 'single' | 'from' | 'full-single', sectionIndex?: number, executionName?: string) => {
     // Preserve scroll position before any changes
     preserveScrollPosition();
 
@@ -836,6 +840,7 @@ export function AssetContent({
       // puede llegar antes de que el backend registre la ejecución como
       // activa — ver A4 en el plan).
       setNewVersionExecutionId(executionId);
+      setNewVersionExecutionName(executionName ?? null);
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
     } else if (mode === 'single' || mode === 'from') {
       // EDIT EXISTING: el contenido todavía no cambió — se refresca solo
@@ -1665,11 +1670,11 @@ export function AssetContent({
     // más abajo para ejecuciones sin nombre ya conocidas.
     const placeholder = known ?? {
       id: newVersionExecutionId,
-      name: t('execute:otherVersionBanner.newVersionFallback'),
+      name: newVersionExecutionName || t('execute:otherVersionBanner.newVersionFallback'),
       status: 'running',
     };
     return [placeholder, ...otherVersionActiveExecutions];
-  }, [otherVersionActiveExecutions, newVersionExecutionId, dismissedExecutionBanners, effectiveSelectedExecutionId, allExecutions, t]);
+  }, [otherVersionActiveExecutions, newVersionExecutionId, newVersionExecutionName, dismissedExecutionBanners, effectiveSelectedExecutionId, allExecutions, t]);
 
   // Check if the currently selected version is actively executing
   const isSelectedVersionExecuting = useMemo(() => {
@@ -3179,7 +3184,10 @@ export function AssetContent({
                         executionName={execution.name || `Version ${execution.id.substring(0, 8)}`}
                         onDismiss={() => {
                           setDismissedExecutionBanners(prev => new Set(prev).add(execution.id));
-                          if (execution.id === newVersionExecutionId) setNewVersionExecutionId(null);
+                          if (execution.id === newVersionExecutionId) {
+                            setNewVersionExecutionId(null);
+                            setNewVersionExecutionName(null);
+                          }
                         }}
                         onViewVersion={() => {
                           // Preserve scroll position before changing execution

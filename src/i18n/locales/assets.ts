@@ -854,11 +854,6 @@ const translations = {
     viewModeLabel: { en: "View mode", es: "Modo de vista" },
     generatingVersion: { en: "Generating new version…", es: "Generando nueva versión…" },
     externalElaborationRunning: { en: "External elaboration in progress", es: "Elaboración externa en curso" },
-    versionStatus: {
-      approved: { en: "Approved", es: "Aprobada" },
-      rejected: { en: "Rejected", es: "Rechazada" },
-      draft: { en: "Draft", es: "Borrador" },
-    },
     manageVersions: { en: "Manage versions", es: "Gestionar versiones" },
     executionInProgress: { en: "An execution is in progress", es: "Hay una ejecución en curso" },
     cannotGenerateVersion: { en: "A version cannot be generated", es: "No se puede generar una versión" },

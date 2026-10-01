@@ -8,6 +8,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { cn, parseApiDate } from "@/lib/utils";
+import { lifecycleStateDot } from "@/lib/lifecycle-colors";
+import { isLifecycleState } from "@/lib/lifecycle-access";
+import type { ExecutionLifecycleState } from "@/types/execution";
 import { formatAbsoluteDate } from "@/lib/format-relative-time";
 import { getExecutionDisplayLabel } from "./utils/version-utils";
 
@@ -16,6 +19,7 @@ interface VersionExecution {
   created_at: string;
   name: string;
   status: string;
+  lifecycle_state?: string | null;
   version?: string | null;
   created_by_user?: { name: string; last_name: string } | null;
 }
@@ -38,31 +42,21 @@ interface VersionSelectorDropdownProps {
   /** When provided, a rename action appears in the menu footer for the selected draft version */
   onRenameVersion?: (execution: { id: string; name: string }) => void;
   dropdownAlign?: "start" | "end";
-  /** Se conserva por compatibilidad con los callers; el estado de cada versión sale de `execution.status`. */
+  /** Se conserva por compatibilidad con los callers; el estado de cada versión sale de `execution.lifecycle_state`. */
   isLatest?: boolean;
   /** false para ocultar el botón "+" embebido cuando la superficie ya ofrece uno propio (ej. header móvil). Default true. */
   showTriggerCreateButton?: boolean;
 }
 
-type VersionTone = "approved" | "rejected" | "draft";
-
-/** Punto (7px) + halo (3px) por estado de la versión. Hex del diseño: no salen de lifecycle-colors (otro eje). */
-const TONE_DOT: Record<VersionTone, string> = {
-  approved: "bg-[#16a34a] ring-[#dcfce7]",
-  rejected: "bg-[#dc2626] ring-[#fee2e2]",
-  draft: "bg-slate-400 ring-[#f1f5f9]",
-};
-
-function versionTone(status: string | undefined): VersionTone {
-  if (status === "approved") return "approved";
-  if (status === "rejected") return "rejected";
-  return "draft";
+/** Estado de ciclo de vida de la versión; ausente o desconocido ⇒ borrador. */
+function versionLifecycleState(state: string | null | undefined): ExecutionLifecycleState {
+  return isLifecycleState(state) ? state : "draft";
 }
 
-function StatusDot({ tone }: { tone: VersionTone }) {
+function StatusDot({ state }: { state: ExecutionLifecycleState }) {
   return (
     <span
-      className={cn("h-[7px] w-[7px] shrink-0 rounded-full ring-[3px]", TONE_DOT[tone])}
+      className={cn("h-[7px] w-[7px] shrink-0 rounded-full", lifecycleStateDot(state))}
       aria-hidden="true"
     />
   );
@@ -93,7 +87,7 @@ export function VersionSelectorDropdown({
     (a, b) => parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
   );
   const selectedExecution = allExecutions.find((exec) => exec.id === targetId);
-  const selectedTone = versionTone(selectedExecution?.status);
+  const selectedState = versionLifecycleState(selectedExecution?.lifecycle_state);
 
   const versionLabel = (() => {
     const label = getExecutionDisplayLabel(selectedExecution);
@@ -102,7 +96,7 @@ export function VersionSelectorDropdown({
     return index !== -1 ? `v${sortedExecutions.length - index}` : "v1";
   })();
 
-  const statusLabel = (tone: VersionTone) => t(`content.versionStatus.${tone}`);
+  const statusLabel = (state: ExecutionLifecycleState) => t(`lifecycle.stateLabels.${state}`);
 
   const createBlocked = isCreatingPending || hasExecutionInProcess || !canGenerate;
   const createTitle =
@@ -116,7 +110,7 @@ export function VersionSelectorDropdown({
   const canRenameSelected =
     !!onRenameVersion &&
     !!selectedExecution &&
-    selectedTone === "draft" &&
+    selectedState === "draft" &&
     !!lifecyclePermissions?.create &&
     !!lifecyclePermissions?.edit &&
     !selectedExecution.version;
@@ -130,9 +124,9 @@ export function VersionSelectorDropdown({
             title={t("content.switchVersion")}
             className="flex items-center gap-2 rounded-l-[7px] px-2.5 text-[13px] outline-none transition-colors hover:cursor-pointer hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40 data-[state=open]:bg-slate-50"
           >
-            <StatusDot tone={selectedTone} />
+            <StatusDot state={selectedState} />
             <span className="font-semibold text-slate-900">{versionLabel}</span>
-            <span className="font-medium text-slate-500">{statusLabel(selectedTone)}</span>
+            <span className="font-medium text-slate-500">{statusLabel(selectedState)}</span>
             <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
           </button>
         </DropdownMenuTrigger>
@@ -141,9 +135,9 @@ export function VersionSelectorDropdown({
           <div className="max-h-64 overflow-y-auto">
             {sortedExecutions.map((execution) => {
               const isSelected = targetId === execution.id;
-              const tone = versionTone(execution.status);
+              const state = versionLifecycleState(execution.lifecycle_state);
               const meta = [
-                statusLabel(tone),
+                statusLabel(state),
                 execution.created_at ? formatAbsoluteDate(execution.created_at) : null,
               ]
                 .filter(Boolean)
@@ -159,7 +153,7 @@ export function VersionSelectorDropdown({
                   onSelect={() => onSelectExecution(execution.id)}
                   aria-current={isSelected ? "true" : undefined}
                 >
-                  <StatusDot tone={tone} />
+                  <StatusDot state={state} />
                   <div className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate text-[13px] font-semibold text-slate-900">
                       {getExecutionDisplayLabel(execution)}
