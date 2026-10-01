@@ -1,7 +1,8 @@
 import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
-import type { LLM, ModelsStatusCardsProps } from "@/types/models"
+import { ModelsPurposePicker } from "@/components/llm/models-purpose-picker"
+import type { LLM, LlmPurpose, ModelsStatusCardsProps } from "@/types/models"
 export type { ModelsStatusCardsProps } from "@/types/models"
 
 type StatusTone = "working" | "failing" | "pending" | "optional"
@@ -24,9 +25,11 @@ interface StatusRowProps {
   /** Descripción larga: solo en tooltip, no se muestra en pantalla. */
   description: string
   cta?: { label: string; primary: boolean; disabled?: boolean; onClick: () => void }
+  /** Acción propia en lugar del botón `cta` (p. ej. el selector de modelo de un propósito). */
+  action?: ReactNode
 }
 
-function StatusRow({ tone, label, value, pillLabel, description, cta }: StatusRowProps) {
+function StatusRow({ tone, label, value, pillLabel, description, cta, action }: StatusRowProps) {
   const colors = TONES[tone]
 
   return (
@@ -48,7 +51,8 @@ function StatusRow({ tone, label, value, pillLabel, description, cta }: StatusRo
         {pillLabel}
       </span>
       <span className="flex-1" />
-      {cta && (
+      {action}
+      {!action && cta && (
         <button
           type="button"
           disabled={cta.disabled}
@@ -85,11 +89,14 @@ export function ModelsStatusCards({
   canCreateModel,
   canViewEmbeddings,
   canChoosePurposeModel,
+  models,
+  isPurposePending,
   onTestDefault,
   onConnectProvider,
   onAddModel,
   onGoToEmbeddings,
-  onChoosePurposeModel,
+  onSetPurpose,
+  onClearPurpose,
 }: ModelsStatusCardsProps) {
   const { t } = useTranslation('models')
 
@@ -134,14 +141,27 @@ export function ModelsStatusCards({
         : undefined
 
   // Rerank e imágenes son opcionales y sin fallback: sin modelo marcado no es un error.
-  const purposeRow = (model: LLM | null, key: 'rerank' | 'imageAnalysis') => (
+  const purposeRow = (model: LLM | null, key: 'rerank' | 'imageAnalysis', purpose: LlmPurpose) => (
     <StatusRow
       tone={model ? 'working' : 'optional'}
       label={t(`status.${key}.label`)}
       value={model ? model.name : t(`status.${key}.none`)}
       pillLabel={model ? t('status.assigned') : t('status.optional')}
       description={t(`status.${key}.description`)}
-      cta={!model && canChoosePurposeModel ? { label: t('status.choose'), primary: false, onClick: onChoosePurposeModel } : undefined}
+      action={
+        canChoosePurposeModel ? (
+          <ModelsPurposePicker
+            purpose={purpose}
+            models={models}
+            triggerLabel={model ? t('status.change') : t('status.choose')}
+            isPending={isPurposePending}
+            canCreateModel={canCreateModel && hasProviders}
+            onSelect={(selected) => onSetPurpose(selected, purpose)}
+            onClear={() => onClearPurpose(purpose)}
+            onAddModel={onAddModel}
+          />
+        ) : undefined
+      }
     />
   )
 
@@ -171,8 +191,8 @@ export function ModelsStatusCards({
             : undefined
         }
       />
-      {purposeRow(rerankModel, 'rerank')}
-      {purposeRow(imageAnalysisModel, 'imageAnalysis')}
+      {purposeRow(rerankModel, 'rerank', 'rerank')}
+      {purposeRow(imageAnalysisModel, 'imageAnalysis', 'image_analysis')}
     </>,
   )
 }

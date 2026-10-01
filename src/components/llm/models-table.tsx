@@ -211,7 +211,7 @@ export function ModelsTable({
   }
 
   return (
-    <section className="flex min-h-0 flex-col overflow-hidden rounded-[12px] border border-[#e1e6ed] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)]">
+    <section className="flex min-h-[340px] flex-1 flex-col overflow-hidden rounded-[12px] border border-[#e1e6ed] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)]">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#e5eaf0] px-[18px] py-3.5">
         <div className="min-w-0">
           <h2 className="text-[14px] font-semibold text-[#0f172a]">{t('table.title')}</h2>
@@ -254,7 +254,7 @@ export function ModelsTable({
       ) : models.length === 0 ? (
         renderEmpty()
       ) : (
-        <div className={cn("min-h-0 overflow-auto transition-opacity", isFetching && "opacity-70")}>
+        <div className={cn("min-h-0 flex-1 overflow-auto transition-opacity", isFetching && "opacity-70")}>
           <div className="min-w-[1010px]">
             <div
               className="sticky top-0 z-(--z-feed-sticky) grid items-center gap-3 border-b border-[#e1e6ed] bg-[#f1f4f8] px-[18px] py-2.5 text-[11px] font-semibold uppercase tracking-wide text-[#7c8798]"

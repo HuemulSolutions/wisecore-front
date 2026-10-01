@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.7.0] - 2026-09-30
+### Nuevo
+- pestaña Embeddings con 3 espacios de proveedores: predeterminado y de evaluación, con cobertura de vectores, estado del índice y explicación de para qué sirven, cómo se usan y qué implican
+- hacer predeterminado, probar, editar (con nombre), reconstruir índice y eliminar por proveedor de embeddings
+- selector de modelo para búsqueda de mayor precisión y análisis de imágenes desde las filas de estado
+### Arreglos
+- "Elegir modelo" de los propósitos no hacía nada (cambiaba a la pestaña ya activa)
+- la tabla de modelos ocupa el alto disponible en vez de quedar en fila y media
+- la pestaña Embeddings usa la misma tarjeta de proveedor con y sin proveedor configurado
+
 ## [1.6.0] - 2026-09-25
 ### Nuevo
 - selector de proveedor compacto en el sheet de agregar modelo
