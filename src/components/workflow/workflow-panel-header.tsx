@@ -104,6 +104,7 @@ export function WorkflowPanelHeader({
   const createdByName = fullName(createdBy);
   const updatedByName = fullName(updatedBy);
   const metaParts: string[] = [];
+  if (templateName) metaParts.push(templateName);
   if (createdByName) metaParts.push(t("panel.meta.createdBy", { name: createdByName }));
   if (updatedByName) {
     metaParts.push(
@@ -120,17 +121,12 @@ export function WorkflowPanelHeader({
         isFullscreen && "px-4 sm:px-8",
       )}
     >
-      <div className={cn("flex items-start justify-between gap-3", isFullscreen && "mx-auto w-full max-w-3xl")}>
+      <div className={cn("flex min-w-0 flex-col", isFullscreen && "mx-auto w-full max-w-3xl")}>
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          {(internalCode || templateName) && (
+          {internalCode && (
             <div className="flex min-w-0 items-center gap-[7px]">
-              {internalCode && (
-                <span className="shrink-0 font-mono text-[11.5px] font-medium text-[#475569]">{internalCode}</span>
-              )}
-              {internalCode && templateName && <span className="text-[12px] text-[#cbd5e1]">·</span>}
-              {templateName && (
-                <HuemulTruncatedText text={templateName} className="min-w-0 text-[12.5px] text-[#64748b]" />
-              )}
+              <span className="shrink-0 font-mono text-[11.5px] font-medium text-[#475569]">{internalCode}</span>
             </div>
           )}
           <HuemulTruncatedText
@@ -138,11 +134,8 @@ export function WorkflowPanelHeader({
             text={documentName ?? ""}
             className="text-[17px] font-semibold leading-[1.3] tracking-[-0.01em] text-[#0f172a]"
           />
-          {metaParts.length > 0 && (
-            <HuemulTruncatedText as="p" text={metaParts.join(" · ")} className="text-[12px] text-[#64748b]" />
-          )}
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="-my-[4px] flex shrink-0 items-center gap-1">
           {showActions && (
             <HuemulButton
               variant="ghost"
@@ -190,6 +183,10 @@ export function WorkflowPanelHeader({
             />
           )}
         </div>
+      </div>
+      {metaParts.length > 0 && (
+        <HuemulTruncatedText as="p" text={metaParts.join(" · ")} className="text-[12px] text-[#64748b]" />
+      )}
       </div>
     </div>
   );
