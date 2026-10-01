@@ -26,6 +26,7 @@ import {
   Maximize2,
   Minimize2,
   Paperclip,
+  Library,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -128,6 +129,8 @@ interface MoreOptionsDropdownProps {
   onOpenSections: () => void;
   onOpenDependencies: () => void;
   onOpenContext: () => void;
+  /** "Agregar a colección": solo se muestra si se pasa (lo decide el permiso). */
+  onAddToCollection?: () => void;
   onClone: () => void;
   onCloneToNew: () => void;
   onCreateTemplate: () => void;
@@ -184,6 +187,7 @@ export function MoreOptionsDropdown({
   onOpenSections,
   onOpenDependencies,
   onOpenContext,
+  onAddToCollection,
   onClone,
   onCloneToNew,
   onCreateTemplate,
@@ -422,6 +426,15 @@ export function MoreOptionsDropdown({
             >
               <Paperclip className="h-4 w-4" />
               {t("content.mediaLabel")}
+            </DropdownMenuItem>
+          )}
+          {onAddToCollection && (
+            <DropdownMenuItem
+              onSelect={() => setTimeout(onAddToCollection, 0)}
+              className="hover:cursor-pointer"
+            >
+              <Library className="h-4 w-4" />
+              {t("collections:addToCollection.menuItem")}
             </DropdownMenuItem>
           )}
           {canManageGrants && (

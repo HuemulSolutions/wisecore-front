@@ -106,6 +106,7 @@ import {
   useInvalidateDocumentSectionAccess,
 } from '@/hooks/useDocumentSectionAccess';
 import { usePageAccess } from '@/hooks/usePageAccess';
+import { AddToCollectionSheet } from '@/components/collections/add-to-collection-sheet';
 import { invalidateExecutionLifecycleSteps } from '@/hooks/useLifecycle';
 import type { AssetDetailPanelTab, ContentSection, LibraryContentProps, LifecyclePermissions, LifecycleStatus } from '@/types/assets';
 import type { FormValuesSectionPayload } from '@/types/sections/core';
@@ -207,6 +208,7 @@ export function AssetContent({
   const { canCreate, canList, canUpdate, canDelete, canAccessTemplates, canAccessAssets, canAccessDiagrams, isOrgAdmin, hasPermission } = useUserPermissions();
   const { can } = usePageAccess('asset');
   const { can: canMedia } = usePageAccess('media');
+  const [isAddToCollectionOpen, setIsAddToCollectionOpen] = useState(false);
   const { handleCreateAsset: openCreateAssetDialog } = useNavKnowledgeActions();
   const refreshFileTree = useNavKnowledgeRefresh();
   const { guardedAction } = useOptionalEditingGuard();
@@ -624,6 +626,7 @@ export function AssetContent({
   const [isPermissionsSheetOpen, setIsPermissionsSheetOpen] = useState(false);
   const canViewTags = can('viewTags');
   const canManageTags = can('manageTags');
+  const canAddToCollection = can('addToCollection');
 
   // Effects to trigger on-demand loading
   useEffect(() => {
@@ -2847,6 +2850,7 @@ export function AssetContent({
                             onClone={() => openCloneDialog()}
                             onCloneToNew={() => openCloneToNewDocumentSheet()}
                             onCreateTemplate={() => setIsCreateTemplateFromDocumentDialogOpen(true)}
+                            onAddToCollection={canAddToCollection ? () => setIsAddToCollectionOpen(true) : undefined}
                             onExportMarkdown={handleExportMarkdown}
                             onExportWord={handleExportWord}
                             onExportCustomWord={handleExportCustomWord}
@@ -3955,6 +3959,17 @@ export function AssetContent({
         fieldName={customFieldDocumentToDelete?.name}
         onAction={handleConfirmDeleteCustomFieldDocument}
       />
+
+      {/* Agregar el activo a una colección (menú ⋯) */}
+      {canAddToCollection && (
+        <AddToCollectionSheet
+          open={isAddToCollectionOpen}
+          onOpenChange={setIsAddToCollectionOpen}
+          documentId={selectedFile.id}
+          documentName={documentContent?.document_name}
+          executionId={selectedExecutionId}
+        />
+      )}
 
       {/* Create Template from Document Dialog */}
       <CreateTemplateFromDocumentDialog

@@ -2,7 +2,8 @@ import { HuemulField } from '@/huemul/components/huemul-field';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { Separator } from '@/components/ui/separator';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Wand2 } from 'lucide-react';
+import { AGENT_FACET_KEY_MAX_LENGTH, suggestAgentIdentifier } from '@/lib/agent-identifiers';
 import { QUESTION_TYPE, NUMERIC_DATA_TYPES, jsonbToInputValue, readFileUploadLimits } from '@/components/sections/question-type-meta';
 import { CustomFieldPreview } from '@/components/custom-fields/custom-field-preview';
 import type { CustomFieldFormFieldsProps, CustomFieldOption } from '@/types/custom-fields';
@@ -47,6 +48,10 @@ export default function CustomFieldFormFields({
   onMaxValueChange,
   onConfigChange,
   onRequiredChange,
+  agentFacet = false,
+  agentFacetKey = '',
+  onAgentFacetChange,
+  onAgentFacetKeyChange,
   questionTypes,
   formatQuestionType,
   errors = {},
@@ -68,6 +73,16 @@ export default function CustomFieldFormFields({
       i === index ? { ...opt, [field]: value } : opt
     )
     onOptionsChange(updated)
+  }
+
+  // Al encender la faceta con la clave vacía se precarga la sugerencia desde el nombre.
+  const showAgentFacet = Boolean(onAgentFacetChange && onAgentFacetKeyChange)
+  const handleAgentFacetChange = (enabled: boolean) => {
+    onAgentFacetChange?.(enabled)
+    if (enabled && !agentFacetKey.trim()) {
+      const suggestion = suggestAgentIdentifier(name, AGENT_FACET_KEY_MAX_LENGTH)
+      if (suggestion) onAgentFacetKeyChange?.(suggestion)
+    }
   }
 
   const MASK_APPLICABLE_TYPES = ['string', 'int', 'decimal', 'url']
@@ -389,6 +404,46 @@ export default function CustomFieldFormFields({
           error={errors.description}
         />
       </div>
+
+      {showAgentFacet && (<>
+      <Separator />
+
+      <div className="space-y-4">
+        <SectionHeader number={3} label={t('form.section.agents')} />
+        <div className="rounded-lg border p-3">
+          <HuemulField
+            type="switch"
+            label={t('form.agentFacet.enabledLabel')}
+            description={t('form.agentFacet.enabledDescription')}
+            name="agent_facet"
+            value={agentFacet}
+            onChange={(v) => handleAgentFacetChange(Boolean(v))}
+            labelFirst
+            disabled={disabled}
+          />
+        </div>
+        {agentFacet && (
+          <HuemulField
+            type="text"
+            label={t('form.agentFacet.keyLabel')}
+            name="agent_facet_key"
+            placeholder={t('form.agentFacet.keyPlaceholder')}
+            description={t('form.agentFacet.keyHint')}
+            value={agentFacetKey}
+            onChange={(v) => onAgentFacetKeyChange?.(String(v))}
+            maxLength={AGENT_FACET_KEY_MAX_LENGTH}
+            labelAction={{
+              icon: Wand2,
+              tooltip: t('form.agentFacet.keySuggest'),
+              onClick: () => onAgentFacetKeyChange?.(suggestAgentIdentifier(name, AGENT_FACET_KEY_MAX_LENGTH)),
+            }}
+            disabled={disabled}
+            error={errors.agent_facet_key}
+            required
+          />
+        )}
+      </div>
+      </>)}
     </div>
   );
 }

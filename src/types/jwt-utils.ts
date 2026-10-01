@@ -59,6 +59,8 @@ export type PermissionResource =
   | 'canvas'
   | 'discussion'
   | 'tag'
+  | 'collection'
+  | 'collection_agent'
   | 'chatbot'
   | 'search'
   | 'role_doctype';

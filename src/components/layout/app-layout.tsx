@@ -4,7 +4,7 @@ import { authStepUpStore } from '@/lib/auth-step-up-store'
 import { handleApiError, isErrorCode, parseErrorDetail } from '@/lib/error-utils'
 import { AUTH_METHOD_REQUIRED } from '@/hooks/useCompleteLogin'
 import type { AuthMethodRequiredDetail } from '@/types/auth'
-import { Home, Search, LayoutTemplate, BookText, Menu, Network, Workflow } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText, Menu, Network, Workflow, Library } from "lucide-react"
 import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from "react"
 import { useTranslation } from "react-i18next"
 import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
@@ -173,6 +173,12 @@ const navigationItems = [
     title: "Templates",
     url: "/templates",
     icon: LayoutTemplate,
+    orgScoped: true,
+  },
+  {
+    title: "Collections",
+    url: "/collections",
+    icon: Library,
     orgScoped: true,
   },
   {
@@ -501,6 +507,9 @@ export default function AppLayout() {
           break
         case "Templates":
           shouldShowItem = hasAnyPermission(RBAC_PAGES.templates.routePermissions)
+          break
+        case "Collections":
+          shouldShowItem = hasAnyPermission(RBAC_PAGES.collections.routePermissions)
           break
         case "Diagrams":
           shouldShowItem = hasAnyPermission(RBAC_PAGES.diagrams.routePermissions)

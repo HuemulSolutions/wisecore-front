@@ -10,6 +10,9 @@ import {
   getCustomFieldQuestionTypes,
 } from "@/services/custom-fields"
 import { handleApiError } from "@/lib/error-utils"
+import { isConflictError } from "@/lib/agent-identifiers"
+import { toast } from "sonner"
+import i18n from "@/i18n"
 import type {
   UpdateCustomFieldRequest,
   PaginationParams,
@@ -72,9 +75,20 @@ export function useCustomFieldQuestionTypes(options?: { enabled?: boolean }) {
 export function useCustomFieldMutations() {
   const queryClient = useQueryClient()
 
+  // 409 en create/update = `agent_facet_key` repetida. Mensaje propio en vez
+  // del texto crudo del backend; el sheet además marca el campo en rojo.
+  const handleCustomFieldSaveError = (error: unknown, key?: string | null) => {
+    if (isConflictError(error)) {
+      toast.error(i18n.t('custom-fields:form.agentFacet.keyConflict', { key: key ?? '' }))
+      return
+    }
+    handleApiError(error)
+  }
+
   const createMutation = useMutation({
     mutationFn: createCustomField,
     meta: { successMessage: 'Custom field created successfully' },
+    onError: (error, data) => handleCustomFieldSaveError(error, data.agent_facet_key),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customFieldsQueryKeys.lists() })
     },
@@ -84,6 +98,7 @@ export function useCustomFieldMutations() {
     mutationFn: ({ id, data }: { id: string; data: UpdateCustomFieldRequest }) =>
       updateCustomField(id, data),
     meta: { successMessage: 'Custom field updated successfully' },
+    onError: (error, { data }) => handleCustomFieldSaveError(error, data.agent_facet_key),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customFieldsQueryKeys.all })
     },

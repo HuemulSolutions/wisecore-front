@@ -262,6 +262,12 @@ export const RBAC_PAGES = {
       // tag:r / tag:u.
       viewTags: "tag:r",
       manageTags: "tag:u",
+      // "Agregar a colección" del menú ⋯: lista las colecciones que el usuario
+      // administra (GET /collections/?can_admin, collection:l) y agrega con
+      // POST /collections/{id}/items (collection:u). Una colección de agentes
+      // exige además collection_agent:u: el backend responde 403 y el diálogo
+      // lo muestra.
+      addToCollection: { all: ["collection:l", "collection:u"] },
     },
   },
   search: {
@@ -447,6 +453,28 @@ export const RBAC_PAGES = {
       createCustomField: "custom_fields:c",
       updateCustomField: "custom_fields:u",
       deleteCustomField: "custom_fields:d",
+    },
+  },
+  collections: {
+    route: "collections",
+    // GET /collections/ pide collection:l y el detalle collection:r; el acceso a
+    // una colección concreta (pública, propia o compartida) lo decide el backend.
+    routePermissions: ["collection:l", "collection:r"],
+    nav: { title: "Collections", orgScoped: true },
+    features: {
+      listCollections: ["collection:l", "collection:r"],
+      createCollection: "collection:c",
+      updateCollection: "collection:u",
+      deleteCollection: "collection:d",
+      // Una colección para agentes cambia lo que siguen los agentes de toda la
+      // organización: crearla, editarla (activos, grupos y accesos incluidos) o
+      // borrarla exige además collection_agent:c/u/d (backend, ensure_permissions).
+      createAgentCollection: { all: ["collection:c", "collection_agent:c"] },
+      updateAgentCollection: { all: ["collection:u", "collection_agent:u"] },
+      deleteAgentCollection: { all: ["collection:d", "collection_agent:d"] },
+      // Compartir con roles y usuarios: GET /rbac/roles es catálogo abierto y
+      // GET /user_roles/members es el directorio de cualquier miembro.
+      shareCollection: "collection:u",
     },
   },
   tags: {
