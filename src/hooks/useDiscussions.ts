@@ -114,8 +114,9 @@ export function useDiscussions(
   const queryClient = useQueryClient();
 
   // Fetch org users for avatar / name resolution
+  // Solo si hay documento (sin permiso de discusiones el caller pasa `undefined`).
   const { data: usersResponse } = useUsers(
-    !!selectedOrganizationId,
+    !!selectedOrganizationId && !!documentId,
     selectedOrganizationId ?? undefined,
   );
 

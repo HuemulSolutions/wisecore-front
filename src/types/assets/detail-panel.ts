@@ -73,6 +73,5 @@ export interface AssetDetailPanelRailItem {
   key: AssetDetailPanelTab
   label: string
   icon: React.ComponentType<{ className?: string }>
-  count?: number
   visible: boolean
 }

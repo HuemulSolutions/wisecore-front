@@ -63,14 +63,6 @@ export function AssetsDetailPanelRail({
             >
               <span className={cn("relative", !isActive && "text-muted-foreground")}>
                 <Icon className="h-4 w-4" />
-                {!!item.count && item.count > 0 && (
-                  <span
-                    className="absolute -right-1.5 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-0.5 text-[9px] font-semibold text-white"
-                    style={{ backgroundColor: "var(--adp-accent-fg, var(--primary))" }}
-                  >
-                    {item.count > 99 ? "99+" : item.count}
-                  </span>
-                )}
               </span>
               <span className={cn("line-clamp-2 text-center text-[9px] leading-tight", !isActive && "text-muted-foreground")}>
                 {item.label}

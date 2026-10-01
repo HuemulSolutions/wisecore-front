@@ -24,7 +24,6 @@ export interface AssetsPanelFilesTabProps {
   onUpload: () => void;
   onOpenMediaSheet: () => void;
   onFetchingChange?: (isFetching: boolean) => void;
-  onCountChange?: (count: number) => void;
 }
 
 export interface AssetsPanelFilesTabHandle {
@@ -52,7 +51,6 @@ export const AssetsPanelFilesTab = forwardRef<AssetsPanelFilesTabHandle, AssetsP
   onUpload,
   onOpenMediaSheet,
   onFetchingChange,
-  onCountChange,
 }, ref) {
   const { t } = useTranslation(["assets", "media", "common"]);
   const [viewMode, setViewMode] = useMediaViewMode();
@@ -70,8 +68,6 @@ export const AssetsPanelFilesTab = forwardRef<AssetsPanelFilesTabHandle, AssetsP
   useEffect(() => { onFetchingChange?.(mediaQuery.isFetching); }, [mediaQuery.isFetching, onFetchingChange]);
 
   const items = mediaQuery.data?.data ?? [];
-  const totalCount = mediaQuery.data?.total ?? items.length;
-  useEffect(() => { onCountChange?.(totalCount); }, [totalCount, onCountChange]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;

@@ -24,6 +24,7 @@ import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
 import { useOrgPath, useOrgNavigate } from "@/hooks/useOrgRouter";
 import { useExecutionRelationships, useExecutionRelationshipMutations } from "@/hooks/useExecutionRelationships";
 import { useDocumentTypes } from "@/hooks/useDocumentTypes";
+import { useInViewOnce } from "@/hooks/useInViewOnce";
 import { getRelationshipLabel, getOtherExecution, tintFromColor } from "@/lib/execution-relationship-utils";
 import type { ExecutionRelationshipWithDetails } from "@/types/execution-relationships";
 
@@ -73,13 +74,17 @@ export function AssetsRelatedDocumentsBlock({
     relLabel: string;
   } | null>(null);
 
+  // El bloque vive al pie del documento: sus queries se piden recién cuando el usuario
+  // se acerca a él, no al abrir el asset.
+  const [sentinelRef, isNearViewport] = useInViewOnce<HTMLDivElement>();
+
   const { data, isLoading, isFetching, isError, refetch } = useExecutionRelationships(
     organizationId,
     executionId || "",
-    { enabled: !!executionId, direction: "all", includeSubrelationships: false },
+    { enabled: !!executionId && isNearViewport, direction: "all", includeSubrelationships: false },
   );
 
-  const { data: documentTypesResponse } = useDocumentTypes({ enabled: canListAssetTypes });
+  const { data: documentTypesResponse } = useDocumentTypes({ enabled: canListAssetTypes && isNearViewport });
   const typeNameById = useMemo(() => {
     const map = new Map<string, string>();
     for (const type of documentTypesResponse?.data ?? []) map.set(type.id, type.name);
@@ -150,7 +155,9 @@ export function AssetsRelatedDocumentsBlock({
 
   // Estado vacío ya lo cubre el panel lateral del TOC — acá el bloque solo aparece
   // cuando hay algo real que mostrar (o mientras carga la primera vez / hay error).
+  // Antes de acercarse al viewport solo se renderiza el sentinel (sin altura) que lo detecta.
   if (!executionId) return null;
+  if (!isNearViewport) return <div ref={sentinelRef} aria-hidden="true" />;
   if (!isLoading && !isError && relationships.length === 0) return null;
 
   const canSearch = relationships.length > SEARCH_THRESHOLD;

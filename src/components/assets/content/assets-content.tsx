@@ -602,6 +602,15 @@ export function AssetContent({
     if (activeTab === 'links' && !canListExecutionRelationships) setActiveTab('index');
   }, [activeTab, canListCustomFields, canListExecutionRelationships]);
   const [isTocSidebarOpen, setIsTocSidebarOpen] = useState(true);
+  // Los campos personalizados se piden recién cuando el usuario abre el tab "Campos"
+  // (por documento); después quedan en caché.
+  const [fieldsTabOpenedFor, setFieldsTabOpenedFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (activeTab === 'fields' && !isDetailPanelCollapsed && selectedFile?.id) {
+      setFieldsTabOpenedFor(selectedFile.id);
+    }
+  }, [activeTab, isDetailPanelCollapsed, selectedFile?.id]);
+  const hasOpenedFieldsTab = !!selectedFile?.id && fieldsTabOpenedFor === selectedFile.id;
   const [isSectionSheetOpen, setIsSectionSheetOpen] = useState(false);
   const [isSourcesSheetOpen, setIsSourcesSheetOpen] = useState(false);
 
@@ -1176,8 +1185,10 @@ export function AssetContent({
   // the content), so a tab left open longer than the backend's SAS TTL doesn't end
   // up with broken media. Cadence is derived from the backend's own ttl_seconds.
   const { data: mediaUrlsData } = useDocumentMediaUrls(selectedFile?.id, selectedOrganizationId ?? undefined, {
-    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
-    executionId: selectedExecutionId || undefined,
+    // Esperar a /content: así la key usa el execution_id real desde el primer fetch en vez
+    // de pedir primero la versión por defecto ('') y repetir al sincronizar selectedExecutionId.
+    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && !!documentContent,
+    executionId: selectedExecutionId || documentContent?.execution_id || undefined,
   });
 
   // Fetch full document details only when needed (sections management, sheet operations)
@@ -1208,14 +1219,14 @@ export function AssetContent({
   // `customFieldsPage`, que ahora es solo el paginado CLIENTE de 4 por página del
   // panel de detalle) — así la query key coincide con la de `useCustomFieldDocuments`
   // (validación preventiva del lifecycle) y comparten un solo fetch.
-  const { data: customFieldsData, isLoading: isLoadingCustomFields } = useQuery({
+  const { data: customFieldsData, isLoading: isLoadingCustomFields, isPending: isPendingCustomFields } = useQuery({
     queryKey: customFieldDocumentsQueryKeys.byDocument(selectedFile?.id, 1, CUSTOM_FIELDS_PAGE_SIZE),
     queryFn: () => getCustomFieldDocumentsByDocument({
       document_id: selectedFile!.id,
       page: 1,
       page_size: CUSTOM_FIELDS_PAGE_SIZE
     }),
-    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && canListCustomFields,
+    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && canListCustomFields && hasOpenedFieldsTab,
     staleTime: 60000, // Cache for 1 minute
     placeholderData: (prev) => prev,
   });
@@ -1426,11 +1437,15 @@ export function AssetContent({
     // Si no hay documento seleccionado, no fetch
     if (!selectedFile?.id || selectedFile.type !== 'document') return false;
     
+    // Mientras /content carga no sabemos si traerá `executions`: pedir el endpoint
+    // separado en paralelo duplicaba la llamada en cada apertura / cambio de versión.
+    if (!documentContent) return false;
+
     // Si ya tenemos executions data en documentContent, no necesitamos el endpoint separado
-    if (documentContent?.executions && Array.isArray(documentContent.executions)) {
+    if (Array.isArray(documentContent.executions)) {
       return false;
     }
-    
+
     return true;
   }, [selectedFile?.id, selectedFile?.type, documentContent?.executions]);
 
@@ -1445,11 +1460,6 @@ export function AssetContent({
 
   // Usado por AssetsRelatedDocumentsBlock más abajo (su propia query de relaciones).
   const relatedExecutionId = selectedExecutionId || documentContent?.execution_id;
-
-  // Prefetch del catálogo del nodo `data_table` (cache infinita, ver useDataTableSources) — así
-  // el slash command (transforms.ts, síncrono, fuera de React) lo encuentra ya en cache al
-  // insertar una tabla nueva.
-  useDataTableSources(selectedOrganizationId || undefined);
 
   // Check if there's any execution in process - optimized with memoization
   const hasExecutionInProcess = useMemo(() => {
@@ -1568,6 +1578,11 @@ export function AssetContent({
   // Show editor action buttons: only in edit stage when user is in editor mode.
   // Non-edit stages always stay in reader mode, so editor actions are never shown.
   const showEditorActions = canSwitchToEditorMode && !isViewMode;
+
+  // Prefetch del catálogo del nodo `data_table` (cache infinita, ver useDataTableSources) — así
+  // el slash command (transforms.ts, síncrono, fuera de React) lo encuentra ya en cache al
+  // insertar una tabla nueva. Solo hace falta en modo edición: en lectura no hay slash command.
+  useDataTableSources(selectedOrganizationId || undefined, showEditorActions);
 
   // Todo el chrome que depende del modo (toolbar strip, botón de editar título, paddings, bloque
   // de documentos relacionados y la lista de secciones) cuelga de ESTE valor diferido, no de
@@ -3413,7 +3428,7 @@ export function AssetContent({
               onAddSection={handleAddSection}
               onRefreshIndex={handleRefreshContent}
               customFields={customFieldsData?.data || []}
-              isLoadingCustomFields={isLoadingCustomFields}
+              isLoadingCustomFields={isLoadingCustomFields || (activeTab === 'fields' && isPendingCustomFields)}
               isRefreshingCustomFields={isRefreshingCustomFields}
               customFieldsPage={customFieldsPage}
               customFieldsPageSize={CUSTOM_FIELDS_PAGE_SIZE}

@@ -16,6 +16,8 @@ import { AssetsPanelLinksTab, type AssetsPanelLinksTabHandle } from "./assets-pa
 // query real — evita un "parpadeo" cuando la respuesta vuelve casi instantánea.
 const MIN_SPIN_MS = 900;
 
+const NO_TABS: ReadonlySet<AssetDetailPanelTab> = new Set();
+
 /**
  * Panel de detalle del activo: rail vertical (Índice/Campos/Recursos/Activos relacionados) +
  * header contextual (título, "+", refresh) + contenido del tab. Ver ia context/list-detail-panel-guide.md.
@@ -65,8 +67,23 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
 
   const [refreshingTab, setRefreshingTab] = useState<AssetDetailPanelTab | null>(null);
   const [isUploadSheetOpen, setIsUploadSheetOpen] = useState(false);
-  const [filesCount, setFilesCount] = useState(0);
-  const [linksCount, setLinksCount] = useState(0);
+
+  // Tabs ya visitados por documento. Un tab solo se monta (y por ende solo llama a su
+  // endpoint) cuando el usuario lo selecciona; después queda montado oculto para
+  // conservar su estado y su caché.
+  const [visited, setVisited] = useState<{ documentId: string; tabs: ReadonlySet<AssetDetailPanelTab> }>({
+    documentId,
+    tabs: new Set([activeTab]),
+  });
+  const visitedTabs = visited.documentId === documentId ? visited.tabs : NO_TABS;
+  const isTabMounted = (tab: AssetDetailPanelTab) => tab === activeTab || visitedTabs.has(tab);
+  useEffect(() => {
+    setVisited((prev) => {
+      const base = prev.documentId === documentId ? prev.tabs : NO_TABS;
+      if (base.has(activeTab) && prev.documentId === documentId) return prev;
+      return { documentId, tabs: new Set([...base, activeTab]) };
+    });
+  }, [documentId, activeTab]);
 
   // Alcance elegido en el selector del tab Recursos — controla qué se lista, a
   // dónde sube el "+" del header y con qué se abre "Ver todos los recursos".
@@ -112,8 +129,8 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
   const railItems: AssetDetailPanelRailItem[] = [
     { key: "index", label: t("content.detailPanel.tabs.index"), icon: List, visible: true },
     { key: "fields", label: t("content.detailPanel.tabs.fields"), icon: SlidersHorizontal, visible: canListCustomFields },
-    { key: "files", label: t("content.detailPanel.tabs.files"), icon: Paperclip, count: filesCount, visible: true },
-    { key: "links", label: t("content.detailPanel.tabs.linksShort"), icon: Link2, count: linksCount, visible: canListExecutionRelationships },
+    { key: "files", label: t("content.detailPanel.tabs.files"), icon: Paperclip, visible: true },
+    { key: "links", label: t("content.detailPanel.tabs.linksShort"), icon: Link2, visible: canListExecutionRelationships },
   ];
 
   const handleSelectTab = (tab: AssetDetailPanelTab) => {
@@ -198,13 +215,13 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
           </div>
         </div>
 
-        {/* Contenido del tab activo — Archivos y Vínculos quedan montados aunque no
-            estén activos, para que sus contadores del rail no partan en 0 al abrir el panel. */}
+        {/* Contenido del tab activo — cada tab se monta recién al visitarlo (así no pide
+            su endpoint al abrir el asset) y después queda montado oculto. */}
         <div className="min-h-0 flex-1 overflow-hidden">
           <div className={cn("h-full", activeTab !== "index" && "hidden")}>
             <AssetsPanelIndexTab items={tocItems} onAddSection={onAddSection} canAddSection={canAddSection} />
           </div>
-          {canListCustomFields && (
+          {canListCustomFields && isTabMounted("fields") && (
             <div className={cn("h-full", activeTab !== "fields" && "hidden")}>
               <AssetsPanelFieldsTab
                 customFields={customFields}
@@ -225,6 +242,7 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
               />
             </div>
           )}
+          {isTabMounted("files") && (
           <div className={cn("h-full", activeTab !== "files" && "hidden")}>
             <AssetsPanelFilesTab
               ref={filesRef}
@@ -238,10 +256,10 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
               canDeleteMedia={canDeleteMedia}
               onUpload={() => setIsUploadSheetOpen(true)}
               onOpenMediaSheet={() => onOpenMediaSheet(filesScope)}
-              onCountChange={setFilesCount}
             />
           </div>
-          {canListExecutionRelationships && (
+          )}
+          {canListExecutionRelationships && isTabMounted("links") && (
             <div className={cn("h-full", activeTab !== "links" && "hidden")}>
               <AssetsPanelLinksTab
                 ref={linksRef}
@@ -252,7 +270,6 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
                 canOpenDiagrams={canOpenDiagrams}
                 canListAssetTypes={canListAssetTypes}
                 canDeleteRelationship={canDeleteRelationship}
-                onCountChange={setLinksCount}
               />
             </div>
           )}
