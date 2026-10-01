@@ -1,3 +1,4 @@
+import type { CreateAssetContentMode } from "@/types/assets"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
@@ -37,6 +38,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const pendingFocusAssetIdRef = useRef<string | null>(null)
   const [createAssetDialogOpen, setCreateAssetDialogOpen] = useState(false)
   const [renderCreateAssetDialog, setRenderCreateAssetDialog] = useState(false)
+  const [createAssetInitialMode, setCreateAssetInitialMode] = useState<CreateAssetContentMode | undefined>(undefined)
   const [importAssetDialogOpen, setImportAssetDialogOpen] = useState(false)
   const [renderImportAssetDialog, setRenderImportAssetDialog] = useState(false)
   const [importExternalDialogOpen, setImportExternalDialogOpen] = useState(false)
@@ -78,8 +80,10 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const selectedOrganizationIdRef = useRef(selectedOrganizationId)
   selectedOrganizationIdRef.current = selectedOrganizationId
 
-  const handleCreateAsset = useCallback((folderId?: string) => {
+  const handleCreateAsset = useCallback((folderId?: string, mode?: CreateAssetContentMode) => {
     setCurrentFolderId(folderId)
+    // Se valida: algunos call-sites pasan este handler directo como onClick (el 2º arg sería un evento).
+    setCreateAssetInitialMode(mode === "blank" || mode === "template" || mode === "url" ? mode : undefined)
     setRenderCreateAssetDialog(true)
     setCreateAssetDialogOpen(true)
   }, [])
@@ -317,6 +321,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
           onOpenChange={handleCreateAssetDialogChange}
           folderId={currentFolderId}
           onAssetCreated={handleAssetCreated}
+          initialContentMode={createAssetInitialMode}
           canCreate={canAsset('createAsset')}
         />
       )}

@@ -130,7 +130,7 @@ describe('buildContentStates', () => {
 
   it('ningún texto queda vacío en los estados que renderizan ScreenState', () => {
     const states = buildContentStates(t, ctx, handlers());
-    for (const state of ['error', 'restricted', 'runFailed', 'importFailed', 'emptyNoSections', 'emptyWithSections', 'noSelection'] as const) {
+    for (const state of ['error', 'restricted', 'runFailed', 'importFailed', 'emptyNoSections', 'emptyWithSections'] as const) {
       expect(states[state].title, state).not.toBe('');
       expect(states[state].text, state).not.toBe('');
       expect(states[state].cardTitle, state).not.toBe('');

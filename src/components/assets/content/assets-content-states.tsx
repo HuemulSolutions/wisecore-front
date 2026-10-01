@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { HuemulScreenState } from '@/huemul/components/huemul-screen-state';
 import { ApiError } from '@/types/api-error';
 import type { ScreenStateConfig } from '@/types/huemul';
+import { AssetEmptyContent } from './assets-empty-content';
 import { ContentErrorState } from './content-error-state';
 import type { ContentState } from './content-state';
 
@@ -92,6 +93,7 @@ interface AssetContentStatesProps {
 /** Renderiza el estado del contenido central distinto de `ready`. */
 export function AssetContentStates({ state, config, error, onRetry, generatingProgress }: AssetContentStatesProps) {
   if (state === 'ready') return null;
+  if (state === 'noSelection') return <AssetEmptyContent currentFolderId={undefined} />;
   if (state === 'loading') return <AssetContentSkeleton />;
   if (state === 'generating') return <AssetContentGenerating progress={generatingProgress} />;
 

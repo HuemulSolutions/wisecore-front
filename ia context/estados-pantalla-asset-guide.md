@@ -14,12 +14,17 @@
 
 ## Reglas
 - **Un solo origen de verdad.** El estado se deriva en `content-state.ts` (`getContentState`) y `sources/sources-state.ts` (`getSourcesState`). Prohibido volver a flags sueltos en el render.
-- **Orden de prioridad** (contenido): `loading` → `error` → `restricted` → `generating` → (sin versión o sin contenido) `importFailed` / `runFailed` / `emptyWithSections` / `emptyNoSections` → `ready`. `noSelection` lo resuelve `AssetEmptyContent`, no `getContentState`.
+- **Orden de prioridad** (contenido): `loading` → `error` → `restricted` → `generating` → (sin versión o sin contenido) `importFailed` / `runFailed` / `emptyWithSections` / `emptyNoSections` → `ready`. `noSelection` lo resuelve `AssetEmptyContent` (no `getContentState`): es el asistente de creación (`AssetCreateWizard`, opciones en `create-options.ts`). Sin permiso de crear solo muestra el encabezado.
 - **Textos** en `assets:contentStates.*` (es + en). Botones en infinitivo; narrativa en «tú»; sin voseo; sin mencionar permisos ni detalles técnicos.
 - **Permisos**: las acciones de `ScreenStateConfig` llevan `access` (`requiredAccess`, `resource`, `lifecyclePermissions`) y `HuemulButton` las oculta si no corresponde. Una acción `undefined` no se muestra.
 - **Reintentos**: `onClick` devuelve la Promise (loading en el propio botón y sin doble click) o se pasa `loading`.
 - **Sin layout shift**: el skeleton (`AssetContentSkeleton`) ocupa lo mismo que el contenido; sin spinner.
 - **Acciones sin backend** (reintentar solo las secciones fallidas, «avisarme cuando termine», escribir al revisor): no se implementan ni se fingen. Pedirlas con `backend-change-request-guide.md`.
+
+## Asistente «sin asset»
+- Cada opción de `CREATE_OPTIONS` abre el flujo de creación existente con el método preseleccionado: `handleCreateAsset(folderId, 'blank'|'template'|'url')` (propaga a `CreateAssetSheet.initialContentMode`); archivo y sistema externo usan `handleImportAsset` / `handleImportAssetFromExternal`; «Importar JSON» usa `handleImportConfig`. Todos salen de `useNavKnowledgeActions`.
+- Un método nuevo = una entrada en `CREATE_OPTIONS` + textos en `assets:createWizard.options.<id>.*`.
+- Header y panel de Detalle viven dentro de `AssetContent`: sin asset no se montan.
 
 ## Previsualizar en desarrollo (no hay Storybook)
 Solo con `import.meta.env.DEV` (`hooks/useDevStateOverride.ts`):

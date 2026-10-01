@@ -67,30 +67,11 @@ function compact<T>(items: (T | undefined | false)[]): T[] {
   return items.filter((item): item is T => !!item);
 }
 
-/** Estado sin activo seleccionado: qué es un activo, cómo se elige desde Conocimiento y qué se ve al abrirlo. */
-export function buildNoSelectionState(t: TFunction): ScreenStateConfig {
-  const k = (key: string) => t(`contentStates.noSelection.${key}`);
-  return {
-    title: k('title'),
-    text: k('text'),
-    cardTitle: k('cardTitle'),
-    cardSub: k('cardSub'),
-    steps: [
-      { n: '1', title: k('step1Title'), text: k('step1Text'), active: true },
-      { n: '2', title: k('step2Title'), text: k('step2Text') },
-      { n: '3', title: k('step3Title'), text: k('step3Text') },
-    ],
-    mini: {
-      title: k('miniTitle'),
-      items: [1, 2, 3].map((i) => ({ t: k(`mini${i}Title`), d: k(`mini${i}Text`) })),
-    },
-  };
-}
-
 /**
  * Mapa de textos y acciones de cada estado del contenido central. Los textos viven en
  * `assets:contentStates.*`; acá solo se arma la configuración que consume `HuemulScreenState`.
- * `ready`, `loading` y `generating` no usan ScreenState (los renderiza `AssetContentStates`).
+ * `ready`, `loading`, `generating` y `noSelection` no usan ScreenState (los renderiza `AssetContentStates`;
+ * `noSelection` es el asistente de creación de `AssetEmptyContent`).
  */
 export function buildContentStates(
   t: TFunction,
@@ -323,6 +304,6 @@ export function buildContentStates(
       ]),
     },
 
-    noSelection: buildNoSelectionState(t),
+    noSelection: EMPTY_STATE,
   };
 }

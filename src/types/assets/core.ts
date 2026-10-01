@@ -331,11 +331,16 @@ export interface DocumentMediaUrlsResponse {
 // Dialog Props Types
 // ========================================
 
+/** Método de contenido inicial del sheet de creación de assets. */
+export type CreateAssetContentMode = "blank" | "template" | "url";
+
 export interface CreateAssetSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   folderId?: string;
   onAssetCreated?: (asset: { id: string; name: string; type: "document" }) => void;
+  /** Método preseleccionado al abrir (por defecto, en blanco). */
+  initialContentMode?: CreateAssetContentMode;
   /**
    * `asset:c` resuelto por el consumidor. Obligatoria a propósito (sin default):
    * el sheet muta `POST /documents/`, y un call-site que se olvide de pasarla

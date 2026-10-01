@@ -29,6 +29,9 @@ export function useNavKnowledgeActions() {
   const context = useContext(NavKnowledgeContext)
   return {
     handleCreateAsset: context?.handleCreateAsset || (() => {}),
+    handleImportAsset: context?.handleImportAsset || (() => {}),
+    handleImportAssetFromExternal: context?.handleImportAssetFromExternal || (() => {}),
+    handleImportConfig: context?.handleImportConfig || (() => {}),
     handleCreateFolder: context?.handleCreateFolder || (() => {}),
   }
 }

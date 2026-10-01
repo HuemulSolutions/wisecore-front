@@ -19,9 +19,12 @@ import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import CreateDocumentType from "@/components/assets-types/assets-types-create"
 import { handleImportFromUrlError } from "./import-error-utils"
-import type { CreateAssetRequest, CreateAssetSheetProps, DuplicateDocumentDetail } from "@/types/assets"
-
-type ContentMode = "blank" | "template" | "url"
+import type {
+  CreateAssetContentMode as ContentMode,
+  CreateAssetRequest,
+  CreateAssetSheetProps,
+  DuplicateDocumentDetail,
+} from "@/types/assets"
 
 const SECTION_SEPARATOR_OPTIONS = ["h1", "h2", "h3"] as const
 
@@ -40,7 +43,7 @@ function isLikelyMarkdownUrl(value: string): boolean {
   return /\.(md|markdown)$/i.test(parsed.pathname)
 }
 
-function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated, canCreate }: CreateAssetSheetProps) {
+function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated, initialContentMode, canCreate }: CreateAssetSheetProps) {
   const { selectedOrganizationId } = useOrganization()
   const { t } = useTranslation('assets')
   const { t: tCommon } = useTranslation('common')
@@ -68,12 +71,12 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated, c
       setDocTypeLabel("")
       setDocTypeColor(undefined)
       setTemplateId("")
-      setContentMode("blank")
+      setContentMode(initialContentMode ?? "blank")
       setUrl("")
       setSectionSeparator("h1")
       setForceImport(false)
     }
-  }, [open, selectedOrganizationId])
+  }, [open, selectedOrganizationId, initialContentMode])
 
   // Async fetch for templates (server-side search via `search`)
   const fetchTemplateOptions = React.useCallback(
