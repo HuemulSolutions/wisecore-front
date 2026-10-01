@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
-import { Plus, Settings2, Edit2, Trash2, Lock } from "lucide-react"
+import { Plus, Settings2, Pencil, Trash2, Lock } from "lucide-react"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
@@ -183,7 +183,7 @@ function AttributeRow({ attribute, onEdit, onDelete, t }: {
           onClick={() => onEdit(attribute)}
           className="p-1.5 rounded hover:bg-accent hover:cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
         >
-          <Edit2 className="h-3.5 w-3.5" />
+          <Pencil className="h-3.5 w-3.5" />
         </button>
         <button
           onClick={() => onDelete(attribute)}
@@ -359,7 +359,7 @@ function AttributeEditDialog({ open, onOpenChange, attribute, mutations, t }: {
       open={open}
       onOpenChange={onOpenChange}
       title={t("editAttribute.title")}
-      icon={Edit2}
+      icon={Pencil}
       maxWidth="sm:max-w-sm"
       saveAction={{ label: t("editAttribute.submitLabel"), onClick: handleSubmit }}
     >

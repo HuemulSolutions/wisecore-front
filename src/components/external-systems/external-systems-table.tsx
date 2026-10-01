@@ -1,4 +1,4 @@
-import { Edit2, Trash2 } from "lucide-react"
+import { Pencil, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import type { ExternalSystem } from "@/types/external-systems"
 import {
@@ -66,7 +66,7 @@ export function ExternalSystemsTable({
     {
       key: "edit",
       label: t("actions.edit"),
-      icon: Edit2,
+      icon: Pencil,
       onClick: onEdit,
       separator: true,
     },

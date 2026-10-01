@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Plus, Edit2, Trash2, Check, X, Loader2, RefreshCw } from "lucide-react"
+import { Plus, Pencil, Trash2, Check, X, Loader2, RefreshCw } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import {
   useExternalFunctionalityParameters,
@@ -244,7 +244,7 @@ export function ExternalFunctionalityParamsTab({
                 disabled={isOtherRowEditing}
                 onClick={() => startEditing(param)}
               >
-                <Edit2 className="h-3.5 w-3.5" />
+                <Pencil className="h-3.5 w-3.5" />
               </Button>
             )}
             {canDelete && (

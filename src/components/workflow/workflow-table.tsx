@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next"
-import { Workflow as WorkflowIcon, Trash2, Share2, Paperclip, Edit3, ExternalLink, Maximize2 } from "lucide-react"
+import { Workflow as WorkflowIcon, Trash2, Share2, Paperclip, Pencil, ExternalLink, Maximize2 } from "lucide-react"
 import { HuemulTable } from "@/huemul/components/huemul-table"
 import type { HuemulTableAction, HuemulTableColumn, HuemulTablePagination } from "@/huemul/components/huemul-table"
 import { HuemulLifecycleStageBadge } from "@/huemul/components/huemul-lifecycle-stage-badge"
@@ -153,7 +153,7 @@ export function WorkflowTable({
     ...(canOpenAsset ? [{ key: "openAsset", label: t("actions.openAsset"), icon: ExternalLink, onClick: onOpenAsset }] : []),
     ...(canOpenFullscreen ? [{ key: "openFullscreen", label: t("actions.openFullscreen"), icon: Maximize2, onClick: onOpenFullscreen }] : []),
     ...(canViewMedia ? [{ key: "media", label: t("panel.media"), icon: Paperclip, onClick: onViewMedia }] : []),
-    ...(canEditAsset ? [{ key: "edit", label: t("panel.edit"), icon: Edit3, onClick: onEditAsset }] : []),
+    ...(canEditAsset ? [{ key: "edit", label: t("panel.edit"), icon: Pencil, onClick: onEditAsset }] : []),
   ]
   if (canDelete && safeActions.length > 0) safeActions[safeActions.length - 1].separator = true
   const actions: HuemulTableAction<WorkflowItem>[] = [

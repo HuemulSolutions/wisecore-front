@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
-import { GripVertical, Edit, ArrowUp, ArrowDown, ArrowRight, Trash2 } from "lucide-react";
+import { GripVertical, Pencil, ArrowUp, ArrowDown, ArrowRight, Trash2 } from "lucide-react";
 import { HuemulOrderedItemCard } from "@/huemul/components/huemul-ordered-item-card";
 import type { HuemulOrderedItemCardMenuAction } from "@/types/huemul";
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
@@ -71,7 +71,7 @@ export function TemplateSectionCard({
 
   const menuActions: HuemulOrderedItemCardMenuAction[] = [];
   if (canUpdate) {
-    menuActions.push({ key: "configure", label: t("templates:sectionsList.configureLink"), icon: Edit, onClick: handleOpenConfigure });
+    menuActions.push({ key: "configure", label: t("templates:sectionsList.configureLink"), icon: Pencil, onClick: handleOpenConfigure });
     menuActions.push({ key: "move-up", label: t("templates:sectionsList.moveUp"), icon: ArrowUp, onClick: onMoveUp, disabled: isFirst });
     menuActions.push({ key: "move-down", label: t("templates:sectionsList.moveDown"), icon: ArrowDown, onClick: onMoveDown, disabled: isLast });
   }

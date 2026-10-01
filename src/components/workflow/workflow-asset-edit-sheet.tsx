@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { Edit3 } from "lucide-react"
+import { Pencil } from "lucide-react"
 import { toast } from "sonner"
 import { updateDocument, getDocumentById } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
@@ -106,7 +106,7 @@ export function WorkflowAssetEditSheet({
       onOpenChange={onOpenChange}
       title={t("assets:edit.title")}
       description={t("assets:edit.description")}
-      icon={Edit3}
+      icon={Pencil}
       side="right"
       maxWidth="sm:max-w-xl"
       cancelLabel={t("common:cancel")}

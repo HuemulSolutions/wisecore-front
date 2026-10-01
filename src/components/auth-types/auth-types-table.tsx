@@ -1,4 +1,4 @@
-import { Edit2, Trash2, Shield, KeyRound, Lock } from "lucide-react"
+import { Pencil, Trash2, Shield, KeyRound, Lock } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import type { AuthType } from "@/services/auth-types"
@@ -99,7 +99,7 @@ export function AuthTypesTable({
     {
       key: "edit",
       label: t('actions.editAuthType'),
-      icon: Edit2,
+      icon: Pencil,
       onClick: onEdit,
       show: (authType) => !isReadOnly(authType),
       separator: true

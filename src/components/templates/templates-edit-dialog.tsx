@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { TemplateFormFields } from "@/components/templates/templates-form-fields";
 import { updateTemplate, getTemplateById } from "@/services/templates";
-import { Edit3 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { withRefresh } from "@/lib/query-utils";
 import type { EditTemplateDialogProps, TemplateFormValues } from '@/types/templates';
 export type { EditTemplateDialogProps } from '@/types/templates';
@@ -92,7 +92,7 @@ export function EditTemplateDialog({
       onOpenChange={onOpenChange}
       title={t('edit.title')}
       description={t('edit.description')}
-      icon={Edit3}
+      icon={Pencil}
       bodyLoading={isLoadingDetail}
       maxWidth="w-full sm:max-w-2xl lg:max-w-3xl"
       saveAction={{

@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, MoreVertical, Edit, Bot, Lock, Send, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, MoreVertical, Pencil, Bot, Lock, Send, Trash2 } from 'lucide-react';
 import { Separator } from "@/components/ui/separator";
 import Markdown from "@/components/ui/markdown";
 import { useState } from 'react';
@@ -89,7 +89,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                                 className='hover:cursor-pointer'
                                 onClick={() => setIsEditing(true)}
                             >
-                                <Edit className="h-4 w-4 mr-2" />
+                                <Pencil className="h-4 w-4 mr-2" />
                                 {t('common:edit')}
                             </DropdownMenuItem>
                         )}

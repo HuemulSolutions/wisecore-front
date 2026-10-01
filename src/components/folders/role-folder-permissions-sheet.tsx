@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Search, Share2, Plus, Trash2, Edit2, Check, X, Eye, ShieldCheck, Info, RefreshCw } from "lucide-react"
+import { Search, Share2, Plus, Trash2, Pencil, Check, X, Eye, ShieldCheck, Info, RefreshCw } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useRoles } from "@/hooks/useRbac"
@@ -336,7 +336,7 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
                           </div>
                           {canUpdateRoleFolder && (
                             <HuemulButton
-                              icon={Edit2}
+                              icon={Pencil}
                               variant="ghost"
                               size="sm"
                               className="h-6 w-6 p-0"

@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react"
 import { useTranslation } from "react-i18next"
-import { Edit2, Globe, Plus, RefreshCw, Search, Trash2, X, Zap } from "lucide-react"
+import { Pencil, Globe, Plus, RefreshCw, Search, Trash2, X, Zap } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -219,7 +219,7 @@ export default function ExternalSystemsPage() {
       },
       {
         label: t("external-functionalities:actions.edit"),
-        icon: <Edit2 className="h-4 w-4" />,
+        icon: <Pencil className="h-4 w-4" />,
         show: (node) => node.type === "external-system" && canEditSystem,
         onClick: async (nodeId) => {
           const system = systemsRef.current.get(nodeId)
@@ -239,7 +239,7 @@ export default function ExternalSystemsPage() {
       // ── Functionality actions ───────────────────────────────────────────────
       {
         label: t("external-functionalities:actions.edit"),
-        icon: <Edit2 className="h-4 w-4" />,
+        icon: <Pencil className="h-4 w-4" />,
         show: (node) => node.type === "external-functionality" && canEditFunctionality,
         onClick: async (nodeId) => {
           const entry = functionalitiesRef.current.get(nodeId)

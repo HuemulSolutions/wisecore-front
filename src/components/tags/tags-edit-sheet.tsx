@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
-import { Edit } from "lucide-react"
+import { Pencil } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { useTagMutations } from "@/hooks/useTags"
 import { TagFormFields } from "./tags-form-fields"
@@ -69,7 +69,7 @@ export function TagsEditSheet({ open, onOpenChange, tag, canUpdate = false }: Ed
       open={open}
       onOpenChange={onOpenChange}
       title={t('editDialog.title')}
-      icon={Edit}
+      icon={Pencil}
       size="md"
       cancelLabel={t('common:cancel')}
       saveAction={{

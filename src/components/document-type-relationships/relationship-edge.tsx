@@ -11,7 +11,7 @@ import {
   type Edge,
   type InternalNode,
 } from "@xyflow/react"
-import { Edit2, Trash2, Settings2 } from "lucide-react"
+import { Pencil, Trash2, Settings2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 
@@ -281,7 +281,7 @@ export function RelationshipEdge({
                   className="p-1 rounded hover:bg-accent hover:cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
                   title={t("panel.edit")}
                 >
-                  <Edit2 className="h-3 w-3" />
+                  <Pencil className="h-3 w-3" />
                 </button>
               )}
               {edgeData.onManageAttributes && (

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bell, Star, Eye, Edit2, Trash2, Plus, Mail, Smartphone } from "lucide-react"
+import { Bell, Star, Eye, Pencil, Trash2, Plus, Mail, Smartphone } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulButton } from "@/huemul/components/huemul-button"
@@ -118,7 +118,7 @@ export function SubscriptionsSheet({ open, onOpenChange, organizationId }: Subsc
     {
       key: "edit",
       label: t("actions.edit"),
-      icon: Edit2,
+      icon: Pencil,
       onClick: (item) => setTimeout(() => setEditingItem(item), 0),
       separator: true,
     },

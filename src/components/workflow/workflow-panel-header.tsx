@@ -1,4 +1,4 @@
-import { X, Edit3, ExternalLink, Maximize2, MoreVertical, Paperclip, RefreshCw, type LucideIcon } from "lucide-react";
+import { X, Pencil, ExternalLink, Maximize2, MoreVertical, Paperclip, RefreshCw, type LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "@/lib/format-relative-time";
@@ -97,7 +97,7 @@ export function WorkflowPanelHeader({
         ...(showOpenFullscreen
           ? [{ key: "openFullscreen", label: t("actions.openFullscreen"), icon: Maximize2, onClick: onOpenFullscreen }]
           : []),
-        ...(showAssetEdit && canEdit ? [{ key: "edit", label: t("panel.edit"), icon: Edit3, onClick: onOpenEdit }] : []),
+        ...(showAssetEdit && canEdit ? [{ key: "edit", label: t("panel.edit"), icon: Pencil, onClick: onOpenEdit }] : []),
       ]
     : [];
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
-import { Edit } from "lucide-react"
+import { Pencil } from "lucide-react"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { useSubscriptionMutations } from "@/hooks/useSubscriptions"
@@ -66,7 +66,7 @@ export function SubscriptionEditDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={t("edit.title")}
-      icon={Edit}
+      icon={Pencil}
       maxWidth="sm:max-w-md"
       saveAction={{ label: t("common:update"), onClick: handleSubmit }}
     >

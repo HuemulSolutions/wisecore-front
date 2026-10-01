@@ -9,7 +9,7 @@ import { getAssetTypes } from '@/services/asset-types';
 import { getUsers } from '@/services/users';
 import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
-import { Edit3 } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import type { EditDocumentDialogProps } from "@/types/assets";
 
 const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({ 
@@ -161,7 +161,7 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
       onOpenChange={onOpenChange}
       title={t('assets:edit.title')}
       description={t('assets:edit.description')}
-      icon={Edit3}
+      icon={Pencil}
       side="right"
       maxWidth="sm:max-w-xl"
       cancelLabel={t('common:cancel')}

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Edit3 } from "lucide-react"
+import { Pencil } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
@@ -101,7 +101,7 @@ export function EditSectionDialog({
           ? t("sections:editDialog.subtitle", { name: containerName })
           : t("sections:editDialog.subtitleNoName")
       }
-      icon={Edit3}
+      icon={Pencil}
       cancelLabel={t("common:cancel")}
       onCancel={handleCancel}
       maxWidth="w-full sm:max-w-[860px]"
@@ -109,7 +109,7 @@ export function EditSectionDialog({
       footerLeft={<span className="text-xs text-[#64748b]">{t("sections:form.propagate.footerNote")}</span>}
       saveAction={{
         label: isGenerating ? t("sections:editDialog.generating") : t("sections:editDialog.save"),
-        icon: Edit3,
+        icon: Pencil,
         disabled: loading || !isFormValid || isGenerating || isSaving,
         loading: isSaving,
         closeOnSuccess: false,

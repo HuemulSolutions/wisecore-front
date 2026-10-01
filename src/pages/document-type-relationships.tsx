@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Edit2, Activity, Copy, Trash2 } from "lucide-react"
+import { Pencil, Activity, Copy, Trash2 } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
 import { useDocumentTypes } from "@/hooks/useDocumentTypes"
 import { usePageAccess } from "@/hooks/usePageAccess"
@@ -101,7 +101,7 @@ export default function DocumentTypeRelationshipsPage() {
     ...(canUpdateDocumentType ? [{
       key: "edit",
       label: t("asset-types:actions.editAssetType"),
-      icon: Edit2,
+      icon: Pencil,
       onClick: (nodeId: string) => {
         const node = documentTypes.find((d) => d.id === nodeId)
         setEditingAssetType(toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8"))

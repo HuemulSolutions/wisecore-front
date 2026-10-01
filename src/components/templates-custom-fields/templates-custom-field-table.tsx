@@ -8,7 +8,7 @@ import { DataTable, type TableColumn, type TableAction } from "@/components/ui/d
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
-import { Edit2, Trash2, FileEdit } from "lucide-react"
+import { Pencil, Trash2, FileEdit } from "lucide-react"
 import { questionTypeLabel, QUESTION_TYPE } from "@/components/sections/question-type-meta"
 import { CustomFieldFilesCell } from "@/components/custom-fields/custom-field-files-cell"
 import type { CustomFieldTemplate } from '@/types/custom-fields';
@@ -224,7 +224,7 @@ export function CustomFieldTemplateTable({
       {
         key: "edit-configuration",
         label: t('customFields.table.editConfiguration'),
-        icon: Edit2,
+        icon: Pencil,
         onClick: onEditCustomFieldTemplate,
       },
     ] : []),

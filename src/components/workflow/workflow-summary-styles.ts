@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Edit3, Eye } from "lucide-react";
+import { Pencil, Eye } from "lucide-react";
 import type { WorkflowSectionTone } from "@/components/workflow/workflow-section-card-state";
 
 // Paleta hex literal de ESTA superficie (vista de resumen del panel de workflow), tal como la
@@ -33,8 +33,8 @@ export const SUMMARY_ACTION_BUTTON_CLASS = "h-[30px] rounded-[7px] px-[12px] tex
 export type WorkflowSummaryActionKind = "answer" | "edit" | "view";
 
 export const SUMMARY_ACTION_ICONS: Record<WorkflowSummaryActionKind, LucideIcon> = {
-  answer: Edit3,
-  edit: Edit3,
+  answer: Pencil,
+  edit: Pencil,
   view: Eye,
 };
 

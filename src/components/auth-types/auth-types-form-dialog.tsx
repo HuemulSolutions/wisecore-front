@@ -11,7 +11,7 @@
  */
 import { useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Edit, Plus } from "lucide-react"
+import { Pencil, Plus } from "lucide-react"
 
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
@@ -100,7 +100,7 @@ export function AuthTypeFormDialog({ open, onOpenChange, authType = null, canMan
       open={open}
       onOpenChange={onOpenChange}
       title={mode === 'create' ? t('createDialog.title') : t('editDialog.title')}
-      icon={mode === 'create' ? Plus : Edit}
+      icon={mode === 'create' ? Plus : Pencil}
       maxWidth="sm:max-w-lg"
       maxHeight="max-h-[90vh]"
       saveAction={{

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
-import { Edit } from "lucide-react"
+import { Pencil } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { useExternalFunctionalityMutations } from "@/hooks/useExternalFunctionalities"
 import { ExternalFunctionalityForm } from "./external-functionality-form"
@@ -62,7 +62,7 @@ export function ExternalFunctionalityEditSheet({
       open={open}
       onOpenChange={onOpenChange}
       title={t("edit.title")}
-      icon={Edit}
+      icon={Pencil}
       maxWidth="sm:max-w-2xl"
       saveAction={{
         label: t("common:update"),

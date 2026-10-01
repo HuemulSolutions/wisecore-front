@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, Edit, Trash2, FileUp, FolderUp, ShieldCheck, Sparkles, ChevronLeft } from "lucide-react"
+import { File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, Pencil, Trash2, FileUp, FolderUp, ShieldCheck, Sparkles, ChevronLeft } from "lucide-react"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -558,7 +558,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
     },
     {
       label: t('knowledge.editFolder'),
-      icon: <Edit className="h-4 w-4" />,
+      icon: <Pencil className="h-4 w-4" />,
       onClick: async (nodeId) => {
         const folderName = folderNames.get(nodeId) || ""
         handleEditFolder(nodeId, folderName)
@@ -641,7 +641,7 @@ export function NavKnowledgeContent({ diagramMode = false }: NavKnowledgeContent
     },
     {
       label: t('knowledge.editFile'),
-      icon: <Edit className="h-4 w-4" />,
+      icon: <Pencil className="h-4 w-4" />,
       onClick: async (nodeId) => {
         const documentName = documentNames.get(nodeId) || ""
         handleEditDocument(nodeId, documentName)

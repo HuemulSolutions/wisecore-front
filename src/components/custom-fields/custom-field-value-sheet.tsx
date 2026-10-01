@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulField } from "@/huemul/components/huemul-field"
-import { Edit2, FileEdit } from "lucide-react"
+import { Pencil, FileEdit } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
 import { useCustomField } from "@/hooks/useCustomFields"
 import { CustomFieldValueField } from "@/components/custom-fields/custom-field-value-field"
@@ -290,7 +290,7 @@ export function CustomFieldValueSheet({
     : {
         title: entityType === "document" ? t('editValueDialog.titleDocument') : t('editValueDialog.titleTemplate'),
         description: entityType === "document" ? t('editValueDialog.descriptionDocument') : t('editValueDialog.descriptionTemplate'),
-        icon: Edit2,
+        icon: Pencil,
         submitLabel: entityType === "document" ? t('editValueDialog.submitLabelDocument') : t('editValueDialog.submitLabelTemplate'),
       }
 

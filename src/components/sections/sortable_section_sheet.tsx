@@ -21,7 +21,7 @@ import {
   ChevronDown,
   ChevronUp,
   MoreVertical,
-  Edit,
+  Pencil,
   Trash2,
 } from "lucide-react";
 import { EditSectionDialog } from "./sections-edit-sheet";
@@ -264,7 +264,7 @@ export default function SortableSectionSheet({
                               }}
                               className="hover:cursor-pointer"
                             >
-                              <Edit className="h-4 w-4 mr-2" />
+                              <Pencil className="h-4 w-4 mr-2" />
                               {t("common:edit")}
                             </DropdownMenuItem>
                           )}

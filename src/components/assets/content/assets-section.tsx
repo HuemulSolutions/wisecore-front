@@ -1,4 +1,4 @@
-import { MoreVertical, SlidersHorizontal, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitCompare, History, Eye, XCircle, Clock, ChevronDown } from 'lucide-react';
+import { MoreVertical, SlidersHorizontal, Pencil, Bot, Copy, Trash2, Play, FastForward, Loader2, GitCompare, History, Eye, XCircle, Clock, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { memo, useState, useEffect, useRef, useContext, useMemo } from 'react';
 import { SectionCollapseContext } from '@/contexts/section-collapse-context';
@@ -759,7 +759,7 @@ function SectionExecutionInner({
                                                 {!isExecutionApproved && canEdit && canEditSections && (
                                                     <SectionBarButton
                                                         tone="secondary"
-                                                        icon={Edit}
+                                                        icon={Pencil}
                                                         tooltip={t('section.editSection')}
                                                         onClick={handleStartEditing}
                                                     />
@@ -892,7 +892,7 @@ function SectionExecutionInner({
                                             className='hover:cursor-pointer'
                                             onClick={handleStartEditing}
                                         >
-                                            <Edit className="h-4 w-4 mr-2" />
+                                            <Pencil className="h-4 w-4 mr-2" />
                                             {t('common:edit')}
                                         </DropdownMenuItem>
                                     )}

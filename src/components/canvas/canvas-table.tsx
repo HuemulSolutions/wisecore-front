@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge"
-import { Edit2, Trash2 } from "lucide-react"
+import { Pencil, Trash2 } from "lucide-react"
 import type { Canvas, CanvasTableProps } from '@/types/canvas'
 export type { CanvasTableProps } from '@/types/canvas'
 import { HuemulTable } from "@/huemul/components/huemul-table"
@@ -84,7 +84,7 @@ export function CanvasTable({
           {
             key: "edit",
             label: t('actions.editCanvas'),
-            icon: Edit2,
+            icon: Pencil,
             onClick: onEdit,
           },
         ]
