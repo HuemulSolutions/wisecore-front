@@ -37,6 +37,7 @@ const translations = {
       off: { en: "Off", es: "Desactivada" },
       view: { en: "View", es: "Ver" },
       configure: { en: "Configure", es: "Configurar" },
+      withEvaluation: { en: "{{name}} · +{{count}} in evaluation", es: "{{name}} · +{{count}} en evaluación" },
     },
     assigned: { en: "Assigned", es: "Asignado" },
     optional: { en: "Optional", es: "Opcional" },
@@ -326,8 +327,123 @@ const translations = {
   },
   embeddings: {
     intro: {
-      en: "Embeddings turn the content of your documents into a numeric representation so search finds results by meaning. Your organization uses one provider at a time.",
-      es: "Los embeddings convierten el contenido de tus documentos en una representación numérica para que la búsqueda encuentre resultados por significado. Tu organización usa un solo proveedor a la vez.",
+      en: "Embeddings turn the content of your documents into a numeric representation so search finds results by meaning. Search always uses one provider, the default; the other slots let you try another model with your real content before switching.",
+      es: "Los embeddings convierten el contenido de tus documentos en una representación numérica para que la búsqueda encuentre resultados por significado. La búsqueda usa siempre un proveedor, el predeterminado; los otros espacios sirven para probar otro modelo con tu contenido real antes de cambiar.",
+    },
+    howItWorks: {
+      title: { en: "How do the {{max}} slots work?", es: "¿Cómo funcionan los {{max}} espacios?" },
+      whatTitle: { en: "What they're for", es: "Para qué sirven" },
+      what: {
+        p1: {
+          en: "Search always uses one provider: the default. Everyone in the organization searches with it.",
+          es: "La búsqueda usa siempre un solo proveedor: el predeterminado. Todos en la organización buscan con él.",
+        },
+        p2: {
+          en: "The other {{evaluation}} slots are for evaluation: you add another model, it prepares itself with your real documents without touching the search people use, and you switch only when it's complete. That way you can compare models and change provider without cutting search off.",
+          es: "Los otros {{evaluation}} espacios son de evaluación: agregas otro modelo, se prepara con tus documentos reales sin tocar la búsqueda que usa la gente y cambias solo cuando está completo. Así puedes comparar modelos y cambiar de proveedor sin cortar la búsqueda.",
+        },
+      },
+      howTitle: { en: "How to use them", es: "Cómo se usan" },
+      how: {
+        p1: { en: "Add a provider in a free slot.", es: "Agrega un proveedor en un espacio libre." },
+        p2: {
+          en: "Wait for its index to be built and its vectors to be computed for all the content (progress bar).",
+          es: "Espera a que se construya su índice y se calculen sus vectores para todo el contenido (barra de avance).",
+        },
+        p3: {
+          en: "Compare it with the current one, using the search evaluations or with an admin trying searches with that provider.",
+          es: "Compáralo con el actual, con las evaluaciones de búsqueda o con un administrador que pruebe búsquedas con ese proveedor.",
+        },
+        p4: {
+          en: "When it reaches 100%, use \"Make default\". If you no longer need the previous one, delete it.",
+          es: "Cuando llegue al 100 %, usa \"Hacer predeterminado\". Si ya no necesitas el anterior, elimínalo.",
+        },
+      },
+      implicationsTitle: { en: "What it implies", es: "Implicancias" },
+      implications: {
+        p1: {
+          en: "Cost: each provider computes vectors for all the content when added, and then for every new or edited document. With {{max}} providers, indexing costs up to {{max}} times as much, even though search uses only one.",
+          es: "Costo: cada proveedor calcula vectores para todo el contenido al agregarse, y después para cada documento nuevo o modificado. Con {{max}} proveedores, indexar cuesta hasta {{max}} veces más, aunque la búsqueda use uno solo.",
+        },
+        p2: {
+          en: "Making one the default is instant and doesn't reindex. The previous one stays as an evaluation provider and keeps being billed until you delete it.",
+          es: "Hacer predeterminado a uno es instantáneo y no reindexa. El anterior queda como proveedor de evaluación y se sigue pagando hasta que lo elimines.",
+        },
+        p3: {
+          en: "Changing a provider's model (or provider type) deletes its vectors and computes them again.",
+          es: "Cambiar el modelo (o el tipo) de un proveedor borra sus vectores y los vuelve a calcular.",
+        },
+        p4: {
+          en: "Deleting an evaluation provider deletes its vectors. Adding it back means paying for the full computation again.",
+          es: "Eliminar un proveedor de evaluación borra sus vectores. Volver a agregarlo implica pagar de nuevo el cálculo completo.",
+        },
+        p5: {
+          en: "The default can't be deleted while other providers exist: make another one the default first.",
+          es: "El predeterminado no se puede eliminar mientras haya otros: primero haz predeterminado a otro.",
+        },
+      },
+    },
+    slots: {
+      title: { en: "Providers ({{used}} of {{max}} slots)", es: "Proveedores ({{used}} de {{max}} espacios)" },
+      defaultChip: { en: "Default · in use", es: "Predeterminado · en uso" },
+      evaluationChip: { en: "Evaluation", es: "Evaluación" },
+      dimensions: { en: "{{value}} dimensions", es: "{{value}} dimensiones" },
+      index: {
+        ready: { en: "Index ready", es: "Índice listo" },
+        building: { en: "Building index", es: "Construyendo índice" },
+        failed: { en: "Index failed", es: "Índice falló" },
+        none: { en: "No index", es: "Sin índice" },
+      },
+      indexFailedHelp: {
+        en: "Its index couldn't be built. Test the connection and rebuild it.",
+        es: "No se pudo construir su índice. Prueba la conexión y vuelve a construirlo.",
+      },
+      coverageLabel: { en: "Vector coverage", es: "Cobertura de vectores" },
+      coverage: {
+        en: "{{done}} of {{total}} fragments with vectors ({{percent}}%)",
+        es: "{{done}} de {{total}} fragmentos con vectores ({{percent}} %)",
+      },
+      coverageEmpty: { en: "There's no indexed content yet.", es: "Todavía no hay contenido indexado." },
+      makeDefault: { en: "Make default", es: "Hacer predeterminado" },
+      makeDefaultBlocked: { en: "Its index isn't ready yet.", es: "Su índice todavía no está listo." },
+      test: { en: "Test", es: "Probar" },
+      edit: { en: "Edit", es: "Editar" },
+      rebuild: { en: "Rebuild index", es: "Reconstruir índice" },
+      delete: { en: "Delete", es: "Eliminar" },
+      disconnect: { en: "Disconnect", es: "Desconectar" },
+      deleteDefaultBlocked: {
+        en: "Make another provider the default before deleting this one.",
+        es: "Haz predeterminado a otro proveedor antes de eliminar este.",
+      },
+      freeTitle: { en: "Free slot", es: "Espacio libre" },
+      freeHelp: {
+        en: "Add a provider to evaluate another model. Search keeps using the default.",
+        es: "Agrega un proveedor para evaluar otro modelo. La búsqueda sigue usando el predeterminado.",
+      },
+      add: { en: "Add provider", es: "Agregar proveedor" },
+    },
+    makeDefaultDialog: {
+      title: { en: "Make {{name}} the default?", es: "¿Hacer predeterminado a {{name}}?" },
+      description: {
+        en: "Search across the whole organization will use {{name}} right away. {{current}} stays as an evaluation provider and keeps being billed until you delete it.",
+        es: "La búsqueda de toda la organización va a usar {{name}} de inmediato. {{current}} queda como proveedor de evaluación y se sigue pagando hasta que lo elimines.",
+      },
+      incompleteTitle: { en: "It isn't complete yet", es: "Todavía no está completo" },
+      incompleteDescription: {
+        en: "It has vectors for {{percent}}% of the content. If you promote it now, searching by meaning returns fewer results until it reaches 100%.",
+        es: "Tiene vectores para el {{percent}} % del contenido. Si lo promueves ahora, la búsqueda por significado devuelve menos resultados hasta que llegue al 100 %.",
+      },
+      action: { en: "Make default", es: "Hacer predeterminado" },
+      forceAction: { en: "Promote anyway", es: "Promover igual" },
+    },
+    deleteDialog: {
+      title: { en: "Delete {{name}}?", es: "¿Eliminar {{name}}?" },
+      description: {
+        en: "Its vectors are deleted. If you add it again, all of them have to be computed (and paid for) again. Search isn't affected: it uses the default.",
+        es: "Se borran sus vectores. Si lo vuelves a agregar, hay que calcularlos (y pagarlos) todos de nuevo. La búsqueda no se ve afectada: usa el predeterminado.",
+      },
+      action: { en: "Delete", es: "Eliminar" },
+      disconnectTitle: { en: "Disconnect the provider?", es: "¿Desconectar el proveedor?" },
     },
     active: { en: "Active", es: "Activo" },
     indexBuilding: {
@@ -380,6 +496,21 @@ const translations = {
   embeddingSheet: {
     createTitle: { en: "Configure embeddings", es: "Configurar embeddings" },
     editTitle: { en: "Edit embeddings", es: "Editar embeddings" },
+    addTitle: { en: "Add an evaluation provider", es: "Agregar proveedor de evaluación" },
+    addNotice: {
+      en: "When you save, it starts computing vectors for all the content (this has a cost). Search keeps using the default until you make this one the default.",
+      es: "Al guardar, empieza a calcular vectores para todo el contenido (tiene costo). La búsqueda sigue usando el predeterminado hasta que hagas predeterminado a este.",
+    },
+    typeChangeNotice: {
+      en: "Changing the provider type deletes this provider's vectors and computes them again with the new model.",
+      es: "Cambiar el tipo de proveedor borra los vectores de este proveedor y los vuelve a calcular con el nuevo modelo.",
+    },
+    labelLabel: { en: "Name", es: "Nombre" },
+    labelHelp: {
+      en: "To tell providers apart (for example \"Large 3\" or \"Azure test\"). Changing only the name doesn't test the connection again.",
+      es: "Para distinguir los proveedores (por ejemplo \"Large 3\" o \"Prueba Azure\"). Cambiar solo el nombre no vuelve a probar la conexión.",
+    },
+    labelPlaceholder: { en: "Optional", es: "Opcional" },
     subtitle: {
       en: "The provider that lets search find your content by meaning.",
       es: "El proveedor que permite que la búsqueda encuentre tu contenido por significado.",
@@ -451,6 +582,16 @@ const translations = {
     embeddingUpdatedReindex: {
       en: "Embeddings provider updated. The model changed, so search is being rebuilt.",
       es: "Proveedor de embeddings actualizado. Cambió el modelo, así que la búsqueda se está reconstruyendo.",
+    },
+    embeddingProviderAdded: {
+      en: "Provider added. It's computing its vectors in the background.",
+      es: "Proveedor agregado. Está calculando sus vectores en segundo plano.",
+    },
+    embeddingDefaultChanged: { en: "{{name}} is now the default provider", es: "{{name}} es ahora el proveedor predeterminado" },
+    embeddingProviderDeleted: { en: "Embedding provider deleted", es: "Proveedor de embeddings eliminado" },
+    embeddingIndexQueued: {
+      en: "Index rebuild queued. Refresh in a few minutes to see the progress.",
+      es: "Reconstrucción del índice en cola. Actualiza en unos minutos para ver el avance.",
     },
     embeddingDeleted: { en: "Embeddings provider disconnected", es: "Proveedor de embeddings desconectado" },
   },

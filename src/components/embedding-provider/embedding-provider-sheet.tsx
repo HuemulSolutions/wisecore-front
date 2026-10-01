@@ -19,7 +19,8 @@ type EmbeddingFormErrors = Partial<Record<'apiKey' | 'endpoint' | 'deployment', 
 export function EmbeddingProviderSheet({
   open,
   onOpenChange,
-  configured,
+  mode,
+  editing,
   options,
   initialName,
   isSaving,
@@ -32,77 +33,82 @@ export function EmbeddingProviderSheet({
   const { t } = useTranslation('models')
 
   const [name, setName] = useState<EmbeddingProviderName>(initialName)
+  const [label, setLabel] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [endpoint, setEndpoint] = useState('')
   const [deployment, setDeployment] = useState('')
   const [errors, setErrors] = useState<EmbeddingFormErrors>({})
 
-  // Editar el proveedor activo → PUT; elegir otro (o no tener) → POST.
-  const isSameAsConfigured = !!configured && configured.name === name
+  const isEdit = mode === 'edit' && !!editing
+  // Editando: mismo tipo = puede dejar la clave vacía (se conserva); otro tipo = credenciales nuevas.
+  const isSameType = isEdit && editing.name === name
   const isAzure = embeddingProviderRequiresAzureFields(name)
 
   useEffect(() => {
     if (!open) return
     setName(initialName)
+    setLabel(mode === 'edit' ? (editing?.label ?? '') : '')
     setApiKey('') // la clave es write-only: nunca se prellena
+    setEndpoint('')
+    setDeployment('')
     setErrors({})
-    const sameProvider = configured?.name === initialName
-    setEndpoint(sameProvider ? (configured?.endpoint ?? '') : '')
-    setDeployment(sameProvider ? (configured?.deployment ?? '') : '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, initialName])
+  }, [open, initialName, mode, editing?.id])
 
   const handleNameChange = (next: EmbeddingProviderName) => {
     setName(next)
     setApiKey('')
+    setEndpoint('')
+    setDeployment('')
     setErrors({})
-    const sameProvider = configured?.name === next
-    setEndpoint(sameProvider ? (configured?.endpoint ?? '') : '')
-    setDeployment(sameProvider ? (configured?.deployment ?? '') : '')
   }
-
-  const activeOption = options.find((o) => o.isActive)
-  const nextOption = options.find((o) => o.name === name)
 
   const handleSave = () => {
     if (!canSave) return
 
+    // Con el mismo tipo, endpoint/deployment vacíos también conservan lo guardado (no se exponen).
+    const credentialsTouched = !!(apiKey.trim() || endpoint.trim() || deployment.trim())
+    const needsCredentials = !isSameType || (isAzure && credentialsTouched)
     const nextErrors: EmbeddingFormErrors = {}
-    if (!isSameAsConfigured && !apiKey.trim()) nextErrors.apiKey = t('embeddingSheet.errors.apiKey')
-    if (isAzure && !endpoint.trim()) nextErrors.endpoint = t('embeddingSheet.errors.endpoint')
-    if (isAzure && !deployment.trim()) nextErrors.deployment = t('embeddingSheet.errors.deployment')
+    if (!isSameType && !apiKey.trim()) nextErrors.apiKey = t('embeddingSheet.errors.apiKey')
+    if (isAzure && needsCredentials && !endpoint.trim()) nextErrors.endpoint = t('embeddingSheet.errors.endpoint')
+    if (isAzure && needsCredentials && !deployment.trim()) nextErrors.deployment = t('embeddingSheet.errors.deployment')
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
-    if (isSameAsConfigured) {
-      const payload: UpdateEmbeddingProviderRequest = { name }
+    if (isEdit) {
+      const payload: UpdateEmbeddingProviderRequest = {}
+      if ((editing.label ?? '') !== label.trim()) payload.label = label.trim()
+      if (!isSameType) payload.name = name
       // La clave solo viaja si se escribió una nueva.
-      if (apiKey.trim()) payload.key = apiKey
-      if (isAzure) {
-        payload.endpoint = endpoint.trim()
-        payload.deployment = deployment.trim()
-      }
-      onSubmit({ mode: 'update', payload })
+      if (apiKey.trim()) payload.key = apiKey.trim()
+      if (isAzure && endpoint.trim()) payload.endpoint = endpoint.trim()
+      if (isAzure && deployment.trim()) payload.deployment = deployment.trim()
+      onSubmit({ mode: 'edit', providerId: editing.id, payload })
       return
     }
 
-    onSubmit({
-      mode: 'create',
-      payload: isAzure
-        ? { name: 'azure_openai', key: apiKey.trim(), endpoint: endpoint.trim(), deployment: deployment.trim() }
-        : { name: 'openai', key: apiKey.trim() },
-    })
+    const credentials = isAzure
+      ? { name: 'azure_openai' as const, key: apiKey.trim(), endpoint: endpoint.trim(), deployment: deployment.trim() }
+      : { name: 'openai' as const, key: apiKey.trim() }
+    if (mode === 'add') {
+      onSubmit({ mode: 'add', payload: { ...credentials, label: label.trim() || undefined } })
+      return
+    }
+    onSubmit({ mode: 'create', payload: credentials })
   }
 
   if (!canSave) return null
 
-  const testDisabled = !canTest || !isSameAsConfigured || testState === 'testing'
+  // Solo se prueba lo guardado: un proveedor existente y sin cambio de tipo.
+  const testDisabled = !canTest || !isSameType || testState === 'testing'
+  const title = isEdit ? t('embeddingSheet.editTitle') : mode === 'add' ? t('embeddingSheet.addTitle') : t('embeddingSheet.createTitle')
 
   return (
     <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
-      title={configured ? t('embeddingSheet.editTitle') : t('embeddingSheet.createTitle')}
+      title={title}
       description={t('embeddingSheet.subtitle')}
       icon={Search}
       iconVariant="tile"
@@ -114,7 +120,7 @@ export function EmbeddingProviderSheet({
         closeOnSuccess: false,
       }}
       footerLeft={
-        <span title={!isSameAsConfigured ? t('embeddingSheet.testDisabled') : undefined} className="inline-flex">
+        <span title={!isSameType ? t('embeddingSheet.testDisabled') : undefined} className="inline-flex">
           <Button
             type="button"
             variant="outline"
@@ -139,15 +145,24 @@ export function EmbeddingProviderSheet({
           />
         </HuemulSheetField>
 
-        {configured && !isSameAsConfigured && activeOption && nextOption && (
-          <HuemulNotice tone="amber">
-            {t('embeddingSheet.replaceNotice', { next: nextOption.display, current: activeOption.display })}
-          </HuemulNotice>
+        {mode === 'add' && <HuemulNotice tone="blue">{t('embeddingSheet.addNotice')}</HuemulNotice>}
+        {isEdit && !isSameType && <HuemulNotice tone="amber">{t('embeddingSheet.typeChangeNotice')}</HuemulNotice>}
+
+        {mode !== 'create' && (
+          <HuemulSheetField label={t('embeddingSheet.labelLabel')} help={t('embeddingSheet.labelHelp')} htmlFor="embedding-label">
+            <HuemulSheetInput
+              id="embedding-label"
+              value={label}
+              maxLength={120}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder={t('embeddingSheet.labelPlaceholder')}
+            />
+          </HuemulSheetField>
         )}
 
         <HuemulSheetField
           label={t('embeddingSheet.apiKeyLabel')}
-          help={isSameAsConfigured ? t('embeddingSheet.apiKeySavedHelp') : t('embeddingSheet.apiKeyHelp')}
+          help={isSameType ? t('embeddingSheet.apiKeySavedHelp') : t('embeddingSheet.apiKeyHelp')}
           error={errors.apiKey}
           htmlFor="embedding-key"
         >
@@ -158,7 +173,7 @@ export function EmbeddingProviderSheet({
             autoComplete="off"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder={isSameAsConfigured ? t('embeddingSheet.apiKeySavedPlaceholder') : undefined}
+            placeholder={isSameType ? t('embeddingSheet.apiKeySavedPlaceholder') : undefined}
             hasError={!!errors.apiKey}
           />
         </HuemulSheetField>
@@ -177,7 +192,7 @@ export function EmbeddingProviderSheet({
                 type="url"
                 value={endpoint}
                 onChange={(e) => setEndpoint(e.target.value)}
-                placeholder={t('embeddingSheet.endpointPlaceholder')}
+                placeholder={isSameType ? t('embeddingSheet.apiKeySavedPlaceholder') : t('embeddingSheet.endpointPlaceholder')}
                 hasError={!!errors.endpoint}
               />
             </HuemulSheetField>
@@ -192,7 +207,7 @@ export function EmbeddingProviderSheet({
                 mono
                 value={deployment}
                 onChange={(e) => setDeployment(e.target.value)}
-                placeholder={t('embeddingSheet.deploymentPlaceholder')}
+                placeholder={isSameType ? t('embeddingSheet.apiKeySavedPlaceholder') : t('embeddingSheet.deploymentPlaceholder')}
                 hasError={!!errors.deployment}
               />
             </HuemulSheetField>
