@@ -43,6 +43,8 @@ interface DataTableRegistryContextValue {
   isError: boolean;
   /** `null` si no hay documento (editor de plantillas) — nunca llama a la red en ese caso. */
   resolveBatch: ((tables: DataTableResolveTableRequest[]) => Promise<DataTableResolvedTable[]>) | null;
+  /** Fuerza un nuevo `/resolve` del batch (ignora `staleTime`). `null` sin documento. */
+  refresh: (() => Promise<unknown>) | null;
 }
 
 const noop = () => {};
@@ -57,6 +59,7 @@ const DocumentDataContext = createContext<DataTableRegistryContextValue>({
   isFetching: false,
   isError: false,
   resolveBatch: null,
+  refresh: null,
 });
 
 export function DocumentDataProvider({
@@ -162,6 +165,9 @@ export function DocumentDataProvider({
     return map;
   }, [query.data, specs]);
 
+  const { refetch } = query;
+  const refresh = useCallback(() => refetch(), [refetch]);
+
   const resolveBatch = useCallback(
     async (tables: DataTableResolveTableRequest[]): Promise<DataTableResolvedTable[]> => {
       if (!resolvedDocumentId || !resolvedOrganizationId) return [];
@@ -185,6 +191,7 @@ export function DocumentDataProvider({
       isFetching: query.isFetching,
       isError: query.isError,
       resolveBatch: resolvedDocumentId ? resolveBatch : null,
+      refresh: enabled ? refresh : null,
     }),
     [
       resolvedDocumentId,
@@ -197,6 +204,7 @@ export function DocumentDataProvider({
       query.isFetching,
       query.isError,
       resolveBatch,
+      refresh,
     ],
   );
 
@@ -387,6 +395,13 @@ export function useDataTablePreview(element: DataTableElement): DataTablePreview
  * `null` cuando no hay documento — el pre-save lo saltea sin tocar la red. Llama directo al
  * servicio (no pasa por `queryClient`): al guardar se quiere el dato más fresco posible, sin
  * contaminar la caché del batch en pantalla. */
+/** Refresco manual del batch del documento. `refresh` es `null` si no hay documento o aún no hay
+ * ninguna tabla registrada (no hay request que repetir). */
+export function useDataTableRefresh() {
+  const { refresh, isFetching } = useContext(DocumentDataContext);
+  return { refresh, isFetching };
+}
+
 export function useDataTableBatchResolver() {
   const { resolveBatch } = useContext(DocumentDataContext);
   return resolveBatch;
