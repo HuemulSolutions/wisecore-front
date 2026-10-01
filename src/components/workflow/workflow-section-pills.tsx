@@ -41,7 +41,7 @@ export function WorkflowSectionPills({ sections, activeIndex, onSelect, sectionC
             role="tab"
             aria-selected={isActive}
             aria-current={isActive ? "step" : undefined}
-            disabled={disabled}
+            disabled={disabled || (!isActive && !sectionCanAnswer(section))}
             title={!isActive ? (section.section_name ?? undefined) : undefined}
             onClick={() => onSelect(index)}
             className={cn(

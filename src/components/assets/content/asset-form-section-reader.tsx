@@ -38,7 +38,7 @@ interface AssetFormSectionReaderProps {
  * Con `canAnswer`, el botón del pie (Responder/Editar) activa `isAnswering`: la tarjeta
  * renderiza `children` (AssetFormSection rellenable) en vez de la lista de respuestas, sin salir
  * del modo lector del asset — atajo para no tener que cambiar a modo editor solo para completar
- * un formulario. Sin `canAnswer`, el botón («Ver») expande la tarjeta.
+ * un formulario. Sin `canAnswer` no hay botón en el pie: la tarjeta se expande con el chevron.
  *
  * `open`/`onOpenChange` son controlados: el estado de colapso (incluido el force-open al entrar
  * en modo respuesta) vive en assets-section.tsx, junto con el de las secciones no-form.

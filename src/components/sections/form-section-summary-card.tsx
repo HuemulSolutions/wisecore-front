@@ -38,7 +38,7 @@ export interface FormSectionSummaryCardProps {
   canAnswer: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Acción del botón del pie (Responder/Editar/Ver según el estado de la sección). */
+  /** Acción del botón del pie (Responder/Editar). Sin permiso para responder no hay botón: la sección solo se ve en el resumen. */
   onAction: () => void;
   /** Reemplaza el botón del pie (ej. "Dejar de editar" mientras se responde inline). */
   footerAction?: ReactNode;
@@ -130,7 +130,7 @@ export function FormSectionSummaryCard({
           <p className={cn("text-[12px] font-medium", SUMMARY_FOOTER_TEXT_STYLES[state.footerTone])}>
             {t(state.footerTextKey, state.footerTextParams)}
           </p>
-          {footerAction ?? (
+          {footerAction ?? (state.action.kind === "view" ? null : (
             <HuemulButton
               variant="outline"
               size="sm"
@@ -141,7 +141,7 @@ export function FormSectionSummaryCard({
               onClick={onAction}
               className={cn(SUMMARY_ACTION_BUTTON_CLASS, SUMMARY_ACTION_STYLES[state.action.kind])}
             />
-          )}
+          ))}
         </div>
       </div>
     </Collapsible>
