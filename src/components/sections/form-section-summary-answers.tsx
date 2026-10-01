@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { FormFieldAnswerValue } from "@/components/sections/form-field-answer-value";
 import {
   QUESTION_TYPE,
@@ -22,13 +23,14 @@ export interface FormSectionSummaryAnswersProps {
 const NON_TEXT_QUESTION_TYPES = new Set<string | undefined>([QUESTION_TYPE.fileUpload, QUESTION_TYPE.rating]);
 
 /**
- * Lista de solo lectura pregunta/respuesta de una sección form: layout de dos columnas
- * (pregunta 40% / valor). Compartida por el resumen de workflow y el modo lector del asset
- * (ver form-section-summary-card.tsx). Lista todas las preguntas visibles; las sin responder
- * muestran «—» (los calculados sin valor los resuelve FormFieldAnswerValue). Los `label`
- * (separadores) no se listan.
+ * Lista de solo lectura pregunta/respuesta de una sección form: cada fila apila la pregunta
+ * arriba y el valor abajo, como la ve quien responde. Compartida por el resumen de workflow y el
+ * modo lector del asset (ver form-section-summary-card.tsx). Lista todas las preguntas visibles;
+ * las sin responder muestran «Sin respuesta» (los calculados sin valor los resuelve
+ * FormFieldAnswerValue). Los `label` (separadores) no se listan.
  */
 export function FormSectionSummaryAnswers({ fields, emptyLabel }: FormSectionSummaryAnswersProps) {
+  const { t } = useTranslation("sections");
   const rows = fields.filter((f) => isFieldVisible(f) && f.question_type !== QUESTION_TYPE.label);
 
   if (rows.length === 0) {
@@ -43,15 +45,17 @@ export function FormSectionSummaryAnswers({ fields, emptyLabel }: FormSectionSum
         return (
           <div
             key={field.id || index}
-            className="flex items-baseline gap-[14px] border-b border-[#eef1f6] pb-[8px] pt-[8px] first:pt-0 last:border-b-0 last:pb-0"
+            className="flex flex-col gap-[3px] border-b border-[#eef1f6] pb-[8px] pt-[8px] first:pt-0 last:border-b-0 last:pb-0"
           >
-            <p className="w-[40%] shrink-0 text-[12.5px] leading-[1.45] text-[#64748b]">
+            <p className="text-[12.5px] leading-[1.45] text-[#64748b]">
               {field.field_name}
               {field.required && <span className="text-[#b91c1c]"> *</span>}
             </p>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0">
               {unanswered ? (
-                <span className="text-[13px] leading-[1.45] text-[#94a3b8]">—</span>
+                <span className="text-[13px] italic leading-[1.45] text-[#94a3b8]">
+                  {t("sections:form.fill.noAnswer")}
+                </span>
               ) : (
                 <FormFieldAnswerValue
                   field={field}
