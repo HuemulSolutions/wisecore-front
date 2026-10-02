@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -42,6 +43,61 @@ describe('HuemulSheet bodyLoading', () => {
     expect(screen.getByText('Contenido real')).toBeInTheDocument()
     expect(skeletons()).toHaveLength(0)
     expect(document.querySelector('[aria-busy="true"]')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled()
+  })
+
+  it('bloquea extraActions de header y footer mientras carga', () => {
+    render(
+      <HuemulSheet
+        {...baseProps}
+        bodyLoading
+        extraActions={[
+          { label: 'Accion header', onClick: vi.fn(), position: 'header' },
+          { label: 'Accion footer', onClick: vi.fn() },
+        ]}
+      >
+        <p>Contenido real</p>
+      </HuemulSheet>,
+    )
+    expect(screen.getByRole('button', { name: 'Accion header' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Accion footer' })).toBeDisabled()
+  })
+
+  it('no bloquea headerExtra ni footerContent: son del consumidor', () => {
+    render(
+      <HuemulSheet
+        {...baseProps}
+        bodyLoading
+        headerExtra={<button>Extra header</button>}
+        footerContent={<button>Footer propio</button>}
+      >
+        <p>Contenido real</p>
+      </HuemulSheet>,
+    )
+    expect(screen.getByRole('button', { name: 'Extra header' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Footer propio' })).toBeEnabled()
+  })
+
+  it('no monta los children mientras carga (un form no inicializa estado con datos a medias)', () => {
+    const onMount = vi.fn()
+    function Child() {
+      useEffect(() => { onMount() }, [])
+      return <p>Contenido real</p>
+    }
+    const { rerender } = render(<HuemulSheet {...baseProps} bodyLoading><Child /></HuemulSheet>)
+    expect(onMount).not.toHaveBeenCalled()
+
+    rerender(<HuemulSheet {...baseProps} bodyLoading={false}><Child /></HuemulSheet>)
+    expect(onMount).toHaveBeenCalledTimes(1)
+  })
+
+  it('al pasar bodyLoading de true a false muestra los children y habilita guardar', () => {
+    const { rerender } = render(<HuemulSheet {...baseProps} bodyLoading><p>Contenido real</p></HuemulSheet>)
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
+
+    rerender(<HuemulSheet {...baseProps} bodyLoading={false}><p>Contenido real</p></HuemulSheet>)
+    expect(screen.getByText('Contenido real')).toBeInTheDocument()
+    expect(skeletons()).toHaveLength(0)
     expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled()
   })
 })

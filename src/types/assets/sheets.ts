@@ -63,6 +63,8 @@ export interface ExecuteSheetProps {
   } | null
   fullDocument?: any
   isLoadingFullDocument?: boolean
+  /** Error del GET del documento completo: el sheet avisa y se cierra (nunca skeleton eterno). */
+  fullDocumentError?: unknown
   isOpen: boolean
   onOpenChange: (open: boolean) => void
   onSectionSheetOpen: () => void

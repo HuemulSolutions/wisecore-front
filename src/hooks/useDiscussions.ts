@@ -148,6 +148,7 @@ export function useDiscussions(
     data: discussionsResponse,
     isLoading: isLoadingDiscussions,
     isFetching: isFetchingDiscussions,
+    isError: isErrorDiscussions,
     refetch: refetchDiscussions,
   } = useQuery({
     queryKey: discussionQueryKeys.byDocument(documentId!),
@@ -363,6 +364,7 @@ export function useDiscussions(
     isDeletingDiscussion: deleteDiscussionMutation.isPending,
     isLoading: isLoadingDiscussions,
     isFetching: isFetchingDiscussions,
+    isError: isErrorDiscussions,
     refetch: refetchDiscussions,
     invalidate,
   };

@@ -10,6 +10,8 @@ import { HuemulAccessDenied } from '@/huemul/components/huemul-access-denied';
 import { HuemulAlertDialog } from '@/huemul/components/huemul-alert-dialog';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { HuemulSheet } from '@/huemul/components/huemul-sheet';
+import { Skeleton } from '@/components/ui/skeleton';
+import { HuemulLoadError } from '@/huemul/components/huemul-load-error';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useDiscussions } from '@/hooks/useDiscussions';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
@@ -52,16 +54,16 @@ function DiscussionsSkeleton() {
       {[0, 1, 2].map((i) => (
         <div key={i} className="space-y-2.5 border-[#f1f5f9] border-b pb-5 last:border-b-0">
           <div className="flex items-center gap-2">
-            <div className="h-[22px] w-28 animate-pulse rounded-[6px] bg-[#f1f5f9]" />
-            <div className="ml-auto h-3 w-12 animate-pulse rounded bg-[#f1f5f9]" />
+            <Skeleton className="h-[22px] w-28 rounded-[6px]" />
+            <Skeleton className="ml-auto h-3 w-12" />
           </div>
-          <div className="h-9 w-full animate-pulse rounded-[6px] bg-[#f8fafc]" />
+          <Skeleton className="h-9 w-full rounded-[6px]" />
           <div className="flex gap-2.5">
-            <div className="size-[26px] shrink-0 animate-pulse rounded-full bg-[#f1f5f9]" />
+            <Skeleton className="size-[26px] shrink-0 rounded-full" />
             <div className="flex-1 space-y-1.5">
-              <div className="h-3 w-24 animate-pulse rounded bg-[#f1f5f9]" />
-              <div className="h-3 w-full animate-pulse rounded bg-[#f8fafc]" />
-              <div className="h-3 w-2/3 animate-pulse rounded bg-[#f8fafc]" />
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-2/3" />
             </div>
           </div>
         </div>
@@ -94,6 +96,7 @@ export function AssetsDiscussionsSheet({
     currentUserId,
     isLoading,
     isFetching,
+    isError,
     refetch,
     createExecutionDiscussion,
     isCreatingExecutionDiscussion,
@@ -319,6 +322,8 @@ export function AssetsDiscussionsSheet({
       >
         {!canListDiscussions ? (
           <HuemulAccessDenied variant="inline" />
+        ) : isError && rows.length === 0 ? (
+          <HuemulLoadError onRetry={() => void refetch()} isRetrying={isFetching} />
         ) : rows.length === 0 ? (
           <div className="mx-auto flex max-w-[300px] flex-col items-center justify-center gap-1.5 py-20 text-center">
             <MessageSquareText className="mb-1 size-8 text-[#cbd5e1]" />

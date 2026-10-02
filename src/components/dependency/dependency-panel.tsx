@@ -9,6 +9,7 @@ import {
   Plus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulAssetTreePickerDialog } from "@/huemul/components/huemul-asset-tree-picker";
 import { RemoveDependencyDialog } from "@/components/dependency/dependency-delete-dialog";
@@ -29,6 +30,7 @@ export type { AddDependencySheetProps } from "@/types/dependency/sheets";
 // (assets-dependencies-sheet.tsx) ya lo pasa explícito desde el cruce lifecycle × RBAC.
 export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = false, onRequestClose }: AddDependencySheetProps) {
     const { t } = useTranslation('dependencies')
+    const { t: tCommon } = useTranslation('common')
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [dependencyToDelete, setDependencyToDelete] = useState<string | null>(null);
     // Document node the user clicked to create a dependency (create mode) or the
@@ -156,9 +158,11 @@ export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = f
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                <span className="ml-2 text-sm text-gray-500">{t('loading')}</span>
+            <div className="space-y-3" aria-busy="true">
+                <Skeleton className="h-10 w-full" />
+                {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                ))}
             </div>
         );
     }
@@ -171,6 +175,15 @@ export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = f
                     <span className="text-sm font-medium">{t('errorLoading')}</span>
                 </div>
                 <p className="text-sm text-red-600 mt-1">{(error as Error).message}</p>
+                <HuemulButton
+                    size="sm"
+                    variant="outline"
+                    className="mt-3"
+                    icon={RefreshCw}
+                    label={tCommon('tryAgain')}
+                    loading={isFetching}
+                    onClick={() => void refetch()}
+                />
             </div>
         );
     }

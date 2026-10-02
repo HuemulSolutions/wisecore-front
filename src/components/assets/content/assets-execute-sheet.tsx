@@ -28,6 +28,7 @@ export function ExecuteSheet({
   selectedFile,
   fullDocument,
   isLoadingFullDocument,
+  fullDocumentError,
   isOpen,
   onOpenChange,
   onSectionSheetOpen,
@@ -53,7 +54,15 @@ export function ExecuteSheet({
   
   // Determinar si realmente estamos cargando el documento completo
   // Si el sheet está abierto pero no tenemos fullDocument, asumimos que está cargando
-  const isActuallyLoadingFullDocument = isLoadingFullDocument || (isOpen && !fullDocument);
+  const isActuallyLoadingFullDocument = isLoadingFullDocument || (isOpen && !fullDocument && !fullDocumentError);
+
+  // Error al cargar el documento: avisar y cerrar en vez de dejar el skeleton para siempre.
+  useEffect(() => {
+    if (isOpen && fullDocumentError) {
+      handleApiError(fullDocumentError);
+      onOpenChange(false);
+    }
+  }, [isOpen, fullDocumentError, onOpenChange]);
 
   // Fetch executions for the document to check for existing pending executions
   useExecutionsByDocumentId(
@@ -72,7 +81,7 @@ export function ExecuteSheet({
   });
 
   // Query para obtener LLMs (lazy loading: only when sheet is open)
-  const { data: llms } = useQuery({
+  const { data: llms, isLoading: isLoadingLLMs } = useQuery({
     queryKey: ["llms"],
     queryFn: getAllLLMs,
     enabled: isOpen, // Only fetch when sheet is actually open
@@ -481,7 +490,7 @@ export function ExecuteSheet({
                         <HuemulButton
                           onClick={handleExecuteDocument}
                           loading={executeDocumentMutation.isPending}
-                          disabled={isActuallyLoadingFullDocument || isLoadingDefaultLLM || (!sheetSelectedLLM && !defaultLLM?.id)}
+                          disabled={isActuallyLoadingFullDocument || isLoadingDefaultLLM || isLoadingLLMs || (!sheetSelectedLLM && !defaultLLM?.id)}
                           icon={Play}
                           label={t('common:tryAgain')}
                           className="bg-[#4464f7] hover:bg-[#3451e6] px-6"

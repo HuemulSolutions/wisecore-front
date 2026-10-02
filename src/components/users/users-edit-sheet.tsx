@@ -5,6 +5,7 @@ import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { updateUser, getUserById } from "@/services/users"
 import { type UpdateUserData } from "@/types/users"
 import { userQueryKeys } from "@/hooks/useUsers"
+import { handleApiError } from "@/lib/error-utils"
 import { UserPen } from "lucide-react"
 import UserFormFields from "@/components/users/users-form-fields"
 import type { EditUserSheetProps } from '@/types/users'
@@ -21,36 +22,49 @@ export default function EditUserSheet({ user, open, onOpenChange, onSuccess, sho
     notify_daily_digest: false
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // Id del usuario con el que se inicializó el form en esta apertura: el form
+  // se llena una sola vez, así un refetch no pisa lo que el usuario escribió.
+  const [initializedId, setInitializedId] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const { t } = useTranslation(['users'])
 
   // Fetch user data when sheet opens
-  const { data: fetchedUser, isLoading: isLoadingUser } = useQuery({
+  const { data: fetchedUser, isLoading: isLoadingUser, isFetching, error: loadError } = useQuery({
     queryKey: ['user', user?.id],
     queryFn: () => getUserById(user!.id),
     enabled: !!user?.id && open && canSave,
     staleTime: 0, // Always fetch fresh data when sheet opens
   })
 
-  // Reset form when user data is fetched
+  // Inicializar el form una sola vez por apertura, con datos frescos (staleTime 0).
   React.useEffect(() => {
-    if (fetchedUser && open) {
-      // Use birth_day and birth_month directly from the API response
-      const birthDay = fetchedUser.birth_day ? fetchedUser.birth_day.toString() : ''
-      const birthMonth = fetchedUser.birth_month ? fetchedUser.birth_month.toString() : ''
-
-      setFormData({
-        name: fetchedUser.name || '',
-        last_name: fetchedUser.last_name || '',
-        email: fetchedUser.email || '',
-        birth_day: birthDay,
-        birth_month: birthMonth,
-        photo_file: '',
-        notify_daily_digest: fetchedUser.notify_daily_digest ?? false
-      })
-      setErrors({})
+    if (!open) {
+      setInitializedId(null)
+      return
     }
-  }, [fetchedUser, open])
+    if (!fetchedUser || isFetching || initializedId === fetchedUser.id) return
+    setFormData({
+      name: fetchedUser.name || '',
+      last_name: fetchedUser.last_name || '',
+      email: fetchedUser.email || '',
+      birth_day: fetchedUser.birth_day ? fetchedUser.birth_day.toString() : '',
+      birth_month: fetchedUser.birth_month ? fetchedUser.birth_month.toString() : '',
+      photo_file: '',
+      notify_daily_digest: fetchedUser.notify_daily_digest ?? false
+    })
+    setErrors({})
+    setInitializedId(fetchedUser.id)
+  }, [fetchedUser, isFetching, open, initializedId])
+
+  // Error de carga: avisar y cerrar, nunca dejar un form vacío con Guardar.
+  React.useEffect(() => {
+    if (open && loadError) {
+      handleApiError(loadError)
+      onOpenChange(false)
+    }
+  }, [open, loadError, onOpenChange])
+
+  const formReady = !!user && initializedId === user.id
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -141,13 +155,14 @@ export default function EditUserSheet({ user, open, onOpenChange, onSuccess, sho
       description={t('users:edit.description')}
       icon={UserPen}
       maxWidth="sm:max-w-lg"
-      bodyLoading={isLoadingUser}
+      bodyLoading={isLoadingUser || !formReady}
       saveAction={{
         label: t('users:edit.button'),
         onClick: handleSave,
-        disabled: !canSave || !formData.name.trim() || !formData.last_name.trim() || !formData.email.trim()
+        disabled: !canSave || !formReady || !formData.name.trim() || !formData.last_name.trim() || !formData.email.trim()
       }}
     >
+      {formReady && (
       <div className="space-y-4">
         <UserFormFields
           name={formData.name}
@@ -171,6 +186,7 @@ export default function EditUserSheet({ user, open, onOpenChange, onSuccess, sho
           includeNotifyDailyDigest={showDailyDigest}
         />
       </div>
+      )}
     </HuemulSheet>
   )
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Settings2,
@@ -13,6 +13,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { HuemulSheet } from '@/huemul/components/huemul-sheet';
 import { HuemulField } from '@/huemul/components/huemul-field';
 import { HuemulButton } from '@/huemul/components/huemul-button';
+import { HuemulLoadError } from '@/huemul/components/huemul-load-error';
+import { Skeleton } from '@/components/ui/skeleton';
 import { HuemulLifecycleBadge } from '@/huemul/components/huemul-lifecycle-badge';
 import { HuemulExecutionStatusBadge } from '@/huemul/components/huemul-execution-status-badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -63,7 +65,7 @@ function ExecutionDetail({
   const { t } = useTranslation(['assets', 'common']);
   const queryClient = useQueryClient();
 
-  const { data: execution, isLoading, isFetching, refetch } = useQuery({
+  const { data: execution, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ['execution-detail', executionId],
     queryFn: () => getExecutionById(executionId, organizationId),
     enabled: !!executionId && !!organizationId,
@@ -84,9 +86,13 @@ function ExecutionDetail({
   const [isDirtyName, setIsDirtyName] = useState(false);
   const [isDirtyDates, setIsDirtyDates] = useState(false);
 
-  // Sync form state when execution loads or changes
+  // El form se inicializa una sola vez con el detalle (el componente se monta por
+  // execution id): el polling del resumen (3 s) entrega objetos nuevos y no debe
+  // pisar lo que el usuario está editando.
+  const formInitialized = useRef(false);
   useEffect(() => {
-    if (execution) {
+    if (execution && !formInitialized.current) {
+      formInitialized.current = true;
       setForm({
         name: execution.name ?? '',
         expiration_date: toInputDate(execution.expiration_date),
@@ -188,13 +194,16 @@ function ExecutionDetail({
     return (
       <div className="flex flex-col gap-4 py-2">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-10 rounded-md bg-muted animate-pulse" />
+          <Skeleton key={i} className="h-10 w-full" />
         ))}
       </div>
     );
   }
 
-  if (!execution) return null;
+  if (!execution) {
+    // Error sin datos: bloque con reintentar (nunca un cuerpo en blanco).
+    return isError ? <HuemulLoadError onRetry={() => refetch()} isRetrying={isFetching} /> : null;
+  }
 
   return (
     <div className="flex flex-col gap-5">

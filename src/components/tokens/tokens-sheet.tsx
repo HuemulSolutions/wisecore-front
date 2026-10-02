@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next"
 import { KeyRound, Plus, RefreshCw } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulButton } from "@/huemul/components/huemul-button"
+import { HuemulLoadError } from "@/huemul/components/huemul-load-error"
+import { Skeleton } from "@/components/ui/skeleton"
 import { HuemulPagination } from "@/huemul/components/huemul-pagination"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import { formatApiDateTime } from "@/lib/utils"
@@ -27,7 +29,7 @@ export function TokensSheet({ open, onOpenChange, organizationId }: TokensSheetP
     if (open) setPage(1)
   }, [open])
 
-  const { data, isLoading, isFetching, refetch } = useTokens(organizationId, {
+  const { data, isLoading, isFetching, isError, refetch } = useTokens(organizationId, {
     enabled: open,
     page,
     pageSize,
@@ -71,9 +73,13 @@ export function TokensSheet({ open, onOpenChange, organizationId }: TokensSheetP
           {/* List */}
           <div className="flex-1 overflow-y-auto px-6 pb-4">
             {isLoading ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">
-                {t("list.loading")}
-              </p>
+              <div className="space-y-2" aria-busy="true">
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} className="h-[74px] w-full rounded-lg" />
+                ))}
+              </div>
+            ) : isError && !data ? (
+              <HuemulLoadError onRetry={() => refetch()} isRetrying={isFetching} />
             ) : tokens.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-2">
                 <KeyRound className="h-8 w-8 opacity-40" />

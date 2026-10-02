@@ -108,6 +108,8 @@ export interface LifecycleActionsController {
   changeSummaryError: string | null
   canViewChanges: boolean
   isSummaryLoading: boolean
+  /** Datos que condicionan Confirmar (campos requeridos / revisión externa) aún cargando. */
+  isReviewDataLoading: boolean
   handleViewChanges: () => void
   /** Obligatorios sin valor para el aviso preventivo. Vacío si la transición no sale de draft. */
   missingRequiredCustomFields: string[]

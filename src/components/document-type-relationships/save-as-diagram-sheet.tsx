@@ -106,7 +106,7 @@ export function SaveAsDiagramSheet({
   // Del diagrama guardado solo llega el executionId (sin label) — se resuelve para
   // mostrar algo legible en el picker. Cacheada por react-query, así que reabrir el
   // sheet no vuelve a pedirla.
-  const { data: seedExecution } = useQuery({
+  const { data: seedExecution, isLoading: isLoadingSeed } = useQuery({
     queryKey: ['save-as-diagram-main-execution', organizationId, mainExecutionId],
     queryFn: () => getExecutionById(mainExecutionId, organizationId),
     enabled: open && !!mainExecutionId && !pickedExecutionLabel,
@@ -201,7 +201,7 @@ export function SaveAsDiagramSheet({
           label={t('saveAsDiagramDialog.mainExecutionLabel')}
           placeholder={t('saveAsDiagramDialog.mainExecutionPlaceholder')}
           valueId={mainExecutionId || undefined}
-          valueLabel={mainExecutionLabel || undefined}
+          valueLabel={mainExecutionLabel || (isLoadingSeed ? t('common:loading') : undefined)}
           onPick={(id, label) => { setMainExecutionId(id); setPickedExecutionLabel(label) }}
           onClear={() => { setMainExecutionId(""); setPickedExecutionLabel("") }}
           container="sheet"

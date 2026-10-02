@@ -385,7 +385,6 @@ export function TemplatesSidebar({
           onOpenChange={(open) => { if (!open) setEditDialogTemplate(null); }}
           templateId={editDialogTemplate.id}
           templateName={editDialogTemplate.name}
-          templateDescription={editDialogTemplate.description}
           organizationId={organizationId}
           onSuccess={() => {
             onRefresh?.();

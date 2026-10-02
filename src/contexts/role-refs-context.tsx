@@ -21,7 +21,9 @@ export function useRolesMap(enabled: boolean) {
   const { selectedOrganizationId } = useOrganization();
 
   const query = useQuery({
-    queryKey: [...rbacQueryKeys.roles(selectedOrganizationId), 'all', ALL_ROLES_PAGE_SIZE],
+    // Misma key que `useRoles(true, 1, 1000)` (page, pageSize, search): comparten cache y
+    // al invalidar `roles` se pide una sola vez en vez de una por cada observer.
+    queryKey: [...rbacQueryKeys.roles(selectedOrganizationId), 1, ALL_ROLES_PAGE_SIZE, ''],
     queryFn: () => getRoles(1, ALL_ROLES_PAGE_SIZE),
     enabled: enabled && !!selectedOrganizationId,
     staleTime: 2 * 60 * 1000,

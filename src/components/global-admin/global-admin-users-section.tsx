@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useSearchParams } from "react-router-dom"
 import { Plus, Users } from "lucide-react"
@@ -84,8 +84,14 @@ export function GlobalAdminUsersSection({ canManage }: GlobalAdminUsersSectionPr
   // de organización, sirve igual acá).
   const foundInPage = filteredUsers.find((u) => u.id === panelUserId) ?? null
   const needsFallbackFetch = !!panelUserId && !foundInPage
-  const { data: fallbackUser } = useUserById(needsFallbackFetch ? panelUserId : null, needsFallbackFetch && canManage)
+  const { data: fallbackUser, isError: fallbackUserError } = useUserById(needsFallbackFetch ? panelUserId : null, needsFallbackFetch && canManage)
   const selectedUser = foundInPage ?? fallbackUser ?? null
+
+  // Red de seguridad: id inexistente/sin acceso → limpiar la URL en vez de dejar el skeleton.
+  useEffect(() => {
+    if (panelUserId && !foundInPage && fallbackUserError) navigateToUser(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panelUserId, foundInPage, fallbackUserError])
 
   const profileForm = useUserProfileForm(selectedUser, canManage, userMutations)
 

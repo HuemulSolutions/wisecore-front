@@ -21,7 +21,8 @@ import {
 import { getExecutionDisplayLabel } from "@/components/assets/content/utils/version-utils";
 import { parseApiDate } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { HuemulSheet } from "@/huemul/components/huemul-sheet";
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
+import { HuemulLoadError } from "@/huemul/components/huemul-load-error";
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
 import { usePageAccess } from "@/hooks/usePageAccess";
 import { HuemulPagination } from "@/huemul/components/huemul-pagination";
@@ -261,6 +262,7 @@ export function AssetsNotificationsSheet({
   const {
     data: notificationsData,
     isLoading: isLoadingNotifications,
+    isError: isErrorNotifications,
     refetch: refetchNotifications,
     isFetching: isFetchingNotifications,
   } = useQuery({
@@ -287,7 +289,13 @@ export function AssetsNotificationsSheet({
 
   // ─── Subscriptions query ──────────────────────────────────────────────────
 
-  const { data: subscriptionsData, isLoading: isLoadingSubscriptions } = useQuery({
+  const {
+    data: subscriptionsData,
+    isLoading: isLoadingSubscriptions,
+    isError: isErrorSubscriptions,
+    isFetching: isFetchingSubscriptions,
+    refetch: refetchSubscriptions,
+  } = useQuery({
     queryKey: ["subscriptions", documentId],
     queryFn: () =>
       getSubscriptions(organizationId, { document_id: documentId, page_size: 100 }),
@@ -489,6 +497,11 @@ export function AssetsNotificationsSheet({
                 <Skeleton key={i} className="h-16 w-full rounded-lg" />
               ))}
             </div>
+          ) : isErrorNotifications && !notificationsData ? (
+            <HuemulLoadError
+              onRetry={() => void refetchNotifications()}
+              isRetrying={isFetchingNotifications}
+            />
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-2">
               <Bell className="h-8 w-8 opacity-40" />
@@ -539,6 +552,12 @@ export function AssetsNotificationsSheet({
                 <Skeleton key={i} className="h-10 w-full rounded-lg" />
               ))}
             </div>
+          ) : isErrorSubscriptions && !subscriptionsData ? (
+            // Sin esto los switches se verían apagados y activarlos crearía suscripciones duplicadas.
+            <HuemulLoadError
+              onRetry={() => void refetchSubscriptions()}
+              isRetrying={isFetchingSubscriptions}
+            />
           ) : (
             <div className="space-y-5">
 

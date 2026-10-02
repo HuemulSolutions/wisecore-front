@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
+import { HuemulLoadError } from "@/huemul/components/huemul-load-error";
 import {
   HuemulInfoDisplay,
   HuemulInfoSection,
@@ -22,6 +23,9 @@ export function TemplateInfoSheet({
   docxTemplatesCount,
   canViewTags = false,
   canManageTags = false,
+  loading = false,
+  hasError = false,
+  onRetry,
 }: TemplateInfoSheetProps) {
   const { t } = useTranslation(["templates", "tags", "common"]);
 
@@ -53,7 +57,11 @@ export function TemplateInfoSheet({
       icon={Info}
       showFooter={false}
       maxWidth="sm:max-w-xl"
+      bodyLoading={loading}
     >
+      {hasError && !templateData ? (
+        <HuemulLoadError onRetry={() => onRetry?.()} />
+      ) : (
       <HuemulInfoDisplay className="pb-4">
           {/* General */}
           <HuemulInfoSection title={t("templates:infoSheet.sectionIdentifiers")}>
@@ -205,6 +213,7 @@ export function TemplateInfoSheet({
             </HuemulInfoSection>
           )}
         </HuemulInfoDisplay>
+      )}
     </HuemulSheet>
   );
 }

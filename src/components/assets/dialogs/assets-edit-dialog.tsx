@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { updateDocument, getDocumentById } from '@/services/assets';
 import { useOrganization } from '@/contexts/organization-context';
@@ -9,79 +9,86 @@ import { getAssetTypes } from '@/services/asset-types';
 import { getUsers } from '@/services/users';
 import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/error-utils';
 import { Pencil } from 'lucide-react';
 import type { EditDocumentDialogProps } from "@/types/assets";
 
-const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({ 
-  open, 
-  onOpenChange, 
-  documentId, 
-  currentName, 
-  currentDescription, 
-  currentDocumentTypeId,
-  onUpdated 
+interface EditDocumentFormState {
+  /** Documento al que pertenece el estado: evita mostrar datos del documento anterior. */
+  documentId: string;
+  name: string;
+  description: string;
+  internalCode: string;
+  documentTypeId: string;
+  documentTypeName: string;
+  documentTypeColor?: string;
+  createdBy: string;
+  createdByLabel: string;
+  initialCreatedBy: string;
+  contextRequired: boolean;
+}
+
+const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
+  open,
+  onOpenChange,
+  documentId,
+  currentName,
+  onUpdated
 }) => {
   const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
   const { t } = useTranslation(['assets', 'common']);
 
-  const [name, setName] = useState(currentName);
-  const [description, setDescription] = useState(currentDescription || '');
-  const [internalCode, setInternalCode] = useState('');
-  const [documentTypeId, setDocumentTypeId] = useState(currentDocumentTypeId || '');
-  const [documentTypeName, setDocumentTypeName] = useState('');
-  const [documentTypeColor, setDocumentTypeColor] = useState<string | undefined>(undefined);
-  const [createdBy, setCreatedBy] = useState('');
-  const [createdByLabel, setCreatedByLabel] = useState('');
-  const [initialCreatedBy, setInitialCreatedBy] = useState('');
-  const [contextRequired, setContextRequired] = useState(false);
-  // Solo se manda context_required en el payload si el prefill realmente
-  // cargó — si getDocumentById falla, no queremos apagar el flag sin que
-  // el usuario lo haya pedido.
-  const [contextRequiredLoaded, setContextRequiredLoaded] = useState(false);
+  // El formulario nace null y se inicializa una sola vez por apertura con el
+  // detalle real del documento: nunca se muestra ni se guarda un estado
+  // parcial (ej. `context_required: false` o el tipo del documento anterior).
+  const [formState, setForm] = useState<EditDocumentFormState | null>(null);
+  const form = formState?.documentId === documentId ? formState : null;
 
-  // Prefill cuando se abre o cambia el doc
+  // Key propia (prefijo ['document', id]) para que las invalidaciones de
+  // `['document', documentId]` también la refresquen sin compartir forma de dato.
+  const { data: doc, isLoading, error: loadError } = useQuery({
+    queryKey: ['document', documentId, 'edit'],
+    queryFn: () => getDocumentById(documentId, selectedOrganizationId!),
+    enabled: open && !!documentId && !!selectedOrganizationId,
+  });
+
   useEffect(() => {
-    let cancelled = false;
-    async function prefill() {
-      if (!open) return;
-      setName(currentName);
-      setDescription(currentDescription || '');
-      setCreatedBy('');
-      setCreatedByLabel('');
-      setInitialCreatedBy('');
-      setContextRequired(false);
-      setContextRequiredLoaded(false);
-
-      // Siempre cargar datos del documento para obtener todos los campos
-      try {
-        const doc = await getDocumentById(documentId, selectedOrganizationId!);
-        if (!cancelled) {
-          setDescription(doc?.description || '');
-          setInternalCode(doc?.internal_code || '');
-          setDocumentTypeId(doc?.document_type?.id || '');
-          setDocumentTypeName(doc?.document_type?.name || '');
-          setDocumentTypeColor(doc?.document_type?.color ?? undefined);
-          setContextRequired(doc?.context_required === true);
-          setContextRequiredLoaded(true);
-
-          const creator = doc?.created_by_user;
-          if (creator) {
-            setCreatedBy(creator.id);
-            setInitialCreatedBy(creator.id);
-            setCreatedByLabel(`${creator.name} ${creator.last_name} (${creator.email})`);
-          }
-        }
-      } catch (e) {
-        logger.error('Error loading document:', e);
-        // Si falla, usar valores proporcionados como fallback
-        setDescription(currentDescription || '');
-        setDocumentTypeId(currentDocumentTypeId || '');
-      }
+    if (!open) {
+      setForm(null);
+      return;
     }
-    prefill();
-    return () => { cancelled = true };
-  }, [open, currentName, currentDescription, currentDocumentTypeId, documentId, selectedOrganizationId]);
+    if (!doc) return;
+    setForm((prev) => {
+      if (prev && prev.documentId === documentId) return prev;
+      const creator = doc.created_by_user;
+      return {
+        documentId,
+        name: doc.name ?? currentName,
+        description: doc.description || '',
+        internalCode: doc.internal_code || '',
+        documentTypeId: doc.document_type?.id || '',
+        documentTypeName: doc.document_type?.name || '',
+        documentTypeColor: doc.document_type?.color ?? undefined,
+        createdBy: creator?.id ?? '',
+        createdByLabel: creator ? `${creator.name} ${creator.last_name} (${creator.email})` : '',
+        initialCreatedBy: creator?.id ?? '',
+        contextRequired: doc.context_required === true,
+      };
+    });
+  }, [open, doc, documentId, currentName]);
+
+  // Error de carga: avisar y cerrar, nunca dejar el skeleton para siempre.
+  useEffect(() => {
+    if (open && loadError) {
+      handleApiError(loadError);
+      onOpenChange(false);
+    }
+  }, [open, loadError, onOpenChange]);
+
+  const patchForm = useCallback((patch: Partial<EditDocumentFormState>) => {
+    setForm((prev) => (prev ? { ...prev, ...patch } : prev));
+  }, []);
 
   const mutation = useMutation({
     mutationFn: async (payload: { name: string; description?: string; internal_code?: string; document_type_id?: string; created_by?: string; context_required?: boolean }) => {
@@ -121,39 +128,37 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
   }, [selectedOrganizationId]);
 
   const handleSave = useCallback(() => {
-    if (!name.trim()) {
+    if (!form) return;
+    if (!form.name.trim()) {
       toast.error(t('assets:edit.errorNameRequired'));
       return;
     }
-    if (!documentTypeId || !documentTypeId.trim()) {
+    if (!form.documentTypeId || !form.documentTypeId.trim()) {
       toast.error(t('assets:edit.errorTypeRequired'));
       return;
     }
-    
-    const payload: { name: string; description?: string; internal_code?: string; document_type_id: string; created_by?: string; context_required?: boolean } = {
-      name: name.trim(),
-      document_type_id: documentTypeId.trim(),
+
+    const payload: { name: string; description?: string; internal_code?: string; document_type_id: string; created_by?: string; context_required: boolean } = {
+      name: form.name.trim(),
+      document_type_id: form.documentTypeId.trim(),
+      context_required: form.contextRequired,
     };
 
-    if (description.trim()) {
-      payload.description = description.trim();
+    if (form.description.trim()) {
+      payload.description = form.description.trim();
     }
 
-    if (internalCode.trim()) {
-      payload.internal_code = internalCode.trim();
+    if (form.internalCode.trim()) {
+      payload.internal_code = form.internalCode.trim();
     }
 
-    if (createdBy.trim() && createdBy.trim() !== initialCreatedBy) {
-      payload.created_by = createdBy.trim();
-    }
-
-    if (contextRequiredLoaded) {
-      payload.context_required = contextRequired;
+    if (form.createdBy.trim() && form.createdBy.trim() !== form.initialCreatedBy) {
+      payload.created_by = form.createdBy.trim();
     }
 
     logger.log('Updating document with payload:', payload);
     mutation.mutate(payload);
-  }, [name, description, internalCode, documentTypeId, createdBy, initialCreatedBy, contextRequired, contextRequiredLoaded, mutation]);
+  }, [form, mutation, t]);
 
   return (
     <HuemulSheet
@@ -165,85 +170,88 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
       side="right"
       maxWidth="sm:max-w-xl"
       cancelLabel={t('common:cancel')}
+      bodyLoading={isLoading || !form}
       saveAction={{
         label: t('assets:edit.submitLabel'),
         onClick: handleSave,
         loading: mutation.isPending,
-        disabled: !name.trim() || !documentTypeId,
+        disabled: !form || !form.name.trim() || !form.documentTypeId,
       }}
     >
-      <HuemulFieldGroup>
-        <HuemulField
-          label={t('assets:form.assetName')}
-          name="name"
-          value={name}
-          onChange={(v) => setName(String(v))}
-          placeholder={t('assets:form.assetNamePlaceholder')}
-          required
-          autoFocus
-          disabled={mutation.isPending}
-        />
+      {form && (
+        <HuemulFieldGroup>
+          <HuemulField
+            label={t('assets:form.assetName')}
+            name="name"
+            value={form.name}
+            onChange={(v) => patchForm({ name: String(v) })}
+            placeholder={t('assets:form.assetNamePlaceholder')}
+            required
+            autoFocus
+            disabled={mutation.isPending}
+          />
 
-        <HuemulField
-          label={t('assets:form.internalCode')}
-          name="internalCode"
-          value={internalCode}
-          onChange={(v) => setInternalCode(String(v))}
-          placeholder={t('assets:form.internalCodePlaceholder')}
-          disabled={mutation.isPending}
-        />
+          <HuemulField
+            label={t('assets:form.internalCode')}
+            name="internalCode"
+            value={form.internalCode}
+            onChange={(v) => patchForm({ internalCode: String(v) })}
+            placeholder={t('assets:form.internalCodePlaceholder')}
+            disabled={mutation.isPending}
+          />
 
-        <HuemulField
-          type="textarea"
-          label={t('assets:form.description')}
-          name="description"
-          value={description}
-          onChange={(v) => setDescription(String(v))}
-          placeholder={t('assets:form.descriptionPlaceholder')}
-          rows={4}
-          disabled={mutation.isPending}
-        />
+          <HuemulField
+            type="textarea"
+            label={t('assets:form.description')}
+            name="description"
+            value={form.description}
+            onChange={(v) => patchForm({ description: String(v) })}
+            placeholder={t('assets:form.descriptionPlaceholder')}
+            rows={4}
+            disabled={mutation.isPending}
+          />
 
-        <HuemulField
-          type="async-combobox"
-          label={t('assets:form.assetType')}
-          name="documentType"
-          value={documentTypeId}
-          onChange={(v) => setDocumentTypeId(String(v))}
-          placeholder={t('assets:form.assetTypePlaceholder')}
-          required
-          disabled={mutation.isPending}
-          fetchOptions={fetchDocumentTypeOptions}
-          selectedLabel={documentTypeName}
-          selectedColor={documentTypeColor}
-          pageSize={100}
-        />
+          <HuemulField
+            type="async-combobox"
+            label={t('assets:form.assetType')}
+            name="documentType"
+            value={form.documentTypeId}
+            onChange={(v) => patchForm({ documentTypeId: String(v) })}
+            placeholder={t('assets:form.assetTypePlaceholder')}
+            required
+            disabled={mutation.isPending}
+            fetchOptions={fetchDocumentTypeOptions}
+            selectedLabel={form.documentTypeName}
+            selectedColor={form.documentTypeColor}
+            pageSize={100}
+          />
 
-        <HuemulField
-          type="async-combobox"
-          label={t('assets:form.owner')}
-          name="createdBy"
-          value={createdBy}
-          onChange={(v) => setCreatedBy(String(v))}
-          placeholder={t('assets:form.ownerPlaceholder')}
-          description={t('assets:form.ownerDescription')}
-          disabled={mutation.isPending}
-          fetchOptions={fetchCreatedByOptions}
-          selectedLabel={createdByLabel}
-          onSelectedLabelChange={(label) => setCreatedByLabel(label ?? '')}
-          pageSize={20}
-        />
+          <HuemulField
+            type="async-combobox"
+            label={t('assets:form.owner')}
+            name="createdBy"
+            value={form.createdBy}
+            onChange={(v) => patchForm({ createdBy: String(v) })}
+            placeholder={t('assets:form.ownerPlaceholder')}
+            description={t('assets:form.ownerDescription')}
+            disabled={mutation.isPending}
+            fetchOptions={fetchCreatedByOptions}
+            selectedLabel={form.createdByLabel}
+            onSelectedLabelChange={(label) => patchForm({ createdByLabel: label ?? '' })}
+            pageSize={20}
+          />
 
-        <HuemulField
-          type="switch"
-          label={t('assets:form.contextRequired')}
-          name="contextRequired"
-          value={contextRequired}
-          onChange={(v) => setContextRequired(Boolean(v))}
-          description={t('assets:form.contextRequiredDescription')}
-          disabled={mutation.isPending}
-        />
-      </HuemulFieldGroup>
+          <HuemulField
+            type="switch"
+            label={t('assets:form.contextRequired')}
+            name="contextRequired"
+            value={form.contextRequired}
+            onChange={(v) => patchForm({ contextRequired: Boolean(v) })}
+            description={t('assets:form.contextRequiredDescription')}
+            disabled={mutation.isPending}
+          />
+        </HuemulFieldGroup>
+      )}
     </HuemulSheet>
   );
 });

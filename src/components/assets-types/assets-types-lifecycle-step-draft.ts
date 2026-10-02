@@ -86,7 +86,7 @@ export function useLifecycleStepDraft({
   const { canUpdate } = useUserPermissions()
   const canManage = canUpdate("asset_type")
 
-  const { data, isLoading, isFetching } = useAllLifecycleSteps(documentTypeId, enabled)
+  const { data, isLoading, isFetching, error: loadError } = useAllLifecycleSteps(documentTypeId, enabled)
   const { data: rolesData } = useRoles(enabled, 1, 1000)
   const { data: slaUnitsData } = useLifecycleSlaUnits(enabled)
   const { data: accessRuleTypesData } = useLifecycleAccessRuleTypes(enabled)
@@ -357,6 +357,8 @@ export function useLifecycleStepDraft({
   return {
     isLoading,
     isFetching,
+    /** Error del GET de los pasos: el panel avisa y se cierra (el draft vacío no es confiable). */
+    loadError,
     canManage,
     organizationId,
     documentTypeId,

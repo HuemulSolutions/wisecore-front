@@ -49,6 +49,7 @@ const translations = {
   toast: {
     sectionCreated: { en: "Section created successfully", es: "Sección creada exitosamente" },
     sectionUpdated: { en: "Section updated successfully", es: "Sección actualizada exitosamente" },
+    sectionNotFound: { en: "The section no longer exists", es: "La sección ya no existe" },
     sectionDeleted: { en: "Section deleted successfully", es: "Sección eliminada exitosamente" },
     sectionDeletedPropagated: { en: "Section deleted and propagated to {{count}} asset sections", es: "Sección eliminada y propagada a {{count}} secciones de activos" },
     orderUpdated: { en: "Sections order updated", es: "Orden de secciones actualizado" },

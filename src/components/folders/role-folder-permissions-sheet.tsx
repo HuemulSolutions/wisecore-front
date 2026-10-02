@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
+import { HuemulLoadError } from "@/huemul/components/huemul-load-error"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -50,6 +51,7 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
     data: rolesData,
     isLoading: isLoadingRoles,
     isFetching: isFetchingRoles,
+    isError: isErrorRoles,
     refetch: refetchRoles,
   } = useRoles(open, 1, 1000)
   const { data: accessLevelsData, isLoading: isLoadingAccessLevels } = useRoleFolderAccessLevels(
@@ -60,6 +62,7 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
     data: grantsData,
     isLoading: isLoadingGrants,
     isFetching: isFetchingGrants,
+    isError: isErrorGrants,
     refetch: refetchGrants,
   } = useRoleFolderPermissionsByFolder(
     selectedOrganizationId || "",
@@ -69,6 +72,8 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
   const { createRoleFolder, updateRoleFolder, deleteRoleFolder } = useRoleFolderMutations(selectedOrganizationId || "")
 
   const isLoading = isLoadingRoles || isLoadingAccessLevels || isLoadingGrants
+  // Error sin datos: bloque con reintentar (no el banner "hereda" ni el vacío falsos).
+  const hasLoadError = (isErrorGrants && !grantsData) || (isErrorRoles && !rolesData)
   const roles = rolesData?.data || []
   const accessLevels = accessLevelsData?.data || []
 
@@ -175,8 +180,8 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
         side="right"
         maxWidth="sm:max-w-xl"
         showFooter={false}
-      >
-        {isLoading ? (
+        bodyLoading={isLoading}
+        bodySkeleton={
           <div className="space-y-4">
             <Skeleton className="h-24 w-full" />
             <div className="space-y-2">
@@ -185,6 +190,10 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
               ))}
             </div>
           </div>
+        }
+      >
+        {hasLoadError ? (
+          <HuemulLoadError onRetry={handleRefresh} isRetrying={isFetchingGrants || isFetchingRoles} />
         ) : (
           <div className="space-y-6">
             {isInheriting && (

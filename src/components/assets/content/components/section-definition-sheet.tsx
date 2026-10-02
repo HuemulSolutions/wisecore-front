@@ -59,6 +59,15 @@ export function SectionDefinitionSheet({
   const item = sections.find((s) => s.id === sectionId);
   const templateId = config?.document?.template_id ?? config?.template_id ?? undefined;
 
+  // La config llegó pero la sección ya no existe (borrada en otra pestaña): avisar y cerrar
+  // en vez de dejar el skeleton para siempre.
+  useEffect(() => {
+    if (open && config && !item) {
+      toast.error(t('sections:toast.sectionNotFound'));
+      onOpenChange(false);
+    }
+  }, [open, config, item, onOpenChange, t]);
+
   const updateMutation = useMutation({
     mutationFn: (data: EditFormItemForBackend) => {
       // Manual y form viven también en la versión: se propaga a la que se está viendo.

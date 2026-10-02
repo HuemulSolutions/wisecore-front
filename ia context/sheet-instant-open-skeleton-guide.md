@@ -112,6 +112,8 @@ useEffect(() => {
 }, [open, loadError, onOpenChange])
 ```
 
+**Regla por tipo de sheet:** de **edición/formulario** → `handleApiError` + cerrar (el form vacío no es confiable). De **listado/consulta** → el sheet se queda abierto con `HuemulLoadError` (`src/huemul/components/huemul-load-error.tsx`: ícono + texto + "Reintentar"), distinguiendo `isError && !data` del vacío real.
+
 **Excepción — error en el propio panel:** cuando el diseño pide un bloque de error con "Reintentar" (panel de Fuentes, `assets/content/sources/sources-states.tsx`), el sheet se queda abierto, `bodyLoading` pasa a `false` y el cuerpo muestra ese bloque. Sigue valiendo lo de fondo: nunca un skeleton eterno ni un estado vacío falso; el error se distingue del vacío con `isError` (sin datos) y el botón hace `refetch()`.
 
 ## 7. Animación de cierre
@@ -120,8 +122,10 @@ useEffect(() => {
 
 ## Deuda conocida (migrar oportunistamente al tocar el archivo)
 
-Superficies que abren al instante pero muestran spinner suelto, texto o estado falso en vez de skeleton:
-`execution-info-sheet.tsx` (spinner + texto en inglés hardcodeado), `assets-types-config-content.tsx`, `assets-types-create.tsx`, `assets-edit-dialog.tsx` y `workflow-asset-edit-sheet.tsx` (prefill por `useEffect`), `tokens-sheet.tsx`, `execution-config-dialog.tsx` y `lifecycle-review-sheet.tsx` (spinner de campo), y `animate-pulse` a mano en `assets-version-management-sheet.tsx`, `relationship-attributes-dialog.tsx`, `assets-discussions-sheet.tsx`.
+- `execution-info-sheet.tsx`: spinner + texto en inglés hardcodeado en vez de skeleton.
+- `execution-config-dialog.tsx`: spinner de campo.
+- `relationship-attributes-dialog.tsx`: `animate-pulse` a mano.
+- `section-definition-sheet.tsx`: `useRolesMap` no expone `isError`; un deep-link de rol con el catálogo caído deja el skeleton hasta cerrar.
 
 ## Errores comunes
 
@@ -132,6 +136,9 @@ Superficies que abren al instante pero muestran spinner suelto, texto o estado f
 - ❌ Definir la key/fn de la query en dos lugares (hook y prefetch): el prefetch no calienta la caché real (§5).
 - ❌ Skeleton eterno tras un error (§6).
 - ❌ Texto de `title` del sheet en blanco mientras carga: usar `t("common:loading")`.
+- ❌ Mostrar el estado vacío ("sin items", "sin configuración") cuando la query falló: distinguir con `isError` y mostrar `HuemulLoadError` (§6).
+- ❌ Rellenar el form con un `useEffect([data])` que se re-ejecuta en cada refetch y pisa lo que el usuario escribió: inicializar una sola vez por apertura (estado `null` hasta tener la entidad, guardando el id al que pertenece).
+- ❌ Deep-link que deja el skeleton eterno con un id inexistente: limpiar la URL cuando el fetch por id falla (ver `pages/users.tsx`, `pages/organizations.tsx`).
 
 ## Checklist final
 
@@ -142,6 +149,6 @@ Superficies que abren al instante pero muestran spinner suelto, texto o estado f
 [ ] Formulario montado solo con la entidad cargada; no se puede guardar antes
 [ ] Deep-link: skeleton en vez de return null
 [ ] Prefetch al hover/foco si la query es conocida (query definida una sola vez con queryOptions)
-[ ] Error de carga cierra el sheet y avisa
+[ ] Error de carga: sheet de edición cierra y avisa; sheet de listado muestra HuemulLoadError con Reintentar
 [ ] npx tsc -p tsconfig.app.json --noEmit y eslint pasan
 ```

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, List, PlusCircle, Sparkles, BetweenHorizontalStart, ChevronDown } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
+import { HuemulLoadError } from '@/huemul/components/huemul-load-error';
 import { useOrganization } from "@/contexts/organization-context";
 import { usePageAccess } from "@/hooks/usePageAccess";
 import { useInvalidateDocumentSectionAccess } from "@/hooks/useDocumentSectionAccess";
@@ -76,7 +77,13 @@ export function SectionSheet({
     autoSelectedActiveRef.current = false;
   }, [selectedFile?.id, executionInfo?.id, executionId]);
 
-  const { data: sectionsConfig, isLoading: isLoadingSectionsConfig } = useQuery<SectionsConfigResponse>({
+  const {
+    data: sectionsConfig,
+    isLoading: isLoadingSectionsConfig,
+    isError: isErrorSectionsConfig,
+    isFetching: isFetchingSectionsConfig,
+    refetch: refetchSectionsConfig,
+  } = useQuery<SectionsConfigResponse>({
     queryKey: ['document-sections-config', selectedFile?.id, selectedConfigExecutionId],
     queryFn: () => getDocumentSectionsConfig(selectedFile!.id, selectedOrganizationId!, selectedConfigExecutionId || undefined),
     enabled: isOpen && selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
@@ -331,7 +338,7 @@ export function SectionSheet({
         showFooter={false}
         bodyLoading={isLoadingSectionsConfig}
         headerExtra={
-          canEditSections && !isLoadingSectionsConfig ? (
+          canEditSections && !isLoadingSectionsConfig && !(isErrorSectionsConfig && !sectionsConfig) ? (
           <div className="flex items-center gap-2">
             {hasTemplateId && (
               <DropdownMenu>
@@ -523,13 +530,21 @@ export function SectionSheet({
           )}
 
           {(!orderedSections || orderedSections.length === 0) && (
-            <div className="p-4 sm:p-6 border border-dashed border-gray-300 rounded-lg bg-gray-50 text-center">
-              <List className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-              <h3 className="text-sm font-medium text-gray-700 mb-1">{t('emptyState.title')}</h3>
-              <p className="text-xs text-gray-500">
-                {t('emptyState.description')}
-              </p>
-            </div>
+            isErrorSectionsConfig && !sectionsConfig ? (
+              // Error de carga: distinto del vacío real (no ofrecer "agregar sección" sobre datos desconocidos).
+              <HuemulLoadError
+                onRetry={() => void refetchSectionsConfig()}
+                isRetrying={isFetchingSectionsConfig}
+              />
+            ) : (
+              <div className="p-4 sm:p-6 border border-dashed border-gray-300 rounded-lg bg-gray-50 text-center">
+                <List className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <h3 className="text-sm font-medium text-gray-700 mb-1">{t('emptyState.title')}</h3>
+                <p className="text-xs text-gray-500">
+                  {t('emptyState.description')}
+                </p>
+              </div>
+            )
           )}
 
           {/* Add Section Dialog — rendered inside the sheet so Radix treats it

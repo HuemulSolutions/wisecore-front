@@ -117,6 +117,11 @@ export interface TemplateInfoSheetProps {
   canViewTags?: boolean;
   /** tag:u — permite asignar/quitar etiquetas desde la sección. Sin esto, solo lectura. */
   canManageTags?: boolean;
+  /** El detalle del template aún se está cargando: el cuerpo muestra skeleton. */
+  loading?: boolean;
+  /** Falló la carga del detalle: el cuerpo muestra un bloque de error con reintentar. */
+  hasError?: boolean;
+  onRetry?: () => void;
 }
 
 export interface TemplateSectionsListProps {

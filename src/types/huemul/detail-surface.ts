@@ -97,6 +97,14 @@ export interface HuemulDetailSurfaceProps {
   size?: HuemulSheetSize;
   className?: string;
   bodyClassName?: string;
+  /**
+   * El detalle aún se carga: el cuerpo se reemplaza por un skeleton (sheet: el
+   * mecanismo de `HuemulSheet`; página: el mismo skeleton en la columna) y la
+   * zona de guardado queda deshabilitada. Ver sheet-instant-open-skeleton-guide.md.
+   */
+  bodyLoading?: boolean;
+  /** Skeleton propio (mismo layout que el contenido real). Solo con `bodyLoading`. */
+  bodySkeleton?: ReactNode;
   /** Contenido sin tabs. Se ignora si viene `tabs`. */
   children?: ReactNode;
 }

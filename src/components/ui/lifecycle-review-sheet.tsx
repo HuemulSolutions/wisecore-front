@@ -7,6 +7,7 @@ import type { HuemulVersionPickerValue } from "@/huemul/components/huemul-versio
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import MdxEditor from "@/components/layout/mdx-editor"
 import { cn } from "@/lib/utils"
 import { lifecycleStageTone, lifecycleStagePhaseBlock } from "@/lib/lifecycle-colors"
@@ -146,6 +147,7 @@ export function LifecycleReviewSheet({
     changeSummaryError,
     canViewChanges,
     isSummaryLoading,
+    isReviewDataLoading,
     handleViewChanges,
     missingRequiredCustomFields,
     advanceBlockersError,
@@ -271,7 +273,7 @@ export function LifecycleReviewSheet({
       <Button
         type="button"
         className="h-9 rounded-lg bg-[#2563eb] px-4 text-white hover:cursor-pointer hover:bg-[#1d4ed8] disabled:bg-[#e2e8f0] disabled:text-[#64748b] disabled:opacity-100"
-        disabled={isProcessing || hasMissingFields || isVersionInvalid}
+        disabled={isProcessing || hasMissingFields || isVersionInvalid || isReviewDataLoading || (isApprovalStep && isSummaryLoading)}
         onClick={handleConfirm}
       >
         {isProcessing ? (
@@ -450,9 +452,9 @@ export function LifecycleReviewSheet({
           <>
             {isSummaryLoading && (
               <div className="space-y-2 py-1">
-                <div className="h-3 w-full animate-pulse rounded bg-[#eef1f6]" />
-                <div className="h-3 w-5/6 animate-pulse rounded bg-[#eef1f6]" />
-                <div className="h-3 w-2/3 animate-pulse rounded bg-[#eef1f6]" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-5/6" />
+                <Skeleton className="h-3 w-2/3" />
                 <p className="pt-1 text-xs text-[#64748b]">{t("lifecycle.reviewSheet.preparingSummary")}</p>
               </div>
             )}

@@ -148,7 +148,7 @@ export function useLifecycleActions({
   // draft.
   const isLeavingDraft = lifecycleStatus?.state === "draft" && !!lifecycleStatus?.will_advance_phase
 
-  const { missingFieldNames } = useMissingRequiredCustomFields({
+  const { missingFieldNames, isLoading: isLoadingMissingFields } = useMissingRequiredCustomFields({
     documentId,
     organizationId,
     enabled: isCheckDialogOpen && isLeavingDraft && canListCustomFields,
@@ -459,7 +459,7 @@ export function useLifecycleActions({
   // Whether the current lifecycle step (edit/review) has an external system
   // configured — if so, it must run automatically and the user cannot skip it.
   const canHaveExternalReview = lifecycleStatus?.state === "draft" || lifecycleStatus?.state === "in_review"
-  const { data: externalReviewActionsData } = useExternalReviewActions(
+  const { data: externalReviewActionsData, isLoading: isLoadingExternalReview } = useExternalReviewActions(
     organizationId!,
     lifecycleStatus?.current_step_id ?? "",
     isCheckDialogOpen && canHaveExternalReview && !!lifecycleStatus?.current_step_id && !!organizationId,
@@ -595,10 +595,13 @@ export function useLifecycleActions({
     hasExternalReview,
     isApprovalStep,
     changeSummary: changeSummaryQuery.data?.change_summary ?? null,
-    changeSummaryStatus: changeSummaryQuery.data?.change_summary_status ?? null,
+    // Un error de red (sin datos) se trata como "failed": aviso en vez de un editor vacío.
+    changeSummaryStatus: changeSummaryQuery.data?.change_summary_status ?? (changeSummaryQuery.isError ? "failed" : null),
     changeSummaryError: changeSummaryQuery.data?.change_summary_error ?? null,
     canViewChanges: !!changeSummaryQuery.data?.previous_execution_id,
     isSummaryLoading,
+    /** Datos que condicionan Confirmar (campos requeridos / revisión externa) aún cargando. */
+    isReviewDataLoading: (isLeavingDraft && isLoadingMissingFields) || (canHaveExternalReview && isLoadingExternalReview),
     handleViewChanges,
 
     missingRequiredCustomFields: isLeavingDraft ? missingFieldNames : [],

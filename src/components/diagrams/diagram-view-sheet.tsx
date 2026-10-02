@@ -3,6 +3,7 @@
 import { useTranslation } from "react-i18next"
 import { Pencil, Workflow } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
+import { HuemulLoadError } from "@/huemul/components/huemul-load-error"
 import { useDiagram } from "@/hooks/useDiagrams"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useOrgPath } from "@/hooks/useOrgRouter"
@@ -23,8 +24,8 @@ export function DiagramViewSheet({ open, onOpenChange, diagramId, organizationId
   const buildPath = useOrgPath()
   const { isOrgAdmin, hasPermission } = useUserPermissions()
 
-  // Shares the react-query cache with DiagramCanvas — only used here for the sheet title.
-  const { data: diagram } = useDiagram(organizationId, diagramId ?? "")
+  // Shares the react-query cache with DiagramCanvas — aquí da el título y el estado de carga.
+  const { data: diagram, isLoading, isFetching, isError, refetch } = useDiagram(organizationId, diagramId ?? "")
 
   const canEdit = isOrgAdmin || hasPermission("diagram:u")
 
@@ -40,6 +41,7 @@ export function DiagramViewSheet({ open, onOpenChange, diagramId, organizationId
       title={diagram?.name ?? t("editSheet.title")}
       icon={Workflow}
       showFooter={false}
+      bodyLoading={isLoading}
       maxWidth="sm:max-w-[95vw]"
       extraActions={canEdit && diagramId ? [{
         label: t("editSheet.editAction"),
@@ -48,10 +50,14 @@ export function DiagramViewSheet({ open, onOpenChange, diagramId, organizationId
         onClick: handleEdit,
       }] : undefined}
     >
-      {diagramId && (
-        <div className="h-[80vh]">
-          <DiagramCanvas organizationId={organizationId} diagramId={diagramId} readOnly />
-        </div>
+      {isError && !diagram ? (
+        <HuemulLoadError onRetry={() => refetch()} isRetrying={isFetching} />
+      ) : (
+        diagramId && (
+          <div className="h-[80vh]">
+            <DiagramCanvas organizationId={organizationId} diagramId={diagramId} readOnly />
+          </div>
+        )
       )}
     </HuemulSheet>
   )

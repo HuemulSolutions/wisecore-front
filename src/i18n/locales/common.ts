@@ -14,6 +14,8 @@ const translations = {
   configure: { en: "Configure", es: "Configurar" },
   configuring: { en: "Configuring...", es: "Configurando..." },
   tryAgain: { en: "Try Again", es: "Reintentar" },
+  loadErrorTitle: { en: "Couldn't load the data", es: "No se pudieron cargar los datos" },
+  loadErrorText: { en: "Check your connection and try again.", es: "Revisá tu conexión e intentá de nuevo." },
   close: { en: "Close", es: "Cerrar" },
   edit: { en: "Edit", es: "Editar" },
   copy: { en: "Copy", es: "Copiar" },

@@ -1,9 +1,10 @@
-import { GitCompare, AlertCircle, FileText, Plus, Minus, Pencil } from 'lucide-react';
+import { GitCompare, AlertCircle, FileText, Plus, Minus, Pencil, RefreshCw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useMemo, useState } from 'react';
 import { HuemulSheet } from '@/huemul/components/huemul-sheet';
 import { HuemulField } from '@/huemul/components/huemul-field';
+import { HuemulButton } from '@/huemul/components/huemul-button';
 import { Skeleton } from '@/components/ui/skeleton';
 import MarkdownDiffViewer from '@/components/MarkdownDiffViewer';
 import { getDocumentContent } from '@/services/assets';
@@ -348,6 +349,13 @@ export function AssetVersionCompareSheet({
                                 <div className="flex flex-col items-center justify-center py-10 gap-2 px-4 text-center">
                                     <AlertCircle className="h-6 w-6 text-red-400" />
                                     <p className="text-xs text-muted-foreground">{t('versionCompare.loadError')}</p>
+                                    <HuemulButton
+                                        size="sm"
+                                        variant="outline"
+                                        icon={RefreshCw}
+                                        label={t('common:tryAgain')}
+                                        onClick={() => { void leftQuery.refetch(); void rightQuery.refetch(); }}
+                                    />
                                 </div>
                             )}
 

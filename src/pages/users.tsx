@@ -1,6 +1,6 @@
   "use client"
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from "react-router-dom"
@@ -115,11 +115,18 @@ export default function UsersPage() {
   // tabla (otra página, otro filtro de búsqueda) — fallback a useUserById.
   const selectedUserFromPage = filteredUsers.find((u) => u.id === selectedUserId) ?? null
   const needsFallbackFetch = !!selectedUserId && !selectedUserFromPage
-  const { data: fallbackUser } = useUserById(
+  const { data: fallbackUser, isError: fallbackUserError } = useUserById(
     needsFallbackFetch ? selectedUserId : null,
     needsFallbackFetch && canListUsers,
   )
   const selectedUser = selectedUserFromPage ?? fallbackUser ?? null
+
+  // Red de seguridad: id inexistente/sin acceso (404/403) → se limpia la URL en
+  // vez de dejar el skeleton del deep-link para siempre.
+  useEffect(() => {
+    if (selectedUserId && !selectedUserFromPage && fallbackUserError) navigateToUser(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedUserId, selectedUserFromPage, fallbackUserError])
 
   // Staging de roles del usuario seleccionado: vive acá (no dentro del panel)
   // para que `CreateRoleSheet` (sibling, vía "Con permisos" del popover)

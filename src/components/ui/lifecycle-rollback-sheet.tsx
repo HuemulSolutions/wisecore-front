@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next"
 import { useQuery } from "@tanstack/react-query"
 import { Undo2 } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
+import { handleApiError } from "@/lib/error-utils"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulLifecyclePhaseStepper } from "@/huemul/components/huemul-lifecycle-phase-stepper"
 import type { RollbackTargetsResponse } from "@/services/executions"
@@ -29,7 +30,7 @@ export function LifecycleRollbackSheet({
   const [comment, setComment] = useState("")
 
   // Misma query key que `useLifecycleProgress` — comparten el fetch.
-  const { data: rollbackTargets, isLoading: isLoadingTargets } = useQuery<RollbackTargetsResponse>({
+  const { data: rollbackTargets, isLoading: isLoadingTargets, error: targetsError } = useQuery<RollbackTargetsResponse>({
     queryKey: ["rollback-targets", executionId, organizationId],
     queryFn: async () => {
       const { getRollbackTargets } = await import("@/services/executions")
@@ -38,6 +39,14 @@ export function LifecycleRollbackSheet({
     enabled: open && !!executionId && !!organizationId,
     staleTime: 0,
   })
+
+  // Error de carga: avisar y cerrar (nunca mostrar "sin destinos de rollback" falso).
+  useEffect(() => {
+    if (open && targetsError) {
+      handleApiError(targetsError)
+      onOpenChange(false)
+    }
+  }, [open, targetsError, onOpenChange])
 
   // Reset state when the sheet closes
   useEffect(() => {

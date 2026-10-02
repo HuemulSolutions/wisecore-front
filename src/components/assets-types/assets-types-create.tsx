@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import {
   useAssetTypeGeneralForm,
   AssetTypeGeneralFormFields,
 } from "@/components/assets-types/assets-types-general-form";
+import { handleApiError } from "@/lib/error-utils";
 import type { CreateDocumentTypeProps } from '@/types/assets'
 
 export type { CreateDocumentTypeProps } from '@/types/assets'
@@ -47,6 +48,15 @@ export default function CreateDocumentType({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDialogOpen]);
 
+  // Error de carga (modo editar): avisar y cerrar, nunca mostrar defaults editables.
+  useEffect(() => {
+    if (isDialogOpen && form.loadError) {
+      handleApiError(form.loadError);
+      setIsDialogOpen(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDialogOpen, form.loadError]);
+
   const dialogTitle = isEditing
     ? t(type === 'asset' ? 'asset-types:edit.assetTitle' : 'asset-types:edit.documentTitle')
     : t(type === 'asset' ? 'asset-types:create.assetTitle' : 'asset-types:create.documentTitle')
@@ -79,14 +89,9 @@ export default function CreateDocumentType({
           closeOnSuccess: false,
         }}
         cancelLabel={t('common:cancel')}
+        bodyLoading={form.isLoadingData}
       >
-        {form.isLoadingData ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <AssetTypeGeneralFormFields form={form} type={type} />
-        )}
+        <AssetTypeGeneralFormFields form={form} type={type} />
       </HuemulSheet>
     </>
   );

@@ -1194,7 +1194,7 @@ export function AssetContent({
   });
 
   // Fetch full document details only when needed (sections management, sheet operations)
-  const { data: fullDocument, isLoading: isLoadingFullDocument } = useQuery({
+  const { data: fullDocument, isLoading: isLoadingFullDocument, error: fullDocumentError } = useQuery({
     queryKey: ['document', selectedFile?.id],
     queryFn: () => getDocumentById(selectedFile!.id, selectedOrganizationId!),
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && needsFullDocument,
@@ -3603,6 +3603,7 @@ export function AssetContent({
         selectedFile={selectedFile}
         fullDocument={fullDocument}
         isLoadingFullDocument={isLoadingFullDocument}
+        fullDocumentError={fullDocumentError}
         isOpen={isExecuteSheetOpen}
         onOpenChange={(open: boolean | ((prevState: boolean) => boolean)) => {
           if (!open) onPreserveScroll?.();
