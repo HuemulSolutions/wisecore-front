@@ -119,6 +119,23 @@ const translations = {
       es: "Este proceso es síncrono y puede tardar hasta 2 minutos. Mantener este panel abierto.",
     },
     runningNotice: { en: "Generating the asset… Do not close this panel.", es: "Generando el activo… No cerrar este panel." },
+    asyncWarning: {
+      en: "This extension works asynchronously: it accepts the request and creates the asset when it finishes, which may take a while.",
+      es: "Esta extensión trabaja en forma asíncrona: acepta la solicitud y crea el activo cuando termina, lo que puede tardar.",
+    },
+    asyncWaiting: {
+      en: "The extension is processing the import. The asset will open here when it is ready; you can also close this panel and the import will continue.",
+      es: "La extensión está procesando la importación. El activo se abrirá aquí cuando esté listo; también se puede cerrar este panel y la importación seguirá.",
+    },
+    asyncBackground: {
+      en: "The import continues in the background. The asset will appear in the library when the extension finishes.",
+      es: "La importación sigue en segundo plano. El activo aparecerá en la biblioteca cuando la extensión termine.",
+    },
+    asyncFailed: { en: "The extension could not create the asset.", es: "La extensión no pudo crear el activo." },
+    asyncPollError: {
+      en: "Could not check the status of the import. It may still be running.",
+      es: "No se pudo consultar el estado de la importación. Puede seguir en curso.",
+    },
     success: { en: "Asset \"{{name}}\" created from extension", es: "Activo \"{{name}}\" creado desde la extensión" },
     errorSystemRequired: { en: "Select an extension", es: "Seleccionar una extensión" },
     errorFunctionalityRequired: { en: "Select a functionality", es: "Seleccionar una funcionalidad" },

@@ -108,6 +108,7 @@ const translations = {
     loadMore: { en: "Load more", es: "Cargar más" },
     statusPending: { en: "Pending", es: "Pendiente" },
     statusRunning: { en: "Running", es: "En proceso" },
+    statusAwaitingCallback: { en: "Waiting for the extension", es: "Esperando a la extensión" },
     statusCompleted: { en: "Completed", es: "Completado" },
     statusFailed: { en: "Failed", es: "Fallido" },
     detail: {

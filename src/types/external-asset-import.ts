@@ -1,7 +1,11 @@
 // Types for the "import asset from an external system" flow.
-// POST /external-asset-import/ is synchronous (backend timeout 120s): it invokes an
-// already-registered ExternalFunctionality (objective = 'import_asset') and returns the
-// created asset in one shot — same response shape as POST /documents/. No job, no polling.
+// POST /external-asset-import/ invokes an already-registered ExternalFunctionality
+// (objective = 'import_asset'):
+// - sync functionality: waits for the external system (backend timeout 120s) and returns the
+//   created asset in one shot — same response shape as POST /documents/ (200).
+// - async functionality: the external system only accepts the task; the backend answers 202 with
+//   an ExternalAssetImportRun and creates the asset when the external system calls back. The
+//   frontend polls GET /external-asset-import/runs/{import_run_id} until completed/failed.
 
 export interface ExternalAssetImportRequest {
   external_functionality_id: string
@@ -22,6 +26,34 @@ export interface ExternalAssetImportResponse {
   transaction_id: string
   timestamp: string
 }
+
+export type ExternalAssetImportRunStatus = 'pending' | 'awaiting_callback' | 'completed' | 'failed'
+
+// State of an async import (202 body and GET /external-asset-import/runs/{id}).
+// document_id / document_name are set once the status is 'completed'.
+export interface ExternalAssetImportRun {
+  import_run_id: string
+  status: ExternalAssetImportRunStatus
+  external_functionality_id: string
+  folder_id: string | null
+  document_id: string | null
+  document_name: string | null
+  error_detail: string | null
+  callback_expires_at: string | null
+  created_at: string | null
+  finished_at: string | null
+}
+
+export interface ExternalAssetImportRunResponse {
+  data: ExternalAssetImportRun
+  transaction_id: string
+  timestamp: string
+}
+
+// What POST /external-asset-import/ resolves to.
+export type ExternalAssetImportResult =
+  | { kind: 'created'; asset: ExternalAssetImportedAsset }
+  | { kind: 'async'; run: ExternalAssetImportRun }
 
 // Business error codes the endpoint can return (400/502). 404s are left unmapped —
 // the backend message is shown as-is.
