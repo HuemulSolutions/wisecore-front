@@ -11,7 +11,8 @@ export interface ExternalExecutionLog {
   resolved_url: string
   resolved_params: Record<string, unknown>
   resolved_body: string
-  status: 'pending' | 'running' | 'completed' | 'failed'
+  // awaiting_callback: llamada asíncrona; la extensión respondió el ack y falta su callback.
+  status: 'pending' | 'running' | 'awaiting_callback' | 'completed' | 'failed'
   http_status_code: number | null
   response_body: string | null
   error_detail: string | null

@@ -299,7 +299,7 @@ export interface ReorderExternalPublishActionsRequest {
 
 export interface ExternalPublishRun {
   id: string
-  status: 'pending' | 'running' | 'completed' | 'completed_with_errors' | 'failed'
+  status: 'pending' | 'running' | 'awaiting_callback' | 'completed' | 'completed_with_errors' | 'failed'
   total_actions: number
   successful_actions: number
   failed_actions: number
@@ -399,7 +399,7 @@ export interface ExternalReviewRun {
   lifecycle_step_id: string
   triggered_by_user_id: string
   trigger_mode: string
-  status: 'pending' | 'running' | 'completed' | 'completed_with_errors' | 'failed'
+  status: 'pending' | 'running' | 'awaiting_callback' | 'completed' | 'completed_with_errors' | 'failed'
   total_actions: number
   successful_actions: number
   failed_actions: number

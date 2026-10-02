@@ -24,6 +24,7 @@ function StatusIcon({ status }: { status: ExternalExecutionLog["status"] }) {
   if (status === "completed") return <CheckCircle className="h-3.5 w-3.5 text-green-500" />
   if (status === "failed") return <XCircle className="h-3.5 w-3.5 text-red-500" />
   if (status === "running") return <Loader2 className="h-3.5 w-3.5 text-blue-500 animate-spin" />
+  if (status === "awaiting_callback") return <Clock className="h-3.5 w-3.5 text-blue-500" />
   return <Clock className="h-3.5 w-3.5 text-muted-foreground" />
 }
 
@@ -32,6 +33,7 @@ function statusLabel(status: ExternalExecutionLog["status"], t: (k: string) => s
     completed: t("logs.statusCompleted"),
     failed: t("logs.statusFailed"),
     running: t("logs.statusRunning"),
+    awaiting_callback: t("logs.statusAwaitingCallback"),
     pending: t("logs.statusPending"),
   }
   return map[status] ?? status
