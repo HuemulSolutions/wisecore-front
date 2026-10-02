@@ -1,7 +1,7 @@
 /**
- * "Quién puede verla": pública oculta los accesos; privada separa roles y personas,
- * cada bloque con su buscador. Al guardar viajan solo los cambios (`PATCH {add, remove}`),
- * nunca la lista completa.
+ * "Quién puede verla": roles y personas, cada bloque con su buscador; en una pública definen
+ * quién la administra. El creador es un acceso más y nunca queda sin administradores. Al
+ * guardar viajan solo los cambios (`PATCH {add, remove}`), nunca la lista completa.
  */
 import { http, HttpResponse } from 'msw'
 import { screen, waitFor } from '@testing-library/react'
@@ -23,8 +23,13 @@ const page = (data: unknown[]) =>
 const NETWORK_WAIT = { timeout: 5000 }
 
 const CREATOR = { user_id: 'creator', name: 'Carla', last_name: 'Creadora', email: 'carla@x.com' }
+// El creador administra por su grant, como cualquiera.
+const CREATOR_GRANT = {
+  id: 'a0', role_id: null, user_id: 'creator', access_level: 'admin',
+  user: { name: 'Carla', last_name: 'Creadora', email: 'carla@x.com' }, is_member: true,
+}
 
-function mockAccessApi(existing: unknown[] = []) {
+function mockAccessApi(existing: unknown[] = [CREATOR_GRANT]) {
   const calls: { access: unknown; update: unknown; replaced: boolean } = { access: null, update: null, replaced: false }
   server.use(
     http.get(`${backendUrl}/collections/col-1/access`, () => respondOk({ creator: CREATOR, accesses: existing })),
@@ -74,6 +79,7 @@ describe('CollectionAccessSheet', () => {
     const search = await screen.findByPlaceholderText('Search a role to add...')
     expect(await screen.findByText('No roles have access yet.')).toBeInTheDocument()
     expect(screen.getByText('Carla Creadora')).toBeInTheDocument()
+    expect(screen.getByText('Creator')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Analistas/ })).not.toBeInTheDocument()
 
     await user.type(search, 'xyz')
@@ -132,19 +138,58 @@ describe('CollectionAccessSheet', () => {
     expect(calls.access).toEqual({ add: [], remove: [{ role_id: null, user_id: 'gone' }] })
   })
 
-  it('al hacerla pública oculta roles y personas y no toca los accesos', async () => {
+  it('al hacerla pública sigue mostrando quiénes la administran y no toca los accesos', async () => {
     const calls = mockAccessApi([{ id: 'a1', role_id: 'r1', user_id: null, access_level: 'admin', role_name: 'Analistas' }])
     const { user } = renderSheet(false)
 
     expect(await screen.findByText('Roles')).toBeInTheDocument()
     await user.click(screen.getByRole('radio', { name: /Public/ }))
-    expect(screen.queryByPlaceholderText('Search a role to add...')).not.toBeInTheDocument()
-    expect(screen.queryByText('People')).not.toBeInTheDocument()
+    expect(screen.getByText('Who manages it')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Search a role to add...')).toBeInTheDocument()
+    expect(screen.getByText('People')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     await waitFor(() => expect(calls.update).toEqual({ is_public: true }), NETWORK_WAIT)
     expect(calls.access).toBeNull()
     expect(calls.replaced).toBe(false)
+  })
+
+  it('en una pública lo que se agrega es un administrador', async () => {
+    const calls = mockAccessApi()
+    const { user } = renderSheet(true)
+
+    await user.type(await screen.findByPlaceholderText('Search a role to add...'), 'Anal')
+    await user.click(await screen.findByRole('button', { name: /Analistas/ }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(calls.access).not.toBeNull(), NETWORK_WAIT)
+    expect(calls.access).toEqual({ add: [{ role_id: 'r1', user_id: null, access_level: 'admin' }], remove: [] })
+  })
+
+  it('al único administrador no se lo puede quitar; con otro, se puede quitar al creador', async () => {
+    const calls = mockAccessApi()
+    const { user } = renderSheet(false)
+
+    expect(await screen.findByText('Carla Creadora')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeDisabled()
+
+    await user.type(screen.getByPlaceholderText('Search a role to add...'), 'Anal')
+    await user.click(await screen.findByRole('button', { name: /Analistas/ }))
+    // El rol entra como lectura: el creador sigue siendo el único administrador.
+    expect(screen.getAllByRole('button', { name: 'Remove' })[1]).toBeDisabled()
+    await user.click(screen.getAllByRole('combobox', { name: 'Access level' })[0])
+    await user.click(await screen.findByRole('option', { name: 'Manage' }))
+
+    const creatorRemove = screen.getAllByRole('button', { name: 'Remove' })[1]
+    expect(creatorRemove).toBeEnabled()
+    await user.click(creatorRemove)
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(calls.access).not.toBeNull(), NETWORK_WAIT)
+    expect(calls.access).toEqual({
+      add: [{ role_id: 'r1', user_id: null, access_level: 'admin' }],
+      remove: [{ role_id: null, user_id: 'creator' }],
+    })
   })
 
   it('si no se pudieron cargar los accesos muestra el error y no deja guardar', async () => {

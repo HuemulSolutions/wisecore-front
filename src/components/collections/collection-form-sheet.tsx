@@ -28,6 +28,7 @@ const EMPTY_FORM: CollectionFormData = {
   name: "",
   description: "",
   instructions: "",
+  show_instructions_in_menu: false,
   is_public: false,
   for_agent: false,
   agent_slug: "",
@@ -41,6 +42,7 @@ function toFormData(collection: Collection | null): CollectionFormData {
     name: collection.name,
     description: collection.description ?? "",
     instructions: collection.instructions ?? "",
+    show_instructions_in_menu: collection.show_instructions_in_menu ?? false,
     is_public: collection.is_public,
     for_agent: collection.for_agent,
     agent_slug: collection.agent_slug ?? "",
@@ -140,6 +142,7 @@ export function CollectionFormSheet({
       name: formData.name.trim(),
       description: formData.description.trim() || null,
       instructions: formData.instructions.trim() || null,
+      show_instructions_in_menu: formData.show_instructions_in_menu,
       // La visibilidad se cambia en "Quién puede verla"; al crear, privada.
       ...(isEdit ? {} : { is_public: false }),
       for_agent: formData.for_agent,
@@ -316,6 +319,16 @@ export function CollectionFormSheet({
           <Info className="mt-0.5 size-3.5 shrink-0" />
           {t("form.instructionsNotApproved")}
         </p>
+        {!formData.for_agent && (
+          <HuemulField
+            type="switch"
+            label={t("form.instructionsInMenu")}
+            name="show_instructions_in_menu"
+            value={formData.show_instructions_in_menu}
+            onChange={(value) => handleChange("show_instructions_in_menu", Boolean(value))}
+            description={t("form.instructionsInMenuHint")}
+          />
+        )}
 
       </HuemulFieldGroup>
     </HuemulSheet>

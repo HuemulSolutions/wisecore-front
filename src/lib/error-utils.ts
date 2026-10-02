@@ -45,6 +45,8 @@ const DEDICATED_ERROR_MESSAGES: Record<string, string> = {
   // Accesos de una colección: solo se puede dar acceso a roles de la organización y a sus
   // miembros. El buscador solo ofrece esos; esto es el eco de un dato que cambió entretanto.
   INVALID_COLLECTION_ACCESS: 'collections:errors.invalidAccess',
+  // Nunca queda una colección sin administradores; la hoja de accesos ya lo impide.
+  COLLECTION_ADMIN_REQUIRED_AT_LEAST_ONE: 'collections:errors.adminRequired',
 };
 
 /**

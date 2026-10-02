@@ -13,6 +13,7 @@ const item = (id: string, groupId: string | null, position: number): CollectionI
   internal_code: null,
   document_type_id: null,
   version: null,
+  is_home: false,
 })
 
 const groups = [group('g1', 0), group('g2', 1)]

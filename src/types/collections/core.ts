@@ -14,6 +14,8 @@ export interface Collection {
   description: string | null
   /** Reglas generales: van antes que los activos (al agente) y en la portada (a las personas). */
   instructions: string | null
+  /** Las reglas generales como entrada propia del índice, en vez de en la portada. */
+  show_instructions_in_menu: boolean
   is_public: boolean
   for_agent: boolean
   agent_slug: string | null
@@ -56,6 +58,8 @@ export interface CollectionItem {
   internal_code: string | null
   document_type_id: string | null
   version: CollectionItemVersion | null
+  /** El activo que se muestra como portada (a lo sumo uno por colección). */
+  is_home: boolean
 }
 
 export interface CollectionDetail extends Collection {
@@ -92,7 +96,10 @@ export interface CollectionPerson {
   email: string | null
 }
 
-/** `GET /collections/{id}/access`: el creador (siempre administra) y los accesos otorgados. */
+/**
+ * `GET /collections/{id}/access`: quién la creó (solo informativo) y los accesos otorgados. El
+ * creador administra solo si tiene un grant `admin` en `accesses`, y se le puede quitar.
+ */
 export interface CollectionAccessList {
   creator: (Partial<CollectionPerson> & { user_id: string }) | null
   accesses: CollectionAccess[]
@@ -108,6 +115,7 @@ export interface CollectionFormData {
   name: string
   description: string
   instructions: string
+  show_instructions_in_menu: boolean
   is_public: boolean
   for_agent: boolean
   agent_slug: string
@@ -120,6 +128,7 @@ export type UpdateCollectionRequest = Partial<{
   name: string
   description: string | null
   instructions: string | null
+  show_instructions_in_menu: boolean
   is_public: boolean
   for_agent: boolean
   agent_slug: string | null
@@ -153,6 +162,8 @@ export interface AddCollectionItemRequest {
 export interface UpdateCollectionItemRequest {
   group_id?: string | null
   execution_id?: string | null
+  /** `true` = portada de la colección (desmarca la anterior); `false` = deja de serlo. */
+  is_home?: boolean
 }
 
 export interface CollectionItemOrderEntry {

@@ -22,6 +22,8 @@ import {
   FolderInput,
   GripVertical,
   Home,
+  House,
+  ListChecks,
   MoreHorizontal,
   Pencil,
   Pin,
@@ -48,9 +50,15 @@ import { buildIndexRows, moveIndexRow, toOrderEntries, type CollectionIndexRow }
 
 export interface CollectionIndexProps {
   detail: CollectionDetail
-  /** null = portada. */
+  /** null = portada (o las reglas, si `rulesSelected`). */
   selectedItemId: string | null
   onSelectCover: () => void
+  /** Reglas generales como entrada propia del índice (`show_instructions_in_menu`). */
+  showRules: boolean
+  rulesSelected: boolean
+  onSelectRules: () => void
+  /** `true` = el ítem pasa a ser la portada; `false` = deja de serlo. */
+  onSetHome: (item: CollectionItem, isHome: boolean) => void
   onSelectItem: (item: CollectionItem) => void
   /** Versión que se está viendo del ítem seleccionado (para "fijar esta versión"). */
   viewedExecutionId: string | null
@@ -172,6 +180,10 @@ function ItemRow({
                 {t("detail.usePublished")}
               </DropdownMenuItem>
             )}
+            <DropdownMenuItem className={MENU_ITEM} onSelect={() => props.onSetHome(item, !item.is_home)}>
+              <House className="size-4" />
+              {item.is_home ? t("detail.unsetCover") : t("detail.setAsCover")}
+            </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger className={MENU_ITEM}>
                 <FolderInput className="size-4" />
@@ -306,15 +318,19 @@ function GroupRow({
 }
 
 /**
- * Índice lateral de una colección: portada, activos sin grupo y cada grupo con
- * sus activos, en el orden que también recibe el agente. Quien administra puede
- * arrastrar activos (también entre grupos), y crear, renombrar, mover y borrar
- * grupos.
+ * Índice lateral de una colección: portada, reglas generales (si se muestran en el menú),
+ * activos sin grupo y cada grupo con sus activos, en el orden que también recibe el agente.
+ * El activo de portada no se repite en la lista, pero sigue en el orden que se guarda (el
+ * reorden exige todos los ítems visibles y su posición importa para el agente). Quien
+ * administra puede arrastrar activos (también entre grupos), y crear, renombrar, mover y
+ * borrar grupos.
  */
 export function CollectionIndex(props: CollectionIndexProps) {
   const { t } = useTranslation("collections")
   const { detail } = props
   const rows = useMemo(() => buildIndexRows(detail.groups, detail.items), [detail.groups, detail.items])
+  const visibleRows = useMemo(() => rows.filter((row) => !(row.kind === "item" && row.item.is_home)), [rows])
+  const homeItem = detail.items.find((item) => item.is_home)
   const [newGroup, setNewGroup] = useState<string | null>(null)
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
@@ -338,12 +354,43 @@ export function CollectionIndex(props: CollectionIndexProps) {
           onClick={props.onSelectCover}
           className={cn(
             "mb-2 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:cursor-pointer hover:bg-muted",
-            props.selectedItemId === null && "bg-primary/10 font-medium",
+            props.selectedItemId === null && !props.rulesSelected && "bg-primary/10 font-medium",
           )}
         >
           <Home className="size-4 text-muted-foreground" />
-          {t("detail.cover")}
+          <span className="min-w-0 flex-1 truncate text-left">{t("detail.cover")}</span>
+          {homeItem && props.canManage && (
+            <span className="truncate text-xs font-normal text-muted-foreground" title={homeItem.title ?? undefined}>
+              {homeItem.title}
+            </span>
+          )}
         </button>
+        {props.showRules && (
+          <button
+            type="button"
+            onClick={props.onSelectRules}
+            className={cn(
+              "mb-2 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:cursor-pointer hover:bg-muted",
+              props.rulesSelected && "bg-primary/10 font-medium",
+            )}
+          >
+            <ListChecks className="size-4 text-muted-foreground" />
+            {t("detail.rules")}
+          </button>
+        )}
+        {homeItem && props.canManage && (
+          <div className="mb-2 flex items-center gap-1 pr-1">
+            <span className="flex-1" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs text-muted-foreground hover:cursor-pointer"
+              onClick={() => props.onSetHome(homeItem, false)}
+            >
+              {t("detail.unsetCover")}
+            </Button>
+          </div>
+        )}
 
         {rows.length === 0 ? (
           <p className="flex items-start gap-2 px-2 py-4 text-xs text-muted-foreground">
@@ -352,9 +399,9 @@ export function CollectionIndex(props: CollectionIndexProps) {
           </p>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={rows.map((row) => row.id)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={visibleRows.map((row) => row.id)} strategy={verticalListSortingStrategy}>
               <ul className="space-y-0.5">
-                {rows.map((row) =>
+                {visibleRows.map((row) =>
                   row.kind === "item" ? (
                     <ItemRow key={row.id} row={row} props={props} />
                   ) : (

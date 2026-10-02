@@ -4,6 +4,7 @@
  */
 import { http } from 'msw'
 import { screen } from '@testing-library/react'
+import { Route, Routes } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 
 import { backendUrl } from '@/config'
@@ -52,6 +53,66 @@ describe('Colecciones · permisos por pantalla', () => {
 
     expect(await screen.findByText('Access Denied')).toBeInTheDocument()
     expect(requested).toEqual([])
+  })
+})
+
+const ADMIN_DETAIL = {
+  id: 'col-1',
+  name: 'Inducción',
+  description: 'Para quien entra',
+  instructions: 'Lee en orden.',
+  show_instructions_in_menu: true,
+  is_public: true,
+  for_agent: false,
+  agent_slug: null,
+  agent_usage: null,
+  agent_kind: 'knowledge',
+  created_by: activeUser.id,
+  updated_by: null,
+  created_at: null,
+  updated_at: null,
+  can_admin: true,
+  groups: [],
+  items: [],
+  hidden_item_count: 0,
+}
+
+const renderDetail = (route = '/collections/col-1') => {
+  server.use(
+    http.get(`${backendUrl}/collections/col-1`, () => respondOk(ADMIN_DETAIL)),
+    http.get(`${backendUrl}/collections/col-1/access`, () => respondOk({ creator: null, accesses: [] })),
+  )
+  return renderWithProviders(
+    <Routes>
+      <Route path="/collections/:collectionId" element={<CollectionDetailPage />} />
+    </Routes>,
+    { session, route, org: orgWith(['collection:r', 'collection:u', 'collection:d', 'collection:l']) },
+  )
+}
+
+describe('CollectionDetailPage', () => {
+  it('con las reglas en el menú, la portada no las repite y el índice las ofrece aparte', async () => {
+    const { user } = renderDetail()
+
+    expect(await screen.findByText('Para quien entra')).toBeInTheDocument()
+    expect(screen.queryByText('Lee en orden.')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'General rules' }))
+    expect(await screen.findByText('Lee en orden.')).toBeInTheDocument()
+  })
+
+  it('el modo lector oculta la edición a quien administra y se puede volver', async () => {
+    const { user } = renderDetail()
+
+    expect(await screen.findByRole('button', { name: 'More actions' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New group' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'View as reader' }))
+
+    expect(await screen.findByText(/You are viewing the collection as a reader/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'More actions' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'New group' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Back to editing' }))
+    expect(await screen.findByRole('button', { name: 'More actions' })).toBeInTheDocument()
   })
 })
 

@@ -7,6 +7,7 @@ import {
   Bot,
   BookOpen,
   Compass,
+  Eye,
   FilePlus2,
   Globe,
   Library,
@@ -56,11 +57,17 @@ type PendingDelete =
   | { kind: "group"; group: CollectionGroup }
   | { kind: "item"; item: CollectionItem }
 
+/** `?item=rules`: las reglas generales como entrada del índice (`show_instructions_in_menu`). */
+const RULES_ENTRY = "rules"
+
 /**
- * Detalle de una colección: índice a la izquierda (portada, activos sin grupo y
+ * Detalle de una colección: índice a la izquierda (portada, reglas, activos sin grupo y
  * cada grupo), y al centro el activo elegido con el mismo `AssetContent` de
  * /asset (que trae su propio panel lateral de media, relaciones, etc.). El ítem
- * elegido va en `?item=` para que un refresh o un link caigan en el mismo lugar.
+ * elegido va en `?item=` para que un refresh o un link caigan en el mismo lugar. La
+ * portada es el activo marcado `is_home` o, si no hay, el resumen de la colección.
+ * `?view=reader` (solo para quien administra) oculta todo lo de edición, para ver la
+ * colección como la ve el resto.
  */
 export default function CollectionDetailPage() {
   const { collectionId } = useParams<{ collectionId: string }>()
@@ -77,10 +84,12 @@ export default function CollectionDetailPage() {
     refetch: refetchDetail,
   } = useCollection(collectionId, canAccessPage && can("viewCollection"))
   const mutations = useCollectionMutations()
+  // Modo lector: quien administra ve la colección sin nada de edición.
+  const readerMode = searchParams.get("view") === "reader" && !!detail?.can_admin
   // Los accesos (resumen de la portada y "Quién puede verla") solo los gestiona quien
   // administra la colección y tiene el permiso de editarla.
   const canShare =
-    !!detail?.can_admin && can(detail.for_agent ? "updateAgentCollection" : "shareCollection")
+    !readerMode && !!detail?.can_admin && can(detail.for_agent ? "updateAgentCollection" : "shareCollection")
   const {
     data: accessList,
     isError: isAccessError,
@@ -99,36 +108,50 @@ export default function CollectionDetailPage() {
   const [executionOverride, setExecutionOverride] = useState<{ itemId: string; executionId: string | null } | null>(null)
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
 
-  const selectedItemId = searchParams.get("item")
+  const itemParam = searchParams.get("item")
+  const rulesSelected = itemParam === RULES_ENTRY && !!detail?.show_instructions_in_menu && !!detail.instructions
+  const selectedItemId = rulesSelected ? null : itemParam
   const selectedItem = useMemo(
     () => detail?.items.find((item) => item.id === selectedItemId) ?? null,
     [detail?.items, selectedItemId],
   )
+  // Lo que se muestra al centro: el ítem elegido o, en la portada, el activo de portada.
+  const homeItem = useMemo(() => detail?.items.find((item) => item.is_home) ?? null, [detail?.items])
+  const shownItem = selectedItem ?? (rulesSelected || selectedItemId ? null : homeItem)
   const selectedExecutionId =
-    executionOverride && executionOverride.itemId === selectedItem?.id
+    executionOverride && executionOverride.itemId === shownItem?.id
       ? executionOverride.executionId
-      : (selectedItem?.version?.execution_id ?? null)
+      : (shownItem?.version?.execution_id ?? null)
   const setSelectedExecutionId = useCallback(
     (executionId: string | null) => {
-      if (selectedItem) setExecutionOverride({ itemId: selectedItem.id, executionId })
+      if (shownItem) setExecutionOverride({ itemId: shownItem.id, executionId })
     },
-    [selectedItem],
+    [shownItem],
   )
   const selectedFile: LibraryItem | null = useMemo(
-    () => (selectedItem ? { id: selectedItem.document_id, name: selectedItem.title ?? "", type: "document" } : null),
-    [selectedItem],
+    () => (shownItem ? { id: shownItem.document_id, name: shownItem.title ?? "", type: "document" } : null),
+    [shownItem],
+  )
+
+  const updateParams = useCallback(
+    (changes: Record<string, string | null>) => {
+      const next = new URLSearchParams(searchParams)
+      for (const [key, value] of Object.entries(changes)) {
+        if (value === null) next.delete(key)
+        else next.set(key, value)
+      }
+      setSearchParams(next, { replace: true })
+    },
+    [searchParams, setSearchParams],
   )
 
   const selectItem = useCallback(
     (item: CollectionItem | null) => {
-      const next = new URLSearchParams(searchParams)
-      if (item) next.set("item", item.id)
-      else next.delete("item")
-      setSearchParams(next, { replace: true })
+      updateParams({ item: item?.id ?? null })
       setExecutionOverride(null)
       setSelectedSectionId(null)
     },
-    [searchParams, setSearchParams],
+    [updateParams],
   )
 
   if (isLoadingPermissions || isLoading) return <PageSkeleton />
@@ -151,9 +174,10 @@ export default function CollectionDetailPage() {
   }
 
   const canManage =
-    detail.can_admin && (detail.for_agent ? can("updateAgentCollection") : can("updateCollection"))
+    !readerMode && detail.can_admin && (detail.for_agent ? can("updateAgentCollection") : can("updateCollection"))
   const canDelete =
-    detail.can_admin && (detail.for_agent ? can("deleteAgentCollection") : can("deleteCollection"))
+    !readerMode && detail.can_admin && (detail.for_agent ? can("deleteAgentCollection") : can("deleteCollection"))
+  const rulesInMenu = detail.show_instructions_in_menu && !!detail.instructions
   const KindIcon = detail.agent_kind === "behavior" ? Compass : BookOpen
   const accesses = accessList?.accesses
   const refresh = () => {
@@ -242,17 +266,22 @@ export default function CollectionDetailPage() {
         </dl>
       )}
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold">{t("detail.instructionsTitle")}</h2>
-        {detail.instructions ? (
-          <p className="whitespace-pre-wrap rounded-lg bg-muted/40 p-4 text-sm leading-relaxed">{detail.instructions}</p>
-        ) : (
-          <p className="text-sm italic text-muted-foreground">{t("detail.noInstructions")}</p>
-        )}
-      </section>
+      {!rulesInMenu && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold">{t("detail.instructionsTitle")}</h2>
+          {detail.instructions ? (
+            <p className="whitespace-pre-wrap rounded-lg bg-muted/40 p-4 text-sm leading-relaxed">{detail.instructions}</p>
+          ) : (
+            <p className="text-sm italic text-muted-foreground">{t("detail.noInstructions")}</p>
+          )}
+        </section>
+      )}
 
       {detail.items.length > 0 ? (
-        <p className="text-sm text-muted-foreground">{t("detail.selectAsset")}</p>
+        <div className="space-y-1">
+          <p className="text-sm text-muted-foreground">{t("detail.selectAsset")}</p>
+          {canManage && <p className="text-xs text-muted-foreground">{t("detail.coverHint")}</p>}
+        </div>
       ) : (
         <div className="flex flex-col items-start gap-2 rounded-lg border border-dashed p-4">
           <p className="text-sm text-muted-foreground">{t("detail.emptyIndex")}</p>
@@ -264,95 +293,120 @@ export default function CollectionDetailPage() {
     </div>
   )
 
+  const rulesView = (
+    <div className="mx-auto max-w-3xl space-y-3 p-6">
+      <h2 className="text-lg font-semibold">{t("detail.instructionsTitle")}</h2>
+      <p className="whitespace-pre-wrap text-sm leading-relaxed">{detail.instructions}</p>
+    </div>
+  )
+
   return (
     <>
       <HuemulPageLayout
         header={
-          <div className="flex h-12 items-center gap-2 border-b px-3">
-            <HuemulButton
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              icon={ArrowLeft}
-              onClick={() => navigate("/collections")}
-              aria-label={t("detail.back")}
-              tooltip={t("detail.back")}
-            />
-            <Library className="size-4 shrink-0 text-muted-foreground" />
-            <h1 className="min-w-0 truncate text-base font-semibold" title={detail.name}>
-              {detail.name}
-            </h1>
-            <div className="hidden items-center gap-1 sm:flex">
-              {detail.for_agent ? (
-                <>
+          <div className="border-b">
+            <div className="flex h-12 items-center gap-2 px-3">
+              <HuemulButton
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                icon={ArrowLeft}
+                onClick={() => navigate("/collections")}
+                aria-label={t("detail.back")}
+                tooltip={t("detail.back")}
+              />
+              <Library className="size-4 shrink-0 text-muted-foreground" />
+              <h1 className="min-w-0 truncate text-base font-semibold" title={detail.name}>
+                {detail.name}
+              </h1>
+              <div className="hidden items-center gap-1 sm:flex">
+                {detail.for_agent ? (
+                  <>
+                    <Badge variant="secondary" className="gap-1 px-1.5 py-0 text-[11px]">
+                      <Bot className="size-3" />
+                      {t("card.agent")}
+                    </Badge>
+                    <Badge variant="outline" className="gap-1 px-1.5 py-0 text-[11px]">
+                      <KindIcon className="size-3" />
+                      {detail.agent_kind === "behavior" ? t("card.behavior") : t("card.knowledge")}
+                    </Badge>
+                  </>
+                ) : (
                   <Badge variant="secondary" className="gap-1 px-1.5 py-0 text-[11px]">
-                    <Bot className="size-3" />
-                    {t("card.agent")}
+                    <Users className="size-3" />
+                    {t("card.human")}
                   </Badge>
-                  <Badge variant="outline" className="gap-1 px-1.5 py-0 text-[11px]">
-                    <KindIcon className="size-3" />
-                    {detail.agent_kind === "behavior" ? t("card.behavior") : t("card.knowledge")}
-                  </Badge>
-                </>
-              ) : (
-                <Badge variant="secondary" className="gap-1 px-1.5 py-0 text-[11px]">
-                  <Users className="size-3" />
-                  {t("card.human")}
+                )}
+                <Badge variant="outline" className="gap-1 px-1.5 py-0 text-[11px]">
+                  {detail.is_public ? <Globe className="size-3" /> : <Lock className="size-3" />}
+                  {detail.is_public ? t("card.public") : t("card.private")}
                 </Badge>
+              </div>
+              <HuemulButton
+                variant="ghost"
+                size="icon"
+                className="ml-auto size-8"
+                icon={RefreshCw}
+                aria-label={t("common:refresh")}
+                tooltip={t("common:refresh")}
+                loading={isFetchingDetail || isFetchingAccess}
+                onClick={refresh}
+              />
+              {detail.can_admin && (
+                <HuemulButton
+                  variant={readerMode ? "default" : "outline"}
+                  size="sm"
+                  className="h-8"
+                  icon={readerMode ? Pencil : Eye}
+                  label={readerMode ? t("detail.exitReaderMode") : t("detail.readerMode")}
+                  onClick={() => updateParams({ view: readerMode ? null : "reader" })}
+                />
               )}
-              <Badge variant="outline" className="gap-1 px-1.5 py-0 text-[11px]">
-                {detail.is_public ? <Globe className="size-3" /> : <Lock className="size-3" />}
-                {detail.is_public ? t("card.public") : t("card.private")}
-              </Badge>
-            </div>
-            <HuemulButton
-              variant="ghost"
-              size="icon"
-              className="ml-auto size-8"
-              icon={RefreshCw}
-              aria-label={t("common:refresh")}
-              tooltip={t("common:refresh")}
-              loading={isFetchingDetail || isFetchingAccess}
-              onClick={refresh}
-            />
-            {(canManage || canDelete) && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="size-8 hover:cursor-pointer"
-                    aria-label={t("detail.moreActions")}
-                    title={t("detail.moreActions")}
-                  >
-                    <MoreHorizontal className="size-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {canManage && (
-                    <DropdownMenuItem className="hover:cursor-pointer" onSelect={afterMenuCloses(() => setEditing(true))}>
-                      <Pencil className="size-4" />
-                      {t("detail.edit")}
-                    </DropdownMenuItem>
-                  )}
-                  {canShare && (
-                    <DropdownMenuItem className="hover:cursor-pointer" onSelect={afterMenuCloses(() => setSharing(true))}>
-                      <ShieldCheck className="size-4" />
-                      {t("detail.share")}
-                    </DropdownMenuItem>
-                  )}
-                  {(canManage || canShare) && canDelete && <DropdownMenuSeparator />}
-                  {canDelete && (
-                    <DropdownMenuItem
-                      className="text-destructive hover:cursor-pointer"
-                      onSelect={afterMenuCloses(() => setPendingDelete({ kind: "collection" }))}
+              {(canManage || canDelete) && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="size-8 hover:cursor-pointer"
+                      aria-label={t("detail.moreActions")}
+                      title={t("detail.moreActions")}
                     >
-                      <Trash2 className="size-4" />
-                      {t("detail.delete")}
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {canManage && (
+                      <DropdownMenuItem className="hover:cursor-pointer" onSelect={afterMenuCloses(() => setEditing(true))}>
+                        <Pencil className="size-4" />
+                        {t("detail.edit")}
+                      </DropdownMenuItem>
+                    )}
+                    {canShare && (
+                      <DropdownMenuItem className="hover:cursor-pointer" onSelect={afterMenuCloses(() => setSharing(true))}>
+                        <ShieldCheck className="size-4" />
+                        {t("detail.share")}
+                      </DropdownMenuItem>
+                    )}
+                    {(canManage || canShare) && canDelete && <DropdownMenuSeparator />}
+                    {canDelete && (
+                      <DropdownMenuItem
+                        className="text-destructive hover:cursor-pointer"
+                        onSelect={afterMenuCloses(() => setPendingDelete({ kind: "collection" }))}
+                      >
+                        <Trash2 className="size-4" />
+                        {t("detail.delete")}
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+            {readerMode && (
+              <p className="flex items-center gap-2 border-t bg-primary/5 px-3 py-1.5 text-xs text-muted-foreground">
+                <Eye className="size-3.5 shrink-0" />
+                {t("detail.readerBanner")}
+              </p>
             )}
           </div>
         }
@@ -364,6 +418,16 @@ export default function CollectionDetailPage() {
                 detail={detail}
                 selectedItemId={selectedItem?.id ?? null}
                 onSelectCover={() => selectItem(null)}
+                showRules={rulesInMenu}
+                rulesSelected={rulesSelected}
+                onSelectRules={() => {
+                  updateParams({ item: RULES_ENTRY })
+                  setExecutionOverride(null)
+                  setSelectedSectionId(null)
+                }}
+                onSetHome={(item, isHome) =>
+                  mutations.updateItem.mutate({ collectionId, itemId: item.id, data: { is_home: isHome } })
+                }
                 onSelectItem={selectItem}
                 viewedExecutionId={selectedExecutionId}
                 canManage={canManage}
@@ -396,7 +460,9 @@ export default function CollectionDetailPage() {
           },
           {
             id: "collection-content",
-            content: selectedFile ? (
+            content: rulesSelected ? (
+              <div className="h-full overflow-y-auto">{rulesView}</div>
+            ) : selectedFile ? (
               <AssetContent
                 key={selectedFile.id}
                 selectedFile={selectedFile}
