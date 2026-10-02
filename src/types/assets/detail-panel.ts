@@ -5,7 +5,7 @@ import type { CustomFieldDocument } from '@/types/custom-fields'
 import type { MediaScope, MediaScopeExecutionOption } from '@/types/media'
 import type { TocItem } from '@/types/table-of-contents'
 
-export type AssetDetailPanelTab = 'index' | 'fields' | 'files' | 'links'
+export type AssetDetailPanelTab = 'index' | 'fields' | 'files' | 'links' | 'diagrams'
 
 /** Marca de tiempo de "última actualización" por tab, para el footer del panel. */
 export type AssetDetailPanelTimestamps = Partial<Record<AssetDetailPanelTab, number>>
@@ -61,9 +61,9 @@ export interface AssetDetailPanelProps extends AssetDetailPanelPermissions {
   executions: MediaScopeExecutionOption[]
   onOpenMediaSheet: (scope?: MediaScope) => void
 
-  /** Sheet de diagramas del activo — botón en el header del panel (visible si `canAccessDiagrams`). */
+  /** Tab "Diagramas" del rail (visible si `canAccessDiagrams`); `canCreateDiagram` habilita el "+" del header. */
   canAccessDiagrams?: boolean
-  onOpenDiagrams?: () => void
+  canCreateDiagram?: boolean
 
   /** Colapso a solo-rail (53px), controlado por el `ResizablePanel` que envuelve este componente. */
   isCollapsed: boolean

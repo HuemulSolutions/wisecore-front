@@ -10,9 +10,10 @@ vi.mock("./assets-panel-index-tab", () => ({ AssetsPanelIndexTab: () => <div dat
 vi.mock("./assets-panel-fields-tab", () => ({ AssetsPanelFieldsTab: () => <div data-testid="tab-fields" /> }));
 vi.mock("./assets-panel-files-tab", () => ({ AssetsPanelFilesTab: () => <div data-testid="tab-files" /> }));
 vi.mock("./assets-panel-links-tab", () => ({ AssetsPanelLinksTab: () => <div data-testid="tab-links" /> }));
+vi.mock("./assets-panel-diagrams-tab", () => ({ AssetsPanelDiagramsTab: () => <div data-testid="tab-diagrams" /> }));
 vi.mock("@/huemul/components/huemul-media-upload-sheet", () => ({ HuemulMediaUploadSheet: () => null }));
 
-function Harness({ documentId = "doc-1" }: { documentId?: string }) {
+function Harness({ documentId = "doc-1", canAccessDiagrams = false }: { documentId?: string; canAccessDiagrams?: boolean }) {
   const [activeTab, setActiveTab] = useState<AssetDetailPanelTab>("index");
   const props = {
     organizationId: "org-1",
@@ -29,6 +30,7 @@ function Harness({ documentId = "doc-1" }: { documentId?: string }) {
     canListAssetTypes: false,
     canDeleteRelationship: false,
     canAddSection: false,
+    canAccessDiagrams,
     activeTab,
     onActiveTabChange: setActiveTab,
     tocItems: [],
@@ -66,5 +68,22 @@ describe("AssetsDetailPanel — carga on-demand de tabs", () => {
     const indexButton = buttons.find((b) => /index/i.test(b.textContent ?? ""));
     await user.click(indexButton!);
     expect(screen.getByTestId("tab-files")).toBeInTheDocument();
+  });
+});
+
+describe("AssetsDetailPanel — tab Diagramas", () => {
+  it("sin permiso no muestra la opción ni monta el tab", () => {
+    render(<Harness />);
+    expect(screen.queryByRole("button", { name: /diagrams/i })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("tab-diagrams")).not.toBeInTheDocument();
+  });
+
+  it("con permiso muestra la opción y monta el tab recién al seleccionarla", async () => {
+    const user = userEvent.setup();
+    render(<Harness canAccessDiagrams />);
+    expect(screen.queryByTestId("tab-diagrams")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /diagrams/i }));
+    expect(screen.getByTestId("tab-diagrams")).toBeInTheDocument();
   });
 });

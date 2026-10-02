@@ -38,7 +38,6 @@ import { AssetsDiscussionsSheet } from "@/components/assets/content/assets-discu
 import { DiscussionFocusProvider, useDiscussionFocus } from "@/contexts/discussion-focus-context";
 import { useDiscussions } from "@/hooks/useDiscussions";
 import { AssetHistorySheet } from "@/components/assets/content/history/asset-history-sheet";
-import { AssetDiagramsSheet } from "@/components/assets/content/asset-diagrams-sheet";
 import { MediaListSheet } from "@/components/ui/media-list-sheet";
 import type { MediaScope, MediaScopeExecutionOption } from "@/types/media";
 import type { AssetHistoryTab } from "@/types/assets";
@@ -571,7 +570,6 @@ export function AssetContent({
   const [isNotificationsSheetOpen, setIsNotificationsSheetOpen] = useState(false);
   const [isDiscussionsSheetOpen, setIsDiscussionsSheetOpen] = useState(false);
   const [isLifecycleHistorySheetOpen, setIsLifecycleHistorySheetOpen] = useState(false);
-  const [isDiagramsSheetOpen, setIsDiagramsSheetOpen] = useState(false);
   const [isMediaSheetOpen, setIsMediaSheetOpen] = useState(false);
   // Alcance con el que se abrió el sheet desde el panel de detalle (documento completo
   // o una versión puntual) — null cuando se abrió desde el header, que usa la versión actual.
@@ -3435,7 +3433,7 @@ export function AssetContent({
               onRefreshCustomFields={handleRefreshCustomFields}
               executions={allExecutions ?? []}
               canAccessDiagrams={canAccessDiagrams}
-              onOpenDiagrams={() => setIsDiagramsSheetOpen(true)}
+              canCreateDiagram={isOrgAdmin || hasPermission('diagram:c')}
               onOpenMediaSheet={(scope) => { setMediaSheetScope(scope ?? null); setIsMediaSheetOpen(true); }}
               className="h-full rounded-none border-0 shadow-none"
             />
@@ -3774,15 +3772,6 @@ export function AssetContent({
         executionId={selectedExecutionId || documentContent?.execution_id || ''}
         allExecutions={allExecutions ?? []}
         entityName={documentContent?.document_name || selectedFile?.name}
-      />
-
-      {/* Related Diagrams Sheet */}
-      <AssetDiagramsSheet
-        open={isDiagramsSheetOpen}
-        onOpenChange={setIsDiagramsSheetOpen}
-        documentId={selectedFile?.id ?? ''}
-        organizationId={selectedOrganizationId ?? ''}
-        executionId={selectedExecutionId || documentContent?.execution_id || ''}
       />
 
       {/* Media Sheet — toda la media subida al documento o a la versión seleccionada */}

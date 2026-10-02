@@ -11,6 +11,7 @@ import { AssetsPanelIndexTab } from "./assets-panel-index-tab";
 import { AssetsPanelFieldsTab } from "./assets-panel-fields-tab";
 import { AssetsPanelFilesTab, type AssetsPanelFilesTabHandle } from "./assets-panel-files-tab";
 import { AssetsPanelLinksTab, type AssetsPanelLinksTabHandle } from "./assets-panel-links-tab";
+import { AssetsPanelDiagramsTab, type AssetsPanelDiagramsTabHandle } from "./assets-panel-diagrams-tab";
 
 // Duración mínima del giro del ícono de refresh, independiente de cuánto tarde la
 // query real — evita un "parpadeo" cuando la respuesta vuelve casi instantánea.
@@ -61,7 +62,7 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
     executions,
     onOpenMediaSheet,
     canAccessDiagrams,
-    onOpenDiagrams,
+    canCreateDiagram,
     isCollapsed,
     onToggleCollapse,
     className,
@@ -100,13 +101,15 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
 
   const filesRef = useRef<AssetsPanelFilesTabHandle>(null);
   const linksRef = useRef<AssetsPanelLinksTabHandle>(null);
+  const diagramsRef = useRef<AssetsPanelDiagramsTabHandle>(null);
 
   // El tab activo no puede quedar apuntando a un tab que el usuario no puede ver
   // (el guard vive acá porque `activeTab` es estado controlado por el caller).
   useEffect(() => {
     if (activeTab === "fields" && !canListCustomFields) onActiveTabChange("index");
     if (activeTab === "links" && !canListExecutionRelationships) onActiveTabChange("index");
-  }, [activeTab, canListCustomFields, canListExecutionRelationships, onActiveTabChange]);
+    if (activeTab === "diagrams" && !canAccessDiagrams) onActiveTabChange("index");
+  }, [activeTab, canListCustomFields, canListExecutionRelationships, canAccessDiagrams, onActiveTabChange]);
 
   const runRefresh = useCallback((tab: AssetDetailPanelTab, task?: () => void | Promise<unknown>) => {
     setRefreshingTab(tab);
@@ -125,6 +128,7 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
       case "fields": return runRefresh("fields", onRefreshCustomFields);
       case "files": return runRefresh("files", () => filesRef.current?.refresh());
       case "links": return runRefresh("links", () => linksRef.current?.refresh());
+      case "diagrams": return runRefresh("diagrams", () => diagramsRef.current?.refresh());
     }
   }, [activeTab, onRefreshIndex, onRefreshCustomFields, runRefresh]);
 
@@ -133,6 +137,7 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
     { key: "fields", label: t("content.detailPanel.tabs.fields"), icon: SlidersHorizontal, visible: canListCustomFields },
     { key: "files", label: t("content.detailPanel.tabs.files"), icon: Paperclip, visible: true },
     { key: "links", label: t("content.detailPanel.tabs.linksShort"), icon: Link2, visible: canListExecutionRelationships },
+    { key: "diagrams", label: t("content.detailPanel.tabs.diagrams"), icon: Workflow, visible: !!canAccessDiagrams },
   ];
 
   const handleSelectTab = (tab: AssetDetailPanelTab) => {
@@ -151,6 +156,9 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
     }
     if (activeTab === "files" && canCreateMedia) {
       return { label: t("content.detailPanel.addFiles"), onClick: () => setIsUploadSheetOpen(true) };
+    }
+    if (activeTab === "diagrams" && canCreateDiagram) {
+      return { label: t("content.detailPanel.addDiagram"), onClick: () => diagramsRef.current?.create() };
     }
     return null;
   })();
@@ -203,18 +211,6 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
                 iconClassName="h-3.5 w-3.5"
                 tooltip={addAction.label}
                 onClick={addAction.onClick}
-              />
-            )}
-            {canAccessDiagrams && onOpenDiagrams && (
-              <HuemulButton
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                icon={Workflow}
-                iconClassName="h-3.5 w-3.5"
-                tooltip={t("content.diagramsLabel")}
-                aria-label={t("content.diagramsLabel")}
-                onClick={onOpenDiagrams}
               />
             )}
             <HuemulButton
@@ -284,6 +280,16 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
                 canOpenDiagrams={canOpenDiagrams}
                 canListAssetTypes={canListAssetTypes}
                 canDeleteRelationship={canDeleteRelationship}
+              />
+            </div>
+          )}
+          {canAccessDiagrams && isTabMounted("diagrams") && (
+            <div className={cn("h-full", activeTab !== "diagrams" && "hidden")}>
+              <AssetsPanelDiagramsTab
+                ref={diagramsRef}
+                organizationId={organizationId}
+                documentId={documentId}
+                executionId={executionId}
               />
             </div>
           )}

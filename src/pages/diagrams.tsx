@@ -39,7 +39,7 @@ import type { Diagram } from "@/types/diagrams"
  *
  * Qué se edita lo decide `?diagram=`: un id carga el diagrama guardado, `new`
  * abre un canvas en blanco (opcionalmente sembrado con ?seedAsset=&seedExecution=,
- * ver AssetDiagramsSheet) y sin param se trabaja sobre el canvas libre. El panel
+ * ver AssetsPanelDiagramsTab) y sin param se trabaja sobre el canvas libre. El panel
  * "Diagramas" del riel es la única fuente del listado (búsqueda, filtro por
  * ejecución, paginación y eliminar).
  */
