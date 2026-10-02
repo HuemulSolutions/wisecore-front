@@ -31,15 +31,16 @@ export function DiscussionThreadHeader({
 }: DiscussionThreadHeaderProps) {
   const { t } = useTranslation('editor');
   const currentUserId = usePluginOption(discussionPlugin, 'currentUserId');
-  const { canUpdate } = useUserPermissions();
+  const { canCreate, canUpdate } = useUserPermissions();
   const resolveDiscussion = useResolveDiscussion();
 
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
 
   const openerComment = discussion.comments[0];
   const openerId = discussion.userId || openerComment?.userId;
-  const canResolve = !!currentUserId && (currentUserId === openerId || canUpdate('discussion'));
-  const canEditOpener = !!openerComment && currentUserId === openerComment.userId;
+  const canComment = canCreate('discussion');
+  const canResolve = !!currentUserId && ((canComment && currentUserId === openerId) || canUpdate('discussion'));
+  const canEditOpener = canComment && !!openerComment && currentUserId === openerComment.userId;
 
   return (
     <div className="sticky top-0 z-10 flex">

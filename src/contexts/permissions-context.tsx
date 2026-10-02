@@ -1,4 +1,4 @@
-import { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   getCurrentUserInfo,
   type Permission
@@ -16,6 +16,33 @@ export const usePermissions = () => {
     throw new Error('usePermissions must be used within a PermissionsProvider');
   }
   return context;
+};
+
+/** Un permiso de solo lectura: `<recurso>:r` (leer) o `<recurso>:l` (listar). */
+export const isReadOnlyPermission = (permission: string): boolean => /:(r|l)$/.test(permission);
+
+/**
+ * Vuelve a proveer los permisos del usuario dejando solo los de lectura (`:r` / `:l`) y sin
+ * el bypass de org admin: todo lo que cuelga de acá se ve como si el usuario solo pudiera
+ * mirar ("Solo visualización" de una colección). No cambia lo que el backend permite: solo lo
+ * que la interfaz ofrece. Sin `enabled`, no hace nada.
+ */
+export const ViewOnlyPermissionsProvider = ({ enabled = true, children }: { enabled?: boolean; children: ReactNode }) => {
+  const parent = usePermissions();
+  const value: PermissionsContextType = useMemo(() => {
+    const permissions = parent.permissions.filter(isReadOnlyPermission);
+    const allowed = (permission: Permission | string) => isReadOnlyPermission(permission) && (parent.isOrgAdmin || permissions.includes(permission));
+    return {
+      ...parent,
+      permissions,
+      isOrgAdmin: false,
+      hasPermission: allowed,
+      hasAnyPermission: (list) => list.some(allowed),
+      hasAllPermissions: (list) => list.every(allowed),
+    };
+  }, [parent]);
+  if (!enabled) return <>{children}</>;
+  return <PermissionsContext.Provider value={value}>{children}</PermissionsContext.Provider>;
 };
 
 export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {

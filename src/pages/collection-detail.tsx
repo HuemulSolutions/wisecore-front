@@ -8,8 +8,6 @@ import {
   BookOpen,
   Compass,
   Eye,
-  FilePlus2,
-  FolderPlus,
   Globe,
   Library,
   Lock,
@@ -22,11 +20,16 @@ import {
 } from "lucide-react"
 import { AssetContent } from "@/components/assets"
 import {
+  AddButtons,
   AddChildCollectionDialog,
   CollectionAccessSheet,
   CollectionFormSheet,
   CollectionIndex,
+  CopyModeLinkButton,
+  ViewModeMenuItems,
   CollectionsErrorState,
+  resolveViewMode,
+  viewModeParam,
 } from "@/components/collections"
 import { Button } from "@/components/ui/button"
 import {
@@ -40,7 +43,7 @@ import { HuemulAssetTreePickerDialog } from "@/huemul/components/huemul-asset-tr
 import { useOrganization } from "@/contexts/organization-context"
 import { buildAssetFullscreenPath } from "@/lib/asset-fullscreen-url"
 import { currentPath } from "@/lib/return-url"
-import { applyOrder, moveGroup } from "@/components/collections/collection-order"
+import { applyOrder } from "@/components/collections/collection-order"
 import { Badge } from "@/components/ui/badge"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
@@ -93,8 +96,10 @@ export default function CollectionDetailPage() {
     refetch: refetchDetail,
   } = useCollection(collectionId, canAccessPage && can("viewCollection"))
   const mutations = useCollectionMutations()
-  // Modo lector: quien administra ve la colección sin nada de edición.
-  const readerMode = searchParams.get("view") === "reader" && !!detail?.can_admin
+  // Edición (solo quien administra), Lectura (la colección sin edición) o Solo visualización
+  // (además, los activos sin ninguna acción de edición). Ver `resolveViewMode`.
+  const viewMode = resolveViewMode(searchParams.get("view"), !!detail?.can_admin)
+  const readerMode = viewMode !== "edit"
   // Los accesos (resumen de la portada y "Quién puede verla") solo los gestiona quien
   // administra la colección y tiene el permiso de editarla.
   const canShare =
@@ -313,15 +318,7 @@ export default function CollectionDetailPage() {
         <div className="flex flex-col items-start gap-2 rounded-lg border border-dashed p-4">
           <p className="text-sm text-muted-foreground">{t("detail.emptyIndex")}</p>
           {canManage && (
-            <div className="flex flex-wrap gap-2">
-              <HuemulButton icon={FilePlus2} label={t("detail.addItems")} onClick={() => setAddingToGroup(null)} />
-              <HuemulButton
-                variant="outline"
-                icon={FolderPlus}
-                label={t("detail.addCollections")}
-                onClick={() => setAddingCollectionsToGroup(null)}
-              />
-            </div>
+            <AddButtons onAddItems={() => setAddingToGroup(null)} onAddCollections={() => setAddingCollectionsToGroup(null)} />
           )}
         </div>
       )}
@@ -377,6 +374,7 @@ export default function CollectionDetailPage() {
                   {detail.is_public ? t("card.public") : t("card.private")}
                 </Badge>
               </div>
+              <CopyModeLinkButton canAdmin={detail.can_admin} />
               <HuemulButton
                 variant="ghost"
                 size="icon"
@@ -387,60 +385,54 @@ export default function CollectionDetailPage() {
                 loading={isFetchingDetail || isFetchingAccess}
                 onClick={refresh}
               />
-              {detail.can_admin && (
-                <HuemulButton
-                  variant={readerMode ? "default" : "outline"}
-                  size="sm"
-                  className="h-8"
-                  icon={readerMode ? Pencil : Eye}
-                  label={readerMode ? t("detail.exitReaderMode") : t("detail.readerMode")}
-                  onClick={() => updateParams({ view: readerMode ? null : "reader" })}
-                />
-              )}
-              {(canManage || canDelete) && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="size-8 hover:cursor-pointer"
-                      aria-label={t("detail.moreActions")}
-                      title={t("detail.moreActions")}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-8 hover:cursor-pointer"
+                    aria-label={t("detail.moreActions")}
+                    title={t("detail.moreActions")}
+                  >
+                    <MoreHorizontal className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <ViewModeMenuItems
+                    mode={viewMode}
+                    canAdmin={detail.can_admin}
+                    onChange={(mode) => updateParams({ view: viewModeParam(mode) })}
+                  />
+                  {(canManage || canShare || canDelete) && <DropdownMenuSeparator />}
+                  {canManage && (
+                    <DropdownMenuItem className="hover:cursor-pointer" onSelect={afterMenuCloses(() => setEditing(true))}>
+                      <Pencil className="size-4" />
+                      {t("detail.edit")}
+                    </DropdownMenuItem>
+                  )}
+                  {canShare && (
+                    <DropdownMenuItem className="hover:cursor-pointer" onSelect={afterMenuCloses(() => setSharing(true))}>
+                      <ShieldCheck className="size-4" />
+                      {t("detail.share")}
+                    </DropdownMenuItem>
+                  )}
+                  {(canManage || canShare) && canDelete && <DropdownMenuSeparator />}
+                  {canDelete && (
+                    <DropdownMenuItem
+                      className="text-destructive hover:cursor-pointer"
+                      onSelect={afterMenuCloses(() => setPendingDelete({ kind: "collection" }))}
                     >
-                      <MoreHorizontal className="size-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {canManage && (
-                      <DropdownMenuItem className="hover:cursor-pointer" onSelect={afterMenuCloses(() => setEditing(true))}>
-                        <Pencil className="size-4" />
-                        {t("detail.edit")}
-                      </DropdownMenuItem>
-                    )}
-                    {canShare && (
-                      <DropdownMenuItem className="hover:cursor-pointer" onSelect={afterMenuCloses(() => setSharing(true))}>
-                        <ShieldCheck className="size-4" />
-                        {t("detail.share")}
-                      </DropdownMenuItem>
-                    )}
-                    {(canManage || canShare) && canDelete && <DropdownMenuSeparator />}
-                    {canDelete && (
-                      <DropdownMenuItem
-                        className="text-destructive hover:cursor-pointer"
-                        onSelect={afterMenuCloses(() => setPendingDelete({ kind: "collection" }))}
-                      >
-                        <Trash2 className="size-4" />
-                        {t("detail.delete")}
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+                      <Trash2 className="size-4" />
+                      {t("detail.delete")}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            {readerMode && (
+            {(viewMode === "view_only" || (viewMode === "reader" && detail.can_admin)) && (
               <p className="flex items-center gap-2 border-t bg-primary/5 px-3 py-1.5 text-xs text-muted-foreground">
                 <Eye className="size-3.5 shrink-0" />
-                {t("detail.readerBanner")}
+                {viewMode === "view_only" ? t("detail.viewOnlyBanner") : t("detail.readerBanner")}
               </p>
             )}
           </div>
@@ -480,10 +472,7 @@ export default function CollectionDetailPage() {
                 onRemoveItem={(item) => setPendingDelete({ kind: "item", item })}
                 onCreateGroup={(name) => mutations.createGroup.mutate({ collectionId, name })}
                 onRenameGroup={(group, name) => mutations.renameGroup.mutate({ collectionId, groupId: group.id, name })}
-                onMoveGroup={(group, delta) => {
-                  const groupIds = moveGroup(detail.groups, group.id, delta)
-                  if (groupIds) mutations.reorderGroups.mutate({ collectionId, groupIds })
-                }}
+                onReorderGroups={(groupIds) => mutations.reorderGroups.mutate({ collectionId, groupIds })}
                 onDeleteGroup={(group) => setPendingDelete({ kind: "group", group })}
                 onAddItems={(groupId) => setAddingToGroup(groupId)}
                 onAddCollections={(groupId) => setAddingCollectionsToGroup(groupId)}
@@ -516,6 +505,7 @@ export default function CollectionDetailPage() {
                 isSidebarOpen={false}
                 onToggleSidebar={() => {}}
                 defaultDetailPanelCollapsed
+                viewOnly={viewMode === "view_only"}
                 onOpenFullscreen={() =>
                   navigate(buildAssetFullscreenPath(selectedFile.id, { executionId: selectedExecutionId, returnTo: currentPath() }))
                 }

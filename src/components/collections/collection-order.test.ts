@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { applyOrder, buildIndexRows, moveGroup, moveIndexRow, toOrderEntries } from './collection-order'
+import { applyOrder, buildIndexRows, moveGroupRow, moveIndexRow, toOrderEntries, visibleIndexRows } from './collection-order'
 import type { CollectionDetail, CollectionGroup, CollectionItem } from '@/types/collections'
 
 const group = (id: string, position: number): CollectionGroup => ({ id, name: id.toUpperCase(), position })
@@ -68,9 +68,30 @@ describe('collection-order', () => {
     ])
   })
 
-  it('moveGroup intercambia con el vecino y no sale de los bordes', () => {
-    expect(moveGroup(groups, 'g2', -1)).toEqual(['g2', 'g1'])
-    expect(moveGroup(groups, 'g1', -1)).toBeNull()
-    expect(moveGroup(groups, 'g2', 1)).toBeNull()
+  it('arrastrar un grupo lo lleva al lugar del grupo de la fila destino', () => {
+    const three = [...groups, group('g3', 2)]
+    const rows = buildIndexRows(three, [...items, item('e', 'g3', 0)])
+    // Bajar: sobre el encabezado o sobre un ítem de otro grupo.
+    expect(moveGroupRow(rows, 'group:g1', 'group:g3')).toEqual(['g2', 'g3', 'g1'])
+    expect(moveGroupRow(rows, 'group:g1', 'd')).toEqual(['g2', 'g1', 'g3'])
+    // Subir, y sobre un ítem sin grupo: queda primero.
+    expect(moveGroupRow(rows, 'group:g3', 'b')).toEqual(['g3', 'g1', 'g2'])
+    expect(moveGroupRow(rows, 'group:g3', 'a')).toEqual(['g3', 'g1', 'g2'])
+    // Sobre sí mismo, sobre un ítem propio o arrastrando un ítem: nada.
+    expect(moveGroupRow(rows, 'group:g1', 'c')).toBeNull()
+    expect(moveGroupRow(rows, 'b', 'group:g2')).toBeNull()
+  })
+
+  it('un grupo colapsado oculta sus ítems pero el orden guardado los conserva', () => {
+    const rows = buildIndexRows(groups, items)
+    const visible = visibleIndexRows(rows, new Set(['group:g1']))
+    expect(visible.map((row) => row.id)).toEqual(['a', 'group:g1', 'group:g2', 'd'])
+    // Soltar "a" sobre el encabezado colapsado lo deja primero de g1, sin perder b ni c.
+    expect(toOrderEntries(moveIndexRow(rows, 'a', 'group:g1')).map((entry) => [entry.item_id, entry.group_id])).toEqual([
+      ['a', 'g1'],
+      ['b', 'g1'],
+      ['c', 'g1'],
+      ['d', 'g2'],
+    ])
   })
 })

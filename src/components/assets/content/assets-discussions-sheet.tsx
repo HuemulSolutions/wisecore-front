@@ -134,13 +134,13 @@ export function AssetsDiscussionsSheet({
 
   const canManage = React.useCallback(
     (discussion: TDiscussion) =>
-      canUpdateDiscussions || (!!currentUserId && currentUserId === discussion.userId),
-    [canUpdateDiscussions, currentUserId]
+      canUpdateDiscussions || (canCreateDiscussions && !!currentUserId && currentUserId === discussion.userId),
+    [canUpdateDiscussions, canCreateDiscussions, currentUserId]
   );
   const canRemove = React.useCallback(
     (discussion: TDiscussion) =>
-      canDeleteDiscussions || (!!currentUserId && currentUserId === discussion.userId),
-    [canDeleteDiscussions, currentUserId]
+      canDeleteDiscussions || (canCreateDiscussions && !!currentUserId && currentUserId === discussion.userId),
+    [canDeleteDiscussions, canCreateDiscussions, currentUserId]
   );
 
   const handleResolve = (discussionId: string) => {
