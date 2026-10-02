@@ -18,6 +18,7 @@ import {
   ArrowDown,
   ArrowUp,
   BookCopy,
+  FilePlus2,
   FolderInput,
   GripVertical,
   Home,
@@ -61,6 +62,7 @@ export interface CollectionIndexProps {
   onRenameGroup: (group: CollectionGroup, name: string) => void
   onMoveGroup: (group: CollectionGroup, delta: -1 | 1) => void
   onDeleteGroup: (group: CollectionGroup) => void
+  onAddItems: () => void
 }
 
 function ItemRow({
@@ -332,10 +334,16 @@ export function CollectionIndex(props: CollectionIndexProps) {
               className="h-8 text-sm"
             />
           ) : (
-            <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => setNewGroup("")}>
-              <Plus className="size-4" />
-              {t("detail.addGroup")}
-            </Button>
+            <div className="flex flex-col gap-1">
+              <Button variant="outline" size="sm" className="w-full justify-start" onClick={props.onAddItems}>
+                <FilePlus2 className="size-4" />
+                {t("detail.addItems")}
+              </Button>
+              <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => setNewGroup("")}>
+                <Plus className="size-4" />
+                {t("detail.addGroup")}
+              </Button>
+            </div>
           )}
           {rows.some((row) => row.kind === "item") && <p className="px-1 text-[11px] text-muted-foreground">{t("detail.dragHint")}</p>}
         </div>

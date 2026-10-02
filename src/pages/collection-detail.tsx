@@ -2,17 +2,18 @@ import { useCallback, useMemo, useState } from "react"
 import { useParams, useSearchParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { useQueryClient } from "@tanstack/react-query"
-import { Bot, BookOpen, Compass, Globe, Library, Lock, Pencil, Share2, Trash2, Users } from "lucide-react"
+import { Bot, BookOpen, Compass, FilePlus2, Globe, Library, Lock, Pencil, Trash2, Users } from "lucide-react"
 import { AssetContent } from "@/components/assets"
-import { CollectionAccessSheet, CollectionFormSheet, CollectionIndex } from "@/components/collections"
+import { CollectionAccessSheet, CollectionAddItemsSheet, CollectionFormSheet, CollectionIndex } from "@/components/collections"
 import { applyOrder, moveGroup } from "@/components/collections/collection-order"
 import { Badge } from "@/components/ui/badge"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
-import { useCollection, useCollectionMutations, collectionsQueryKeys } from "@/hooks/useCollections"
+import { useCollection, useCollectionAccess, useCollectionMutations, collectionsQueryKeys } from "@/hooks/useCollections"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import type { CollectionGroup, CollectionItem, CollectionItemOrderEntry } from "@/types/collections"
@@ -38,9 +39,12 @@ export default function CollectionDetailPage() {
   const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess("collections")
   const { data: detail, isLoading, error } = useCollection(collectionId, canAccessPage)
   const mutations = useCollectionMutations()
+  // Resumen de acceso en la portada: los grants solo los ve quien administra.
+  const { data: accesses } = useCollectionAccess(collectionId, !!detail?.can_admin)
 
   const [editing, setEditing] = useState(false)
   const [sharing, setSharing] = useState(false)
+  const [addingItems, setAddingItems] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null)
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
@@ -134,6 +138,21 @@ export default function CollectionDetailPage() {
           </Badge>
         </div>
         {detail.description && <p className="text-sm text-muted-foreground">{detail.description}</p>}
+        {detail.can_admin && (
+          <button
+            type="button"
+            onClick={() => setSharing(true)}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:cursor-pointer hover:text-foreground"
+          >
+            {detail.is_public ? <Globe className="size-3.5" /> : <Lock className="size-3.5" />}
+            {detail.is_public
+              ? t("access.summaryPublic")
+              : t("access.summaryPrivate", {
+                  roles: (accesses ?? []).filter((access) => access.role_id).length,
+                  people: (accesses ?? []).filter((access) => access.user_id).length,
+                })}
+          </button>
+        )}
       </div>
 
       {detail.for_agent && (
@@ -156,7 +175,16 @@ export default function CollectionDetailPage() {
         )}
       </section>
 
-      {detail.items.length > 0 && <p className="text-sm text-muted-foreground">{t("detail.selectAsset")}</p>}
+      {detail.items.length > 0 ? (
+        <p className="text-sm text-muted-foreground">{t("detail.selectAsset")}</p>
+      ) : (
+        <div className="flex flex-col items-start gap-2 rounded-lg border border-dashed p-4">
+          <p className="text-sm text-muted-foreground">{t("detail.emptyIndex")}</p>
+          {canManage && (
+            <HuemulButton icon={FilePlus2} label={t("detail.addItems")} onClick={() => setAddingItems(true)} />
+          )}
+        </div>
+      )}
     </div>
   )
 
@@ -172,8 +200,14 @@ export default function CollectionDetailPage() {
             additionalActions={[
               ...(canManage
                 ? [
+                    { label: t("detail.addItems"), icon: FilePlus2, variant: "default" as const, onClick: () => setAddingItems(true) },
+                    {
+                      label: t("detail.share"),
+                      icon: detail.is_public ? Globe : Lock,
+                      variant: "outline" as const,
+                      onClick: () => setSharing(true),
+                    },
                     { label: t("detail.edit"), icon: Pencil, variant: "outline" as const, onClick: () => setEditing(true) },
-                    { label: t("detail.share"), icon: Share2, variant: "outline" as const, onClick: () => setSharing(true) },
                   ]
                 : []),
               ...(canDelete
@@ -208,6 +242,7 @@ export default function CollectionDetailPage() {
                   if (groupIds) mutations.reorderGroups.mutate({ collectionId, groupIds })
                 }}
                 onDeleteGroup={(group) => setPendingDelete({ kind: "group", group })}
+                onAddItems={() => setAddingItems(true)}
               />
             ),
             defaultSize: 22,
@@ -254,6 +289,7 @@ export default function CollectionDetailPage() {
         canManageAgentCollections={can("updateAgentCollection")}
       />
       <CollectionAccessSheet open={sharing} onOpenChange={setSharing} collection={detail} />
+      {canManage && <CollectionAddItemsSheet open={addingItems} onOpenChange={setAddingItems} detail={detail} />}
       <HuemulAlertDialog
         open={!!pendingDelete}
         onOpenChange={(open) => !open && setPendingDelete(null)}

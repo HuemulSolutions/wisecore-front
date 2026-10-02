@@ -130,7 +130,8 @@ export function CollectionFormSheet({
       name: formData.name.trim(),
       description: formData.description.trim() || null,
       instructions: formData.instructions.trim() || null,
-      is_public: formData.is_public,
+      // La visibilidad se cambia en "Quién puede verla"; al crear, privada.
+      ...(isEdit ? {} : { is_public: false }),
       for_agent: formData.for_agent,
       ...(formData.for_agent
         ? {
@@ -308,17 +309,6 @@ export function CollectionFormSheet({
           {t("form.instructionsNotApproved")}
         </p>
 
-        <Separator />
-
-        <HuemulField
-          type="switch"
-          label={t("form.visibilityPublic")}
-          description={t("form.visibilityHint")}
-          name="is_public"
-          value={formData.is_public}
-          onChange={(value) => handleChange("is_public", Boolean(value))}
-          labelFirst
-        />
       </HuemulFieldGroup>
     </HuemulSheet>
   )
