@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { HuemulLoadError } from '@/huemul/components/huemul-load-error';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useDiscussions } from '@/hooks/useDiscussions';
+import { useOwnCommentRights } from '@/hooks/useOwnCommentRights';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { cn, normalizeForSearch } from '@/lib/utils';
 import type { TDiscussion } from '@/components/plate-editor/components/discussion-kit';
@@ -118,9 +119,10 @@ export function AssetsDiscussionsSheet({
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
   const [discussionToDelete, setDiscussionToDelete] = React.useState<TDiscussion | null>(null);
 
+  const { isOwnAndCanComment } = useOwnCommentRights();
   const isOwner = React.useCallback(
-    (discussion: TDiscussion) => !!currentUserId && currentUserId === discussion.userId,
-    [currentUserId]
+    (discussion: TDiscussion) => isOwnAndCanComment(currentUserId, discussion.userId),
+    [currentUserId, isOwnAndCanComment]
   );
 
   const handleUnresolve = (discussionId: string) => {
@@ -358,8 +360,8 @@ export function AssetsDiscussionsSheet({
                 searchTerm={debouncedSearch}
                 expanded={expandedIds.has(row.discussion.id)}
                 canReply={canCreateDiscussions}
-                canManage={canUpdateDiscussions || (canCreateDiscussions && isOwner(row.discussion))}
-                canRemove={canDeleteDiscussions || (canCreateDiscussions && isOwner(row.discussion))}
+                canManage={canUpdateDiscussions || isOwner(row.discussion)}
+                canRemove={canDeleteDiscussions || isOwner(row.discussion)}
                 isReplying={isAddingComment}
                 onToggleExpanded={() => toggleExpanded(row.discussion.id)}
                 onFocus={() =>

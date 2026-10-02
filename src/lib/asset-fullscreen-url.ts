@@ -22,19 +22,24 @@ export function buildAssetFullscreenUrl(
 /** Query param con la ruta a la que vuelve "salir de pantalla completa". */
 export const ASSET_FULLSCREEN_RETURN_PARAM = "return"
 
+/** Query param de solo visualización (`AssetContent viewOnly`): lo pone quien abre la vista en
+ * ese modo, por ejemplo el modo Consulta de una colección. */
+export const ASSET_FULLSCREEN_VIEW_ONLY_PARAM = "view_only"
+
 /**
  * Ruta interna (relativa a la organización, para `useOrgNavigate`) de la pantalla
  * completa de un asset. `returnTo` es la pantalla que la abrió: al salir se vuelve
  * ahí (la saneó `asset-fullscreen.tsx` antes de navegar). Sin `returnTo`, al salir
- * se cae en `/asset/:id`.
+ * se cae en `/asset/:id`. `viewOnly` conserva el modo de solo visualización de quien la abrió.
  */
 export function buildAssetFullscreenPath(
   assetId: string,
-  options: { executionId?: string | null; returnTo?: string | null } = {},
+  options: { executionId?: string | null; returnTo?: string | null; viewOnly?: boolean } = {},
 ): string {
   const params = new URLSearchParams()
   if (options.executionId) params.set("execution", options.executionId)
   if (options.returnTo) params.set(ASSET_FULLSCREEN_RETURN_PARAM, options.returnTo)
+  if (options.viewOnly) params.set(ASSET_FULLSCREEN_VIEW_ONLY_PARAM, "1")
   const query = params.toString()
   return `/${ASSET_FULLSCREEN_PATH}/${assetId}${query ? `?${query}` : ""}`
 }

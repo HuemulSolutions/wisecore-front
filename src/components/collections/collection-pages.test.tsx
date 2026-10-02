@@ -77,7 +77,13 @@ const ADMIN_DETAIL = {
   hidden_item_count: 0,
 }
 
-const renderDetail = (route = '/collections/col-1', detail: Record<string, unknown> = ADMIN_DETAIL) => {
+const DETAIL_PERMISSIONS = ['collection:r', 'collection:u', 'collection:d', 'collection:l']
+
+const renderDetail = (
+  route = '/collections/col-1',
+  detail: Record<string, unknown> = ADMIN_DETAIL,
+  permissions: string[] = DETAIL_PERMISSIONS,
+) => {
   server.use(
     http.get(`${backendUrl}/collections/col-1`, () => respondOk(detail)),
     http.get(`${backendUrl}/collections/col-1/access`, () => respondOk({ creator: null, accesses: [] })),
@@ -86,7 +92,7 @@ const renderDetail = (route = '/collections/col-1', detail: Record<string, unkno
     <Routes>
       <Route path="/collections/:collectionId" element={<CollectionDetailPage />} />
     </Routes>,
-    { session, route, org: orgWith(['collection:r', 'collection:u', 'collection:d', 'collection:l']) },
+    { session, route, org: orgWith(permissions) },
   )
 }
 
@@ -144,6 +150,16 @@ describe('CollectionDetailPage', () => {
 
     expect(writeText).toHaveBeenCalledTimes(1)
     expect(new URL(writeText.mock.calls[0][0]).searchParams.get('view')).toBe('author')
+  })
+
+  it('"Agregar colecciones" exige además listar colecciones; sin collection:l no se ofrece', async () => {
+    const { unmount } = renderDetail()
+    expect((await screen.findAllByRole('button', { name: 'Add collections' })).length).toBeGreaterThan(0)
+    unmount()
+
+    renderDetail('/collections/col-1', ADMIN_DETAIL, ['collection:r', 'collection:u'])
+    expect((await screen.findAllByRole('button', { name: 'Add assets' })).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: 'Add collections' })).not.toBeInTheDocument()
   })
 
   it('quien administra comparte también Diseño', async () => {

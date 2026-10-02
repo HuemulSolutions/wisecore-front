@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { usePageAccess } from "@/hooks/usePageAccess"
-import { useDebounce } from "@/hooks/use-debounce"
+import { useDebouncedSearch } from "@/hooks/use-debounced-search"
 import { useCollectionMutations, useCollections } from "@/hooks/useCollections"
 import { CollectionFormSheet } from "./collection-form-sheet"
 import { CollectionsErrorState } from "./collections-error-state"
@@ -66,7 +66,7 @@ export function AddToCollectionSheet({ open, onOpenChange, documentId, documentN
   const { t } = useTranslation(["collections", "common"])
   const { can } = usePageAccess("collections")
   const [search, setSearch] = useState("")
-  const debouncedSearch = useDebounce(search, 300)
+  const { debounced: debouncedSearch, isPending } = useDebouncedSearch(search)
   const [pinVersion, setPinVersion] = useState(false)
   const [groups, setGroups] = useState<Record<string, string>>({})
   const [creating, setCreating] = useState(false)
@@ -81,7 +81,7 @@ export function AddToCollectionSheet({ open, onOpenChange, documentId, documentN
     }
   }, [open, documentId])
   const { addItem } = useCollectionMutations()
-  const { data, error, isLoading, isError, isFetching, refetch } = useCollections({
+  const { data, error, isLoading, isError, isFetching, isPlaceholderData, refetch } = useCollections({
     page: 1,
     page_size: 200,
     can_admin: true,
@@ -144,7 +144,7 @@ export function AddToCollectionSheet({ open, onOpenChange, documentId, documentN
 
           {isError ? (
             <CollectionsErrorState compact error={error} onRetry={() => refetch()} />
-          ) : isLoading ? (
+          ) : isLoading || isPending || isPlaceholderData ? (
             <div className="space-y-2">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />

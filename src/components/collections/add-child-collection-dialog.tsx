@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { useCollectionMutations, useCollections } from "@/hooks/useCollections"
-import { useDebounce } from "@/hooks/use-debounce"
+import { useDebouncedSearch } from "@/hooks/use-debounced-search"
 import type { CollectionDetail } from "@/types/collections"
 import { CollectionsErrorState } from "./collections-error-state"
 
@@ -28,12 +28,12 @@ export function AddChildCollectionDialog({ groupId, onClose, collection }: AddCh
   const { t } = useTranslation(["collections", "common"])
   const open = groupId !== undefined
   const [search, setSearch] = useState("")
-  const debouncedSearch = useDebounce(search, 300)
+  const { debounced: debouncedSearch, isPending } = useDebouncedSearch(search)
   useEffect(() => {
     if (open) setSearch("")
   }, [open])
   const { addItem } = useCollectionMutations()
-  const { data, error, isLoading, isError, refetch } = useCollections({
+  const { data, error, isLoading, isError, isPlaceholderData, refetch } = useCollections({
     page: 1,
     page_size: 200,
     exclude_nesting_conflicts_for: collection.id,
@@ -61,7 +61,7 @@ export function AddChildCollectionDialog({ groupId, onClose, collection }: AddCh
         />
         {isError ? (
           <CollectionsErrorState compact error={error} onRetry={() => refetch()} />
-        ) : isLoading ? (
+        ) : isLoading || isPending || isPlaceholderData ? (
           <div className="space-y-2">
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />

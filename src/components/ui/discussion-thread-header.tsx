@@ -7,6 +7,7 @@ import { usePluginOption } from 'platejs/react';
 import { useTranslation } from 'react-i18next';
 
 import { type TDiscussion, discussionPlugin } from '@/components/plate-editor/components/discussion-kit';
+import { useOwnCommentRights } from '@/hooks/useOwnCommentRights';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 import { CommentMoreDropdown } from './comment-more-dropdown';
@@ -31,16 +32,16 @@ export function DiscussionThreadHeader({
 }: DiscussionThreadHeaderProps) {
   const { t } = useTranslation('editor');
   const currentUserId = usePluginOption(discussionPlugin, 'currentUserId');
-  const { canCreate, canUpdate } = useUserPermissions();
+  const { canUpdate } = useUserPermissions();
+  const { isOwnAndCanComment } = useOwnCommentRights();
   const resolveDiscussion = useResolveDiscussion();
 
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
 
   const openerComment = discussion.comments[0];
   const openerId = discussion.userId || openerComment?.userId;
-  const canComment = canCreate('discussion');
-  const canResolve = !!currentUserId && ((canComment && currentUserId === openerId) || canUpdate('discussion'));
-  const canEditOpener = canComment && !!openerComment && currentUserId === openerComment.userId;
+  const canResolve = !!currentUserId && (isOwnAndCanComment(currentUserId, openerId) || canUpdate('discussion'));
+  const canEditOpener = !!openerComment && isOwnAndCanComment(currentUserId, openerComment.userId);
 
   return (
     <div className="sticky top-0 z-10 flex">

@@ -95,7 +95,7 @@ export interface CollectionIndexProps {
   /** `null` = sin grupo. */
   onAddItems: (groupId: string | null) => void
   /** Agregar sub-colecciones; `null` = sin grupo. */
-  onAddCollections: (groupId: string | null) => void
+  onAddCollections?: (groupId: string | null) => void
 }
 
 interface CollapseState {
@@ -357,10 +357,15 @@ function GroupRow({
                     <FilePlus2 className="size-4" />
                     {t("detail.addItemsHere")}
                   </DropdownMenuItem>
-                  <DropdownMenuItem className={MENU_ITEM} onSelect={afterMenuCloses(() => props.onAddCollections(group.id))}>
-                    <Library className="size-4" />
-                    {t("detail.addCollectionsHere")}
-                  </DropdownMenuItem>
+                  {props.onAddCollections && (
+                    <DropdownMenuItem
+                      className={MENU_ITEM}
+                      onSelect={afterMenuCloses(() => props.onAddCollections?.(group.id))}
+                    >
+                      <Library className="size-4" />
+                      {t("detail.addCollectionsHere")}
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem className={MENU_ITEM} onSelect={afterMenuCloses(() => setRenaming(true))}>
                     <Pencil className="size-4" />
                     {t("detail.renameGroup")}
@@ -552,7 +557,7 @@ export function CollectionIndex(props: CollectionIndexProps) {
           ) : (
             <AddButtons
               onAddItems={() => props.onAddItems(null)}
-              onAddCollections={() => props.onAddCollections(null)}
+              onAddCollections={props.onAddCollections ? () => props.onAddCollections?.(null) : undefined}
               onAddGroup={() => setNewGroup("")}
             />
           )}
@@ -571,14 +576,15 @@ export function AddButtons({
   className,
 }: {
   onAddItems: () => void
-  onAddCollections: () => void
+  /** Sin él no se ofrece (falta `collection:l` para listar las candidatas). */
+  onAddCollections?: () => void
   onAddGroup?: () => void
   className?: string
 }) {
   const { t } = useTranslation("collections")
   const buttons = [
     { icon: FilePlus2, label: t("detail.addItems"), onClick: onAddItems },
-    { icon: Library, label: t("detail.addCollections"), onClick: onAddCollections },
+    ...(onAddCollections ? [{ icon: Library, label: t("detail.addCollections"), onClick: onAddCollections }] : []),
     ...(onAddGroup ? [{ icon: ListPlus, label: t("detail.addGroup"), onClick: onAddGroup }] : []),
   ]
   return (
