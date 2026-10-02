@@ -478,6 +478,10 @@ export const RBAC_PAGES = {
       // Compartir con roles y usuarios: GET /rbac/roles es catálogo abierto y
       // GET /user_roles/members es el directorio de cualquier miembro.
       shareCollection: "collection:u",
+      // Agregar una sub-colección: el selector lista colecciones con GET /collections/
+      // (collection:l) y la agrega con POST /collections/{id}/items (collection:u). Mismo
+      // criterio que `asset.addToCollection`.
+      addChildCollection: { all: ["collection:l", "collection:u"] },
     },
   },
   tags: {

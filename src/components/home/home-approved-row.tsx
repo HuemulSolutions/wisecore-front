@@ -40,6 +40,7 @@ export function HomeApprovedRow({ row, organizationId, canTransition, onOpen, is
     executionId: row.id,
     organizationId,
     documentTypeId: documentContent?.document_type?.id,
+    finalLifecycleStage: documentContent?.document_type?.final_lifecycle_stage,
     lifecycleStatus: documentContent?.lifecycle_status,
     lifecyclePermissions: documentContent?.lifecycle_permissions,
     rbac: { canTransition },

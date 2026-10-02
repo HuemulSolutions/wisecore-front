@@ -37,8 +37,10 @@ export const collectionsQueryKeys = {
   lists: (organizationId: string | null) => [...collectionsQueryKeys.org(organizationId), 'list'] as const,
   list: (organizationId: string | null, params?: GetCollectionsParams) =>
     [...collectionsQueryKeys.lists(organizationId), params] as const,
+  /** Prefijo de todos los detalles: la colección de la pantalla y sus sub-colecciones abiertas. */
+  details: (organizationId: string | null) => [...collectionsQueryKeys.org(organizationId), 'detail'] as const,
   detail: (organizationId: string | null, collectionId: string) =>
-    [...collectionsQueryKeys.org(organizationId), 'detail', collectionId] as const,
+    [...collectionsQueryKeys.details(organizationId), collectionId] as const,
   access: (organizationId: string | null, collectionId: string) =>
     [...collectionsQueryKeys.org(organizationId), 'access', collectionId] as const,
 }

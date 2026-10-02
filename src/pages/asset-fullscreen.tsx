@@ -9,7 +9,7 @@ import { usePageAccess } from "@/hooks/usePageAccess";
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import type { LibraryItem } from "@/types/assets";
-import { ASSET_FULLSCREEN_RETURN_PARAM, resolveFullscreenReturn } from "@/lib/asset-fullscreen-url";
+import { ASSET_FULLSCREEN_RETURN_PARAM, ASSET_FULLSCREEN_VIEW_ONLY_PARAM, resolveFullscreenReturn } from "@/lib/asset-fullscreen-url";
 
 /**
  * Vista de un asset a pantalla completa (ver ia context/fullscreen-share-route-guide.md).
@@ -95,6 +95,7 @@ export default function AssetFullscreenPage() {
         isSidebarOpen={false}
         onToggleSidebar={() => {}}
         onExitFullscreen={handleExitFullscreen}
+        viewOnly={searchParams.get(ASSET_FULLSCREEN_VIEW_ONLY_PARAM) === "1"}
       />
     </div>
   );

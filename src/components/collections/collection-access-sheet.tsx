@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils"
 import { useOrganization } from "@/contexts/organization-context"
 import { useRoles } from "@/hooks/useRbac"
 import { useMembers } from "@/hooks/useUsers"
-import { useDebounce } from "@/hooks/use-debounce"
+import { useDebouncedSearch } from "@/hooks/use-debounced-search"
 import { useCollectionAccess, useCollectionMutations } from "@/hooks/useCollections"
 import type { Collection, CollectionAccess, CollectionAccessGrant, CollectionAccessLevel } from "@/types/collections"
 import { diffCollectionAccess, hasAccessChanges, principalKey } from "./collection-access-diff"
@@ -61,7 +61,8 @@ function PrincipalSearch({
   onPick: (option: SearchOption) => void
   noMatchesLabel: string
   searchingLabel?: string
-  /** Mientras se espera la respuesta no se dice "sin resultados". */
+  /** Mientras se espera la respuesta no se ofrecen resultados (serían los de la búsqueda
+   * anterior) ni se dice "sin resultados". */
   searching?: boolean
 }) {
   const showResults = value.trim() !== ""
@@ -83,10 +84,10 @@ function PrincipalSearch({
       />
       {showResults && (
         <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-md border bg-popover p-1 shadow-md">
-          {options.length === 0 && (
+          {(searching || options.length === 0) && (
             <p className="px-2 py-1.5 text-sm text-muted-foreground">{searching ? searchingLabel : noMatchesLabel}</p>
           )}
-          {options.map((option) => (
+          {!searching && options.map((option) => (
             <button
               key={option.id}
               type="button"
@@ -132,8 +133,8 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
   const [roleQuery, setRoleQuery] = useState("")
   const [personQuery, setPersonQuery] = useState("")
   // El directorio se busca en el servidor, con debounce: una llamada por pausa, no por tecla.
-  const debouncedPersonQuery = useDebounce(personQuery.trim(), 300)
-  const { data: membersData, isFetching: isFetchingMembers } = useMembers(
+  const { debounced: debouncedPersonQuery, isPending: isPersonQueryPending } = useDebouncedSearch(personQuery)
+  const { data: membersData, isPlaceholderData: isStaleMembers } = useMembers(
     open && debouncedPersonQuery !== "",
     selectedOrganizationId ?? undefined,
     1,
@@ -384,7 +385,7 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
                   onPick={(option) => addPrincipal("user", option)}
                   noMatchesLabel={t("access.noMatches")}
                   searchingLabel={t("access.searching")}
-                  searching={personQuery.trim() !== debouncedPersonQuery || isFetchingMembers}
+                  searching={isPersonQueryPending || isStaleMembers}
                 />,
                 personGrants.map((access) => grantRow(access, UserIcon)),
                 t("access.noPeople"),

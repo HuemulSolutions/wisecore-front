@@ -30,8 +30,11 @@ export interface UseLifecycleActionsOptions {
   documentId: string | null | undefined
   executionId: string | null | undefined
   organizationId: string | null | undefined
-  /** Para leer `final_lifecycle_stage` del tipo de activo (oculta "Publicar" si el tipo nunca llega a publicarse). */
+  /** Para refrescar los pasos del lifecycle del tipo de activo. */
   documentTypeId?: string | null
+  /** `final_lifecycle_stage` del tipo, que trae el contenido del activo (oculta "Publicar" si el tipo
+   * nunca llega a publicarse). Sin dato, `publish`. */
+  finalLifecycleStage?: FinalLifecycleStage | null
   lifecycleStatus?: LifecycleStatus | null
   lifecyclePermissions?: LifecyclePermissions | null
   /**

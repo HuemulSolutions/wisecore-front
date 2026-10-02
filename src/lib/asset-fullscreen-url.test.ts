@@ -21,6 +21,12 @@ describe('asset-fullscreen-url', () => {
     expect(resolveFullscreenReturn(`/${OTHER}/collections/c1`, ORG, 'a1')).toBe('/asset/a1')
   })
 
+  it('conserva el modo de solo visualización solo si se pide', () => {
+    const viewOnly = new URLSearchParams(buildAssetFullscreenPath('a1', { viewOnly: true }).split('?')[1])
+    expect(viewOnly.get('view_only')).toBe('1')
+    expect(buildAssetFullscreenPath('a1', { viewOnly: false })).toBe('/asset/full/a1')
+  })
+
   it('conserva la sub-colección del activo (?in=) al volver', () => {
     const back = `/${ORG}/collections/c1?item=i1&in=c2`
     const path = buildAssetFullscreenPath('a1', { executionId: 'e1', returnTo: back })

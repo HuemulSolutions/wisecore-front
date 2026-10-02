@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { formatCommentDate, formatCommentDateAbsolute } from '@/lib/comment-utils';
 import { discussionPlugin } from '@/components/plate-editor/components/discussion-kit';
+import { useOwnCommentRights } from '@/hooks/useOwnCommentRights';
 
 import { CommentEditActions } from './comment-edit-actions';
 import { CommentMoreDropdown } from './comment-more-dropdown';
@@ -85,7 +86,9 @@ export function Comment(props: CommentItemProps) {
     );
   };
 
-  const isMyComment = currentUserId === comment.userId;
+  // Editar o borrar lo propio exige poder comentar (misma regla que el hilo y el panel).
+  const { isOwnAndCanComment } = useOwnCommentRights();
+  const isMyComment = isOwnAndCanComment(currentUserId, comment.userId);
   const initialValue = comment.contentRich;
 
   const commentEditor = useCommentEditor(

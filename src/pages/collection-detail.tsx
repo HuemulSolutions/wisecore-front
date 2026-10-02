@@ -50,7 +50,7 @@ import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
-import { useCollection, useCollectionAccess, useCollectionMutations } from "@/hooks/useCollections"
+import { collectionsQueryKeys, useCollection, useCollectionAccess, useCollectionMutations } from "@/hooks/useCollections"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import type { CollectionGroup, CollectionItem, CollectionItemOrderEntry } from "@/types/collections"
@@ -206,10 +206,14 @@ export default function CollectionDetailPage() {
   const rulesInMenu = detail.show_instructions_in_menu && !!detail.instructions
   const KindIcon = detail.agent_kind === "behavior" ? Compass : BookOpen
   const accesses = accessList?.accesses
+  // Recarga la colección y todas sus sub-colecciones abiertas (cada una es su propio detalle).
   const refresh = () => {
-    refetchDetail()
+    queryClient.invalidateQueries({ queryKey: collectionsQueryKeys.details(selectedOrganizationId) })
     if (canShare) refetchAccess()
   }
+
+  // Agregar sub-colecciones exige además listar colecciones (el selector usa GET /collections/).
+  const addCollections = canManage && can("addChildCollection") ? setAddingCollectionsToGroup : undefined
 
   const reorder = (entries: CollectionItemOrderEntry[]) =>
     mutations.reorderItems.mutate({ collectionId, items: entries, optimistic: applyOrder(detail, entries) })
@@ -318,7 +322,7 @@ export default function CollectionDetailPage() {
         <div className="flex flex-col items-start gap-2 rounded-lg border border-dashed p-4">
           <p className="text-sm text-muted-foreground">{t("detail.emptyIndex")}</p>
           {canManage && (
-            <AddButtons onAddItems={() => setAddingToGroup(null)} onAddCollections={() => setAddingCollectionsToGroup(null)} />
+            <AddButtons onAddItems={() => setAddingToGroup(null)} onAddCollections={addCollections && (() => addCollections(null))} />
           )}
         </div>
       )}
@@ -475,7 +479,7 @@ export default function CollectionDetailPage() {
                 onReorderGroups={(groupIds) => mutations.reorderGroups.mutate({ collectionId, groupIds })}
                 onDeleteGroup={(group) => setPendingDelete({ kind: "group", group })}
                 onAddItems={(groupId) => setAddingToGroup(groupId)}
-                onAddCollections={(groupId) => setAddingCollectionsToGroup(groupId)}
+                onAddCollections={addCollections}
                 onOpenCollection={(childId) => navigate(`/collections/${childId}`)}
               />
             ),
@@ -500,14 +504,18 @@ export default function CollectionDetailPage() {
                 setSelectedFile={() => {}}
                 onRefresh={() => {
                   queryClient.invalidateQueries({ queryKey: ["document-content"] })
-                  refetchDetail()
+                  refresh()
                 }}
                 isSidebarOpen={false}
                 onToggleSidebar={() => {}}
                 defaultDetailPanelCollapsed
                 viewOnly={viewMode === "view_only"}
                 onOpenFullscreen={() =>
-                  navigate(buildAssetFullscreenPath(selectedFile.id, { executionId: selectedExecutionId, returnTo: currentPath() }))
+                  navigate(buildAssetFullscreenPath(selectedFile.id, {
+                      executionId: selectedExecutionId,
+                      returnTo: currentPath(),
+                      viewOnly: viewMode === "view_only",
+                    }))
                 }
               />
             ) : (
