@@ -263,10 +263,10 @@ export const RBAC_PAGES = {
       viewTags: "tag:r",
       manageTags: "tag:u",
       // "Agregar a colección" del menú ⋯: lista las colecciones que el usuario
-      // administra (GET /collections/?can_admin, collection:l) y agrega con
-      // POST /collections/{id}/items (collection:u). Una colección de agentes
-      // exige además collection_agent:u: el backend responde 403 y el diálogo
-      // lo muestra.
+      // administra, con sus grupos (GET /collections/?can_admin, collection:l), y
+      // agrega con POST /collections/{id}/items (collection:u). No pide el detalle
+      // de cada colección. Las colecciones de agentes exigen además
+      // collection_agent:u: el diálogo solo las muestra con `updateAgentCollection`.
       addToCollection: { all: ["collection:l", "collection:u"] },
     },
   },
@@ -457,12 +457,15 @@ export const RBAC_PAGES = {
   },
   collections: {
     route: "collections",
-    // GET /collections/ pide collection:l y el detalle collection:r; el acceso a
-    // una colección concreta (pública, propia o compartida) lo decide el backend.
+    // La ruta (y el menú) se abre con cualquiera de los dos; cada pantalla exige el suyo:
+    // el listado (GET /collections/) `listCollections` y el detalle (GET /collections/{id})
+    // `viewCollection`. El acceso a una colección concreta (pública, propia o compartida)
+    // lo decide el backend.
     routePermissions: ["collection:l", "collection:r"],
     nav: { title: "Collections", orgScoped: true },
     features: {
-      listCollections: ["collection:l", "collection:r"],
+      listCollections: "collection:l",
+      viewCollection: "collection:r",
       createCollection: "collection:c",
       updateCollection: "collection:u",
       deleteCollection: "collection:d",

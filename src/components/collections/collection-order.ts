@@ -14,7 +14,7 @@ export type CollectionIndexRow =
   | { kind: "item"; id: string; item: CollectionItem }
   | { kind: "group"; id: string; group: CollectionGroup }
 
-const groupRowId = (groupId: string) => `group:${groupId}`
+export const groupRowId = (groupId: string) => `group:${groupId}`
 
 export function buildIndexRows(groups: CollectionGroup[], items: CollectionItem[]): CollectionIndexRow[] {
   const rows: CollectionIndexRow[] = items
@@ -27,6 +27,43 @@ export function buildIndexRows(groups: CollectionGroup[], items: CollectionItem[
     }
   }
   return rows
+}
+
+/**
+ * Filas que se ven: sin los ítems de un grupo colapsado (`collapsed` tiene el id de la fila del
+ * grupo). El orden que se guarda se sigue armando con todas las filas, así los ítems ocultos
+ * conservan su lugar.
+ */
+export function visibleIndexRows(rows: CollectionIndexRow[], collapsed: ReadonlySet<string>): CollectionIndexRow[] {
+  let hidden = false
+  return rows.filter((row) => {
+    if (row.kind === "group") {
+      hidden = collapsed.has(row.id)
+      return true
+    }
+    return !hidden || row.item.group_id === null
+  })
+}
+
+/**
+ * Nuevo orden de los grupos al soltar el encabezado `activeId` sobre la fila `overId`: el grupo
+ * toma el lugar del grupo de esa fila (el encabezado mismo o el grupo del ítem). Soltar sobre un
+ * ítem sin grupo lo deja primero: los ítems sin grupo siempre van antes de los grupos. `null` si
+ * no cambia nada.
+ */
+export function moveGroupRow(rows: CollectionIndexRow[], activeId: string, overId: string): string[] | null {
+  const groupIds = rows.flatMap((row) => (row.kind === "group" ? [row.group.id] : []))
+  const active = rows.find((row) => row.id === activeId)
+  const over = rows.find((row) => row.id === overId)
+  if (!active || active.kind !== "group" || !over) return null
+  const targetGroupId = over.kind === "group" ? over.group.id : over.item.group_id
+  const from = groupIds.indexOf(active.group.id)
+  const to = targetGroupId === null ? 0 : groupIds.indexOf(targetGroupId)
+  if (from < 0 || to < 0 || from === to) return null
+  const next = [...groupIds]
+  const [moved] = next.splice(from, 1)
+  next.splice(to, 0, moved)
+  return next
 }
 
 /**
@@ -74,12 +111,3 @@ export function applyOrder(detail: CollectionDetail, entries: CollectionItemOrde
   return { ...detail, items: buildIndexRows(detail.groups, items).flatMap((row) => (row.kind === "item" ? [row.item] : [])) }
 }
 
-/** Ids de los grupos con uno de ellos movido un lugar hacia arriba (-1) o abajo (+1). */
-export function moveGroup(groups: CollectionGroup[], groupId: string, delta: -1 | 1): string[] | null {
-  const ids = groups.map((group) => group.id)
-  const index = ids.indexOf(groupId)
-  const target = index + delta
-  if (index < 0 || target < 0 || target >= ids.length) return null
-  ;[ids[index], ids[target]] = [ids[target], ids[index]]
-  return ids
-}

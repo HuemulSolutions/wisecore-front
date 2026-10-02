@@ -2,18 +2,21 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
-import { Crown, Globe, Lock, Plus, Search, Shield, ShieldCheck, Trash2, User as UserIcon } from "lucide-react"
+import { AlertTriangle, Globe, Lock, Plus, RefreshCw, Search, Shield, ShieldCheck, Trash2, User as UserIcon } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { useOrganization } from "@/contexts/organization-context"
 import { useRoles } from "@/hooks/useRbac"
 import { useMembers } from "@/hooks/useUsers"
+import { useDebounce } from "@/hooks/use-debounce"
 import { useCollectionAccess, useCollectionMutations } from "@/hooks/useCollections"
-import type { Collection, CollectionAccess, CollectionAccessLevel } from "@/types/collections"
+import type { Collection, CollectionAccess, CollectionAccessGrant, CollectionAccessLevel } from "@/types/collections"
+import { diffCollectionAccess, hasAccessChanges, principalKey } from "./collection-access-diff"
+import { CollectionsErrorState } from "./collections-error-state"
 
 export interface CollectionAccessSheetProps {
   open: boolean
@@ -21,12 +24,13 @@ export interface CollectionAccessSheetProps {
   collection: Pick<Collection, "id" | "name" | "is_public" | "created_by"> | null
 }
 
-type DraftAccess = CollectionAccess & { key: string }
-
-const keyOf = (access: Pick<CollectionAccess, "role_id" | "user_id">) =>
-  access.role_id ? `role:${access.role_id}` : `user:${access.user_id}`
+/** Fila del borrador: el acceso y su nombre para mostrar (`formerMember` si ya no es miembro). */
+type DraftAccess = CollectionAccessGrant & { key: string; label: string; formerMember?: boolean }
 
 const MAX_RESULTS = 8
+
+const personName = (person: { name?: string | null; last_name?: string | null; email?: string | null }) =>
+  [person.name, person.last_name].filter(Boolean).join(" ") || person.email || ""
 
 interface SearchOption {
   id: string
@@ -46,14 +50,19 @@ function PrincipalSearch({
   icon: Icon,
   onPick,
   noMatchesLabel,
+  searchingLabel,
+  searching = false,
 }: {
   placeholder: string
   value: string
   onChange: (value: string) => void
   options: SearchOption[]
   icon: typeof Shield
-  onPick: (id: string) => void
+  onPick: (option: SearchOption) => void
   noMatchesLabel: string
+  searchingLabel?: string
+  /** Mientras se espera la respuesta no se dice "sin resultados". */
+  searching?: boolean
 }) {
   const showResults = value.trim() !== ""
   return (
@@ -74,18 +83,26 @@ function PrincipalSearch({
       />
       {showResults && (
         <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-md border bg-popover p-1 shadow-md">
-          {options.length === 0 && <p className="px-2 py-1.5 text-sm text-muted-foreground">{noMatchesLabel}</p>}
+          {options.length === 0 && (
+            <p className="px-2 py-1.5 text-sm text-muted-foreground">{searching ? searchingLabel : noMatchesLabel}</p>
+          )}
           {options.map((option) => (
             <button
               key={option.id}
               type="button"
-              onClick={() => onPick(option.id)}
+              onClick={() => onPick(option)}
               className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:cursor-pointer hover:bg-muted"
             >
               <Icon className="size-4 shrink-0 text-muted-foreground" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate">{option.label}</span>
-                {option.detail && <span className="block truncate text-xs text-muted-foreground">{option.detail}</span>}
+                <span className="block truncate" title={option.label}>
+                  {option.label}
+                </span>
+                {option.detail && (
+                  <span className="block truncate text-xs text-muted-foreground" title={option.detail}>
+                    {option.detail}
+                  </span>
+                )}
               </span>
               <Plus className="size-4 text-muted-foreground" />
             </button>
@@ -97,27 +114,33 @@ function PrincipalSearch({
 }
 
 /**
- * "Quién puede verla": visibilidad (privada o pública) y, si es privada, los roles y
- * las personas con acceso, cada bloque con su buscador. Se guarda todo junto: `PUT
- * /collections/{id}/access` reemplaza los grants y, si cambió, `PUT /collections/{id}`
- * actualiza `is_public`. Una colección pública oculta los grants pero no los borra.
+ * "Quién puede verla": visibilidad (privada o pública) y los roles y personas con acceso, cada
+ * bloque con su buscador. En una privada definen quién la ve (lectura) y quién la administra;
+ * en una pública todos la leen, así que definen quién la administra. El creador es un acceso
+ * más (marcado "Creador"): se le puede quitar o bajar, siempre que quede al menos un
+ * administrador. Al guardar viajan solo los cambios (`PATCH /collections/{id}/access` con
+ * `{add, remove}`), nunca la lista completa: lo que no se tocó queda como estaba aunque esta
+ * pantalla no lo haya cargado. Guardar se habilita recién con los accesos cargados.
  */
 export function CollectionAccessSheet({ open, onOpenChange, collection }: CollectionAccessSheetProps) {
   const { t } = useTranslation(["collections", "common"])
   const { selectedOrganizationId } = useOrganization()
   const collectionId = collection?.id
-  const { data: accesses, isLoading } = useCollectionAccess(collectionId, open)
+  const { data: accessList, error, isLoading, isError, isFetching, refetch } = useCollectionAccess(collectionId, open)
+  const accesses = accessList?.accesses
   const { data: rolesData } = useRoles(open, 1, 1000)
   const [roleQuery, setRoleQuery] = useState("")
   const [personQuery, setPersonQuery] = useState("")
-  const { data: membersData } = useMembers(
-    open,
+  // El directorio se busca en el servidor, con debounce: una llamada por pausa, no por tecla.
+  const debouncedPersonQuery = useDebounce(personQuery.trim(), 300)
+  const { data: membersData, isFetching: isFetchingMembers } = useMembers(
+    open && debouncedPersonQuery !== "",
     selectedOrganizationId ?? undefined,
     1,
-    personQuery ? 20 : 100,
-    personQuery || undefined,
+    20,
+    debouncedPersonQuery || undefined,
   )
-  const { replaceAccess, updateCollection } = useCollectionMutations()
+  const { updateAccess, updateCollection } = useCollectionMutations()
   const [draft, setDraft] = useState<DraftAccess[]>([])
   const [isPublic, setIsPublic] = useState(false)
 
@@ -130,23 +153,27 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
   }, [open, collection?.is_public])
 
   useEffect(() => {
-    if (open && accesses) setDraft(accesses.map((access) => ({ ...access, key: keyOf(access) })))
+    if (open && accesses) setDraft(accesses.map((access) => toDraft(access)))
+    // `toDraft` solo depende de `t`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, accesses])
+
+  function toDraft(access: CollectionAccess): DraftAccess {
+    const label = access.role_id
+      ? (access.role_name ?? "")
+      : (access.user ? personName(access.user) : "") || t("access.unknownUser", { id: access.user_id!.slice(0, 8) })
+    return {
+      role_id: access.role_id,
+      user_id: access.user_id,
+      access_level: access.access_level,
+      key: principalKey(access),
+      label,
+      formerMember: access.user_id ? access.is_member === false : false,
+    }
+  }
 
   const roles = useMemo(() => rolesData?.data ?? [], [rolesData])
   const members = useMemo(() => membersData?.data ?? [], [membersData])
-  const roleNames = useMemo(() => new Map(roles.map((role) => [role.id, role.name])), [roles])
-  const [memberNames, setMemberNames] = useState<Map<string, string>>(new Map())
-  useEffect(() => {
-    if (members.length === 0) return
-    setMemberNames((prev) => {
-      const next = new Map(prev)
-      for (const member of members) {
-        next.set(member.id, [member.name, member.last_name].filter(Boolean).join(" ") || member.email)
-      }
-      return next
-    })
-  }, [members])
 
   const taken = new Set(draft.map((access) => access.key))
   const roleNeedle = roleQuery.trim().toLowerCase()
@@ -158,23 +185,20 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
     : []
   const personOptions: SearchOption[] = personQuery.trim()
     ? members
-        .filter((member) => !taken.has(`user:${member.id}`) && member.id !== collection?.created_by)
+        .filter((member) => !taken.has(`user:${member.id}`))
         .slice(0, MAX_RESULTS)
-        .map((member) => ({
-          id: member.id,
-          label: [member.name, member.last_name].filter(Boolean).join(" ") || member.email,
-          detail: member.email,
-        }))
+        .map((member) => ({ id: member.id, label: personName(member), detail: member.email }))
     : []
 
-  const addPrincipal = (principal: { role_id?: string; user_id?: string }) => {
-    const access: CollectionAccess = {
-      role_id: principal.role_id ?? null,
-      user_id: principal.user_id ?? null,
-      access_level: "read",
+  const addPrincipal = (kind: "role" | "user", option: SearchOption) => {
+    const grant: CollectionAccessGrant = {
+      role_id: kind === "role" ? option.id : null,
+      user_id: kind === "user" ? option.id : null,
+      // En una pública la lectura no agrega nada: lo que se agrega es un administrador.
+      access_level: isPublic ? "admin" : "read",
     }
-    setDraft((prev) => [...prev, { ...access, key: keyOf(access) }])
-    if (principal.role_id) setRoleQuery("")
+    setDraft((prev) => [...prev, { ...grant, key: principalKey(grant), label: option.label }])
+    if (kind === "role") setRoleQuery("")
     else setPersonQuery("")
   }
 
@@ -183,39 +207,68 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
 
   const remove = (key: string) => setDraft((prev) => prev.filter((access) => access.key !== key))
 
+  const adminCount = draft.filter((access) => access.access_level === "admin").length
+  const pendingChanges = accesses ? diffCollectionAccess(accesses, draft) : null
+  // El backend rechaza dejarla sin administradores; acá se evita llegar a pedirlo.
+  const leavesNoAdmins = !!pendingChanges && hasAccessChanges(pendingChanges) && adminCount === 0
+
   const handleSave = async () => {
-    if (!collectionId) return
+    if (!collectionId || !accesses) return
     if (collection && isPublic !== collection.is_public) {
       await updateCollection.mutateAsync({ collectionId, data: { is_public: isPublic } })
     }
-    await replaceAccess.mutateAsync({
-      collectionId,
-      accesses: draft.map(({ role_id, user_id, access_level }) => ({ role_id, user_id, access_level })),
-    })
+    const changes = diffCollectionAccess(accesses, draft)
+    if (hasAccessChanges(changes)) await updateAccess.mutateAsync({ collectionId, changes })
   }
 
   const roleGrants = draft.filter((access) => access.role_id)
   const personGrants = draft.filter((access) => access.user_id)
-  const creatorName = collection?.created_by ? memberNames.get(collection.created_by) : undefined
+  const creatorId = accessList?.creator?.user_id
 
-  const grantRow = (access: DraftAccess, label: string, Icon: typeof Shield) => (
-    <li key={access.key} className="flex items-center gap-3 px-3 py-2">
-      <Icon className="size-4 shrink-0 text-muted-foreground" />
-      <span className="min-w-0 flex-1 truncate text-sm">{label}</span>
-      <Select value={access.access_level} onValueChange={(level) => setLevel(access.key, level as CollectionAccessLevel)}>
-        <SelectTrigger className="h-8 w-40" aria-label={t("access.level")}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="read">{t("access.read")}</SelectItem>
-          <SelectItem value="admin">{t("access.admin")}</SelectItem>
-        </SelectContent>
-      </Select>
-      <Button variant="ghost" size="icon" onClick={() => remove(access.key)} aria-label={t("access.remove")}>
-        <Trash2 className="size-4" />
-      </Button>
-    </li>
-  )
+  const grantRow = (access: DraftAccess, Icon: typeof Shield) => {
+    // El último administrador no se puede quitar ni bajar a lectura.
+    const lastAdmin = access.access_level === "admin" && adminCount === 1
+    const readIgnored = isPublic && access.access_level === "read"
+    return (
+      <li key={access.key} className="flex items-center gap-3 px-3 py-2">
+        <Icon className="size-4 shrink-0 text-muted-foreground" />
+        <span className="min-w-0 flex-1 text-sm">
+          <span className="block truncate" title={access.label}>
+            {access.label}
+            {access.user_id && access.user_id === creatorId && (
+              <span className="ml-2 text-xs text-muted-foreground">{t("access.creatorTag")}</span>
+            )}
+            {access.formerMember && <span className="ml-2 text-xs text-muted-foreground">{t("access.formerMember")}</span>}
+          </span>
+          {readIgnored && <span className="block text-xs text-amber-700">{t("access.readHasNoEffect")}</span>}
+        </span>
+        <Select
+          value={access.access_level}
+          onValueChange={(level) => setLevel(access.key, level as CollectionAccessLevel)}
+          disabled={access.formerMember}
+        >
+          <SelectTrigger className="h-8 w-40 hover:cursor-pointer" aria-label={t("access.level")}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="read" disabled={lastAdmin || (isPublic && !readIgnored)}>
+              {t("access.read")}
+            </SelectItem>
+            <SelectItem value="admin">{t("access.admin")}</SelectItem>
+          </SelectContent>
+        </Select>
+        <HuemulButton
+          variant="ghost"
+          size="icon"
+          icon={Trash2}
+          onClick={() => remove(access.key)}
+          disabled={lastAdmin}
+          aria-label={t("access.remove")}
+          tooltip={lastAdmin ? t("access.lastAdmin") : t("access.remove")}
+        />
+      </li>
+    )
+  }
 
   const block = (title: string, search: ReactNode, rows: ReactNode, empty: string, hasRows: boolean) => (
     <section className="space-y-2">
@@ -239,7 +292,19 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
       icon={ShieldCheck}
       size="lg"
       cancelLabel={t("common:cancel")}
-      saveAction={{ label: t("common:save"), onClick: handleSave }}
+      saveAction={{ label: t("common:save"), onClick: handleSave, disabled: !accesses || leavesNoAdmins }}
+      headerExtra={
+        <HuemulButton
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          icon={RefreshCw}
+          aria-label={t("common:refresh")}
+          tooltip={t("common:refresh")}
+          loading={isFetching}
+          onClick={() => refetch()}
+        />
+      }
     >
       <div className="space-y-6 py-2">
         <section className="space-y-2">
@@ -271,15 +336,28 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
           </div>
         </section>
 
-        {!isPublic &&
-          (isLoading ? (
+        {isError ? (
+          <CollectionsErrorState compact error={error} onRetry={() => refetch()} />
+        ) : (
+          isLoading ? (
             <div className="space-y-2">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
           ) : (
             <>
-              <p className="text-xs text-muted-foreground">{t("access.levelsHint")}</p>
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold">{isPublic ? t("access.managersTitle") : t("access.whoTitle")}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {isPublic ? t("access.publicLevelsHint") : t("access.levelsHint")}
+                </p>
+              </div>
+              {adminCount === 0 && (
+                <p className="flex items-start gap-1.5 text-xs text-amber-700">
+                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                  {t("access.noAdmins")}
+                </p>
+              )}
               {block(
                 t("access.rolesTitle"),
                 <PrincipalSearch
@@ -288,16 +366,10 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
                   onChange={setRoleQuery}
                   options={roleOptions}
                   icon={Shield}
-                  onPick={(id) => addPrincipal({ role_id: id })}
+                  onPick={(option) => addPrincipal("role", option)}
                   noMatchesLabel={t("access.noMatches")}
                 />,
-                roleGrants.map((access) =>
-                  grantRow(
-                    access,
-                    roleNames.get(access.role_id!) ?? t("access.unknownRole", { id: access.role_id!.slice(0, 8) }),
-                    Shield,
-                  ),
-                ),
+                roleGrants.map((access) => grantRow(access, Shield)),
                 t("access.noRoles"),
                 roleGrants.length > 0,
               )}
@@ -309,28 +381,18 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
                   onChange={setPersonQuery}
                   options={personOptions}
                   icon={UserIcon}
-                  onPick={(id) => addPrincipal({ user_id: id })}
+                  onPick={(option) => addPrincipal("user", option)}
                   noMatchesLabel={t("access.noMatches")}
+                  searchingLabel={t("access.searching")}
+                  searching={personQuery.trim() !== debouncedPersonQuery || isFetchingMembers}
                 />,
-                <>
-                  <li className="flex items-center gap-3 px-3 py-2">
-                    <Crown className="size-4 shrink-0 text-amber-600" />
-                    <span className="min-w-0 flex-1 truncate text-sm">{creatorName ?? t("access.creatorUnknown")}</span>
-                    <span className="text-xs text-muted-foreground">{t("access.creator")}</span>
-                  </li>
-                  {personGrants.map((access) =>
-                    grantRow(
-                      access,
-                      memberNames.get(access.user_id!) ?? t("access.unknownUser", { id: access.user_id!.slice(0, 8) }),
-                      UserIcon,
-                    ),
-                  )}
-                </>,
+                personGrants.map((access) => grantRow(access, UserIcon)),
                 t("access.noPeople"),
-                true,
+                personGrants.length > 0,
               )}
             </>
-          ))}
+          )
+        )}
       </div>
     </HuemulSheet>
   )

@@ -164,6 +164,12 @@ const navigationItems = [
     orgScoped: true,
   },
   {
+    title: "Collections",
+    url: "/collections",
+    icon: Library,
+    orgScoped: true,
+  },
+  {
     title: "Search",
     url: "/search",
     icon: Search,
@@ -173,12 +179,6 @@ const navigationItems = [
     title: "Templates",
     url: "/templates",
     icon: LayoutTemplate,
-    orgScoped: true,
-  },
-  {
-    title: "Collections",
-    url: "/collections",
-    icon: Library,
     orgScoped: true,
   },
   {

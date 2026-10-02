@@ -18,6 +18,7 @@ const saved: Collection = {
   name: 'Arquitectura',
   description: null,
   instructions: null,
+  show_instructions_in_menu: false,
   is_public: false,
   for_agent: false,
   agent_slug: null,
@@ -57,6 +58,7 @@ describe('CollectionFormSheet', () => {
       name: 'Inducción',
       description: undefined,
       instructions: 'Lee en orden.',
+      show_instructions_in_menu: false,
       is_public: false,
       for_agent: false,
     })

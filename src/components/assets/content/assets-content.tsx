@@ -1,4 +1,5 @@
 ﻿import { useMemo, useEffect, useState, useRef, useCallback, useDeferredValue } from "react";
+import { ViewOnlyPermissionsProvider } from "@/contexts/permissions-context";
 import { handleApiError } from "@/lib/error-utils";
 import { resolveCannotGenerateReason, isContextRelatedReason } from "@/lib/generation-gating";
 import { logger } from "@/lib/logger";
@@ -172,8 +173,18 @@ const ASSET_HISTORY_TABS: AssetHistoryTab[] = ['lifecycle', 'changes'];
  *
  * Main component for displaying and managing document/template content.
  * Handles content rendering, version management, executions, and user interactions.
+ * Con `viewOnly`, todo lo que cuelga se ve con permisos de solo lectura
+ * (`ViewOnlyPermissionsProvider`) y sin permisos de lifecycle de escritura.
  */
-export function AssetContent({
+export function AssetContent(props: LibraryContentProps) {
+  return (
+    <ViewOnlyPermissionsProvider enabled={!!props.viewOnly}>
+      <AssetContentBody {...props} />
+    </ViewOnlyPermissionsProvider>
+  );
+}
+
+function AssetContentBody({
   selectedFile,
   selectedExecutionId,
   setSelectedExecutionId,
@@ -188,6 +199,7 @@ export function AssetContent({
   onOpenFullscreen,
   onExitFullscreen,
   defaultDetailPanelCollapsed = false,
+  viewOnly = false,
 }: LibraryContentProps) {
   // "panel": columna derecha de /asset (default). "fullscreen": vista dedicada sin
   // header/nav/árbol (pages/asset-fullscreen.tsx) — ver
@@ -1496,7 +1508,15 @@ export function AssetContent({
   // Get the active execution ID (running, pending, or failed) from document executions
 
   // Lifecycle permissions from the document content response
-  const lifecyclePermissions = documentContent?.lifecycle_permissions as LifecyclePermissions | undefined;
+  // En solo visualización queda solo `view`: así también se apagan los gates que leen
+  // únicamente lifecycle (crear versión, gestión de versiones, acciones del menú).
+  const rawLifecyclePermissions = documentContent?.lifecycle_permissions as LifecyclePermissions | undefined;
+  const lifecyclePermissions = useMemo(() => {
+    if (!viewOnly || !rawLifecyclePermissions) return rawLifecyclePermissions;
+    return Object.fromEntries(
+      Object.entries(rawLifecyclePermissions).map(([key, value]) => [key, key === "view" ? value : false]),
+    ) as unknown as LifecyclePermissions;
+  }, [rawLifecyclePermissions, viewOnly]);
 
   // Permisos del panel: cruza lifecycle_permissions + lifecycle_status.stage con
   // las capacidades RBAC globales (regla AND — ver useAssetContentPermissions).

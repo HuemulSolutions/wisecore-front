@@ -42,8 +42,13 @@ const translations = {
     descriptionHint: { en: "Shown on the collection card.", es: "Se muestra en la tarjeta de la colección." },
     instructions: { en: "General rules", es: "Reglas generales" },
     instructionsHint: {
-      en: "Short rules that are not in an asset. Agents receive them before the assets; people see them on the collection's cover.",
-      es: "Reglas breves que no están en un activo. Los agentes las reciben antes que los activos; las personas las ven en la portada de la colección.",
+      en: "Short rules that are not in an asset. Agents receive them before the assets; people see them on the cover or in the index.",
+      es: "Reglas breves que no están en un activo. Los agentes las reciben antes que los activos; las personas las ven en la portada o en el índice.",
+    },
+    instructionsInMenu: { en: "Show the general rules in the index", es: "Mostrar las reglas generales en el menú" },
+    instructionsInMenuHint: {
+      en: "They appear as their own entry in the index instead of on the cover.",
+      es: "Aparecen como una entrada propia del índice en vez de en la portada.",
     },
     instructionsPlaceholderHuman: {
       en: "e.g. Read the assets in order; the last ones take precedence.",
@@ -125,8 +130,8 @@ const translations = {
     visibilityPrivate: { en: "Private", es: "Privada" },
     visibilityPublic: { en: "Public", es: "Pública" },
     visibilityHint: {
-      en: "Public: every member can read it. Private: only you and the people or roles you share it with.",
-      es: "Pública: la puede leer cualquier miembro. Privada: solo tú y las personas o roles con quienes la compartas.",
+      en: "Private: only the roles or people given access can see it. Public: every member of the organization can see it; the roles and people given access manage it.",
+      es: "Privada: solo la ven los roles o personas con acceso. Pública: la ve cualquier miembro de la organización; la administran los roles y personas con acceso.",
     },
   },
   access: {
@@ -134,14 +139,32 @@ const translations = {
     visibilityTitle: { en: "Visibility", es: "Visibilidad" },
     privateTitle: { en: "Private", es: "Privada" },
     privateDescription: {
-      en: "Only you and the roles or people you add below.",
-      es: "Solo tú y los roles o personas que agregues abajo.",
+      en: "Only the roles or people listed below can see it.",
+      es: "Solo los roles o personas indicados abajo pueden verla.",
     },
     publicTitle: { en: "Public", es: "Pública" },
     publicDescription: {
-      en: "Every member of the organization can read it.",
-      es: "La puede leer cualquier miembro de la organización.",
+      en: "Every member of the organization can see it. Its managers are the roles and people listed below.",
+      es: "La puede ver cualquier miembro de la organización. La administran los roles y personas indicados abajo.",
     },
+    managersTitle: { en: "Who manages it", es: "Quiénes la administran" },
+    publicLevelsHint: {
+      en: "It is public: everyone can already read it, so here you only choose who manages it (edits it, its assets and who can see it). Each asset still follows its own permissions.",
+      es: "Es pública: todos ya la pueden leer, así que acá solo eliges quiénes la administran (la editan, sus activos y quién la ve). Cada activo sigue respetando sus propios permisos.",
+    },
+    readHasNoEffect: {
+      en: "Read has no effect while it is public",
+      es: "Lectura no tiene efecto mientras sea pública",
+    },
+    lastAdmin: {
+      en: "A collection needs at least one manager. Add another one before removing this one.",
+      es: "Una colección necesita al menos un administrador. Agrega otro antes de quitar este.",
+    },
+    noAdmins: {
+      en: "Nobody manages it. Give \"Manage\" to at least one role or person.",
+      es: "Nadie la administra. Da \"Administración\" a al menos un rol o persona.",
+    },
+    creatorTag: { en: "Creator", es: "Creador" },
     whoTitle: { en: "Roles and people with access", es: "Roles y personas con acceso" },
     rolesTitle: { en: "Roles", es: "Roles" },
     peopleTitle: { en: "People", es: "Personas" },
@@ -149,7 +172,8 @@ const translations = {
     searchPerson: { en: "Search a person by name or email...", es: "Buscar una persona por nombre o correo..." },
     noRoles: { en: "No roles have access yet.", es: "Todavía no hay roles con acceso." },
     noMatches: { en: "No results", es: "Sin resultados" },
-    noPeople: { en: "No other people have access yet.", es: "Todavía no hay otras personas con acceso." },
+    searching: { en: "Searching...", es: "Buscando..." },
+    noPeople: { en: "No people have access yet.", es: "Todavía no hay personas con acceso." },
     levelsHint: {
       en: "Read: see the collection. Manage: edit it, its assets and who can see it. Each asset still follows its own permissions.",
       es: "Lectura: ver la colección. Administración: editarla, sus activos y quién la ve. Cada activo sigue respetando sus propios permisos.",
@@ -168,10 +192,10 @@ const translations = {
       en: "It is public: every member can already read it. Add roles or people here to let them manage it.",
       es: "Es pública: cualquier miembro ya la puede leer. Agrega roles o personas acá para que la administren.",
     },
-    summaryPublic: { en: "Public · every member can read it", es: "Pública · la lee cualquier miembro" },
+    summaryPublic: { en: "Public · every member can see it", es: "Pública · la ve cualquier miembro" },
     summaryPrivate: { en: "Private · shared with {{roles}} roles and {{people}} people", es: "Privada · compartida con {{roles}} roles y {{people}} personas" },
-    unknownRole: { en: "Role {{id}}", es: "Rol {{id}}" },
     unknownUser: { en: "User {{id}}", es: "Usuario {{id}}" },
+    formerMember: { en: "No longer a member", es: "Ya no es miembro" },
   },
   addItems: {
     title: { en: "Add assets", es: "Agregar activos" },
@@ -192,8 +216,28 @@ const translations = {
       es: "Elige activos uno tras otro; cada uno se agrega al elegirlo.",
     },
   },
+  addCollections: {
+    title: { en: "Add collections", es: "Agregar colecciones" },
+    description: {
+      en: "Collections you can read, with the same audience. Each one shows inside this one as a folder, with its own content.",
+      es: "Colecciones que puedes leer, de la misma audiencia. Cada una se muestra dentro de esta como una carpeta, con su propio contenido.",
+    },
+    search: { en: "Search collection...", es: "Buscar colección..." },
+    add: { en: "Add", es: "Agregar" },
+    alreadyIn: { en: "Already added", es: "Ya agregada" },
+    none: { en: "No collections can be added here.", es: "No hay colecciones para agregar acá." },
+  },
   detail: {
     back: { en: "Collections", es: "Colecciones" },
+    addCollections: { en: "Add collections", es: "Agregar colecciones" },
+    addCollectionsHere: { en: "Add collections here", es: "Agregar colecciones aquí" },
+    loadingSubCollection: { en: "Loading...", es: "Cargando..." },
+    subCollectionUnavailable: { en: "Not available", es: "No disponible" },
+    subCollectionEmpty: { en: "Empty", es: "Vacía" },
+    removeCollectionDescription: {
+      en: "\"{{name}}\" is removed from this collection. The collection itself and its content are not touched.",
+      es: "Se quita \"{{name}}\" de esta colección. La colección y su contenido no se modifican.",
+    },
     edit: { en: "Edit", es: "Editar" },
     share: { en: "Access", es: "Acceso" },
     addItems: { en: "Add assets", es: "Agregar activos" },
@@ -202,6 +246,42 @@ const translations = {
     delete: { en: "Delete", es: "Eliminar" },
     index: { en: "Index", es: "Índice" },
     cover: { en: "Cover", es: "Portada" },
+    rules: { en: "General rules", es: "Reglas generales" },
+    setAsCover: { en: "Use as cover", es: "Usar como portada" },
+    unsetCover: { en: "Remove from cover", es: "Quitar de portada" },
+    coverHint: {
+      en: "Choose an asset as the cover from its ⋯ menu → \"Use as cover\".",
+      es: "Elige un activo como portada desde su menú ⋯ → «Usar como portada».",
+    },
+    viewModes: {
+      label: { en: "View mode", es: "Modo de vista" },
+      edit: { en: "Design", es: "Diseño" },
+      editHint: { en: "Manage the collection: assets, groups and access.", es: "Administrar la colección: activos, grupos y accesos." },
+      reader: { en: "Author", es: "Elaborador" },
+      readerHint: {
+        en: "Work on the assets with your usual permissions; the collection itself is not edited.",
+        es: "Trabajar en los activos con tus permisos de siempre; la colección no se edita.",
+      },
+      viewOnly: { en: "Consult", es: "Consulta" },
+      viewOnlyHint: {
+        en: "Read only, assets included, even if you can edit them.",
+        es: "Solo lectura, también los activos, aunque puedas editarlos.",
+      },
+    },
+    viewOnlyBanner: {
+      en: "Consult mode: assets are shown without editing actions, even if you have permission to edit them.",
+      es: "Modo Consulta: los activos se muestran sin acciones de edición, aunque tengas permiso para editarlos.",
+    },
+    copyLink: { en: "Copy link", es: "Copiar link" },
+    copyLinkAs: { en: "Copy the link in mode", es: "Copiar el link en modo" },
+    linkCopied: { en: "Link copied ({{mode}})", es: "Link copiado ({{mode}})" },
+    editCollection: { en: "Edit collection", es: "Editar colección" },
+    collapseGroup: { en: "Collapse", es: "Colapsar" },
+    expandGroup: { en: "Expand", es: "Expandir" },
+    readerBanner: {
+      en: "Author mode: the collection as everyone else sees it, without its editing. Assets each person cannot see by their own permissions are still hidden for them.",
+      es: "Modo Elaborador: la colección como la ve el resto, sin su edición. Los activos que cada persona no puede ver por sus propios permisos se le siguen ocultando.",
+    },
     addGroup: { en: "New group", es: "Nuevo grupo" },
     groupName: { en: "Group name", es: "Nombre del grupo" },
     renameGroup: { en: "Rename group", es: "Renombrar grupo" },
@@ -210,16 +290,14 @@ const translations = {
       en: "The group \"{{name}}\" is deleted; its assets stay in the collection without a group.",
       es: "Se elimina el grupo \"{{name}}\"; sus activos quedan en la colección sin grupo.",
     },
-    moveGroupUp: { en: "Move up", es: "Subir" },
-    moveGroupDown: { en: "Move down", es: "Bajar" },
     ungrouped: { en: "No group", es: "Sin grupo" },
     emptyIndex: {
       en: "Add assets with \"Add assets\" or from an asset's ⋯ menu → \"Add to collection\".",
       es: "Agrega activos con «Agregar activos» o desde el menú ⋯ de un activo → «Agregar a colección».",
     },
     hiddenItems: {
-      en: "{{count}} assets you cannot see are hidden.",
-      es: "Hay {{count}} activos que no puedes ver y se ocultan.",
+      en: "{{count}} items you cannot see are hidden.",
+      es: "Hay {{count}} elementos que no puedes ver y se ocultan.",
     },
     dragHint: {
       en: "Drag to reorder. When two assets contradict each other, the later one wins.",
@@ -272,6 +350,40 @@ const translations = {
     },
     none: { en: "You do not manage any collection.", es: "No administras ninguna colección." },
     createNew: { en: "New collection", es: "Nueva colección" },
+  },
+  errorState: {
+    failedToLoad: { en: "Could not load the collections", es: "No se pudieron cargar las colecciones" },
+    errorDescription: {
+      en: "Check your connection and try again.",
+      es: "Revisa tu conexión y vuelve a intentarlo.",
+    },
+  },
+  errors: {
+    nestingCycle: {
+      en: "That collection already contains this one, so it cannot go inside it.",
+      es: "Esa colección ya contiene a esta, así que no puede ir dentro de ella.",
+    },
+    nestingTooDeep: {
+      en: "Collections can be nested up to 10 levels.",
+      es: "Las colecciones se pueden anidar hasta 10 niveles.",
+    },
+    nestingAudienceMismatch: {
+      en: "Only collections with the same audience (people or agents) can be nested.",
+      es: "Solo se pueden anidar colecciones de la misma audiencia (personas o agentes).",
+    },
+    nestingSelf: { en: "A collection cannot contain itself.", es: "Una colección no puede contenerse a sí misma." },
+    nestingAudienceLocked: {
+      en: "Remove its sub-collections and take it out of other collections before changing its audience.",
+      es: "Quita sus sub-colecciones y sácala de otras colecciones antes de cambiar su audiencia.",
+    },
+    invalidAccess: {
+      en: "Access can only be given to roles and members of the organization. Refresh and try again.",
+      es: "Solo se puede dar acceso a roles y miembros de la organización. Actualiza y vuelve a intentarlo.",
+    },
+    adminRequired: {
+      en: "A collection needs at least one manager. Give \"Manage\" to another role or person first.",
+      es: "Una colección necesita al menos un administrador. Primero da \"Administración\" a otro rol o persona.",
+    },
   },
   mutations: {
     createSuccess: { en: "Collection created", es: "Colección creada" },
