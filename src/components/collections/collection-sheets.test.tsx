@@ -49,6 +49,26 @@ const renderSheet = (isPublic: boolean) =>
   )
 
 describe('CollectionAccessSheet', () => {
+  it('sin escribir muestra solo lo agregado; los roles aparecen al buscar', async () => {
+    mockAccessApi()
+    const { user } = renderSheet(false)
+
+    const search = await screen.findByPlaceholderText('Search a role to add...')
+    expect(await screen.findByText('No roles have access yet.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Analistas/ })).not.toBeInTheDocument()
+
+    await user.type(search, 'xyz')
+    expect(await screen.findByText('No results')).toBeInTheDocument()
+    await user.clear(search)
+    await user.type(search, 'anal')
+    await user.click(await screen.findByRole('button', { name: /Analistas/ }))
+
+    // Agregado: queda en la lista y el desplegable se cierra.
+    expect(screen.queryByText('No roles have access yet.')).not.toBeInTheDocument()
+    expect(screen.getByText('Analistas')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Analistas/ })).not.toBeInTheDocument()
+  })
+
   it('en privada agrega un rol desde "Roles" y una persona desde "Personas"', async () => {
     const calls = mockAccessApi()
     const { user } = renderSheet(false)

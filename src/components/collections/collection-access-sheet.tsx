@@ -34,7 +34,10 @@ interface SearchOption {
   detail?: string
 }
 
-/** Buscador con resultados en lista: agrega con un clic y se vacía. */
+/**
+ * Buscador para agregar: los resultados (solo lo que todavía no tiene acceso) aparecen
+ * en un desplegable flotante mientras se escribe. Debajo quedan únicamente los ya agregados.
+ */
 function PrincipalSearch({
   placeholder,
   value,
@@ -42,6 +45,7 @@ function PrincipalSearch({
   options,
   icon: Icon,
   onPick,
+  noMatchesLabel,
 }: {
   placeholder: string
   value: string
@@ -49,15 +53,28 @@ function PrincipalSearch({
   options: SearchOption[]
   icon: typeof Shield
   onPick: (id: string) => void
+  noMatchesLabel: string
 }) {
+  const showResults = value.trim() !== ""
   return (
-    <div className="space-y-1">
-      <div className="relative">
-        <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-        <Input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} aria-label={placeholder} className="pl-8" />
-      </div>
-      {options.length > 0 && (
-        <div className="max-h-48 overflow-y-auto rounded-md border bg-background p-1">
+    <div className="relative">
+      <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+      <Input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.stopPropagation()
+            onChange("")
+          }
+        }}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        className="pl-8"
+      />
+      {showResults && (
+        <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-md border bg-popover p-1 shadow-md">
+          {options.length === 0 && <p className="px-2 py-1.5 text-sm text-muted-foreground">{noMatchesLabel}</p>}
           {options.map((option) => (
             <button
               key={option.id}
@@ -133,11 +150,12 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
 
   const taken = new Set(draft.map((access) => access.key))
   const roleNeedle = roleQuery.trim().toLowerCase()
-  const roleOptions: SearchOption[] = roles
-    .filter((role) => !taken.has(`role:${role.id}`))
-    .filter((role) => !roleNeedle || role.name.toLowerCase().includes(roleNeedle))
-    .slice(0, MAX_RESULTS)
-    .map((role) => ({ id: role.id, label: role.name }))
+  const roleOptions: SearchOption[] = roleNeedle
+    ? roles
+        .filter((role) => !taken.has(`role:${role.id}`) && role.name.toLowerCase().includes(roleNeedle))
+        .slice(0, MAX_RESULTS)
+        .map((role) => ({ id: role.id, label: role.name }))
+    : []
   const personOptions: SearchOption[] = personQuery.trim()
     ? members
         .filter((member) => !taken.has(`user:${member.id}`) && member.id !== collection?.created_by)
@@ -271,6 +289,7 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
                   options={roleOptions}
                   icon={Shield}
                   onPick={(id) => addPrincipal({ role_id: id })}
+                  noMatchesLabel={t("access.noMatches")}
                 />,
                 roleGrants.map((access) =>
                   grantRow(
@@ -291,6 +310,7 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
                   options={personOptions}
                   icon={UserIcon}
                   onPick={(id) => addPrincipal({ user_id: id })}
+                  noMatchesLabel={t("access.noMatches")}
                 />,
                 <>
                   <li className="flex items-center gap-3 px-3 py-2">

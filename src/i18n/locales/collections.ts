@@ -148,6 +148,7 @@ const translations = {
     searchRole: { en: "Search a role to add...", es: "Buscar un rol para agregar..." },
     searchPerson: { en: "Search a person by name or email...", es: "Buscar una persona por nombre o correo..." },
     noRoles: { en: "No roles have access yet.", es: "Todavía no hay roles con acceso." },
+    noMatches: { en: "No results", es: "Sin resultados" },
     noPeople: { en: "No other people have access yet.", es: "Todavía no hay otras personas con acceso." },
     levelsHint: {
       en: "Read: see the collection. Manage: edit it, its assets and who can see it. Each asset still follows its own permissions.",
