@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { HuemulAssetTreePickerDialog } from "@/huemul/components/huemul-asset-tree-picker"
 import { useOrganization } from "@/contexts/organization-context"
+import { buildAssetFullscreenPath } from "@/lib/asset-fullscreen-url"
+import { currentPath } from "@/lib/return-url"
 import { applyOrder, moveGroup } from "@/components/collections/collection-order"
 import { Badge } from "@/components/ui/badge"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
@@ -325,9 +327,7 @@ export default function CollectionDetailPage() {
                 onToggleSidebar={() => {}}
                 defaultDetailPanelCollapsed
                 onOpenFullscreen={() =>
-                  navigate(
-                    `/asset/full/${selectedFile.id}${selectedExecutionId ? `?execution=${selectedExecutionId}` : ""}`,
-                  )
+                  navigate(buildAssetFullscreenPath(selectedFile.id, { executionId: selectedExecutionId, returnTo: currentPath() }))
                 }
               />
             ) : (
