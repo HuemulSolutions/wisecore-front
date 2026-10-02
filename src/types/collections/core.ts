@@ -1,5 +1,6 @@
-// Colecciones (backend: src/modules/collection). Una colección reúne activos en
-// orden, con grupos de un nivel, para personas o para agentes (`for_agent`).
+// Colecciones (backend: src/modules/collection). Una colección reúne activos y otras
+// colecciones (sub-colecciones, hasta 10 niveles) en orden, con grupos de un nivel, para
+// personas o para agentes (`for_agent`).
 
 export type CollectionAgentKind = 'knowledge' | 'behavior'
 export type CollectionAccessLevel = 'read' | 'admin'
@@ -7,6 +8,8 @@ export type CollectionAudience = 'human' | 'agent'
 
 export const COLLECTION_NAME_MAX_LENGTH = 200
 export const COLLECTION_INSTRUCTIONS_MAX_LENGTH = 10000
+/** Niveles de anidamiento: la raíz es el 1 y una cadena no pasa de 10 (lo valida el backend). */
+export const COLLECTION_MAX_DEPTH = 10
 
 export interface Collection {
   id: string
@@ -25,7 +28,7 @@ export interface Collection {
   updated_by: string | null
   created_at: string | null
   updated_at: string | null
-  /** Listado: activos que el usuario puede ver. */
+  /** Listado: ítems directos que el usuario puede ver (activos y sub-colecciones). */
   item_count?: number
   can_admin?: boolean
   /** Listado con `contains_document_id`. */
@@ -49,25 +52,42 @@ export interface CollectionItemVersion {
   pinned: boolean
 }
 
+export type CollectionItemKind = 'document' | 'collection'
+
+/** Resumen de una sub-colección dentro de su padre (su contenido se pide con su propio detalle). */
+export interface CollectionItemChild {
+  id: string
+  name: string
+  description: string | null
+  for_agent: boolean
+  /** Ítems directos que el usuario puede ver. */
+  item_count: number
+  can_admin: boolean
+}
+
+/** Un activo (`kind: 'document'`) o una sub-colección (`kind: 'collection'`). */
 export interface CollectionItem {
   id: string
-  document_id: string
+  kind: CollectionItemKind
+  document_id: string | null
+  child_collection_id: string | null
   group_id: string | null
   position: number
   title: string | null
-  internal_code: string | null
-  document_type_id: string | null
-  version: CollectionItemVersion | null
-  /** El activo que se muestra como portada (a lo sumo uno por colección). */
+  internal_code?: string | null
+  document_type_id?: string | null
+  version?: CollectionItemVersion | null
+  /** El activo que se muestra como portada (a lo sumo uno por colección; nunca una sub-colección). */
   is_home: boolean
+  collection?: CollectionItemChild | null
 }
 
 export interface CollectionDetail extends Collection {
   can_admin: boolean
   groups: CollectionGroup[]
-  /** Activos visibles en orden: sin grupo primero, después cada grupo. */
+  /** Ítems visibles en orden: sin grupo primero, después cada grupo. */
   items: CollectionItem[]
-  /** Activos de la colección que el usuario no puede ver (se omiten). */
+  /** Ítems que el usuario no puede ver (activos ocultos, sub-colecciones que no lee): se omiten. */
   hidden_item_count: number
 }
 
@@ -143,6 +163,8 @@ export interface GetCollectionsParams {
   search?: string
   can_admin?: boolean
   contains_document_id?: string
+  /** Solo las que se podrían agregar dentro de esa colección (misma audiencia, sin ciclos). */
+  exclude_nesting_conflicts_for?: string
 }
 
 export interface CollectionsResponse {
@@ -152,11 +174,10 @@ export interface CollectionsResponse {
   has_next: boolean
 }
 
-export interface AddCollectionItemRequest {
-  document_id: string
-  group_id?: string | null
-  execution_id?: string | null
-}
+/** Un activo (`document_id`) o una sub-colección (`child_collection_id`), exactamente uno. */
+export type AddCollectionItemRequest =
+  | { document_id: string; child_collection_id?: never; group_id?: string | null; execution_id?: string | null }
+  | { child_collection_id: string; document_id?: never; group_id?: string | null; execution_id?: never }
 
 /** `null` explícito: sin grupo / volver a la versión oficial. */
 export interface UpdateCollectionItemRequest {

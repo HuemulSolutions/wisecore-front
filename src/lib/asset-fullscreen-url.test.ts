@@ -20,4 +20,12 @@ describe('asset-fullscreen-url', () => {
     expect(resolveFullscreenReturn('https://evil.com', ORG, 'a1')).toBe('/asset/a1')
     expect(resolveFullscreenReturn(`/${OTHER}/collections/c1`, ORG, 'a1')).toBe('/asset/a1')
   })
+
+  it('conserva la sub-colección del activo (?in=) al volver', () => {
+    const back = `/${ORG}/collections/c1?item=i1&in=c2`
+    const path = buildAssetFullscreenPath('a1', { executionId: 'e1', returnTo: back })
+    const returnTo = new URLSearchParams(path.split('?')[1]).get('return')
+    expect(returnTo).toBe(back)
+    expect(resolveFullscreenReturn(returnTo, ORG, 'a1')).toBe(back)
+  })
 })

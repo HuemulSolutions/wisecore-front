@@ -9,6 +9,7 @@ import {
   Compass,
   Eye,
   FilePlus2,
+  FolderPlus,
   Globe,
   Library,
   Lock,
@@ -20,7 +21,13 @@ import {
   Users,
 } from "lucide-react"
 import { AssetContent } from "@/components/assets"
-import { CollectionAccessSheet, CollectionFormSheet, CollectionIndex, CollectionsErrorState } from "@/components/collections"
+import {
+  AddChildCollectionDialog,
+  CollectionAccessSheet,
+  CollectionFormSheet,
+  CollectionIndex,
+  CollectionsErrorState,
+} from "@/components/collections"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -64,10 +71,12 @@ const RULES_ENTRY = "rules"
  * Detalle de una colección: índice a la izquierda (portada, reglas, activos sin grupo y
  * cada grupo), y al centro el activo elegido con el mismo `AssetContent` de
  * /asset (que trae su propio panel lateral de media, relaciones, etc.). El ítem
- * elegido va en `?item=` para que un refresh o un link caigan en el mismo lugar. La
- * portada es el activo marcado `is_home` o, si no hay, el resumen de la colección.
- * `?view=reader` (solo para quien administra) oculta todo lo de edición, para ver la
- * colección como la ve el resto.
+ * elegido va en `?item=` para que un refresh o un link caigan en el mismo lugar; si
+ * es de una sub-colección, `?in=` dice de cuál (su detalle se pide con los permisos
+ * de quien mira, igual que al desplegarla en el índice). La portada es el activo
+ * marcado `is_home` o, si no hay, el resumen de la colección. `?view=reader` (solo
+ * para quien administra) oculta todo lo de edición, para ver la colección como la ve
+ * el resto.
  */
 export default function CollectionDetailPage() {
   const { collectionId } = useParams<{ collectionId: string }>()
@@ -101,6 +110,8 @@ export default function CollectionDetailPage() {
   const [sharing, setSharing] = useState(false)
   // Grupo destino del selector de activos abierto (`undefined` = cerrado, `null` = sin grupo).
   const [addingToGroup, setAddingToGroup] = useState<string | null | undefined>(undefined)
+  // Lo mismo para el selector de sub-colecciones.
+  const [addingCollectionsToGroup, setAddingCollectionsToGroup] = useState<string | null | undefined>(undefined)
   const { selectedOrganizationId } = useOrganization()
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
   // Versión elegida a mano para un ítem; si no hay, la del ítem (la fija o la oficial). Se
@@ -111,12 +122,19 @@ export default function CollectionDetailPage() {
   const itemParam = searchParams.get("item")
   const rulesSelected = itemParam === RULES_ENTRY && !!detail?.show_instructions_in_menu && !!detail.instructions
   const selectedItemId = rulesSelected ? null : itemParam
-  const selectedItem = useMemo(
-    () => detail?.items.find((item) => item.id === selectedItemId) ?? null,
-    [detail?.items, selectedItemId],
-  )
+  // Colección del ítem elegido cuando es de una sub-colección (ya está en caché si se desplegó).
+  const inParam = searchParams.get("in")
+  const sourceCollectionId = inParam && inParam !== collectionId ? inParam : undefined
+  const { data: sourceDetail } = useCollection(sourceCollectionId, !!sourceCollectionId && canAccessPage && can("viewCollection"))
+  const selectedItem = useMemo(() => {
+    const items = sourceCollectionId ? sourceDetail?.items : detail?.items
+    return items?.find((item) => item.id === selectedItemId && item.kind === "document" && item.document_id) ?? null
+  }, [detail?.items, sourceDetail?.items, sourceCollectionId, selectedItemId])
   // Lo que se muestra al centro: el ítem elegido o, en la portada, el activo de portada.
-  const homeItem = useMemo(() => detail?.items.find((item) => item.is_home) ?? null, [detail?.items])
+  const homeItem = useMemo(
+    () => detail?.items.find((item) => item.is_home && item.kind === "document") ?? null,
+    [detail?.items],
+  )
   const shownItem = selectedItem ?? (rulesSelected || selectedItemId ? null : homeItem)
   const selectedExecutionId =
     executionOverride && executionOverride.itemId === shownItem?.id
@@ -129,7 +147,7 @@ export default function CollectionDetailPage() {
     [shownItem],
   )
   const selectedFile: LibraryItem | null = useMemo(
-    () => (shownItem ? { id: shownItem.document_id, name: shownItem.title ?? "", type: "document" } : null),
+    () => (shownItem?.document_id ? { id: shownItem.document_id, name: shownItem.title ?? "", type: "document" } : null),
     [shownItem],
   )
 
@@ -146,12 +164,15 @@ export default function CollectionDetailPage() {
   )
 
   const selectItem = useCallback(
-    (item: CollectionItem | null) => {
-      updateParams({ item: item?.id ?? null })
+    (item: CollectionItem | null, inCollectionId?: string) => {
+      updateParams({
+        item: item?.id ?? null,
+        in: item && inCollectionId && inCollectionId !== collectionId ? inCollectionId : null,
+      })
       setExecutionOverride(null)
       setSelectedSectionId(null)
     },
-    [updateParams],
+    [updateParams, collectionId],
   )
 
   if (isLoadingPermissions || isLoading) return <PageSkeleton />
@@ -206,7 +227,13 @@ export default function CollectionDetailPage() {
       ? { title: t("detail.deleteTitle"), description: t("detail.deleteDescription", { name: detail.name }) }
       : pendingDelete?.kind === "group"
         ? { title: t("detail.deleteGroup"), description: t("detail.deleteGroupDescription", { name: pendingDelete.group.name }) }
-        : { title: t("detail.removeItem"), description: t("detail.removeItemDescription", { name: pendingDelete?.item.title ?? "" }) }
+        : {
+            title: t("detail.removeItem"),
+            description: t(
+              pendingDelete?.item.kind === "collection" ? "detail.removeCollectionDescription" : "detail.removeItemDescription",
+              { name: pendingDelete?.item.collection?.name ?? pendingDelete?.item.title ?? "" },
+            ),
+          }
 
   const cover = (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
@@ -286,7 +313,15 @@ export default function CollectionDetailPage() {
         <div className="flex flex-col items-start gap-2 rounded-lg border border-dashed p-4">
           <p className="text-sm text-muted-foreground">{t("detail.emptyIndex")}</p>
           {canManage && (
-            <HuemulButton icon={FilePlus2} label={t("detail.addItems")} onClick={() => setAddingToGroup(null)} />
+            <div className="flex flex-wrap gap-2">
+              <HuemulButton icon={FilePlus2} label={t("detail.addItems")} onClick={() => setAddingToGroup(null)} />
+              <HuemulButton
+                variant="outline"
+                icon={FolderPlus}
+                label={t("detail.addCollections")}
+                onClick={() => setAddingCollectionsToGroup(null)}
+              />
+            </div>
           )}
         </div>
       )}
@@ -421,7 +456,7 @@ export default function CollectionDetailPage() {
                 showRules={rulesInMenu}
                 rulesSelected={rulesSelected}
                 onSelectRules={() => {
-                  updateParams({ item: RULES_ENTRY })
+                  updateParams({ item: RULES_ENTRY, in: null })
                   setExecutionOverride(null)
                   setSelectedSectionId(null)
                 }}
@@ -451,6 +486,8 @@ export default function CollectionDetailPage() {
                 }}
                 onDeleteGroup={(group) => setPendingDelete({ kind: "group", group })}
                 onAddItems={(groupId) => setAddingToGroup(groupId)}
+                onAddCollections={(groupId) => setAddingCollectionsToGroup(groupId)}
+                onOpenCollection={(childId) => navigate(`/collections/${childId}`)}
               />
             ),
             defaultSize: 22,
@@ -505,7 +542,7 @@ export default function CollectionDetailPage() {
           organizationId={selectedOrganizationId}
           mode="document"
           keepOpenOnSelect
-          disabledIds={detail.items.map((item) => item.document_id)}
+          disabledIds={detail.items.flatMap((item) => (item.document_id ? [item.document_id] : []))}
           disabledHint={t("addItems.alreadyIn")}
           title={t("addItems.pickerTitle")}
           description={t("addItems.pickerDescription")}
@@ -515,6 +552,13 @@ export default function CollectionDetailPage() {
               data: { document_id: documentId, group_id: addingToGroup ?? null },
             })
           }
+        />
+      )}
+      {canManage && (
+        <AddChildCollectionDialog
+          groupId={addingCollectionsToGroup}
+          onClose={() => setAddingCollectionsToGroup(undefined)}
+          collection={detail}
         />
       )}
       <HuemulAlertDialog

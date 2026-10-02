@@ -216,8 +216,30 @@ const translations = {
       es: "Elige activos uno tras otro; cada uno se agrega al elegirlo.",
     },
   },
+  addCollections: {
+    title: { en: "Add collections", es: "Agregar colecciones" },
+    description: {
+      en: "Collections you can read, with the same audience. Each one shows inside this one as a folder, with its own content.",
+      es: "Colecciones que puedes leer, de la misma audiencia. Cada una se muestra dentro de esta como una carpeta, con su propio contenido.",
+    },
+    search: { en: "Search collection...", es: "Buscar colección..." },
+    add: { en: "Add", es: "Agregar" },
+    alreadyIn: { en: "Already added", es: "Ya agregada" },
+    none: { en: "No collections can be added here.", es: "No hay colecciones para agregar acá." },
+  },
   detail: {
     back: { en: "Collections", es: "Colecciones" },
+    addCollections: { en: "Add collections", es: "Agregar colecciones" },
+    addCollectionsHere: { en: "Add collections here", es: "Agregar colecciones aquí" },
+    openCollection: { en: "Open collection", es: "Abrir colección" },
+    manageCollection: { en: "Open to manage", es: "Abrir para administrar" },
+    loadingSubCollection: { en: "Loading...", es: "Cargando..." },
+    subCollectionUnavailable: { en: "Not available", es: "No disponible" },
+    subCollectionEmpty: { en: "Empty", es: "Vacía" },
+    removeCollectionDescription: {
+      en: "\"{{name}}\" is removed from this collection. The collection itself and its content are not touched.",
+      es: "Se quita \"{{name}}\" de esta colección. La colección y su contenido no se modifican.",
+    },
     edit: { en: "Edit", es: "Editar" },
     share: { en: "Access", es: "Acceso" },
     addItems: { en: "Add assets", es: "Agregar activos" },
@@ -255,8 +277,8 @@ const translations = {
       es: "Agrega activos con «Agregar activos» o desde el menú ⋯ de un activo → «Agregar a colección».",
     },
     hiddenItems: {
-      en: "{{count}} assets you cannot see are hidden.",
-      es: "Hay {{count}} activos que no puedes ver y se ocultan.",
+      en: "{{count}} items you cannot see are hidden.",
+      es: "Hay {{count}} elementos que no puedes ver y se ocultan.",
     },
     dragHint: {
       en: "Drag to reorder. When two assets contradict each other, the later one wins.",
@@ -318,6 +340,23 @@ const translations = {
     },
   },
   errors: {
+    nestingCycle: {
+      en: "That collection already contains this one, so it cannot go inside it.",
+      es: "Esa colección ya contiene a esta, así que no puede ir dentro de ella.",
+    },
+    nestingTooDeep: {
+      en: "Collections can be nested up to 10 levels.",
+      es: "Las colecciones se pueden anidar hasta 10 niveles.",
+    },
+    nestingAudienceMismatch: {
+      en: "Only collections with the same audience (people or agents) can be nested.",
+      es: "Solo se pueden anidar colecciones de la misma audiencia (personas o agentes).",
+    },
+    nestingSelf: { en: "A collection cannot contain itself.", es: "Una colección no puede contenerse a sí misma." },
+    nestingAudienceLocked: {
+      en: "Remove its sub-collections and take it out of other collections before changing its audience.",
+      es: "Quita sus sub-colecciones y sácala de otras colecciones antes de cambiar su audiencia.",
+    },
     invalidAccess: {
       en: "Access can only be given to roles and members of the organization. Refresh and try again.",
       es: "Solo se puede dar acceso a roles y miembros de la organización. Actualiza y vuelve a intentarlo.",

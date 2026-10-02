@@ -47,6 +47,13 @@ const DEDICATED_ERROR_MESSAGES: Record<string, string> = {
   INVALID_COLLECTION_ACCESS: 'collections:errors.invalidAccess',
   // Nunca queda una colección sin administradores; la hoja de accesos ya lo impide.
   COLLECTION_ADMIN_REQUIRED_AT_LEAST_ONE: 'collections:errors.adminRequired',
+  // Sub-colecciones: el selector ya ofrece solo candidatas de la misma audiencia y sin la
+  // colección ni las que la contienen; esto cubre lo que cambió entretanto y los 10 niveles.
+  COLLECTION_NESTING_CYCLE: 'collections:errors.nestingCycle',
+  COLLECTION_NESTING_TOO_DEEP: 'collections:errors.nestingTooDeep',
+  COLLECTION_NESTING_AUDIENCE_MISMATCH: 'collections:errors.nestingAudienceMismatch',
+  COLLECTION_NESTING_SELF: 'collections:errors.nestingSelf',
+  COLLECTION_NESTING_AUDIENCE_LOCKED: 'collections:errors.nestingAudienceLocked',
 };
 
 /**

@@ -36,6 +36,7 @@ export const getCollections = async (params?: GetCollectionsParams): Promise<Col
   if (params?.search?.trim()) query.set('search', params.search.trim());
   if (params?.can_admin) query.set('can_admin', 'true');
   if (params?.contains_document_id) query.set('contains_document_id', params.contains_document_id);
+  if (params?.exclude_nesting_conflicts_for) query.set('exclude_nesting_conflicts_for', params.exclude_nesting_conflicts_for);
 
   const qs = query.toString();
   const response = await httpClient.get(`${BASE_URL}/${qs ? `?${qs}` : ''}`);
