@@ -95,8 +95,14 @@ function PrincipalSearch({
             >
               <Icon className="size-4 shrink-0 text-muted-foreground" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate">{option.label}</span>
-                {option.detail && <span className="block truncate text-xs text-muted-foreground">{option.detail}</span>}
+                <span className="block truncate" title={option.label}>
+                  {option.label}
+                </span>
+                {option.detail && (
+                  <span className="block truncate text-xs text-muted-foreground" title={option.detail}>
+                    {option.detail}
+                  </span>
+                )}
               </span>
               <Plus className="size-4 text-muted-foreground" />
             </button>
@@ -214,7 +220,7 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
   const grantRow = (access: DraftAccess, Icon: typeof Shield) => (
     <li key={access.key} className="flex items-center gap-3 px-3 py-2">
       <Icon className="size-4 shrink-0 text-muted-foreground" />
-      <span className="min-w-0 flex-1 truncate text-sm">
+      <span className="min-w-0 flex-1 truncate text-sm" title={access.label}>
         {access.label}
         {access.formerMember && <span className="ml-2 text-xs text-muted-foreground">{t("access.formerMember")}</span>}
       </span>
@@ -351,7 +357,9 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
                 <>
                   <li className="flex items-center gap-3 px-3 py-2">
                     <Crown className="size-4 shrink-0 text-amber-600" />
-                    <span className="min-w-0 flex-1 truncate text-sm">{creatorName || t("access.creatorUnknown")}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm" title={creatorName || undefined}>
+                      {creatorName || t("access.creatorUnknown")}
+                    </span>
                     <span className="text-xs text-muted-foreground">{t("access.creator")}</span>
                   </li>
                   {personGrants.map((access) => grantRow(access, UserIcon))}

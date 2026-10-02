@@ -75,7 +75,7 @@ export default function CollectionDetailPage() {
     error,
     isFetching: isFetchingDetail,
     refetch: refetchDetail,
-  } = useCollection(collectionId, canAccessPage)
+  } = useCollection(collectionId, canAccessPage && can("viewCollection"))
   const mutations = useCollectionMutations()
   // Los accesos (resumen de la portada y "Quién puede verla") solo los gestiona quien
   // administra la colección y tiene el permiso de editarla.
@@ -132,7 +132,7 @@ export default function CollectionDetailPage() {
   )
 
   if (isLoadingPermissions || isLoading) return <PageSkeleton />
-  if (!canAccessPage) return <HuemulAccessDenied />
+  if (!canAccessPage || !can("viewCollection")) return <HuemulAccessDenied />
   // Solo un 404 es "no existe o no tienes acceso"; cualquier otro error se puede reintentar.
   if (error && !(ApiError.isApiError(error) && error.statusCode === 404)) {
     return (
@@ -279,7 +279,9 @@ export default function CollectionDetailPage() {
               tooltip={t("detail.back")}
             />
             <Library className="size-4 shrink-0 text-muted-foreground" />
-            <h1 className="min-w-0 truncate text-base font-semibold">{detail.name}</h1>
+            <h1 className="min-w-0 truncate text-base font-semibold" title={detail.name}>
+              {detail.name}
+            </h1>
             <div className="hidden items-center gap-1 sm:flex">
               {detail.for_agent ? (
                 <>
@@ -367,7 +369,11 @@ export default function CollectionDetailPage() {
                 canManage={canManage}
                 onReorder={reorder}
                 onPinVersion={(item, executionId) =>
-                  mutations.updateItem.mutate({ collectionId, itemId: item.id, data: { execution_id: executionId } })
+                  mutations.updateItem.mutate(
+                    { collectionId, itemId: item.id, data: { execution_id: executionId } },
+                    // La versión del ítem pasa a ser la que se ve: se descarta la elegida a mano.
+                    { onSuccess: () => setExecutionOverride(null) },
+                  )
                 }
                 onMoveToGroup={(item, groupId) =>
                   mutations.updateItem.mutate({ collectionId, itemId: item.id, data: { group_id: groupId } })

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { useOrganization } from "@/contexts/organization-context"
+import { handleApiError } from "@/lib/error-utils"
 import {
   addCollectionItem,
   createCollection,
@@ -169,8 +170,10 @@ export function useCollectionMutations() {
       if (optimistic) queryClient.setQueryData(queryKey, optimistic)
       return { queryKey, snapshot }
     },
-    onError: (_error, _vars, context) => {
+    // Reemplaza al onError global: vuelve al orden anterior y además informa el error.
+    onError: (error, _vars, context) => {
       if (context) queryClient.setQueryData(context.queryKey, context.snapshot)
+      handleApiError(error)
     },
     onSuccess: (detail, { collectionId }) => {
       queryClient.setQueryData(keys.detail(collectionId), detail)

@@ -122,7 +122,9 @@ function ItemRow({
         onClick={() => props.onSelectItem(item)}
         className="flex min-w-0 flex-1 flex-col items-start py-1.5 text-left hover:cursor-pointer"
       >
-        <span className={cn("w-full truncate text-sm", selected && "font-medium")}>{item.title ?? item.document_id}</span>
+        <span className={cn("w-full truncate text-sm", selected && "font-medium")} title={item.title ?? item.document_id}>
+          {item.title ?? item.document_id}
+        </span>
         <span className="flex w-full items-center gap-1 truncate text-xs text-muted-foreground">
           {pinned && (
             <span title={t("detail.pinned")} className="inline-flex shrink-0">
@@ -130,9 +132,15 @@ function ItemRow({
               <span className="sr-only">{t("detail.pinned")}</span>
             </span>
           )}
-          {item.internal_code && <span className="truncate">{item.internal_code}</span>}
+          {item.internal_code && (
+            <span className="truncate" title={item.internal_code}>
+              {item.internal_code}
+            </span>
+          )}
           {item.version ? (
-            <span className="truncate">· {item.version.version ?? item.version.name}</span>
+            <span className="truncate" title={item.version.version ?? item.version.name ?? undefined}>
+              · {item.version.version ?? item.version.name}
+            </span>
           ) : (
             <span className="italic">· {t("detail.noVersion")}</span>
           )}
@@ -245,7 +253,10 @@ function GroupRow({
           aria-label={t("detail.groupName")}
         />
       ) : (
-        <span className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <span
+          className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+          title={group.name}
+        >
           {group.name}
         </span>
       )}

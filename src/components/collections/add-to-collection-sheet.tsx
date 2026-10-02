@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Bot, Check, Library, Plus, RefreshCw, Users } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
@@ -70,6 +70,16 @@ export function AddToCollectionSheet({ open, onOpenChange, documentId, documentN
   const [pinVersion, setPinVersion] = useState(false)
   const [groups, setGroups] = useState<Record<string, string>>({})
   const [creating, setCreating] = useState(false)
+  // Cada apertura empieza de cero: "fijar versión" o un grupo elegido para otro activo no
+  // deben arrastrarse al siguiente.
+  useEffect(() => {
+    if (open) {
+      setSearch("")
+      setPinVersion(false)
+      setGroups({})
+      setCreating(false)
+    }
+  }, [open, documentId])
   const { addItem } = useCollectionMutations()
   const { data, error, isLoading, isError, isFetching, refetch } = useCollections({
     page: 1,
@@ -152,7 +162,7 @@ export function AddToCollectionSheet({ open, onOpenChange, documentId, documentN
                       <AudienceIcon className="size-4 text-muted-foreground" aria-hidden="true" />
                       <span className="sr-only">{audience}</span>
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-sm">{collection.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm" title={collection.name}>{collection.name}</span>
                     {collection.contains_document ? (
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Check className="size-3.5" />

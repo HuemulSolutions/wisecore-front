@@ -39,7 +39,7 @@ export default function CollectionsPage() {
   })
 
   if (isLoadingPermissions) return <PageSkeleton showFilters />
-  if (!canAccessPage) return <HuemulAccessDenied />
+  if (!canAccessPage || !can("listCollections")) return <HuemulAccessDenied />
 
   const collections = data?.data ?? []
   const openCollection = (collection: Collection) => navigate(`/collections/${collection.id}`)

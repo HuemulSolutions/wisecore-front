@@ -27,13 +27,18 @@ export function CollectionCard({ collection, onOpen }: CollectionCardProps) {
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className="line-clamp-2 text-base font-semibold">{collection.name}</h3>
+        <h3 className="line-clamp-2 text-base font-semibold" title={collection.name}>
+          {collection.name}
+        </h3>
         <span title={visibility} className="mt-0.5 inline-flex shrink-0">
           <VisibilityIcon className="size-4 text-muted-foreground" aria-hidden="true" />
           <span className="sr-only">{visibility}</span>
         </span>
       </div>
-      <p className={cn("line-clamp-3 flex-1 text-sm", collection.description ? "text-muted-foreground" : "italic text-muted-foreground/70")}>
+      <p
+        className={cn("line-clamp-3 flex-1 text-sm", collection.description ? "text-muted-foreground" : "italic text-muted-foreground/70")}
+        title={collection.description || undefined}
+      >
         {collection.description || t("card.noDescription")}
       </p>
       <div className="flex flex-wrap items-center gap-1.5">

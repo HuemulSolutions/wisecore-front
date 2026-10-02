@@ -457,12 +457,15 @@ export const RBAC_PAGES = {
   },
   collections: {
     route: "collections",
-    // GET /collections/ pide collection:l y el detalle collection:r; el acceso a
-    // una colección concreta (pública, propia o compartida) lo decide el backend.
+    // La ruta (y el menú) se abre con cualquiera de los dos; cada pantalla exige el suyo:
+    // el listado (GET /collections/) `listCollections` y el detalle (GET /collections/{id})
+    // `viewCollection`. El acceso a una colección concreta (pública, propia o compartida)
+    // lo decide el backend.
     routePermissions: ["collection:l", "collection:r"],
     nav: { title: "Collections", orgScoped: true },
     features: {
-      listCollections: ["collection:l", "collection:r"],
+      listCollections: "collection:l",
+      viewCollection: "collection:r",
       createCollection: "collection:c",
       updateCollection: "collection:u",
       deleteCollection: "collection:d",
