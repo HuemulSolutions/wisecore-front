@@ -18,7 +18,9 @@ import {
   ArrowDown,
   ArrowUp,
   BookCopy,
+  ExternalLink,
   FilePlus2,
+  FolderPlus,
   FolderInput,
   GripVertical,
   Home,
@@ -45,13 +47,17 @@ import {
 import { cn } from "@/lib/utils"
 import type { CollectionDetail, CollectionGroup, CollectionItem } from "@/types/collections"
 import { buildIndexRows, moveIndexRow, toOrderEntries, type CollectionIndexRow } from "./collection-order"
+import { CollectionSubtree, SubCollectionHeader } from "./collection-subtree"
 
 export interface CollectionIndexProps {
   detail: CollectionDetail
   /** null = portada. */
   selectedItemId: string | null
   onSelectCover: () => void
-  onSelectItem: (item: CollectionItem) => void
+  /** `collectionId`: la sub-colección del ítem, si no es de esta colección. */
+  onSelectItem: (item: CollectionItem, collectionId?: string) => void
+  /** Abre una sub-colección en su propia pantalla (allí se administra, si se puede). */
+  onOpenCollection: (collectionId: string) => void
   /** Versión que se está viendo del ítem seleccionado (para "fijar esta versión"). */
   viewedExecutionId: string | null
   canManage: boolean
@@ -65,6 +71,8 @@ export interface CollectionIndexProps {
   onDeleteGroup: (group: CollectionGroup) => void
   /** `null` = sin grupo. */
   onAddItems: (groupId: string | null) => void
+  /** Agregar sub-colecciones; `null` = sin grupo. */
+  onAddCollections: (groupId: string | null) => void
 }
 
 // Un ítem del menú que abre un diálogo (o enfoca un input) espera a que el menú termine de
@@ -76,6 +84,126 @@ const afterMenuCloses = (action: () => void) => () => {
 const MENU_ITEM = "hover:cursor-pointer"
 // Trigger de solo ícono que aparece al pasar el mouse: también al recibir foco por teclado.
 const ROW_MENU_TRIGGER = "opacity-0 hover:cursor-pointer focus-visible:opacity-100 data-[state=open]:opacity-100"
+
+function MoveAndRemoveMenuItems({ item, props }: { item: CollectionItem; props: CollectionIndexProps }) {
+  const { t } = useTranslation("collections")
+  return (
+    <>
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger className={MENU_ITEM}>
+          <FolderInput className="size-4" />
+          {t("detail.moveToGroup")}
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent>
+          <DropdownMenuItem className={MENU_ITEM} disabled={item.group_id === null} onSelect={() => props.onMoveToGroup(item, null)}>
+            {t("detail.ungrouped")}
+          </DropdownMenuItem>
+          {props.detail.groups.map((group) => (
+            <DropdownMenuItem
+              key={group.id}
+              className={MENU_ITEM}
+              disabled={item.group_id === group.id}
+              onSelect={() => props.onMoveToGroup(item, group.id)}
+            >
+              {group.name}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem className={cn("text-destructive", MENU_ITEM)} onSelect={afterMenuCloses(() => props.onRemoveItem(item))}>
+        <Trash2 className="size-4" />
+        {t("detail.removeItem")}
+      </DropdownMenuItem>
+    </>
+  )
+}
+
+function DragHandle({ props, sortable }: { props: CollectionIndexProps; sortable: ReturnType<typeof useSortable> }) {
+  const { t } = useTranslation("collections")
+  if (!props.canManage) return <span className="w-2" />
+  return (
+    <button
+      type="button"
+      className="cursor-grab p-1 text-muted-foreground/60 hover:text-foreground"
+      aria-label={t("detail.dragHint")}
+      title={t("detail.dragHint")}
+      {...sortable.attributes}
+      {...sortable.listeners}
+    >
+      <GripVertical className="size-3.5" />
+    </button>
+  )
+}
+
+/**
+ * Sub-colección en el índice: se ve como una carpeta y despliega su árbol debajo (solo lectura).
+ * En la colección se mueve y se quita como cualquier ítem; su contenido se administra en su
+ * propia pantalla.
+ */
+function ChildCollectionRow({
+  row,
+  props,
+}: {
+  row: Extract<CollectionIndexRow, { kind: "item" }>
+  props: CollectionIndexProps
+}) {
+  const { t } = useTranslation("collections")
+  const { item } = row
+  const sortable = useSortable({ id: row.id, disabled: !props.canManage })
+  const [expanded, setExpanded] = useState(false)
+  const childId = item.child_collection_id!
+
+  return (
+    <li
+      ref={sortable.setNodeRef}
+      style={{ transform: CSS.Transform.toString(sortable.transform), transition: sortable.transition }}
+      className={cn("group/row rounded-md", sortable.isDragging && "z-10 opacity-60")}
+    >
+      <div className="flex items-center gap-1 pr-1">
+        <DragHandle props={props} sortable={sortable} />
+        <SubCollectionHeader
+          name={item.collection?.name ?? item.title ?? ""}
+          count={item.collection?.item_count}
+          expanded={expanded}
+          canExpand
+          onToggle={() => setExpanded((value) => !value)}
+          openLabel={t("detail.openCollection")}
+        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("size-7 group-hover/row:opacity-100", ROW_MENU_TRIGGER)}
+              aria-label={t("detail.moreActions")}
+              title={t("detail.moreActions")}
+            >
+              <MoreHorizontal className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem className={MENU_ITEM} onSelect={() => props.onOpenCollection(childId)}>
+              <ExternalLink className="size-4" />
+              {item.collection?.can_admin ? t("detail.manageCollection") : t("detail.openCollection")}
+            </DropdownMenuItem>
+            {props.canManage && <MoveAndRemoveMenuItems item={item} props={props} />}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      {expanded && (
+        <CollectionSubtree
+          collectionId={childId}
+          level={1}
+          ancestors={[props.detail.id, childId]}
+          selectedItemId={props.selectedItemId}
+          onSelectItem={props.onSelectItem}
+          onOpenCollection={props.onOpenCollection}
+        />
+      )}
+    </li>
+  )
+}
 
 function ItemRow({
   row,
@@ -122,7 +250,7 @@ function ItemRow({
         onClick={() => props.onSelectItem(item)}
         className="flex min-w-0 flex-1 flex-col items-start py-1.5 text-left hover:cursor-pointer"
       >
-        <span className={cn("w-full truncate text-sm", selected && "font-medium")} title={item.title ?? item.document_id}>
+        <span className={cn("w-full truncate text-sm", selected && "font-medium")} title={item.title ?? item.document_id ?? undefined}>
           {item.title ?? item.document_id}
         </span>
         <span className="flex w-full items-center gap-1 truncate text-xs text-muted-foreground">
@@ -172,39 +300,7 @@ function ItemRow({
                 {t("detail.usePublished")}
               </DropdownMenuItem>
             )}
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className={MENU_ITEM}>
-                <FolderInput className="size-4" />
-                {t("detail.moveToGroup")}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                <DropdownMenuItem
-                  className={MENU_ITEM}
-                  disabled={item.group_id === null}
-                  onSelect={() => props.onMoveToGroup(item, null)}
-                >
-                  {t("detail.ungrouped")}
-                </DropdownMenuItem>
-                {props.detail.groups.map((group) => (
-                  <DropdownMenuItem
-                    key={group.id}
-                    className={MENU_ITEM}
-                    disabled={item.group_id === group.id}
-                    onSelect={() => props.onMoveToGroup(item, group.id)}
-                  >
-                    {group.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className={cn("text-destructive", MENU_ITEM)}
-              onSelect={afterMenuCloses(() => props.onRemoveItem(item))}
-            >
-              <Trash2 className="size-4" />
-              {t("detail.removeItem")}
-            </DropdownMenuItem>
+            <MoveAndRemoveMenuItems item={item} props={props} />
           </DropdownMenuContent>
         </DropdownMenu>
       )}
@@ -278,6 +374,10 @@ function GroupRow({
               <FilePlus2 className="size-4" />
               {t("detail.addItemsHere")}
             </DropdownMenuItem>
+            <DropdownMenuItem className={MENU_ITEM} onSelect={afterMenuCloses(() => props.onAddCollections(group.id))}>
+              <FolderPlus className="size-4" />
+              {t("detail.addCollectionsHere")}
+            </DropdownMenuItem>
             <DropdownMenuItem className={MENU_ITEM} onSelect={afterMenuCloses(() => setRenaming(true))}>
               <Pencil className="size-4" />
               {t("detail.renameGroup")}
@@ -306,10 +406,11 @@ function GroupRow({
 }
 
 /**
- * Índice lateral de una colección: portada, activos sin grupo y cada grupo con
- * sus activos, en el orden que también recibe el agente. Quien administra puede
- * arrastrar activos (también entre grupos), y crear, renombrar, mover y borrar
- * grupos.
+ * Índice lateral de una colección: portada, ítems sin grupo y cada grupo con
+ * sus ítems, en el orden que también recibe el agente. Un ítem es un activo o una
+ * sub-colección, que se ve como una carpeta y despliega su árbol debajo. Quien
+ * administra puede arrastrar ítems (también entre grupos), y crear, renombrar,
+ * mover y borrar grupos.
  */
 export function CollectionIndex(props: CollectionIndexProps) {
   const { t } = useTranslation("collections")
@@ -356,7 +457,11 @@ export function CollectionIndex(props: CollectionIndexProps) {
               <ul className="space-y-0.5">
                 {rows.map((row) =>
                   row.kind === "item" ? (
-                    <ItemRow key={row.id} row={row} props={props} />
+                    row.item.kind === "collection" ? (
+                      <ChildCollectionRow key={row.id} row={row} props={props} />
+                    ) : (
+                      <ItemRow key={row.id} row={row} props={props} />
+                    )
                   ) : (
                     <GroupRow key={row.id} row={row} index={groupIndex.get(row.group.id) ?? 0} props={props} />
                   ),
@@ -400,6 +505,14 @@ export function CollectionIndex(props: CollectionIndexProps) {
                 icon={FilePlus2}
                 label={t("detail.addItems")}
                 onClick={() => props.onAddItems(null)}
+              />
+              <HuemulButton
+                variant="outline"
+                size="sm"
+                className="w-full justify-start"
+                icon={FolderPlus}
+                label={t("detail.addCollections")}
+                onClick={() => props.onAddCollections(null)}
               />
               <HuemulButton
                 variant="ghost"

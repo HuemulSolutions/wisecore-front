@@ -45,6 +45,13 @@ const DEDICATED_ERROR_MESSAGES: Record<string, string> = {
   // Accesos de una colección: solo se puede dar acceso a roles de la organización y a sus
   // miembros. El buscador solo ofrece esos; esto es el eco de un dato que cambió entretanto.
   INVALID_COLLECTION_ACCESS: 'collections:errors.invalidAccess',
+  // Sub-colecciones: el selector ya ofrece solo candidatas de la misma audiencia y sin la
+  // colección ni las que la contienen; esto cubre lo que cambió entretanto y los 10 niveles.
+  COLLECTION_NESTING_CYCLE: 'collections:errors.nestingCycle',
+  COLLECTION_NESTING_TOO_DEEP: 'collections:errors.nestingTooDeep',
+  COLLECTION_NESTING_AUDIENCE_MISMATCH: 'collections:errors.nestingAudienceMismatch',
+  COLLECTION_NESTING_SELF: 'collections:errors.nestingSelf',
+  COLLECTION_NESTING_AUDIENCE_LOCKED: 'collections:errors.nestingAudienceLocked',
 };
 
 /**

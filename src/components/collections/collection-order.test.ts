@@ -6,7 +6,9 @@ import type { CollectionDetail, CollectionGroup, CollectionItem } from '@/types/
 const group = (id: string, position: number): CollectionGroup => ({ id, name: id.toUpperCase(), position })
 const item = (id: string, groupId: string | null, position: number): CollectionItem => ({
   id,
+  kind: 'document',
   document_id: `doc-${id}`,
+  child_collection_id: null,
   group_id: groupId,
   position,
   title: id,
