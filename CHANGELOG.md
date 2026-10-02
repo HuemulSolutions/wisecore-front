@@ -1,5 +1,97 @@
 # Changelog
 
+## [1.7.0] - 2026-10-02
+### Nuevo
+- el árbol pagina por carpeta con «Mostrar más» y autocarga en vez del paginador global
+- la tabla usa el badge de etapa del panel y agrega columnas de creador y fecha de creación
+- la tarjeta del resumen muestra el estado de obligatorias/opcionales bajo el título
+- el header del panel muestra el template en la línea de creado/editado por
+- el resumen de sección muestra label arriba y respuesta abajo, con «Sin respuesta» en las vacías
+- la vista de sección reemplaza la fila de resumen y píldoras por un chevron junto al título
+- rediseño del sheet Completar fase con stepper en columnas, 409 inline y selector de versión compacto
+- rediseño del sheet de comentarios con filtros, chips de alcance y composer al pie
+- mostrar relation_name en tabla y panel con fallback al template
+- asistente de creación en el estado sin asset seleccionado
+- estados de pantalla del contenido, Fuentes y VersionBanner unificados
+- panel Fuentes unificado con activos, archivos y textos
+- rediseñar header de asset en tres filas con bloque de fase y selector de versión
+- colapsar panel de knowledge a rail con acciones
+- agregar subtítulo a la card Panorama del rail
+- permitir subida de archivos .jpeg
+- manejo de CONNECTION_DISABLED, USER_NOT_ACTIVE y códigos nuevos del backend
+- soporte de thumbnail_url en media y original al insertar/descargar desde listado
+- banner de error de elaboración externa y rollback sin steps automáticos
+- popover de comentarios sin resolver usa endpoint dedicado por versión
+- fórmula libre con @campo en campos calculados y picker available_fields
+- rediseño visual de la pantalla de login
+- login SSO corporativo (Microsoft/Google) y método por membresía
+### Arreglos
+- abren al instante con skeleton, no pisan la edición y avisan o reintentan ante error de carga
+- en modo lector los botones de una sección colapsada ya no se solapan y el chevron apunta hacia abaj
+- el panel de detalle ya no puede superar el 40% del ancho ni ocultar el contenido
+- el selector y el banner de versiones usan el estado de ciclo de vida y el nombre reales
+- los sheets de ciclo de vida muestran el nombre original de grupos y steps sin traducir
+- ocultar «Ver» y bloquear el acceso al detalle de secciones que el usuario no puede responder
+- la tarjeta de sección completada conserva su número en vez del check
+- obligatorias pendientes en la tarjeta de resumen usan el amarillo del badge Pendiente
+- el aviso de próximo paso toma el color de la etapa destino y muestra la transición
+- el selector de versión en aprobación respeta version_required
+- el sheet de edición espera al backend antes de cerrar y muestra loader en Guardar
+- refrescar tabla de datos fuerza /resolve y muestra estado de carga
+- toolbar flotante de nodo ya no se oculta por doble conteo del chrome
+- devolver foco al nodo tras cerrar el sheet de tabla de datos
+- quitar columna Estado de Fuentes y usar ícono Library
+- header del asset a todo el ancho sobre el panel de detalle
+- igualar ancho y estilo de rails colapsados
+- mover botón de colapsar del panel de detalle a la parte superior del rail
+- abrir sheets con skeleton en paneles de detalle, secciones, ejecución y edición de plantilla
+- abrir sheet de definición de sección al instante con skeleton y prefetch
+- limitar altura de instrucciones de plantilla con scroll interno
+- alinear contenido de secciones con header y activos relacionados
+- unificar tamaño del botón Dejar de editar y refrescar respuestas al salir de edición
+- mover hint de Panorama a pie fijo y limpiar header
+- scroll interno en cards del rail para evitar scroll de página
+- ajustar estilo de campos de solo lectura en resumen de sección
+- agregar línea separadora entre campos del resumen de sección
+- mejorar copy y estructura del modal de nueva plantilla
+- la pantalla de conexiones es solo de la organización activa, también para el root admin
+- conexiones de autenticación por organización
+- el selector de organización no se desborda y oculta el badge del código por correo
+- atiende el sexto review de Copilot en #256
+- alinea el login al contrato final del backend (#342)
+- atiende el cuarto review de Copilot en #256
+- atiende el tercer review de Copilot en #256
+- atiende el segundo review de Copilot en #256
+- atiende la revisión de Copilot en #256
+- quitar bloqueo de edición de archivos previos en carga_de_archivos (backend envía media_id)
+- toda la celda de comentarios abre el popover en vez del activo
+### Otros
+- Diagramas pasa a ser un tab del panel derecho, bajo Activos, con el listado embebido
+- el menú de más opciones ya no repite Media, Diagramas ni Pantalla completa; Diagramas pasa al header del panel
+- el selector de versiones ya no muestra el texto del estado de ciclo de vida
+- los tabs del panel, el bloque de relacionados y varias queries cargan on-demand en vez de al abrir el asset
+- Fuentes usa el icono Database y el icono de editar se unifica en Pencil
+- bodyLoading deshabilita acciones y admite skeleton propio
+- guía de apertura instantánea de sheets con skeleton
+- rediseñar barra de acciones de sección y agregar editar definición
+- rediseñar barra de acciones de sección (editor y lector)
+- rediseñar instrucciones de plantilla como card colapsable
+- rediseñar bloque de documentos relacionados como sección plana
+- unificar card de resumen de sección form entre workflow y assets
+- despliegue backend primero, sin compatibilidad con el backend anterior
+- dejar solo los workflows de deploy generados por Terraform
+- pedido a backend para consolidar llamados de Home y carpeta respuestas/optimizaciones
+- fondos y logo WISECORE.AI para el login
+- correr el frontend contra un backend local
+- sync deploy workflow de web-hs-wisecore-front-dev-003 (Terraform)
+- Update media-image-node.tsx
+- Update table-node-static.tsx
+- Update table-node.tsx
+- Add VITE_API_URL environment variable
+- Add or update the Azure App Service build and deployment workflow config
+- Update temp-prod_web-hs-wisecore-frontend-prod-1.yml
+- Add or update the Azure App Service build and deployment workflow config
+
 ## [1.6.0] - 2026-09-25
 ### Nuevo
 - selector de proveedor compacto en el sheet de agregar modelo
