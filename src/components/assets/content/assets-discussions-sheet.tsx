@@ -121,15 +121,6 @@ export function AssetsDiscussionsSheet({
   const isOwner = React.useCallback(
     (discussion: TDiscussion) => !!currentUserId && currentUserId === discussion.userId,
     [currentUserId]
-  const canManage = React.useCallback(
-    (discussion: TDiscussion) =>
-      canUpdateDiscussions || (canCreateDiscussions && !!currentUserId && currentUserId === discussion.userId),
-    [canUpdateDiscussions, canCreateDiscussions, currentUserId]
-  );
-  const canRemove = React.useCallback(
-    (discussion: TDiscussion) =>
-      canDeleteDiscussions || (canCreateDiscussions && !!currentUserId && currentUserId === discussion.userId),
-    [canDeleteDiscussions, canCreateDiscussions, currentUserId]
   );
 
   const handleUnresolve = (discussionId: string) => {
@@ -367,8 +358,8 @@ export function AssetsDiscussionsSheet({
                 searchTerm={debouncedSearch}
                 expanded={expandedIds.has(row.discussion.id)}
                 canReply={canCreateDiscussions}
-                canManage={canUpdateDiscussions || isOwner(row.discussion)}
-                canRemove={canDeleteDiscussions || isOwner(row.discussion)}
+                canManage={canUpdateDiscussions || (canCreateDiscussions && isOwner(row.discussion))}
+                canRemove={canDeleteDiscussions || (canCreateDiscussions && isOwner(row.discussion))}
                 isReplying={isAddingComment}
                 onToggleExpanded={() => toggleExpanded(row.discussion.id)}
                 onFocus={() =>
