@@ -9,7 +9,10 @@ import { HuemulSegmentedControl } from "@/huemul/components/huemul-segmented-con
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { useCollectionMutations } from "@/hooks/useCollections"
+import { isErrorCode } from "@/lib/error-utils"
+import { AgentAliasesInput } from "@/components/collections/agent-aliases-input"
 import {
+  AGENT_ALIASES_MAX,
   AGENT_SLUG_MAX_LENGTH,
   AGENT_USAGE_MAX_LENGTH,
   isConflictError,
@@ -34,6 +37,7 @@ const EMPTY_FORM: CollectionFormData = {
   agent_slug: "",
   agent_usage: "",
   agent_kind: "knowledge",
+  agent_aliases: [],
 }
 
 function toFormData(collection: Collection | null): CollectionFormData {
@@ -48,6 +52,7 @@ function toFormData(collection: Collection | null): CollectionFormData {
     agent_slug: collection.agent_slug ?? "",
     agent_usage: collection.agent_usage ?? "",
     agent_kind: collection.agent_kind,
+    agent_aliases: collection.agent_aliases ?? [],
   }
 }
 
@@ -131,6 +136,11 @@ export function CollectionFormSheet({
       if (!slug) next.agent_slug = t("form.slugRequired")
       else if (!isValidAgentIdentifier(slug)) next.agent_slug = t("form.slugInvalid")
       if (!formData.agent_usage.trim()) next.agent_usage = t("form.usageRequired")
+      // Lo mismo que valida el backend; el campo ya normaliza al agregar, esto cubre el slug editado después.
+      const invalid = formData.agent_aliases.find((alias) => !isValidAgentIdentifier(alias))
+      if (invalid) next.agent_aliases = t("form.aliasInvalid", { alias: invalid })
+      else if (formData.agent_aliases.length > AGENT_ALIASES_MAX) next.agent_aliases = t("form.aliasesMax", { max: AGENT_ALIASES_MAX })
+      else if (slug && formData.agent_aliases.includes(slug)) next.agent_aliases = t("form.aliasSameAsSlug", { alias: slug })
     }
     setErrors(next)
     return Object.keys(next).length === 0
@@ -151,6 +161,7 @@ export function CollectionFormSheet({
             agent_slug: formData.agent_slug.trim(),
             agent_usage: formData.agent_usage.trim(),
             agent_kind: formData.agent_kind,
+            agent_aliases: formData.agent_aliases,
           }
         : {}),
     }
@@ -160,7 +171,9 @@ export function CollectionFormSheet({
         : await createCollection.mutateAsync({ ...body, description: body.description ?? undefined, instructions: body.instructions ?? undefined })
       onSaved?.(saved)
     } catch (error) {
-      if (isConflictError(error)) {
+      if (isErrorCode(error, "AGENT_ALIAS_CONFLICT")) {
+        setErrors((prev) => ({ ...prev, agent_aliases: t("form.aliasConflict") }))
+      } else if (isConflictError(error)) {
         setErrors((prev) => ({ ...prev, agent_slug: t("form.slugConflict", { slug: formData.agent_slug.trim() }) }))
       }
       throw error
@@ -281,6 +294,13 @@ export function CollectionFormSheet({
               maxLength={AGENT_SLUG_MAX_LENGTH}
               disabled={agentLocked}
               required
+            />
+            <AgentAliasesInput
+              value={formData.agent_aliases}
+              onChange={(aliases) => handleChange("agent_aliases", aliases)}
+              slug={formData.agent_slug}
+              error={errors.agent_aliases}
+              disabled={agentLocked}
             />
             <HuemulField
               type="textarea"
