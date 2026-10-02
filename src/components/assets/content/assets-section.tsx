@@ -1140,6 +1140,7 @@ function SectionExecutionInner({
                                 isMobile ? 'right-0' : '-right-[44px]'
                             )}
                         >
+                            {!isCollapsed && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <button
@@ -1166,6 +1167,7 @@ function SectionExecutionInner({
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
+                            )}
                             <button
                                 type="button"
                                 title={isCollapsed ? t('section.expand') : t('section.collapse')}
@@ -1174,7 +1176,7 @@ function SectionExecutionInner({
                                 className="flex h-7 w-7 items-center justify-center rounded-[7px] bg-transparent text-[#cbd5e1] transition-colors hover:cursor-pointer hover:bg-[#f1f5f9] hover:text-[#334155]"
                             >
                                 <ChevronDown
-                                    className={cn('h-4 w-4 transition-transform duration-200', isCollapsed && '-rotate-90')}
+                                    className={cn('h-4 w-4 transition-transform duration-200', !isCollapsed && 'rotate-180')}
                                 />
                             </button>
                         </div>
