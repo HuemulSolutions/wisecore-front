@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
 import { GripVertical, Pencil, ArrowUp, ArrowDown, ArrowRight, Trash2 } from "lucide-react";
@@ -45,6 +46,8 @@ export function TemplateSectionCard({
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [propagateDeleteToAssets, setPropagateDeleteToAssets] = useState(false);
+  // Propagar el borrado a los assets derivados borra sus secciones: el backend exige `section:d`.
+  const canPropagateDelete = useUserPermissions().hasPermission("section:d");
   const [isDeleting, setIsDeleting] = useState(false);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -177,20 +180,22 @@ export function TemplateSectionCard({
             description={
               <div className="space-y-3">
                 <p>{t("sections:sortableSection.deleteAlertDescription", { name: section.name })}</p>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`propagate-delete-${section.id}`}
-                    checked={propagateDeleteToAssets}
-                    onCheckedChange={(checked) => setPropagateDeleteToAssets(checked as boolean)}
-                    disabled={isDeleting}
-                  />
-                  <Label
-                    htmlFor={`propagate-delete-${section.id}`}
-                    className="text-xs font-medium text-gray-700 hover:cursor-pointer"
-                  >
-                    {t("sections:sortableSection.propagateDeleteToAssets")}
-                  </Label>
-                </div>
+                {canPropagateDelete && (
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`propagate-delete-${section.id}`}
+                      checked={propagateDeleteToAssets}
+                      onCheckedChange={(checked) => setPropagateDeleteToAssets(checked as boolean)}
+                      disabled={isDeleting}
+                    />
+                    <Label
+                      htmlFor={`propagate-delete-${section.id}`}
+                      className="text-xs font-medium text-gray-700 hover:cursor-pointer"
+                    >
+                      {t("sections:sortableSection.propagateDeleteToAssets")}
+                    </Label>
+                  </div>
+                )}
               </div>
             }
             onAction={handleDelete}

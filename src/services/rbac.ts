@@ -47,17 +47,6 @@ export const getPermissions = async (search?: string): Promise<PermissionsRespon
   return response.json();
 };
 
-// Get user roles
-export const getUserRoles = async (userId: string): Promise<UserRolesResponse> => {
-  if (!userId || userId.trim() === '') {
-    throw new Error('User ID is required');
-  }
-
-  const response = await httpClient.get(`${backendUrl}/rbac/users/${userId}/roles`);
-
-  return response.json();
-};
-
 // Get all roles with user assignment status
 export const getUserAllRoles = async (userId: string, page: number = 1, pageSize: number = 10, search?: string): Promise<UserAllRolesResponse> => {
   if (!userId || userId.trim() === '') {
@@ -81,17 +70,6 @@ export const getUserAllRoles = async (userId: string, page: number = 1, pageSize
 // Assign roles to user using bulk endpoint
 export const assignRolesToUser = async (userId: string, data: AssignRolesData): Promise<void> => {
   await httpClient.post(`${backendUrl}/user_roles/bulk_role_assign/${userId}`, data);
-};
-
-// Assign specific role to user (new endpoint)
-export const assignRoleToUser = async (userId: string, roleIds: string[]): Promise<void> => {
-  await httpClient.fetch(`${backendUrl}/rbac/users/${userId}/roles`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ role_ids: roleIds }),
-  });
 };
 
 // Get permissions for a specific role with assignment status

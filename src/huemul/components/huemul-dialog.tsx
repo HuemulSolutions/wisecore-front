@@ -37,6 +37,7 @@ export function HuemulDialog({
   maxHeight = "max-h-[85vh]",
   className,
   footerLeft,
+  onCloseAutoFocus,
   children,
 }: HuemulDialogProps) {
   // Default traducido del botón de cancelar (ver HuemulSheet).
@@ -97,6 +98,7 @@ export function HuemulDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={showCloseButton}
+        onCloseAutoFocus={onCloseAutoFocus}
         {...(!description && { "aria-describedby": undefined })}
         className={cn(
           "flex flex-col gap-0 p-0 overflow-hidden",

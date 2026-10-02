@@ -147,7 +147,13 @@ export default function AdvancedPage() {
         setShowResultDialog(true)
         setSelectionKey((k) => k + 1)
       }
-      toast.success(t("massExecution.executeSuccess"))
+      // El backend acepta el lote aunque ninguna versión se encole (sin permiso, bloqueadas,
+      // no visibles): el éxito solo se anuncia si algo quedó encolado; el diálogo muestra el detalle.
+      if (!result?.summary || (result.summary.enqueued ?? 0) > 0) {
+        toast.success(t("massExecution.executeSuccess"))
+      } else {
+        toast.warning(t("massExecution.executeNothingEnqueued"))
+      }
     } catch (error) {
       handleApiError(error, { fallbackMessage: t("massExecution.executeError") })
     } finally {

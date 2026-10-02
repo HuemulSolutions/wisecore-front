@@ -1,10 +1,11 @@
 import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
-import type { ModelsStatusCardsProps } from "@/types/models"
+import { ModelsPurposePicker } from "@/components/llm/models-purpose-picker"
+import type { LLM, LlmPurpose, ModelsStatusCardsProps } from "@/types/models"
 export type { ModelsStatusCardsProps } from "@/types/models"
 
-type StatusTone = "working" | "failing" | "pending"
+type StatusTone = "working" | "failing" | "pending" | "optional"
 
 // Paleta cerrada por estado: `dot` = color del punto y del texto del pill; `pill` = fondo del pill
 // (y halo del punto). "Con errores" conserva el borde/fondo de "Funcionando".
@@ -12,6 +13,8 @@ const TONES: Record<StatusTone, { border: string; background: string; dot: strin
   working: { border: "#d7eedf", background: "#f5fbf7", dot: "#15803d", pill: "#eaf8ee" },
   failing: { border: "#d7eedf", background: "#f5fbf7", dot: "#b42318", pill: "#fdecea" },
   pending: { border: "#fbe3a6", background: "#fffcf3", dot: "#b45309", pill: "#fef3e2" },
+  // Propósitos opcionales sin modelo (rerank, imágenes): no es una falla, así que sin amarillo.
+  optional: { border: "#e3e9f1", background: "#f9fafc", dot: "#64748b", pill: "#eef2f6" },
 }
 
 interface StatusRowProps {
@@ -22,9 +25,11 @@ interface StatusRowProps {
   /** Descripción larga: solo en tooltip, no se muestra en pantalla. */
   description: string
   cta?: { label: string; primary: boolean; disabled?: boolean; onClick: () => void }
+  /** Acción propia en lugar del botón `cta` (p. ej. el selector de modelo de un propósito). */
+  action?: ReactNode
 }
 
-function StatusRow({ tone, label, value, pillLabel, description, cta }: StatusRowProps) {
+function StatusRow({ tone, label, value, pillLabel, description, cta, action }: StatusRowProps) {
   const colors = TONES[tone]
 
   return (
@@ -46,7 +51,8 @@ function StatusRow({ tone, label, value, pillLabel, description, cta }: StatusRo
         {pillLabel}
       </span>
       <span className="flex-1" />
-      {cta && (
+      {action}
+      {!action && cta && (
         <button
           type="button"
           disabled={cta.disabled}
@@ -76,14 +82,21 @@ export function ModelsStatusCards({
   embeddingConfigured,
   embeddingWorking,
   embeddingProviderName,
+  rerankModel,
+  imageAnalysisModel,
   canTest,
   canCreateProvider,
   canCreateModel,
   canViewEmbeddings,
+  canChoosePurposeModel,
+  models,
+  isPurposePending,
   onTestDefault,
   onConnectProvider,
   onAddModel,
   onGoToEmbeddings,
+  onSetPurpose,
+  onClearPurpose,
 }: ModelsStatusCardsProps) {
   const { t } = useTranslation('models')
 
@@ -93,7 +106,7 @@ export function ModelsStatusCards({
 
   if (isLoading) {
     return grid(
-      [0, 1].map((i) => <div key={i} className="h-11 animate-pulse rounded-[10px] bg-[#f1f4f8]" />),
+      [0, 1, 2, 3].map((i) => <div key={i} className="h-11 animate-pulse rounded-[10px] bg-[#f1f4f8]" />),
     )
   }
 
@@ -127,6 +140,31 @@ export function ModelsStatusCards({
         ? { label: t('status.default.addModel'), primary: true, onClick: onAddModel }
         : undefined
 
+  // Rerank e imágenes son opcionales y sin fallback: sin modelo marcado no es un error.
+  const purposeRow = (model: LLM | null, key: 'rerank' | 'imageAnalysis', purpose: LlmPurpose) => (
+    <StatusRow
+      tone={model ? 'working' : 'optional'}
+      label={t(`status.${key}.label`)}
+      value={model ? model.name : t(`status.${key}.none`)}
+      pillLabel={model ? t('status.assigned') : t('status.optional')}
+      description={t(`status.${key}.description`)}
+      action={
+        canChoosePurposeModel ? (
+          <ModelsPurposePicker
+            purpose={purpose}
+            models={models}
+            triggerLabel={model ? t('status.change') : t('status.choose')}
+            isPending={isPurposePending}
+            canCreateModel={canCreateModel && hasProviders}
+            onSelect={(selected) => onSetPurpose(selected, purpose)}
+            onClear={() => onClearPurpose(purpose)}
+            onAddModel={onAddModel}
+          />
+        ) : undefined
+      }
+    />
+  )
+
   return grid(
     <>
       <StatusRow
@@ -153,6 +191,8 @@ export function ModelsStatusCards({
             : undefined
         }
       />
+      {purposeRow(rerankModel, 'rerank', 'rerank')}
+      {purposeRow(imageAnalysisModel, 'imageAnalysis', 'image_analysis')}
     </>,
   )
 }

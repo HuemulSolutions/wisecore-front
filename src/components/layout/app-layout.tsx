@@ -1,10 +1,10 @@
 import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
 import { clearReturnUrl, consumeReturnUrl, saveReturnUrl } from '@/lib/return-url'
 import { authStepUpStore } from '@/lib/auth-step-up-store'
-import { isErrorCode, parseErrorDetail } from '@/lib/error-utils'
+import { handleApiError, isErrorCode, parseErrorDetail } from '@/lib/error-utils'
 import { AUTH_METHOD_REQUIRED } from '@/hooks/useCompleteLogin'
 import type { AuthMethodRequiredDetail } from '@/types/auth'
-import { Home, Search, LayoutTemplate, BookText, Menu, Network, Workflow } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText, Menu, Network, Workflow, Library } from "lucide-react"
 import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from "react"
 import { useTranslation } from "react-i18next"
 import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
@@ -26,6 +26,8 @@ import { useAuth } from "@/contexts/auth-context"
 import { RBAC_PAGES } from "@/lib/rbac-matrix"
 import { HeaderSettingsMenu } from "@/components/layout/header-settings-menu"
 import { HeaderUserMenu } from "@/components/layout/header-user-menu"
+import { HeaderAdminModeBadge } from "@/components/layout/header-admin-mode-badge"
+import { useRootElevation } from "@/hooks/useRootElevation"
 
 import { ChatbotProvider } from "@/contexts/chatbot-provider"
 import { NavKnowledgeProvider } from "@/contexts/nav-knowledge-provider"
@@ -162,6 +164,12 @@ const navigationItems = [
     orgScoped: true,
   },
   {
+    title: "Collections",
+    url: "/collections",
+    icon: Library,
+    orgScoped: true,
+  },
+  {
     title: "Search",
     url: "/search",
     icon: Search,
@@ -228,6 +236,8 @@ export default function AppLayout() {
     isOrgAdmin,
     hasAnyPermission,
   } = useUserPermissions()
+  // Modo administrador (docs/sso-frontend.md §2.1): `isRootAdmin` solo decide si se ofrece.
+  const adminMode = useRootElevation()
 
   // Badge y entrada de notificaciones: ambas abren una LECTURA, así que se
   // gatean con `notification:l|r` y no con el helper `canAccessNotifications`
@@ -325,7 +335,9 @@ export default function AppLayout() {
           }
         }
         // If token generation fails (user doesn't have access), redirect
-        // with the current org, or show org selection dialog
+        // with the current org, or show org selection dialog. Antes se volvía en silencio:
+        // se avisa por qué (no es miembro, id inválido, etc.) con el mensaje del error.
+        handleApiError(error, { showDetailsAction: false })
         if (selectedOrganizationId) {
           const pathWithoutOrg = stripOrgPrefix(location.pathname)
           rawNavigate(`/${selectedOrganizationId}${pathWithoutOrg}${location.search}`, { replace: true })
@@ -495,6 +507,9 @@ export default function AppLayout() {
           break
         case "Templates":
           shouldShowItem = hasAnyPermission(RBAC_PAGES.templates.routePermissions)
+          break
+        case "Collections":
+          shouldShowItem = hasAnyPermission(RBAC_PAGES.collections.routePermissions)
           break
         case "Diagrams":
           shouldShowItem = hasAnyPermission(RBAC_PAGES.diagrams.routePermissions)
@@ -698,6 +713,9 @@ export default function AppLayout() {
                 v{packageInfo.version}
               </div>
               
+              {/* Modo administrador activo: minutos restantes; clic para salir. */}
+              <HeaderAdminModeBadge isRootAdmin={isRootAdmin} />
+
               {/* Settings dropdown */}
               <HeaderSettingsMenu
                 organizationToken={organizationToken}
@@ -716,6 +734,11 @@ export default function AppLayout() {
                   onOpenNotifications={handleOpenNotifications}
                   onOpenSubscriptions={handleOpenSubscriptions}
                   onSignOut={handleSignOut}
+                  isRootAdmin={isRootAdmin}
+                  isAdminMode={adminMode.isElevated}
+                  adminModeRemainingMinutes={adminMode.remainingMinutes}
+                  onEnterAdminMode={() => void adminMode.enter()}
+                  onExitAdminMode={adminMode.exit}
                 />
               )}
             </div>

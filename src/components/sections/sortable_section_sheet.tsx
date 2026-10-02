@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { Badge } from "@/components/ui/badge";
 import Markdown from "../ui/markdown";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -57,6 +58,8 @@ export default function SortableSectionSheet({
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [propagateDeleteToAssets, setPropagateDeleteToAssets] = useState(false);
+  // Propagar el borrado a los assets derivados borra sus secciones: el backend exige `section:d`.
+  const canPropagateDelete = useUserPermissions().hasPermission("section:d");
   const [deleteMode, setDeleteMode] = useState<DeleteMode | "">("");
 
   const style: React.CSSProperties = {
@@ -493,7 +496,7 @@ export default function SortableSectionSheet({
               <p>
                 {t("sections:sortableSection.deleteAlertDescription", { name: item.name })}
               </p>
-              {isTemplateSection && (
+              {isTemplateSection && canPropagateDelete && (
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id={`propagate-delete-${item.id}`}

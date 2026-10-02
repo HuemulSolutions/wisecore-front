@@ -537,6 +537,14 @@ export interface LibraryContentProps {
   onOpenFullscreen?: () => void;
   /** Vuelve de fullscreen a /asset. Solo lo pasa la página fullscreen. */
   onExitFullscreen?: () => void;
+  /** Arranca con el panel derecho (índice, campos, archivos) colapsado. Lo usa el detalle de una colección. */
+  defaultDetailPanelCollapsed?: boolean;
+  /**
+   * Solo visualización: el asset se muestra como si el usuario solo pudiera leerlo, aunque tenga
+   * permisos de edición (modo "Solo visualización" de una colección). Apaga RBAC de escritura y
+   * los permisos de lifecycle salvo `view`. Es solo de interfaz: el backend no cambia.
+   */
+  viewOnly?: boolean;
 }
 
 // ========================================

@@ -78,6 +78,19 @@ import { useUserPermissions } from "@/hooks/useUserPermissions"
 
 `isRootAdmin` **no** debe combinarse con `||` para saltarse un chequeo de permiso normal (`isRootAdmin || hasPermission(...)`). Eso fue exactamente el bug encontrado y corregido en `src/pages/templates.tsx` y `src/huemul/components/huemul-button.tsx` (permitía a un root admin sin rol en la organización ver botones de crear/editar/eliminar que un usuario normal sin esos permisos no vería). El único bypass válido dentro de una organización es `isOrgAdmin`, y ya está aplicado **dentro** de `hasPermission`/`hasAnyPermission`/`hasAllPermissions` (ver `permissions-context.tsx`) y de los helpers `canCreate`/`canRead`/`canUpdate`/`canDelete`/`canList`/`canAccessX` — no hace falta repetirlo al llamarlos.
 
+### `isRootAdmin` es una pista de UI: las acciones de root exigen el modo administrador
+
+El claim `is_root_admin` solo decide **qué se muestra** (Global Admin, pestañas y botones de root, la
+opción "Enter admin mode" del menú del avatar). El backend no autoriza ninguna acción de root por el
+token de sesión: exige el header `X-Root-Elevation`, que se obtiene con un código al correo y dura 30
+minutos (docs/sso-frontend.md §2.1).
+
+- No hay que hacer nada por pantalla: `httpClient` manda el header mientras el modo está activo y, ante
+  un 403 `ROOT_ELEVATION_REQUIRED`/`EXPIRED`/`INVALID`, abre `RootElevationDialog` y reintenta la request.
+- Una pantalla que es **toda** de root (como `/global-admin`) pide el código al entrar con
+  `useRootElevation().require()` y no monta sus queries hasta `isElevated`, para no hacer una ronda de 403.
+- Nunca guardar el token de elevación en storage ni leerlo fuera de `rootElevationStore`.
+
 ---
 
 ### `ProtectedComponent` — wrapper declarativo
@@ -133,7 +146,7 @@ docx_template · template · template_section · section
 section_execution · version · llm_provider · llm · rbac
 role_folder · external_system · external_functionality
 external_parameter · external_secret · token_usage · notification
-custom_fields · media · canvas · discussion
+custom_fields · media · canvas · discussion · search
 ```
 
 (Lista completa y con tipos en `src/types/jwt-utils.ts` → `PermissionResource`.)

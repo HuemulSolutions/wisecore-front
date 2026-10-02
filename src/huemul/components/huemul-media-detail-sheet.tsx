@@ -4,7 +4,10 @@ import { Image, Pencil, Plus, RefreshCw, Trash2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { formatAbsoluteDate } from "@/lib/format-relative-time"
 
-import { useMediaVersions, useMediaMutations } from "@/hooks/useMedia"
+import { Link } from "react-router-dom"
+import { useMedia, useMediaVersions, useMediaMutations } from "@/hooks/useMedia"
+import { useOrgPath } from "@/hooks/useOrgRouter"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { handleApiError } from "@/lib/error-utils"
 import { getMediaDownloadUrl } from "@/services/media"
 import { HuemulSheet } from "./huemul-sheet"
@@ -15,6 +18,9 @@ import { HuemulField } from "./huemul-field"
 import { HuemulButton } from "./huemul-button"
 import { MediaPreviewPane } from "./huemul-media-preview-pane"
 import { MediaVersionRow, downloadVersion } from "./huemul-media-version-row"
+import { HuemulNotice } from "./huemul-notice"
+import { HuemulMediaAnalysisBadge } from "./huemul-media-analysis-badge"
+import { mediaAnalysisHintKey, mediaAnalysisLabelKey } from "@/lib/media-analysis"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -75,6 +81,13 @@ export function HuemulMediaDetailSheet({
     item?.id ?? "",
     { enabled: open && !!item },
   )
+
+  // Estado del análisis para la búsqueda: `/versions` no lo trae, así que se lee del detalle
+  // (que se invalida al subir una versión) y, mientras carga, del snapshot del listado.
+  const { data: mediaDetail } = useMedia(organizationId, open && item ? item.id : "")
+  const analysisStatus = mediaDetail?.current_version?.analysis_status ?? item?.current_version?.analysis_status ?? null
+  const buildPath = useOrgPath()
+  const { canAccessModels } = useUserPermissions()
 
   useEffect(() => {
     setIsEditingInfo(false)
@@ -279,7 +292,35 @@ export function HuemulMediaDetailSheet({
                           value={item.created_at ? formatAbsoluteDate(item.created_at) : undefined}
                         />
                       </HuemulInfoGroup>
+                      {analysisStatus && (
+                        <HuemulInfoGroup>
+                          <HuemulInfoItem
+                            label={t("analysis.label")}
+                            value={
+                              <span className="inline-flex items-center gap-2" title={t(mediaAnalysisHintKey(analysisStatus))}>
+                                <HuemulMediaAnalysisBadge status={analysisStatus} />
+                                {analysisStatus === "completed" && t(mediaAnalysisLabelKey(analysisStatus))}
+                              </span>
+                            }
+                          />
+                        </HuemulInfoGroup>
+                      )}
                     </HuemulInfoDisplay>
+                  )}
+                  {analysisStatus === "not_analyzed" && (
+                    <HuemulNotice
+                      tone="amber"
+                      className="mt-3"
+                      action={
+                        canAccessModels ? (
+                          <Link to={buildPath("/models")} className="shrink-0 text-xs font-semibold underline hover:cursor-pointer">
+                            {t("analysis.goToModels")}
+                          </Link>
+                        ) : undefined
+                      }
+                    >
+                      {t("analysis.notAnalyzedHint")}
+                    </HuemulNotice>
                   )}
                 </section>
 

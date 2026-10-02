@@ -211,7 +211,9 @@ export const RBAC_PAGES = {
       // media:c) queda como paso 2 — ver ia context/rbac-audit-guide.md.
       readAsset: ["asset:r", "asset:l"],
       updateAssetContent: "asset:u", // secciones, formularios, autosave, IA, review status
-      createVersion: "asset:c", // crear ejecución, clonar versión / a nuevo documento
+      // Clonar versión (mismo asset o a uno nuevo) y crear una versión vacía: el backend exige
+      // `version:c` (POST /execution/{id}/clone, POST /execution/{document_id}).
+      createVersion: "version:c",
       deleteVersion: "asset:d", // borrar versión y borrar documento
       exportVersion: "asset:r",
 
@@ -260,18 +262,28 @@ export const RBAC_PAGES = {
       // tag:r / tag:u.
       viewTags: "tag:r",
       manageTags: "tag:u",
+      // "Agregar a colección" del menú ⋯: lista las colecciones que el usuario
+      // administra, con sus grupos (GET /collections/?can_admin, collection:l), y
+      // agrega con POST /collections/{id}/items (collection:u). No pide el detalle
+      // de cada colección. Las colecciones de agentes exigen además
+      // collection_agent:u: el diálogo solo las muestra con `updateAgentCollection`.
+      addToCollection: { all: ["collection:l", "collection:u"] },
     },
   },
   search: {
-    // No existe recurso `search` en PermissionResource: GET /search/ devuelve
-    // documentos y cada resultado abre /asset/{id}, cuyo guard exige
-    // asset:l|r — se gatea con la lectura del recurso que sirve, mismo
-    // criterio que `listLogs: external_functionality:l|r`.
+    // El backend exige `search:c` en /search/, /search/passages y /search/feedback
+    // (init_org.sql: 'search:c' = "Make a search"). Antes se gateaba con asset:l|r
+    // y un rol sin search:c veía la página y recibía 403. Abrir un resultado sigue
+    // pidiendo asset:r|l (guard de /asset/{id}).
     route: "search",
-    routePermissions: ["asset:l", "asset:r"],
+    routePermissions: ["search:c"],
     nav: { title: "Search", orgScoped: true },
     features: {
-      performSearch: ["asset:l", "asset:r"],
+      performSearch: "search:c",
+      // Búsqueda por pasajes (GET /search/passages) y feedback útil/no útil
+      // (POST /search/feedback): mismo permiso que buscar.
+      searchPassages: "search:c",
+      sendSearchFeedback: "search:c",
       openAsset: ["asset:r", "asset:l"],
       filterByAssetType: ["asset_type:l", "asset_type:r"],
       filterByTemplate: ["template:l", "template:r"],
@@ -306,6 +318,14 @@ export const RBAC_PAGES = {
       deleteProvider: "llm_provider:d",
     },
   },
+  "search-logs": {
+    // Búsquedas registradas y su feedback (GET /search/logs, PR backend #356). El backend
+    // exige search:c + `is_org_admin` (`_require_org_admin` en search/routes.py): no hay un
+    // permiso propio. `requireOrgAdmin` también deja pasar al root admin (resolvePageAccess);
+    // la página le muestra un aviso si no es admin de la organización, en vez de un 403.
+    route: "search-logs",
+    requireOrgAdmin: true,
+  },
   "auth-types": {
     route: "auth-types",
     // Conexiones de autenticación (docs/sso-frontend.md, Fase 5). No existe
@@ -332,9 +352,10 @@ export const RBAC_PAGES = {
     route: "users",
     routePermissions: ["user:r", "user:l"],
     features: {
-      // GET /user_roles/users_with_roles — el mismo endpoint que ya se gatea
-      // con user:l|r desde el filtro de /token-usage.
-      listUsers: ["user:l", "user:r"],
+      // GET /user_roles/users_with_roles — el backend exige `user:l`.
+      listUsers: "user:l",
+      // GET /user_roles/user_all_roles/{id} — roles del usuario seleccionado (`user:r`).
+      readUserRoles: "user:r",
       createUser: "user:c",
       // Editar + aprobar/rechazar altas (POST /users/{id}/approve|reject):
       // tres formas de mutar un usuario ya existente.
@@ -354,8 +375,8 @@ export const RBAC_PAGES = {
       // Vía "Clonar" del popover "Agregar rol".
       cloneRole: "rbac:c",
       // GET /rbac/permissions — catálogo que alimenta CreateRoleSheet cuando
-      // se abre desde el popover (vía "Con permisos").
-      listPermissionCatalog: ["rbac:l", "rbac:r"],
+      // se abre desde el popover (vía "Con permisos"). El backend exige `rbac:l`.
+      listPermissionCatalog: "rbac:l",
     },
   },
   roles: {
@@ -376,13 +397,17 @@ export const RBAC_PAGES = {
       // criterio que `manageLifecycle: asset_type:u`).
       assignRoleToUsers: "rbac:u",
       // GET /rbac/permissions — catálogo que alimenta el selector de permisos
-      // de los sheets de crear/editar.
-      listPermissionCatalog: ["rbac:l", "rbac:r"],
-      exportRoles: ["rbac:l", "rbac:r"],
+      // de los sheets de crear/editar. El backend exige `rbac:l`.
+      listPermissionCatalog: "rbac:l",
+      // POST /rbac/roles/export — el backend exige `rbac:l`.
+      exportRoles: "rbac:l",
+      // GET /rbac/roles/{id}/permissions_with_status — tab Permisos del detalle (`rbac:r`).
+      readRolePermissions: "rbac:r",
       // on_conflict=overwrite pisa roles existentes: exige crear y actualizar.
       importRoles: { all: ["rbac:c", "rbac:u"] },
       // Tab "Usuarios" del panel de detalle del rol (espejo de /users).
-      listUsers: ["user:l", "user:r"],
+      // GET /user_roles/role_with_all_users exige `user:l`.
+      listUsers: "user:l",
       // Botón "Crear usuario" inline desde el popover "Agregar usuario" del
       // panel del rol (mismo patrón que createUser en RBAC_PAGES.users).
       createUser: "user:c",
@@ -398,7 +423,8 @@ export const RBAC_PAGES = {
       deleteAssetType: "asset_type:d",
       cloneAssetType: "asset_type:c",
       exportAssetTypes: "asset_type:r",
-      importAssetTypes: { all: ["asset_type:c", "asset_type:u"] },
+      // El JSON concede niveles de acceso a roles: el backend exige además `role_doctype:c`.
+      importAssetTypes: { all: ["asset_type:c", "asset_type:u", "role_doctype:c"] },
       // Lifecycle y vínculos template↔asset_type son sub-recursos del asset
       // type: el endpoint que validan es /document_types/{id}/..., de ahí
       // asset_type:u en vez de un recurso propio.
@@ -427,6 +453,31 @@ export const RBAC_PAGES = {
       createCustomField: "custom_fields:c",
       updateCustomField: "custom_fields:u",
       deleteCustomField: "custom_fields:d",
+    },
+  },
+  collections: {
+    route: "collections",
+    // La ruta (y el menú) se abre con cualquiera de los dos; cada pantalla exige el suyo:
+    // el listado (GET /collections/) `listCollections` y el detalle (GET /collections/{id})
+    // `viewCollection`. El acceso a una colección concreta (pública, propia o compartida)
+    // lo decide el backend.
+    routePermissions: ["collection:l", "collection:r"],
+    nav: { title: "Collections", orgScoped: true },
+    features: {
+      listCollections: "collection:l",
+      viewCollection: "collection:r",
+      createCollection: "collection:c",
+      updateCollection: "collection:u",
+      deleteCollection: "collection:d",
+      // Una colección para agentes cambia lo que siguen los agentes de toda la
+      // organización: crearla, editarla (activos, grupos y accesos incluidos) o
+      // borrarla exige además collection_agent:c/u/d (backend, ensure_permissions).
+      createAgentCollection: { all: ["collection:c", "collection_agent:c"] },
+      updateAgentCollection: { all: ["collection:u", "collection_agent:u"] },
+      deleteAgentCollection: { all: ["collection:d", "collection_agent:d"] },
+      // Compartir con roles y usuarios: GET /rbac/roles es catálogo abierto y
+      // GET /user_roles/members es el directorio de cualquier miembro.
+      shareCollection: "collection:u",
     },
   },
   tags: {
@@ -530,7 +581,8 @@ export const RBAC_PAGES = {
       listLlms: ["llm:l", "llm:r"],
       createExecution: "section_execution:c",
       listExecutions: ["section_execution:l", "section_execution:r"],
-      wordExport: "version:r",
+      // Exporta con una plantilla DOCX del template: listar esas plantillas exige `docx_template:l`.
+      wordExport: { all: ["version:r", "docx_template:l"] },
     },
   },
   "external-systems": {

@@ -167,6 +167,33 @@ export interface AuthMethodRequiredDetail {
   required_auth_flow: RequiredAuthFlow;
 }
 
+/** `POST /auth/root-elevation/code`: el código del modo administrador salió al correo. */
+export interface RootElevationCodeResult {
+  message: string;
+  email: string;
+  expires_at: string;
+}
+
+/** `POST /auth/root-elevation/verify`: token para `X-Root-Elevation` (docs/sso-frontend.md §2.1). */
+export interface RootElevationVerifyResult {
+  elevation_token: string;
+  expires_at: string;
+}
+
+/** `GET /auth/root-elevation/status`. */
+export interface RootElevationStatus {
+  is_root_admin: boolean;
+  elevated: boolean;
+  expires_at: string | null;
+}
+
+/** Envoltorio `ResponseSchema` de los endpoints del modo administrador. */
+export interface RootElevationResponse<T> {
+  data: T;
+  transaction_id: string;
+  timestamp: string;
+}
+
 /** Códigos fijos que el backend manda en `/auth/sso/callback?error=`. */
 export type SsoErrorCode =
   | 'invalid_state'

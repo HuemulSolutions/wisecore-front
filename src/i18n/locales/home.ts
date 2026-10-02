@@ -240,6 +240,13 @@
     dismiss: { en: "Got it", es: "Entendido" },
   },
 
+  passagesHint: {
+    text: {
+      en: "Looking for an answer rather than an asset? Advanced search shows the passages that answer.",
+      es: "¿Buscas una respuesta más que un activo? La búsqueda Avanzada muestra los pasajes que responden.",
+    },
+    action: { en: "Search in Advanced mode", es: "Buscar en modo Avanzada" },
+  },
   noResults: {
     titleOne: { en: "No asset matches this filter", es: "Ningún activo cumple este filtro" },
     titleMany: { en: "No asset matches these {{count}} filters", es: "Ningún activo cumple estos {{count}} filtros" },
@@ -249,6 +256,7 @@
     },
     searchInContent: { en: "Search “{{query}}” in content", es: "Buscar «{{query}}» en el contenido" },
     clearFilters: { en: "Clear filters", es: "Limpiar filtros" },
+    searchPassages: { en: "Search passages that answer", es: "Buscar pasajes que respondan" },
   },
 
   orgEmpty: {

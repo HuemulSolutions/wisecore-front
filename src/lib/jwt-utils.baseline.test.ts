@@ -4,7 +4,16 @@
 import { describe, expect, it } from 'vitest'
 
 import { httpClient } from '@/lib/http-client'
-import { decodeJWT, getLoginTokenInfo, isOrgAdmin, isRootAdmin, isTokenExpired } from '@/lib/jwt-utils'
+import {
+  decodeJWT,
+  getLoginTokenInfo,
+  hasAllPermissions,
+  hasAnyPermission,
+  hasPermission,
+  isOrgAdmin,
+  isRootAdmin,
+  isTokenExpired,
+} from '@/lib/jwt-utils'
 import { makeExpiredLoginToken, makeJwt, makeLoginToken, makeOrgToken } from '@/test/jwt'
 
 describe('jwt-utils', () => {
@@ -41,5 +50,16 @@ describe('jwt-utils', () => {
     const payload = decodeJWT<{ auth_type_id: string; login_org_id: string }>(token)
     expect(payload?.auth_type_id).toBe('conn-1')
     expect(payload?.login_org_id).toBe('org-1')
+  })
+
+  it('los helpers de permisos no dan bypass al root admin: solo cuentan los permisos del token de organización', () => {
+    httpClient.setLoginToken(makeLoginToken({ is_root_admin: true }))
+    httpClient.setOrganizationToken(makeOrgToken({ is_root_admin: true, permissions: ['asset:r'] }))
+
+    expect(isRootAdmin()).toBe(true)
+    expect(hasPermission('asset:r')).toBe(true)
+    expect(hasPermission('user:c')).toBe(false)
+    expect(hasAnyPermission(['user:c', 'user:d'])).toBe(false)
+    expect(hasAllPermissions(['asset:r', 'user:c'])).toBe(false)
   })
 })

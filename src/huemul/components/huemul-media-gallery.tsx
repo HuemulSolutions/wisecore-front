@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils"
 import { formatBytes } from "@/lib/format-bytes"
 import { isImage, MediaIcon } from "./huemul-media-icon"
+import { HuemulMediaAnalysisBadge } from "./huemul-media-analysis-badge"
 import type { Media } from "@/types/media"
 import type { ViewMode } from "./huemul-view-toggle"
 
@@ -138,6 +139,7 @@ function MediaCard({
             v{version.version_number}
           </span>
         )}
+        <HuemulMediaAnalysisBadge status={version?.analysis_status} className="absolute bottom-1.5 left-1.5" />
         {hasMenu && (
           <MediaActionsMenu
             onRegenerate={canRegenerate ? () => onRegenerate(item) : undefined}
@@ -221,6 +223,7 @@ function MediaRow({
         {name}
       </p>
 
+      <HuemulMediaAnalysisBadge status={version?.analysis_status} />
       {item.origin && (
         <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 shrink-0 hidden @[420px]/media:inline-flex">
           {item.origin}

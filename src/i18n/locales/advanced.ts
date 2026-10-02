@@ -80,6 +80,7 @@ const translations = {
     },
     executeSuccess: { en: "Mass execution started successfully", es: "Ejecución masiva iniciada exitosamente" },
     executeError: { en: "Failed to start mass execution", es: "Error al iniciar la ejecución masiva" },
+    executeNothingEnqueued: { en: "No version was queued. Check the summary to see why.", es: "No se encoló ninguna versión. Revisar el resumen para ver por qué." },
     result: {
       title: { en: "Execution result", es: "Resultado de la ejecución" },
       total: { en: "{{count}} executions were processed", es: "Se procesaron {{count}} ejecuciones" },

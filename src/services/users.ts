@@ -7,8 +7,30 @@ import type {
   AssignUserToOrganizationData,
   UpdateUserData,
   CreateUserData,
-  GlobalUsersResponse
+  GlobalUsersResponse,
+  OrganizationMembersResponse
 } from '@/types/users';
+
+// Directorio de la organización (id, nombre, email y foto), abierto a cualquier miembro: para
+// resolver autores, historial o el dueño de un asset sin exigir `user:l`.
+export const getOrganizationMembers = async (
+  organizationId?: string,
+  page: number = 1,
+  pageSize: number = 100,
+  search?: string,
+): Promise<OrganizationMembersResponse> => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString(),
+  });
+  if (search?.trim()) params.set('search', search.trim());
+
+  const headers: Record<string, string> = {};
+  if (organizationId) headers['X-Org-Id'] = organizationId;
+
+  const response = await httpClient.get(`${backendUrl}/user_roles/members?${params}`, { headers });
+  return response.json();
+};
 
 // Get all users with roles
 export const getUsers = async (organizationId?: string, page: number = 1, pageSize: number = 100, search?: string): Promise<UsersResponse> => {

@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
 import { logger } from '@/lib/logger';
 import { useTranslation } from 'react-i18next';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import type { SectionExecutionProps } from '@/types/sections';
 export type { SectionExecutionProps } from '@/types/sections';
 
@@ -28,6 +29,9 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
     const [isPromptOpen, setIsPromptOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isAiEditing, setIsAiEditing] = useState(false);
+    // `POST /generation/fix_section` exige `section_execution:u`.
+    const { canUpdate } = useUserPermissions();
+    const canAskAi = canUpdate('section_execution');
     const [aiPrompt, setAiPrompt] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [aiPreview, setAiPreview] = useState<string | null>(null);
@@ -93,7 +97,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                                 {t('common:edit')}
                             </DropdownMenuItem>
                         )}
-                        {!isEditing && !isAiEditing && (
+                        {canAskAi && !isEditing && !isAiEditing && (
                             <DropdownMenuItem 
                                 className="hover:cursor-pointer"
                                 onClick={() => setIsAiEditing(true)}

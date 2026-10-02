@@ -13,6 +13,7 @@ import { RBAC_PAGES } from "./lib/rbac-matrix";
 import { SsoCallbackPage } from "./pages/sso-callback";
 import { LoginEntryPage } from "./pages/login-entry";
 import { AuthMethodRequiredDialog } from "./components/auth/auth-method-required-dialog";
+import { RootElevationDialog } from "./components/auth/root-elevation-dialog";
 
 // Páginas cargadas de forma perezosa: cada una se descarga solo cuando el
 // usuario navega a su ruta, en vez de entrar todas al bundle inicial.
@@ -30,6 +31,8 @@ const AssetTypesPage = lazy(() => import("./pages/assets-types"));
 const AssetTypeDetailPage = lazy(() => import("./pages/asset-type-detail"));
 const CustomFieldsPage = lazy(() => import("./pages/custom-fields"));
 const TagsPage = lazy(() => import("./pages/tags"));
+const CollectionsPage = lazy(() => import("./pages/collections"));
+const CollectionDetailPage = lazy(() => import("./pages/collection-detail"));
 const CanvasPage = lazy(() => import("./pages/canvas"));
 const DiagramsPage = lazy(() => import("./pages/diagrams"));
 const GlobalAdminPage = lazy(() => import("./pages/global-admin"));
@@ -40,6 +43,7 @@ const MediaPage = lazy(() => import("./pages/media"));
 const WorkflowPage = lazy(() => import("./pages/workflow"));
 const WorkflowFillPage = lazy(() => import("./pages/workflow-fill"));
 const TokenUsagePage = lazy(() => import("./pages/token-usage"));
+const SearchLogsPage = lazy(() => import("./pages/search-logs"));
 
 export default function App() {
   return (
@@ -48,6 +52,8 @@ export default function App() {
         <PermissionsProvider>
           {/* Step-up de autenticación (docs/sso-frontend.md): un solo montaje, dentro de los providers. */}
           <AuthMethodRequiredDialog />
+          {/* Modo administrador (docs/sso-frontend.md §2.1): código al correo para acciones de root. */}
+          <RootElevationDialog />
           <Suspense fallback={<HuemulAppLoading />}>
             <Routes>
           {/* Rutas PÚBLICAS (docs/sso-frontend.md): fuera de RequireAuth pero dentro de los
@@ -159,6 +165,16 @@ export default function App() {
                 <TagsPage />
               </PermissionProtectedRoute>
             } />
+            <Route path="collections" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.collections.routePermissions]}>
+                <CollectionsPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="collections/:collectionId" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.collections.routePermissions]}>
+                <CollectionDetailPage />
+              </PermissionProtectedRoute>
+            } />
 
             <Route path="canvas" element={
               <PermissionProtectedRoute permissions={[...RBAC_PAGES.canvas.routePermissions]}>
@@ -200,6 +216,11 @@ export default function App() {
             <Route path="token-usage" element={
               <PermissionProtectedRoute permissions={[...RBAC_PAGES["token-usage"].routePermissions]}>
                 <TokenUsagePage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="search-logs" element={
+              <PermissionProtectedRoute requireOrgAdmin={RBAC_PAGES["search-logs"].requireOrgAdmin} showErrorPage>
+                <SearchLogsPage />
               </PermissionProtectedRoute>
             } />
             <Route path="workflow" element={

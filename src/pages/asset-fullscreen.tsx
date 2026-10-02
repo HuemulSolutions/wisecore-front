@@ -9,6 +9,7 @@ import { usePageAccess } from "@/hooks/usePageAccess";
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import type { LibraryItem } from "@/types/assets";
+import { ASSET_FULLSCREEN_RETURN_PARAM, resolveFullscreenReturn } from "@/lib/asset-fullscreen-url";
 
 /**
  * Vista de un asset a pantalla completa (ver ia context/fullscreen-share-route-guide.md).
@@ -63,10 +64,13 @@ export default function AssetFullscreenPage() {
     refreshFileTree();
   }, [queryClient, selectedOrganizationId, refreshFileTree]);
 
+  // Vuelve a la pantalla que abrió la vista (`?return=`, p. ej. el detalle de una
+  // colección). Solo rutas relativas del front y de esta organización; si no hay o no
+  // es válida, a /asset como siempre.
   const handleExitFullscreen = useCallback(() => {
     if (!assetId) return;
-    navigate(`/asset/${assetId}`);
-  }, [navigate, assetId]);
+    navigate(resolveFullscreenReturn(searchParams.get(ASSET_FULLSCREEN_RETURN_PARAM), selectedOrganizationId ?? "", assetId));
+  }, [navigate, assetId, searchParams, selectedOrganizationId]);
 
   if (isLoadingPermissions) {
     return <PageSkeleton />;

@@ -22,6 +22,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useGlobalPanel } from "@/contexts/global-panel-context";
 import { usePageAccess } from "@/hooks/usePageAccess";
 import { useInvalidateDocumentSectionAccess } from "@/hooks/useDocumentSectionAccess";
+import { buildAssetFullscreenPath } from "@/lib/asset-fullscreen-url";
+import { currentPath } from "@/lib/return-url";
 
 /**
  * Main content component for the Assets page
@@ -94,9 +96,7 @@ function AssetsContent() {
   // ia context/fullscreen-share-route-guide.md y pages/asset-fullscreen.tsx).
   const handleOpenFullscreen = useCallback(() => {
     if (!selectedFile) return;
-    navigate(
-      `/asset/full/${selectedFile.id}${selectedExecutionId ? `?execution=${selectedExecutionId}` : ''}`,
-    );
+    navigate(buildAssetFullscreenPath(selectedFile.id, { executionId: selectedExecutionId, returnTo: currentPath() }));
   }, [navigate, selectedFile, selectedExecutionId]);
 
   // Loading de permisos

@@ -189,7 +189,7 @@ export function AssetTypeLifecycleMatrix({
   onCreateGroup,
 }: AssetTypeLifecycleMatrixProps) {
   const { t } = useTranslation(["asset-types", "common"])
-  const { canUpdate, canCreate } = useUserPermissions()
+  const { canUpdate, canCreate, canList } = useUserPermissions()
   const canManage = canUpdate("asset_type")
   // rbac:c — mismo permiso que gatea el botón de creación en /roles.
   const canCreateRole = canCreate("rbac")
@@ -1046,6 +1046,7 @@ export function AssetTypeLifecycleMatrix({
           open={isCreatingRole}
           onOpenChange={setIsCreatingRole}
           canCreate={canCreateRole}
+          canListPermissionCatalog={canList("rbac")}
           onCreated={handleRoleCreated}
         />
       )}

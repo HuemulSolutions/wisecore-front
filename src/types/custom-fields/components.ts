@@ -39,6 +39,14 @@ export interface CustomFieldFormFieldsProps {
   onConfigChange: (patch: Partial<FormFieldConfig>) => void
   required: boolean
   onRequiredChange: (value: boolean) => void
+  /**
+   * Faceta para agentes. La sección se muestra solo si se pasan los handlers:
+   * el alta rápida desde un activo/plantilla (add-custom-field-sheet) no la ofrece.
+   */
+  agentFacet?: boolean
+  agentFacetKey?: string
+  onAgentFacetChange?: (value: boolean) => void
+  onAgentFacetKeyChange?: (value: string) => void
   errors?: {
     name?: string
     description?: string

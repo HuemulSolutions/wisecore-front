@@ -60,6 +60,30 @@ Códigos de error del callback SSO (`?error=`): `invalid_state`, `idp_error`, `t
 Mensajes traducidos en `handleApiError` para `CONNECTION_DISABLED`, `ROOT_ADMIN_METHOD_RESTRICTED` (un
 no-root intenta pasar a SSO a un root admin) y `ORGANIZATION_USER_LIMIT_REACHED` (alta en una org llena).
 
+### 2.1 Modo administrador (backend `seba-root-elevation`, docs/sso.md §4.5)
+
+Ningún token de sesión autoriza acciones de root. El claim `is_root_admin` es solo una pista de UI
+(viaja con el valor de la base sea cual sea el método de login, también por SSO).
+
+```
+POST /auth/root-elevation/code   (Bearer de login u organización)
+  → {message, email, expires_at}          403 ROOT_ADMIN_REQUIRED si no es root activo
+POST /auth/root-elevation/verify {code}
+  → {elevation_token, expires_at}         400 código inválido/vencido/sin intentos
+GET  /auth/root-elevation/status  → {is_root_admin, elevated, expires_at}
+Header en toda acción de root: X-Root-Elevation: <elevation_token>   (30 min absolutos, no se renueva)
+403 ROOT_ELEVATION_REQUIRED   ruta de root sin header
+403 ROOT_ELEVATION_EXPIRED    header vencido (también en rutas de org admin que resuelven root primero)
+403 ROOT_ELEVATION_INVALID    firma, propósito o usuario distinto
+403 ROOT_ADMIN_REQUIRED       el usuario ya no es root activo
+```
+
+Rutas que lo exigen: `/users` (listar, crear, aprobar, rechazar, borrar, root-admin; y leer/editar a
+otro usuario), `/organizations` (crear, editar, borrar, miembros, admins; listar y miembros admiten
+también al org admin), telemetría diaria, audit log, `/job/retry-shutdown`, escritura de providers
+`is_managed` y bypass de tier. `require_permissions` ya no tiene excepción de root: un root sin permisos
+en una organización recibe `INSUFFICIENT_PERMISSIONS` como cualquier miembro.
+
 ## 3. Qué se conserva (baseline)
 
 - Anti-enumeración: `LoginForm` muestra el mismo mensaje genérico para 404 y cualquier error (429 aparte).
@@ -69,6 +93,12 @@ no-root intenta pasar a SSO a un root admin) y `ORGANIZATION_USER_LIMIT_REACHED`
   la selección de token por URL en `http-client.ts` (`/auth/` → login token sin `X-Org-Id`).
 - 401 real → toast + logout; 401 de permisos y 403 no cierran sesión.
 - Diálogo de selección de organización y `OrganizationSwitcher`.
+- Permisos: solo el org admin tiene bypass; el root admin no (`permissions-context.baseline`).
+- `requireRootAdmin` abre la ruta con la pista `is_root_admin` del login; el org admin no entra.
+- Menú del avatar de un usuario común: perfil, preferencias, notificaciones y suscripciones según gate,
+  cerrar sesión (`header-user-menu.baseline`).
+- `httpClient`: un 403 que no es de elevación se lanza una vez, sin reintento ni `handled`; los bodies
+  JSON y `FormData` llegan intactos; sin modo administrador nunca se manda `X-Root-Elevation`.
 
 ## 4. Fases
 
@@ -81,6 +111,7 @@ no-root intenta pasar a SSO a un root admin) y `ORGANIZATION_USER_LIMIT_REACHED`
 | 4 | Step-up `AUTH_METHOD_REQUIRED`: store + `AuthMethodRequiredDialog`, captura en el diálogo de organización y en el OrgSync de `AppLayout`, anti-loop. | Bloque "Fase 4". |
 | 5 | Admin de conexiones: tipos `microsoft`/`google`, formulario por tipo, tabla, eje `requireOrgAdmin` en RBAC. Desde el backend #343 toda conexión es de una organización, y desde `seba-auth-types-root-scope` el alcance es la organización activa para todos, también para el root admin: la página exige organización activa (sin ella muestra "Organización requerida" y el menú no la ofrece), no hay selector "Todas las organizaciones" ni columna de ámbito, la conexión se crea en la org activa sin elegirla, y `MembershipAuthMethodSelect` queda en solo lectura cuando la organización mostrada no es la activa; la `internal` de cada org aparece como "Integrada", sin editar ni borrar. | Bloque "Fase 5". |
 | 6 | Método de autenticación por membresía: `MembershipAuthMethodSelect` (badge o select de conexiones elegibles por organización), select por miembro en el tab Usuarios de `/organizations` y `/global-admin` (root o admin de esa org), método para nuevos miembros al agregar, `default_auth_type_id` en el tab Detalles (root), método por organización en el tab Organizaciones de `/users` (root). Backend: `GET /users/organizations` con `auth_type` por membresía. | Tests de `organization-detail-users-tab`, `organization-detail-details-tab` y `users-detail-organizations-tab`. |
+| 7 | Modo administrador (§2.1): store en memoria (`lib/root-elevation-store.ts`), `X-Root-Elevation` y reintento en `httpClient` (A, B), `RootElevationDialog` con `OtpCodeInput` (C), ítem en el menú del avatar, badge con minutos restantes y `/global-admin` que pide el código antes de cargar (D), integración en las pantallas de root (E). El token no se persiste: un F5 sale del modo. | `root-elevation-plan.target.test.tsx` sin `todo` (sus casos pasan a `*.baseline`) y borrado. |
 | Iteración 3 | Invitaciones por correo, sheet "Cuentas vinculadas". | — |
 
 ## 5. Plan de pruebas
@@ -115,7 +146,17 @@ Esperado en cada fase: todos los `baseline` PASSED, los `target` de fases futura
 
 - `src/lib/http-client.baseline.test.ts`: `/auth/` usa login token sin `X-Org-Id`; `user_token` respeta
   `X-Org-Id` explícito; org-scoped usa org token con fallback; 401 real → `onUnauthorized` + `handled`;
-  401 `FORBIDDEN` y 403 no cierran sesión; `detail` objeto se serializa; body no estándar → `Error`.
+  401 `FORBIDDEN` y 403 no cierran sesión; `detail` objeto se serializa; body no estándar → `Error`;
+  403 `INSUFFICIENT_PERMISSIONS` una sola vez sin `handled` (también root); header explícito no se
+  pisa; body JSON intacto y `FormData` pasado tal cual a `fetch`; sin modo administrador no hay
+  `X-Root-Elevation`.
+- `src/contexts/permissions-context.baseline.test.tsx`: root sin permisos → `hasPermission`/`canCreate`
+  false; root con permisos de su membresía; org admin con bypass; `isRootAdmin` sale del login.
+- `src/components/auth/auth-protected-route-with-permissions.baseline.test.tsx`: `requireOrgAdmin` solo
+  con el token de ESA org (root incluido, sin org no entra); `requireRootAdmin` abre con el login del
+  root y redirige al usuario común y al org admin.
+- `src/components/layout/header-user-menu.baseline.test.tsx`: ítems exactos del usuario común según
+  organización activa y permiso de notificaciones; cerrar sesión.
 - `src/lib/error-utils.baseline.test.ts`: `parseErrorDetail`, `isStatusCode`, `isErrorCode`.
 - `src/lib/jwt-utils.baseline.test.ts`: `decodeJWT`, `isTokenExpired`, `isRootAdmin`/`isOrgAdmin`, claims nuevos.
 - `src/pages/auth.baseline.test.tsx`: email → código → token; anti-enumeración (404 y 500 mismo
@@ -134,6 +175,29 @@ Están redactados como aserciones en `src/components/auth/sso-plan.target.test.t
 fase (2: router/callback; 3: máquina de estados; 4: step-up; 5: admin de conexiones y RBAC), más un
 baseline pendiente de infraestructura (OrgSync de `AppLayout`, que requiere montar el layout completo).
 
+Fase 7 (modo administrador): nació como `src/components/auth/root-elevation-plan.target.test.tsx`
+con los bloques A (store), B (`httpClient`), C (diálogo), D (puntos de entrada) y E (integración) en
+`todo`. Implementados los cinco, sus casos viven como contrato en:
+
+- A → `src/lib/root-elevation-store.baseline.test.ts`: solo en memoria, margen de 5 s antes del
+  vencimiento, limpieza sola al vencer, un pedido compartido, login/logout lo limpian.
+- B → `src/lib/http-client.baseline.test.ts` ("modo administrador") y
+  `src/lib/error-utils.baseline.test.ts`: header con token vigente, reintento único tras verificar
+  (misma request y body), `expired` para `EXPIRED`/`INVALID`, cancelar → `handled` sin toast, sin loop,
+  nunca en `/auth/root-elevation/*`, no-root sin diálogo, varios 403 → un diálogo, un 403 atrasado no
+  borra el token nuevo, `ROOT_ADMIN_REQUIRED` limpia, mensajes traducidos.
+- C → `src/components/auth/root-elevation-dialog.baseline.test.tsx`: un envío al abrir, verificar,
+  código inválido / 429, cooldown de 60 s, texto por motivo, `ROOT_ADMIN_REQUIRED`, cancelar.
+- D → `src/components/layout/header-user-menu.baseline.test.tsx`,
+  `src/components/layout/header-admin-mode-badge.baseline.test.tsx` y
+  `src/pages/global-admin.baseline.test.tsx`: ítem del menú solo root, badge con minutos que desaparece
+  al vencer, `/global-admin` pide el código antes de cargar y no hace requests sin él.
+- E → `src/components/organization/organization-detail-users-tab.root-elevation.baseline.test.tsx`:
+  agregar miembro con 403 → diálogo → reintento y alta con el token.
+- Además `src/lib/jwt-utils.baseline.test.ts`: los helpers de permisos no dan bypass al root.
+
+El target se borró al quedar vacío.
+
 ## 6. Ajustes que el frontend necesita del backend
 
 Implementados en la rama `seba-sso` del backend además de redactarse como pedido:
@@ -142,6 +206,15 @@ Implementados en la rama `seba-sso` del backend además de redactarse como pedid
 2. `GET /organizations/{id}/users` accesible a org admin, no solo root.
 3. `GET /organizations/{id}` expone `default_auth_type_id`.
 4. El correo de invitación apunta a `{URL_FRONTEND}/login?email=…` (ruta creada en la Fase 2).
+
+Pendiente para el modo administrador (`seba-root-elevation`): `require_admin_scope`, la escritura de
+`/auth_types` y `GET/PUT /users/{id}` de otro usuario responden a un root sin `X-Root-Elevation` con
+un 403 genérico, no con `ROOT_ELEVATION_REQUIRED`. El front solo abre el diálogo ante los códigos de
+elevación, así que en esas rutas (listar organizaciones, miembros de una org de la que el root no es
+admin, conexiones, invitaciones, cambiar el método de un miembro) el root ve el error y tiene que
+entrar al modo desde el menú del avatar. `/global-admin` no lo sufre porque pide el código antes de
+cargar. Pedido: que esas rutas respondan `ROOT_ELEVATION_REQUIRED` cuando el usuario es root en la base
+y no mandó el header.
 
 ## 7. Orden de despliegue
 
@@ -165,3 +238,6 @@ Implementados en la rama `seba-sso` del backend además de redactarse como pedid
 | 2026-09-25 | fix | Cambio de org con SSO volvía a la org anterior: el step-up del switcher guardaba la URL de la org vieja como vuelta y el OrgSync de `AppLayout` la re-seleccionaba. Ahora el switcher no guarda vuelta (va a `/<orgNueva>/home`), solo el deep link (`source: 'orgsync'`) la conserva, y `SsoCallbackPage` descarta cualquier destino de otra organización (`pathBelongsToOtherOrg`). Microsoft sigue mostrando el selector de cuenta (`prompt=select_account`, decisión de backend). Suite: 104 PASSED. |
 | 2026-09-25 | fix | Orden de despliegue: backend primero y sin compatibilidad con el backend anterior al SSO (§1, §7). El login sigue el contrato final del backend: caso C siempre con preauth, `select` responde `token`/`sso`, el root admin solo ve sus membresías. |
 | 2026-09-26 | fix | Contrato del backend tras su auditoría: `CONNECTION_DISABLED` con mensaje propio (login, selector y toasts), `USER_NOT_ACTIVE` cierra la sesión (`onUnauthorized('inactive')`), callback `organization_full`/`link_scope_required`, mapa central de mensajes en `handleApiError`. `ctx` en `authorize_url` y step-up `internal_code` ya estaban soportados. |
+| 2026-09-28 | 7 · 0 | Plan del modo administrador (backend `seba-root-elevation`): §2.1 con el contrato, baselines nuevos (`permissions-context`, `header-user-menu`, guard renombrado a `.baseline`, casos de `http-client`) verdes contra el código previo y target `root-elevation-plan.target.test.tsx` con los bloques A–E en `todo`. |
+| 2026-09-28 | 7 | Modo administrador implementado: `lib/root-elevation-store.ts` (en memoria, pedido compartido), `X-Root-Elevation` y reintento único en `httpClient` (`discard` evita que un 403 atrasado borre el token nuevo), `services/auth-root-elevation.ts`, `RootElevationDialog` con `OtpCodeInput` + `useOtpResend` (extraídos de `OTPForm` sin cambiar su DOM), ítem en el menú del avatar, `HeaderAdminModeBadge`, `/global-admin` pide el código antes de cargar, mensajes dedicados (sin toast si el error llegó `handled`), helpers de `jwt-utils` sin bypass de root. Casos A–E pasados a `*.baseline` y target borrado. Pendiente de backend en §6. |
+| 2026-09-28 | 7 · manual | Prueba en navegador contra `seba-root-elevation` (base admin local aislada): login del root, `/global-admin` pide el código y carga con `X-Root-Elevation`, crear organización, badge y menú, salir, F5 pierde el modo, 403 → diálogo → reintento al agregar un miembro, usuario común sin opción. Dos bugs arreglados con su regresión: en StrictMode el envío inicial del código (mutación en un efecto) nunca resolvía y el diálogo quedaba en "Sending a code..." (ahora `useQuery` por pedido); `/global-admin` montada ya en modo volvía a pedir el código sola al salir (ahora decide una vez por montaje). |

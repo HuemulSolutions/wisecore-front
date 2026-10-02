@@ -5,7 +5,7 @@
  * - i18n real en inglés: los tests afirman sobre textos traducidos, no sobre claves.
  * - msw: cualquier request sin handler es un error (nunca se llama al backend real).
  * - Polyfills que Radix/sonner necesitan en jsdom.
- * - `afterEach`: limpia DOM, storages, react-query y el estado de módulo de `httpClient`
+ * - `afterEach`: limpia DOM, storages, react-query, el modo administrador y el estado de módulo de `httpClient`
  *   (se hidrata desde localStorage al importar y persiste entre tests).
  */
 import '@testing-library/jest-dom/vitest'
@@ -15,6 +15,7 @@ import { afterAll, afterEach, beforeAll, vi } from 'vitest'
 import i18n from '@/i18n'
 import { httpClient } from '@/lib/http-client'
 import { queryClient } from '@/lib/query-client'
+import { rootElevationStore } from '@/lib/root-elevation-store'
 import { server } from './msw/server'
 
 // --- Polyfills jsdom -------------------------------------------------------
@@ -77,5 +78,6 @@ afterEach(() => {
   httpClient.setLoginToken(null)
   httpClient.setOrganizationToken(null)
   httpClient.setOrganizationId(null)
+  rootElevationStore.reset()
   vi.useRealTimers()
 })

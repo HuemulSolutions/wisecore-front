@@ -6,7 +6,7 @@ import { useOrganization } from '@/contexts/organization-context';
 import { HuemulSheet } from '@/huemul/components/huemul-sheet';
 import { HuemulField, HuemulFieldGroup, type FetchOptionsParams } from '@/huemul/components/huemul-field';
 import { getAssetTypes } from '@/services/asset-types';
-import { getUsers } from '@/services/users';
+import { getOrganizationMembers } from '@/services/users';
 import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
 import { handleApiError } from '@/lib/error-utils';
@@ -117,7 +117,7 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
   }, []);
 
   const fetchCreatedByOptions = useCallback(async ({ search, page, pageSize }: FetchOptionsParams) => {
-    const response = await getUsers(selectedOrganizationId ?? undefined, page, pageSize, search);
+    const response = await getOrganizationMembers(selectedOrganizationId ?? undefined, page, pageSize, search);
     return {
       options: (response.data ?? []).map((u) => ({
         value: u.id,

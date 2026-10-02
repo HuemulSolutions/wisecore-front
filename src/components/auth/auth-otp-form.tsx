@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { ArrowLeft } from "lucide-react"
 import { useMutation } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
@@ -11,22 +11,13 @@ import {
 } from "@/components/ui/field"
 import { HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { HuemulButton } from "@/huemul/components/huemul-button"
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSeparator,
-  InputOTPSlot,
-} from "@/components/ui/input-otp"
+import { OtpCodeInput } from "@/components/auth/otp-code-input"
+import { useOtpResend } from "@/hooks/useOtpResend"
 import { authService } from "@/services/auth"
 import { isStatusCode } from "@/lib/error-utils"
 import type { OTPFormProps } from "@/types/auth"
 
 export type { OTPFormProps } from "@/types/auth"
-
-// El primer código ya se acaba de enviar desde LoginForm — arrancar el
-// cooldown también al montar evita un reenvío inmediato que solo produciría
-// el mismo código o un rate-limit del backend.
-const RESEND_COOLDOWN_SECONDS = 60
 
 export function OTPForm({
   className,
@@ -38,7 +29,8 @@ export function OTPForm({
   ...props
 }: OTPFormProps) {
   const [code, setCode] = useState("")
-  const [resendCooldown, setResendCooldown] = useState(RESEND_COOLDOWN_SECONDS)
+  // El primer código ya se acaba de enviar desde LoginForm: el cooldown arranca al montar.
+  const { resendCooldown, resendMutation, resend: handleResend } = useOtpResend(onResend)
   const { t } = useTranslation('auth')
 
   const verifyMutation = useMutation({
@@ -53,30 +45,6 @@ export function OTPForm({
       setCode("") // Clear the code on error
     },
   })
-
-  const resendMutation = useMutation({
-    mutationFn: () => onResend(),
-    onSuccess: () => {
-      setResendCooldown(RESEND_COOLDOWN_SECONDS)
-    },
-  })
-
-  // Cuenta atrás de 1s; al llegar a 0 también limpia el mensaje de éxito del
-  // reenvío anterior (si no, "¡Código enviado!" queda visible indefinidamente).
-  useEffect(() => {
-    if (resendCooldown <= 0) return
-    const interval = setInterval(() => {
-      setResendCooldown((seconds) => {
-        if (seconds <= 1) {
-          resendMutation.reset()
-          return 0
-        }
-        return seconds - 1
-      })
-    }, 1000)
-    return () => clearInterval(interval)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- resendMutation es estable entre renders (react-query)
-  }, [resendCooldown])
 
   const verifyError = verifyMutation.error
     ? isStatusCode(verifyMutation.error, 429)
@@ -95,11 +63,6 @@ export function OTPForm({
     if (code && code.length === 6) {
       verifyMutation.mutate(code)
     }
-  }
-
-  const handleResend = () => {
-    if (resendCooldown > 0 || resendMutation.isPending) return
-    resendMutation.mutate()
   }
 
   return (
@@ -132,28 +95,7 @@ export function OTPForm({
             <FieldLabel htmlFor="otp" className="sr-only">
               {t('otp.verificationCode')}
             </FieldLabel>
-            <div className="flex justify-center">
-              <InputOTP
-                maxLength={6}
-                id="otp"
-                value={code}
-                onChange={(value) => setCode(value)}
-                required
-                containerClassName="gap-3"
-              >
-                <InputOTPGroup className="gap-2.5 *:data-[slot=input-otp-slot]:h-16 *:data-[slot=input-otp-slot]:w-12 *:data-[slot=input-otp-slot]:rounded-md *:data-[slot=input-otp-slot]:border *:data-[slot=input-otp-slot]:text-xl">
-                  <InputOTPSlot index={0} className="h-14 w-12 text-xl font-semibold" />
-                  <InputOTPSlot index={1} className="h-14 w-12 text-xl font-semibold" />
-                  <InputOTPSlot index={2} className="h-14 w-12 text-xl font-semibold" />
-                </InputOTPGroup>
-                <InputOTPSeparator />
-                <InputOTPGroup className="gap-2.5 *:data-[slot=input-otp-slot]:h-16 *:data-[slot=input-otp-slot]:w-12 *:data-[slot=input-otp-slot]:rounded-md *:data-[slot=input-otp-slot]:border *:data-[slot=input-otp-slot]:text-xl">
-                  <InputOTPSlot index={3} className="h-14 w-12 text-xl font-semibold" />
-                  <InputOTPSlot index={4} className="h-14 w-12 text-xl font-semibold" />
-                  <InputOTPSlot index={5} className="h-14 w-12 text-xl font-semibold" />
-                </InputOTPGroup>
-              </InputOTP>
-            </div>
+            <OtpCodeInput id="otp" value={code} onChange={setCode} />
             <FieldDescription className="text-center text-gray-600">
               {t('otp.didntReceiveCode')}{" "}
               <button

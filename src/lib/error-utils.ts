@@ -25,6 +25,35 @@ const DEDICATED_ERROR_MESSAGES: Record<string, string> = {
   CONNECTION_DISABLED: 'auth:ssoErrors.connection_disabled',
   ROOT_ADMIN_METHOD_RESTRICTED: 'auth:errors.rootAdminMethodRestricted',
   ORGANIZATION_USER_LIMIT_REACHED: 'auth:errors.organizationUserLimitReached',
+  // Modo administrador (docs/sso-frontend.md §2.1). `httpClient` ya pidió el código y
+  // reintentó; estos mensajes solo aparecen si eso no alcanzó (p. ej. otro 403 en el
+  // reintento). Si el usuario canceló, el error llega `handled` y no hay toast.
+  ROOT_ELEVATION_REQUIRED: 'auth:errors.rootElevationRequired',
+  ROOT_ELEVATION_EXPIRED: 'auth:errors.rootElevationExpired',
+  ROOT_ELEVATION_INVALID: 'auth:errors.rootElevationExpired',
+  ROOT_ADMIN_REQUIRED: 'auth:errors.rootAdminRequired',
+  // Autorización (auditoría del backend, PR #355). El permiso exacto que falta queda en el
+  // log (`detail`); al usuario le basta saber que no tiene acceso y a quién pedírselo.
+  INSUFFICIENT_PERMISSIONS: 'auth:errors.insufficientPermissions',
+  LIFECYCLE_PERMISSION_DENIED: 'assets:lifecycle.errorPermissionDenied',
+  ORG_MEMBERSHIP_REQUIRED: 'auth:errors.orgMembershipRequired',
+  INVALID_ORG_HEADER: 'auth:errors.invalidOrganization',
+  // LLM por propósito (rerank / análisis de imágenes). La UI ya deshabilita las opciones
+  // inválidas; esto es el eco si el catálogo cambió entre la carga y el clic.
+  LLM_MISSING_CAPABILITY: 'models:errors.missingCapability',
+  LLM_PURPOSE_REQUIRES_CAPABILITY: 'models:errors.purposeRequiresCapability',
+  // Accesos de una colección: solo se puede dar acceso a roles de la organización y a sus
+  // miembros. El buscador solo ofrece esos; esto es el eco de un dato que cambió entretanto.
+  INVALID_COLLECTION_ACCESS: 'collections:errors.invalidAccess',
+  // Nunca queda una colección sin administradores; la hoja de accesos ya lo impide.
+  COLLECTION_ADMIN_REQUIRED_AT_LEAST_ONE: 'collections:errors.adminRequired',
+  // Sub-colecciones: el selector ya ofrece solo candidatas de la misma audiencia y sin la
+  // colección ni las que la contienen; esto cubre lo que cambió entretanto y los 10 niveles.
+  COLLECTION_NESTING_CYCLE: 'collections:errors.nestingCycle',
+  COLLECTION_NESTING_TOO_DEEP: 'collections:errors.nestingTooDeep',
+  COLLECTION_NESTING_AUDIENCE_MISMATCH: 'collections:errors.nestingAudienceMismatch',
+  COLLECTION_NESTING_SELF: 'collections:errors.nestingSelf',
+  COLLECTION_NESTING_AUDIENCE_LOCKED: 'collections:errors.nestingAudienceLocked',
 };
 
 /**
@@ -88,7 +117,9 @@ export function handleApiError(
     // Códigos con mensaje propio y traducido en vez del texto crudo del backend.
     const dedicatedMessageKey = DEDICATED_ERROR_MESSAGES[error.code];
     if (dedicatedMessageKey) {
-      if (showToast) {
+      // `handled`: httpClient ya resolvió el caso (p. ej. el usuario canceló el código del
+      // modo administrador); no se apila un toast sobre esa decisión.
+      if (showToast && !error.handled) {
         toast.error(i18n.t(dedicatedMessageKey));
       }
       return;

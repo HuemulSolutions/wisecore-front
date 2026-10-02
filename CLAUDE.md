@@ -52,6 +52,7 @@ Existe una carpeta `ia context/` en la raíz del proyecto con guías de arquitec
 | Agregar o cambiar un estado de pantalla del Asset (cargando/error/vacío/restringido/generando/falló), del sheet de Fuentes, o un banner de versión; o reusar un estado a pantalla completa (`HuemulScreenState`) | `ia context/estados-pantalla-asset-guide.md` |
 | Paginar un árbol (`HuemulFileTree`/`FileTree`) con carpetas de muchos hijos: "Mostrar más" por carpeta, autocarga al final del scroll, cursor por nodo, búsqueda plana | `ia context/paginacion-por-nodo-arbol-guide.md` |
 | Tocar el login, la selección de organización, el SSO corporativo (Microsoft/Google) o la página de conexiones de autenticación | `docs/sso-frontend.md` (plan por fases y plan de pruebas) |
+| Tocar el login, la selección de organización, el SSO corporativo (Microsoft/Google), la página de conexiones de autenticación, el modo administrador o cualquier acción de root admin (`X-Root-Elevation`) | `docs/sso-frontend.md` (plan por fases y plan de pruebas) |
 
 Cuando una tarea involucra varias guías, leerlas todas antes de empezar.
 

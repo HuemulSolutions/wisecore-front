@@ -35,5 +35,10 @@ export interface HuemulDialogProps {
   maxHeight?: string;
   className?: string;
   footerLeft?: React.ReactNode;
+  /**
+   * A dónde vuelve el foco al cerrar. Radix lo devuelve al `DialogTrigger`; un diálogo
+   * sin trigger (abierto desde un store) lo necesita para no dejarlo en `<body>`.
+   */
+  onCloseAutoFocus?: (event: Event) => void;
   children: React.ReactNode;
 }

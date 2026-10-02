@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useOrganization } from "@/contexts/organization-context"
-import { getRoles, createRole, getPermissions, getRolePermissions, getUserRoles, getUserAllRoles, assignRolesToUser, updateRole, deleteRole, getRoleWithAllUsers, assignUsersToRole, cloneRole } from "@/services/rbac"
+import { getRoles, createRole, getPermissions, getRolePermissions, getUserAllRoles, assignRolesToUser, updateRole, deleteRole, getRoleWithAllUsers, assignUsersToRole, cloneRole } from "@/services/rbac"
 import { userQueryKeys } from "@/hooks/useUsers"
 import type { UpdateRoleData } from "@/types/rbac"
 
@@ -69,19 +69,6 @@ export function useRolePermissions(roleId: string, enabled: boolean = true, sear
     enabled: !!roleId && enabled,
     staleTime: 0, // Always refetch to ensure fresh data
     refetchOnMount: true, // Refetch when component mounts
-  })
-}
-
-// Hook for fetching user roles
-export function useUserRoles(userId: string, enabled: boolean = true) {
-  const { selectedOrganizationId } = useOrganization()
-  return useQuery({
-    queryKey: rbacQueryKeys.userRoles(selectedOrganizationId, userId),
-    queryFn: () => getUserRoles(userId),
-    enabled: !!userId && userId.trim() !== '' && enabled,
-    staleTime: 5 * 60 * 1000,
-    retry: 1, // Reduce retries to prevent excessive requests
-    refetchOnWindowFocus: false, // Prevent refetch on window focus
   })
 }
 

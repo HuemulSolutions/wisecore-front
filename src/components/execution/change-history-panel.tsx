@@ -9,7 +9,7 @@ import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { DEFAULT_PAGE_SIZE } from "@/huemul/constants"
 import { useOrganization } from "@/contexts/organization-context"
 import { useOrgPath } from "@/hooks/useOrgRouter"
-import { useUsers } from "@/hooks/useUsers"
+import { useMembers } from "@/hooks/useUsers"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import {
   getDocumentsWithPendingChanges,
@@ -24,11 +24,10 @@ export function ChangeHistoryPanel() {
   const buildPath = useOrgPath()
   const { hasAnyPermission } = useUserPermissions()
 
-  // Gate propio: el panel consulta `/documents/` y `/user_roles/...`, no el
+  // Gate propio: el panel consulta `/documents/` (y el directorio `/user_roles/members`), no el
   // recurso de la pantalla que lo monta (/advanced lo gatea con
   // `section_execution:l|r`, /home con `asset:l|r`).
   const canListAssets = hasAnyPermission(["asset:l", "asset:r"])
-  const canListUsers = hasAnyPermission(["user:l", "user:r"])
 
   const [search, setSearch] = useState("")
   const [committedSearch, setCommittedSearch] = useState("")
@@ -40,10 +39,9 @@ export function ChangeHistoryPanel() {
     setPage(1)
   }
 
-  // Sin `user:l|r` no se resuelven los nombres: la fila cae al fallback que ya
-  // existe (sin autor), en vez de comerse un 403.
-  const { data: usersData } = useUsers(
-    !!selectedOrganizationId && canListUsers,
+  // Nombres desde el directorio de la organización (cualquier miembro lo ve).
+  const { data: usersData } = useMembers(
+    !!selectedOrganizationId,
     selectedOrganizationId ?? undefined,
     1,
     1000

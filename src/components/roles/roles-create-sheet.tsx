@@ -8,7 +8,7 @@ import RoleFormFields from "./roles-form-fields"
 import type { CreateRoleSheetProps } from '@/types/roles'
 export type { CreateRoleSheetProps } from '@/types/roles'
 
-export default function CreateRoleSheet({ open, onOpenChange, canCreate, onCreated, initialName }: CreateRoleSheetProps) {
+export default function CreateRoleSheet({ open, onOpenChange, canCreate, canListPermissionCatalog, onCreated, initialName }: CreateRoleSheetProps) {
   const { t } = useTranslation(['roles', 'common'])
   const [formData, setFormData] = useState({
     name: '',
@@ -19,7 +19,7 @@ export default function CreateRoleSheet({ open, onOpenChange, canCreate, onCreat
   const [parentRoleId, setParentRoleId] = useState<string | null>(null)
 
   // Only fetch permissions when the sheet is actually open y hay permiso de listar el catálogo
-  const { data: permissionsResponse, isLoading: permissionsLoading } = usePermissions(open && canCreate)
+  const { data: permissionsResponse, isLoading: permissionsLoading } = usePermissions(open && canCreate && canListPermissionCatalog)
   const { data: rolesResponse } = useRoles(open && canCreate, 1, 1000)
   const { createRole } = useRoleMutations()
 

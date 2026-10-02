@@ -46,6 +46,12 @@ const translations = {
     accountNotActive: { en: "Your account is not active. Contact your administrator.", es: "Tu cuenta no está activa. Contactar al administrador." },
     rootAdminMethodRestricted: { en: "Only a root admin can change the sign-in method of a root admin.", es: "Solo un root admin puede cambiar el método de inicio de sesión de un root admin." },
     organizationUserLimitReached: { en: "The organization has reached its user limit.", es: "La organización alcanzó su límite de usuarios." },
+    rootElevationRequired: { en: "This action requires admin mode.", es: "Esta acción requiere el modo administrador." },
+    rootElevationExpired: { en: "Admin mode expired. Enter it again to continue.", es: "El modo administrador venció. Volver a entrar para continuar." },
+    rootAdminRequired: { en: "Your account is no longer a root admin.", es: "Tu cuenta ya no es root admin." },
+    insufficientPermissions: { en: "You don't have permission to do this. Ask an administrator of your organization for access.", es: "No tienes permiso para hacer esto. Pedir acceso a un administrador de la organización." },
+    orgMembershipRequired: { en: "You are not a member of this organization.", es: "No eres miembro de esta organización." },
+    invalidOrganization: { en: "The selected organization is not valid. Select an organization again.", es: "La organización seleccionada no es válida. Volver a seleccionar una organización." },
   },
   invitations: {
     created: { en: "Invitation sent", es: "Invitación enviada" },
@@ -103,6 +109,16 @@ const translations = {
     stillRequired: { en: "This organization still requires a different sign-in method. Choose another organization or contact your administrator.", es: "Esta organización sigue exigiendo otro método de inicio de sesión. Elegir otra organización o contactar al administrador." },
     chooseAnotherOrganization: { en: "Choose another organization", es: "Elegir otra organización" },
     cancel: { en: "Cancel", es: "Cancelar" },
+  },
+  rootElevation: {
+    title: { en: "Admin mode", es: "Modo administrador" },
+    requiredDescription: { en: "This action requires admin mode. Enter the 6-digit code we sent to {{email}}.", es: "Esta acción requiere el modo administrador. Ingresar el código de 6 dígitos enviado a {{email}}." },
+    expiredDescription: { en: "Your admin mode expired. Enter the 6-digit code we sent to {{email}} to continue.", es: "El modo administrador venció. Ingresar el código de 6 dígitos enviado a {{email}} para continuar." },
+    manualDescription: { en: "Enter the 6-digit code we sent to {{email}} to use admin mode for 30 minutes.", es: "Ingresar el código de 6 dígitos enviado a {{email}} para usar el modo administrador durante 30 minutos." },
+    sendingCode: { en: "Sending a code to your email...", es: "Enviando un código a tu correo..." },
+    submit: { en: "Enter admin mode", es: "Entrar al modo administrador" },
+    cancel: { en: "Cancel", es: "Cancelar" },
+    notAllowed: { en: "Admin mode is not available for your account.", es: "El modo administrador no está disponible para tu cuenta." },
   },
 }
 

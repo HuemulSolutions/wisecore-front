@@ -1,8 +1,8 @@
 import { useMemo, useEffect, useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Search, FileText, AlertTriangle, X } from "lucide-react";
+import { Search, FileText, AlertTriangle, X, Sparkles } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,7 +26,26 @@ import { getAllTemplates } from "@/services/templates";
 import { getTags } from "@/services/tags";
 import { useOrganization } from "@/contexts/organization-context";
 import { DocumentResult } from "@/components/search/search-document-result";
+import { SearchPassageResult } from "@/components/search/search-passage-result";
+import { SearchPassageFeedback } from "@/components/search/search-passage-feedback";
+import { SearchPassageGroup } from "@/components/search/search-passage-group";
+import { HuemulSegmentedControl } from "@/huemul/components/huemul-segmented-control";
+import { HuemulPagination } from "@/huemul/components/huemul-pagination";
+import { groupPassagesByAsset } from "@/lib/search-passages";
+import {
+  GROUPED_PAGE_SIZE,
+  PASSAGES_PAGE_SIZE,
+  parseDisplayFromURL,
+  parseModeFromURL,
+  type PassageDisplay,
+  type SearchMode,
+} from "@/lib/search-mode";
 import { SearchResultsSkeleton } from "@/components/search/search-results-skeleton";
+import { HuemulNotice } from "@/huemul/components/huemul-notice";
+import { useSearchPassages } from "@/hooks/useSearchPassages";
+import { useOrgPath } from "@/hooks/useOrgRouter";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
+import type { SearchIn, SearchPassagesBusinessDates, SearchPassagesParams, VersionScope } from "@/types/search";
 import { getErrorMessage } from "@/lib/error-utils";
 import { ApiError } from "@/types/api-error";
 import type { FetchOptionsParams, FetchOptionsResult } from "@/huemul/components/huemul-field";
@@ -60,8 +79,11 @@ function parseValuesFromURL(params: URLSearchParams): HuemulFilterValues {
     query: params.get("q") ?? "",
     searchType: (params.get("search_type") as SearchType) || "semantic",
     documentTypeId: params.get("document_type_id") ?? "",
+    documentTypeIds: params.getAll("document_type_ids"),
+    versionScope: (params.get("version_scope") as VersionScope) || "official",
+    includeFiles: params.get("include_files") === "true",
     templateId: params.get("template_id") ?? "",
-    tagId: params.get("tag_id") ?? "",
+    tagIds: params.getAll("tag_id"),
     ownerValue: params.get("owner") ?? "",
     lifecycleState: params.get("lifecycle_state") ?? "__all__",
     filterWithLlm: params.get("filter_with_llm") !== "false",
@@ -75,14 +97,19 @@ function parseValuesFromURL(params: URLSearchParams): HuemulFilterValues {
   return values;
 }
 
-function buildURLFromValues(values: HuemulFilterValues): URLSearchParams {
+function buildURLFromValues(values: HuemulFilterValues, mode: SearchMode, display: PassageDisplay): URLSearchParams {
   const params = new URLSearchParams();
   const query = String(values.query ?? "").trim();
   if (query) params.set("q", query);
-  params.set("search_type", String(values.searchType ?? "semantic"));
+  params.set("mode", mode);
+  if (mode !== "classic" && display === "asset") params.set("group", "asset");
+  if (mode === "classic") params.set("search_type", String(values.searchType ?? "semantic"));
+  asList(values.documentTypeIds).forEach((id) => params.append("document_type_ids", id));
+  if (values.versionScope && values.versionScope !== "official") params.set("version_scope", String(values.versionScope));
+  if (values.includeFiles) params.set("include_files", "true");
   if (values.documentTypeId) params.set("document_type_id", String(values.documentTypeId));
   if (values.templateId) params.set("template_id", String(values.templateId));
-  if (values.tagId) params.set("tag_id", String(values.tagId));
+  asList(values.tagIds).forEach((id) => params.append("tag_id", id));
   if (values.ownerValue) params.set("owner", String(values.ownerValue));
   if (values.lifecycleState && values.lifecycleState !== "__all__") {
     params.set("lifecycle_state", String(values.lifecycleState));
@@ -104,7 +131,21 @@ function buildURLFromValues(values: HuemulFilterValues): URLSearchParams {
   return params;
 }
 
+/** Lista de ids de un filtro múltiple; tolera `''` (un filtro sin def por permisos). */
+const asList = (v: HuemulFilterValue): string[] => (Array.isArray(v) ? (v as string[]).filter(Boolean) : []);
 const dr = (v: HuemulFilterValue): HuemulDateRangeValue => (v as HuemulDateRangeValue | undefined) ?? {};
+
+/** Las cuatro fechas de negocio con el nombre del query param (`expiration_date_from`, …). */
+function businessDatesFromValues(values: HuemulFilterValues): SearchPassagesBusinessDates {
+  const dates: Record<string, string> = {};
+  for (const prefix of DATE_PREFIXES) {
+    const v = dr(values[DATE_KEY_BY_PREFIX[prefix]]);
+    if (v.date) dates[`${prefix}_date`] = v.date;
+    if (v.from) dates[`${prefix}_date_from`] = v.from;
+    if (v.to) dates[`${prefix}_date_to`] = v.to;
+  }
+  return dates as SearchPassagesBusinessDates;
+}
 
 export default function SearchPage() {
   const { t } = useTranslation(["search", "common"]);
@@ -169,6 +210,13 @@ export default function SearchPage() {
   // — lets `filterDefs` toggle the LLM filter's visibility without a cycle
   // (filterDefs → hook → values → filterDefs).
   const currentSearchType = (searchParams.get("search_type") as SearchType) || "semantic";
+  // El modo y la presentación no son filtros: "Limpiar filtros" no los toca.
+  const [mode, setMode] = useState<SearchMode>(() => parseModeFromURL(searchParams));
+  const [display, setDisplay] = useState<PassageDisplay>(() => parseDisplayFromURL(searchParams));
+  const [page, setPage] = useState(1);
+  const isPassages = mode !== "classic";
+  const buildPath = useOrgPath();
+  const { canAccessModels, canRead } = useUserPermissions();
 
   // Cada filtro que pega al backend se gatea con el permiso del endpoint que
   // dispara, no con el de la página (ver ia context/rbac-audit-guide.md).
@@ -198,6 +246,7 @@ export default function SearchPage() {
         key: "searchType",
         type: "select",
         toolbar: true,
+        hidden: isPassages,
         group: groupSearch,
         label: t("filters.searchType"),
         allValue: "semantic",
@@ -216,14 +265,41 @@ export default function SearchPage() {
             {
               key: "documentTypeId",
               type: "async-combobox" as const,
+              hidden: isPassages,
               group: classification,
               label: t("filters.assetType"),
               placeholder: t("filters.all"),
               fetchOptions: fetchAssetTypes,
               pageSize: 20,
             },
+            // Avanzada y Profunda aceptan varios tipos a la vez ("políticas y procedimientos");
+            // /search/ acepta uno. Al cambiar de modo el valor pasa de una clave a la otra.
+            {
+              key: "documentTypeIds",
+              type: "async-combobox" as const,
+              multiSelect: true,
+              hidden: !isPassages,
+              group: classification,
+              label: t("filters.assetTypes"),
+              placeholder: t("filters.all"),
+              fetchOptions: fetchAssetTypes,
+              pageSize: 20,
+            },
           ]
         : []),
+      {
+        key: "versionScope",
+        type: "select",
+        hidden: !isPassages,
+        group: classification,
+        label: t("filters.versionScope"),
+        allValue: "official",
+        options: [
+          { value: "official", label: t("filters.versionScopeOfficial") },
+          { value: "latest", label: t("filters.versionScopeLatest") },
+          { value: "all", label: t("filters.versionScopeAll") },
+        ],
+      },
       ...(canFilterByTemplate
         ? [
             {
@@ -237,14 +313,13 @@ export default function SearchPage() {
             },
           ]
         : []),
-      // Sin confirmar contra backend que /search/ acepte tag_id — ver
-      // types/search/core.ts. La UI queda lista igual; si el backend lo
-      // ignora, el filtro simplemente no aplica.
+      // Varias etiquetas se combinan con OR, en los tres modos.
       ...(canFilterByTag
         ? [
             {
-              key: "tagId",
+              key: "tagIds",
               type: "async-combobox" as const,
+              multiSelect: true,
               group: classification,
               label: t("filters.tag"),
               placeholder: t("filters.all"),
@@ -329,10 +404,17 @@ export default function SearchPage() {
         chipLabel: t("filters.llmDisabledChip"),
         defaultValue: true,
         activeWhen: false,
-        hidden: currentSearchType !== "semantic",
+        hidden: isPassages || currentSearchType !== "semantic",
       },
       { key: "hasUnresolvedComments", type: "boolean", group: other, label: t("filters.unresolvedComments") },
       { key: "hasPendingAiSuggestion", type: "boolean", group: other, label: t("filters.pendingAiSuggestion") },
+      {
+        key: "includeFiles",
+        type: "boolean",
+        hidden: !isPassages,
+        group: other,
+        label: t("filters.includeFiles"),
+      },
     ];
   }, [
     t,
@@ -343,6 +425,7 @@ export default function SearchPage() {
     fetchTags,
     fetchUsers,
     currentSearchType,
+    isPassages,
     canFilterByAssetType,
     canFilterByTemplate,
     canFilterByTag,
@@ -379,13 +462,54 @@ export default function SearchPage() {
 
   // Persist filter state to the URL (text only changes on Enter, selects on pick → no spam).
   useEffect(() => {
-    setSearchParams(buildURLFromValues(values), { replace: true });
-  }, [values, setSearchParams]);
+    setSearchParams(buildURLFromValues(values, mode, display), { replace: true });
+  }, [values, mode, display, setSearchParams]);
+
+  // Otra consulta, otro filtro, otro modo u otra presentación: vuelta a la página 1.
+  useEffect(() => {
+    setPage(1);
+  }, [values, mode, display]);
+
+  const chipLabel = useCallback(
+    (key: string) => {
+      const chip = chips.find((c) => c.key === key);
+      if (!chip) return undefined;
+      const sep = chip.label.indexOf(": ");
+      return sep === -1 ? undefined : chip.label.slice(sep + 2);
+    },
+    [chips],
+  );
+
+  const changeMode = useCallback(
+    (next: SearchMode) => {
+      // El tipo de activo es único en la Clásica y múltiple en las otras: se traslada.
+      const single = String(values.documentTypeId ?? "");
+      const multi = asList(values.documentTypeIds);
+      if (next === "classic" && mode !== "classic" && multi.length) {
+        const label = chipLabel("documentTypeIds")?.split(", ")[0];
+        setValue("documentTypeId", multi[0]);
+        setSelectedLabel("documentTypeId", label);
+        setValue("documentTypeIds", []);
+        setSelectedLabel("documentTypeIds", undefined);
+      } else if (next !== "classic" && mode === "classic" && single) {
+        const label = chipLabel("documentTypeId");
+        setValue("documentTypeIds", [single]);
+        setSelectedLabel("documentTypeIds", label);
+        setValue("documentTypeId", "");
+        setSelectedLabel("documentTypeId", undefined);
+      }
+      setMode(next);
+    },
+    [values.documentTypeId, values.documentTypeIds, mode, chipLabel, setValue, setSelectedLabel],
+  );
 
   // "Nothing until search": active when there's query text or any real filter
   // (filterWithLlm alone does not trigger a search, matching prior behavior).
-  const hasActiveSearch =
-    !!String(values.query ?? "").trim() || chips.some((c) => c.key !== "filterWithLlm");
+  // Por pasajes solo se busca con texto: el endpoint no busca solo por filtros.
+  const hasQueryText = !!String(values.query ?? "").trim();
+  const hasActiveSearch = isPassages
+    ? hasQueryText
+    : hasQueryText || chips.some((c) => c.key !== "filterWithLlm");
 
   const searchTypeForQuery = (String(values.searchType ?? "semantic")) as SearchType;
   const exp = dr(values.expirationDate);
@@ -394,7 +518,7 @@ export default function SearchPage() {
   const aud = dr(values.auditDate);
 
   const { data: searchResponse, isLoading, isError, error, refetch } = useQuery<SearchResponse>({
-    queryKey: ["search", values, selectedOrganizationId],
+    queryKey: ["search", values, selectedOrganizationId, mode],
     queryFn: () =>
       search({
         query: String(values.query ?? ""),
@@ -402,7 +526,7 @@ export default function SearchPage() {
         search_type: searchTypeForQuery,
         document_type_id: (values.documentTypeId as string) || null,
         template_id: (values.templateId as string) || null,
-        tag_id: (values.tagId as string) || null,
+        tag_id: asList(values.tagIds),
         owner_scope: values.ownerValue === "__me__" ? "me" : undefined,
         created_by: values.ownerValue && values.ownerValue !== "__me__" ? String(values.ownerValue) : undefined,
         lifecycle_state:
@@ -427,13 +551,58 @@ export default function SearchPage() {
           : undefined,
       }),
     enabled:
+      !isPassages &&
       hasActiveSearch &&
       !!selectedOrganizationId &&
       !!organizationToken &&
       can("performSearch"),
   });
 
+  const passagesParams = useMemo<SearchPassagesParams | null>(() => {
+    if (!isPassages || !selectedOrganizationId) return null;
+    const lifecycle = values.lifecycleState && values.lifecycleState !== "__all__" ? [String(values.lifecycleState)] : undefined;
+    const customFields = (values.customFieldFilter as string[] | undefined)?.filter(Boolean);
+    const owner = String(values.ownerValue ?? "");
+    return {
+      organizationId: selectedOrganizationId,
+      query: String(values.query ?? "").trim(),
+      versionScope: (values.versionScope as VersionScope) || "official",
+      lifecycleStates: lifecycle,
+      documentTypeIds: asList(values.documentTypeIds),
+      templateId: (values.templateId as string) || null,
+      tagIds: asList(values.tagIds),
+      ownerScope: owner === "__me__" ? "me" : undefined,
+      createdBy: owner && owner !== "__me__" ? owner : null,
+      hasUnresolvedComments: (values.hasUnresolvedComments as boolean) || undefined,
+      hasPendingAiSuggestion: (values.hasPendingAiSuggestion as boolean) || undefined,
+      businessDates: businessDatesFromValues(values),
+      customFieldFilter: customFields?.length ? customFields : undefined,
+      searchIn: (values.includeFiles ? ["executions", "media"] : ["executions"]) as SearchIn[],
+      highPrecision: mode === "deep",
+      page,
+      pageSize: display === "asset" ? GROUPED_PAGE_SIZE : PASSAGES_PAGE_SIZE,
+    };
+  }, [isPassages, selectedOrganizationId, values, mode, page, display]);
+
+  const passagesQuery = useSearchPassages(passagesParams, {
+    enabled: isPassages && hasActiveSearch && !!organizationToken && can("searchPassages"),
+  });
+  const passagesResponse = passagesQuery.data;
+  const rerankNotConfigured =
+    ApiError.isApiError(passagesQuery.error) && passagesQuery.error.code === "RERANK_LLM_NOT_CONFIGURED";
+  const canSendFeedback = can("sendSearchFeedback");
+  const canDownloadMedia = canRead("media");
+
   const canSearch = !!queryDraft.trim() || hasActiveSearch;
+  const passageGroups = useMemo(
+    () => (display === "asset" && passagesResponse ? groupPassagesByAsset(passagesResponse.passages) : []),
+    [display, passagesResponse],
+  );
+  const modeOptions = [
+    { value: "classic" as const, label: t("modes.classic.label"), title: t("modes.classic.hint") },
+    { value: "advanced" as const, label: t("modes.advanced.label"), title: t("modes.advanced.hint") },
+    { value: "deep" as const, label: t("modes.deep.label"), title: t("modes.deep.hint"), icon: Sparkles },
+  ];
 
   if (isLoadingPermissions) {
     return (
@@ -470,7 +639,7 @@ export default function SearchPage() {
         <HuemulButton
           icon={Search}
           label={t("common:search")}
-          loading={isLoading}
+          loading={isPassages ? passagesQuery.isFetching : isLoading}
           disabled={!canSearch}
           onClick={commitQuery}
         />
@@ -485,7 +654,27 @@ export default function SearchPage() {
       </div>
 
       {/* Filter controls (left-aligned) */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <HuemulSegmentedControl
+          value={mode}
+          options={modeOptions}
+          onChange={changeMode}
+          ariaLabel={t("modes.label")}
+          className="w-auto shrink-0"
+          optionClassName="px-4"
+        />
+        {isPassages && (
+          <HuemulSegmentedControl
+            value={display}
+            options={[
+              { value: "passage" as const, label: t("display.passage") },
+              { value: "asset" as const, label: t("display.asset") },
+            ]}
+            onChange={setDisplay}
+            ariaLabel={t("display.label")}
+            className="w-auto shrink-0"
+          />
+        )}
         <HuemulFilterButton count={activeCount} open={open} onToggle={() => setOpen(!open)} />
         <HuemulFilterInline
           filters={filterDefs}
@@ -531,7 +720,126 @@ export default function SearchPage() {
                 </div>
               )}
 
-              {hasActiveSearch && (
+              {isPassages && !hasActiveSearch && chips.length > 0 && (
+                <HuemulNotice tone="blue">{t("passages.needsQuery")}</HuemulNotice>
+              )}
+
+              {isPassages && hasActiveSearch && (
+                <div className="space-y-4 pb-8">
+                  {passagesQuery.isLoading && <SearchResultsSkeleton />}
+
+                  {rerankNotConfigured && (
+                    <HuemulNotice
+                      tone="amber"
+                      action={
+                        <span className="flex shrink-0 items-center gap-2">
+                          <HuemulButton
+                            variant="outline"
+                            size="sm"
+                            label={t("passages.searchAdvanced")}
+                            onClick={() => changeMode("advanced")}
+                            className="h-7 text-xs"
+                          />
+                          {canAccessModels && (
+                            <Link to={buildPath("/models")} className="text-xs font-semibold underline hover:cursor-pointer">
+                              {t("passages.configureModel")}
+                            </Link>
+                          )}
+                        </span>
+                      }
+                    >
+                      {t("passages.rerankNotConfigured")}
+                    </HuemulNotice>
+                  )}
+
+                  {passagesQuery.isError && !rerankNotConfigured && (
+                    <div className="flex flex-col items-center justify-center min-h-[400px] text-center rounded-lg border border-dashed bg-muted/50 p-8">
+                      <AlertTriangle className="w-8 h-8 text-red-500 mb-3" />
+                      <p className="text-red-600 mb-2 font-medium">
+                        {getErrorMessage(passagesQuery.error, t("errors.performSearch"))}
+                      </p>
+                      <HuemulButton
+                        variant="outline"
+                        size="sm"
+                        label={t("errors.retry")}
+                        onClick={() => { passagesQuery.refetch(); }}
+                      />
+                    </div>
+                  )}
+
+                  {passagesResponse && passagesResponse.passages.length === 0 && !passagesQuery.isLoading && (
+                    <div className="flex flex-col items-center justify-center min-h-[400px] text-center rounded-lg border border-dashed bg-muted/50 p-8">
+                      <FileText className="w-8 h-8 text-muted-foreground mb-3" />
+                      <h3 className="text-sm font-medium text-foreground mb-1">{t("empty.noResultsTitle")}</h3>
+                      <p className="text-xs text-muted-foreground">{t("empty.noResultsDescription")}</p>
+                    </div>
+                  )}
+
+                  {passagesResponse && passagesResponse.passages.length > 0 && (
+                    <div className="space-y-3">
+                      {passagesResponse.high_precision.requested && passagesResponse.high_precision.error && (
+                        <HuemulNotice tone="blue">{t("passages.rerankFailed")}</HuemulNotice>
+                      )}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h2 className="text-sm font-semibold text-foreground">
+                          {t("passages.title")}{" "}
+                          <span className="font-normal text-muted-foreground">
+                            ·{" "}
+                            {page > 1 || passagesResponse.has_next
+                              ? t("passages.countPaged", { page, count: passagesResponse.passages.length })
+                              : t("passages.count", { count: passagesResponse.passages.length })}
+                          </span>
+                        </h2>
+                        {canSendFeedback && passagesResponse.search_log_id && selectedOrganizationId && (
+                          <SearchPassageFeedback
+                            key={passagesResponse.search_log_id}
+                            organizationId={selectedOrganizationId}
+                            searchLogId={passagesResponse.search_log_id}
+                            label={t("feedback.searchQuestion")}
+                          />
+                        )}
+                      </div>
+                      {passagesResponse.high_precision.applied && passagesResponse.high_precision.llm_name && (
+                        <p className="text-[11px] text-muted-foreground">
+                          {t("passages.rankedWith", { name: passagesResponse.high_precision.llm_name })}
+                        </p>
+                      )}
+                      {display === "asset"
+                        ? passageGroups.map((group) => (
+                            <SearchPassageGroup
+                              key={`${passagesResponse.search_log_id ?? "log"}-${group.documentId}`}
+                              group={group}
+                              organizationId={selectedOrganizationId ?? ""}
+                              searchLogId={passagesResponse.search_log_id}
+                              canSendFeedback={canSendFeedback}
+                            />
+                          ))
+                        : passagesResponse.passages.map((passage) => (
+                            <SearchPassageResult
+                              key={`${passagesResponse.search_log_id ?? "log"}-${passage.passage_id}`}
+                              passage={passage}
+                              organizationId={selectedOrganizationId ?? ""}
+                              searchLogId={passagesResponse.search_log_id}
+                              canSendFeedback={canSendFeedback}
+                              canDownloadMedia={canDownloadMedia}
+                            />
+                          ))}
+                      {(page > 1 || passagesResponse.has_next) && (
+                        <HuemulPagination
+                          page={page}
+                          pageSize={passagesResponse.page_size ?? passagesParams?.pageSize ?? PASSAGES_PAGE_SIZE}
+                          hasNext={Boolean(passagesResponse.has_next)}
+                          hasPrevious={page > 1}
+                          onPageChange={setPage}
+                          variant="bare"
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!isPassages && hasActiveSearch && (
                 <div className="space-y-4 pb-8">
                   {isLoading && <SearchResultsSkeleton />}
 

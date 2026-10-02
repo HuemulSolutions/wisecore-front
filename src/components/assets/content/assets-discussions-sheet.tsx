@@ -121,6 +121,15 @@ export function AssetsDiscussionsSheet({
   const isOwner = React.useCallback(
     (discussion: TDiscussion) => !!currentUserId && currentUserId === discussion.userId,
     [currentUserId]
+  const canManage = React.useCallback(
+    (discussion: TDiscussion) =>
+      canUpdateDiscussions || (canCreateDiscussions && !!currentUserId && currentUserId === discussion.userId),
+    [canUpdateDiscussions, canCreateDiscussions, currentUserId]
+  );
+  const canRemove = React.useCallback(
+    (discussion: TDiscussion) =>
+      canDeleteDiscussions || (canCreateDiscussions && !!currentUserId && currentUserId === discussion.userId),
+    [canDeleteDiscussions, canCreateDiscussions, currentUserId]
   );
 
   const handleUnresolve = (discussionId: string) => {

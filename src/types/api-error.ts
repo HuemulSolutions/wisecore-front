@@ -79,6 +79,17 @@ export class ApiError extends Error {
   }
 
   /**
+   * Error de una respuesta no-ok leída con `fetch` directo (descargas que no pasan por
+   * httpClient): un `ApiError` si trae el formato uniforme del backend, para conservar
+   * `code`/`detail` y los mensajes dedicados de `handleApiError`; si no, un `Error` con
+   * `fallbackMessage`.
+   */
+  static async fromResponse(response: Response, fallbackMessage: string): Promise<Error> {
+    const body = await response.json().catch(() => null);
+    return ApiError.isApiErrorResponse(body) ? new ApiError(body) : new Error(fallbackMessage);
+  }
+
+  /**
    * Check if an object has the shape of an ApiErrorResponse
    */
   static isApiErrorResponse(obj: unknown): obj is ApiErrorResponse {

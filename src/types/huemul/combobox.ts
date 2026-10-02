@@ -38,7 +38,7 @@ export interface HuemulComboboxProps {
   selectedOptions?: HuemulComboboxOption[]
   /** Se dispara (junto a onValueChange) con el label de la opción resuelta al
    *  seleccionar o limpiar. Permite a los callers cachear nombres (p.ej. chips).
-   *  Solo aplica en selección única. */
+   *  En multi-select recibe los labels seleccionados unidos por coma. */
   onSelectedLabelChange?: (label?: string) => void
 
   placeholder?: string
