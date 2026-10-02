@@ -20,6 +20,7 @@ import {
 } from "@/components/sections/question-type-meta"
 import type { CreateEditCustomFieldDialogProps, CustomFieldOption } from '@/types/custom-fields'
 import { logger } from "@/lib/logger"
+import { AGENT_FACET_KEY_MAX_LENGTH, isConflictError, isValidAgentIdentifier } from "@/lib/agent-identifiers"
 import type { FormFieldConfig } from '@/types/sections/core'
 
 export type { CreateEditCustomFieldDialogProps } from '@/types/custom-fields'
@@ -49,6 +50,8 @@ export function CreateEditCustomFieldSheet({
     max_value: null as number | null,
     config: {} as FormFieldConfig,
     required: false,
+    agent_facet: false,
+    agent_facet_key: "",
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -95,6 +98,8 @@ export function CreateEditCustomFieldSheet({
           max_value: fileUploadLimits ? fileUploadLimits.max : (typeof customField.max_value === 'number' ? customField.max_value : null),
           config: readFieldConfig(customField),
           required: customField.required,
+          agent_facet: customField.agent_facet ?? false,
+          agent_facet_key: customField.agent_facet_key ?? "",
         })
       } else {
         setFormData({
@@ -107,6 +112,8 @@ export function CreateEditCustomFieldSheet({
           max_value: null,
           config: {},
           required: false,
+          agent_facet: false,
+          agent_facet_key: "",
         })
       }
       setErrors({})
@@ -159,9 +166,28 @@ export function CreateEditCustomFieldSheet({
       newErrors.min_value = t('form.minMaxInvalid')
     }
 
+    if (formData.agent_facet) {
+      const key = formData.agent_facet_key.trim()
+      if (!key) {
+        newErrors.agent_facet_key = t('form.agentFacet.keyRequired')
+      } else if (key.length > AGENT_FACET_KEY_MAX_LENGTH) {
+        newErrors.agent_facet_key = t('form.agentFacet.keyTooLong', { max: AGENT_FACET_KEY_MAX_LENGTH })
+      } else if (!isValidAgentIdentifier(key)) {
+        newErrors.agent_facet_key = t('form.agentFacet.keyInvalid')
+      }
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
+
+  // Faceta para agentes. Apagada solo se manda `agent_facet: false`: la clave
+  // queda guardada en el backend y no hay que reescribirla al volver a encenderla.
+  const getAgentFacetPayload = () => (
+    formData.agent_facet
+      ? { agent_facet: true, agent_facet_key: formData.agent_facet_key.trim() }
+      : { agent_facet: false }
+  )
 
   // Config específica por question_type — mismo modelo de datos que los form fields de sección:
   // numérico → min/max; escala lineal → min/max + etiquetas en default_value; calificación →
@@ -222,6 +248,7 @@ export function CreateEditCustomFieldSheet({
             // fields (question_type: null) keep their existing data_type untouched.
             ...(formData.question_type && { question_type: formData.question_type }),
             ...getTypeSpecificPayload(),
+            ...getAgentFacetPayload(),
           },
         })
         onSuccess()
@@ -233,10 +260,15 @@ export function CreateEditCustomFieldSheet({
           question_type: formData.question_type,
           required: formData.required,
           ...getTypeSpecificPayload(),
+          ...getAgentFacetPayload(),
         })
         onSuccess(created)
       }
     } catch (error) {
+      // 409: la clave de faceta ya la usa otro custom field (el toast lo muestra la mutación).
+      if (isConflictError(error)) {
+        setErrors(prev => ({ ...prev, agent_facet_key: t('form.agentFacet.keyConflict', { key: formData.agent_facet_key.trim() }) }))
+      }
       logger.error("Error submitting custom field:", error)
     } finally {
       setIsSubmitting(false)
@@ -305,6 +337,20 @@ export function CreateEditCustomFieldSheet({
     setFormData(prev => ({ ...prev, required: value }))
   }
 
+  const handleAgentFacetChange = (value: boolean) => {
+    setFormData(prev => ({ ...prev, agent_facet: value }))
+    if (!value && errors.agent_facet_key) {
+      setErrors(prev => ({ ...prev, agent_facet_key: "" }))
+    }
+  }
+
+  const handleAgentFacetKeyChange = (value: string) => {
+    setFormData(prev => ({ ...prev, agent_facet_key: value }))
+    if (errors.agent_facet_key) {
+      setErrors(prev => ({ ...prev, agent_facet_key: "" }))
+    }
+  }
+
   const formatQuestionType = (questionType: string) => questionTypeLabel(questionType, tSections)
 
   // Une "2 plantillas" y/o "5 documentos" con "y", omitiendo el lado con 0
@@ -370,6 +416,10 @@ export function CreateEditCustomFieldSheet({
             onMaxValueChange={(value) => handleNumericChange('max_value', value)}
             onConfigChange={handleConfigChange}
             onRequiredChange={handleRequiredChange}
+            agentFacet={formData.agent_facet}
+            agentFacetKey={formData.agent_facet_key}
+            onAgentFacetChange={handleAgentFacetChange}
+            onAgentFacetKeyChange={handleAgentFacetKeyChange}
             questionTypes={questionTypes}
             formatQuestionType={formatQuestionType}
             errors={errors}

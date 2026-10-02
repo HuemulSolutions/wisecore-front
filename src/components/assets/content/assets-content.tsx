@@ -106,6 +106,7 @@ import {
   useInvalidateDocumentSectionAccess,
 } from '@/hooks/useDocumentSectionAccess';
 import { usePageAccess } from '@/hooks/usePageAccess';
+import { AddToCollectionSheet } from '@/components/collections/add-to-collection-sheet';
 import { invalidateExecutionLifecycleSteps } from '@/hooks/useLifecycle';
 import type { AssetDetailPanelTab, ContentSection, LibraryContentProps, LifecyclePermissions, LifecycleStatus } from '@/types/assets';
 import type { FormValuesSectionPayload } from '@/types/sections/core';
@@ -186,6 +187,7 @@ export function AssetContent({
   variant = "panel",
   onOpenFullscreen,
   onExitFullscreen,
+  defaultDetailPanelCollapsed = false,
 }: LibraryContentProps) {
   // "panel": columna derecha de /asset (default). "fullscreen": vista dedicada sin
   // header/nav/árbol (pages/asset-fullscreen.tsx) — ver
@@ -207,6 +209,7 @@ export function AssetContent({
   const { canCreate, canList, canUpdate, canDelete, canAccessTemplates, canAccessAssets, canAccessDiagrams, isOrgAdmin, hasPermission } = useUserPermissions();
   const { can } = usePageAccess('asset');
   const { can: canMedia } = usePageAccess('media');
+  const [isAddToCollectionOpen, setIsAddToCollectionOpen] = useState(false);
   const { handleCreateAsset: openCreateAssetDialog } = useNavKnowledgeActions();
   const refreshFileTree = useNavKnowledgeRefresh();
   const { guardedAction } = useOptionalEditingGuard();
@@ -585,7 +588,7 @@ export function AssetContent({
 
   // Sidebar and sheets — rail Índice/Campos/Archivos/Vínculos del panel de detalle.
   const [activeTab, setActiveTab] = useState<AssetDetailPanelTab>('index');
-  const [isDetailPanelCollapsed, setIsDetailPanelCollapsed] = useState(false);
+  const [isDetailPanelCollapsed, setIsDetailPanelCollapsed] = useState(defaultDetailPanelCollapsed);
   const detailPanelRef = useRef<ImperativePanelHandle>(null);
   // Los custom fields son un recurso propio (custom_fields), no del asset: el tab
   // y su query exigen el permiso de listarlos.
@@ -624,6 +627,7 @@ export function AssetContent({
   const [isPermissionsSheetOpen, setIsPermissionsSheetOpen] = useState(false);
   const canViewTags = can('viewTags');
   const canManageTags = can('manageTags');
+  const canAddToCollection = can('addToCollection');
 
   // Effects to trigger on-demand loading
   useEffect(() => {
@@ -2847,6 +2851,7 @@ export function AssetContent({
                             onClone={() => openCloneDialog()}
                             onCloneToNew={() => openCloneToNewDocumentSheet()}
                             onCreateTemplate={() => setIsCreateTemplateFromDocumentDialogOpen(true)}
+                            onAddToCollection={canAddToCollection ? () => setIsAddToCollectionOpen(true) : undefined}
                             onExportMarkdown={handleExportMarkdown}
                             onExportWord={handleExportWord}
                             onExportCustomWord={handleExportCustomWord}
@@ -3692,7 +3697,8 @@ export function AssetContent({
           <ResizableHandle/>
           <ResizablePanel
             ref={detailPanelRef}
-            defaultSize={22}
+            // Colapsado arranca en el mismo tamaño que `collapsedSize`, para que coincida con el flag.
+            defaultSize={defaultDetailPanelCollapsed ? 4 : 22}
             minSize={16}
             collapsible
             collapsedSize={4}
@@ -3955,6 +3961,17 @@ export function AssetContent({
         fieldName={customFieldDocumentToDelete?.name}
         onAction={handleConfirmDeleteCustomFieldDocument}
       />
+
+      {/* Agregar el activo a una colección (menú ⋯) */}
+      {canAddToCollection && (
+        <AddToCollectionSheet
+          open={isAddToCollectionOpen}
+          onOpenChange={setIsAddToCollectionOpen}
+          documentId={selectedFile.id}
+          documentName={documentContent?.document_name}
+          executionId={selectedExecutionId}
+        />
+      )}
 
       {/* Create Template from Document Dialog */}
       <CreateTemplateFromDocumentDialog

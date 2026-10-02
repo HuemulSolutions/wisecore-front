@@ -22,7 +22,16 @@ export interface CustomFieldQuestionType {
   data_type: CustomFieldDataType;
 }
 
-export interface CustomField {
+// "Faceta para agentes": un custom field marcado como faceta define a qué
+// proyectos/contextos aplica un documento (ej. capa = backend). Los agentes lo
+// referencian por `agent_facet_key`. Opcionales en el tipo porque un backend
+// previo a la feature no los devuelve.
+export interface CustomFieldAgentFacetFields {
+  agent_facet?: boolean;
+  agent_facet_key?: string | null; // kebab-case, única en la organización (409 si se repite)
+}
+
+export interface CustomField extends CustomFieldAgentFacetFields {
   id: string;
   data_type: CustomFieldDataType;
   created_at: string;
@@ -82,7 +91,7 @@ export type CustomFieldValueFileResponse = ApiResponse<CustomFieldValueFile>;
 // distinto recurso base.
 export type CustomFieldValueEntityType = "template" | "document";
 
-export interface CreateCustomFieldRequest {
+export interface CreateCustomFieldRequest extends CustomFieldAgentFacetFields {
   name: string;
   description: string;
   masc: string;
@@ -94,7 +103,7 @@ export interface CreateCustomFieldRequest {
   max_value?: unknown | null;
 }
 
-export interface UpdateCustomFieldRequest {
+export interface UpdateCustomFieldRequest extends CustomFieldAgentFacetFields {
   name?: string;
   description?: string;
   masc?: string;

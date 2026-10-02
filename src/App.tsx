@@ -31,6 +31,8 @@ const AssetTypesPage = lazy(() => import("./pages/assets-types"));
 const AssetTypeDetailPage = lazy(() => import("./pages/asset-type-detail"));
 const CustomFieldsPage = lazy(() => import("./pages/custom-fields"));
 const TagsPage = lazy(() => import("./pages/tags"));
+const CollectionsPage = lazy(() => import("./pages/collections"));
+const CollectionDetailPage = lazy(() => import("./pages/collection-detail"));
 const CanvasPage = lazy(() => import("./pages/canvas"));
 const DiagramsPage = lazy(() => import("./pages/diagrams"));
 const GlobalAdminPage = lazy(() => import("./pages/global-admin"));
@@ -161,6 +163,16 @@ export default function App() {
             <Route path="tags" element={
               <PermissionProtectedRoute permissions={[...RBAC_PAGES.tags.routePermissions]}>
                 <TagsPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="collections" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.collections.routePermissions]}>
+                <CollectionsPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="collections/:collectionId" element={
+              <PermissionProtectedRoute permissions={[...RBAC_PAGES.collections.routePermissions]}>
+                <CollectionDetailPage />
               </PermissionProtectedRoute>
             } />
 

@@ -6,6 +6,7 @@ const translations = {
     templates: { en: "Templates", es: "Plantillas" },
     diagrams: { en: "Diagrams", es: "Diagramas" },
     workflow: { en: "Workflow", es: "Workflow" },
+    collections: { en: "Collections", es: "Colecciones" },
     navigationMenuTitle: { en: "Navigation", es: "Navegación" },
   },
   header: {

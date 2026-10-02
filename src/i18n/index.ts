@@ -42,6 +42,7 @@ import errorDetails from './locales/error-details'
 import tokenUsage from './locales/token-usage'
 import tokens from './locales/tokens'
 import tags from './locales/tags'
+import collections from './locales/collections'
 import preferences from './locales/preferences'
 import { logger } from '@/lib/logger'
 
@@ -105,6 +106,7 @@ const modules = {
   'token-usage': tokenUsage,
   tokens,
   tags,
+  collections,
   preferences,
 } as const
 
