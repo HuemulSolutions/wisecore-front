@@ -114,6 +114,22 @@ describe('CollectionDetailPage', () => {
   }
   const headerMenu = async () => (await screen.findAllByRole('button', { name: 'More actions' }))[0]
 
+  it('una colección para agentes muestra su identificador y sus alias', async () => {
+    renderDetail('/collections/col-1', {
+      ...ADMIN_DETAIL,
+      for_agent: true,
+      agent_slug: 'auditoria-ti',
+      agent_usage: 'Al auditar',
+      agent_kind: 'behavior',
+      agent_aliases: ['auditor', 'aud'],
+    })
+
+    expect(await screen.findByText('auditoria-ti')).toBeInTheDocument()
+    expect(screen.getByText('Aliases')).toBeInTheDocument()
+    expect(screen.getByText('auditor')).toBeInTheDocument()
+    expect(screen.getByText('aud')).toBeInTheDocument()
+  })
+
   it('quien administra entra en Diseño y desde ⋯ pasa a Elaborador y vuelve', async () => {
     const { user } = renderDetail()
 

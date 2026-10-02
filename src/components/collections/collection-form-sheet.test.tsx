@@ -30,6 +30,16 @@ const saved: Collection = {
   updated_at: null,
 }
 
+const agentCollection: Collection = {
+  ...saved,
+  name: 'Auditoría de TI',
+  for_agent: true,
+  agent_slug: 'auditoria-ti',
+  agent_usage: 'Al auditar',
+  agent_kind: 'behavior',
+  agent_aliases: ['auditor', 'aud'],
+}
+
 function captureCreate(respond: (body: unknown) => Response) {
   const bodies: unknown[] = []
   server.use(
@@ -129,5 +139,60 @@ describe('CollectionFormSheet', () => {
 
     const messages = await screen.findAllByText('Another collection already uses the identifier "arquitectura". Choose a different one.')
     expect(messages.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('para agentes manda los alias, normalizados como el identificador', async () => {
+    const bodies = captureCreate((body) => respondOk({ ...saved, ...(body as object) }))
+    const { user } = renderWithProviders(
+      <CollectionFormSheet open onOpenChange={() => {}} collection={null} canManageAgentCollections />,
+    )
+
+    await user.type(screen.getByPlaceholderText(/Onboarding for new analysts/), 'Auditoría de TI')
+    await user.click(screen.getByRole('radio', { name: /AI agents/ }))
+    await user.type(screen.getByLabelText('Other names (aliases)'), 'Auditor{Enter}Aud TI{Enter}')
+    await user.type(screen.getByPlaceholderText(/Before designing, writing or reviewing/), 'Al auditar')
+    await user.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => expect(bodies).toHaveLength(1))
+    expect(bodies[0]).toMatchObject({ agent_slug: 'auditoria-de-ti', agent_aliases: ['auditor', 'aud-ti'] })
+  })
+
+  it('al editar muestra los alias y quitarlos todos manda []', async () => {
+    const bodies: unknown[] = []
+    server.use(
+      http.put(`${backendUrl}/collections/col-1`, async ({ request }) => {
+        const body = await request.json()
+        bodies.push(body)
+        return respondOk({ ...agentCollection, ...(body as object) })
+      }),
+    )
+    const { user } = renderWithProviders(
+      <CollectionFormSheet open onOpenChange={() => {}} collection={agentCollection} canManageAgentCollections />,
+    )
+
+    expect(screen.getByText('auditor')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Remove alias "auditor"' }))
+    await user.click(screen.getByRole('button', { name: 'Remove alias "aud"' }))
+    await user.click(screen.getByRole('button', { name: 'Update' }))
+
+    await waitFor(() => expect(bodies).toHaveLength(1))
+    expect(bodies[0]).toMatchObject({ agent_slug: 'auditoria-ti', agent_aliases: [] })
+  })
+
+  it('un 409 AGENT_ALIAS_CONFLICT marca los alias y no el identificador', async () => {
+    server.use(
+      http.put(`${backendUrl}/collections/col-1`, () =>
+        respondApiError(409, 'AGENT_ALIAS_CONFLICT', "agent_aliases ['auditor'] are already used"),
+      ),
+    )
+    const { user } = renderWithProviders(
+      <CollectionFormSheet open onOpenChange={() => {}} collection={agentCollection} canManageAgentCollections />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Update' }))
+
+    const messages = await screen.findAllByText(/Another collection already uses one of these names/)
+    expect(messages.length).toBeGreaterThanOrEqual(1)
+    expect(screen.queryByText(/already uses the identifier/)).not.toBeInTheDocument()
   })
 })

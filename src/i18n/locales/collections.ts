@@ -126,6 +126,27 @@ const translations = {
       es: "El agente lee este texto para decidir si la colección es relevante para la tarea.",
     },
     usageRequired: { en: "Describe when agents should use it", es: "Describir cuándo deben usarla los agentes" },
+    aliases: { en: "Other names (aliases)", es: "Otros nombres (alias)" },
+    aliasesPlaceholder: { en: "e.g. auditor — press Enter to add", es: "Ej.: auditor — Enter para agregar" },
+    aliasesHint: {
+      en: "Other ways to ask for it: \"act as auditor\" finds the collection by any of these names. Up to 10, written like the identifier.",
+      es: "Otras formas de pedirla: \"actúa como auditor\" encuentra la colección por cualquiera de estos nombres. Hasta 10, con el mismo formato que el identificador.",
+    },
+    aliasInvalid: {
+      en: "\"{{alias}}\" is not valid: use letters, numbers and hyphens",
+      es: "\"{{alias}}\" no es válido: usar letras, números y guiones",
+    },
+    aliasDuplicate: { en: "\"{{alias}}\" is already in the list", es: "\"{{alias}}\" ya está en la lista" },
+    aliasSameAsSlug: {
+      en: "\"{{alias}}\" is the agent identifier: it does not need an alias",
+      es: "\"{{alias}}\" es el identificador para agentes: no hace falta como alias",
+    },
+    aliasesMax: { en: "Up to {{max}} aliases", es: "Hasta {{max}} alias" },
+    aliasConflict: {
+      en: "Another collection already uses one of these names (as identifier or alias). Choose different ones.",
+      es: "Otra colección ya usa alguno de estos nombres (como identificador o alias). Elegir otros.",
+    },
+    removeAlias: { en: "Remove alias \"{{alias}}\"", es: "Quitar el alias \"{{alias}}\"" },
     visibility: { en: "Visibility", es: "Visibilidad" },
     visibilityPrivate: { en: "Private", es: "Privada" },
     visibilityPublic: { en: "Public", es: "Pública" },
@@ -317,6 +338,7 @@ const translations = {
     instructionsTitle: { en: "General rules", es: "Reglas generales" },
     noInstructions: { en: "No general rules.", es: "Sin reglas generales." },
     agentIdentifier: { en: "Agent identifier", es: "Identificador para agentes" },
+    aliases: { en: "Aliases", es: "Alias" },
     usage: { en: "When to use it", es: "Cuándo usarla" },
     selectAsset: {
       en: "Choose an asset from the index to read it here.",

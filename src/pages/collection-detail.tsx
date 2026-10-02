@@ -297,6 +297,18 @@ export default function CollectionDetailPage() {
           <dd>
             <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{detail.agent_slug}</code>
           </dd>
+          {(detail.agent_aliases ?? []).length > 0 && (
+            <>
+              <dt className="font-medium">{t("detail.aliases")}</dt>
+              <dd className="flex flex-wrap gap-1.5">
+                {(detail.agent_aliases ?? []).map((alias) => (
+                  <code key={alias} className="rounded bg-muted px-1.5 py-0.5 text-xs">
+                    {alias}
+                  </code>
+                ))}
+              </dd>
+            </>
+          )}
           <dt className="font-medium">{t("detail.usage")}</dt>
           <dd className="text-muted-foreground">{detail.agent_usage}</dd>
         </dl>

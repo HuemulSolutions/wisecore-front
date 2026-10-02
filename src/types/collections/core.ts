@@ -24,6 +24,8 @@ export interface Collection {
   agent_slug: string | null
   agent_usage: string | null
   agent_kind: CollectionAgentKind
+  /** Otros nombres con que se pide la colección ("auditor", "aud"). Backend ≥ 2.11. */
+  agent_aliases?: string[]
   created_by: string | null
   updated_by: string | null
   created_at: string | null
@@ -141,6 +143,7 @@ export interface CollectionFormData {
   agent_slug: string
   agent_usage: string
   agent_kind: CollectionAgentKind
+  agent_aliases: string[]
 }
 
 export type CreateCollectionRequest = Partial<Omit<CollectionFormData, 'name'>> & { name: string }
@@ -154,6 +157,8 @@ export type UpdateCollectionRequest = Partial<{
   agent_slug: string | null
   agent_usage: string | null
   agent_kind: CollectionAgentKind
+  /** `[]` borra los alias. */
+  agent_aliases: string[]
 }>
 
 export interface GetCollectionsParams {

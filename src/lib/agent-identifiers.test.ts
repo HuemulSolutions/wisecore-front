@@ -4,6 +4,7 @@ import {
   AGENT_FACET_KEY_MAX_LENGTH,
   isConflictError,
   isValidAgentIdentifier,
+  normalizeAgentAlias,
   suggestAgentIdentifier,
 } from '@/lib/agent-identifiers'
 
@@ -48,5 +49,14 @@ describe('isConflictError', () => {
     expect(isConflictError(apiError(409))).toBe(true)
     expect(isConflictError(apiError(400))).toBe(false)
     expect(isConflictError(new Error('409'))).toBe(false)
+  })
+})
+
+describe('normalizeAgentAlias', () => {
+  it('lleva lo escrito al formato del identificador', () => {
+    expect(normalizeAgentAlias('Auditor TI')).toBe('auditor-ti')
+    expect(normalizeAgentAlias('  Auditoría ')).toBe('auditoria')
+    expect(normalizeAgentAlias('aud')).toBe('aud')
+    expect(normalizeAgentAlias('!!!')).toBe('')
   })
 })

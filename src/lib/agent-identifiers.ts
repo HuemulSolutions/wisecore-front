@@ -8,6 +8,8 @@ export const AGENT_IDENTIFIER_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/
 export const AGENT_SLUG_MAX_LENGTH = 80
 export const AGENT_FACET_KEY_MAX_LENGTH = 60
 export const AGENT_USAGE_MAX_LENGTH = 2000
+/** Alias de una colección para agentes ("auditor", "aud"): mismo formato y largo que el slug. */
+export const AGENT_ALIASES_MAX = 10
 
 export function isValidAgentIdentifier(value: string): boolean {
   return AGENT_IDENTIFIER_PATTERN.test(value)
@@ -27,6 +29,14 @@ export function suggestAgentIdentifier(name: string, maxLength = AGENT_SLUG_MAX_
     .replace(/^-+|-+$/g, '')
     .slice(0, maxLength)
     .replace(/-+$/g, '')
+}
+
+/**
+ * Alias tal como lo guarda el backend: "Auditor TI" → "auditor-ti". Es la misma regla que sugiere el slug,
+ * así el usuario puede escribir el nombre como lo diría y queda en kebab-case.
+ */
+export function normalizeAgentAlias(text: string): string {
+  return suggestAgentIdentifier(text)
 }
 
 /** 409 del backend: el slug / la clave de faceta ya la usa otra entidad de la organización. */
