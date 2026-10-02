@@ -149,6 +149,7 @@ const translations = {
     searchPerson: { en: "Search a person by name or email...", es: "Buscar una persona por nombre o correo..." },
     noRoles: { en: "No roles have access yet.", es: "Todavía no hay roles con acceso." },
     noMatches: { en: "No results", es: "Sin resultados" },
+    searching: { en: "Searching...", es: "Buscando..." },
     noPeople: { en: "No other people have access yet.", es: "Todavía no hay otras personas con acceso." },
     levelsHint: {
       en: "Read: see the collection. Manage: edit it, its assets and who can see it. Each asset still follows its own permissions.",
@@ -170,8 +171,8 @@ const translations = {
     },
     summaryPublic: { en: "Public · every member can read it", es: "Pública · la lee cualquier miembro" },
     summaryPrivate: { en: "Private · shared with {{roles}} roles and {{people}} people", es: "Privada · compartida con {{roles}} roles y {{people}} personas" },
-    unknownRole: { en: "Role {{id}}", es: "Rol {{id}}" },
     unknownUser: { en: "User {{id}}", es: "Usuario {{id}}" },
+    formerMember: { en: "No longer a member", es: "Ya no es miembro" },
   },
   addItems: {
     title: { en: "Add assets", es: "Agregar activos" },
@@ -272,6 +273,19 @@ const translations = {
     },
     none: { en: "You do not manage any collection.", es: "No administras ninguna colección." },
     createNew: { en: "New collection", es: "Nueva colección" },
+  },
+  errorState: {
+    failedToLoad: { en: "Could not load the collections", es: "No se pudieron cargar las colecciones" },
+    errorDescription: {
+      en: "Check your connection and try again.",
+      es: "Revisa tu conexión y vuelve a intentarlo.",
+    },
+  },
+  errors: {
+    invalidAccess: {
+      en: "Access can only be given to roles and members of the organization. Refresh and try again.",
+      es: "Solo se puede dar acceso a roles y miembros de la organización. Actualiza y vuelve a intentarlo.",
+    },
   },
   mutations: {
     createSuccess: { en: "Collection created", es: "Colección creada" },

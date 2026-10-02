@@ -31,6 +31,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,6 +67,16 @@ export interface CollectionIndexProps {
   onAddItems: (groupId: string | null) => void
 }
 
+// Un ítem del menú que abre un diálogo (o enfoca un input) espera a que el menú termine de
+// cerrarse: si no, el foco que Radix devuelve al trigger compite con el del diálogo.
+const afterMenuCloses = (action: () => void) => () => {
+  setTimeout(action, 0)
+}
+
+const MENU_ITEM = "hover:cursor-pointer"
+// Trigger de solo ícono que aparece al pasar el mouse: también al recibir foco por teclado.
+const ROW_MENU_TRIGGER = "opacity-0 hover:cursor-pointer focus-visible:opacity-100 data-[state=open]:opacity-100"
+
 function ItemRow({
   row,
   props,
@@ -81,8 +92,10 @@ function ItemRow({
   })
   const selected = props.selectedItemId === item.id
   const pinned = item.version?.pinned ?? false
+  // Se puede fijar la versión que se está viendo salvo que ya sea la fijada; también la oficial
+  // vigente, para congelarla antes de que cambie.
   const canPinViewed =
-    selected && !!props.viewedExecutionId && props.viewedExecutionId !== item.version?.execution_id
+    selected && !!props.viewedExecutionId && !(pinned && props.viewedExecutionId === item.version?.execution_id)
 
   return (
     <li
@@ -95,6 +108,7 @@ function ItemRow({
           type="button"
           className="cursor-grab p-1 text-muted-foreground/60 hover:text-foreground"
           aria-label={t("detail.dragHint")}
+          title={t("detail.dragHint")}
           {...attributes}
           {...listeners}
         >
@@ -110,7 +124,12 @@ function ItemRow({
       >
         <span className={cn("w-full truncate text-sm", selected && "font-medium")}>{item.title ?? item.document_id}</span>
         <span className="flex w-full items-center gap-1 truncate text-xs text-muted-foreground">
-          {pinned && <Pin className="size-3 shrink-0" aria-label={t("detail.pinned")} />}
+          {pinned && (
+            <span title={t("detail.pinned")} className="inline-flex shrink-0">
+              <Pin className="size-3" aria-hidden="true" />
+              <span className="sr-only">{t("detail.pinned")}</span>
+            </span>
+          )}
           {item.internal_code && <span className="truncate">{item.internal_code}</span>}
           {item.version ? (
             <span className="truncate">· {item.version.version ?? item.version.name}</span>
@@ -122,35 +141,46 @@ function ItemRow({
       {props.canManage && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-7 opacity-0 group-hover/row:opacity-100 data-[state=open]:opacity-100">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("size-7 group-hover/row:opacity-100", ROW_MENU_TRIGGER)}
+              aria-label={t("detail.moreActions")}
+              title={t("detail.moreActions")}
+            >
               <MoreHorizontal className="size-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {canPinViewed && (
-              <DropdownMenuItem onSelect={() => props.onPinVersion(item, props.viewedExecutionId)}>
+              <DropdownMenuItem className={MENU_ITEM} onSelect={() => props.onPinVersion(item, props.viewedExecutionId)}>
                 <Pin className="size-4" />
                 {t("detail.pinCurrent")}
               </DropdownMenuItem>
             )}
             {pinned && (
-              <DropdownMenuItem onSelect={() => props.onPinVersion(item, null)}>
+              <DropdownMenuItem className={MENU_ITEM} onSelect={() => props.onPinVersion(item, null)}>
                 <PinOff className="size-4" />
                 {t("detail.usePublished")}
               </DropdownMenuItem>
             )}
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
+              <DropdownMenuSubTrigger className={MENU_ITEM}>
                 <FolderInput className="size-4" />
                 {t("detail.moveToGroup")}
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
-                <DropdownMenuItem disabled={item.group_id === null} onSelect={() => props.onMoveToGroup(item, null)}>
+                <DropdownMenuItem
+                  className={MENU_ITEM}
+                  disabled={item.group_id === null}
+                  onSelect={() => props.onMoveToGroup(item, null)}
+                >
                   {t("detail.ungrouped")}
                 </DropdownMenuItem>
                 {props.detail.groups.map((group) => (
                   <DropdownMenuItem
                     key={group.id}
+                    className={MENU_ITEM}
                     disabled={item.group_id === group.id}
                     onSelect={() => props.onMoveToGroup(item, group.id)}
                   >
@@ -160,7 +190,10 @@ function ItemRow({
               </DropdownMenuSubContent>
             </DropdownMenuSub>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive" onSelect={() => props.onRemoveItem(item)}>
+            <DropdownMenuItem
+              className={cn("text-destructive", MENU_ITEM)}
+              onSelect={afterMenuCloses(() => props.onRemoveItem(item))}
+            >
               <Trash2 className="size-4" />
               {t("detail.removeItem")}
             </DropdownMenuItem>
@@ -219,29 +252,38 @@ function GroupRow({
       {props.canManage && !renaming && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-6 opacity-0 group-hover/head:opacity-100 data-[state=open]:opacity-100">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("size-6 group-hover/head:opacity-100", ROW_MENU_TRIGGER)}
+              aria-label={t("detail.moreActions")}
+              title={t("detail.moreActions")}
+            >
               <MoreHorizontal className="size-3.5" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => props.onAddItems(group.id)}>
+            <DropdownMenuItem className={MENU_ITEM} onSelect={afterMenuCloses(() => props.onAddItems(group.id))}>
               <FilePlus2 className="size-4" />
               {t("detail.addItemsHere")}
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setRenaming(true)}>
+            <DropdownMenuItem className={MENU_ITEM} onSelect={afterMenuCloses(() => setRenaming(true))}>
               <Pencil className="size-4" />
               {t("detail.renameGroup")}
             </DropdownMenuItem>
-            <DropdownMenuItem disabled={isFirst} onSelect={() => props.onMoveGroup(group, -1)}>
+            <DropdownMenuItem className={MENU_ITEM} disabled={isFirst} onSelect={() => props.onMoveGroup(group, -1)}>
               <ArrowUp className="size-4" />
               {t("detail.moveGroupUp")}
             </DropdownMenuItem>
-            <DropdownMenuItem disabled={isLast} onSelect={() => props.onMoveGroup(group, 1)}>
+            <DropdownMenuItem className={MENU_ITEM} disabled={isLast} onSelect={() => props.onMoveGroup(group, 1)}>
               <ArrowDown className="size-4" />
               {t("detail.moveGroupDown")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive" onSelect={() => props.onDeleteGroup(group)}>
+            <DropdownMenuItem
+              className={cn("text-destructive", MENU_ITEM)}
+              onSelect={afterMenuCloses(() => props.onDeleteGroup(group))}
+            >
               <Trash2 className="size-4" />
               {t("detail.deleteGroup")}
             </DropdownMenuItem>
@@ -340,14 +382,22 @@ export function CollectionIndex(props: CollectionIndexProps) {
             />
           ) : (
             <div className="flex flex-col gap-1">
-              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => props.onAddItems(null)}>
-                <FilePlus2 className="size-4" />
-                {t("detail.addItems")}
-              </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => setNewGroup("")}>
-                <Plus className="size-4" />
-                {t("detail.addGroup")}
-              </Button>
+              <HuemulButton
+                variant="outline"
+                size="sm"
+                className="w-full justify-start"
+                icon={FilePlus2}
+                label={t("detail.addItems")}
+                onClick={() => props.onAddItems(null)}
+              />
+              <HuemulButton
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start"
+                icon={Plus}
+                label={t("detail.addGroup")}
+                onClick={() => setNewGroup("")}
+              />
             </div>
           )}
           {rows.some((row) => row.kind === "item") && <p className="px-1 text-[11px] text-muted-foreground">{t("detail.dragHint")}</p>}

@@ -28,6 +28,8 @@ export interface Collection {
   can_admin?: boolean
   /** Listado con `contains_document_id`. */
   contains_document?: boolean
+  /** Listado: grupos de la colección (para elegir dónde agregar sin pedir el detalle). */
+  groups?: CollectionGroup[]
 }
 
 export interface CollectionGroup {
@@ -65,11 +67,41 @@ export interface CollectionDetail extends Collection {
   hidden_item_count: number
 }
 
-export interface CollectionAccess {
-  id?: string
+/** Un rol o una persona (exactamente uno de los dos). */
+export interface CollectionPrincipal {
   role_id: string | null
   user_id: string | null
+}
+
+export interface CollectionAccessGrant extends CollectionPrincipal {
   access_level: CollectionAccessLevel
+}
+
+/** Acceso guardado, con el nombre para mostrar. */
+export interface CollectionAccess extends CollectionAccessGrant {
+  id: string
+  role_name?: string
+  user?: CollectionPerson | null
+  /** Personas: `false` si ya no es miembro de la organización (se puede quitar, no volver a dar). */
+  is_member?: boolean
+}
+
+export interface CollectionPerson {
+  name: string | null
+  last_name: string | null
+  email: string | null
+}
+
+/** `GET /collections/{id}/access`: el creador (siempre administra) y los accesos otorgados. */
+export interface CollectionAccessList {
+  creator: (Partial<CollectionPerson> & { user_id: string }) | null
+  accesses: CollectionAccess[]
+}
+
+/** Cambios explícitos de acceso: lo que no se nombra queda como está. */
+export interface UpdateCollectionAccessRequest {
+  add: CollectionAccessGrant[]
+  remove: CollectionPrincipal[]
 }
 
 export interface CollectionFormData {

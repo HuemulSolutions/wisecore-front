@@ -42,6 +42,9 @@ const DEDICATED_ERROR_MESSAGES: Record<string, string> = {
   // inválidas; esto es el eco si el catálogo cambió entre la carga y el clic.
   LLM_MISSING_CAPABILITY: 'models:errors.missingCapability',
   LLM_PURPOSE_REQUIRES_CAPABILITY: 'models:errors.purposeRequiresCapability',
+  // Accesos de una colección: solo se puede dar acceso a roles de la organización y a sus
+  // miembros. El buscador solo ofrece esos; esto es el eco de un dato que cambió entretanto.
+  INVALID_COLLECTION_ACCESS: 'collections:errors.invalidAccess',
 };
 
 /**

@@ -2,7 +2,7 @@ import { backendUrl } from '@/config';
 import { httpClient } from '@/lib/http-client';
 import type {
   Collection,
-  CollectionAccess,
+  CollectionAccessList,
   CollectionApiResponse,
   CollectionDetail,
   CollectionGroup,
@@ -12,6 +12,7 @@ import type {
   AddCollectionItemRequest,
   CreateCollectionRequest,
   GetCollectionsParams,
+  UpdateCollectionAccessRequest,
   UpdateCollectionItemRequest,
   UpdateCollectionRequest,
 } from '@/types/collections';
@@ -44,9 +45,6 @@ export const getCollections = async (params?: GetCollectionsParams): Promise<Col
 // Detalle: grupos y activos visibles en orden, cada uno con la versión que se muestra.
 export const getCollection = async (collectionId: string): Promise<CollectionDetail> =>
   data(await httpClient.get(`${BASE_URL}/${collectionId}`));
-
-export const getCollectionsByDocument = async (documentId: string): Promise<Collection[]> =>
-  data(await httpClient.get(`${BASE_URL}/by-document/${documentId}`));
 
 // Una colección para agentes exige además collection_agent:c (403 si falta).
 export const createCollection = async (body: CreateCollectionRequest): Promise<Collection> =>
@@ -92,7 +90,8 @@ export const removeCollectionItem = async (collectionId: string, itemId: string)
   await httpClient.delete(`${BASE_URL}/${collectionId}/items/${itemId}`);
 };
 
-// Lista plana con todos los ítems: el orden de la lista y el grupo de cada uno.
+// Lista plana con los ítems que el usuario ve: el orden y el grupo de cada uno. Los que no ve
+// los conserva el backend, al final de su grupo.
 export const reorderCollectionItems = async (
   collectionId: string,
   items: CollectionItemOrderEntry[],
@@ -100,12 +99,14 @@ export const reorderCollectionItems = async (
 
 // ── Accesos ──
 
-export const getCollectionAccess = async (collectionId: string): Promise<CollectionAccess[]> =>
+// El creador y cada acceso con el nombre del rol o de la persona (y si sigue siendo miembro).
+export const getCollectionAccess = async (collectionId: string): Promise<CollectionAccessList> =>
   data(await httpClient.get(`${BASE_URL}/${collectionId}/access`));
 
-// Reemplaza todos los grants (lectura o administración a roles y usuarios).
-export const replaceCollectionAccess = async (
+// Cambios explícitos: `add` da o cambia el nivel, `remove` quita. Lo que no se nombra queda como
+// está; nunca se manda la lista completa. Devuelve los accesos resultantes.
+export const updateCollectionAccess = async (
   collectionId: string,
-  accesses: CollectionAccess[],
-): Promise<CollectionAccess[]> => data(await httpClient.put(`${BASE_URL}/${collectionId}/access`, { accesses }));
+  changes: UpdateCollectionAccessRequest,
+): Promise<CollectionAccessList> => data(await httpClient.patch(`${BASE_URL}/${collectionId}/access`, changes));
 

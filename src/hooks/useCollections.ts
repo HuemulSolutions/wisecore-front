@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
+import { useOrganization } from "@/contexts/organization-context"
 import {
   addCollectionItem,
   createCollection,
@@ -13,55 +14,63 @@ import {
   renameCollectionGroup,
   reorderCollectionGroups,
   reorderCollectionItems,
-  replaceCollectionAccess,
   updateCollection,
+  updateCollectionAccess,
   updateCollectionItem,
 } from "@/services/collections"
 import type {
   AddCollectionItemRequest,
-  CollectionAccess,
   CollectionDetail,
   CollectionItemOrderEntry,
   GetCollectionsParams,
+  UpdateCollectionAccessRequest,
   UpdateCollectionItemRequest,
   UpdateCollectionRequest,
 } from "@/types/collections"
 
+// Todas las keys llevan la organización: cambiar de organización no limpia la caché, y sin
+// ella el listado (con `placeholderData`) mostraría las colecciones de la anterior.
 export const collectionsQueryKeys = {
   all: ['collections'] as const,
-  lists: () => [...collectionsQueryKeys.all, 'list'] as const,
-  list: (params?: GetCollectionsParams) => [...collectionsQueryKeys.lists(), params] as const,
-  details: () => [...collectionsQueryKeys.all, 'detail'] as const,
-  detail: (collectionId: string) => [...collectionsQueryKeys.details(), collectionId] as const,
-  access: (collectionId: string) => [...collectionsQueryKeys.all, 'access', collectionId] as const,
+  org: (organizationId: string | null) => [...collectionsQueryKeys.all, organizationId] as const,
+  lists: (organizationId: string | null) => [...collectionsQueryKeys.org(organizationId), 'list'] as const,
+  list: (organizationId: string | null, params?: GetCollectionsParams) =>
+    [...collectionsQueryKeys.lists(organizationId), params] as const,
+  detail: (organizationId: string | null, collectionId: string) =>
+    [...collectionsQueryKeys.org(organizationId), 'detail', collectionId] as const,
+  access: (organizationId: string | null, collectionId: string) =>
+    [...collectionsQueryKeys.org(organizationId), 'access', collectionId] as const,
 }
 
 export function useCollections(options?: GetCollectionsParams & { enabled?: boolean }) {
   const { enabled = true, ...params } = options || {}
+  const { selectedOrganizationId } = useOrganization()
   return useQuery({
-    queryKey: collectionsQueryKeys.list(params),
+    queryKey: collectionsQueryKeys.list(selectedOrganizationId, params),
     queryFn: () => getCollections(params),
     placeholderData: (prev) => prev,
-    enabled,
+    enabled: enabled && !!selectedOrganizationId,
     staleTime: 60 * 1000,
     retry: 0,
   })
 }
 
 export function useCollection(collectionId: string | undefined, enabled = true) {
+  const { selectedOrganizationId } = useOrganization()
   return useQuery({
-    queryKey: collectionsQueryKeys.detail(collectionId ?? ''),
+    queryKey: collectionsQueryKeys.detail(selectedOrganizationId, collectionId ?? ''),
     queryFn: () => getCollection(collectionId!),
-    enabled: enabled && !!collectionId,
+    enabled: enabled && !!collectionId && !!selectedOrganizationId,
     retry: 0,
   })
 }
 
 export function useCollectionAccess(collectionId: string | undefined, enabled = true) {
+  const { selectedOrganizationId } = useOrganization()
   return useQuery({
-    queryKey: collectionsQueryKeys.access(collectionId ?? ''),
+    queryKey: collectionsQueryKeys.access(selectedOrganizationId, collectionId ?? ''),
     queryFn: () => getCollectionAccess(collectionId!),
-    enabled: enabled && !!collectionId,
+    enabled: enabled && !!collectionId && !!selectedOrganizationId,
     retry: 0,
   })
 }
@@ -74,16 +83,22 @@ export function useCollectionAccess(collectionId: string | undefined, enabled = 
 export function useCollectionMutations() {
   const queryClient = useQueryClient()
   const { t } = useTranslation('collections')
+  const { selectedOrganizationId } = useOrganization()
+  const keys = {
+    lists: () => collectionsQueryKeys.lists(selectedOrganizationId),
+    detail: (collectionId: string) => collectionsQueryKeys.detail(selectedOrganizationId, collectionId),
+    access: (collectionId: string) => collectionsQueryKeys.access(selectedOrganizationId, collectionId),
+  }
 
   const invalidateDetail = (collectionId: string) => {
-    queryClient.invalidateQueries({ queryKey: collectionsQueryKeys.detail(collectionId) })
-    queryClient.invalidateQueries({ queryKey: collectionsQueryKeys.lists() })
+    queryClient.invalidateQueries({ queryKey: keys.detail(collectionId) })
+    queryClient.invalidateQueries({ queryKey: keys.lists() })
   }
 
   const createMutation = useMutation({
     mutationFn: createCollection,
     meta: { successMessage: t('mutations.createSuccess') },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionsQueryKeys.lists() }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.lists() }),
   })
 
   const updateMutation = useMutation({
@@ -96,7 +111,7 @@ export function useCollectionMutations() {
   const deleteMutation = useMutation({
     mutationFn: (collectionId: string) => deleteCollection(collectionId),
     meta: { successMessage: t('mutations.deleteSuccess') },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionsQueryKeys.all }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionsQueryKeys.org(selectedOrganizationId) }),
   })
 
   const createGroupMutation = useMutation({
@@ -148,7 +163,7 @@ export function useCollectionMutations() {
     mutationFn: ({ collectionId, items }: { collectionId: string; items: CollectionItemOrderEntry[]; optimistic?: CollectionDetail }) =>
       reorderCollectionItems(collectionId, items),
     onMutate: async ({ collectionId, optimistic }) => {
-      const queryKey = collectionsQueryKeys.detail(collectionId)
+      const queryKey = keys.detail(collectionId)
       await queryClient.cancelQueries({ queryKey })
       const snapshot = queryClient.getQueryData<CollectionDetail>(queryKey)
       if (optimistic) queryClient.setQueryData(queryKey, optimistic)
@@ -158,16 +173,17 @@ export function useCollectionMutations() {
       if (context) queryClient.setQueryData(context.queryKey, context.snapshot)
     },
     onSuccess: (detail, { collectionId }) => {
-      queryClient.setQueryData(collectionsQueryKeys.detail(collectionId), detail)
+      queryClient.setQueryData(keys.detail(collectionId), detail)
     },
   })
 
-  const replaceAccessMutation = useMutation({
-    mutationFn: ({ collectionId, accesses }: { collectionId: string; accesses: CollectionAccess[] }) =>
-      replaceCollectionAccess(collectionId, accesses),
+  // Cambios explícitos: solo lo que se agrega y lo que se quita, nunca la lista completa.
+  const updateAccessMutation = useMutation({
+    mutationFn: ({ collectionId, changes }: { collectionId: string; changes: UpdateCollectionAccessRequest }) =>
+      updateCollectionAccess(collectionId, changes),
     meta: { successMessage: t('mutations.accessSaved') },
-    onSuccess: (_data, { collectionId }) => {
-      queryClient.invalidateQueries({ queryKey: collectionsQueryKeys.access(collectionId) })
+    onSuccess: (accesses, { collectionId }) => {
+      queryClient.setQueryData(keys.access(collectionId), accesses)
       invalidateDetail(collectionId)
     },
   })
@@ -184,6 +200,6 @@ export function useCollectionMutations() {
     updateItem: updateItemMutation,
     removeItem: removeItemMutation,
     reorderItems: reorderItemsMutation,
-    replaceAccess: replaceAccessMutation,
+    updateAccess: updateAccessMutation,
   }
 }

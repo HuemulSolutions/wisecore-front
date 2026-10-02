@@ -263,10 +263,10 @@ export const RBAC_PAGES = {
       viewTags: "tag:r",
       manageTags: "tag:u",
       // "Agregar a colección" del menú ⋯: lista las colecciones que el usuario
-      // administra (GET /collections/?can_admin, collection:l) y agrega con
-      // POST /collections/{id}/items (collection:u). Una colección de agentes
-      // exige además collection_agent:u: el backend responde 403 y el diálogo
-      // lo muestra.
+      // administra, con sus grupos (GET /collections/?can_admin, collection:l), y
+      // agrega con POST /collections/{id}/items (collection:u). No pide el detalle
+      // de cada colección. Las colecciones de agentes exigen además
+      // collection_agent:u: el diálogo solo las muestra con `updateAgentCollection`.
       addToCollection: { all: ["collection:l", "collection:u"] },
     },
   },

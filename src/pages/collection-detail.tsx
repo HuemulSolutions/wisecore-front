@@ -2,9 +2,24 @@ import { useCallback, useMemo, useState } from "react"
 import { useParams, useSearchParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { useQueryClient } from "@tanstack/react-query"
-import { ArrowLeft, Bot, BookOpen, Compass, FilePlus2, Globe, Library, Lock, MoreHorizontal, Pencil, ShieldCheck, Trash2, Users } from "lucide-react"
+import {
+  ArrowLeft,
+  Bot,
+  BookOpen,
+  Compass,
+  FilePlus2,
+  Globe,
+  Library,
+  Lock,
+  MoreHorizontal,
+  Pencil,
+  RefreshCw,
+  ShieldCheck,
+  Trash2,
+  Users,
+} from "lucide-react"
 import { AssetContent } from "@/components/assets"
-import { CollectionAccessSheet, CollectionFormSheet, CollectionIndex } from "@/components/collections"
+import { CollectionAccessSheet, CollectionFormSheet, CollectionIndex, CollectionsErrorState } from "@/components/collections"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -24,11 +39,17 @@ import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
-import { useCollection, useCollectionAccess, useCollectionMutations, collectionsQueryKeys } from "@/hooks/useCollections"
+import { useCollection, useCollectionAccess, useCollectionMutations } from "@/hooks/useCollections"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import type { CollectionGroup, CollectionItem, CollectionItemOrderEntry } from "@/types/collections"
 import type { LibraryItem } from "@/types/assets"
+import { ApiError } from "@/types/api-error"
+
+// Un ítem del menú que abre un diálogo o sheet espera a que el menú termine de cerrarse.
+const afterMenuCloses = (action: () => void) => () => {
+  setTimeout(action, 0)
+}
 
 type PendingDelete =
   | { kind: "collection" }
@@ -48,10 +69,24 @@ export default function CollectionDetailPage() {
   const navigate = useOrgNavigate()
   const queryClient = useQueryClient()
   const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess("collections")
-  const { data: detail, isLoading, error } = useCollection(collectionId, canAccessPage)
+  const {
+    data: detail,
+    isLoading,
+    error,
+    isFetching: isFetchingDetail,
+    refetch: refetchDetail,
+  } = useCollection(collectionId, canAccessPage)
   const mutations = useCollectionMutations()
-  // Resumen de acceso en la portada: los grants solo los ve quien administra.
-  const { data: accesses } = useCollectionAccess(collectionId, !!detail?.can_admin)
+  // Los accesos (resumen de la portada y "Quién puede verla") solo los gestiona quien
+  // administra la colección y tiene el permiso de editarla.
+  const canShare =
+    !!detail?.can_admin && can(detail.for_agent ? "updateAgentCollection" : "shareCollection")
+  const {
+    data: accessList,
+    isError: isAccessError,
+    isFetching: isFetchingAccess,
+    refetch: refetchAccess,
+  } = useCollectionAccess(collectionId, canShare)
 
   const [editing, setEditing] = useState(false)
   const [sharing, setSharing] = useState(false)
@@ -59,13 +94,25 @@ export default function CollectionDetailPage() {
   const [addingToGroup, setAddingToGroup] = useState<string | null | undefined>(undefined)
   const { selectedOrganizationId } = useOrganization()
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
-  const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null)
+  // Versión elegida a mano para un ítem; si no hay, la del ítem (la fija o la oficial). Se
+  // deriva del ítem, así `?item=` (link o recarga) respeta la versión fijada.
+  const [executionOverride, setExecutionOverride] = useState<{ itemId: string; executionId: string | null } | null>(null)
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
 
   const selectedItemId = searchParams.get("item")
   const selectedItem = useMemo(
     () => detail?.items.find((item) => item.id === selectedItemId) ?? null,
     [detail?.items, selectedItemId],
+  )
+  const selectedExecutionId =
+    executionOverride && executionOverride.itemId === selectedItem?.id
+      ? executionOverride.executionId
+      : (selectedItem?.version?.execution_id ?? null)
+  const setSelectedExecutionId = useCallback(
+    (executionId: string | null) => {
+      if (selectedItem) setExecutionOverride({ itemId: selectedItem.id, executionId })
+    },
+    [selectedItem],
   )
   const selectedFile: LibraryItem | null = useMemo(
     () => (selectedItem ? { id: selectedItem.document_id, name: selectedItem.title ?? "", type: "document" } : null),
@@ -78,7 +125,7 @@ export default function CollectionDetailPage() {
       if (item) next.set("item", item.id)
       else next.delete("item")
       setSearchParams(next, { replace: true })
-      setSelectedExecutionId(item?.version?.execution_id ?? null)
+      setExecutionOverride(null)
       setSelectedSectionId(null)
     },
     [searchParams, setSearchParams],
@@ -86,6 +133,14 @@ export default function CollectionDetailPage() {
 
   if (isLoadingPermissions || isLoading) return <PageSkeleton />
   if (!canAccessPage) return <HuemulAccessDenied />
+  // Solo un 404 es "no existe o no tienes acceso"; cualquier otro error se puede reintentar.
+  if (error && !(ApiError.isApiError(error) && error.statusCode === 404)) {
+    return (
+      <div className="p-6">
+        <CollectionsErrorState error={error} onRetry={() => refetchDetail()} />
+      </div>
+    )
+  }
   if (error || !detail || !collectionId) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
@@ -100,6 +155,11 @@ export default function CollectionDetailPage() {
   const canDelete =
     detail.can_admin && (detail.for_agent ? can("deleteAgentCollection") : can("deleteCollection"))
   const KindIcon = detail.agent_kind === "behavior" ? Compass : BookOpen
+  const accesses = accessList?.accesses
+  const refresh = () => {
+    refetchDetail()
+    if (canShare) refetchAccess()
+  }
 
   const reorder = (entries: CollectionItemOrderEntry[]) =>
     mutations.reorderItems.mutate({ collectionId, items: entries, optimistic: applyOrder(detail, entries) })
@@ -151,19 +211,22 @@ export default function CollectionDetailPage() {
           </Badge>
         </div>
         {detail.description && <p className="text-sm text-muted-foreground">{detail.description}</p>}
-        {detail.can_admin && (
+        {canShare && (
           <button
             type="button"
             onClick={() => setSharing(true)}
             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:cursor-pointer hover:text-foreground"
           >
             {detail.is_public ? <Globe className="size-3.5" /> : <Lock className="size-3.5" />}
+            {/* Sin los accesos cargados no se muestran conteos: un 0 sería falso. */}
             {detail.is_public
               ? t("access.summaryPublic")
-              : t("access.summaryPrivate", {
-                  roles: (accesses ?? []).filter((access) => access.role_id).length,
-                  people: (accesses ?? []).filter((access) => access.user_id).length,
-                })}
+              : accesses && !isAccessError
+                ? t("access.summaryPrivate", {
+                    roles: accesses.filter((access) => access.role_id).length,
+                    people: accesses.filter((access) => access.user_id).length,
+                  })
+                : t("card.private")}
           </button>
         )}
       </div>
@@ -206,16 +269,15 @@ export default function CollectionDetailPage() {
       <HuemulPageLayout
         header={
           <div className="flex h-12 items-center gap-2 border-b px-3">
-            <Button
+            <HuemulButton
               variant="ghost"
               size="icon"
               className="size-8"
+              icon={ArrowLeft}
               onClick={() => navigate("/collections")}
               aria-label={t("detail.back")}
-              title={t("detail.back")}
-            >
-              <ArrowLeft className="size-4" />
-            </Button>
+              tooltip={t("detail.back")}
+            />
             <Library className="size-4 shrink-0 text-muted-foreground" />
             <h1 className="min-w-0 truncate text-base font-semibold">{detail.name}</h1>
             <div className="hidden items-center gap-1 sm:flex">
@@ -241,29 +303,48 @@ export default function CollectionDetailPage() {
                 {detail.is_public ? t("card.public") : t("card.private")}
               </Badge>
             </div>
+            <HuemulButton
+              variant="ghost"
+              size="icon"
+              className="ml-auto size-8"
+              icon={RefreshCw}
+              aria-label={t("common:refresh")}
+              tooltip={t("common:refresh")}
+              loading={isFetchingDetail || isFetchingAccess}
+              onClick={refresh}
+            />
             {(canManage || canDelete) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="ml-auto size-8" aria-label={t("detail.moreActions")}>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-8 hover:cursor-pointer"
+                    aria-label={t("detail.moreActions")}
+                    title={t("detail.moreActions")}
+                  >
                     <MoreHorizontal className="size-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {canManage && (
-                    <>
-                      <DropdownMenuItem onSelect={() => setEditing(true)}>
-                        <Pencil className="size-4" />
-                        {t("detail.edit")}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => setSharing(true)}>
-                        <ShieldCheck className="size-4" />
-                        {t("detail.share")}
-                      </DropdownMenuItem>
-                    </>
+                    <DropdownMenuItem className="hover:cursor-pointer" onSelect={afterMenuCloses(() => setEditing(true))}>
+                      <Pencil className="size-4" />
+                      {t("detail.edit")}
+                    </DropdownMenuItem>
                   )}
-                  {canManage && canDelete && <DropdownMenuSeparator />}
+                  {canShare && (
+                    <DropdownMenuItem className="hover:cursor-pointer" onSelect={afterMenuCloses(() => setSharing(true))}>
+                      <ShieldCheck className="size-4" />
+                      {t("detail.share")}
+                    </DropdownMenuItem>
+                  )}
+                  {(canManage || canShare) && canDelete && <DropdownMenuSeparator />}
                   {canDelete && (
-                    <DropdownMenuItem className="text-destructive" onSelect={() => setPendingDelete({ kind: "collection" })}>
+                    <DropdownMenuItem
+                      className="text-destructive hover:cursor-pointer"
+                      onSelect={afterMenuCloses(() => setPendingDelete({ kind: "collection" }))}
+                    >
                       <Trash2 className="size-4" />
                       {t("detail.delete")}
                     </DropdownMenuItem>
@@ -321,7 +402,7 @@ export default function CollectionDetailPage() {
                 setSelectedFile={() => {}}
                 onRefresh={() => {
                   queryClient.invalidateQueries({ queryKey: ["document-content"] })
-                  queryClient.invalidateQueries({ queryKey: collectionsQueryKeys.detail(collectionId) })
+                  refetchDetail()
                 }}
                 isSidebarOpen={false}
                 onToggleSidebar={() => {}}

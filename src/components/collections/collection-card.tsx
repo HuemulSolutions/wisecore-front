@@ -14,6 +14,8 @@ export interface CollectionCardProps {
 export function CollectionCard({ collection, onOpen }: CollectionCardProps) {
   const { t } = useTranslation("collections")
   const KindIcon = collection.agent_kind === "behavior" ? Compass : BookOpen
+  const VisibilityIcon = collection.is_public ? Globe : Lock
+  const visibility = collection.is_public ? t("card.public") : t("card.private")
 
   return (
     <button
@@ -26,11 +28,10 @@ export function CollectionCard({ collection, onOpen }: CollectionCardProps) {
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="line-clamp-2 text-base font-semibold">{collection.name}</h3>
-        {collection.is_public ? (
-          <Globe className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-label={t("card.public")} />
-        ) : (
-          <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-label={t("card.private")} />
-        )}
+        <span title={visibility} className="mt-0.5 inline-flex shrink-0">
+          <VisibilityIcon className="size-4 text-muted-foreground" aria-hidden="true" />
+          <span className="sr-only">{visibility}</span>
+        </span>
       </div>
       <p className={cn("line-clamp-3 flex-1 text-sm", collection.description ? "text-muted-foreground" : "italic text-muted-foreground/70")}>
         {collection.description || t("card.noDescription")}
