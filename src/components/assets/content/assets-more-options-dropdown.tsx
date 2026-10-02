@@ -21,9 +21,6 @@ import {
   FileJson,
   Trash2,
   FileX,
-  Maximize2,
-  Minimize2,
-  Paperclip,
   Library,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -112,8 +109,6 @@ interface MoreOptionsDropdownProps {
   onOpenPermissions: () => void;
   onOpenSections: () => void;
   onOpenSources: () => void;
-  onOpenDependencies: () => void;
-  onOpenContext: () => void;
   /** "Agregar a colección": solo se muestra si se pasa (lo decide el permiso). */
   onAddToCollection?: () => void;
   onClone: () => void;
@@ -170,8 +165,6 @@ export function MoreOptionsDropdown({
   onOpenPermissions,
   onOpenSections,
   onOpenSources,
-  onOpenDependencies,
-  onOpenContext,
   onAddToCollection,
   onClone,
   onCloneToNew,
@@ -391,28 +384,10 @@ export function MoreOptionsDropdown({
               {t("lifecycleHistory.moreOptionsItem")}
             </DropdownMenuItem>
           )}
-          {canAccessDiagrams && (
-            <DropdownMenuItem
-              onSelect={() => setTimeout(onOpenDiagrams, 0)}
-              className="hover:cursor-pointer"
-            >
-              <Workflow className="h-4 w-4" />
-              {t("content.diagramsLabel")}
-            </DropdownMenuItem>
-          )}
-          {canAccessMedia && (
-            <DropdownMenuItem
-              onSelect={() => setTimeout(onOpenMedia, 0)}
-              className="hover:cursor-pointer"
-            >
-              <Paperclip className="h-4 w-4" />
-              {t("content.mediaLabel")}
-            </DropdownMenuItem>
-          )}
           {onAddToCollection && (
             <DropdownMenuItem
               onSelect={() => setTimeout(onAddToCollection, 0)}
-              className="hover:cursor-pointer"
+              className={itemClass}
             >
               <Library className="h-4 w-4" />
               {t("collections:addToCollection.menuItem")}
