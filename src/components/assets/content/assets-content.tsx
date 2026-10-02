@@ -156,6 +156,10 @@ const ASSET_HISTORY_TABS: AssetHistoryTab[] = ['lifecycle', 'changes'];
  * Handles content rendering, version management, executions, and user interactions.
  */
 const ASSET_CONTENT_LAYOUT_ID = "asset-content-layout";
+// El contenido del asset es lo primordial: el panel de detalle nunca supera 40% del ancho
+// (y el contenido nunca baja de 60%), así arrastrar el handle no lo deja oculto.
+const DETAIL_PANEL_MAX_SIZE = 40;
+const CONTENT_PANEL_MIN_SIZE = 60;
 
 /** Fila 3 del header (modo Editor): botones de texto azules (Secciones / Dependencias / Contexto). */
 const TOOLBAR_TEXT_BUTTON =
@@ -3127,7 +3131,7 @@ export function AssetContent({
     {/* Header a todo el ancho; contenido y panel de detalle quedan debajo */}
     <ResizablePanelGroup id={ASSET_CONTENT_LAYOUT_ID} direction="horizontal" className="flex-1 min-h-0">
       {/* Document Content */}
-      <ResizablePanel defaultSize={80}>
+      <ResizablePanel defaultSize={80} minSize={CONTENT_PANEL_MIN_SIZE}>
         <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* Content Section - Now with ScrollArea and scroll restoration */}
         <div className="flex-1 bg-white min-w-0 overflow-hidden px-1">
@@ -3386,6 +3390,7 @@ export function AssetContent({
             ref={detailPanelRef}
             defaultSize={22}
             minSize={16}
+            maxSize={DETAIL_PANEL_MAX_SIZE}
             collapsible
             collapsedSize={detailCollapsedSize}
             onCollapse={() => setIsDetailPanelCollapsed(true)}
