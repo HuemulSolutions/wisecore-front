@@ -2923,12 +2923,6 @@ export function AssetContent({
                       onToggleToc={() => setIsTocSidebarOpen((prev) => !prev)}
                       onOpenInfo={() => setIsInfoSheetOpen(true)}
                       onOpenLifecycleHistory={() => setIsLifecycleHistorySheetOpen(true)}
-                      isFullscreen={isFullscreen}
-                      onOpenFullscreen={isFullscreen ? onExitFullscreen : onOpenFullscreen}
-                      canAccessDiagrams={canAccessDiagrams}
-                      onOpenDiagrams={() => setIsDiagramsSheetOpen(true)}
-                      canAccessMedia={canMedia('listMedia')}
-                      onOpenMedia={() => { setMediaSheetScope(null); setIsMediaSheetOpen(true); }}
                       onOpenPermissions={() => setIsPermissionsSheetOpen(true)}
                       onOpenSections={() => setIsSectionSheetOpen(true)}
                       onOpenSources={() => setIsSourcesSheetOpen(true)}
@@ -3440,6 +3434,8 @@ export function AssetContent({
               onDeleteCustomField={handleDeleteCustomFieldDocument}
               onRefreshCustomFields={handleRefreshCustomFields}
               executions={allExecutions ?? []}
+              canAccessDiagrams={canAccessDiagrams}
+              onOpenDiagrams={() => setIsDiagramsSheetOpen(true)}
               onOpenMediaSheet={(scope) => { setMediaSheetScope(scope ?? null); setIsMediaSheetOpen(true); }}
               className="h-full rounded-none border-0 shadow-none"
             />

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link2, List, Paperclip, Plus, RefreshCw, SlidersHorizontal } from "lucide-react";
+import { Link2, List, Paperclip, Plus, RefreshCw, SlidersHorizontal, Workflow } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulMediaUploadSheet } from "@/huemul/components/huemul-media-upload-sheet";
@@ -60,6 +60,8 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
     onRefreshCustomFields,
     executions,
     onOpenMediaSheet,
+    canAccessDiagrams,
+    onOpenDiagrams,
     isCollapsed,
     onToggleCollapse,
     className,
@@ -201,6 +203,18 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
                 iconClassName="h-3.5 w-3.5"
                 tooltip={addAction.label}
                 onClick={addAction.onClick}
+              />
+            )}
+            {canAccessDiagrams && onOpenDiagrams && (
+              <HuemulButton
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                icon={Workflow}
+                iconClassName="h-3.5 w-3.5"
+                tooltip={t("content.diagramsLabel")}
+                aria-label={t("content.diagramsLabel")}
+                onClick={onOpenDiagrams}
               />
             )}
             <HuemulButton

@@ -61,6 +61,10 @@ export interface AssetDetailPanelProps extends AssetDetailPanelPermissions {
   executions: MediaScopeExecutionOption[]
   onOpenMediaSheet: (scope?: MediaScope) => void
 
+  /** Sheet de diagramas del activo — botón en el header del panel (visible si `canAccessDiagrams`). */
+  canAccessDiagrams?: boolean
+  onOpenDiagrams?: () => void
+
   /** Colapso a solo-rail (53px), controlado por el `ResizablePanel` que envuelve este componente. */
   isCollapsed: boolean
   onToggleCollapse: () => void

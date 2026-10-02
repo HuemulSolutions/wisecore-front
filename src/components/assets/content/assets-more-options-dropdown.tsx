@@ -9,7 +9,6 @@ import {
   List,
   Info,
   History,
-  Workflow,
   ShieldCheck,
   BetweenHorizontalStart,
   Database,
@@ -22,9 +21,6 @@ import {
   FileJson,
   Trash2,
   FileX,
-  Maximize2,
-  Minimize2,
-  Paperclip,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -109,19 +105,6 @@ interface MoreOptionsDropdownProps {
   onToggleToc: () => void;
   onOpenInfo: () => void;
   onOpenLifecycleHistory: () => void;
-  /**
-   * Vista de pantalla completa (ver ia context/fullscreen-share-route-guide.md).
-   * Atajo redundante al botón del header (assets-content.tsx) — este item no se
-   * gatea con permiso propio, pero el dropdown que lo contiene solo se renderiza
-   * en modo edición; en solo lectura el botón del header es el único camino.
-   * Sin `onOpenFullscreen` no se agrega item (compatibilidad con `panel`).
-   */
-  isFullscreen?: boolean;
-  onOpenFullscreen?: () => void;
-  canAccessDiagrams: boolean;
-  onOpenDiagrams: () => void;
-  canAccessMedia: boolean;
-  onOpenMedia: () => void;
   onOpenPermissions: () => void;
   onOpenSections: () => void;
   onOpenSources: () => void;
@@ -176,12 +159,6 @@ export function MoreOptionsDropdown({
   onToggleToc,
   onOpenInfo,
   onOpenLifecycleHistory,
-  isFullscreen = false,
-  onOpenFullscreen,
-  canAccessDiagrams,
-  onOpenDiagrams,
-  canAccessMedia,
-  onOpenMedia,
   onOpenPermissions,
   onOpenSections,
   onOpenSources,
@@ -394,15 +371,6 @@ export function MoreOptionsDropdown({
             <Info className="h-4 w-4" />
             {t("content.assetInfo")}
           </DropdownMenuItem>
-          {onOpenFullscreen && (
-            <DropdownMenuItem
-              onSelect={() => setTimeout(onOpenFullscreen, 0)}
-              className={itemClass}
-            >
-              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-              {isFullscreen ? t("content.exitFullscreen") : t("content.openFullscreen")}
-            </DropdownMenuItem>
-          )}
           {hasDocumentContent && (
             <DropdownMenuItem
               onSelect={() => setTimeout(onOpenLifecycleHistory, 0)}
@@ -410,24 +378,6 @@ export function MoreOptionsDropdown({
             >
               <History className="h-4 w-4" />
               {t("lifecycleHistory.moreOptionsItem")}
-            </DropdownMenuItem>
-          )}
-          {canAccessDiagrams && (
-            <DropdownMenuItem
-              onSelect={() => setTimeout(onOpenDiagrams, 0)}
-              className={itemClass}
-            >
-              <Workflow className="h-4 w-4" />
-              {t("content.diagramsLabel")}
-            </DropdownMenuItem>
-          )}
-          {canAccessMedia && (
-            <DropdownMenuItem
-              onSelect={() => setTimeout(onOpenMedia, 0)}
-              className={itemClass}
-            >
-              <Paperclip className="h-4 w-4" />
-              {t("content.mediaLabel")}
             </DropdownMenuItem>
           )}
           {canManageGrants && (
