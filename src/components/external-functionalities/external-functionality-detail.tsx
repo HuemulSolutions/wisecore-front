@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Zap, Edit2, Trash2 } from "lucide-react"
+import { Zap, Pencil, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -83,7 +83,7 @@ export function ExternalFunctionalityDetail({
                 className="h-8 w-8 hover:cursor-pointer"
                 onClick={onEdit}
               >
-                <Edit2 className="h-4 w-4" />
+                <Pencil className="h-4 w-4" />
               </Button>
             )}
             {onDelete && (

@@ -124,8 +124,9 @@ return buildLibraryTree<HuemulTreeNode>(content, { parentFolderId: folderId, map
 
 ## 4. Merge por cobertura — por qué `onExpandedFoldersChange` no reemplaza sin más
 
-La clave `tree-expanded` es **compartida** entre el sidebar (que pagina el
-root) y los pickers (que piden `page_size: 1000`, sin paginar). Sin cuidado,
+La clave `tree-expanded` es **compartida** entre el sidebar (que pagina por
+nodo: raíz y cada carpeta de a 25, ver `ia context/paginacion-por-nodo-arbol-guide.md`)
+y los pickers (que piden `page_size: 1000`, sin paginar). Sin cuidado,
 el árbol que emite último borraría lo que el otro tenía expandido.
 
 Por eso `onExpandedFoldersChange` manda, junto al set expandido, `knownIds`:

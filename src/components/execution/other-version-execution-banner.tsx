@@ -1,15 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { getExecutionStatus } from '@/services/executions';
 import { useOrganization } from '@/contexts/organization-context';
-import { cn } from '@/lib/utils';
 import { logger } from '@/lib/logger';
 import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
 import { getExecutionPollInterval } from '@/lib/polling-intervals';
-import { executionStatusBannerStyle } from '@/lib/lifecycle-colors';
-import { Button } from '@/components/ui/button';
+import { VersionBanner } from '@/components/assets/content/version-banner';
+import type { VersionBannerTone } from '@/components/assets/content/version-banner-variants';
 import type { OtherVersionExecutionBannerProps } from '@/types/other-version-execution-banner';
 
 export type { OtherVersionExecutionBannerProps } from '@/types/other-version-execution-banner';
@@ -79,100 +78,55 @@ export function OtherVersionExecutionBanner({
     return null;
   }
 
-  // Forma del icono por estado — el color sale de `executionStatusBannerStyle`
-  // (misma fuente que el resto de banners de ejecución), para no desincronizarse
-  // del fondo si cambia el hue del estado.
-  const statusIconShape: Record<string, typeof Loader2> = {
-    running: Loader2,
-    pending: Clock,
-    completed: CheckCircle,
-    failed: XCircle,
-    cancelled: XCircle,
-    paused: Clock,
+  const statusText: Record<string, string> = {
+    running: 'banner.status.running',
+    pending: 'banner.status.queued',
+    completed: 'banner.status.completed',
+    failed: 'banner.status.failed',
+    cancelled: 'banner.status.cancelled',
+    paused: 'banner.status.paused',
   };
 
-  const getStatusInfo = () => {
-    const tone = executionStatusBannerStyle(execution.status);
-    const Icon = statusIconShape[execution.status] ?? Clock;
-    const textKey: Record<string, string> = {
-      running: 'banner.status.running',
-      pending: 'banner.status.queued',
-      completed: 'banner.status.completed',
-      failed: 'banner.status.failed',
-      cancelled: 'banner.status.cancelled',
-      paused: 'banner.status.paused',
-    };
-    return {
-      icon: <Icon className={cn('h-5 w-5', execution.status === 'running' && 'animate-spin', tone.icon)} />,
-      text: textKey[execution.status] ? t(textKey[execution.status]) : execution.status,
-      bgColor: tone.bg,
-      borderColor: tone.border,
-      textColor: tone.text,
-    };
-  };
+  const description =
+    execution.status === 'failed'
+      ? isMissingDependencyFailure(execution.status_message)
+        ? t('otherVersionBanner.description.missingDependency')
+        : t('otherVersionBanner.description.failed')
+      : ['running', 'pending', 'completed', 'cancelled', 'paused'].includes(execution.status)
+        ? t(`otherVersionBanner.description.${execution.status}`)
+        : undefined;
 
-  const statusInfo = getStatusInfo();
+  const tone: VersionBannerTone | undefined =
+    execution.status === 'completed'
+      ? 'green'
+      : execution.status === 'failed'
+        ? 'red'
+        : execution.status === 'cancelled'
+          ? 'gray'
+          : undefined;
+
+  const isActive = execution.status === 'running' || execution.status === 'pending';
 
   return (
-    <div className={cn(
-      "border-l-4 p-4 mb-4 rounded-lg",
-      statusInfo.bgColor,
-      statusInfo.borderColor
-    )}>
-      <div className="flex items-start justify-between">
-        <div className="flex items-start space-x-3 flex-1">
-          <div className="flex-shrink-0 mt-0.5">
-            {statusInfo.icon}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className={cn("text-sm font-medium", statusInfo.textColor)}>
-              {t('otherVersionBanner.versionTitle', { name: executionName, status: statusInfo.text })}
-            </p>
-            <p className="text-xs text-gray-600 mt-1">
-              {execution.status === 'running' && t('otherVersionBanner.description.running')}
-              {execution.status === 'pending' && t('otherVersionBanner.description.pending')}
-              {execution.status === 'completed' && t('otherVersionBanner.description.completed')}
-              {execution.status === 'failed' && (
-                isMissingDependencyFailure(execution.status_message)
-                  ? t('otherVersionBanner.description.missingDependency')
-                  : t('otherVersionBanner.description.failed')
-              )}
-              {execution.status === 'cancelled' && t('otherVersionBanner.description.cancelled')}
-              {execution.status === 'paused' && t('otherVersionBanner.description.paused')}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2 ml-4">
-          {(execution.status === 'running' || execution.status === 'pending') && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleRefresh}
-              className="hover:cursor-pointer"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          )}
-          {execution.status === 'completed' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onViewVersion}
-              className="hover:cursor-pointer"
-            >
-              {t('otherVersionBanner.viewVersion')}
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDismiss}
-            className="hover:cursor-pointer"
-          >
-            <XCircle className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-    </div>
+    <VersionBanner
+      variant="otherVersion"
+      tone={tone}
+      pulsing={isActive}
+      title={t('otherVersionBanner.versionTitle', {
+        name: executionName,
+        status: statusText[execution.status] ? t(statusText[execution.status]) : execution.status,
+      })}
+      text={description}
+      className="mb-4"
+      actions={[
+        ...(isActive
+          ? [{ icon: RefreshCw, title: t('executionRun.refreshStatus'), onClick: handleRefresh }]
+          : []),
+        ...(execution.status === 'completed'
+          ? [{ label: t('otherVersionBanner.viewVersion'), onClick: onViewVersion }]
+          : []),
+        { label: t('otherVersionBanner.dismissNotice'), onClick: handleDismiss },
+      ]}
+    />
   );
 }

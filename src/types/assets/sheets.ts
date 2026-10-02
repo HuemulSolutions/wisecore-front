@@ -22,6 +22,8 @@ export interface ContextSheetProps {
   /** `isExternalElaborationLocked(documentContent?.lifecycle_status)` del caller — ver ia context/elaboracion-externa-guide.md. */
   isExternalElaborationLocked?: boolean
   showTrigger?: boolean
+  /** Reemplaza las clases del trigger en desktop (el header de assets lo usa para el estilo azul de la barra de herramientas). */
+  triggerClassName?: string
 }
 
 // ----------------------------------------
@@ -44,6 +46,8 @@ export interface DependenciesSheetProps {
   /** `isExternalElaborationLocked(documentContent?.lifecycle_status)` del caller — ver ia context/elaboracion-externa-guide.md. */
   isExternalElaborationLocked?: boolean
   showTrigger?: boolean
+  /** Reemplaza las clases del trigger en desktop (el header de assets lo usa para el estilo azul de la barra de herramientas). */
+  triggerClassName?: string
 }
 
 // ----------------------------------------
@@ -59,10 +63,12 @@ export interface ExecuteSheetProps {
   } | null
   fullDocument?: any
   isLoadingFullDocument?: boolean
+  /** Error del GET del documento completo: el sheet avisa y se cierra (nunca skeleton eterno). */
+  fullDocumentError?: unknown
   isOpen: boolean
   onOpenChange: (open: boolean) => void
   onSectionSheetOpen: () => void
-  onExecutionCreated?: (executionId: string, mode: 'full' | 'full-single' | 'single' | 'from', sectionIndex?: number) => void
+  onExecutionCreated?: (executionId: string, mode: 'full' | 'full-single' | 'single' | 'from', sectionIndex?: number, executionName?: string) => void
   isMobile?: boolean
   /** Deshabilita el botón "Ejecutar" del sheet (ej. can_generate=false). */
   disabled?: boolean
@@ -132,6 +138,8 @@ export interface SectionSheetProps {
   /** `isExternalElaborationLocked(documentContent?.lifecycle_status)` del caller — ver ia context correspondiente. */
   isExternalElaborationLocked?: boolean
   showTrigger?: boolean
+  /** Reemplaza las clases del trigger en desktop (el header de assets lo usa para el estilo azul de la barra de herramientas). */
+  triggerClassName?: string
 }
 
 export interface SectionsConfigExecution {

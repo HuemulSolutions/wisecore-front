@@ -34,7 +34,13 @@ export interface HuemulSheetProps {
   icon?: LucideIcon;
   iconClassName?: string;
   iconVariant?: HuemulSheetIconVariant;
+  /**
+   * Cuerpo cargando: muestra un skeleton en vez de `children` y deshabilita guardar/acciones extra
+   * (Cancelar sigue activo). El sheet abre siempre al instante — ver ia context/sheet-instant-open-skeleton-guide.md.
+   */
   bodyLoading?: boolean;
+  /** Skeleton propio para `bodyLoading` (por defecto, 6 filas genéricas). */
+  bodySkeleton?: ReactNode;
   showFooter?: boolean;
   showCancelButton?: boolean;
   cancelLabel?: string;
@@ -75,5 +81,9 @@ export interface HuemulSheetProps {
    */
   footerContent?: ReactNode;
   onOpenAutoFocus?: (event: Event) => void;
+  /** Al cerrar, Radix devuelve el foco al trigger; `preventDefault()` permite mandarlo a otro lado. */
+  onCloseAutoFocus?: (event: Event) => void;
+  /** Clases extra del overlay (ej. `bg-slate-900/30`); por defecto `bg-black/50`. */
+  overlayClassName?: string;
   children: ReactNode;
 }

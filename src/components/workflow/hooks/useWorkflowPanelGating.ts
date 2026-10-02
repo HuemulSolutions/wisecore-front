@@ -7,6 +7,7 @@ import {
   resolveLifecycleActionsVisibility,
   isExternalElaborationLocked,
 } from "@/lib/lifecycle-access";
+import { templateTitle } from "@/lib/launcher-templates";
 import { resolveWorkflowFinishOutcome, type WorkflowFinishOutcome } from "@/lib/workflow-finish-outcome";
 import { useLifecycleActions } from "@/hooks/useLifecycleActions";
 import { workflowQueryKeys } from "@/hooks/useWorkflows";
@@ -14,6 +15,7 @@ import { isSectionAnswerable } from "@/components/workflow/workflow-section-stat
 import { resolveSectionCanEdit, type SectionAccessMap } from "@/hooks/useDocumentSectionAccess";
 import type { WorkflowStatusTone } from "@/components/workflow/workflow-status-card";
 import type { AssetContentResponse, ContentSection } from "@/types/assets";
+import type { WorkflowTemplateItem } from "@/types/templates";
 
 export type WorkflowReadOnlyReason = "permission" | "externalElaboration" | "stage" | "sectionInactive" | "section" | null;
 
@@ -43,7 +45,7 @@ export interface UseWorkflowPanelGatingOptions {
   canListCustomFields: boolean;
   canReadExternalPublishConfig: boolean;
   documentName: string | undefined;
-  template: { name?: string } | null | undefined;
+  template: Pick<WorkflowTemplateItem, "name" | "relation_name"> | null | undefined;
   /** Estables (ver useWorkflowPanelView) — los consume useLifecycleActions.onGoToSection/onAfterComplete. */
   openSection: (index: number) => void;
   goToSummary: () => void;
@@ -184,7 +186,8 @@ export function useWorkflowPanelGating({
   });
 
   // Nombre del workflow para la tarjeta terminal: el nombre del TEMPLATE, no el del documento.
-  const workflowName = data?.template_name ?? template?.name ?? documentName ?? "";
+  const workflowName =
+    data?.relation_name || data?.template_name || (template && templateTitle(template)) || documentName || "";
 
   // Outcome terminal DECLARATIVO: se recalcula en cada render a partir del estado actual del
   // documento. Solo aplica en fullscreen: en el panel de /workflow el usuario sigue dentro de

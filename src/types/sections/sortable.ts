@@ -10,7 +10,8 @@ export interface SortableSectionProps {
 export interface SortableSectionSheetProps {
   item: SortableSectionSheetItem;
   existingSections: object[];
-  onSave: (sectionId: string, sectionData: object) => void;
+  /** Devolver la promesa de la mutación (`mutateAsync`): el sheet de edición espera antes de cerrar. */
+  onSave: (sectionId: string, sectionData: object) => Promise<unknown> | void;
   onDelete: (sectionId: string, options?: { executionId?: string; propagate_to_documents?: boolean }) => Promise<void>;
   isOverlay?: boolean;
   hasTemplate?: boolean;

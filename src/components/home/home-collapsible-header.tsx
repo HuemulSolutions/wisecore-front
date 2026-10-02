@@ -20,7 +20,7 @@ export function HomeCollapsibleHeader({ collapsed, onToggle, children }: HomeCol
       onClick={onToggle}
       aria-expanded={!collapsed}
       title={collapsed ? t('rail.expand') : t('rail.collapse')}
-      className={cn(HOME_CARD_HEADER, 'w-full items-start text-left hover:cursor-pointer', collapsed && 'border-b-0')}
+      className={cn(HOME_CARD_HEADER, 'w-full shrink-0 items-start text-left hover:cursor-pointer', collapsed && 'border-b-0')}
     >
       <span className="min-w-0 flex-1">{children}</span>
       <ChevronDown

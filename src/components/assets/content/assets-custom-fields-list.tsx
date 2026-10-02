@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, RefreshCw, Edit2, MoreVertical, Trash2, Loader2, SlidersHorizontal, Star, File as FileIcon } from "lucide-react";
+import { Plus, RefreshCw, Pencil, MoreVertical, Trash2, Loader2, SlidersHorizontal, Star, File as FileIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Badge } from "@/components/ui/badge";
@@ -418,7 +418,7 @@ export function CustomFieldsList({
                           onEditContent(field)
                         }, 0)
                       }} className="hover:cursor-pointer">
-                        <Edit2 className="mr-2 h-3 w-3" />
+                        <Pencil className="mr-2 h-3 w-3" />
                         {t('customFieldsList.editContent')}
                       </DropdownMenuItem>
                     )}
@@ -428,7 +428,7 @@ export function CustomFieldsList({
                           onEdit(field)
                         }, 0)
                       }} className="hover:cursor-pointer">
-                        <Edit2 className="mr-2 h-3 w-3" />
+                        <Pencil className="mr-2 h-3 w-3" />
                         {t('customFieldsList.editConfiguration')}
                       </DropdownMenuItem>
                     )}

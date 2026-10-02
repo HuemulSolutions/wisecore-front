@@ -3,7 +3,7 @@ import type React from 'react'
 import type { LifecyclePermissions, FileNode } from './core'
 import type { MenuAction } from '@/types/menu-action'
 import type { HuemulFileTreeRef } from '@/huemul/components/huemul-file-tree'
-import type { HuemulTreeToolbarAction } from '@/types/huemul/tree'
+import type { HuemulTreeToolbarAction, HuemulTreePageRequest } from '@/types/huemul/tree'
 import type { CustomFieldDocument } from '@/types/custom-fields'
 
 // ----------------------------------------
@@ -80,9 +80,24 @@ export interface AssetEmptyContentProps {
 // with the BasicFileNode-based FileTreeProps exported from core.ts
 // ----------------------------------------
 
+/** `HuemulTreePage` con nodos de la biblioteca. */
+export interface FileTreePage {
+  items: FileNode[]
+  total?: number
+  hasMore: boolean
+  nextCursor: string | null
+}
+
 export interface AssetFileTreeProps {
-  onLoadChildren?: (folderId: string | null, node?: FileNode) => Promise<FileNode[]>
-  onRefresh?: () => Promise<FileNode[]>
+  /** El 3er argumento pide una página; devolver `FileNode[]` (sin paginar) sigue siendo válido. */
+  onLoadChildren?: (
+    folderId: string | null,
+    node?: FileNode,
+    page?: HuemulTreePageRequest,
+  ) => Promise<FileNode[] | FileTreePage>
+  onRefresh?: (page?: HuemulTreePageRequest) => Promise<FileNode[] | FileTreePage>
+  /** Hijos por página (default `TREE_CHILDREN_PAGE_SIZE`). Ver HuemulFileTreeProps.onLoadChildren. */
+  childrenPageSize?: number
   /** documentTypeId and templateId are passed by custom create-file dialogs */
   onCreateFile?: (parentId: string | null, name: string, documentTypeId?: string, templateId?: string) => Promise<void>
   onCreateFolder?: (parentId: string | null, name: string) => Promise<void>

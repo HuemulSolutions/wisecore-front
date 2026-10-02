@@ -31,6 +31,8 @@ interface HuemulVersionPickerProps {
   organizationId: string | null | undefined
   existingVersions?: string[]
   disabled?: boolean
+  /** `compact` = inputs en línea + chips sugeridos (sheet de aprobación); `default` = steppers con checklist (dialog standalone). */
+  variant?: "default" | "compact"
   /**
    * Se dispara con el estado calculado cada vez que cambia (inputs, o llega
    * la sugerencia). No memoizar el callback en el caller no rompe nada: la
@@ -52,6 +54,7 @@ export function HuemulVersionPicker({
   organizationId,
   existingVersions,
   disabled = false,
+  variant = "default",
   onChange,
 }: HuemulVersionPickerProps) {
   const { t } = useTranslation("assets")
@@ -151,6 +154,88 @@ export function HuemulVersionPicker({
     { key: "minor", label: t("assignVersion.minor"), value: minor, setValue: setMinor, num: minorNum, base: baseParsed?.minor ?? null },
     { key: "patch", label: t("assignVersion.patch"), value: patch, setValue: setPatch, num: patchNum, base: baseParsed?.patch ?? null },
   ]
+
+  if (variant === "compact") {
+    const inputsDisabled = disabled || isFetchingSuggestion
+    const inputs = [
+      { key: "major", value: major, setValue: setMajor, label: t("assignVersion.major") },
+      { key: "minor", value: minor, setValue: setMinor, label: t("assignVersion.minor") },
+      { key: "patch", value: patch, setValue: setPatch, label: t("assignVersion.patch") },
+    ]
+    const chips = baseParsed
+      ? [
+          { key: "minor", label: t("assignVersion.chips.minor"), values: [baseParsed.major, baseParsed.minor + 1, 0] },
+          { key: "patch", label: t("assignVersion.chips.patch"), values: [baseParsed.major, baseParsed.minor, baseParsed.patch + 1] },
+          { key: "major", label: t("assignVersion.chips.major"), values: [baseParsed.major + 1, 0, 0] },
+        ]
+      : []
+    const isIncomplete = major.length === 0 || minor.length === 0 || patch.length === 0
+    const errorMessage = isIncomplete
+      ? t("assignVersion.validation.incomplete")
+      : !isUnique
+        ? t("assignVersion.validation.isUniqueFail")
+        : !isNewer
+          ? t("assignVersion.validation.isNewerFail", { version: suggestion?.based_on })
+          : null
+
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="flex items-baseline justify-between gap-2">
+          <Label className="text-[13px] font-semibold whitespace-nowrap text-[#0f172a]">{t("assignVersion.versionLabel")}</Label>
+          {suggestion?.based_on && (
+            <span className="text-xs text-[#64748b]">{t("assignVersion.lastPublished", { version: suggestion.based_on })}</span>
+          )}
+        </div>
+        <div className="flex items-end gap-2">
+          {inputs.map((input, index) => (
+            <div key={input.key} className="contents">
+              {index > 0 && <span className="pb-2.5 text-xl font-semibold text-[#94a3b8]">.</span>}
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <Label htmlFor={`version-${input.key}`} className="text-[11px] font-medium text-[#64748b]">
+                  {input.label}
+                </Label>
+                <Input
+                  id={`version-${input.key}`}
+                  type="text"
+                  inputMode="numeric"
+                  value={input.value}
+                  onChange={(e) => input.setValue(sanitize(e.target.value))}
+                  disabled={inputsDisabled}
+                  className="h-12 w-full min-w-0 border-[#e2e8f0] px-0 text-center font-mono text-lg focus-visible:border-[#2563eb] focus-visible:ring-[3px] focus-visible:ring-[#dbeafe]"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+        {chips.length > 0 && (
+          <div className="grid grid-cols-3 gap-2">
+            {chips.map((chip) => {
+              const selected = chip.values[0] === majorNum && chip.values[1] === minorNum && chip.values[2] === patchNum
+              return (
+                <button
+                  key={chip.key}
+                  type="button"
+                  disabled={inputsDisabled}
+                  onClick={() => {
+                    setMajor(String(chip.values[0]))
+                    setMinor(String(chip.values[1]))
+                    setPatch(String(chip.values[2]))
+                  }}
+                  className={cn(
+                    "h-9 rounded-full border px-2.5 text-[13px] hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60",
+                    selected ? "border-[#93c5fd] bg-[#eff5ff] text-[#1d4ed8]" : "border-[#e2e8f0] bg-white text-[#475569]",
+                  )}
+                >
+                  <span className="font-mono">{chip.values.join(".")}</span> · {chip.label}
+                </button>
+              )
+            })}
+          </div>
+        )}
+        {errorMessage && <span className="text-xs text-[#b91c1c]">{errorMessage}</span>}
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col items-center gap-4 py-2">

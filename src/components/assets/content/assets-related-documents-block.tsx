@@ -4,9 +4,7 @@ import { toast } from "sonner";
 import {
   ChevronDown,
   ChevronUp,
-  Link2,
   MoreVertical,
-  Plus,
   RefreshCw,
   Search,
   SquareArrowOutUpRight,
@@ -26,6 +24,7 @@ import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
 import { useOrgPath, useOrgNavigate } from "@/hooks/useOrgRouter";
 import { useExecutionRelationships, useExecutionRelationshipMutations } from "@/hooks/useExecutionRelationships";
 import { useDocumentTypes } from "@/hooks/useDocumentTypes";
+import { useInViewOnce } from "@/hooks/useInViewOnce";
 import { getRelationshipLabel, getOtherExecution, tintFromColor } from "@/lib/execution-relationship-utils";
 import type { ExecutionRelationshipWithDetails } from "@/types/execution-relationships";
 
@@ -43,6 +42,8 @@ export interface AssetsRelatedDocumentsBlockProps {
 }
 
 const SEARCH_THRESHOLD = 10;
+
+const ICON_BUTTON_CLASS = "h-[30px] w-[30px] shrink-0 rounded-[7px] text-[#64748b] hover:bg-[#f1f5f9] hover:text-[#64748b]";
 
 /**
  * Barra fija al pie del área de contenido con los documentos relacionados de la
@@ -73,13 +74,17 @@ export function AssetsRelatedDocumentsBlock({
     relLabel: string;
   } | null>(null);
 
+  // El bloque vive al pie del documento: sus queries se piden recién cuando el usuario
+  // se acerca a él, no al abrir el asset.
+  const [sentinelRef, isNearViewport] = useInViewOnce<HTMLDivElement>();
+
   const { data, isLoading, isFetching, isError, refetch } = useExecutionRelationships(
     organizationId,
     executionId || "",
-    { enabled: !!executionId, direction: "all", includeSubrelationships: false },
+    { enabled: !!executionId && isNearViewport, direction: "all", includeSubrelationships: false },
   );
 
-  const { data: documentTypesResponse } = useDocumentTypes({ enabled: canListAssetTypes });
+  const { data: documentTypesResponse } = useDocumentTypes({ enabled: canListAssetTypes && isNearViewport });
   const typeNameById = useMemo(() => {
     const map = new Map<string, string>();
     for (const type of documentTypesResponse?.data ?? []) map.set(type.id, type.name);
@@ -150,45 +155,29 @@ export function AssetsRelatedDocumentsBlock({
 
   // Estado vacío ya lo cubre el panel lateral del TOC — acá el bloque solo aparece
   // cuando hay algo real que mostrar (o mientras carga la primera vez / hay error).
+  // Antes de acercarse al viewport solo se renderiza el sentinel (sin altura) que lo detecta.
   if (!executionId) return null;
+  if (!isNearViewport) return <div ref={sentinelRef} aria-hidden="true" />;
   if (!isLoading && !isError && relationships.length === 0) return null;
 
   const canSearch = relationships.length > SEARCH_THRESHOLD;
   const showLinkButton = !isViewMode && canLinkAssets && currentDocumentId;
   const showDelete = !isViewMode && canDeleteRelationship;
 
-  const collapsedSummary = sorted
-    .map((rel) => getOtherExecution(rel).document_name)
-    .filter(Boolean)
-    .join(" · ");
-
   const badgeLabel = relationships.length === 0 ? "" : String(relationships.length);
 
   return (
-    <div className="not-prose mt-4 shrink-0 rounded-[10px] border border-[#e5eaf1] bg-white shadow-[0_-12px_20px_-12px_rgba(15,23,42,0.12)]">
-      <div className="flex items-center gap-2.25 rounded-t-[10px] border-b border-[#f1f4f8] bg-[#fbfcfe] px-2.75 py-2.25">
-        <button
-          type="button"
-          className="flex min-w-0 flex-1 items-center gap-2.25 text-left hover:cursor-pointer"
-          aria-expanded={isOpen}
-          aria-controls="related-documents-block-list"
-          onClick={() => setIsOpen((o) => !o)}
-        >
-          <Link2 className="h-3.5 w-3.5 shrink-0 text-[#3b57c4]" />
-          <span className="shrink-0 text-[13px] font-semibold text-[#0f172a]">
-            {t("content.relatedDocuments.title")}
+    <div className="not-prose mt-7 shrink-0 border-t border-[#eef1f6] pt-6">
+      <div className="flex items-center gap-2 pb-2">
+        <h3 className="text-[17px] font-[650] text-[#0f172a]">
+          {t("content.relatedDocuments.title")}
+        </h3>
+        {relationships.length > 0 && (
+          <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-[10px] bg-[#f1f5f9] px-1.5 text-[11.5px] font-bold text-[#475569]">
+            {badgeLabel}
           </span>
-          {relationships.length > 0 && (
-            <span className="shrink-0 rounded px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[.04em] text-[#475569]" style={{ backgroundColor: "#eef1f5" }}>
-              {badgeLabel}
-            </span>
-          )}
-          {!isOpen && collapsedSummary && (
-            <span className="min-w-0 flex-1 truncate text-[11.5px] text-[#94a3b8]">
-              {collapsedSummary}
-            </span>
-          )}
-        </button>
+        )}
+        <div className="flex-1" />
 
         {isOpen && (
           <>
@@ -200,13 +189,13 @@ export function AssetsRelatedDocumentsBlock({
                   onChange={(e) => setSearch(e.target.value)}
                   onBlur={() => { if (!search) setSearchOpen(false); }}
                   placeholder={t("content.relatedDocuments.searchPlaceholder")}
-                  className="h-7 w-40 text-xs"
+                  className="h-[30px] w-40 text-xs"
                 />
               ) : (
                 <HuemulButton
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-muted-foreground/70"
+                  className={ICON_BUTTON_CLASS}
                   icon={Search}
                   iconClassName="h-3.5 w-3.5"
                   tooltip={t("common:search")}
@@ -215,20 +204,18 @@ export function AssetsRelatedDocumentsBlock({
               )
             )}
             {showLinkButton && (
-              <HuemulButton
-                variant="outline"
-                size="sm"
-                icon={Plus}
-                className="h-7 shrink-0 text-xs"
+              <button
+                type="button"
+                className="h-[30px] shrink-0 rounded-[7px] px-2.5 text-[12.5px] font-semibold text-[#1d4ed8] hover:cursor-pointer hover:bg-[#eff5ff]"
                 onClick={handleLinkDocument}
               >
-                {t("content.relatedDocuments.linkDocument")}
-              </HuemulButton>
+                + {t("content.relatedDocuments.linkDocument")}
+              </button>
             )}
             <HuemulButton
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-muted-foreground/70"
+              className={ICON_BUTTON_CLASS}
               icon={RefreshCw}
               iconClassName="h-3.5 w-3.5"
               tooltip={t("common:refresh")}
@@ -240,31 +227,33 @@ export function AssetsRelatedDocumentsBlock({
         <HuemulButton
           variant="ghost"
           size="icon"
-          className="h-7 w-7 shrink-0 text-muted-foreground/70"
+          className={ICON_BUTTON_CLASS}
           icon={isOpen ? ChevronUp : ChevronDown}
           iconClassName="h-3.5 w-3.5"
+          aria-expanded={isOpen}
+          aria-controls="related-documents-block-list"
           tooltip={isOpen ? t("content.relatedDocuments.collapse") : t("content.relatedDocuments.expand")}
           onClick={() => setIsOpen((o) => !o)}
         />
       </div>
 
       {isOpen && (
-        <ul id="related-documents-block-list" className="flex max-h-43 flex-col gap-1.5 overflow-y-auto px-3 pt-2.5 pb-3">
+        <ul id="related-documents-block-list" className="-mx-3 flex flex-col">
           {isLoading ? (
             Array.from({ length: 2 }).map((_, i) => (
-              <li key={i}>
-                <Skeleton className="h-10 w-full rounded-lg" />
+              <li key={i} className="px-3 py-1">
+                <Skeleton className="h-9 w-full rounded-lg" />
               </li>
             ))
           ) : isError ? (
-            <li className="flex items-center justify-between gap-2 px-1 py-1 text-xs text-muted-foreground">
+            <li className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-muted-foreground">
               {t("content.relatedDocuments.error")}
               <button type="button" className="text-primary hover:underline hover:cursor-pointer" onClick={() => refetch()}>
                 {t("common:retry")}
               </button>
             </li>
           ) : filtered.length === 0 ? (
-            <li className="px-1 py-1 text-xs text-muted-foreground">
+            <li className="px-3 py-2 text-xs text-muted-foreground">
               {t("content.relatedDocuments.noMatches")}
             </li>
           ) : (
@@ -272,13 +261,15 @@ export function AssetsRelatedDocumentsBlock({
               const other = getOtherExecution(rel);
               const relLabel = getRelationshipLabel(rel, untitledFallback);
               const typeName = typeNameById.get(other.document_type_id);
+              const typeColor = other.document_type_color;
+              const typeTint = tintFromColor(typeColor);
               return (
                 <li
                   key={rel.id}
                   role="button"
                   tabIndex={0}
                   title={t("content.relatedDocuments.openInNewTab")}
-                  className="flex items-center gap-3 rounded-lg border border-[#eef1f5] px-2.75 py-2.25 hover:cursor-pointer hover:border-[#bfd3fb] hover:bg-[#fafcff]"
+                  className="flex items-center gap-3 rounded-lg py-2 pr-1.5 pl-3 hover:cursor-pointer hover:bg-[#f8fafc]"
                   onClick={() => openInNewTab(rel)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") openInNewTab(rel);
@@ -290,23 +281,24 @@ export function AssetsRelatedDocumentsBlock({
                 >
                   {typeName && (
                     <span
-                      className="flex shrink-0 items-center gap-1 rounded border px-1.75 py-0.5 text-[11px] font-semibold"
+                      className="inline-flex h-[22px] max-w-44 shrink-0 items-center rounded-md border px-[7px] text-[11px] font-semibold"
                       style={{
-                        backgroundColor: tintFromColor(other.document_type_color) || "#eef1f5",
-                        borderColor: tintFromColor(other.document_type_color) ? other.document_type_color : "#e2e8f0",
-                        color: other.document_type_color || "#475569",
+                        backgroundColor: typeTint || "#f1f5f9",
+                        borderColor: typeTint ? typeColor : "#e2e8f0",
+                        color: typeColor || "#475569",
                       }}
+                      title={typeName}
                     >
-                      {typeName}
+                      <span className="truncate">{typeName}</span>
                     </span>
                   )}
-                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#0f172a]">
+                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-[#0f172a]">
                     {other.document_name}
                   </span>
-                  <span className="w-19.5 shrink-0 truncate text-[11.5px] text-[#94a3b8]">
+                  <span className="w-19.5 shrink-0 truncate text-[12px] text-[#94a3b8]" title={other.name}>
                     {other.name}
                   </span>
-                  <span className="w-30 shrink-0 truncate text-[11.5px] text-[#475569]">
+                  <span className="w-32 shrink-0 truncate text-[12px] text-[#475569]" title={relLabel}>
                     {t("content.relatedDocuments.relationPrefix", { name: relLabel })}
                   </span>
                   <DropdownMenu>
@@ -317,16 +309,20 @@ export function AssetsRelatedDocumentsBlock({
                         icon={MoreVertical}
                         iconClassName="h-3.5 w-3.5"
                         aria-label={t("content.relatedDocuments.rowActions")}
-                        className="h-6.5 w-6.5 shrink-0 p-0 text-[#94a3b8] hover:cursor-pointer hover:bg-[#f1f4f8] hover:text-foreground"
+                        className="h-7 w-7 shrink-0 rounded-[7px] p-0 text-[#94a3b8] hover:cursor-pointer hover:bg-[#eef1f6] hover:text-[#334155]"
                         onClick={(e) => e.stopPropagation()}
                       />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-44">
-                      <DropdownMenuItem className="gap-2 text-xs hover:cursor-pointer" onSelect={() => setTimeout(() => openInThisTab(rel), 0)}>
+                    <DropdownMenuContent
+                      side="top"
+                      align="end"
+                      className="w-[210px] rounded-[10px] border-0 bg-white p-[5px] shadow-[0_0_0_1px_#e2e8f0,0_18px_36px_-14px_rgba(15,23,42,.28)]"
+                    >
+                      <DropdownMenuItem className="h-8 gap-2 text-[13px] font-medium hover:cursor-pointer focus:bg-[#f1f5f9]" onSelect={() => setTimeout(() => openInThisTab(rel), 0)}>
                         <SquareArrowOutUpRight className="h-3.5 w-3.5" />
                         {t("content.relatedDocuments.openInThisTab")}
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="gap-2 text-xs hover:cursor-pointer" onSelect={() => setTimeout(() => openInNewTab(rel), 0)}>
+                      <DropdownMenuItem className="h-8 gap-2 text-[13px] font-medium hover:cursor-pointer focus:bg-[#f1f5f9]" onSelect={() => setTimeout(() => openInNewTab(rel), 0)}>
                         <SquareArrowOutUpRight className="h-3.5 w-3.5" />
                         {t("content.relatedDocuments.openInNewTab")}
                       </DropdownMenuItem>
@@ -334,7 +330,7 @@ export function AssetsRelatedDocumentsBlock({
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
-                            className="gap-2 text-xs text-destructive focus:text-destructive hover:cursor-pointer"
+                            className="h-8 gap-2 text-[13px] font-medium text-destructive focus:bg-[#f1f5f9] focus:text-destructive hover:cursor-pointer"
                             onSelect={() => setTimeout(() => setPendingDelete({ id: rel.id, documentName: other.document_name, relLabel }), 0)}
                           >
                             <Trash2 className="h-3.5 w-3.5" />

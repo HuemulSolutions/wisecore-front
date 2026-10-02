@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useRoles } from "@/hooks/useRbac"
 import { lifecycleQueryKeys } from "@/hooks/useLifecycle"
 import { formatRelativeTime } from "@/lib/format-relative-time"
+import { handleApiError } from "@/lib/error-utils"
 import { cn } from "@/lib/utils"
 import { useLifecycleStepDraft } from "./assets-types-lifecycle-step-draft"
 import { LifecycleStepConfigTab } from "./assets-types-lifecycle-step-config-tab"
@@ -94,19 +95,31 @@ export function LifecycleStepSheet({
     if (draft.stepMissing) onTargetChange(null)
   }, [draft.stepMissing, onTargetChange])
 
+  // Error al cargar los pasos: avisar y cerrar (sin guard) en vez de mostrar un draft vacío.
+  useEffect(() => {
+    if (target && draft.loadError) {
+      handleApiError(draft.loadError)
+      onTargetChange(null)
+    }
+  }, [target, draft.loadError, onTargetChange])
+
   if (!target) return null
 
   const stageType = draft.stageType
   const stageLabel = t(`lifecycle.stepTypes.${stageType}`, { defaultValue: stageType })
   const isCreateMode = draft.isCreateMode
-  const title = isCreateMode
+  const title = draft.isLoading
+    ? t("common:loading")
+    : isCreateMode
     ? t("lifecycle.newGroupName")
     : draft.capabilities.editableName
       ? draft.draft.name.trim() || t("lifecycle.newGroupName")
       : stageLabel
 
   const rolesCount = draft.draft.roleIds.length
+  // Mientras carga el borrador está vacío: no calcular "sin roles / sin SLA" falsos.
   const summaryParts: string[] = []
+  if (!draft.isLoading) {
   if (draft.capabilities.hasPosition) {
     summaryParts.push(t("lifecycle.summaryLine.group", { index: draft.draft.positionIndex + 1, total: draft.totalGroupCount }))
   } else {
@@ -130,6 +143,7 @@ export function LifecycleStepSheet({
           })
         : t("lifecycle.summaryLine.noSla"),
     )
+  }
   }
 
   const savedStateLabel = combinedIsDirty
@@ -174,6 +188,15 @@ export function LifecycleStepSheet({
         size="lg"
         bodyClassName="flex flex-col overflow-hidden py-0 [scrollbar-gutter:auto]"
         cancelLabel={t("common:close")}
+        bodyLoading={draft.isLoading}
+        bodySkeleton={
+          <div className="flex flex-col gap-3 py-4">
+            <p className="text-[11.5px] leading-snug text-[#94a3b8]">{t("lifecycle.panel.firstLoadHint")}</p>
+            <Skeleton className="h-28 w-full rounded-xl" />
+            <Skeleton className="h-28 w-full rounded-xl" />
+            <Skeleton className="h-28 w-full rounded-xl" />
+          </div>
+        }
         footerLeft={
           <div className="flex items-center gap-3">
             {draft.capabilities.canDelete && !isCreateMode && draft.step && draft.canManage && (
@@ -198,14 +221,7 @@ export function LifecycleStepSheet({
         }}
       >
         <div className="flex h-full min-h-0 flex-col">
-          {draft.isLoading ? (
-            <div className="flex flex-col gap-3 py-4">
-              <p className="text-[11.5px] leading-snug text-[#94a3b8]">{t("lifecycle.panel.firstLoadHint")}</p>
-              <Skeleton className="h-28 w-full rounded-xl" />
-              <Skeleton className="h-28 w-full rounded-xl" />
-              <Skeleton className="h-28 w-full rounded-xl" />
-            </div>
-          ) : (
+          {draft.isLoading ? null : (
             <Tabs defaultValue="config" className="flex min-h-0 flex-1 flex-col gap-0">
               <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[#e9edf2]">
                 <TabsList className="h-auto bg-transparent p-0">

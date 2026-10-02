@@ -1,6 +1,8 @@
 export interface ExecutionStatusBannerProps {
   executionId: string | null;
   onExecutionComplete?: (completedExecutionId?: string) => void;
+  /** Progreso 0-100 de la generación, si el padre lo conoce (el endpoint de estado no lo trae). */
+  progress?: number;
   className?: string;
 }
 

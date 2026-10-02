@@ -5,7 +5,7 @@ import type { CustomFieldDocument } from '@/types/custom-fields'
 import type { MediaScope, MediaScopeExecutionOption } from '@/types/media'
 import type { TocItem } from '@/types/table-of-contents'
 
-export type AssetDetailPanelTab = 'index' | 'fields' | 'files' | 'links'
+export type AssetDetailPanelTab = 'index' | 'fields' | 'files' | 'links' | 'diagrams'
 
 /** Marca de tiempo de "última actualización" por tab, para el footer del panel. */
 export type AssetDetailPanelTimestamps = Partial<Record<AssetDetailPanelTab, number>>
@@ -61,6 +61,10 @@ export interface AssetDetailPanelProps extends AssetDetailPanelPermissions {
   executions: MediaScopeExecutionOption[]
   onOpenMediaSheet: (scope?: MediaScope) => void
 
+  /** Tab "Diagramas" del rail (visible si `canAccessDiagrams`); `canCreateDiagram` habilita el "+" del header. */
+  canAccessDiagrams?: boolean
+  canCreateDiagram?: boolean
+
   /** Colapso a solo-rail (53px), controlado por el `ResizablePanel` que envuelve este componente. */
   isCollapsed: boolean
   onToggleCollapse: () => void
@@ -73,6 +77,5 @@ export interface AssetDetailPanelRailItem {
   key: AssetDetailPanelTab
   label: string
   icon: React.ComponentType<{ className?: string }>
-  count?: number
   visible: boolean
 }

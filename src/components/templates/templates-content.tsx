@@ -486,14 +486,12 @@ export function TemplateContent({
       </div>
 
       {/* Dialogs */}
-      {selectedTemplate && templateData && (
+      {selectedTemplate && (
         <EditTemplateDialog
           open={isEditDialogOpen}
           onOpenChange={setIsEditDialogOpen}
           templateId={selectedTemplate.id}
-          templateName={templateData.name}
-          templateDescription={templateData.description}
-          templateInstructions={templateData.instructions ?? undefined}
+          templateName={templateData?.name ?? selectedTemplate.name}
           organizationId={selectedOrganizationId!}
           onSuccess={() => {
             // Solo refrescar el template actual, no toda la lista
@@ -559,6 +557,9 @@ export function TemplateContent({
         sectionsCount={orderedSections.length}
         canViewTags={canViewTags}
         canManageTags={canManageTags}
+        loading={isLoadingTemplate}
+        hasError={!!templateError}
+        onRetry={() => refetch()}
       />
     </div>
   );

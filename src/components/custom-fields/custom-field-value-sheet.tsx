@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulField } from "@/huemul/components/huemul-field"
-import { Edit2, FileEdit } from "lucide-react"
+import { Pencil, FileEdit } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
 import { useCustomField } from "@/hooks/useCustomFields"
 import { CustomFieldValueField } from "@/components/custom-fields/custom-field-value-field"
@@ -12,6 +12,7 @@ import { CustomFieldInfoCard } from "@/components/custom-fields/custom-field-inf
 import { validateCustomFieldValue } from "@/components/custom-fields/custom-field-value-validation"
 import { QUESTION_TYPE, readFileUploadLimits } from "@/components/sections/question-type-meta"
 import { logger } from "@/lib/logger"
+import { handleApiError } from "@/lib/error-utils"
 import type { CustomFieldTemplate, CustomFieldDocument, CustomFieldOption } from "@/types/custom-fields"
 
 type CustomFieldValueEntity = CustomFieldTemplate | CustomFieldDocument
@@ -58,10 +59,19 @@ export function CustomFieldValueSheet({
   // min_value/max_value/options poblados — esos solo vienen del detalle del custom
   // field. Sin esto, el sheet cae al fallback por data_type (ej. rating se ve como
   // caja numérica en vez de estrellas). Mismo dato que consume add-custom-field-sheet.tsx.
-  const { data: customFieldDetail } = useCustomField(
+  const { data: customFieldDetail, isLoading: isLoadingDetail, error: detailError } = useCustomField(
     entity?.custom_field_id ?? "",
     isOpen && !!entity?.custom_field_id,
   )
+  // Sin el detalle el cuerpo caería al fallback por data_type y cambiaría al llegar:
+  // skeleton mientras carga; si falla, avisar y cerrar (nunca guardar con el fallback).
+  useEffect(() => {
+    if (isOpen && detailError) {
+      handleApiError(detailError)
+      onClose()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, detailError])
   const effectiveQuestionType = customFieldDetail?.question_type ?? entity?.question_type
   // Para carga_de_archivos, min/max se resuelven vía readFileUploadLimits — con fallback
   // legado a default_value.min_files/max_files para custom fields guardados antes de la
@@ -290,7 +300,7 @@ export function CustomFieldValueSheet({
     : {
         title: entityType === "document" ? t('editValueDialog.titleDocument') : t('editValueDialog.titleTemplate'),
         description: entityType === "document" ? t('editValueDialog.descriptionDocument') : t('editValueDialog.descriptionTemplate'),
-        icon: Edit2,
+        icon: Pencil,
         submitLabel: entityType === "document" ? t('editValueDialog.submitLabelDocument') : t('editValueDialog.submitLabelTemplate'),
       }
 
@@ -310,6 +320,7 @@ export function CustomFieldValueSheet({
       icon={sheetConfig.icon}
       maxWidth="sm:max-w-lg"
       cancelLabel={t('common:cancel')}
+      bodyLoading={isLoadingDetail}
       saveAction={{
         label: sheetConfig.submitLabel,
         onClick: handleSubmit,

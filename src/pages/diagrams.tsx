@@ -12,11 +12,10 @@ import { useRecentDiagrams } from "@/hooks/useRecentDiagrams"
 import { executionRelationshipQueryKeys } from "@/hooks/useExecutionRelationships"
 import { ExpandedFoldersProvider } from "@/hooks/use-expanded-folders"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
-import { HuemulPagination } from "@/huemul/components/huemul-pagination"
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { NavKnowledgeHeader, NavKnowledgeContent } from "@/components/layout/nav-knowledge"
-import { useNavKnowledge, useNavKnowledgePagination } from "@/contexts/nav-knowledge-context"
+import { useNavKnowledge } from "@/contexts/nav-knowledge-context"
 import { RelationshipsCanvas } from "@/components/document-type-relationships"
 import {
   DiagramCanvas,
@@ -40,7 +39,7 @@ import type { Diagram } from "@/types/diagrams"
  *
  * Qué se edita lo decide `?diagram=`: un id carga el diagrama guardado, `new`
  * abre un canvas en blanco (opcionalmente sembrado con ?seedAsset=&seedExecution=,
- * ver AssetDiagramsSheet) y sin param se trabaja sobre el canvas libre. El panel
+ * ver AssetsPanelDiagramsTab) y sin param se trabaja sobre el canvas libre. El panel
  * "Diagramas" del riel es la única fuente del listado (búsqueda, filtro por
  * ejecución, paginación y eliminar).
  */
@@ -48,7 +47,6 @@ function DiagramsContent() {
   const { t } = useTranslation("diagrams")
   const { selectedOrganizationId, organizationToken } = useOrganization()
   const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('diagrams')
-  const { page, pageSize, hasNext, hasPrevious, setPage } = useNavKnowledgePagination()
   const { fileTreeRef } = useNavKnowledge()
   const queryClient = useQueryClient()
 
@@ -236,13 +234,6 @@ function DiagramsContent() {
                       <ScrollArea className="min-h-0 flex-1" type="hover">
                         <NavKnowledgeContent diagramMode />
                       </ScrollArea>
-                      <HuemulPagination
-                        page={page}
-                        pageSize={pageSize}
-                        hasNext={hasNext}
-                        hasPrevious={hasPrevious}
-                        onPageChange={setPage}
-                      />
                     </DiagramsRailPanel>
                   )}
 

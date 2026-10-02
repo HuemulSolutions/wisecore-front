@@ -108,6 +108,8 @@ export interface LifecycleActionsController {
   changeSummaryError: string | null
   canViewChanges: boolean
   isSummaryLoading: boolean
+  /** Datos que condicionan Confirmar (campos requeridos / revisión externa) aún cargando. */
+  isReviewDataLoading: boolean
   handleViewChanges: () => void
   /** Obligatorios sin valor para el aviso preventivo. Vacío si la transición no sale de draft. */
   missingRequiredCustomFields: string[]
@@ -151,8 +153,11 @@ export interface LifecycleActionsController {
 
 export interface HuemulLifecycleActionsProps {
   controller: LifecycleActionsController
-  /** `compact` = pill row inside a shaded box (mobile header); `row` = plain inline row (desktop metadata row / panels). */
-  variant?: 'compact' | 'row'
+  /**
+   * `compact` = pill row inside a shaded box (mobile header); `row` = plain inline row (desktop metadata row / panels);
+   * `header` = solo acciones secundarias en ghost (header desktop de assets) — Completar/Publicar viven en `HuemulLifecyclePhaseBlock`.
+   */
+  variant?: 'compact' | 'row' | 'header'
   /** Render the "re-lanzar publish externo" button inline. Assets' desktop row hides it behind the more-options dropdown instead. */
   showRerunExternalPublish?: boolean
   /** Render el botón de disparo manual de elaboración externa. Omitir donde la superficie no lo ofrece (ej. WorkflowDetailPanel). Default false. */
@@ -162,9 +167,17 @@ export interface HuemulLifecycleActionsProps {
   className?: string
 }
 
-export interface HuemulLifecycleStageBadgeProps {
-  status: LifecycleStatus | null | undefined
+export interface HuemulLifecyclePhaseBlockProps {
+  controller: LifecycleActionsController
   className?: string
+}
+
+export interface HuemulLifecycleStageBadgeProps {
+  /** Solo lee `stage` y `current_group`: acepta un `LifecycleStatus` completo o solo esos dos campos (filas del listado). */
+  status: Pick<LifecycleStatus, 'stage' | 'current_group'> | null | undefined
+  className?: string
+  /** El texto hace salto de línea dentro del pill en vez de desbordar — para columnas de tabla angostas. */
+  wrap?: boolean
 }
 
 // ----------------------------------------

@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { CommentVisibilityToggle } from '@/components/ui/comment-visibility-toggle';
+import { plainTextToCommentValue } from '@/lib/comment-utils';
 import { cn } from '@/lib/utils';
 import type { TDiscussionUser } from '@/components/plate-editor/components/discussion-kit';
 
@@ -42,8 +43,7 @@ export function AssetsDiscussionComposer({
   const submit = React.useCallback(async () => {
     const trimmed = text.trim();
     if (!trimmed || isSubmitting || disabled) return;
-    const contentRich: Value = [{ type: 'p', children: [{ text: trimmed }] }];
-    await onSubmit(contentRich, isPublic);
+    await onSubmit(plainTextToCommentValue(trimmed), isPublic);
     setText('');
     setIsPublic(true);
   }, [text, isPublic, isSubmitting, disabled, onSubmit]);

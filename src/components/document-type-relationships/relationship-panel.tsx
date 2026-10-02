@@ -1,7 +1,7 @@
 "use client"
 
 import { useTranslation } from "react-i18next"
-import { X, ArrowRight, Edit2, Trash2, Settings2, GitMerge } from "lucide-react"
+import { X, ArrowRight, Pencil, Trash2, Settings2, GitMerge } from "lucide-react"
 import { type Edge, type Node } from "@xyflow/react"
 import { Badge } from "@/components/ui/badge"
 import type { AssetTypeNodeData } from "./asset-type-node"
@@ -152,7 +152,7 @@ export function RelationshipPanel({
                 onClick={() => edgeData.onEdit!(edgeData.relationshipId)}
                 className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground hover:bg-accent hover:text-foreground hover:cursor-pointer transition-colors"
               >
-                <Edit2 className="h-3.5 w-3.5 shrink-0" />
+                <Pencil className="h-3.5 w-3.5 shrink-0" />
                 {/* The wording matters: renaming a direct edge doesn't call the
                     backend at all until the diagram is saved. */}
                 <span>{isDirectEdge ? t("panel.rename") : t("panel.edit")}</span>

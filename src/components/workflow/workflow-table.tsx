@@ -1,11 +1,12 @@
 import { useTranslation } from "react-i18next"
-import { Workflow as WorkflowIcon, Trash2, Share2, Paperclip, Edit3, ExternalLink, Maximize2 } from "lucide-react"
+import { Workflow as WorkflowIcon, Trash2, Share2, Paperclip, Pencil, ExternalLink, Maximize2 } from "lucide-react"
 import { HuemulTable } from "@/huemul/components/huemul-table"
 import type { HuemulTableAction, HuemulTableColumn, HuemulTablePagination } from "@/huemul/components/huemul-table"
-import { HuemulLifecycleBadge } from "@/huemul/components/huemul-lifecycle-badge"
+import { HuemulLifecycleStageBadge } from "@/huemul/components/huemul-lifecycle-stage-badge"
 import { formatRelativeTime } from "@/lib/format-relative-time"
-import { lifecycleStageColor } from "@/lib/lifecycle-colors"
+import { formatDate } from "@/lib/utils"
 import type { WorkflowItem } from "@/types/workflow"
+import { workflowStageOf } from "./workflow-lifecycle-stage"
 import { WorkflowProgressBar } from "./workflow-progress-bar"
 
 interface WorkflowTableProps {
@@ -61,7 +62,7 @@ export function WorkflowTable({
   onOpenFullscreen,
   hasActiveFilters,
 }: WorkflowTableProps) {
-  const { t } = useTranslation(["workflow", "common", "assets"])
+  const { t } = useTranslation(["workflow", "common"])
 
   const columns: HuemulTableColumn<WorkflowItem>[] = [
     {
@@ -89,30 +90,22 @@ export function WorkflowTable({
       label: t("columns.template"),
       width: "minmax(180px,1fr)",
       render: (item) => (
-        <span className="block max-w-sm truncate" title={item.template_name}>
-          {item.template_name}
+        <span className="block max-w-sm truncate" title={item.relation_name || item.template_name}>
+          {item.relation_name || item.template_name}
         </span>
       ),
     },
     {
       key: "lifecycleState",
       label: t("columns.lifecycleState"),
-      width: "minmax(220px,1.3fr)",
+      width: "minmax(200px,1fr)",
+      // Misma píldora «Etapa · grupo» que la fila de ciclo de vida del panel de detalle.
       render: (item) => (
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <HuemulLifecycleBadge state={item.lifecycle_state} />
-          {item.current_lifecycle_step && (
-            <span
-              className={`inline-flex max-w-50 items-center truncate px-2 py-1 rounded-full text-xs font-medium ${lifecycleStageColor(item.current_lifecycle_step.step_type)}`}
-              title={t("columns.lifecycleStepTooltip")}
-            >
-              {item.current_lifecycle_step.step_name ??
-                t(`assets:lifecycle.stageLabels.${item.current_lifecycle_step.step_type}`, {
-                  defaultValue: item.current_lifecycle_step.step_type,
-                })}
-            </span>
-          )}
-        </div>
+        <HuemulLifecycleStageBadge
+          status={workflowStageOf(item)}
+          wrap
+          className="min-h-[26px] max-w-full rounded-[13px] px-[10px] py-[3px] text-[12px] font-semibold"
+        />
       ),
     },
     {
@@ -120,6 +113,29 @@ export function WorkflowTable({
       label: t("columns.progress"),
       width: "120px",
       render: (item) => <WorkflowProgressBar percentage={item.progress_percentage} />,
+    },
+    {
+      key: "createdBy",
+      label: t("columns.createdBy"),
+      width: "minmax(140px,0.8fr)",
+      render: (item) =>
+        item.created_by_user_name ? (
+          <span className="block max-w-xs truncate text-sm" title={item.created_by_user_name}>
+            {item.created_by_user_name}
+          </span>
+        ) : (
+          <span className="text-sm text-muted-foreground">—</span>
+        ),
+    },
+    {
+      key: "createdAt",
+      label: t("columns.createdAt"),
+      width: "120px",
+      render: (item) => (
+        <span className="text-sm text-muted-foreground">
+          {item.created_at ? formatDate(new Date(item.created_at), { year: "numeric", month: "short", day: "numeric" }) : "—"}
+        </span>
+      ),
     },
     {
       key: "lastModified",
@@ -137,7 +153,7 @@ export function WorkflowTable({
     ...(canOpenAsset ? [{ key: "openAsset", label: t("actions.openAsset"), icon: ExternalLink, onClick: onOpenAsset }] : []),
     ...(canOpenFullscreen ? [{ key: "openFullscreen", label: t("actions.openFullscreen"), icon: Maximize2, onClick: onOpenFullscreen }] : []),
     ...(canViewMedia ? [{ key: "media", label: t("panel.media"), icon: Paperclip, onClick: onViewMedia }] : []),
-    ...(canEditAsset ? [{ key: "edit", label: t("panel.edit"), icon: Edit3, onClick: onEditAsset }] : []),
+    ...(canEditAsset ? [{ key: "edit", label: t("panel.edit"), icon: Pencil, onClick: onEditAsset }] : []),
   ]
   if (canDelete && safeActions.length > 0) safeActions[safeActions.length - 1].separator = true
   const actions: HuemulTableAction<WorkflowItem>[] = [

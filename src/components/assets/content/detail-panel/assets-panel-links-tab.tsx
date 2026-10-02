@@ -10,7 +10,6 @@ export interface AssetsPanelLinksTabProps {
   canListAssetTypes: boolean;
   canDeleteRelationship: boolean;
   onFetchingChange?: (isFetching: boolean) => void;
-  onCountChange?: (count: number) => void;
 }
 
 export interface AssetsPanelLinksTabHandle {
@@ -39,7 +38,6 @@ export const AssetsPanelLinksTab = forwardRef<AssetsPanelLinksTabHandle, AssetsP
         canListAssetTypes={props.canListAssetTypes}
         canDeleteRelationship={props.canDeleteRelationship}
         onFetchingChange={props.onFetchingChange}
-        onCountChange={props.onCountChange}
       />
     );
   },

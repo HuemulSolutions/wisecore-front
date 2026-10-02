@@ -68,7 +68,7 @@ export function HomeGettingStartedCard({
         <button
           type="button"
           onClick={onResume}
-          className={cn(HOME_CARD_MUTED, 'w-full px-3 py-2 text-left text-xs text-muted-foreground hover:cursor-pointer hover:bg-muted')}
+          className={cn(HOME_CARD_MUTED, 'w-full shrink-0 px-3 py-2 text-left text-xs text-muted-foreground hover:cursor-pointer hover:bg-muted')}
         >
           {t('rail.gettingStarted.hiddenLink', { done: doneCount, total: steps.length })}
         </button>
@@ -92,8 +92,8 @@ export function HomeGettingStartedCard({
   }
 
   return (
-    <div className={isMain ? HOME_CARD : HOME_CARD_MUTED}>
-      <div className={cn(HOME_CARD_HEADER, 'flex-wrap')}>
+    <div className={cn(isMain ? HOME_CARD : HOME_CARD_MUTED, !isMain && 'flex min-h-0 flex-col overflow-hidden')}>
+      <div className={cn(HOME_CARD_HEADER, 'shrink-0 flex-wrap')}>
         <span className={isMain ? HOME_CARD_TITLE : HOME_RAIL_TITLE}>{t('rail.gettingStarted.title')}</span>
         <div className="flex items-center gap-2">
           <span className="text-2xs tabular-nums text-muted-foreground">
@@ -114,7 +114,7 @@ export function HomeGettingStartedCard({
         </div>
       </div>
       {isMain && <ProgressBar done={doneCount} total={steps.length} className="h-1 rounded-none" />}
-      <div>
+      <div className={cn(!isMain && 'min-h-0 overflow-y-auto')}>
         {STEP_ORDER.map((stepId, index) => {
           const step = steps.find((s) => s.id === stepId);
           const isDone = step?.done ?? false;

@@ -143,7 +143,7 @@ export function SlashInputElement(
         },
         {
           icon: <Table2 />,
-          keywords: ['data table', 'tabla de datos', 'versiones', 'metadata', 'versions'],
+          keywords: ['data table', 'tabla de datos', 'versiones', 'metadata', 'versions', 'relacionados', 'related'],
           label: t('slash.items.dataTable'),
           value: DATA_TABLE_KEY,
         },

@@ -62,3 +62,4 @@ export function completeActionTooltipKey(
 function isKnownStage(stage: string): boolean {
   return (LIFECYCLE_PIPELINE_ORDER as readonly string[]).includes(stage)
 }
+

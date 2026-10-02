@@ -46,7 +46,7 @@ export interface HuemulNumberedStatusCardProps {
   children?: React.ReactNode;
   /**
    * Pie SIEMPRE visible, fuera del CollapsibleContent — se ve también con la tarjeta
-   * colapsada. Pensado para "estado + acción" (ver workflow-summary-section-card.tsx).
+   * colapsada. Pensado para "estado + acción" (ver form-section-summary-card.tsx).
    */
   footer?: React.ReactNode;
   className?: string;

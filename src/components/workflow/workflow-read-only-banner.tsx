@@ -42,7 +42,7 @@ const REASON_STYLES: Record<WorkflowReadOnlyBannerReason, ReasonStyle> = {
 /** Aviso de solo lectura del cuerpo del panel de workflow: ícono + motivo, con los colores del
  *  motivo. El texto lo resuelve useWorkflowPanelGating; acá solo se pinta. Sin margen propio: el
  *  gutter y el espaciado vertical los pone el wrapper de cada rama en workflow-detail-panel.tsx
- *  (o WorkflowSectionView, que lo ubica entre el navegador de secciones y el nombre de sección),
+ *  (o WorkflowSectionView, que lo ubica debajo del encabezado de la sección),
  *  para que el aviso alinee con el contenido de la vista en la que aparece. */
 export function WorkflowReadOnlyBanner({ message, reason }: WorkflowReadOnlyBannerProps) {
   if (!message) return null;

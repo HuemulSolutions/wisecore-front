@@ -20,11 +20,11 @@ export const dataTableQueryKeys = {
 // ─── Catálogo ─────────────────────────────────────────────────────────────────
 
 /** Catálogo de fuentes/columnas/filtros — cache larga, se pide una vez por sesión. */
-export function useDataTableSources(organizationId: string | undefined) {
+export function useDataTableSources(organizationId: string | undefined, enabled = true) {
   return useQuery({
     queryKey: dataTableQueryKeys.sources(),
     queryFn: () => getDataTableSources(organizationId!),
-    enabled: !!organizationId,
+    enabled: enabled && !!organizationId,
     staleTime: Infinity,
     gcTime: Infinity,
     refetchOnMount: false,

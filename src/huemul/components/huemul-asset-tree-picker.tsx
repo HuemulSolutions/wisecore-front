@@ -21,9 +21,12 @@ import { buildLibraryTree } from "@/lib/library-tree"
 import { HuemulDialog } from "./huemul-dialog"
 import { HuemulSheet } from "./huemul-sheet"
 import { HuemulFileTree } from "./huemul-file-tree"
+import { HuemulLoadError } from "./huemul-load-error"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { handleApiError } from "@/lib/error-utils"
 import type { HuemulTreeNode } from "@/types/huemul"
 import type { LibraryContent, LibraryContentFolder, LibraryContentAsset } from "@/types/folders"
 
@@ -156,7 +159,9 @@ function AssetRow({
       try {
         const data = await getExecutionsByDocumentId(asset.id, organizationId)
         setExecutions((data ?? []) as ExecutionItem[])
-      } catch {
+      } catch (e) {
+        // Avisar en vez de mostrar "sin versiones" en silencio; reexpandir reintenta.
+        handleApiError(e)
         setExecutions([])
       } finally {
         setLoading(false)
@@ -325,6 +330,7 @@ export function HuemulAssetTreePickerDialog({
   const [committedSearch, setCommittedSearch] = useState("")
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchData, setSearchData] = useState<LibraryContent | null>(null)
+  const [searchError, setSearchError] = useState(false)
   // Submodo elegido por el usuario cuando mode === "document-with-version":
   // "document" = solo elige el asset, "execution" = solo elige una versión puntual.
   const [subMode, setSubMode] = useState<"document" | "execution">("document")
@@ -442,6 +448,7 @@ export function HuemulAssetTreePickerDialog({
     async (term: string) => {
       const trimmed = term.trim()
       setCommittedSearch(trimmed)
+      setSearchError(false)
       if (!trimmed) {
         setSearchData(null)
         return
@@ -452,6 +459,7 @@ export function HuemulAssetTreePickerDialog({
         setSearchData(content)
       } catch {
         setSearchData(null)
+        setSearchError(true)
       } finally {
         setSearchLoading(false)
       }
@@ -463,6 +471,7 @@ export function HuemulAssetTreePickerDialog({
     setSearchTerm("")
     setCommittedSearch("")
     setSearchData(null)
+    setSearchError(false)
   }
 
   const searchTree = committedSearch && searchData ? buildSearchTree(searchData) : null
@@ -528,9 +537,13 @@ export function HuemulAssetTreePickerDialog({
         <div className="h-105 overflow-y-auto rounded-lg border bg-card p-1">
           {committedSearch ? (
             searchLoading ? (
-              <div className="flex h-full items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <div className="space-y-1 p-1" aria-busy="true">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-7 w-full" />
+                ))}
               </div>
+            ) : searchError ? (
+              <HuemulLoadError onRetry={() => void runSearch(committedSearch)} />
             ) : searchEmpty ? (
               <p className="py-8 text-center text-sm text-muted-foreground">{t("picker.noResults")}</p>
             ) : (

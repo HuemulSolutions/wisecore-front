@@ -28,9 +28,8 @@ export interface EditTemplateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   templateId: string;
+  /** Fallback del nombre; el resto de los campos sale del detalle (GET) del template. */
   templateName: string;
-  templateDescription?: string;
-  templateInstructions?: string;
   organizationId: string;
   onSuccess: () => void;
 }

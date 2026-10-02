@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Edit3 } from "lucide-react"
+import { Pencil } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
@@ -23,9 +23,11 @@ export function EditSectionDialog({
   templateId,
   executionId,
   containerName,
+  loading = false,
 }: EditSectionDialogProps) {
   const [isFormValid, setIsFormValid] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const isDirtyRef = useRef(false)
   const isExplicitCancel = useRef(false)
   const isClosingRef = useRef(false)
@@ -38,6 +40,7 @@ export function EditSectionDialog({
       isDirtyRef.current = false
       isExplicitCancel.current = false
       isClosingRef.current = false
+      setIsSaving(false)
     }
   }, [open])
 
@@ -55,11 +58,14 @@ export function EditSectionDialog({
   }
 
   const handleCancel = () => {
+    if (isSaving) return
     isExplicitCancel.current = true
     startClose()
   }
 
   const handleOpenChange = (newOpen: boolean) => {
+    // Guardando: el sheet no se cierra hasta saber si el backend aceptó el cambio.
+    if (!newOpen && isSaving) return
     if (!newOpen && isDirtyRef.current && !isExplicitCancel.current) {
       guardedAction(() => {
         startClose()
@@ -71,10 +77,18 @@ export function EditSectionDialog({
     }
   }
 
-  const handleSubmit = (updatedItem: ItemForBackend) => {
-    startClose()
-    onSave(updatedItem)
-    onOpenChange(false)
+  const handleSubmit = async (updatedItem: ItemForBackend) => {
+    if (isSaving) return
+    setIsSaving(true)
+    try {
+      await onSave(updatedItem)
+      startClose()
+      onOpenChange(false)
+    } catch {
+      // El error ya se notifica (onError de la mutación / global); el sheet queda abierto con lo editado.
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -87,15 +101,17 @@ export function EditSectionDialog({
           ? t("sections:editDialog.subtitle", { name: containerName })
           : t("sections:editDialog.subtitleNoName")
       }
-      icon={Edit3}
+      icon={Pencil}
       cancelLabel={t("common:cancel")}
       onCancel={handleCancel}
       maxWidth="w-full sm:max-w-[860px]"
+      bodyLoading={loading}
       footerLeft={<span className="text-xs text-[#64748b]">{t("sections:form.propagate.footerNote")}</span>}
       saveAction={{
         label: isGenerating ? t("sections:editDialog.generating") : t("sections:editDialog.save"),
-        icon: Edit3,
-        disabled: !isFormValid || isGenerating,
+        icon: Pencil,
+        disabled: loading || !isFormValid || isGenerating || isSaving,
+        loading: isSaving,
         closeOnSuccess: false,
         onClick: () => {
           (document.getElementById("edit-section-form") as HTMLFormElement)?.requestSubmit();
@@ -117,6 +133,7 @@ export function EditSectionDialog({
         documentId={documentId}
         templateId={templateId}
         executionId={executionId}
+        isPending={isSaving}
       />
     </HuemulSheet>
   )

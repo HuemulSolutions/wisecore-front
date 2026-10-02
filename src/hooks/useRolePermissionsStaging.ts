@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useRolePermissions, useRoleMutations } from "@/hooks/useRbac"
+import { useQueryClient } from "@tanstack/react-query"
+import { useOrganization } from "@/contexts/organization-context"
+import { useRolePermissions, useRoleMutations, rbacQueryKeys } from "@/hooks/useRbac"
+import type { PermissionsWithStatusResponse } from "@/types/rbac"
 import type { RolePermissionsStagingApi } from "@/types/roles/permissions-staging"
 
 function setsEqual(a: Set<string>, b: Set<string>) {
@@ -27,6 +30,8 @@ export function useRolePermissionsStaging(
 ): RolePermissionsStagingApi {
   const { data, isLoading, error } = useRolePermissions(roleId ?? "", enabled && !!roleId)
   const { updateRole } = useRoleMutations()
+  const queryClient = useQueryClient()
+  const { selectedOrganizationId } = useOrganization()
 
   const permissions = useMemo(() => data?.data?.permissions ?? [], [data])
 
@@ -82,7 +87,23 @@ export function useRolePermissionsStaging(
     const add_permissions = [...selectedIds].filter((id) => !baselineRef.current.has(id))
     const remove_permissions = [...baselineRef.current].filter((id) => !selectedIds.has(id))
     await updateRole.mutateAsync({ roleId, data: { add_permissions, remove_permissions } })
-    baselineRef.current = new Set(selectedIds)
+    // Reflejar lo guardado en el cache ANTES de limpiar el dirty: al pasar `isDirty` a false el
+    // efecto de hidratación relee `data`, y si siguiera viejo pisaría la selección recién guardada.
+    const savedIds = new Set(selectedIds)
+    const permsKey = rbacQueryKeys.rolePermissions(selectedOrganizationId, roleId)
+    queryClient.setQueryData<PermissionsWithStatusResponse>(permsKey, (old) =>
+      old?.data
+        ? {
+            ...old,
+            data: {
+              ...old.data,
+              permissions: old.data.permissions.map((p) => ({ ...p, assigned: savedIds.has(p.id) })),
+            },
+          }
+        : old,
+    )
+    baselineRef.current = savedIds
+    void queryClient.invalidateQueries({ queryKey: permsKey })
   }
   const save = useCallback(() => saveRef.current(), [])
 

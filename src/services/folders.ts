@@ -53,6 +53,12 @@ export async function getLibraryContent(
     } else {
         params.set('page', String(page));
         params.set('page_size', String(pageSize));
+        // Cursor opaco (clave estable name+id) de la paginación por carpeta: solo existe cuando el
+        // backend lo devolvió en un `next_cursor` previo. Ver respuestas/backend-arbol-paginacion-por-carpeta.md.
+        if (options?.cursor) {
+            params.set('cursor', options.cursor);
+            params.set('limit', String(pageSize));
+        }
         if (search) params.set('search', search);
         if (focusAssetId) params.set('focus_asset_id', focusAssetId);
         const expandedFolderIds = Array.from(new Set((options?.expandedFolderIds ?? [])
@@ -88,10 +94,16 @@ export async function getLibraryContent(
             },
         });
         const raw = await response.json();
-        return {
+        const content: LibraryContent = {
             ...(raw.data as Omit<LibraryContent, 'has_next'>),
-            has_next: raw.has_next ?? false,
+            has_next: raw.has_next ?? raw.has_more ?? false,
         };
+        // `total` y `next_cursor` son aditivos: pueden venir en la raíz del envelope o dentro de `data`.
+        const total = raw.total ?? raw.data?.total;
+        const nextCursor = raw.next_cursor ?? raw.data?.next_cursor;
+        if (typeof total === 'number') content.total = total;
+        if (nextCursor !== undefined) content.next_cursor = nextCursor;
+        return content;
     })();
 
     inFlightLibraryContentRequests.set(dedupeKey, request);

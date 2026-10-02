@@ -5,6 +5,7 @@ import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulButton } from "@/huemul/components/huemul-button"
+import { HuemulLoadError } from "@/huemul/components/huemul-load-error"
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import {
@@ -349,7 +350,7 @@ export default function AssetLifecycleSheet({
   const canManageGrants = can('manageAssetLifecycleGrants')
   const canListUsers = can('listUsers')
 
-  const { data: stepTypesData, isLoading: loadingStepTypes } =
+  const { data: stepTypesData, isLoading: loadingStepTypes, isError: stepTypesError, isFetching: fetchingStepTypes, refetch: refetchStepTypes } =
     useLifecycleStepTypes(open && canManageGrants)
   const stepTypes = stepTypesData?.data ?? []
 
@@ -415,12 +416,18 @@ export default function AssetLifecycleSheet({
 
   const documentTypeId = asset?.document_type_id ?? null
 
-  const { data: stepsData, isLoading: loadingSteps } = useLifecycleSteps(
+  const { data: stepsData, isLoading: loadingSteps, isError: stepsError, isFetching: fetchingSteps, refetch: refetchSteps } = useLifecycleSteps(
     documentTypeId,
     activeStep,
     open && !!documentTypeId && !!activeStep && canManageGrants,
   )
   const steps = stepsData?.data?.steps ?? []
+  // Error sin datos: bloque con reintentar (no el "sin configuración" falso).
+  const loadFailed = (stepTypesError && !stepTypesData) || (stepsError && !stepsData)
+  // Mientras no hay paso activo (tipos cargando o recién llegados) los pasos aún no
+  // se piden: mostrar skeleton y no el vacío "noConfig".
+  const stepsPending =
+    !!documentTypeId && (loadingStepTypes || (stepTypes.length > 0 && !activeStep) || loadingSteps)
 
   const { data: usersData } = useUsers(open && !!organizationId && canListUsers, organizationId, 1, 100)
   const users = usersData?.data ?? []
@@ -515,7 +522,15 @@ export default function AssetLifecycleSheet({
             <p className="text-sm text-muted-foreground">
               {t("lifecycle.grants.noDocumentType")}
             </p>
-          ) : loadingSteps ? (
+          ) : loadFailed ? (
+            <HuemulLoadError
+              onRetry={() => {
+                if (stepTypesError) void refetchStepTypes()
+                if (stepsError) void refetchSteps()
+              }}
+              isRetrying={fetchingStepTypes || fetchingSteps}
+            />
+          ) : stepsPending ? (
             <div className="flex flex-col gap-3">
               <Skeleton className="h-24 w-full rounded-md" />
             </div>

@@ -36,6 +36,8 @@ export interface HuemulPageLayoutColumn {
 }
 
 export interface HuemulPageLayoutProps {
+  /** `id` del `ResizablePanelGroup` (permite medirlo, ver `useCollapsedPanelSize`). */
+  id?: string
   header?: ReactNode
   showHeader?: boolean
   columns: HuemulPageLayoutColumn[]

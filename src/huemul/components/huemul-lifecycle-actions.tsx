@@ -10,8 +10,9 @@ import type { HuemulLifecycleActionsProps } from "@/types/lifecycle"
  * controller. Two visual presets:
  * - `compact`: small outline pills, meant to sit alongside the stage badge inside
  *   a shaded box (assets' mobile header).
- * - `row` (default): plain ghost buttons for an inline row (assets' desktop
- *   metadata row, the workflow panel bar).
+ * - `row` (default): plain ghost buttons for an inline row (the workflow panel bar).
+ * - `header`: only the secondary actions, as 30px ghost buttons (assets' desktop
+ *   header); Complete/Publish are rendered by `HuemulLifecyclePhaseBlock`.
  */
 export function HuemulLifecycleActions({
   controller,
@@ -41,7 +42,13 @@ export function HuemulLifecycleActions({
       hasEnabledExternalPublishConfig: controller.hasEnabledExternalPublishConfig,
     })
 
-  if (!hasAny) return null
+  const isHeader = variant === "header"
+  // En el header, Completar/Publicar los pinta HuemulLifecyclePhaseBlock: acá solo las secundarias.
+  const showComplete = canComplete && !isHeader
+  const showPublish = canPublish && !isHeader
+  const hasVisible = isHeader ? canReturn || canArchive || canRestore || canRerunExternalPublish || canRunElaboration : hasAny
+
+  if (!hasAny || !hasVisible) return null
 
   // El lock decide `disabled`, no visibilidad (ver resolveLifecycleActionsVisibility):
   // si apagara `canRunElaboration`, el botón desaparecería al disparar y
@@ -51,23 +58,36 @@ export function HuemulLifecycleActions({
   const isCompact = variant === "compact"
   const iconClassName = isCompact ? "h-3 w-3" : "h-3.5 w-3.5"
   const buttonVariant = isCompact ? "outline" : "ghost"
-  const sizeClass = isCompact ? "h-6 text-xs px-2" : "h-7 px-2.5 text-xs font-medium transition-colors"
+  const sizeClass = isCompact
+    ? "h-6 text-xs px-2"
+    : isHeader
+      ? "h-[30px] px-2.5 text-[12.5px] font-medium transition-colors"
+      : "h-7 px-2.5 text-xs font-medium transition-colors"
+  // Secundarias: text-slate-500, deshabilitadas en text-slate-300 (variante header).
+  const secondaryClass = isHeader
+    ? "text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-100 disabled:text-slate-300 focus-visible:ring-2 focus-visible:ring-blue-500/40"
+    : `text-gray-600 ${isCompact ? "" : "hover:bg-gray-100 hover:text-gray-800"}`
 
   return (
-    <div className={`flex items-center gap-1.5 flex-wrap ${isCompact ? "" : "shrink-0"} ${className ?? ""}`}>
+    <div className={`flex items-center ${isHeader ? "gap-0.5" : "gap-1.5"} flex-wrap ${isCompact ? "" : "shrink-0"} ${className ?? ""}`}>
       {canReturn && (
         <HuemulButton
           variant={buttonVariant}
           icon={Undo2}
           iconClassName={iconClassName}
-          className={`${isCompact ? "h-6 w-6" : "h-7 w-7"} p-0 text-gray-600 ${isCompact ? "" : "hover:bg-gray-100 hover:text-gray-800"} hover:cursor-pointer`}
+          label={isHeader ? t("lifecycle.return") : undefined}
+          className={
+            isHeader
+              ? `${sizeClass} ${secondaryClass} hover:cursor-pointer`
+              : `${isCompact ? "h-6 w-6" : "h-7 w-7"} p-0 text-gray-600 ${isCompact ? "" : "hover:bg-gray-100 hover:text-gray-800"} hover:cursor-pointer`
+          }
           loading={controller.rejectMutation.isPending}
           disabled={elaborationLocked}
           tooltip={elaborationLocked ? t("lifecycle.tooltipElaborationRunning") : t("lifecycle.tooltipReturn")}
           onClick={() => controller.setIsRejectDialogOpen(true)}
         />
       )}
-      {canComplete && (
+      {showComplete && (
         <HuemulButton
           variant={isCompact ? "default" : "ghost"}
           size="sm"
@@ -88,7 +108,7 @@ export function HuemulLifecycleActions({
           onClick={() => controller.setIsCheckDialogOpen(true)}
         />
       )}
-      {canPublish && (
+      {showPublish && (
         <HuemulButton
           variant={isCompact ? "default" : "ghost"}
           size="sm"
@@ -112,7 +132,7 @@ export function HuemulLifecycleActions({
           icon={Archive}
           iconPosition="left"
           iconClassName={iconClassName}
-          className={`${sizeClass} text-gray-600 ${isCompact ? "" : "hover:bg-gray-100 hover:text-gray-800"} hover:cursor-pointer`}
+          className={`${sizeClass} ${secondaryClass} hover:cursor-pointer`}
           loading={controller.advanceMutation.isPending}
           disabled={elaborationLocked}
           tooltip={elaborationLocked ? t("lifecycle.tooltipElaborationRunning") : t("lifecycle.tooltipArchive")}
@@ -127,7 +147,7 @@ export function HuemulLifecycleActions({
           icon={RotateCcw}
           iconPosition="left"
           iconClassName={iconClassName}
-          className={`${sizeClass} text-gray-600 ${isCompact ? "" : "hover:bg-gray-100 hover:text-gray-800"} hover:cursor-pointer`}
+          className={`${sizeClass} ${secondaryClass} hover:cursor-pointer`}
           loading={controller.restoreMutation.isPending}
           disabled={elaborationLocked}
           tooltip={elaborationLocked ? t("lifecycle.tooltipElaborationRunning") : t("lifecycle.tooltipRestore")}
@@ -142,7 +162,7 @@ export function HuemulLifecycleActions({
           icon={RefreshCw}
           iconPosition="left"
           iconClassName={iconClassName}
-          className={`${sizeClass} text-gray-600 ${isCompact ? "" : "hover:bg-gray-100 hover:text-gray-800"} hover:cursor-pointer`}
+          className={`${sizeClass} ${secondaryClass} hover:cursor-pointer`}
           loading={controller.runExternalPublishMutation.isPending}
           disabled={elaborationLocked}
           tooltip={elaborationLocked ? t("lifecycle.tooltipElaborationRunning") : undefined}
@@ -157,7 +177,7 @@ export function HuemulLifecycleActions({
           icon={Sparkles}
           iconPosition="left"
           iconClassName={iconClassName}
-          className={`${sizeClass} text-gray-600 ${isCompact ? "" : "hover:bg-gray-100 hover:text-gray-800"} hover:cursor-pointer`}
+          className={`${sizeClass} ${secondaryClass} hover:cursor-pointer`}
           loading={controller.runElaborationMutation.isPending}
           disabled={elaborationLocked}
           tooltip={elaborationLocked ? t("lifecycle.tooltipElaborationRunning") : t("lifecycle.tooltipRunElaboration")}

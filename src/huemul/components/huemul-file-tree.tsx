@@ -1,13 +1,23 @@
 "use client"
 
 import type React from "react"
-import type { HuemulTreeNode, HuemulTreeMenuAction, HuemulTreeToolbarAction, HuemulFileTreeLabels } from "@/types/huemul"
+import type {
+  HuemulTreeNode,
+  HuemulTreeMenuAction,
+  HuemulTreeToolbarAction,
+  HuemulFileTreeLabels,
+  HuemulTreePageRequest,
+  HuemulTreeLoadResult,
+} from "@/types/huemul"
 import type { HuemulFileTreeProps, HuemulFileTreeRef } from "@/types/huemul"
 export type { HuemulFileTreeProps, HuemulFileTreeRef }
 
 import { useState, useCallback, useEffect, useImperativeHandle, forwardRef, useRef } from "react"
 import { ChevronRight, ChevronDown, File, Folder, FolderOpen, Plus, RefreshCw, MoreVertical, Trash2, Share } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
+import { HuemulTreeLoadMoreRow } from "@/huemul/components/huemul-tree-load-more-row"
+import { TREE_CHILDREN_PAGE_SIZE } from "@/huemul/constants"
+import { appendUniqueNodes, nextBatchSize, normalizeTreePage } from "@/lib/tree-page"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +31,17 @@ import { cn } from "@/lib/utils"
 import { logger } from "@/lib/logger"
 import { useTranslation } from "react-i18next"
 
-// ─── Default labels ───────────────────────────────────────────────────────────
+interface RootPaging {
+  total?: number
+  nextCursor: string | null
+  loadedPages: number
+  isLoadingMore: boolean
+}
+
+const EMPTY_ROOT_PAGING: RootPaging = { nextCursor: null, loadedPages: 1, isLoadingMore: false }
+const ROOT_PAGING_KEY = "__root__"
+// Corta una cadena de cursores que no avanza (backend que repite el mismo cursor).
+const MAX_CURSOR_CHAIN = 1000
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>(
@@ -29,6 +49,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
     {
       onLoadChildren,
       onRefresh: onRefreshProp,
+      childrenPageSize = TREE_CHILDREN_PAGE_SIZE,
       onCreateFile,
       onCreateFolder,
       onDelete,
@@ -91,6 +112,16 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
     }
 
     const [nodes, setNodes] = useState<HuemulTreeNode[]>([])
+    // Paginación de la raíz (la de cada carpeta vive en el propio nodo: nextCursor,
+    // childrenTotal, loadedPages). Ver ia context/paginacion-por-nodo-arbol-guide.md.
+    const [rootPaging, setRootPaging] = useState<RootPaging>(EMPTY_ROOT_PAGING)
+    const nodesRef = useRef(nodes)
+    nodesRef.current = nodes
+    const rootPagingRef = useRef(rootPaging)
+    rootPagingRef.current = rootPaging
+    // Guard síncrono de "Mostrar más" en curso por nodo (clave ROOT_PAGING_KEY = raíz):
+    // el flag de estado llega un render tarde y el observer puede disparar dos veces.
+    const loadingMoreRef = useRef<Set<string>>(new Set())
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
     const [creatingNode, setCreatingNode] = useState<{
       parentId: string | null
@@ -245,13 +276,46 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
     // React StrictMode double-firing effects or rapid prop changes).
     const isLoadingInitialRef = useRef(false)
 
+    // Carga `pages` páginas de hijos encadenando cursores (la 1ª con `firstLoader`
+    // si se pasa, ej. el `onRefresh` de la raíz). Es lo que permite que un refresh
+    // repita las mismas páginas que el usuario ya había abierto en vez de volver
+    // a la primera. Un consumidor que devuelve un array corta en la 1ª.
+    const loadPages = useCallback(
+      async (
+        parentId: string | null,
+        node: HuemulTreeNode | undefined,
+        pages: number,
+        firstLoader?: (page: HuemulTreePageRequest) => Promise<HuemulTreeLoadResult>,
+      ) => {
+        const request = (cursor: string | null): HuemulTreePageRequest => ({ cursor, limit: childrenPageSize })
+        const first = normalizeTreePage(
+          firstLoader ? await firstLoader(request(null)) : await onLoadChildren!(parentId, node, request(null)),
+        )
+        let items = first.items
+        let last = first
+        let loaded = 1
+        while (loaded < pages && last.nextCursor && loaded < MAX_CURSOR_CHAIN) {
+          const next = normalizeTreePage(await onLoadChildren!(parentId, node, request(last.nextCursor)))
+          items = appendUniqueNodes(items, next.items)
+          loaded++
+          // Cursor que no avanza: se da por terminada la carpeta en vez de ciclar.
+          last = next.nextCursor === last.nextCursor ? { ...next, nextCursor: null } : next
+        }
+        return { items, total: last.total ?? first.total, nextCursor: last.nextCursor, loadedPages: loaded }
+      },
+      [onLoadChildren, childrenPageSize],
+    )
+
     const loadInitialData = useCallback(async () => {
       if (!onLoadChildren || isLoadingInitialRef.current) return
       isLoadingInitialRef.current = true
       setIsLoading(true)
       try {
-        const data = await onLoadChildren(initialFolderId)
-        setNodes(data)
+        const page = normalizeTreePage(
+          await onLoadChildren(initialFolderId, undefined, { cursor: null, limit: childrenPageSize }),
+        )
+        setNodes(page.items)
+        setRootPaging({ total: page.total, nextCursor: page.nextCursor, loadedPages: 1, isLoadingMore: false })
         setIsInitialized(true)
       } catch (error) {
         logger.error("Error loading initial data:", error)
@@ -259,7 +323,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         setIsLoading(false)
         isLoadingInitialRef.current = false
       }
-    }, [onLoadChildren, initialFolderId])
+    }, [onLoadChildren, initialFolderId, childrenPageSize])
 
     useEffect(() => {
       if (!isInitialized) {
@@ -272,6 +336,16 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       setIsLoading(true)
       try {
         const currentExpandedIds = Array.from(expandedFolders)
+        // Páginas que cada carpeta tenía abiertas antes de refrescar (la respuesta
+        // fresca no las trae): se repiten tal cual al recargar.
+        const pagesById = new Map<string, number>()
+        const collectLoadedPages = (nodeList: HuemulTreeNode[]) => {
+          for (const node of nodeList) {
+            if (node.loadedPages && node.loadedPages > 1) pagesById.set(node.id, node.loadedPages)
+            if (node.children) collectLoadedPages(node.children)
+          }
+        }
+        collectLoadedPages(nodesRef.current)
 
         const reloadExpandedFolders = async (nodeList: HuemulTreeNode[]): Promise<HuemulTreeNode[]> => {
           const result: HuemulTreeNode[] = []
@@ -282,10 +356,13 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
               newNode.children = await reloadExpandedFolders(newNode.children!)
             } else if (isExpandable(node) && currentExpandedIds.includes(node.id)) {
               try {
-                const children = await onLoadChildren(node.id, node)
-                newNode.children = await reloadExpandedFolders(children)
+                const loaded = await loadPages(node.id, node, pagesById.get(node.id) ?? 1)
+                newNode.children = await reloadExpandedFolders(loaded.items)
                 newNode.isExpanded = true
-                newNode.hasChildren = children.length > 0
+                newNode.hasChildren = loaded.items.length > 0
+                newNode.childrenTotal = loaded.total
+                newNode.nextCursor = loaded.nextCursor
+                newNode.loadedPages = loaded.loadedPages
               } catch (error) {
                 logger.error(`Error reloading folder ${node.id}:`, error)
                 newNode.children = []
@@ -297,19 +374,20 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
           return result
         }
 
-        const rootData = onRefreshProp ? await onRefreshProp() : await onLoadChildren(initialFolderId)
+        const root = await loadPages(initialFolderId, undefined, rootPagingRef.current.loadedPages, onRefreshProp)
+        setRootPaging({ total: root.total, nextCursor: root.nextCursor, loadedPages: root.loadedPages, isLoadingMore: false })
         if (!preserveExpandedOnRefresh) {
-          setNodes(rootData)
+          setNodes(root.items)
           return
         }
-        const refreshedNodes = await reloadExpandedFolders(rootData)
+        const refreshedNodes = await reloadExpandedFolders(root.items)
         setNodes(refreshedNodes)
       } catch (error) {
         logger.error("Error refreshing tree:", error)
       } finally {
         setIsLoading(false)
       }
-    }, [onLoadChildren, onRefreshProp, expandedFolders, initialFolderId, isExpandable, preserveExpandedOnRefresh])
+    }, [onLoadChildren, onRefreshProp, expandedFolders, initialFolderId, isExpandable, preserveExpandedOnRefresh, loadPages])
 
     useImperativeHandle(ref, () => ({ refresh }))
 
@@ -320,6 +398,22 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         return node
       })
     }, [])
+
+    // Como updateNode pero derivando el nuevo valor del nodo vigente (append de
+    // páginas): leer el nodo de un closure viejo pisaría lo que otro load agregó.
+    const patchNode = useCallback(
+      (
+        nodeId: string,
+        nodeList: HuemulTreeNode[],
+        patch: (node: HuemulTreeNode) => HuemulTreeNode,
+      ): HuemulTreeNode[] =>
+        nodeList.map((node) => {
+          if (node.id === nodeId) return patch(node)
+          if (node.children) return { ...node, children: patchNode(nodeId, node.children, patch) }
+          return node
+        }),
+      [],
+    )
 
     const findNode = useCallback((nodeId: string, nodeList: HuemulTreeNode[]): HuemulTreeNode | null => {
       for (const node of nodeList) {
@@ -358,6 +452,62 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       [folderType, draggedNode, nodes, isDescendant, canDropNode],
     )
 
+    // "Mostrar más" de UN nodo (`null` = raíz): pide su siguiente página y la
+    // agrega al final sin tocar nada más del árbol. Un fallo deja lo ya cargado y
+    // la fila sigue disponible para reintentar.
+    const loadMore = useCallback(
+      async (nodeId: string | null) => {
+        if (!onLoadChildren) return
+        const key = nodeId ?? ROOT_PAGING_KEY
+        if (loadingMoreRef.current.has(key)) return
+        const node = nodeId ? findNode(nodeId, nodesRef.current) : null
+        if (nodeId && !node) return
+        const cursor = nodeId ? node!.nextCursor : rootPagingRef.current.nextCursor
+        if (!cursor) return
+
+        loadingMoreRef.current.add(key)
+        const setLoadingFlag = (isLoadingMore: boolean) => {
+          if (nodeId) setNodes((prev) => updateNode(nodeId, { isLoadingMore }, prev))
+          else setRootPaging((prev) => ({ ...prev, isLoadingMore }))
+        }
+        setLoadingFlag(true)
+        try {
+          const page = normalizeTreePage(
+            await onLoadChildren(nodeId ?? initialFolderId, node ?? undefined, { cursor, limit: childrenPageSize }),
+          )
+          // Cursor que no avanza: se corta para no quedar con una fila que no carga nada.
+          const nextCursor = page.nextCursor === cursor ? null : page.nextCursor
+          if (nodeId) {
+            setNodes((prev) =>
+              patchNode(nodeId, prev, (current) => ({
+                ...current,
+                children: appendUniqueNodes(current.children ?? [], page.items),
+                hasChildren: true,
+                childrenTotal: page.total ?? current.childrenTotal,
+                nextCursor,
+                loadedPages: (current.loadedPages ?? 1) + 1,
+                isLoadingMore: false,
+              })),
+            )
+          } else {
+            setNodes((prev) => appendUniqueNodes(prev, page.items))
+            setRootPaging((prev) => ({
+              total: page.total ?? prev.total,
+              nextCursor,
+              loadedPages: prev.loadedPages + 1,
+              isLoadingMore: false,
+            }))
+          }
+        } catch (error) {
+          logger.error("Error loading more children:", error)
+          setLoadingFlag(false)
+        } finally {
+          loadingMoreRef.current.delete(key)
+        }
+      },
+      [onLoadChildren, initialFolderId, childrenPageSize, findNode, updateNode, patchNode],
+    )
+
     const handleToggle = async (node: HuemulTreeNode) => {
       if (node.disabled || !isExpandable(node)) return
 
@@ -376,9 +526,23 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       if (!node.children && onLoadChildren) {
         setNodes((prev) => updateNode(node.id, { isLoading: true }, prev))
         try {
-          const children = await onLoadChildren(node.id, node)
+          const page = normalizeTreePage(
+            await onLoadChildren(node.id, node, { cursor: null, limit: childrenPageSize }),
+          )
           setNodes((prev) =>
-            updateNode(node.id, { children, isExpanded: true, isLoading: false, hasChildren: children.length > 0 }, prev),
+            updateNode(
+              node.id,
+              {
+                children: page.items,
+                isExpanded: true,
+                isLoading: false,
+                hasChildren: page.items.length > 0,
+                childrenTotal: page.total,
+                nextCursor: page.nextCursor,
+                loadedPages: 1,
+              },
+              prev,
+            ),
           )
         } catch (error) {
           logger.error("Error loading children:", error)
@@ -610,6 +774,9 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
           if (state !== "unchecked") anyChecked = true
           if (state !== "checked") allChecked = false
         }
+        // Con páginas sin cargar, "todos los cargados marcados" no es "todos":
+        // queda indeterminado hasta que la cascada resuelva el resto.
+        if (allChecked && node.nextCursor) return "indeterminate"
         return allChecked ? "checked" : anyChecked ? "indeterminate" : "unchecked"
       },
       [isExpandable, selectedIds],
@@ -619,9 +786,36 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       async (node: HuemulTreeNode): Promise<string[]> => {
         if (!isExpandable(node)) return [node.id]
         let children = node.children
+        let cursor = node.nextCursor ?? null
+        let loadedPages = node.loadedPages ?? 1
+        let total = node.childrenTotal
+        let changed = false
         if (!children && onLoadChildren) {
-          children = await onLoadChildren(node.id, node)
-          setNodes((prev) => updateNode(node.id, { children, hasChildren: children!.length > 0 }, prev))
+          const page = normalizeTreePage(await onLoadChildren(node.id, node, { cursor: null, limit: childrenPageSize }))
+          children = page.items
+          cursor = page.nextCursor
+          total = page.total ?? total
+          loadedPages = 1
+          changed = true
+        }
+        // Marcar una carpeta es una acción explícita sobre TODO su contenido, no
+        // solo lo cargado: se siguen los cursores hasta agotarlos.
+        for (let guard = 0; cursor && onLoadChildren && guard < MAX_CURSOR_CHAIN; guard++) {
+          const page = normalizeTreePage(await onLoadChildren(node.id, node, { cursor, limit: childrenPageSize }))
+          children = appendUniqueNodes(children ?? [], page.items)
+          total = page.total ?? total
+          loadedPages++
+          changed = true
+          cursor = page.nextCursor === cursor ? null : page.nextCursor
+        }
+        if (changed) {
+          setNodes((prev) =>
+            updateNode(
+              node.id,
+              { children, hasChildren: (children?.length ?? 0) > 0, childrenTotal: total, nextCursor: cursor, loadedPages },
+              prev,
+            ),
+          )
         }
         const result: string[] = []
         for (const child of children ?? []) {
@@ -629,7 +823,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         }
         return result
       },
-      [isExpandable, onLoadChildren, updateNode],
+      [isExpandable, onLoadChildren, updateNode, childrenPageSize],
     )
 
     const toggleCascade = useCallback(
@@ -668,6 +862,38 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       expanded
         ? <FolderOpen className="h-3.5 w-3.5 text-blue-500 shrink-0" />
         : <Folder className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+
+    // Fila "Mostrar más" que queda al final visual del árbol: solo esa se
+    // autocarga con el scroll. Las intermedias se cargan con clic, para que una
+    // carpeta que apenas pasa por la vista no dispare cargas en cascada.
+    const tailPagingKey = (() => {
+      if (rootPaging.nextCursor) return ROOT_PAGING_KEY
+      let list = nodes
+      while (list.length > 0) {
+        const last = list[list.length - 1]
+        if (!isExpandable(last) || !last.isExpanded || !last.children) return null
+        if (last.nextCursor) return last.id
+        list = last.children
+      }
+      return null
+    })()
+
+    const renderLoadMoreRow = (parent: HuemulTreeNode | null, level: number) => {
+      const key = parent?.id ?? ROOT_PAGING_KEY
+      const loadedCount = parent ? (parent.children?.length ?? 0) : nodes.length
+      const total = parent ? parent.childrenTotal : rootPaging.total
+      return (
+        <HuemulTreeLoadMoreRow
+          key={`${key}:load-more`}
+          level={level}
+          label={t("showMore", { count: nextBatchSize(childrenPageSize, loadedCount, total) })}
+          progress={total !== undefined ? t("showMoreProgress", { loaded: loadedCount, total }) : undefined}
+          isLoading={parent ? !!parent.isLoadingMore : rootPaging.isLoadingMore}
+          autoLoad={tailPagingKey === key}
+          onLoadMore={() => void loadMore(parent?.id ?? null)}
+        />
+      )
+    }
 
     const renderNode = (node: HuemulTreeNode, level = 0, isLastChild = false) => {
       const isFolder = node.type === folderType
@@ -799,6 +1025,9 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
                     "truncate",
                     isNodeLoading && "text-muted-foreground",
                   )}>{node.name}</p>
+                  {isFolder && node.childrenTotal !== undefined && (
+                    <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{node.childrenTotal}</span>
+                  )}
                   {renderNodeSuffix?.(node)}
                 </div>
                 {hasSubtitle && (
@@ -923,8 +1152,9 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
           )}
 
           {isExpandable(node) && isExpanded && node.children && node.children.map((child, index) =>
-            renderNode(child, level + 1, index === node.children!.length - 1)
+            renderNode(child, level + 1, index === node.children!.length - 1 && !node.nextCursor)
           )}
+          {isExpandable(node) && isExpanded && node.children && node.nextCursor && renderLoadMoreRow(node, level + 1)}
         </div>
       )
     }
@@ -1038,6 +1268,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
               <p className="text-sm text-muted-foreground text-center py-8">{labels.empty}</p>
             )}
             {nodes.map((node, index) => renderNode(node, 0, index === nodes.length - 1))}
+            {rootPaging.nextCursor && renderLoadMoreRow(null, 0)}
           </div>
         </div>
 

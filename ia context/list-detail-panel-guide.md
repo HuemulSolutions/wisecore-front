@@ -148,3 +148,10 @@ Aplica cuando el panel de detalle debe abrir como overlay flotante (drawer) en v
 [ ] 6. Selección de entidad vía URL (searchParams), no useState.
 [ ] 7. Verificar visualmente: la tabla llena el alto disponible sin espacio en blanco bajo la paginación.
 ```
+
+## Carga on-demand de tabs ocultos (panel de detalle del Asset)
+
+- Un tab del panel solo se monta cuando el usuario lo selecciona (`visitedTabs` en `assets-detail-panel.tsx`); después queda montado oculto con `hidden` para conservar estado y caché. Nunca montar tabs ocultos "para precargar" ni para un contador: el rail no muestra contadores.
+- Si la query de un tab vive en el padre (Campos en `assets-content.tsx`), su `enabled` depende de que el tab se haya abierto (`hasOpenedFieldsTab`) y el loading se calcula con `isPending` mientras el tab esté activo (nunca un vacío falso).
+- Bloques al pie de un contenido largo (`AssetsRelatedDocumentsBlock`) piden sus datos al acercarse al viewport con `useInViewOnce`.
+- Las versiones del selector vienen en el endpoint de contenido; el endpoint de executions del documento es solo fallback y se pide únicamente tras resolver el contenido sin `executions`.

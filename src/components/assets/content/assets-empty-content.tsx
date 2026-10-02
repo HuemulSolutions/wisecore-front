@@ -1,116 +1,78 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { FileIcon, FileCode, FileText } from "lucide-react";
-import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
-import { HuemulButton } from "@/huemul/components/huemul-button";
-import { CreateTemplateDialog } from "@/components/templates/templates-create-dialog";
-import { TemplateConfigSheet } from "@/components/assets/content/assets-template-sheet";
+import { Button } from "@/components/ui/button";
+import { AssetCreateWizard } from "@/components/assets/content/assets-create-wizard";
+import type { CreateOptionActions } from "@/components/assets/content/create-options";
 import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useNavKnowledgeActions } from "@/contexts/nav-knowledge-context";
-import { getTemplateById } from "@/services/templates";
 import type { AssetEmptyContentProps } from '@/types/assets';
 export type { AssetEmptyContentProps } from '@/types/assets';
 
 /**
- * Lightweight component rendered when no asset is selected.
- * Avoids mounting the heavy AssetContent with its 50+ state variables and mutations.
+ * Estado «sin asset seleccionado»: asistente para elegir cómo crear uno. Se renderiza en lugar de
+ * `AssetContent` (que trae el header del asset y el panel de Detalle), así que mientras dure no
+ * hay header ni Detalle y la columna central ocupa el espacio restante.
+ * Sin permiso para crear assets solo queda el encabezado.
  */
 export function AssetEmptyContent({ currentFolderId, onPreserveScroll }: AssetEmptyContentProps) {
   const { t } = useTranslation('assets');
-  const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
-  const { canCreate, canAccessTemplates, canAccessAssets } = useUserPermissions();
-  const { handleCreateAsset: openCreateAssetDialog } = useNavKnowledgeActions();
-
-  const [isCreateTemplateSheetOpen, setIsCreateTemplateSheetOpen] = useState(false);
-  const [createdTemplate, setCreatedTemplate] = useState<{ id: string; name: string } | null>(null);
-  const [isTemplateConfigSheetOpen, setIsTemplateConfigSheetOpen] = useState(false);
-
-  const { data: fullTemplate } = useQuery({
-    queryKey: ['template', createdTemplate?.id],
-    queryFn: () => getTemplateById(createdTemplate!.id, selectedOrganizationId!),
-    enabled: !!createdTemplate?.id && !!selectedOrganizationId,
-  });
+  const { canCreate, canAccessAssets } = useUserPermissions();
+  const { handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig } = useNavKnowledgeActions();
 
   if (!selectedOrganizationId) {
     return null;
   }
 
+  const canCreateAssets = canAccessAssets && canCreate('asset');
+
+  // Cada acción conserva el scroll del contenedor antes de abrir el flujo existente.
+  const actions: CreateOptionActions = {
+    handleCreateAsset: (folderId, mode) => {
+      onPreserveScroll?.();
+      handleCreateAsset(folderId, mode);
+    },
+    handleImportAsset: (folderId) => {
+      onPreserveScroll?.();
+      handleImportAsset(folderId);
+    },
+    handleImportAssetFromExternal: (folderId) => {
+      onPreserveScroll?.();
+      handleImportAssetFromExternal(folderId);
+    },
+  };
+
   return (
-    <>
-      <div className="h-full bg-gray-50 flex items-center justify-center p-4">
-        <Empty>
-          <div className="p-8 text-center">
-            <EmptyIcon>
-              <FileIcon className="h-12 w-12" />
-            </EmptyIcon>
-            <EmptyTitle>{t('content.welcomeTitle')}</EmptyTitle>
-            <EmptyDescription>
-              {(canAccessTemplates && canCreate('template')) || (canAccessAssets && canCreate('asset'))
-                ? t('content.welcomeDescriptionWithPermissions')
-                : t('content.welcomeDescriptionNoPermissions')
-              }
-            </EmptyDescription>
-            <EmptyActions>
-              {canAccessTemplates && canCreate('template') && (
-                <HuemulButton
-                  onClick={() => {
-                    onPreserveScroll?.();
-                    setIsCreateTemplateSheetOpen(true);
-                  }}
-                  variant="outline"
-                  icon={FileCode}
-                  iconClassName="h-4 w-4"
-                  label={t('content.createTemplate')}
-                />
-              )}
-              {canAccessAssets && canCreate('asset') && (
-                <HuemulButton
-                  onClick={() => {
-                    onPreserveScroll?.();
-                    openCreateAssetDialog(currentFolderId);
-                  }}
-                  className="bg-[#4464f7] hover:bg-[#3451e6]"
-                  icon={FileText}
-                  iconClassName="h-4 w-4"
-                  label={t('content.createAsset')}
-                />
-              )}
-            </EmptyActions>
-          </div>
-        </Empty>
+    <div className="flex h-full flex-1 justify-center overflow-auto bg-[#f7f8fa] px-8 pt-10 pb-12">
+      <div className="flex w-full max-w-[900px] flex-col gap-6">
+        <div className="flex flex-col gap-2.5">
+          <h2 className="text-[25px] font-semibold tracking-[-0.01em] text-[#0f172a]">{t('createWizard.title')}</h2>
+          <p className="max-w-[640px] text-sm leading-[1.6] text-[#64748b] [text-wrap:pretty]">
+            {canCreateAssets ? t('createWizard.description') : t('createWizard.descriptionNoCreate')}
+          </p>
+        </div>
+
+        {canCreateAssets && (
+          <>
+            <AssetCreateWizard folderId={currentFolderId} actions={actions} />
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              <p className="text-[13px] text-[#64748b]">{t('createWizard.footText')}</p>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-[34px] hover:cursor-pointer"
+                onClick={() => {
+                  onPreserveScroll?.();
+                  handleImportConfig();
+                }}
+              >
+                {t('createWizard.importJson')}
+              </Button>
+            </div>
+          </>
+        )}
       </div>
-
-      {/* Template Creation Dialog */}
-      <CreateTemplateDialog
-        open={isCreateTemplateSheetOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            onPreserveScroll?.();
-            setIsCreateTemplateSheetOpen(false);
-          } else {
-            setIsCreateTemplateSheetOpen(true);
-          }
-        }}
-        organizationId={selectedOrganizationId}
-        onTemplateCreated={(template) => {
-          setCreatedTemplate(template);
-          setIsCreateTemplateSheetOpen(false);
-          queryClient.invalidateQueries({ queryKey: ['templates', selectedOrganizationId] });
-          setTimeout(() => {
-            setIsTemplateConfigSheetOpen(true);
-          }, 300);
-        }}
-      />
-
-      {/* Template Configuration Sheet */}
-      <TemplateConfigSheet
-        template={fullTemplate}
-        isOpen={isTemplateConfigSheetOpen}
-        onOpenChange={setIsTemplateConfigSheetOpen}
-      />
-    </>
+    </div>
   );
 }

@@ -12,7 +12,6 @@ import {
   useReadOnly,
   useSelected,
 } from 'platejs/react';
-import { useQueryClient } from '@tanstack/react-query';
 import { Pencil, RefreshCw, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -22,8 +21,8 @@ import { Popover, PopoverAnchor } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { DataTableConfigSheet } from '@/components/ui/data-table-config-sheet';
 import { DataTableNodeBody } from '@/components/ui/data-table-node-grid';
-import { useResolvedDataTable } from '@/contexts/document-data-context';
-import { dataTableQueryKeys } from '@/hooks/useDataTables';
+import { useDataTableRefresh, useResolvedDataTable } from '@/contexts/document-data-context';
+import { cn } from '@/lib/utils';
 import type { DataTableConfig, DataTableElement, DataTableSnapshot } from '@/types/data-table-node';
 
 export function DataTableElementNode(props: PlateElementProps<DataTableElement>) {
@@ -33,7 +32,7 @@ export function DataTableElementNode(props: PlateElementProps<DataTableElement>)
   const isFocusedLast = useFocusedLast();
   const element = useElement<DataTableElement>();
   const { t } = useTranslation('editor');
-  const queryClient = useQueryClient();
+  const { refresh, isFetching } = useDataTableRefresh();
   const [configOpen, setConfigOpen] = React.useState(false);
 
   const resolved = useResolvedDataTable(element);
@@ -47,13 +46,26 @@ export function DataTableElementNode(props: PlateElementProps<DataTableElement>)
   }, [editor, element]);
 
   const handleRefresh = React.useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: dataTableQueryKeys.resolveBase() });
-  }, [queryClient]);
+    void refresh?.();
+  }, [refresh]);
 
   const handleConfirmConfig = React.useCallback(
     (config: DataTableConfig, snapshot: DataTableSnapshot | null) => {
       const path = editor.api.findPath(element);
       if (path) editor.tf.setNodes({ ...config, snapshot }, { at: path });
+    },
+    [editor, element],
+  );
+
+  // Al cerrar el sheet Radix devolvería el foco al botón "Configurar" (que se desmonta junto con el
+  // toolbar); se manda al editor con el nodo seleccionado para que el toolbar reaparezca.
+  const handleCloseAutoFocus = React.useCallback(
+    (event: Event) => {
+      event.preventDefault();
+      const path = editor.api.findPath(element);
+      const start = path ? editor.api.start(path) : undefined;
+      if (start) editor.tf.select(start);
+      editor.tf.focus();
     },
     [editor, element],
   );
@@ -85,15 +97,18 @@ export function DataTableElementNode(props: PlateElementProps<DataTableElement>)
                 <Pencil className="size-3.5" />
                 {t('dataTable.actions.configure')}
               </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 gap-1 px-2 text-xs hover:cursor-pointer"
-                onClick={handleRefresh}
-              >
-                <RefreshCw className="size-3.5" />
-                {t('dataTable.actions.refresh')}
-              </Button>
+              {refresh && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 gap-1 px-2 text-xs hover:cursor-pointer"
+                  onClick={handleRefresh}
+                  disabled={isFetching}
+                >
+                  <RefreshCw className={cn('size-3.5', isFetching && 'animate-spin')} />
+                  {t('dataTable.actions.refresh')}
+                </Button>
+              )}
 
               <Separator orientation="vertical" className="mx-1 h-6" />
               <Button
@@ -115,6 +130,7 @@ export function DataTableElementNode(props: PlateElementProps<DataTableElement>)
         onOpenChange={setConfigOpen}
         initial={element}
         onConfirm={handleConfirmConfig}
+        onCloseAutoFocus={handleCloseAutoFocus}
       />
     </>
   );

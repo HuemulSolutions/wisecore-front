@@ -14,6 +14,7 @@ import assets from './locales/assets'
 import customFields from './locales/custom-fields'
 import context from './locales/context'
 import dependencies from './locales/dependencies'
+import sources from './locales/sources'
 import sections from './locales/sections'
 import execute from './locales/execute'
 import home from './locales/home'
@@ -78,6 +79,7 @@ const modules = {
   'custom-fields': customFields,
   context,
   dependencies,
+  sources,
   sections,
   execute,
   home,

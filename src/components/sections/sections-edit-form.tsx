@@ -14,6 +14,7 @@ export function EditSectionForm({
   documentId,
   templateId,
   executionId,
+  isPending = false,
 }: EditSectionFormProps) {
   return (
     <SectionForm
@@ -31,6 +32,7 @@ export function EditSectionForm({
       documentId={documentId}
       templateId={templateId}
       executionId={executionId}
+      isPending={isPending}
     />
   );
 }

@@ -113,6 +113,7 @@ overflowPadding={Math.max(8, chromeInset + 8)}
 - Escribir `z-50` "porque el de al lado también" — el resultado real lo decide el orden del DOM, no el número. Usar el token de la capa.
 - Subir el z-index para ganar una superposición de un portal: no funciona a través de `isolate`; el arreglo es `collisionPadding`.
 - Poner `collisionPadding` fijo (ej. `64`): la franja cambia con el breakpoint, los banners de ejecución y el `toolbarTopOffset` de la sección. Usar `useEditorChromeInset()`.
+- Quitar el `collisionBoundary` explícito (viewport) de `NodeFloatingToolbarContent`: el inset está en coordenadas de viewport; sin boundary explícito `hideWhenDetached` evalúa contra los ancestros con overflow, cuenta el chrome dos veces y oculta el toolbar de un nodo que sí se ve (intermitente según el scroll).
 - Olvidar `hideWhenDetached`: al scrollear, el toolbar queda huérfano flotando sobre el header.
 - Agregar un header sticky nuevo sin `data-…-header`: rompe el fallback del inset en modo lector.
 

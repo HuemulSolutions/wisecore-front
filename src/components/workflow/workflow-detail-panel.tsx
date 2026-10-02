@@ -23,6 +23,7 @@ import { useOrganization } from "@/contexts/organization-context"
 import { usePageAccess } from "@/hooks/usePageAccess"
 import { useOrgPath } from "@/hooks/useOrgRouter"
 import { buildExecutionSharePath } from "@/lib/workflow-share-url"
+import { templateTitle } from "@/lib/launcher-templates"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { isExternalElaborationLocked, EXTERNAL_ELABORATION_POLL_MS } from "@/lib/lifecycle-access"
 import { workflowQueryKeys } from "@/hooks/useWorkflows"
@@ -253,7 +254,7 @@ export function WorkflowDetailPanel({
     startInSection: !row,
   })
 
-  // Entrar a una sección (tarjeta, píldora, Anterior/Siguiente, "Ir a la sección", express) =
+  // Entrar a una sección (tarjeta, Anterior/Siguiente, "Ir a la sección", express) =
   // "la vio": el backend lo necesita para completar secciones sin preguntas obligatorias.
   const markSectionViewed = useMarkSectionViewed(documentId ?? undefined)
   React.useEffect(() => {
@@ -279,7 +280,7 @@ export function WorkflowDetailPanel({
   // Fallback a `data` (respuesta de /content): la vista compartida solo trae
   // los IDs de la URL, sin el WorkflowItem completo con nombre/código.
   const documentName =
-    editedAsset?.name ?? row?.document_name ?? createdDoc?.name ?? template?.name ?? data?.document_name
+    editedAsset?.name ?? row?.document_name ?? createdDoc?.name ?? (template ? templateTitle(template) : undefined) ?? data?.document_name
   const internalCode = editedAsset?.internalCode ?? row?.internal_code ?? data?.internal_code ?? undefined
   const lifecycleExecutionId = executionId ?? data?.execution_id
 
@@ -350,7 +351,7 @@ export function WorkflowDetailPanel({
   const showNoFormsNotice = formSections.length === 0 && !hasAnyFormSection
 
   // Botón "Siguiente ▸" de la vista 2: única puerta que valida obligatorias/formato y hace el
-  // flush final (AssetFormSectionHandle.exit → PATCH /form_values). «◂ Anterior» y las píldoras
+  // flush final (AssetFormSectionHandle.exit → PATCH /form_values). «◂ Anterior»
   // NO pasan por acá — retroceder no debe quedar bloqueado por un toast de obligatorias.
   const handleLeaveSectionForward = React.useCallback(() => {
     if (!isLastSection) {
@@ -470,7 +471,7 @@ export function WorkflowDetailPanel({
       <WorkflowPanelHeader
         documentName={documentName}
         internalCode={internalCode}
-        templateName={data?.template_name}
+        templateName={data?.relation_name || data?.template_name || (template ? templateTitle(template) : undefined)}
         isFullscreen={isFullscreen}
         createdBy={data?.created_by_user}
         updatedBy={data?.updated_by_user}
@@ -516,8 +517,8 @@ export function WorkflowDetailPanel({
         <div className={cn(isFullscreen && "mx-auto w-full max-w-3xl")}>
           {/* Mismo gutter horizontal que el contenido de la rama (resumen 16px, sección 22px); en las
               ramas p-4 el contenedor ya da el padding y solo hace falta la separación de abajo. */}
-          {/* En la vista de sección el aviso lo ubica WorkflowSectionView, entre el navegador de
-              secciones y el nombre de la sección (ver bannerMessage más abajo). */}
+          {/* En la vista de sección el aviso lo ubica WorkflowSectionView, debajo del encabezado
+              de la sección (ver bannerMessage más abajo). */}
           {bannerMessage && !isSectionBranch && (
             <div className={isSummaryBranch || isStatusBranch ? "px-4 pt-[14px]" : "mb-4"}>
               <WorkflowReadOnlyBanner message={bannerMessage} reason={bannerReason} />
@@ -585,11 +586,7 @@ export function WorkflowDetailPanel({
             <WorkflowSectionView
               ref={formSectionRef}
               section={activeSection}
-              sections={formSections}
               allFields={allFormFields}
-              activeIndex={activeSectionIndex}
-              onSelectSection={openSection}
-              sectionCanAnswer={gating.canAnswerSpecificSection}
               onBackToSummary={goToSummary}
               navDisabled={isFormSaving}
               organizationId={selectedOrganizationId ?? undefined}

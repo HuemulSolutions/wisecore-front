@@ -124,6 +124,7 @@
     expand: { en: "Expand", es: "Expandir" },
     overview: {
       title: { en: "Overview", es: "Panorama" },
+      subtitle: { en: "Asset count by status", es: "Cantidad de activos por estado" },
       scopeOrganization: { en: "Organization", es: "Organización" },
       scopeMine: { en: "Personal", es: "Personal" },
       hintDefault: { en: "Click an indicator to filter the table", es: "Clic en un indicador para filtrar la tabla" },

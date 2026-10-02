@@ -117,6 +117,11 @@ export interface TemplateInfoSheetProps {
   canViewTags?: boolean;
   /** tag:u — permite asignar/quitar etiquetas desde la sección. Sin esto, solo lectura. */
   canManageTags?: boolean;
+  /** El detalle del template aún se está cargando: el cuerpo muestra skeleton. */
+  loading?: boolean;
+  /** Falló la carga del detalle: el cuerpo muestra un bloque de error con reintentar. */
+  hasError?: boolean;
+  onRetry?: () => void;
 }
 
 export interface TemplateSectionsListProps {
@@ -153,7 +158,8 @@ export interface TemplateSectionCardProps {
   isOverlay?: boolean;
   isMenuOpen: boolean;
   onMenuOpenChange: (open: boolean) => void;
-  onSave: (sectionId: string, sectionData: object) => void;
+  /** Devolver la promesa de la mutación (`mutateAsync`): el sheet de edición espera antes de cerrar. */
+  onSave: (sectionId: string, sectionData: object) => Promise<unknown> | void;
   onDelete: (sectionId: string, options?: { propagate_to_documents?: boolean }) => Promise<void>;
   onMoveUp: () => void;
   onMoveDown: () => void;

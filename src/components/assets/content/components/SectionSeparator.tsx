@@ -25,8 +25,8 @@ export function SectionSeparator({
         : t('sectionSeparator.addSectionBeginning');
 
   return (
-    <div className="relative flex h-5.5 items-center gap-2 px-4 max-w-full">
-      <div className="h-px flex-1 bg-[#e9edf2]" />
+    <div className="relative flex h-11 items-center gap-2 px-4 max-w-full">
+      <div className="h-px flex-1 bg-[#eef1f6]" />
       <DocumentActionButton
         requiredAccess={["edit", "create"]}
         requireAll={false}
@@ -37,12 +37,12 @@ export function SectionSeparator({
         size="sm"
         aria-label={ariaLabel}
         title={ariaLabel}
-        className="h-auto shrink-0 gap-1 rounded-full border border-[#e5eaf1] bg-white px-2.25 py-0.5 text-[11.5px] font-medium text-[#64748b] shadow-none hover:cursor-pointer hover:border-[#bfd3fb] hover:bg-white hover:text-[#1d4ed8]"
+        className="h-6 shrink-0 gap-1 rounded-xl border-0 bg-transparent px-2.5 py-0 text-xs font-semibold text-[#94a3b8] shadow-none hover:cursor-pointer hover:bg-[#eff5ff] hover:text-[#1d4ed8]"
       >
         <Plus className="h-3 w-3 stroke-[2.2]" />
         {t('sectionSeparator.insertSection')}
       </DocumentActionButton>
-      <div className="h-px flex-1 bg-[#e9edf2]" />
+      <div className="h-px flex-1 bg-[#eef1f6]" />
     </div>
   );
 }

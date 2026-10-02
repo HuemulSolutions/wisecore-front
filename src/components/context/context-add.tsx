@@ -8,11 +8,12 @@ import {
   Pencil,
   Users,
   Type,
-  Loader2,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DeleteContextDialog } from "@/components/context/context-delete-dialog";
 import { EditContextDialog } from "@/components/context/context-edit-dialog";
 import { AddContextDialog } from "@/components/context/context-add-dialog";
@@ -28,6 +29,7 @@ export type { AddContextSheetProps } from '@/types/context';
 // (assets-context-sheet.tsx) ya lo pasa explícito desde el cruce lifecycle × RBAC.
 export default function AddContext({ id, isSheetOpen = true, canEdit = false }: AddContextSheetProps) {
   const { t } = useTranslation('context')
+  const { t: tCommon } = useTranslation('common')
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [contextToDelete, setContextToDelete] = useState<string | null>(null);
@@ -39,7 +41,7 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = false }: 
   const { selectedOrganizationId } = useOrganization();
 
   // Get document contexts
-  const { data: contexts, isLoading, error } = useQuery<ContextItem[]>({
+  const { data: contexts, isLoading, isFetching, error, refetch } = useQuery<ContextItem[]>({
     queryKey: ['contexts', id],
     queryFn: () => getContext(id, selectedOrganizationId!),
     enabled: !!id && !!selectedOrganizationId && isSheetOpen
@@ -117,9 +119,11 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = false }: 
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-        <span className="ml-2 text-sm text-gray-500">{t('loading')}</span>
+      <div className="space-y-3" aria-busy="true">
+        <Skeleton className="h-10 w-full" />
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-16 w-full rounded-lg" />
+        ))}
       </div>
     );
   }
@@ -132,6 +136,15 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = false }: 
           <span className="text-sm font-medium">{t('errorLoading')}</span>
         </div>
         <p className="text-sm text-red-600 mt-1">{(error as Error).message}</p>
+        <HuemulButton
+          size="sm"
+          variant="outline"
+          className="mt-3"
+          icon={RefreshCw}
+          label={tCommon('tryAgain')}
+          loading={isFetching}
+          onClick={() => void refetch()}
+        />
       </div>
     );
   }

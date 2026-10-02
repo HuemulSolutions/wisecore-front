@@ -33,9 +33,10 @@ const translations = {
     documentName: { en: "Asset", es: "Activo" },
     template: { en: "Workflow", es: "Workflow" },
     lifecycleState: { en: "State", es: "Estado" },
-    lifecycleStepTooltip: { en: "Pending lifecycle step", es: "Paso del ciclo de vida pendiente" },
     progress: { en: "Progress", es: "Progreso" },
     currentStep: { en: "Current section", es: "Sección actual" },
+    createdBy: { en: "Created by", es: "Creado por" },
+    createdAt: { en: "Created on", es: "Fecha de creación" },
     lastModified: { en: "Last modified", es: "Última modificación" },
   },
   emptyState: {
@@ -167,8 +168,15 @@ const translations = {
         en: "Pending — you can't answer this section",
         es: "Pendiente — no puedes responder esta sección",
       },
-      allAnswered: { en: "All answered", es: "Todo respondido" },
-      optionalPending: { en: "{{count}} optional pending", es: "{{count}} opcionales sin responder" },
+      allDone: { en: "All answered · nothing pending", es: "Todo respondido · nada pendiente" },
+      requiredAnswered_one: { en: "{{count}} required answered", es: "{{count}} obligatoria respondida" },
+      requiredAnswered_other: { en: "{{count}} required answered", es: "{{count}} obligatorias respondidas" },
+      requiredPending_one: { en: "{{count}} required pending", es: "{{count}} obligatoria pendiente" },
+      requiredPending_other: { en: "{{count}} required pending", es: "{{count}} obligatorias pendientes" },
+      pendingShort_one: { en: "{{count}} pending", es: "{{count}} pendiente" },
+      pendingShort_other: { en: "{{count}} pending", es: "{{count}} pendientes" },
+      optionalPending_one: { en: "{{count}} optional unanswered", es: "{{count}} opcional sin responder" },
+      optionalPending_other: { en: "{{count}} optional unanswered", es: "{{count}} opcionales sin responder" },
     },
     empty: {
       title: { en: "This workflow has no forms", es: "Este workflow no tiene formularios" },
@@ -178,11 +186,9 @@ const translations = {
       },
     },
   },
-  // Vista 2 (sección) del panel de detalle — ver workflow-section-view.tsx / workflow-section-pills.tsx.
+  // Vista 2 (sección) del panel de detalle — ver workflow-section-view.tsx.
   section: {
     counter: { en: "Section {{current}} of {{total}}", es: "Sección {{current}} de {{total}}" },
-    pillTooltip: { en: "Go to \"{{name}}\"", es: "Ir a \"{{name}}\"" },
-    indexLabel: { en: "Sections of this asset", es: "Secciones de este activo" },
     questionsCount: { en: "{{count}} questions", es: "{{count}} preguntas" },
     readOnlyStep: { en: "Read-only at this step", es: "Solo lectura en este paso" },
     inactiveNotice: {

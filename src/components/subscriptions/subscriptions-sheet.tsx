@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bell, Star, Eye, Edit2, Trash2, Plus, Mail, Smartphone } from "lucide-react"
+import { Bell, Star, Eye, Pencil, Trash2, Plus, Mail, Smartphone, RefreshCw } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulButton } from "@/huemul/components/huemul-button"
@@ -41,7 +41,7 @@ export function SubscriptionsSheet({ open, onOpenChange, organizationId }: Subsc
     if (open) setPage(1)
   }, [open])
 
-  const { data, isLoading, isFetching, error } = useSubscriptions(organizationId, {
+  const { data, isLoading, isFetching, error, refetch } = useSubscriptions(organizationId, {
     enabled: open && !!organizationId,
     page,
     pageSize,
@@ -118,7 +118,7 @@ export function SubscriptionsSheet({ open, onOpenChange, organizationId }: Subsc
     {
       key: "edit",
       label: t("actions.edit"),
-      icon: Edit2,
+      icon: Pencil,
       onClick: (item) => setTimeout(() => setEditingItem(item), 0),
       separator: true,
     },
@@ -156,6 +156,14 @@ export function SubscriptionsSheet({ open, onOpenChange, organizationId }: Subsc
             <div className="flex flex-col items-center justify-center min-h-75 text-center p-6 gap-2">
               <p className="text-sm text-red-600 font-medium">{t("errorState.failedToLoad")}</p>
               <p className="text-xs text-muted-foreground">{t("errorState.errorDescription")}</p>
+              <HuemulButton
+                size="sm"
+                variant="outline"
+                icon={RefreshCw}
+                label={t("common:tryAgain")}
+                loading={isFetching}
+                onClick={() => void refetch()}
+              />
             </div>
           ) : (
             <HuemulTable

@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useState } from "react"
 import { useMutation } from "@tanstack/react-query"
-import { Edit3 } from "lucide-react"
+import { Pencil } from "lucide-react"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { editFolder } from "@/services/folders"
 import { toast } from "sonner"
@@ -83,7 +83,7 @@ export default function EditFolder({
       onOpenChange={onOpenChange}
       title={t('editFolder.title')}
       description={t('editFolder.description', { name: currentName })}
-      icon={Edit3}
+      icon={Pencil}
       maxWidth="sm:max-w-md"
       maxHeight="max-h-[90vh]"
       cancelLabel={t('common:cancel')}

@@ -47,4 +47,6 @@ export interface EditSectionFormProps {
   documentId?: string;
   templateId?: string;
   executionId?: string;
+  /** Guardado en curso: deshabilita los campos del form. */
+  isPending?: boolean;
 }

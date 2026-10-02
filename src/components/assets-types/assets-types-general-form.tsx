@@ -46,6 +46,8 @@ export interface AssetTypeGeneralForm {
   setFinalLifecycleStage: (value: FinalLifecycleStage) => void;
   isEditing: boolean;
   isLoadingData: boolean;
+  /** Error del GET de precarga (modo editar); el form NO es confiable y no se puede guardar. */
+  loadError: unknown;
   isSaving: boolean;
   isDirty: boolean;
   canSubmit: boolean;
@@ -78,8 +80,11 @@ export function useAssetTypeGeneralForm({
   const [values, setValues] = useState<AssetTypeGeneralFormValues>(DEFAULT_VALUES);
   const [baseline, setBaseline] = useState<AssetTypeGeneralFormValues>(DEFAULT_VALUES);
   const [error, setError] = useState<string | null>(null);
+  // Id del tipo con el que se precargó el form: se precarga una sola vez, así un
+  // refetch (ej. al volver el foco a la ventana) no pisa lo que el usuario editó.
+  const [loadedId, setLoadedId] = useState<string | null>(null);
 
-  const { data: documentTypeData, isLoading: isLoadingData } = useQuery({
+  const { data: documentTypeData, isLoading: isLoadingData, error: loadError } = useQuery({
     queryKey: ['document-type', documentTypeId],
     queryFn: () => getDocumentTypeById(documentTypeId!),
     enabled: isEditing && !!documentTypeId && enabled,
@@ -88,7 +93,7 @@ export function useAssetTypeGeneralForm({
   // Precarga los valores del backend y fija la línea base contra la que se
   // calcula `isDirty`.
   useEffect(() => {
-    if (!documentTypeData?.data) return;
+    if (!documentTypeData?.data || loadedId === documentTypeId) return;
     const loaded: AssetTypeGeneralFormValues = {
       name: documentTypeData.data.name,
       color: documentTypeData.data.color,
@@ -97,9 +102,11 @@ export function useAssetTypeGeneralForm({
     };
     setValues(loaded);
     setBaseline(loaded);
-  }, [documentTypeData]);
+    setLoadedId(documentTypeId ?? null);
+  }, [documentTypeData, documentTypeId, loadedId]);
 
   const reset = useCallback(() => {
+    setLoadedId(null);
     setValues(DEFAULT_VALUES);
     setBaseline(DEFAULT_VALUES);
     setError(null);
@@ -186,10 +193,13 @@ export function useAssetTypeGeneralForm({
     setFinalLifecycleStage: (value) =>
       setValues((prev) => ({ ...prev, finalLifecycleStage: value })),
     isEditing,
-    isLoadingData: isEditing && isLoadingData,
+    // Cargando hasta tener el detalle aplicado al form (no solo recibido).
+    isLoadingData:
+      isEditing && !loadError && (isLoadingData || (!!documentTypeData?.data && loadedId !== documentTypeId)),
+    loadError: isEditing ? loadError : null,
     isSaving: mutation.isPending,
     isDirty,
-    canSubmit: !!values.name.trim() && (!isEditing || isDirty),
+    canSubmit: !!values.name.trim() && (!isEditing || (isDirty && !loadError)),
     error: error && error !== nameRequiredMessage ? error : null,
     nameError: error === nameRequiredMessage ? error : null,
     submit,

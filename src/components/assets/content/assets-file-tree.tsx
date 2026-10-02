@@ -1,7 +1,7 @@
 ﻿"use client"
 
 import type { FileNode } from "@/types/assets"
-import type { HuemulTreeNode, HuemulTreeMenuAction } from "@/types/huemul"
+import type { HuemulTreeNode, HuemulTreeMenuAction, HuemulTreePageRequest, HuemulTreeLoadResult } from "@/types/huemul"
 import type { HuemulFileTreeProps } from "@/huemul/components/huemul-file-tree"
 import type { AssetFileTreeProps, FileTreeRef } from '@/types/assets'
 export type { AssetFileTreeProps as FileTreeProps, FileTreeRef } from '@/types/assets'
@@ -23,6 +23,7 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
     {
       onLoadChildren,
       onRefresh,
+      childrenPageSize,
       onCreateFile,
       onCreateFolder,
       onDelete,
@@ -83,8 +84,8 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
     // HuemulFileTree from re-running loadInitialData on every parent render.
     const adaptedLoadChildren = useCallback(
       onLoadChildren
-        ? (folderId: string | null, node?: HuemulTreeNode) =>
-            onLoadChildren(folderId, node as FileNode | undefined) as Promise<HuemulTreeNode[]>
+        ? (folderId: string | null, node?: HuemulTreeNode, page?: HuemulTreePageRequest) =>
+            onLoadChildren(folderId, node as FileNode | undefined, page) as Promise<HuemulTreeLoadResult>
         : () => Promise.resolve([]),
       [onLoadChildren],
     )
@@ -100,7 +101,9 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
     )
 
     const adaptedRefresh = useCallback(
-      onRefresh ? () => onRefresh() as Promise<HuemulTreeNode[]> : () => Promise.resolve([]),
+      onRefresh
+        ? (page?: HuemulTreePageRequest) => onRefresh(page) as Promise<HuemulTreeLoadResult>
+        : () => Promise.resolve([]),
       [onRefresh],
     )
 
@@ -109,6 +112,7 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
         ref={ref}
         onLoadChildren={onLoadChildren ? adaptedLoadChildren : undefined}
         onRefresh={onRefresh ? adaptedRefresh : undefined}
+        childrenPageSize={childrenPageSize}
         onCreateFile={onCreateFile ? adaptedCreateFile : undefined}
         onCreateFolder={onCreateFolder}
         onDelete={onDelete as ((nodeId: string, nodeType: string) => Promise<void>) | undefined}

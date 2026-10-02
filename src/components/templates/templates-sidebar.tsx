@@ -10,7 +10,7 @@ import type { HuemulTreeNode, HuemulTreeMenuAction } from "@/types/huemul";
 import { useDebounce } from "@/hooks/use-debounce";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, FileCode, Edit3, Trash2, RefreshCw, X, Copy, Download, FileJson, Loader2 } from "lucide-react";
+import { Plus, FileCode, Pencil, Trash2, RefreshCw, X, Copy, Download, FileJson, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { exportTemplates } from "@/services/templates";
 import { CreateTemplateDialog } from "./templates-create-dialog";
@@ -136,7 +136,7 @@ export function TemplatesSidebar({
   if (canUpdate) {
     menuActions.push({
       label: t('templates:sidebar.editTemplate'),
-      icon: <Edit3 className="h-4 w-4" />,
+      icon: <Pencil className="h-4 w-4" />,
       onClick: async (id) => {
         const tpl = templatesRef.current.find((t) => t.id === id);
         if (tpl) setEditDialogTemplate(tpl);
@@ -385,7 +385,6 @@ export function TemplatesSidebar({
           onOpenChange={(open) => { if (!open) setEditDialogTemplate(null); }}
           templateId={editDialogTemplate.id}
           templateName={editDialogTemplate.name}
-          templateDescription={editDialogTemplate.description}
           organizationId={organizationId}
           onSuccess={() => {
             onRefresh?.();

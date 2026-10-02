@@ -310,6 +310,7 @@ control ahí en vez de dejarla sin UI.
 | `media-view-mode` | Migrada — `useMediaViewMode.ts`, misma firma `[mode, setMode]` que antes |
 | `language` | Migrada — `useLanguagePreference.ts`, montado en `app-layout.tsx` (no solo en el sheet) para aplicar sin que el usuario lo abra. Requirió agregar `'localStorage'` al **inicio** de `detection.order` en `src/i18n/index.ts` — antes solo estaba en `caches`, así que `navigator` le ganaba siempre al idioma elegido en el próximo arranque |
 | `home-layout` | Solo `localStorage`, `wisecore:home-layout:<orgId>` (`useHomeLayoutHint.ts`). Última variante de Home pintada (`normal`/`firstTime`), usada como pronóstico por `HomeSkeleton` para no saltar de diseño en F5 |
+| `knowledge-panel-collapsed` | Solo `localStorage`, `wisecore:knowledge-panel-collapsed:<orgId>` (`useKnowledgePanelCollapsed.ts`). Panel de knowledge de `/asset` colapsado a rail; lectura síncrona para arrancar colapsado (`defaultSize` 4) sin salto |
 | `table-column-widths` | Pendiente, sigue solo en `localStorage` |
 
 **Candidata futura, sin persistencia hoy:** las carpetas expandidas de la

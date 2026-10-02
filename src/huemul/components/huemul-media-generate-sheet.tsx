@@ -105,7 +105,7 @@ export function HuemulMediaGenerateSheet({
   const openRef = useRef(open)
   const { generateImage } = useImageGenerationMutations(organizationId)
   const { deleteMedia, deleteMediaVersion } = useMediaMutations(organizationId)
-  const { data: imageLlms } = useImageLlms(open && canListModels)
+  const { data: imageLlms, isLoading: isLoadingLlms } = useImageLlms(open && canListModels)
   const isPending = generateImage.isPending
 
   useEffect(() => { openRef.current = open }, [open])
@@ -293,8 +293,14 @@ export function HuemulMediaGenerateSheet({
               label={t("generate.model")}
               value={llmId}
               onChange={(v) => setLlmId(String(v ?? AUTO_LLM_VALUE))}
-              disabled={isPending}
-              helpText={imageLlms?.length ? t("generate.modelHelp") : t("generate.modelEmpty")}
+              disabled={isPending || isLoadingLlms}
+              helpText={
+                isLoadingLlms
+                  ? tCommon("loading")
+                  : imageLlms?.length
+                    ? t("generate.modelHelp")
+                    : t("generate.modelEmpty")
+              }
               options={[
                 { value: AUTO_LLM_VALUE, label: t("generate.modelAuto") },
                 ...(imageLlms ?? []).map((llm) => ({ value: llm.id, label: llm.name })),

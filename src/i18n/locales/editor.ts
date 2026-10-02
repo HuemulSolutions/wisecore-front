@@ -423,6 +423,12 @@ const translations = {
         en: "Leave empty to show incoming and outgoing relationships",
         es: "Dejar vacío para mostrar relaciones entrantes y salientes",
       },
+      assetTypeFilterLabel: { en: "Filter by asset type (optional)", es: "Filtrar por tipo de activo (opcional)" },
+      assetTypeFilterHint: {
+        en: "Leave empty to show related assets of any type",
+        es: "Dejar vacío para mostrar activos relacionados de cualquier tipo",
+      },
+      assetTypeFilterPlaceholder: { en: "All asset types", es: "Todos los tipos de activo" },
       titleLabel: { en: "Table title", es: "Título de la tabla" },
       titlePlaceholder: { en: "Untitled", es: "Sin título" },
       limitLabel: { en: "Maximum number of rows", es: "Cantidad máxima de filas" },

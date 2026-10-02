@@ -113,6 +113,10 @@ export function useDiscussions(
   const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
 
+  // Fetch org users for avatar / name resolution
+  // Solo si hay documento (sin permiso de discusiones el caller pasa `undefined`).
+  const { data: usersResponse } = useUsers(
+    !!selectedOrganizationId && !!documentId,
   // Directorio de la organización para resolver nombre y avatar (cualquier miembro lo ve).
   const { data: usersResponse } = useMembers(
     !!selectedOrganizationId,
@@ -149,6 +153,7 @@ export function useDiscussions(
     data: discussionsResponse,
     isLoading: isLoadingDiscussions,
     isFetching: isFetchingDiscussions,
+    isError: isErrorDiscussions,
     refetch: refetchDiscussions,
   } = useQuery({
     queryKey: discussionQueryKeys.byDocument(documentId!),
@@ -364,6 +369,7 @@ export function useDiscussions(
     isDeletingDiscussion: deleteDiscussionMutation.isPending,
     isLoading: isLoadingDiscussions,
     isFetching: isFetchingDiscussions,
+    isError: isErrorDiscussions,
     refetch: refetchDiscussions,
     invalidate,
   };

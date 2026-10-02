@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Clock, RefreshCw, XCircle, CheckCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
+import { VersionBanner } from '@/components/assets/content/version-banner';
+import type { VersionBannerTone } from '@/components/assets/content/version-banner-variants';
 import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
 import { useExecutionPolling } from '@/hooks/useExecutionPolling';
@@ -10,7 +11,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/logger';
 import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
-import { executionStatusBannerStyle } from '@/lib/lifecycle-colors';
 import type { ExecutionStatusBannerProps } from '@/types/execution';
 
 export type { ExecutionStatusBannerProps } from '@/types/execution';
@@ -18,6 +18,7 @@ export type { ExecutionStatusBannerProps } from '@/types/execution';
 export function ExecutionStatusBanner({
   executionId,
   onExecutionComplete,
+  progress,
   className
 }: ExecutionStatusBannerProps) {
   logger.log('ExecutionStatusBanner rendering with executionId:', executionId);
@@ -90,25 +91,6 @@ export function ExecutionStatusBanner({
     return null;
   }
 
-  // Forma del icono por estado — el color sale de `executionStatusBannerStyle`
-  // (`lib/lifecycle-colors.ts`, única fuente, compartida con los badges de
-  // lifecycle y ejecución): así el icono nunca se desincroniza del fondo si
-  // cambia el hue del estado.
-  const statusIconShapeMap: Record<string, typeof Loader2> = {
-    importing: Loader2,
-    import_failed: XCircle,
-    running: Loader2,
-    approving: Loader2,
-    generating: Loader2,
-    pending: Clock,
-    queued: Clock,
-    completed: CheckCircle,
-    failed: XCircle,
-    cancelled: XCircle,
-    paused: Clock,
-  };
-  const spinningStatuses = new Set(['importing', 'running', 'approving', 'generating']);
-
   const statusKeyMap: Record<string, string> = {
     importing: 'importing',
     import_failed: 'importFailed',
@@ -122,58 +104,34 @@ export function ExecutionStatusBanner({
     paused: 'paused',
   };
 
-  const getStatusConfig = (status: string) => {
-    const tone = executionStatusBannerStyle(status);
-    const IconShape = statusIconShapeMap[status] ?? Clock;
-    const icon = <IconShape className={cn('h-5 w-5', spinningStatuses.has(status) && 'animate-spin', tone.icon)} />;
-    const key = statusKeyMap[status];
-    const text = key ? t(`banner.status.${key}`) : status;
-    const description = status === 'import_failed'
-      ? (currentExecution?.status_message || currentExecution?.error || t(`banner.description.importFailed`))
-      : status === 'failed' && isMissingDependencyFailure(currentExecution?.status_message)
-      ? t('banner.description.missingDependency')
-      : t(`banner.description.${key || 'default'}`);
-    return { icon, bgColor: tone.bg, borderColor: tone.border, textColor: tone.text, text, description };
-  };
+  const status = currentExecution.status;
+  const key = statusKeyMap[status];
+  const statusText = key ? t(`banner.status.${key}`) : status;
+  const description =
+    status === 'import_failed'
+      ? (currentExecution.status_message || currentExecution.error || t('banner.description.importFailed'))
+      : status === 'failed' && isMissingDependencyFailure(currentExecution.status_message)
+        ? t('banner.description.missingDependency')
+        : t(`banner.description.${key || 'default'}`);
 
-  const statusConfig = getStatusConfig(currentExecution.status);
+  const isFailure = status === 'import_failed' || status === 'failed';
+  const isActive = ['importing', 'running', 'approving', 'generating', 'pending', 'queued'].includes(status);
+  const tone: VersionBannerTone | undefined = isFailure ? 'red' : status === 'cancelled' ? 'gray' : undefined;
 
   return (
-    <div className={cn(
-      "border-l-4 p-4 mb-4 rounded-lg",
-      statusConfig.bgColor,
-      statusConfig.borderColor,
-      className
-    )}>
-      <div className="flex items-start justify-between">
-        <div className="flex items-start space-x-3 flex-1">
-          <div className="shrink-0 mt-0.5">
-            {statusConfig.icon}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className={cn("text-sm font-medium", statusConfig.textColor)}>
-              {currentExecution.status === 'import_failed' || currentExecution.status === 'failed'
-                ? t('banner.documentError', { status: statusConfig.text })
-                : t('banner.documentPrefix', { status: statusConfig.text })}
-            </p>
-            <p className={cn("text-xs mt-1", statusConfig.textColor)}>
-              {statusConfig.description}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2 ml-4">
-          {(currentExecution.status === 'running' || currentExecution.status === 'pending' || currentExecution.status === 'approving' || currentExecution.status === 'importing') && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={invalidateExecution}
-              className="hover:cursor-pointer"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      </div>
-    </div>
+    <VersionBanner
+      variant="generating"
+      tone={tone}
+      pulsing={isActive}
+      title={isFailure ? t('banner.documentError', { status: statusText }) : t('banner.documentPrefix', { status: statusText })}
+      text={description}
+      progress={isActive ? progress : undefined}
+      className={cn('mb-4', className)}
+      actions={
+        ['running', 'pending', 'approving', 'importing'].includes(status)
+          ? [{ icon: RefreshCw, title: t('executionRun.refreshStatus'), onClick: invalidateExecution }]
+          : undefined
+      }
+    />
   );
 }

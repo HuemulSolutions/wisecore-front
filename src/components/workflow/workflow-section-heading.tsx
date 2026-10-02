@@ -1,4 +1,6 @@
 import { useTranslation } from "react-i18next";
+import { ChevronLeft } from "lucide-react";
+import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulAnswersStatusBadge } from "@/huemul/components/huemul-answers-status-badge";
 import { HuemulTruncatedText } from "@/huemul/components/huemul-truncated-text";
 import { describeSectionDependency } from "@/components/workflow/describe-section-dependency";
@@ -12,13 +14,18 @@ export interface WorkflowSectionHeadingProps {
   allFields: FormFieldValue[];
   /** canAnswerSpecificSection(section) del panel. */
   canAnswer: boolean;
+  /** Vuelve al resumen (vista 1) — chevron a la izquierda del nombre. */
+  onBack: () => void;
+  /** Gate de isFormSaving del panel. */
+  backDisabled?: boolean;
 }
 
 /**
- * Encabezado del cuerpo de la vista 2: nombre + badge de estado, línea de meta (contadores) y,
- * si la sección está inactiva por su depends_on, el aviso con la condición redactada.
+ * Encabezado del cuerpo de la vista 2: chevron de volver al resumen + nombre + badge de estado,
+ * línea de meta (contadores) y, si la sección está inactiva por su depends_on, el aviso con la
+ * condición redactada.
  */
-export function WorkflowSectionHeading({ section, allFields, canAnswer }: WorkflowSectionHeadingProps) {
+export function WorkflowSectionHeading({ section, allFields, canAnswer, onBack, backDisabled }: WorkflowSectionHeadingProps) {
   const { t } = useTranslation(["workflow", "sections"]);
   const { answeredCount, questions, missingRequired } = computeSectionStats(section);
   const isActive = isSectionAnswerable(section);
@@ -29,6 +36,15 @@ export function WorkflowSectionHeading({ section, allFields, canAnswer }: Workfl
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2.5">
+        <HuemulButton
+          variant="ghost"
+          size="xs"
+          icon={ChevronLeft}
+          tooltip={t("workflow:summary.backLabel")}
+          aria-label={t("workflow:summary.backLabel")}
+          disabled={backDisabled}
+          onClick={onBack}
+        />
         <HuemulTruncatedText
           text={section.section_name ?? ""}
           lines={1}

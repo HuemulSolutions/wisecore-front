@@ -6,6 +6,7 @@ import { Table2 } from 'lucide-react';
 
 import { useOrganization } from '@/contexts/organization-context';
 import { HuemulSheet } from '@/huemul/components/huemul-sheet';
+import { HuemulLoadError } from '@/huemul/components/huemul-load-error';
 import { useDataTableSources } from '@/hooks/useDataTables';
 import { labelForSource } from '@/lib/data-table-catalog-labels';
 import { DATA_TABLE_KEY } from '@/lib/plate-data-table-utils';
@@ -36,6 +37,8 @@ export interface DataTableConfigSheetProps {
   initial?: DataTableElement | DataTableConfig | null;
   /** `snapshot` viene de la última respuesta `ok` de la vista previa (o `null` si no hubo). */
   onConfirm: (config: DataTableConfig, snapshot: DataTableSnapshot | null) => void;
+  /** Foco al cerrar el sheet: el llamador lo devuelve al editor para que reaparezca el toolbar del nodo. */
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 const DEFAULT_LIMIT = 10;
@@ -55,10 +58,16 @@ interface PreviousConfig {
  *
  * El catálogo (fuentes/columnas/filtros) viene de `/data-table/sources` — nada hardcodeado acá.
  */
-export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }: DataTableConfigSheetProps) {
+export function DataTableConfigSheet({
+  open,
+  onOpenChange,
+  initial,
+  onConfirm,
+  onCloseAutoFocus,
+}: DataTableConfigSheetProps) {
   const { t } = useTranslation(['editor', 'assets']);
   const { selectedOrganizationId } = useOrganization();
-  const sourcesQuery = useDataTableSources(selectedOrganizationId || undefined);
+  const sourcesQuery = useDataTableSources(selectedOrganizationId || undefined, open);
   const sources = React.useMemo(() => sourcesQuery.data ?? [], [sourcesQuery.data]);
 
   const normalizedInitial = React.useMemo(
@@ -243,6 +252,7 @@ export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }:
       size="wide"
       bodyClassName="flex min-h-0 flex-1 flex-col overflow-y-auto p-0 lg:flex-row lg:overflow-hidden"
       onOpenAutoFocus={(e) => e.preventDefault()}
+      onCloseAutoFocus={onCloseAutoFocus}
       cancelLabel={t('editor:dataTable.sheet.cancel')}
       footerLeft={
         <p className="text-xs text-[#64748b]">
@@ -260,14 +270,18 @@ export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }:
       <aside className="flex w-full shrink-0 flex-col gap-[26px] overflow-y-auto border-b border-[#eef1f5] px-7 pt-[22px] pb-7 lg:min-h-0 lg:w-[470px] lg:border-r lg:border-b-0">
         <section className="flex flex-col gap-3">
           <StepHeader number={1} title={t('editor:dataTable.sheet.steps.source')} done={hasSource} />
-          <SourceStep
-            sources={sources}
-            isLoading={sourcesQuery.isPending}
-            value={source}
-            onChange={handleSourceChange}
-            changedNotice={previousConfig && sourceDef ? { sourceLabel: labelForSource(t, sourceDef) } : null}
-            onUndo={handleUndoSource}
-          />
+          {sourcesQuery.isError && !sourcesQuery.data ? (
+            <HuemulLoadError onRetry={() => void sourcesQuery.refetch()} isRetrying={sourcesQuery.isFetching} />
+          ) : (
+            <SourceStep
+              sources={sources}
+              isLoading={sourcesQuery.isLoading}
+              value={source}
+              onChange={handleSourceChange}
+              changedNotice={previousConfig && sourceDef ? { sourceLabel: labelForSource(t, sourceDef) } : null}
+              onUndo={handleUndoSource}
+            />
+          )}
         </section>
 
         <section className="flex flex-col gap-3">
@@ -332,7 +346,7 @@ export function DataTableConfigSheet({ open, onOpenChange, initial, onConfirm }:
           )}
         </section>
 
-        {!hasSource && <p className="text-xs text-[#64748b]">{t('editor:dataTable.sheet.ghostNote')}</p>}
+        {!hasSource && !sourcesQuery.isLoading && <p className="text-xs text-[#64748b]">{t('editor:dataTable.sheet.ghostNote')}</p>}
       </aside>
 
       {/* ── Preview ────────────────────────────────────────────────────── */}

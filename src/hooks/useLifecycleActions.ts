@@ -95,7 +95,7 @@ export function useLifecycleActions({
   })
   const finalLifecycleStage = documentTypeData?.data?.final_lifecycle_stage ?? "publish"
 
-  const [isCheckDialogOpen, setIsCheckDialogOpen] = useState(false)
+  const [isCheckDialogOpen, setIsCheckDialogOpenState] = useState(false)
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false)
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false)
@@ -106,6 +106,13 @@ export function useLifecycleActions({
   const [requiredCustomFieldsError, setRequiredCustomFieldsError] = useState<string[]>([])
   const [isAdvanceBlockersDialogOpen, setIsAdvanceBlockersDialogOpen] = useState(false)
   const [advanceBlockersError, setAdvanceBlockersError] = useState<AdvanceBlocker[]>([])
+
+  // Al abrir el sheet de completar se descartan los blockers de un intento
+  // anterior: el 409 se muestra inline en ese sheet y no debe reaparecer viejo.
+  const setIsCheckDialogOpen = (open: boolean) => {
+    if (open) setAdvanceBlockersError([])
+    setIsCheckDialogOpenState(open)
+  }
 
   // Closing the assign-version dialog (by any path — cancel, backdrop click, or
   // after a successful/failed confirm) must drop any pending retry action, or a
@@ -141,7 +148,7 @@ export function useLifecycleActions({
   // draft.
   const isLeavingDraft = lifecycleStatus?.state === "draft" && !!lifecycleStatus?.will_advance_phase
 
-  const { missingFieldNames } = useMissingRequiredCustomFields({
+  const { missingFieldNames, isLoading: isLoadingMissingFields } = useMissingRequiredCustomFields({
     documentId,
     organizationId,
     enabled: isCheckDialogOpen && isLeavingDraft && canListCustomFields,
@@ -176,11 +183,13 @@ export function useLifecycleActions({
   const advanceBlockers = getAdvanceBlockers(lifecycleStatus)
   const isBlockedByRequiredAnswers = !lifecycleStatus?.can_advance && advanceBlockers.length > 0
 
-  const handleRequiredAnswersError = (error: unknown): boolean => {
+  // `inline`: el sheet de completar muestra los blockers en su propio cuerpo,
+  // así que no se abre el diálogo aparte (lo usa solo `advanceMutation`).
+  const handleRequiredAnswersError = (error: unknown, inline = false): boolean => {
     const blockers = advanceBlockers.length > 0 ? advanceBlockers : parseAdvanceBlockersDetail(error)
     if (blockers.length === 0) return false
     setAdvanceBlockersError(blockers)
-    setIsAdvanceBlockersDialogOpen(true)
+    if (!inline) setIsAdvanceBlockersDialogOpen(true)
     return true
   }
 
@@ -232,11 +241,16 @@ export function useLifecycleActions({
     },
     meta: { successMessage: t("lifecycle.successComplete") },
     onError: (error, variables: { comment?: string; run_external_review?: boolean } | undefined) => {
-      setIsCheckDialogOpen(false)
+      // 409 de obligatorios pendientes: el sheet queda abierto con lo editado
+      // y muestra la caja inline + "Reintentar".
+      let keepOpen = false
       handleApiError(error, {
         fallbackMessage: t("lifecycle.errorComplete"),
         onErrorCode: (code) => {
-          if (code === REQUIRED_ANSWERS_CODE) return handleRequiredAnswersError(error)
+          if (code === REQUIRED_ANSWERS_CODE) {
+            keepOpen = handleRequiredAnswersError(error, true)
+            return keepOpen
+          }
           if (code === REQUIRED_CUSTOM_FIELDS_CODE) return handleRequiredCustomFieldsError(error)
           if (code !== VERSION_REQUIRED_CODE) return false
           setPendingVersionAction({ kind: "complete", options: variables })
@@ -244,6 +258,7 @@ export function useLifecycleActions({
           return true
         },
       })
+      if (!keepOpen) setIsCheckDialogOpen(false)
     },
   })
 
@@ -444,7 +459,7 @@ export function useLifecycleActions({
   // Whether the current lifecycle step (edit/review) has an external system
   // configured — if so, it must run automatically and the user cannot skip it.
   const canHaveExternalReview = lifecycleStatus?.state === "draft" || lifecycleStatus?.state === "in_review"
-  const { data: externalReviewActionsData } = useExternalReviewActions(
+  const { data: externalReviewActionsData, isLoading: isLoadingExternalReview } = useExternalReviewActions(
     organizationId!,
     lifecycleStatus?.current_step_id ?? "",
     isCheckDialogOpen && canHaveExternalReview && !!lifecycleStatus?.current_step_id && !!organizationId,
@@ -472,10 +487,10 @@ export function useLifecycleActions({
 
   // Única fuente para decidir si el sheet de aprobación embebe el selector de
   // versión inline (en vez de bloquear el botón que lo abre, como antes).
+  // `version_required` manda: en tipos no-ISO el backend asigna la versión solo
+  // al aprobar. Si igual la exige, `VERSION_REQUIRED_FOR_APPROVAL` abre el flujo reactivo.
   const canAssignVersionInline =
-    !!lifecyclePermissions?.approve &&
-    (!!lifecycleStatus?.version_required || lifecycleStatus?.state === "in_approval") &&
-    !lifecycleStatus?.version
+    !!lifecyclePermissions?.approve && !!lifecycleStatus?.version_required && !lifecycleStatus?.version
 
   /**
    * Confirma la aprobación asignando la versión en el mismo paso (selector
@@ -580,10 +595,13 @@ export function useLifecycleActions({
     hasExternalReview,
     isApprovalStep,
     changeSummary: changeSummaryQuery.data?.change_summary ?? null,
-    changeSummaryStatus: changeSummaryQuery.data?.change_summary_status ?? null,
+    // Un error de red (sin datos) se trata como "failed": aviso en vez de un editor vacío.
+    changeSummaryStatus: changeSummaryQuery.data?.change_summary_status ?? (changeSummaryQuery.isError ? "failed" : null),
     changeSummaryError: changeSummaryQuery.data?.change_summary_error ?? null,
     canViewChanges: !!changeSummaryQuery.data?.previous_execution_id,
     isSummaryLoading,
+    /** Datos que condicionan Confirmar (campos requeridos / revisión externa) aún cargando. */
+    isReviewDataLoading: (isLeavingDraft && isLoadingMissingFields) || (canHaveExternalReview && isLoadingExternalReview),
     handleViewChanges,
 
     missingRequiredCustomFields: isLeavingDraft ? missingFieldNames : [],

@@ -13,8 +13,8 @@ export interface AssetsDetailPanelRailProps {
 }
 
 /**
- * Rail vertical de 52px del panel de detalle del activo: cuatro destinos
- * (Índice/Campos/Archivos/Vínculos, filtrados por permiso) + chevron de colapso.
+ * Rail vertical de 52px del panel de detalle del activo: chevron de colapso arriba +
+ * cuatro destinos (Índice/Campos/Archivos/Vínculos, filtrados por permiso).
  * El activo se resalta con los tokens `--adp-accent-bg`/`--adp-accent-fg`.
  */
 export function AssetsDetailPanelRail({
@@ -33,6 +33,18 @@ export function AssetsDetailPanelRail({
       className="flex h-full w-13 shrink-0 flex-col items-center border-r py-2"
       style={{ backgroundColor: "var(--adp-rail-bg, var(--muted))", borderColor: "var(--adp-border, var(--border))" }}
     >
+      <button
+        type="button"
+        onClick={onToggleCollapse}
+        title={isCollapsed ? expandLabel : collapseLabel}
+        className="mb-1 flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:cursor-pointer hover:bg-muted hover:text-foreground"
+      >
+        <ChevronRight
+          className="h-4 w-4 transition-transform duration-180"
+          style={{ transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)" }}
+        />
+      </button>
+      <div className="mb-2 h-px w-8 shrink-0 bg-border" />
       <div className="flex flex-1 flex-col items-center gap-1">
         {visibleItems.map((item) => {
           const Icon = item.icon;
@@ -51,14 +63,6 @@ export function AssetsDetailPanelRail({
             >
               <span className={cn("relative", !isActive && "text-muted-foreground")}>
                 <Icon className="h-4 w-4" />
-                {!!item.count && item.count > 0 && (
-                  <span
-                    className="absolute -right-1.5 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-0.5 text-[9px] font-semibold text-white"
-                    style={{ backgroundColor: "var(--adp-accent-fg, var(--primary))" }}
-                  >
-                    {item.count > 99 ? "99+" : item.count}
-                  </span>
-                )}
               </span>
               <span className={cn("line-clamp-2 text-center text-[9px] leading-tight", !isActive && "text-muted-foreground")}>
                 {item.label}
@@ -67,17 +71,6 @@ export function AssetsDetailPanelRail({
           );
         })}
       </div>
-      <button
-        type="button"
-        onClick={onToggleCollapse}
-        title={isCollapsed ? expandLabel : collapseLabel}
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:cursor-pointer hover:bg-muted hover:text-foreground"
-      >
-        <ChevronRight
-          className="h-3.5 w-3.5 transition-transform duration-180"
-          style={{ transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)" }}
-        />
-      </button>
     </div>
   );
 }

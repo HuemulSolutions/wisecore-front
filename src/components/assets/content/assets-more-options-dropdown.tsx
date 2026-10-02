@@ -9,11 +9,9 @@ import {
   List,
   Info,
   History,
-  Workflow,
   ShieldCheck,
   BetweenHorizontalStart,
-  Link2,
-  Users,
+  Database,
   Copy,
   GitCompare,
   FileCode,
@@ -35,7 +33,6 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -112,21 +109,9 @@ interface MoreOptionsDropdownProps {
   onToggleToc: () => void;
   onOpenInfo: () => void;
   onOpenLifecycleHistory: () => void;
-  /**
-   * Vista de pantalla completa (ver ia context/fullscreen-share-route-guide.md).
-   * Atajo redundante al botón del header (assets-content.tsx) — este item no se
-   * gatea con permiso propio, pero el dropdown que lo contiene solo se renderiza
-   * en modo edición; en solo lectura el botón del header es el único camino.
-   * Sin `onOpenFullscreen` no se agrega item (compatibilidad con `panel`).
-   */
-  isFullscreen?: boolean;
-  onOpenFullscreen?: () => void;
-  canAccessDiagrams: boolean;
-  onOpenDiagrams: () => void;
-  canAccessMedia: boolean;
-  onOpenMedia: () => void;
   onOpenPermissions: () => void;
   onOpenSections: () => void;
+  onOpenSources: () => void;
   onOpenDependencies: () => void;
   onOpenContext: () => void;
   /** "Agregar a colección": solo se muestra si se pasa (lo decide el permiso). */
@@ -143,6 +128,11 @@ interface MoreOptionsDropdownProps {
   onDeleteDocument: () => void;
   isRerunningExternalPublish: boolean;
   onRerunExternalPublish: () => void;
+}
+
+/** Separador entre grupos: border-t del diseño (en vez del bg-border del primitivo). */
+function MenuDivider() {
+  return <div role="separator" className="my-1 border-t border-[#eef1f6]" />;
 }
 
 export function MoreOptionsDropdown({
@@ -177,14 +167,9 @@ export function MoreOptionsDropdown({
   onToggleToc,
   onOpenInfo,
   onOpenLifecycleHistory,
-  isFullscreen = false,
-  onOpenFullscreen,
-  canAccessDiagrams,
-  onOpenDiagrams,
-  canAccessMedia,
-  onOpenMedia,
   onOpenPermissions,
   onOpenSections,
+  onOpenSources,
   onOpenDependencies,
   onOpenContext,
   onAddToCollection,
@@ -204,7 +189,8 @@ export function MoreOptionsDropdown({
   const { t } = useTranslation(["assets"]);
 
   const groupLabelClass =
-    "px-2 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
+    "px-2 pt-1.5 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-slate-400";
+  const itemClass = "h-8 rounded-[7px] text-[13px] font-medium hover:cursor-pointer";
 
   // ── Ciclo de vida ──
   const showReturn = isViewMode && !!lifecycleStatus && !!lifecycleStatus.can_rollback;
@@ -273,12 +259,16 @@ export function MoreOptionsDropdown({
           size="sm"
           variant="ghost"
           icon={MoreVertical}
-          iconClassName="h-3.5 w-3.5"
-          className="h-7 w-7 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-200 hover:cursor-pointer"
+          iconClassName="h-4 w-4"
+          aria-label={t("content.moreOptions")}
+          className="h-8 w-8 p-0 text-slate-600 hover:bg-slate-100 hover:text-slate-900 hover:cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500/40"
           tooltip={t("content.moreOptions")}
         />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align={dropdownAlign} className="w-56">
+      <DropdownMenuContent
+        align={dropdownAlign}
+        className="w-[272px] rounded-xl p-1.5 shadow-[0_20px_40px_-14px_rgba(15,23,42,0.28)]"
+      >
         {/* ── Ciclo de vida ── */}
         {showLifecycleGroup && (
           <>
@@ -289,7 +279,7 @@ export function MoreOptionsDropdown({
               {showReturn && (
                 <DropdownMenuItem
                   onSelect={() => setTimeout(onRejectLifecycle, 0)}
-                  className="hover:cursor-pointer"
+                  className={itemClass}
                   disabled={elaborationLocked}
                 >
                   <Undo2 className="h-4 w-4" />
@@ -299,7 +289,7 @@ export function MoreOptionsDropdown({
               {showComplete && (
                 <DropdownMenuItem
                   onSelect={() => setTimeout(onCheckLifecycle, 0)}
-                  className="hover:cursor-pointer"
+                  className={itemClass}
                   disabled={elaborationLocked}
                 >
                   <Check className="h-4 w-4" />
@@ -309,7 +299,7 @@ export function MoreOptionsDropdown({
               {showPublish && (
                 <DropdownMenuItem
                   onSelect={() => setTimeout(onPublish, 0)}
-                  className="hover:cursor-pointer"
+                  className={itemClass}
                   disabled={elaborationLocked}
                 >
                   <Globe className="h-4 w-4" />
@@ -319,7 +309,7 @@ export function MoreOptionsDropdown({
               {showArchive && (
                 <DropdownMenuItem
                   onSelect={() => setTimeout(onArchive, 0)}
-                  className="hover:cursor-pointer"
+                  className={itemClass}
                   disabled={elaborationLocked}
                 >
                   <Archive className="h-4 w-4" />
@@ -329,7 +319,7 @@ export function MoreOptionsDropdown({
               {showRestore && (
                 <DropdownMenuItem
                   onSelect={() => setTimeout(onRestore, 0)}
-                  className="hover:cursor-pointer"
+                  className={itemClass}
                   disabled={elaborationLocked}
                 >
                   <RotateCcw className="h-4 w-4" />
@@ -339,7 +329,7 @@ export function MoreOptionsDropdown({
               {showRerunPublish && (
                 <DropdownMenuItem
                   onSelect={() => setTimeout(onRerunExternalPublish, 0)}
-                  className="hover:cursor-pointer"
+                  className={itemClass}
                   disabled={isRerunningExternalPublish || elaborationLocked}
                 >
                   <RefreshCw className={`h-4 w-4 ${isRerunningExternalPublish ? "animate-spin" : ""}`} />
@@ -347,7 +337,7 @@ export function MoreOptionsDropdown({
                 </DropdownMenuItem>
               )}
             </DropdownMenuGroup>
-            <DropdownMenuSeparator />
+            <MenuDivider />
           </>
         )}
 
@@ -360,7 +350,7 @@ export function MoreOptionsDropdown({
               </DropdownMenuLabel>
               <DropdownMenuItem
                 onSelect={() => setTimeout(onRefresh, 0)}
-                className="hover:cursor-pointer"
+                className={itemClass}
                 disabled={isRefreshing || isLoadingContent}
               >
                 <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
@@ -369,14 +359,14 @@ export function MoreOptionsDropdown({
               {showToc && (
                 <DropdownMenuItem
                   onSelect={() => setTimeout(onToggleToc, 0)}
-                  className="hover:cursor-pointer"
+                  className={itemClass}
                 >
                   <List className="h-4 w-4" />
                   {isTocSidebarOpen ? t("content.hideSidebar") : t("content.showSidebar")}
                 </DropdownMenuItem>
               )}
             </DropdownMenuGroup>
-            <DropdownMenuSeparator />
+            <MenuDivider />
           </>
         )}
 
@@ -387,24 +377,15 @@ export function MoreOptionsDropdown({
           </DropdownMenuLabel>
           <DropdownMenuItem
             onSelect={() => setTimeout(onOpenInfo, 0)}
-            className="hover:cursor-pointer"
+            className={itemClass}
           >
             <Info className="h-4 w-4" />
             {t("content.assetInfo")}
           </DropdownMenuItem>
-          {onOpenFullscreen && (
-            <DropdownMenuItem
-              onSelect={() => setTimeout(onOpenFullscreen, 0)}
-              className="hover:cursor-pointer"
-            >
-              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-              {isFullscreen ? t("content.exitFullscreen") : t("content.openFullscreen")}
-            </DropdownMenuItem>
-          )}
           {hasDocumentContent && (
             <DropdownMenuItem
               onSelect={() => setTimeout(onOpenLifecycleHistory, 0)}
-              className="hover:cursor-pointer"
+              className={itemClass}
             >
               <History className="h-4 w-4" />
               {t("lifecycleHistory.moreOptionsItem")}
@@ -440,7 +421,7 @@ export function MoreOptionsDropdown({
           {canManageGrants && (
             <DropdownMenuItem
               onSelect={() => setTimeout(onOpenPermissions, 0)}
-              className="hover:cursor-pointer"
+              className={itemClass}
             >
               <ShieldCheck className="h-4 w-4" />
               {t("content.assetPermissions")}
@@ -450,31 +431,24 @@ export function MoreOptionsDropdown({
             <>
               <DropdownMenuItem
                 onSelect={() => setTimeout(onOpenSections, 0)}
-                className="hover:cursor-pointer"
+                className={itemClass}
               >
                 <BetweenHorizontalStart className="h-4 w-4" />
                 {t("content.sectionsLabel")}
               </DropdownMenuItem>
               <DropdownMenuItem
-                onSelect={() => setTimeout(onOpenDependencies, 0)}
-                className="hover:cursor-pointer"
+                onSelect={() => setTimeout(onOpenSources, 0)}
+                className={itemClass}
               >
-                <Link2 className="h-4 w-4" />
-                {t("content.dependenciesLabel")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => setTimeout(onOpenContext, 0)}
-                className="hover:cursor-pointer"
-              >
-                <Users className="h-4 w-4" />
-                {t("content.contextLabel")}
+                <Database className="h-4 w-4" />
+                {t("content.sourcesLabel")}
               </DropdownMenuItem>
             </>
           )}
           {canCompareVersions && (
             <DropdownMenuItem
               onSelect={() => setTimeout(onCompareVersions, 0)}
-              className="hover:cursor-pointer"
+              className={itemClass}
             >
               <GitCompare className="h-4 w-4" />
               {t("content.compareVersions")}
@@ -485,7 +459,7 @@ export function MoreOptionsDropdown({
         {/* ── Duplicar ── */}
         {showDuplicateGroup && (
           <>
-            <DropdownMenuSeparator />
+            <MenuDivider />
             <DropdownMenuGroup>
               <DropdownMenuLabel className={groupLabelClass}>
                 {t("content.menuGroupDuplicate")}
@@ -494,14 +468,14 @@ export function MoreOptionsDropdown({
                 <>
                   <DropdownMenuItem
                     onSelect={() => setTimeout(onClone, 0)}
-                    className="hover:cursor-pointer"
+                    className={itemClass}
                   >
                     <Copy className="h-4 w-4" />
                     {t("content.cloneVersion")}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={() => setTimeout(onCloneToNew, 0)}
-                    className="hover:cursor-pointer"
+                    className={itemClass}
                   >
                     <Copy className="h-4 w-4" />
                     {t("content.cloneToNewDocument")}
@@ -511,7 +485,7 @@ export function MoreOptionsDropdown({
               {showCreateTemplate && (
                 <DropdownMenuItem
                   onSelect={() => setTimeout(onCreateTemplate, 0)}
-                  className="hover:cursor-pointer"
+                  className={itemClass}
                 >
                   <FileCode className="h-4 w-4" />
                   {t("content.createTemplateFromAsset")}
@@ -524,43 +498,44 @@ export function MoreOptionsDropdown({
         {/* ── Exportar ── */}
         {showExport && (
           <>
-            <DropdownMenuSeparator />
+            <MenuDivider />
+            <DropdownMenuLabel className={groupLabelClass}>{t("content.menuGroupExport")}</DropdownMenuLabel>
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="hover:cursor-pointer">
+              <DropdownMenuSubTrigger className={itemClass}>
                 <Download className="h-4 w-4" />
                 {t("content.exportMenu")}
               </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-48">
+              <DropdownMenuSubContent className="w-48 rounded-xl p-1.5">
                 <DropdownMenuItem
-                  className="hover:cursor-pointer"
+                  className={itemClass}
                   onSelect={() => setTimeout(onExportMarkdown, 0)}
                 >
                   <FileText className="h-4 w-4" />
                   {t("content.exportFormatMarkdown")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  className="hover:cursor-pointer"
+                  className={itemClass}
                   onSelect={() => setTimeout(onExportWord, 0)}
                 >
                   <Download className="h-4 w-4" />
                   {t("content.exportFormatWord")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  className="hover:cursor-pointer"
+                  className={itemClass}
                   onSelect={() => setTimeout(onExportCustomWord, 0)}
                 >
                   <FileCode className="h-4 w-4" />
                   {t("content.exportFormatCustomWord")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  className="hover:cursor-pointer"
+                  className={itemClass}
                   onSelect={() => setTimeout(onExportExcel, 0)}
                 >
                   <FileSpreadsheet className="h-4 w-4" />
                   {t("content.exportFormatExcel")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  className="hover:cursor-pointer"
+                  className={itemClass}
                   onSelect={() => setTimeout(onExportVersion, 0)}
                 >
                   <FileJson className="h-4 w-4" />
@@ -574,12 +549,13 @@ export function MoreOptionsDropdown({
         {/* ── Peligro ── */}
         {showDanger && (
           <>
-            <DropdownMenuSeparator />
+            <MenuDivider />
+            <DropdownMenuLabel className={groupLabelClass}>{t("content.menuGroupDanger")}</DropdownMenuLabel>
             {selectedExecutionId && (
               <DropdownMenuItem
                 variant="destructive"
                 onSelect={() => setTimeout(onDeleteVersion, 0)}
-                className="hover:cursor-pointer"
+                className={itemClass}
               >
                 <Trash2 className="h-4 w-4" />
                 {selectedVersionLabel
@@ -590,7 +566,7 @@ export function MoreOptionsDropdown({
             <DropdownMenuItem
               variant="destructive"
               onSelect={() => setTimeout(onDeleteDocument, 0)}
-              className="hover:cursor-pointer"
+              className={itemClass}
             >
               <FileX className="h-4 w-4" />
               {t("content.deleteDocumentLabel")}

@@ -179,7 +179,7 @@ export function TemplateSectionsList({
                   canDelete={canDelete}
                   isMenuOpen={openMenuSectionId === section.id}
                   onMenuOpenChange={(open) => setOpenMenuSectionId(open ? section.id : null)}
-                  onSave={(sectionId, sectionData) => updateSectionMutation.mutate({ sectionId, sectionData })}
+                  onSave={(sectionId, sectionData) => updateSectionMutation.mutateAsync({ sectionId, sectionData })}
                   onDelete={async (sectionId, options) => {
                     await deleteSectionMutation.mutateAsync({ sectionId, options });
                   }}

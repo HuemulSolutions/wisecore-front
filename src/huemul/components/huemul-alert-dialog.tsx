@@ -35,6 +35,7 @@ export function HuemulAlertDialog({
   successDelay = 600,
   showSuccessState = true,
   className,
+  actionClassName,
   alert,
 }: HuemulAlertDialogProps) {
   // Default traducido del botón de cancelar (ver HuemulSheet).
@@ -128,7 +129,7 @@ export function HuemulAlertDialog({
           <Button
             variant={actionVariant}
             disabled={isProcessing}
-            className="hover:cursor-pointer"
+            className={cn("hover:cursor-pointer", actionClassName)}
             onClick={handleAction}
           >
             {actionState === "loading" && (

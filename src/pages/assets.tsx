@@ -1,4 +1,5 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import type { ImperativePanelHandle } from "react-resizable-panels";
 import { useQueryClient } from "@tanstack/react-query";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 import { AssetContent } from "@/components/assets";
@@ -10,9 +11,11 @@ import { ExpandedFoldersProvider } from "@/hooks/use-expanded-folders";
 import { useAssetNavigation } from "@/hooks/useAssetNavigation";
 import { useScrollPreservation } from "@/hooks/useScrollPreservation";
 import { NavKnowledgeHeader, NavKnowledgeContent } from "@/components/layout/nav-knowledge";
-import { useNavKnowledgeRefresh, useNavKnowledgePagination } from "@/contexts/nav-knowledge-context";
+import { NavKnowledgeRail } from "@/components/layout/nav-knowledge-rail";
+import { useNavKnowledge, useNavKnowledgeRefresh } from "@/contexts/nav-knowledge-context";
+import { useKnowledgePanelCollapsed } from "@/hooks/useKnowledgePanelCollapsed";
+import { useCollapsedPanelSize } from "@/hooks/useCollapsedPanelSize";
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
-import { HuemulPagination } from "@/huemul/components/huemul-pagination";
 import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -26,6 +29,8 @@ import { currentPath } from "@/lib/return-url";
  * Main content component for the Assets page
  * Handles document navigation, URL management, and scroll preservation
  */
+const ASSETS_LAYOUT_ID = "assets-page-layout";
+
 function AssetsContent() {
   const queryClient = useQueryClient();
   const navigate = useOrgNavigate();
@@ -34,8 +39,24 @@ function AssetsContent() {
   const { isOpen: isWisyOpen } = useGlobalPanel();
   const { canAccessPage, can, isLoading: isLoadingPermissions } = usePageAccess('asset');
   const invalidateSectionAccess = useInvalidateDocumentSectionAccess();
-  const { page, pageSize, hasNext, hasPrevious, setPage } = useNavKnowledgePagination();
   const canListLibrary = can('listAssets') || can('listFolders');
+  const { setIsSearchOpen } = useNavKnowledge();
+
+  // Colapso del panel de knowledge: el panel imperativo hace el resize y
+  // onCollapse/onExpand mantienen el flag persistido en sync (incluye colapso por drag).
+  const knowledgePanelRef = useRef<ImperativePanelHandle>(null);
+  const [isKnowledgeCollapsed, setIsKnowledgeCollapsed] = useKnowledgePanelCollapsed(selectedOrganizationId);
+  const knowledgeCollapsedSize = useCollapsedPanelSize({ groupId: ASSETS_LAYOUT_ID, panelRef: knowledgePanelRef });
+  const toggleKnowledgePanel = useCallback(() => {
+    const panel = knowledgePanelRef.current;
+    if (!panel) return;
+    if (panel.isCollapsed()) panel.expand();
+    else panel.collapse();
+  }, []);
+  const handleRailSearch = useCallback(() => {
+    knowledgePanelRef.current?.expand();
+    setIsSearchOpen(true);
+  }, [setIsSearchOpen]);
 
   // Asset navigation (URL parsing, breadcrumb, selected file)
   const {
@@ -98,35 +119,30 @@ function AssetsContent() {
     <div className="relative h-full">
       {isLoadingDocument && <LoadingOverlay />}
       <HuemulPageLayout
+        id={ASSETS_LAYOUT_ID}
         className="bg-gray-50"
         columns={[
           {
-            content: (
+            content: isKnowledgeCollapsed ? (
+              <NavKnowledgeRail onExpand={toggleKnowledgePanel} onSearch={handleRailSearch} />
+            ) : (
               <div className="flex flex-col h-full bg-white border-r">
                 <div className="py-2">
-                  <NavKnowledgeHeader />
+                  <NavKnowledgeHeader onCollapse={toggleKnowledgePanel} />
                 </div>
                 <ScrollArea className="flex-1 min-h-0" type="hover">
                   <NavKnowledgeContent />
                 </ScrollArea>
               </div>
             ),
-            defaultSize: isWisyOpen ? 15 : 20,
+            panelRef: knowledgePanelRef,
+            defaultSize: isKnowledgeCollapsed ? knowledgeCollapsedSize : isWisyOpen ? 15 : 20,
             minSize: isWisyOpen ? 10 : 12,
             collapsible: true,
-            collapsedSize: 0,
+            collapsedSize: knowledgeCollapsedSize,
+            onCollapse: () => setIsKnowledgeCollapsed(true),
+            onExpand: () => setIsKnowledgeCollapsed(false),
             className: "overflow-hidden [scrollbar-gutter:auto]",
-            footer: {
-              content: (
-                <HuemulPagination
-                  page={page}
-                  pageSize={pageSize}
-                  hasNext={hasNext}
-                  hasPrevious={hasPrevious}
-                  onPageChange={setPage}
-                />
-              ),
-            },
           },
           {
             content: (

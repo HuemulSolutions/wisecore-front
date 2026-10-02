@@ -1,14 +1,14 @@
 import { useEffect, useState, useCallback } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { Edit3 } from "lucide-react"
+import { Pencil } from "lucide-react"
 import { toast } from "sonner"
 import { updateDocument, getDocumentById } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { workflowQueryKeys } from "@/hooks/useWorkflows"
-import { logger } from "@/lib/logger"
+import { handleApiError } from "@/lib/error-utils"
 
 interface WorkflowAssetEditSheetProps {
   open: boolean
@@ -37,34 +37,51 @@ export function WorkflowAssetEditSheet({
   const queryClient = useQueryClient()
   const { t } = useTranslation(["assets", "common"])
 
-  const [name, setName] = useState(currentName)
-  const [internalCode, setInternalCode] = useState(currentInternalCode || "")
-  const [description, setDescription] = useState("")
+  // El formulario nace null y se inicializa con el detalle real del documento:
+  // nunca se edita/guarda un estado parcial y un refetch no pisa lo escrito.
+  const [formState, setFormState] = useState<{
+    documentId: string
+    name: string
+    internalCode: string
+    description: string
+  } | null>(null)
+  const form = formState?.documentId === documentId ? formState : null
+
+  const { data: doc, isLoading, error: loadError } = useQuery({
+    queryKey: ["document", documentId, "edit"],
+    queryFn: () => getDocumentById(documentId, selectedOrganizationId!),
+    enabled: open && canSave && !!documentId && !!selectedOrganizationId,
+  })
 
   useEffect(() => {
-    let cancelled = false
-    async function prefill() {
-      if (!open || !canSave) return
-      setName(currentName)
-      setInternalCode(currentInternalCode || "")
-      setDescription("")
+    if (!open) {
+      setFormState(null)
+      return
+    }
+    if (!doc) return
+    setFormState((prev) =>
+      prev && prev.documentId === documentId
+        ? prev
+        : {
+            documentId,
+            name: doc.name ?? currentName,
+            internalCode: doc.internal_code || currentInternalCode || "",
+            description: doc.description || "",
+          },
+    )
+  }, [open, doc, documentId, currentName, currentInternalCode])
 
-      try {
-        const doc = await getDocumentById(documentId, selectedOrganizationId!)
-        if (!cancelled) {
-          setName(doc?.name ?? currentName)
-          setInternalCode(doc?.internal_code || "")
-          setDescription(doc?.description || "")
-        }
-      } catch (e) {
-        logger.error("Error loading document:", e)
-      }
+  // Error de carga: avisar y cerrar, nunca dejar el skeleton para siempre.
+  useEffect(() => {
+    if (open && loadError) {
+      handleApiError(loadError)
+      onOpenChange(false)
     }
-    prefill()
-    return () => {
-      cancelled = true
-    }
-  }, [open, canSave, documentId, currentName, currentInternalCode, selectedOrganizationId])
+  }, [open, loadError, onOpenChange])
+
+  const patchForm = useCallback((patch: Partial<{ name: string; internalCode: string; description: string }>) => {
+    setFormState((prev) => (prev ? { ...prev, ...patch } : prev))
+  }, [])
 
   const mutation = useMutation({
     mutationFn: async (payload: { name: string; description?: string; internal_code?: string }) => {
@@ -81,20 +98,20 @@ export function WorkflowAssetEditSheet({
   })
 
   const handleSave = useCallback(() => {
-    if (!canSave) return
-    if (!name.trim()) {
+    if (!canSave || !form) return
+    if (!form.name.trim()) {
       toast.error(t("assets:edit.errorNameRequired"))
       return
     }
 
     const payload: { name: string; description?: string; internal_code?: string } = {
-      name: name.trim(),
+      name: form.name.trim(),
     }
-    if (description.trim()) payload.description = description.trim()
-    if (internalCode.trim()) payload.internal_code = internalCode.trim()
+    if (form.description.trim()) payload.description = form.description.trim()
+    if (form.internalCode.trim()) payload.internal_code = form.internalCode.trim()
 
     mutation.mutate(payload)
-  }, [canSave, name, description, internalCode, mutation])
+  }, [canSave, form, mutation, t])
 
   if (!canSave) {
     return null
@@ -106,49 +123,52 @@ export function WorkflowAssetEditSheet({
       onOpenChange={onOpenChange}
       title={t("assets:edit.title")}
       description={t("assets:edit.description")}
-      icon={Edit3}
+      icon={Pencil}
       side="right"
       maxWidth="sm:max-w-xl"
       cancelLabel={t("common:cancel")}
+      bodyLoading={isLoading || !form}
       saveAction={{
         label: t("assets:edit.submitLabel"),
         onClick: handleSave,
         loading: mutation.isPending,
-        disabled: !canSave || !name.trim(),
+        disabled: !canSave || !form || !form.name.trim(),
       }}
     >
-      <HuemulFieldGroup>
-        <HuemulField
-          label={t("assets:form.assetName")}
-          name="name"
-          value={name}
-          onChange={(v) => setName(String(v))}
-          placeholder={t("assets:form.assetNamePlaceholder")}
-          required
-          autoFocus
-          disabled={mutation.isPending}
-        />
+      {form && (
+        <HuemulFieldGroup>
+          <HuemulField
+            label={t("assets:form.assetName")}
+            name="name"
+            value={form.name}
+            onChange={(v) => patchForm({ name: String(v) })}
+            placeholder={t("assets:form.assetNamePlaceholder")}
+            required
+            autoFocus
+            disabled={mutation.isPending}
+          />
 
-        <HuemulField
-          label={t("assets:form.internalCode")}
-          name="internalCode"
-          value={internalCode}
-          onChange={(v) => setInternalCode(String(v))}
-          placeholder={t("assets:form.internalCodePlaceholder")}
-          disabled={mutation.isPending}
-        />
+          <HuemulField
+            label={t("assets:form.internalCode")}
+            name="internalCode"
+            value={form.internalCode}
+            onChange={(v) => patchForm({ internalCode: String(v) })}
+            placeholder={t("assets:form.internalCodePlaceholder")}
+            disabled={mutation.isPending}
+          />
 
-        <HuemulField
-          type="textarea"
-          label={t("assets:form.description")}
-          name="description"
-          value={description}
-          onChange={(v) => setDescription(String(v))}
-          placeholder={t("assets:form.descriptionPlaceholder")}
-          rows={4}
-          disabled={mutation.isPending}
-        />
-      </HuemulFieldGroup>
+          <HuemulField
+            type="textarea"
+            label={t("assets:form.description")}
+            name="description"
+            value={form.description}
+            onChange={(v) => patchForm({ description: String(v) })}
+            placeholder={t("assets:form.descriptionPlaceholder")}
+            rows={4}
+            disabled={mutation.isPending}
+          />
+        </HuemulFieldGroup>
+      )}
     </HuemulSheet>
   )
 }

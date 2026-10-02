@@ -41,7 +41,6 @@ export interface AssetsRelatedDocumentsProps {
   /** Notifica al caller el estado de fetching — usado por el panel para el footer "Actualizando…". */
   onFetchingChange?: (isFetching: boolean) => void;
   /** Notifica al caller la cantidad de relaciones — usado por el badge del rail del panel. */
-  onCountChange?: (count: number) => void;
 }
 
 export interface AssetsRelatedDocumentsHandle {
@@ -188,7 +187,6 @@ export const AssetsRelatedDocuments = forwardRef<AssetsRelatedDocumentsHandle, A
   canDeleteRelationship = false,
   variant = "collapsible",
   onFetchingChange,
-  onCountChange,
 }, ref) {
   const { t } = useTranslation(["assets", "common"]);
   const buildPath = useOrgPath();
@@ -219,8 +217,6 @@ export const AssetsRelatedDocuments = forwardRef<AssetsRelatedDocumentsHandle, A
 
   const relationships = data?.data ?? [];
   const untitledFallback = t("content.relatedDocuments.untitledRelation");
-
-  useEffect(() => { onCountChange?.(relationships.length); }, [relationships.length, onCountChange]);
 
   // Estado de expansión por tipo de activo — todos los grupos arrancan colapsados.
   const [expandedTypeIds, setExpandedTypeIds] = useState<Set<string>>(new Set());

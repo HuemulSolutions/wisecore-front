@@ -9,6 +9,7 @@ import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { HuemulPanelDirtyBadge, HuemulPanelSaveBar } from "@/huemul/components/huemul-panel-save-bar"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
+import { Skeleton } from "@/components/ui/skeleton"
 import { contentWidthClass } from "@/huemul/constants"
 import { cn } from "@/lib/utils"
 import type { HuemulDetailSurfaceProps } from "@/types/huemul"
@@ -30,6 +31,20 @@ export type {
  */
 export const HUEMUL_UNDERLINE_TAB_TRIGGER_CLASS =
   "flex-none rounded-none border-0 bg-transparent px-0 pb-2.5 text-[13px] font-medium text-[#64748b] shadow-none hover:cursor-pointer hover:text-[#334155] data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-[#1d4ed8] data-[state=active]:shadow-[inset_0_-2px_0_#1d4ed8]"
+
+/** Skeleton genérico de la variante página (el sheet usa el de `HuemulSheet`). */
+function DefaultBodySkeleton() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-5/6" />
+      <Skeleton className="h-20 w-full" />
+      <Skeleton className="h-4 w-2/3" />
+      <Skeleton className="h-4 w-full" />
+    </div>
+  )
+}
 
 /**
  * Superficie de detalle: una misma pieza de contenido montada como **página
@@ -65,6 +80,8 @@ export function HuemulDetailSurface({
   size = "wide",
   className,
   bodyClassName,
+  bodyLoading = false,
+  bodySkeleton,
   children,
 }: HuemulDetailSurfaceProps) {
   const { t } = useTranslation("common")
@@ -171,7 +188,13 @@ export function HuemulDetailSurface({
         )}
         columns={[
           {
-            content: body,
+            content: bodyLoading ? (
+              <div aria-busy="true" className="px-4 md:px-6">
+                {bodySkeleton ?? <DefaultBodySkeleton />}
+              </div>
+            ) : (
+              body
+            ),
             className: cn("flex min-h-0 flex-col", bodyClassName),
             footer: footerNode
               ? { content: footerNode, className: "px-4 md:px-6 pb-4" }
@@ -197,6 +220,8 @@ export function HuemulDetailSurface({
       hideHeaderBorder={hasTabs}
       className={className}
       bodyClassName={cn("flex flex-col overflow-hidden py-0 [scrollbar-gutter:auto]", bodyClassName)}
+      bodyLoading={bodyLoading}
+      bodySkeleton={bodySkeleton}
       {...(footerContent
         ? { footerContent }
         : saveBar

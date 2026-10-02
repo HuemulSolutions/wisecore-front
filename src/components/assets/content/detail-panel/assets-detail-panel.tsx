@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link2, List, Paperclip, Plus, RefreshCw, SlidersHorizontal } from "lucide-react";
+import { Link2, List, Paperclip, Plus, RefreshCw, SlidersHorizontal, Workflow } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulMediaUploadSheet } from "@/huemul/components/huemul-media-upload-sheet";
@@ -11,10 +11,13 @@ import { AssetsPanelIndexTab } from "./assets-panel-index-tab";
 import { AssetsPanelFieldsTab } from "./assets-panel-fields-tab";
 import { AssetsPanelFilesTab, type AssetsPanelFilesTabHandle } from "./assets-panel-files-tab";
 import { AssetsPanelLinksTab, type AssetsPanelLinksTabHandle } from "./assets-panel-links-tab";
+import { AssetsPanelDiagramsTab, type AssetsPanelDiagramsTabHandle } from "./assets-panel-diagrams-tab";
 
 // Duración mínima del giro del ícono de refresh, independiente de cuánto tarde la
 // query real — evita un "parpadeo" cuando la respuesta vuelve casi instantánea.
 const MIN_SPIN_MS = 900;
+
+const NO_TABS: ReadonlySet<AssetDetailPanelTab> = new Set();
 
 /**
  * Panel de detalle del activo: rail vertical (Índice/Campos/Recursos/Activos relacionados) +
@@ -58,6 +61,8 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
     onRefreshCustomFields,
     executions,
     onOpenMediaSheet,
+    canAccessDiagrams,
+    canCreateDiagram,
     isCollapsed,
     onToggleCollapse,
     className,
@@ -65,8 +70,23 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
 
   const [refreshingTab, setRefreshingTab] = useState<AssetDetailPanelTab | null>(null);
   const [isUploadSheetOpen, setIsUploadSheetOpen] = useState(false);
-  const [filesCount, setFilesCount] = useState(0);
-  const [linksCount, setLinksCount] = useState(0);
+
+  // Tabs ya visitados por documento. Un tab solo se monta (y por ende solo llama a su
+  // endpoint) cuando el usuario lo selecciona; después queda montado oculto para
+  // conservar su estado y su caché.
+  const [visited, setVisited] = useState<{ documentId: string; tabs: ReadonlySet<AssetDetailPanelTab> }>({
+    documentId,
+    tabs: new Set([activeTab]),
+  });
+  const visitedTabs = visited.documentId === documentId ? visited.tabs : NO_TABS;
+  const isTabMounted = (tab: AssetDetailPanelTab) => tab === activeTab || visitedTabs.has(tab);
+  useEffect(() => {
+    setVisited((prev) => {
+      const base = prev.documentId === documentId ? prev.tabs : NO_TABS;
+      if (base.has(activeTab) && prev.documentId === documentId) return prev;
+      return { documentId, tabs: new Set([...base, activeTab]) };
+    });
+  }, [documentId, activeTab]);
 
   // Alcance elegido en el selector del tab Recursos — controla qué se lista, a
   // dónde sube el "+" del header y con qué se abre "Ver todos los recursos".
@@ -81,13 +101,15 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
 
   const filesRef = useRef<AssetsPanelFilesTabHandle>(null);
   const linksRef = useRef<AssetsPanelLinksTabHandle>(null);
+  const diagramsRef = useRef<AssetsPanelDiagramsTabHandle>(null);
 
   // El tab activo no puede quedar apuntando a un tab que el usuario no puede ver
   // (el guard vive acá porque `activeTab` es estado controlado por el caller).
   useEffect(() => {
     if (activeTab === "fields" && !canListCustomFields) onActiveTabChange("index");
     if (activeTab === "links" && !canListExecutionRelationships) onActiveTabChange("index");
-  }, [activeTab, canListCustomFields, canListExecutionRelationships, onActiveTabChange]);
+    if (activeTab === "diagrams" && !canAccessDiagrams) onActiveTabChange("index");
+  }, [activeTab, canListCustomFields, canListExecutionRelationships, canAccessDiagrams, onActiveTabChange]);
 
   const runRefresh = useCallback((tab: AssetDetailPanelTab, task?: () => void | Promise<unknown>) => {
     setRefreshingTab(tab);
@@ -106,14 +128,16 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
       case "fields": return runRefresh("fields", onRefreshCustomFields);
       case "files": return runRefresh("files", () => filesRef.current?.refresh());
       case "links": return runRefresh("links", () => linksRef.current?.refresh());
+      case "diagrams": return runRefresh("diagrams", () => diagramsRef.current?.refresh());
     }
   }, [activeTab, onRefreshIndex, onRefreshCustomFields, runRefresh]);
 
   const railItems: AssetDetailPanelRailItem[] = [
     { key: "index", label: t("content.detailPanel.tabs.index"), icon: List, visible: true },
     { key: "fields", label: t("content.detailPanel.tabs.fields"), icon: SlidersHorizontal, visible: canListCustomFields },
-    { key: "files", label: t("content.detailPanel.tabs.files"), icon: Paperclip, count: filesCount, visible: true },
-    { key: "links", label: t("content.detailPanel.tabs.linksShort"), icon: Link2, count: linksCount, visible: canListExecutionRelationships },
+    { key: "files", label: t("content.detailPanel.tabs.files"), icon: Paperclip, visible: true },
+    { key: "links", label: t("content.detailPanel.tabs.linksShort"), icon: Link2, visible: canListExecutionRelationships },
+    { key: "diagrams", label: t("content.detailPanel.tabs.diagrams"), icon: Workflow, visible: !!canAccessDiagrams },
   ];
 
   const handleSelectTab = (tab: AssetDetailPanelTab) => {
@@ -132,6 +156,9 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
     }
     if (activeTab === "files" && canCreateMedia) {
       return { label: t("content.detailPanel.addFiles"), onClick: () => setIsUploadSheetOpen(true) };
+    }
+    if (activeTab === "diagrams" && canCreateDiagram) {
+      return { label: t("content.detailPanel.addDiagram"), onClick: () => diagramsRef.current?.create() };
     }
     return null;
   })();
@@ -198,13 +225,13 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
           </div>
         </div>
 
-        {/* Contenido del tab activo — Archivos y Vínculos quedan montados aunque no
-            estén activos, para que sus contadores del rail no partan en 0 al abrir el panel. */}
+        {/* Contenido del tab activo — cada tab se monta recién al visitarlo (así no pide
+            su endpoint al abrir el asset) y después queda montado oculto. */}
         <div className="min-h-0 flex-1 overflow-hidden">
           <div className={cn("h-full", activeTab !== "index" && "hidden")}>
             <AssetsPanelIndexTab items={tocItems} onAddSection={onAddSection} canAddSection={canAddSection} />
           </div>
-          {canListCustomFields && (
+          {canListCustomFields && isTabMounted("fields") && (
             <div className={cn("h-full", activeTab !== "fields" && "hidden")}>
               <AssetsPanelFieldsTab
                 customFields={customFields}
@@ -225,6 +252,7 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
               />
             </div>
           )}
+          {isTabMounted("files") && (
           <div className={cn("h-full", activeTab !== "files" && "hidden")}>
             <AssetsPanelFilesTab
               ref={filesRef}
@@ -238,10 +266,10 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
               canDeleteMedia={canDeleteMedia}
               onUpload={() => setIsUploadSheetOpen(true)}
               onOpenMediaSheet={() => onOpenMediaSheet(filesScope)}
-              onCountChange={setFilesCount}
             />
           </div>
-          {canListExecutionRelationships && (
+          )}
+          {canListExecutionRelationships && isTabMounted("links") && (
             <div className={cn("h-full", activeTab !== "links" && "hidden")}>
               <AssetsPanelLinksTab
                 ref={linksRef}
@@ -252,7 +280,16 @@ export function AssetsDetailPanel(props: AssetDetailPanelProps) {
                 canOpenDiagrams={canOpenDiagrams}
                 canListAssetTypes={canListAssetTypes}
                 canDeleteRelationship={canDeleteRelationship}
-                onCountChange={setLinksCount}
+              />
+            </div>
+          )}
+          {canAccessDiagrams && isTabMounted("diagrams") && (
+            <div className={cn("h-full", activeTab !== "diagrams" && "hidden")}>
+              <AssetsPanelDiagramsTab
+                ref={diagramsRef}
+                organizationId={organizationId}
+                documentId={documentId}
+                executionId={executionId}
               />
             </div>
           )}

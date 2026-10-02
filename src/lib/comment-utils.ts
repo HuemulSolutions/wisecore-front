@@ -1,4 +1,4 @@
-import type { NodeEntry, TCommentText } from 'platejs';
+import type { NodeEntry, TCommentText, Value } from 'platejs';
 import type { PlateEditor } from 'platejs/react';
 
 import { CommentPlugin } from '@platejs/comment/react';
@@ -14,6 +14,11 @@ export function getDraftCommentEntries(editor: PlateEditor): NodeEntry<TCommentT
 export function draftEntriesToText(entries: NodeEntry<TCommentText>[]): string {
   return entries.map(([node]) => node.text).join('');
 }
+
+/** Texto plano → el nodo-párrafo que el backend espera en `content_rich`. */
+export const plainTextToCommentValue = (text: string): Value => [
+  { type: 'p', children: [{ text }] },
+];
 
 /** Relative timestamp for a comment ("hace 4h", "ayer", "20 de mayo"). */
 export const formatCommentDate = (date: Date | string) =>

@@ -16,6 +16,7 @@ export function DependenciesSheet({
   stage,
   isExternalElaborationLocked = false,
   showTrigger = true,
+  triggerClassName,
 }: DependenciesSheetProps) {
   const { t } = useTranslation('dependencies')
 
@@ -48,7 +49,7 @@ export function DependenciesSheet({
           tooltip={t('sheet.buttonLabel')}
           className={isMobile
             ? "h-7 w-7 p-0 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors rounded-full"
-            : "h-7 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs"
+            : (triggerClassName ?? "h-7 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs")
           }
         >
           <Link2 className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5 mr-1.5"} />

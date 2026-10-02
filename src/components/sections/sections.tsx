@@ -13,8 +13,8 @@ import {
   ChevronDown,
   ChevronUp,
   MoreVertical,
-  Edit,
-  Trash2
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import EditSection from "./sections-edit";
 import { logger } from "@/lib/logger";
@@ -99,7 +99,7 @@ export default function Section({ item, existingSections, onSave, onDelete }: Pr
                 className="hover:cursor-pointer"
                 onClick={handleEdit}
               >
-                <Edit className="mr-2 h-4 w-4" />
+                <Pencil className="mr-2 h-4 w-4" />
                 Edit
               </DropdownMenuItem>
               <DropdownMenuItem 

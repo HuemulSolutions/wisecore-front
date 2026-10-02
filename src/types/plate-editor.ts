@@ -71,4 +71,10 @@ export interface PlateRichEditorProps {
    * nearest scroll container). Only applies to variant='section'.
    */
   toolbarTopOffset?: string;
+  /**
+   * Quita el padding horizontal del área de edición en modo solo lectura, para que el
+   * texto quede alineado con el resto del contenedor (sin la "caja" del modo edición).
+   * Only applies to variant='section'.
+   */
+  flushReadOnly?: boolean;
 }

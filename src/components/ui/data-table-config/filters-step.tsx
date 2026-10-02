@@ -1,8 +1,14 @@
+import * as React from 'react';
 import { Check } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
+import { HuemulCombobox } from '@/huemul/components/huemul-combobox';
+import { useOrganization } from '@/contexts/organization-context';
+import { getAssetTypes } from '@/services/asset-types';
+import type { FetchOptionsParams } from '@/types/huemul/field';
 import { hintForFilter, labelForFilter, labelForFilterOption } from '@/lib/data-table-catalog-labels';
 import type { DataTableFilterDef } from '@/types/data-table-resolve';
 
@@ -15,6 +21,49 @@ interface FiltersStepProps {
 
 const INPUT_CLASS =
   'h-[34px] w-full rounded-lg border border-[#e2e8f0] bg-white px-2.5 text-[13px] text-[#0f172a] outline-none focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.14)]';
+
+const ASSET_TYPE_PAGE_SIZE = 20;
+
+/** Selector multi server-side de tipos de activo — los ids guardados en el filtro se resuelven a
+ * nombre con una query aparte (`selectedOptions`) para que los chips sobrevivan a reabrir el nodo. */
+function AssetTypeFilterControl({ values, onChange }: { values: string[]; onChange: (values: string[]) => void }) {
+  const { t } = useTranslation(['editor']);
+  const { selectedOrganizationId } = useOrganization();
+
+  const fetchOptions = React.useCallback(async ({ search, page, pageSize }: FetchOptionsParams) => {
+    const response = await getAssetTypes(page, pageSize, search);
+    return {
+      options: response.data.map((at) => ({ value: at.id, label: at.name, color: at.color ?? undefined })),
+      hasMore: response.has_next ?? false,
+    };
+  }, []);
+
+  const knownTypes = useQuery({
+    queryKey: ['data-table-filter-asset-types', selectedOrganizationId],
+    queryFn: () => getAssetTypes(1, 100),
+    enabled: values.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+  const selectedOptions = React.useMemo(
+    () =>
+      (knownTypes.data?.data ?? [])
+        .filter((at) => values.includes(at.id))
+        .map((at) => ({ value: at.id, label: at.name, color: at.color ?? undefined })),
+    [knownTypes.data, values],
+  );
+
+  return (
+    <HuemulCombobox
+      multiSelect
+      value={values}
+      onValueChange={(next) => onChange(Array.isArray(next) ? next : [])}
+      fetchOptions={fetchOptions}
+      pageSize={ASSET_TYPE_PAGE_SIZE}
+      selectedOptions={selectedOptions}
+      placeholder={t('editor:dataTable.sheet.assetTypeFilterPlaceholder')}
+    />
+  );
+}
 
 function FilterCard({
   def,
@@ -34,7 +83,7 @@ function FilterCard({
         <span className="text-[13px] font-semibold text-[#0f172a]">{labelForFilter(t, def)}</span>
         {hint && <span className="text-xs text-[#64748b]">{hint}</span>}
       </div>
-      {def.kind === 'multi_enum' &&
+      {(def.kind === 'multi_enum' || def.kind === 'asset_type') &&
         (values.length > 0 ? (
           <button
             type="button"
@@ -83,6 +132,8 @@ function FilterCard({
           })}
         </div>
       )}
+
+      {def.kind === 'asset_type' && <AssetTypeFilterControl values={values} onChange={onChange} />}
 
       {def.kind === 'date_range' && (
         <div className="flex items-center gap-2">

@@ -11,6 +11,7 @@ import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { handleApiError } from "@/lib/error-utils"
 import { getMediaDownloadUrl } from "@/services/media"
 import { HuemulSheet } from "./huemul-sheet"
+import { HuemulLoadError } from "./huemul-load-error"
 import { HuemulAlertDialog } from "./huemul-alert-dialog"
 import { HuemulInfoDisplay, HuemulInfoGroup, HuemulInfoItem } from "./huemul-info-display"
 import { HuemulField } from "./huemul-field"
@@ -73,6 +74,7 @@ export function HuemulMediaDetailSheet({
     data: versionsData,
     isLoading: versionsLoading,
     isFetching: versionsFetching,
+    isError: versionsError,
     refetch: refetchVersions,
   } = useMediaVersions(
     organizationId,
@@ -371,6 +373,8 @@ export function HuemulMediaDetailSheet({
                         <Skeleton key={i} className="h-13 w-full rounded-lg" />
                       ))}
                     </div>
+                  ) : versionsError && !versionsData ? (
+                    <HuemulLoadError onRetry={() => void refetchVersions()} isRetrying={versionsFetching} />
                   ) : versions.length === 0 ? (
                     <p className="text-xs text-muted-foreground py-4 text-center">{t("detail.noVersions")}</p>
                   ) : (

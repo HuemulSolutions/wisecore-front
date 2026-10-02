@@ -27,6 +27,7 @@ import {
   WorkflowPageHeader,
   WorkflowAssetEditSheet,
 } from "@/components/workflow"
+import { templateTitle } from "@/lib/launcher-templates"
 import { buildTemplateShareUrl, buildExecutionShareUrl, buildExecutionSharePath } from "@/lib/workflow-share-url"
 import type { WorkflowItem } from "@/types/workflow"
 import type { WorkflowTemplateItem, CreateExpressResult } from "@/types/templates"
@@ -115,7 +116,7 @@ export default function WorkflowPage() {
         setExpressDoc(null)
         return
       }
-      startExpress(item, item.name)
+      startExpress(item, templateTitle(item))
     },
     [canCreateExpress, startExpress],
   )
@@ -127,7 +128,7 @@ export default function WorkflowPage() {
       setSharing({
         kind: "template",
         url: buildTemplateShareUrl(selectedOrganizationId, item.document_type_id, item.id),
-        name: item.name,
+        name: templateTitle(item),
       })
     },
     [selectedOrganizationId],

@@ -1,14 +1,16 @@
-import { Loader2, Plus, ChevronDown, Pencil, Settings2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Loader2, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { HuemulButton } from "@/huemul/components/huemul-button";
-import { parseApiDate } from "@/lib/utils";
+import { cn, parseApiDate } from "@/lib/utils";
+import { lifecycleStateDot } from "@/lib/lifecycle-colors";
+import { isLifecycleState } from "@/lib/lifecycle-access";
+import type { ExecutionLifecycleState } from "@/types/execution";
 import { formatAbsoluteDate } from "@/lib/format-relative-time";
 import { getExecutionDisplayLabel } from "./utils/version-utils";
 
@@ -17,6 +19,7 @@ interface VersionExecution {
   created_at: string;
   name: string;
   status: string;
+  lifecycle_state?: string | null;
   version?: string | null;
   created_by_user?: { name: string; last_name: string } | null;
 }
@@ -36,24 +39,27 @@ interface VersionSelectorDropdownProps {
   onCreateExecution: () => void;
   onSelectExecution: (executionId: string) => void;
   onOpenVersionManagement: () => void;
-  /** When provided, a rename button appears on each version item */
+  /** When provided, a rename action appears in the menu footer for the selected draft version */
   onRenameVersion?: (execution: { id: string; name: string }) => void;
   dropdownAlign?: "start" | "end";
-  /** true cuando la versión seleccionada es la más reciente — reemplaza al chip "Último" con un punto verde en el trigger. */
+  /** Se conserva por compatibilidad con los callers; el estado de cada versión sale de `execution.lifecycle_state`. */
   isLatest?: boolean;
-  /** false para ocultar el botón "+" embebido en el trigger cuando la superficie ya ofrece uno propio (ej. header móvil). Default true. */
+  /** false para ocultar el botón "+" embebido cuando la superficie ya ofrece uno propio (ej. header móvil). Default true. */
   showTriggerCreateButton?: boolean;
 }
 
-/** Línea de metadatos "fecha · autor" de una versión, omitiendo lo que no venga del backend. */
-function metaLine(execution: VersionExecution): string {
-  const parts = [
-    execution.created_at ? formatAbsoluteDate(execution.created_at) : null,
-    execution.created_by_user
-      ? `${execution.created_by_user.name} ${execution.created_by_user.last_name}`.trim()
-      : null,
-  ].filter(Boolean);
-  return parts.join(" · ");
+/** Estado de ciclo de vida de la versión; ausente o desconocido ⇒ borrador. */
+function versionLifecycleState(state: string | null | undefined): ExecutionLifecycleState {
+  return isLifecycleState(state) ? state : "draft";
+}
+
+function StatusDot({ state }: { state: ExecutionLifecycleState }) {
+  return (
+    <span
+      className={cn("h-[7px] w-[7px] shrink-0 rounded-full", lifecycleStateDot(state))}
+      aria-hidden="true"
+    />
+  );
 }
 
 export function VersionSelectorDropdown({
@@ -69,8 +75,7 @@ export function VersionSelectorDropdown({
   onSelectExecution,
   onOpenVersionManagement,
   onRenameVersion,
-  dropdownAlign = "end",
-  isLatest = false,
+  dropdownAlign = "start",
   showTriggerCreateButton = true,
 }: VersionSelectorDropdownProps) {
   const { t } = useTranslation(["assets"]);
@@ -78,170 +83,130 @@ export function VersionSelectorDropdown({
   const showCreateButton = !lifecyclePermissions || lifecyclePermissions.create;
   const targetId = selectedExecutionId || documentExecutionId;
 
-  const versionLabel = (() => {
-    if (!allExecutions) return "v1";
-    const selectedExecution = allExecutions.find((exec) => exec.id === targetId);
-    const label = getExecutionDisplayLabel(selectedExecution);
-    if (label) return label.length > 20 ? `${label.substring(0, 20)}...` : label;
-    const sorted = [...allExecutions].sort(
-      (a, b) => parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
-    );
-    const index = sorted.findIndex((exec) => exec.id === targetId);
-    return index !== -1 ? `v${sorted.length - index}` : "v1";
-  })();
-
   const sortedExecutions = [...allExecutions].sort(
     (a, b) => parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
   );
+  const selectedExecution = allExecutions.find((exec) => exec.id === targetId);
+  const selectedState = versionLifecycleState(selectedExecution?.lifecycle_state);
+
+  const versionLabel = (() => {
+    const label = getExecutionDisplayLabel(selectedExecution);
+    if (label) return label.length > 20 ? `${label.substring(0, 20)}...` : label;
+    const index = sortedExecutions.findIndex((exec) => exec.id === targetId);
+    return index !== -1 ? `v${sortedExecutions.length - index}` : "v1";
+  })();
+
+  const createBlocked = isCreatingPending || hasExecutionInProcess || !canGenerate;
+  const createTitle =
+    isCreatingPending || hasExecutionInProcess
+      ? t("content.executionInProgress")
+      : !canGenerate
+        ? cannotGenerateReason || t("content.cannotGenerateVersion")
+        : t("content.newVersion");
+
+  // Renombrar solo aplica al borrador seleccionado y con las mismas reglas que tenía el lápiz por fila.
+  const canRenameSelected =
+    !!onRenameVersion &&
+    !!selectedExecution &&
+    selectedState === "draft" &&
+    !!lifecyclePermissions?.create &&
+    !!lifecyclePermissions?.edit &&
+    !selectedExecution.version;
 
   return (
-    <div className="flex items-center bg-gray-100 rounded-lg">
-      {showCreateButton && showTriggerCreateButton && (
-        <HuemulButton
-          size="sm"
-          variant="ghost"
-          onClick={onCreateExecution}
-          disabled={isCreatingPending || hasExecutionInProcess || !canGenerate}
-          className={`h-7 w-7 p-0 rounded-r-none transition-colors ${
-            isCreatingPending || hasExecutionInProcess || !canGenerate
-              ? "text-gray-400 cursor-not-allowed"
-              : "text-[#4464f7] hover:bg-gray-200 hover:text-[#3451e6] hover:cursor-pointer"
-          }`}
-          tooltip={
-            isCreatingPending || hasExecutionInProcess
-              ? t("content.cannotExecuteInProgress")
-              : !canGenerate
-                ? cannotGenerateReason
-                : t("content.executeNewVersion")
-          }
-        >
-          {isCreatingPending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Plus className="h-3.5 w-3.5" />
-          )}
-        </HuemulButton>
-      )}
-
+    <div className="flex h-8 items-stretch rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <HuemulButton
-            size="sm"
-            variant="ghost"
-            className={`h-7 px-2.5 text-gray-700 hover:bg-gray-200 hover:text-gray-900 transition-colors text-xs font-medium hover:cursor-pointer flex items-center gap-1.5 ${
-              showCreateButton && showTriggerCreateButton ? "rounded-l-none" : ""
-            }`}
-            tooltip={t("content.switchVersion")}
+          <button
+            type="button"
+            title={t("content.switchVersion")}
+            className="flex items-center gap-2 rounded-l-[7px] px-2.5 text-[13px] outline-none transition-colors hover:cursor-pointer hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40 data-[state=open]:bg-slate-50"
           >
-            {isLatest && (
-              <span
-                className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0"
-                title={t("content.latest")}
-              />
-            )}
-            <span className="font-medium">{versionLabel}</span>
-            <ChevronDown className="h-3 w-3 text-gray-400 shrink-0" />
-          </HuemulButton>
+            <StatusDot state={selectedState} />
+            <span className="font-semibold text-slate-900">{versionLabel}</span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
+          </button>
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent align={dropdownAlign} className="w-80">
-          <div className="px-3 py-2 border-b border-gray-100">
-            <p className="text-sm font-semibold text-gray-900">{t("content.documentVersions")}</p>
-            <p className="text-xs text-gray-500">
-              {isLatest ? t("content.viewingLatest") : t("content.viewingOlderVersion")}
-            </p>
-          </div>
-
-          <div className="overflow-y-auto max-h-64">
-            {sortedExecutions.map((execution, index) => {
+        <DropdownMenuContent align={dropdownAlign} className="w-[300px] rounded-xl p-1.5">
+          <div className="max-h-64 overflow-y-auto">
+            {sortedExecutions.map((execution) => {
               const isSelected = targetId === execution.id;
-              const isApproved = execution.status === "approved";
-              const isLatestItem = index === 0;
-              const displayName = getExecutionDisplayLabel(execution);
-              const canRename =
-                !!onRenameVersion &&
-                !!lifecyclePermissions?.create &&
-                !!lifecyclePermissions?.edit &&
-                !execution.version;
+              const state = versionLifecycleState(execution.lifecycle_state);
+              const meta = execution.created_at ? formatAbsoluteDate(execution.created_at) : null;
 
               return (
                 <DropdownMenuItem
                   key={execution.id}
-                  className={`hover:cursor-pointer px-2.5 py-2 transition-colors ${
-                    isSelected ? "bg-blue-50 border-l-2 border-[#4464f7]" : "hover:bg-gray-50"
-                  }`}
-                  onClick={() => onSelectExecution(execution.id)}
+                  className={cn(
+                    "gap-2.5 rounded-[7px] px-2 py-1.5 hover:cursor-pointer",
+                    isSelected && "bg-slate-50"
+                  )}
+                  onSelect={() => onSelectExecution(execution.id)}
+                  aria-current={isSelected ? "true" : undefined}
                 >
-                  <div className="flex items-start justify-between w-full gap-2 min-w-0">
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span
-                          className={`text-sm font-semibold truncate ${
-                            isSelected ? "text-[#4464f7]" : "text-gray-900"
-                          }`}
-                        >
-                          {displayName}
-                        </span>
-                        {isLatestItem && (
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-green-600 shrink-0">
-                            {t("content.latest")}
-                          </span>
-                        )}
-                        {isApproved && (
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-teal-600 shrink-0">
-                            {t("content.approved")}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs text-gray-500 truncate">{metaLine(execution)}</span>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {canRename && (
-                        <button
-                          className="p-1 rounded hover:bg-gray-200 hover:cursor-pointer text-gray-400 hover:text-gray-600 transition-colors"
-                          title={t("content.renameVersion")}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onRenameVersion!({ id: execution.id, name: execution.name || "" });
-                          }}
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      {!isSelected && (
-                        <span className="text-xs font-medium text-gray-500">
-                          {t("content.viewVersion")}
-                        </span>
-                      )}
-                    </div>
+                  <StatusDot state={state} />
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-[13px] font-semibold text-slate-900">
+                      {getExecutionDisplayLabel(execution)}
+                    </span>
+                    {meta && <span className="truncate text-[11.5px] text-slate-500">{meta}</span>}
                   </div>
+                  {isSelected && <Check className="h-4 w-4 shrink-0 text-blue-600" aria-hidden="true" />}
                 </DropdownMenuItem>
               );
             })}
           </div>
 
-          <DropdownMenuSeparator />
-          <div className="flex items-center gap-2 p-1">
-            {showCreateButton && (
+          <div className="mt-1 flex items-center justify-between gap-2 border-t border-[#eef1f6] pt-1">
+            {canRenameSelected ? (
               <DropdownMenuItem
-                className="flex-1 justify-center border border-gray-200 rounded-md py-1.5 text-[#4464f7] hover:bg-blue-50 hover:text-[#3451e6] hover:cursor-pointer"
-                onSelect={() => setTimeout(() => onCreateExecution(), 0)}
-                disabled={isCreatingPending || hasExecutionInProcess || !canGenerate}
+                className="h-8 rounded-[7px] px-2 text-[12.5px] font-medium text-slate-600 hover:cursor-pointer"
+                onSelect={() =>
+                  onRenameVersion!({ id: selectedExecution!.id, name: selectedExecution!.name || "" })
+                }
               >
-                <Plus className="h-3.5 w-3.5" />
-                <span className="text-xs font-medium">{t("content.newVersion")}</span>
+                {t("content.renameVersion")}
               </DropdownMenuItem>
+            ) : (
+              <span />
             )}
             <DropdownMenuItem
-              className="shrink-0 text-gray-600 hover:bg-gray-50 hover:cursor-pointer"
+              className="h-8 rounded-[7px] px-2 text-[12.5px] font-semibold text-blue-700 hover:cursor-pointer focus:text-blue-700"
               onSelect={() => setTimeout(() => onOpenVersionManagement(), 0)}
             >
-              <Settings2 className="h-4 w-4" />
-              <span className="text-xs font-medium">{t("content.manage")}</span>
+              {t("content.manageVersions")}
+              <ChevronRight className="h-3.5 w-3.5 text-blue-700" aria-hidden="true" />
             </DropdownMenuItem>
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {showCreateButton && showTriggerCreateButton && (
+        <>
+          <span className="w-px bg-slate-200" aria-hidden="true" />
+          <HuemulButton
+            size="sm"
+            variant="ghost"
+            onClick={onCreateExecution}
+            disabled={createBlocked}
+            aria-label={createTitle}
+            className={cn(
+              "h-full w-8 rounded-l-none rounded-r-[7px] p-0 transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40",
+              createBlocked
+                ? "cursor-not-allowed text-slate-300 disabled:opacity-100"
+                : "text-blue-600 hover:bg-slate-50 hover:text-blue-700"
+            )}
+            tooltip={createTitle}
+          >
+            {isCreatingPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
+          </HuemulButton>
+        </>
+      )}
     </div>
   );
 }

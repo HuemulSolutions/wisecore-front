@@ -10,6 +10,8 @@ const translations = {
   createFolder: { en: "Create folder", es: "Crear carpeta" },
   inputPlaceholder: { en: "Name...", es: "Nombre..." },
   refresh: { en: "Refresh", es: "Actualizar" },
+  showMore: { en: "Show {{count}} more", es: "Mostrar {{count}} más" },
+  showMoreProgress: { en: "{{loaded}} of {{total}}", es: "{{loaded}} de {{total}}" },
 };
 
 export default translations;

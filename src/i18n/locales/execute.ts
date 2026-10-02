@@ -221,6 +221,7 @@ const translations = {
     // devuelva la ejecución con su nombre real (ver A4 en la guía de generación).
     newVersionFallback: { en: "New version", es: "Nueva versión" },
     viewVersion: { en: "View Version", es: "Ver Versión" },
+    dismissNotice: { en: "Dismiss notice", es: "Descartar aviso" },
     description: {
       running: { en: "Content is being generated for this version...", es: "Se está generando el contenido para esta versión..." },
       pending: { en: "Waiting in queue to start generation...", es: "Esperando en cola para iniciar la generación..." },

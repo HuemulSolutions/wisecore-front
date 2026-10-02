@@ -48,11 +48,13 @@ const FIELD_LABEL_KEYS: Record<string, string> = {
 const FILTER_LABEL_KEYS: Record<string, string> = {
   lifecycle_states: 'editor:dataTable.sheet.lifecycleFilterLabel',
   relationship_directions: 'editor:dataTable.sheet.directionFilterLabel',
+  related_asset_types: 'editor:dataTable.sheet.assetTypeFilterLabel',
 }
 
 const FILTER_HINT_KEYS: Record<string, string> = {
   lifecycle_states: 'editor:dataTable.sheet.lifecycleFilterHint',
   relationship_directions: 'editor:dataTable.sheet.directionFilterHint',
+  related_asset_types: 'editor:dataTable.sheet.assetTypeFilterHint',
 }
 
 export function labelForSource(t: DataTableTranslate, source: { id: string; label: string }): string {

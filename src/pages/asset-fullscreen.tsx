@@ -14,9 +14,8 @@ import { ASSET_FULLSCREEN_RETURN_PARAM, resolveFullscreenReturn } from "@/lib/as
 /**
  * Vista de un asset a pantalla completa (ver ia context/fullscreen-share-route-guide.md).
  * AppLayout la monta en su modo "bare" (sin header/nav/árbol) pero con los mismos
- * providers que /asset — ver app-layout.tsx. Se llega acá desde el menú ⋯ o el botón
- * de expandir del header de AssetContent (assets-more-options-dropdown.tsx /
- * assets-content.tsx), o directamente por un link con el assetId en la URL.
+ * providers que /asset — ver app-layout.tsx. Se llega acá desde el botón de expandir
+ * del header o del toolbar de AssetContent (assets-content.tsx), o directamente por un link con el assetId en la URL.
  *
  * A diferencia de /asset, NO usa useAssetNavigation: ese hook resuelve jerarquía de
  * carpetas a partir del pathname y reescribiría esta URL. Acá el id del asset viene

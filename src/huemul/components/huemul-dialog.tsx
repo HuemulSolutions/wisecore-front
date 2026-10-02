@@ -25,6 +25,7 @@ export function HuemulDialog({
   iconClassName,
   showCloseButton = true,
   bodyLoading = false,
+  bodySkeleton,
   showFooter = true,
   showCancelButton = true,
   cancelLabel,
@@ -120,16 +121,18 @@ export function HuemulDialog({
         </DialogHeader>
 
         {/* ── Body ───────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-2">
+        <div aria-busy={bodyLoading || undefined} className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-2">
           {bodyLoading ? (
-            <div className="space-y-4">
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-4 w-2/3" />
-              <Skeleton className="h-4 w-full" />
-            </div>
+            (bodySkeleton ?? (
+              <div className="space-y-4">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-4 w-full" />
+              </div>
+            ))
           ) : (
             children
           )}
@@ -158,7 +161,7 @@ export function HuemulDialog({
                   <Button
                     key={action.label}
                     variant={action.variant ?? "secondary"}
-                    disabled={action.disabled || isLoading}
+                    disabled={action.disabled || isLoading || bodyLoading}
                     className={cn("hover:cursor-pointer", action.className)}
                     onClick={() =>
                       handleActionClick(
@@ -181,7 +184,7 @@ export function HuemulDialog({
               {saveAction && (
                 <Button
                   variant={saveAction.variant ?? "default"}
-                  disabled={saveAction.disabled || saveAction.loading || saveLoading}
+                  disabled={saveAction.disabled || saveAction.loading || saveLoading || bodyLoading}
                   className={cn("hover:cursor-pointer", saveAction.className)}
                   onClick={() =>
                     handleActionClick(saveAction, setSaveLoading, true)

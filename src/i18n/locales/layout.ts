@@ -53,6 +53,8 @@ const translations = {
   },
   knowledge: {
     sectionTitle: { en: "Knowledge", es: "Conocimiento" },
+    collapse: { en: "Collapse panel", es: "Colapsar panel" },
+    expand: { en: "Expand panel", es: "Expandir panel" },
     newAsset: { en: "New Asset", es: "Nuevo Activo" },
     importAsset: { en: "New Asset from File", es: "Nuevo Activo desde Archivo" },
     importAssetFromExternal: { en: "New Asset from Extension", es: "Nuevo Activo desde Extensión" },

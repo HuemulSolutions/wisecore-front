@@ -16,6 +16,7 @@ export function ContextSheet({
   stage,
   isExternalElaborationLocked = false,
   showTrigger = true,
+  triggerClassName,
 }: ContextSheetProps) {
   const { t } = useTranslation('context')
 
@@ -50,7 +51,7 @@ export function ContextSheet({
           tooltip={t('sheet.manageContext')}
           className={isMobile
             ? "h-7 w-7 p-0 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors rounded-full"
-            : "h-7 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs"
+            : (triggerClassName ?? "h-7 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs")
           }
           onClick={() => onOpenChange(true)}
         />

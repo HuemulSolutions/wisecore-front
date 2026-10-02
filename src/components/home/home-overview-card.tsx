@@ -92,15 +92,13 @@ export function HomeOverviewCard({ rows, isLoading, personalRows, error, onRetry
       : t('rail.overview.hintDefault');
 
   return (
-    <div className={HOME_CARD_MUTED}>
+    <div className={cn(HOME_CARD_MUTED, 'flex flex-col overflow-hidden', collapsed ? 'shrink-0' : 'min-h-0')}>
       <HomeCollapsibleHeader collapsed={collapsed} onToggle={toggleCollapsed}>
-        <span className="flex items-start justify-between gap-2">
-          <span className={HOME_RAIL_TITLE}>{t('rail.overview.title')}</span>
-          {!collapsed && <span className="max-w-[170px] text-right text-2xs text-muted-foreground">{hint}</span>}
-        </span>
+        <span className={HOME_RAIL_TITLE}>{t('rail.overview.title')}</span>
+        <p className="text-2xs text-muted-foreground">{t('rail.overview.subtitle')}</p>
       </HomeCollapsibleHeader>
       {collapsed ? null : error ? (
-        <div className="flex flex-col items-center gap-2 px-4 py-6 text-center">
+        <div className="flex min-h-0 flex-col items-center gap-2 overflow-y-auto px-4 py-6 text-center">
           <AlertCircle className="h-6 w-6 text-destructive" />
           <p className="text-xs text-muted-foreground">{getErrorMessage(error, t('rail.overview.errorFallback'))}</p>
           {onRetry && (
@@ -116,20 +114,23 @@ export function HomeOverviewCard({ rows, isLoading, personalRows, error, onRetry
         </div>
       ) : (
         <>
-          {personalRows && personalRows.length > 0 && (
-            <div className="border-b border-divider pb-1">
-              <div className={cn('px-4 pt-2.5 pb-1', HOME_RAIL_TITLE)}>{t('rail.overview.scopeMine')}</div>
-              {personalRows.map((row) => (
+          <div className="min-h-0 overflow-y-auto">
+            {personalRows && personalRows.length > 0 && (
+              <div className="border-b border-divider pb-1">
+                <div className={cn('px-4 pt-2.5 pb-1', HOME_RAIL_TITLE)}>{t('rail.overview.scopeMine')}</div>
+                {personalRows.map((row) => (
+                  <OverviewRowButton key={row.key} row={row} isLoading={isLoading} interactive={interactive} />
+                ))}
+              </div>
+            )}
+            <div className="pb-1">
+              <div className={cn('px-4 pt-2.5 pb-1', HOME_RAIL_TITLE)}>{t('rail.overview.scopeOrganization')}</div>
+              {rows.map((row) => (
                 <OverviewRowButton key={row.key} row={row} isLoading={isLoading} interactive={interactive} />
               ))}
             </div>
-          )}
-          <div className="pb-1">
-            <div className={cn('px-4 pt-2.5 pb-1', HOME_RAIL_TITLE)}>{t('rail.overview.scopeOrganization')}</div>
-            {rows.map((row) => (
-              <OverviewRowButton key={row.key} row={row} isLoading={isLoading} interactive={interactive} />
-            ))}
           </div>
+          <div className="shrink-0 border-t border-divider px-4 py-2 text-center text-2xs text-muted-foreground">{hint}</div>
         </>
       )}
     </div>

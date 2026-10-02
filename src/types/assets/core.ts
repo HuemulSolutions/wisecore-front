@@ -79,6 +79,11 @@ export interface FileNode {
   isRootGroup?: boolean;
   /** Espejo de LibraryContentFolder.is_grantable — viene del backend, no se deriva. */
   is_grantable?: boolean;
+  /** Paginación por nodo del árbol: ver HuemulTreeNode (src/types/huemul/tree.ts). */
+  childrenTotal?: number;
+  nextCursor?: string | null;
+  loadedPages?: number;
+  isLoadingMore?: boolean;
 }
 
 /**
@@ -289,6 +294,8 @@ export interface AssetContentResponse {
     content_hash: string | null;
     template_id: string | null;
     template_name: string | null;
+    /** Nombre de la relación tipo de asset × template; la UI lo prefiere a `template_name`. */
+    relation_name?: string | null;
     template_instructions?: string | null;
     document_type: DocumentType;
     executions: ExecutionInfo[];
@@ -331,11 +338,16 @@ export interface DocumentMediaUrlsResponse {
 // Dialog Props Types
 // ========================================
 
+/** Método de contenido inicial del sheet de creación de assets. */
+export type CreateAssetContentMode = "blank" | "template" | "url";
+
 export interface CreateAssetSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   folderId?: string;
   onAssetCreated?: (asset: { id: string; name: string; type: "document" }) => void;
+  /** Método preseleccionado al abrir (por defecto, en blanco). */
+  initialContentMode?: CreateAssetContentMode;
   /**
    * `asset:c` resuelto por el consumidor. Obligatoria a propósito (sin default):
    * el sheet muta `POST /documents/`, y un call-site que se olvide de pasarla
@@ -497,6 +509,8 @@ export interface DocumentSectionAccessItem {
   name?: string;
   order?: number;
   can_edit?: boolean | null;
+  /** Tipo de la sección, si el backend lo manda. */
+  section_type?: 'ai' | 'manual' | 'reference' | 'form';
 }
 
 export interface LibraryContentProps {

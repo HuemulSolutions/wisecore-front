@@ -12,6 +12,19 @@ export interface LibraryRootLoadParams {
   focusAssetId?: string | null
   includeExecutions?: boolean
   filters?: GetLibraryContentFilters
+  /**
+   * Cursor opaco de una página raíz posterior a la primera (paginación por
+   * nodo del árbol). Una página con cursor nunca es enriquecida: el foco y la
+   * expansión resueltos server-side solo aplican a la primera carga.
+   */
+  cursor?: string
+  /**
+   * Tamaño de página de la carga enriquecida (foco + carpetas expandidas
+   * resueltas server-side). Esa respuesta nombra carpetas expandidas de
+   * cualquier profundidad y se espera completa, así que un árbol que pagina la
+   * raíz de a pocos la pide más grande. Default: `pageSize`.
+   */
+  enrichedPageSize?: number
 }
 
 export interface UseLibraryTreeExpansionOptions {
@@ -73,14 +86,16 @@ export function useLibraryTreeExpansion({
     focusAssetId,
     includeExecutions,
     filters,
+    cursor,
+    enrichedPageSize,
   }: LibraryRootLoadParams = {}): Promise<{ content: LibraryContent; enriched: boolean }> => {
     if (!organizationId) return { content: { folders: [], assets: [], has_next: false }, enriched: false }
 
     const expandedFolderIds = expandedIdsRef.current
-    const enrichedRootLoad = !!focusAssetId || expandedFolderIds.length > 0
+    const enrichedRootLoad = !cursor && page === 1 && (!!focusAssetId || expandedFolderIds.length > 0)
 
     if (!enrichedRootLoad) {
-      const content = await getLibraryContent(organizationId, undefined, page, pageSize, undefined, filters, undefined, { includeExecutions })
+      const content = await getLibraryContent(organizationId, undefined, page, pageSize, undefined, filters, undefined, { includeExecutions, cursor })
       return { content, enriched: false }
     }
 
@@ -89,7 +104,7 @@ export function useLibraryTreeExpansion({
         organizationId,
         undefined,
         page,
-        pageSize,
+        enrichedPageSize ?? pageSize,
         undefined,
         filters,
         focusAssetId ?? undefined,

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
@@ -89,7 +89,7 @@ export default function Roles() {
     searchTerm
   )
   const { deleteRole, cloneRole } = useRoleMutations()
-  const { byId: rolesById } = useRolesMap(canList)
+  const { byId: rolesById, isLoaded: rolesMapLoaded } = useRolesMap(canList)
 
   // Derived data
   const roles = rolesResponse?.data || []
@@ -214,6 +214,13 @@ export default function Roles() {
   }
 
   const handleClosePanel = () => navigateToRole(null)
+
+  // Red de seguridad: id inexistente/borrado (link viejo, otra org) y catálogo ya
+  // cargado → se limpia la URL en vez de dejar el skeleton del deep-link para siempre.
+  useEffect(() => {
+    if (selectedRoleId && !selectedRole && rolesMapLoaded && !isFetching) navigateToRole(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRoleId, selectedRole, rolesMapLoaded, isFetching])
 
   const handleTabChange = (tab: RoleDetailTab) => {
     if (!selectedRoleId) return

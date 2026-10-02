@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Network, Plus, Edit2, Trash2 } from "lucide-react"
+import { Network, Plus, Pencil, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -75,7 +75,7 @@ export function ExternalSystemDetail({ system, organizationId = "", onAddFunctio
                 className="h-8 w-8 hover:cursor-pointer"
                 onClick={onEdit}
               >
-                <Edit2 className="h-4 w-4" />
+                <Pencil className="h-4 w-4" />
               </Button>
             )}
             {onDelete && (

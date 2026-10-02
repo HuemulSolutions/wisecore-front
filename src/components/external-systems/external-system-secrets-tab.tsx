@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Plus, Edit2, Trash2, Check, X, Loader2, RefreshCw, Lock } from "lucide-react"
+import { Plus, Pencil, Trash2, Check, X, Loader2, RefreshCw, Lock } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import {
   useExternalSecrets,
@@ -229,7 +229,7 @@ export function ExternalSystemSecretsTab({
                 disabled={isOtherRowEditing}
                 onClick={() => startEditing(secret)}
               >
-                <Edit2 className="h-3.5 w-3.5" />
+                <Pencil className="h-3.5 w-3.5" />
               </Button>
             )}
             {canDelete && (

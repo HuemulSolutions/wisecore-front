@@ -16,6 +16,7 @@ import type { CustomFieldOption, PendingCustomFieldFile } from "@/types/custom-f
 import type { FormFieldConfig } from "@/types/sections/core"
 import type { FetchOptionsParams, FetchOptionsResult } from "@/types/huemul/field"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
+import { Skeleton } from "@/components/ui/skeleton"
 import { CustomFieldValueField } from "@/components/custom-fields/custom-field-value-field"
 import { addCustomFieldValueBlob } from "@/services/custom-field-value-blobs"
 import { validateCustomFieldValue } from "@/components/custom-fields/custom-field-value-validation"
@@ -74,7 +75,7 @@ export function AddCustomFieldSheet({
   )
 
   // Fetch full details of the selected existing custom field (needed for its data_type/default_value)
-  const { data: selectedCustomField } = useCustomField(selectedCustomFieldId, !!selectedCustomFieldId)
+  const { data: selectedCustomField, isLoading: isLoadingSelectedField } = useCustomField(selectedCustomFieldId, !!selectedCustomFieldId)
 
   // Async, server-side search for the existing custom field selector
   const fetchCustomFieldOptions = useCallback(
@@ -424,7 +425,7 @@ export function AddCustomFieldSheet({
   }
 
   const isValid = fieldType === "existing"
-    ? selectedCustomFieldId && selectedSource
+    ? selectedCustomFieldId && selectedSource && !!selectedCustomField
     : newCustomFieldData.name && newCustomFieldData.question_type
 
   return (
@@ -516,7 +517,9 @@ export function AddCustomFieldSheet({
                 )}
 
                 {/* Value */}
-                {selectedSource && selectedSource !== "inferred" && (
+                {selectedSource && selectedSource !== "inferred" && (isLoadingSelectedField ? (
+                  <Skeleton className="h-16 w-full" />
+                ) : (
                   <CustomFieldValueField
                     dataType={selectedCustomField?.data_type || ""}
                     questionType={selectedCustomField?.question_type}
@@ -552,7 +555,7 @@ export function AddCustomFieldSheet({
                     onImageFile={(file) => setSelectedFile(file)}
                     onImageValidationError={(message) => setFormErrors(prev => ({ ...prev, value: message }))}
                   />
-                )}
+                ))}
 
                 {!selectedSource && (
                   <Input

@@ -59,6 +59,10 @@ export interface LibraryContent {
   assets: LibraryContentAsset[];
   folders: LibraryContentFolder[];
   has_next: boolean;
+  /** Total de hijos de la carpeta (aditivo, alimenta el contador "25 de 143"). */
+  total?: number;
+  /** Cursor opaco de la siguiente página (aditivo). Sin él, el árbol pagina por `page`. */
+  next_cursor?: string | null;
 }
 
 export type LibraryContentLifecycleState = ExecutionLifecycleState;
@@ -89,4 +93,6 @@ export interface GetLibraryContentOptions {
    * se excede. Incompatible con search/filters/assetIds.
    */
   expandedFolderIds?: string[];
+  /** Cursor opaco devuelto como `next_cursor` por una página anterior. */
+  cursor?: string;
 }
