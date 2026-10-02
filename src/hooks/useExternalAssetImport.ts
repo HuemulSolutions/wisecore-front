@@ -42,5 +42,8 @@ export function useExternalAssetImportRun(
       return EXTERNAL_IMPORT_RUN_POLL_MS
     },
     refetchOnWindowFocus: false,
+    // El sheet muestra su propio error con "Reintentar": sin esto el toast global
+    // de query-client.ts duplicaría el aviso.
+    meta: { showErrorToast: false },
   })
 }

@@ -64,10 +64,17 @@ export function ImportAssetFromExternalSheet({
   const isPending = importMutation.isPending
   const isBusy = isPending || isWaitingForExtension
 
-  // Reset on open — guarded so a mid-flight org change doesn't wipe the form
-  // while a 2-minute request (or an async import) is still running.
+  // Reset solo al abrir el sheet o al cambiar de organización. Que termine una
+  // operación (isBusy → false) no resetea: tras un error el usuario conserva lo
+  // que cargó para corregir o reintentar. Un cambio de organización a mitad de
+  // una importación tampoco vacía el formulario.
+  const lastResetTrigger = React.useRef({ open, organizationId: selectedOrganizationId })
   React.useEffect(() => {
-    if (open && !isBusy) {
+    const previous = lastResetTrigger.current
+    lastResetTrigger.current = { open, organizationId: selectedOrganizationId }
+    const opened = open && !previous.open
+    const organizationChanged = selectedOrganizationId !== previous.organizationId
+    if ((opened || organizationChanged) && !isBusy) {
       setSystemId("")
       setFunctionalityId("")
       setInputValues({})

@@ -1,9 +1,12 @@
-import { http } from 'msw'
+import { delay, http } from 'msw'
 import { screen, waitFor } from '@testing-library/react'
 import { toast } from 'sonner'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { QueryClient } from '@tanstack/react-query'
+
 import { backendUrl } from '@/config'
+import { queryClient as appQueryClient } from '@/lib/query-client'
 import { ORG_A_ID, activeUser } from '@/test/fixtures'
 import { makeLoginToken, makeOrgToken } from '@/test/jwt'
 import { respondApiError, respondOk } from '@/test/msw/respond'
@@ -55,7 +58,13 @@ function useCatalog(executionType: 'sync' | 'async') {
   )
 }
 
-function renderSheet(props: { onAssetCreated?: (asset: { id: string; name: string; type: string }) => void; onOpenChange?: (open: boolean) => void } = {}) {
+function renderSheet(
+  props: {
+    onAssetCreated?: (asset: { id: string; name: string; type: string }) => void
+    onOpenChange?: (open: boolean) => void
+    queryClient?: QueryClient
+  } = {},
+) {
   return renderWithProviders(
     <ImportAssetFromExternalSheet
       open
@@ -65,6 +74,7 @@ function renderSheet(props: { onAssetCreated?: (asset: { id: string; name: strin
     {
       session: { token: makeLoginToken(), user: activeUser },
       org: { id: ORG_A_ID, token: makeOrgToken({ org_id: ORG_A_ID, is_org_admin: true }) },
+      queryClient: props.queryClient,
     },
   )
 }
@@ -76,6 +86,17 @@ async function chooseFunctionalityAndSubmit(user: ReturnType<typeof renderSheet>
   await user.click(screen.getAllByRole('combobox')[1])
   await user.click(await screen.findByRole('option', { name: 'Importar ficha' }))
   await user.click(screen.getByRole('button', { name: 'Generate Asset' }))
+}
+
+// Latencia de red: sin ella msw responde antes de que React pinte el estado
+// "ocupado" y un reset atado a ese estado nunca se dispara en el test.
+const NETWORK_LATENCY_MS = 150
+
+function expectFormKept() {
+  const [systemSelect, functionalitySelect] = screen.getAllByRole('combobox')
+  expect(systemSelect).toHaveTextContent(SYSTEM.name)
+  expect(functionalitySelect).toHaveTextContent('Importar ficha')
+  expect(screen.getByRole('button', { name: 'Generate Asset' })).toBeEnabled()
 }
 
 beforeEach(() => {
@@ -162,10 +183,14 @@ describe('ImportAssetFromExternalSheet', () => {
   it('async: una importación fallida muestra el motivo y no abre nada', async () => {
     useCatalog('async')
     server.use(
-      http.post(`${backendUrl}/external-asset-import/`, () => respondOk(run('awaiting_callback'), {}, 202)),
-      http.get(`${backendUrl}/external-asset-import/runs/run-1`, () =>
-        respondOk(run('failed', { error_detail: 'Source file is empty' })),
-      ),
+      http.post(`${backendUrl}/external-asset-import/`, async () => {
+        await delay(NETWORK_LATENCY_MS)
+        return respondOk(run('awaiting_callback'), {}, 202)
+      }),
+      http.get(`${backendUrl}/external-asset-import/runs/run-1`, async () => {
+        await delay(NETWORK_LATENCY_MS)
+        return respondOk(run('failed', { error_detail: 'Source file is empty' }))
+      }),
     )
     const onAssetCreated = vi.fn()
     const { user } = renderSheet({ onAssetCreated })
@@ -180,6 +205,26 @@ describe('ImportAssetFromExternalSheet', () => {
     )
     expect(onAssetCreated).not.toHaveBeenCalled()
     expect(screen.queryByTestId('external-import-waiting')).not.toBeInTheDocument()
+    // El usuario conserva lo que cargó para corregir o reintentar.
+    await new Promise((resolve) => setTimeout(resolve, NETWORK_LATENCY_MS))
+    expectFormKept()
+  })
+
+  it('sync: un error del POST conserva el formulario', async () => {
+    useCatalog('sync')
+    server.use(
+      http.post(`${backendUrl}/external-asset-import/`, async () => {
+        await delay(NETWORK_LATENCY_MS)
+        return respondApiError(502, 'EXTERNAL_ASSET_IMPORT_HTTP_ERROR', 'External system returned an error.')
+      }),
+    )
+    const { user } = renderSheet()
+
+    await chooseFunctionalityAndSubmit(user)
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled())
+    await new Promise((resolve) => setTimeout(resolve, NETWORK_LATENCY_MS))
+    expectFormKept()
   })
 
   it('async: si falla la consulta del estado muestra el error con reintentar y no sigue consultando', async () => {
@@ -192,7 +237,9 @@ describe('ImportAssetFromExternalSheet', () => {
         return respondApiError(500, 'INTERNAL_ERROR', 'boom')
       }),
     )
-    const { user } = renderSheet()
+    // QueryClient real de la app: el de los tests no trae el toast global de
+    // errores (query-client.ts), que es justo lo que no debe duplicarse.
+    const { user } = renderSheet({ queryClient: appQueryClient })
 
     await chooseFunctionalityAndSubmit(user)
 
@@ -200,6 +247,8 @@ describe('ImportAssetFromExternalSheet', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
     await new Promise((resolve) => setTimeout(resolve, 3_500))
     expect(polls).toBe(1)
+    // Solo el estado en línea: el toast global no duplica el aviso.
+    expect(toast.error).not.toHaveBeenCalled()
   })
 
   it('async: cerrar mientras espera avisa que sigue en segundo plano', async () => {
