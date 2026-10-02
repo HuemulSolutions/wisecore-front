@@ -109,18 +109,3 @@ export const replaceCollectionAccess = async (
   accesses: CollectionAccess[],
 ): Promise<CollectionAccess[]> => data(await httpClient.put(`${BASE_URL}/${collectionId}/access`, { accesses }));
 
-// ── Buscador de activos para "Agregar activos" ──
-
-export interface CollectionAssetOption {
-  id: string
-  name: string
-  internal_code?: string | null
-  document_type?: { name?: string | null } | null
-}
-
-// GET /documents/ ya filtra por visibilidad lifecycle (lo que el usuario puede ver).
-export const searchAssetsForCollection = async (search: string, pageSize = 50): Promise<CollectionAssetOption[]> => {
-  const query = new URLSearchParams({ page: '1', page_size: String(pageSize) });
-  if (search.trim()) query.set('search', search.trim());
-  return data(await httpClient.get(`${backendUrl}/documents/?${query.toString()}`));
-};

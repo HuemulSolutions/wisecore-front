@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { Crown, Globe, Lock, Plus, Search, Shield, ShieldCheck, Trash2, User as UserIcon } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
@@ -28,13 +28,62 @@ const keyOf = (access: Pick<CollectionAccess, "role_id" | "user_id">) =>
 
 const MAX_RESULTS = 8
 
+interface SearchOption {
+  id: string
+  label: string
+  detail?: string
+}
+
+/** Buscador con resultados en lista: agrega con un clic y se vacía. */
+function PrincipalSearch({
+  placeholder,
+  value,
+  onChange,
+  options,
+  icon: Icon,
+  onPick,
+}: {
+  placeholder: string
+  value: string
+  onChange: (value: string) => void
+  options: SearchOption[]
+  icon: typeof Shield
+  onPick: (id: string) => void
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+        <Input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} aria-label={placeholder} className="pl-8" />
+      </div>
+      {options.length > 0 && (
+        <div className="max-h-48 overflow-y-auto rounded-md border bg-background p-1">
+          {options.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => onPick(option.id)}
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:cursor-pointer hover:bg-muted"
+            >
+              <Icon className="size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{option.label}</span>
+                {option.detail && <span className="block truncate text-xs text-muted-foreground">{option.detail}</span>}
+              </span>
+              <Plus className="size-4 text-muted-foreground" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /**
- * "Quién puede verla": visibilidad (privada o pública), quién tiene acceso con su
- * nivel, y un buscador único de roles y personas para agregar. Se guarda todo junto:
- * `PUT /collections/{id}/access` reemplaza los grants y, si cambió, `PUT
- * /collections/{id}` actualiza `is_public`. Roles y personas salen del catálogo
- * abierto (`/rbac/roles`) y del directorio (`/user_roles/members`): no hace falta
- * administrar usuarios para compartir.
+ * "Quién puede verla": visibilidad (privada o pública) y, si es privada, los roles y
+ * las personas con acceso, cada bloque con su buscador. Se guarda todo junto: `PUT
+ * /collections/{id}/access` reemplaza los grants y, si cambió, `PUT /collections/{id}`
+ * actualiza `is_public`. Una colección pública oculta los grants pero no los borra.
  */
 export function CollectionAccessSheet({ open, onOpenChange, collection }: CollectionAccessSheetProps) {
   const { t } = useTranslation(["collections", "common"])
@@ -42,8 +91,15 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
   const collectionId = collection?.id
   const { data: accesses, isLoading } = useCollectionAccess(collectionId, open)
   const { data: rolesData } = useRoles(open, 1, 1000)
-  const [query, setQuery] = useState("")
-  const { data: membersData } = useMembers(open, selectedOrganizationId ?? undefined, 1, query ? 20 : 100, query || undefined)
+  const [roleQuery, setRoleQuery] = useState("")
+  const [personQuery, setPersonQuery] = useState("")
+  const { data: membersData } = useMembers(
+    open,
+    selectedOrganizationId ?? undefined,
+    1,
+    personQuery ? 20 : 100,
+    personQuery || undefined,
+  )
   const { replaceAccess, updateCollection } = useCollectionMutations()
   const [draft, setDraft] = useState<DraftAccess[]>([])
   const [isPublic, setIsPublic] = useState(false)
@@ -51,7 +107,8 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
   useEffect(() => {
     if (open) {
       setIsPublic(collection?.is_public ?? false)
-      setQuery("")
+      setRoleQuery("")
+      setPersonQuery("")
     }
   }, [open, collection?.is_public])
 
@@ -75,15 +132,21 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
   }, [members])
 
   const taken = new Set(draft.map((access) => access.key))
-  const needle = query.trim().toLowerCase()
-  const roleResults = roles
+  const roleNeedle = roleQuery.trim().toLowerCase()
+  const roleOptions: SearchOption[] = roles
     .filter((role) => !taken.has(`role:${role.id}`))
-    .filter((role) => !needle || role.name.toLowerCase().includes(needle))
+    .filter((role) => !roleNeedle || role.name.toLowerCase().includes(roleNeedle))
     .slice(0, MAX_RESULTS)
-  const personResults = needle
+    .map((role) => ({ id: role.id, label: role.name }))
+  const personOptions: SearchOption[] = personQuery.trim()
     ? members
         .filter((member) => !taken.has(`user:${member.id}`) && member.id !== collection?.created_by)
         .slice(0, MAX_RESULTS)
+        .map((member) => ({
+          id: member.id,
+          label: [member.name, member.last_name].filter(Boolean).join(" ") || member.email,
+          detail: member.email,
+        }))
     : []
 
   const addPrincipal = (principal: { role_id?: string; user_id?: string }) => {
@@ -93,7 +156,8 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
       access_level: "read",
     }
     setDraft((prev) => [...prev, { ...access, key: keyOf(access) }])
-    setQuery("")
+    if (principal.role_id) setRoleQuery("")
+    else setPersonQuery("")
   }
 
   const setLevel = (key: string, level: CollectionAccessLevel) =>
@@ -112,12 +176,36 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
     })
   }
 
-  const label = (access: DraftAccess) =>
-    access.role_id
-      ? roleNames.get(access.role_id) ?? t("access.unknownRole", { id: access.role_id.slice(0, 8) })
-      : memberNames.get(access.user_id!) ?? t("access.unknownUser", { id: access.user_id!.slice(0, 8) })
-
+  const roleGrants = draft.filter((access) => access.role_id)
+  const personGrants = draft.filter((access) => access.user_id)
   const creatorName = collection?.created_by ? memberNames.get(collection.created_by) : undefined
+
+  const grantRow = (access: DraftAccess, label: string, Icon: typeof Shield) => (
+    <li key={access.key} className="flex items-center gap-3 px-3 py-2">
+      <Icon className="size-4 shrink-0 text-muted-foreground" />
+      <span className="min-w-0 flex-1 truncate text-sm">{label}</span>
+      <Select value={access.access_level} onValueChange={(level) => setLevel(access.key, level as CollectionAccessLevel)}>
+        <SelectTrigger className="h-8 w-40" aria-label={t("access.level")}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="read">{t("access.read")}</SelectItem>
+          <SelectItem value="admin">{t("access.admin")}</SelectItem>
+        </SelectContent>
+      </Select>
+      <Button variant="ghost" size="icon" onClick={() => remove(access.key)} aria-label={t("access.remove")}>
+        <Trash2 className="size-4" />
+      </Button>
+    </li>
+  )
+
+  const block = (title: string, search: ReactNode, rows: ReactNode, empty: string, hasRows: boolean) => (
+    <section className="space-y-2">
+      <h3 className="text-sm font-semibold">{title}</h3>
+      {search}
+      {hasRows ? <ul className="divide-y rounded-md border">{rows}</ul> : <p className="text-xs text-muted-foreground">{empty}</p>}
+    </section>
+  )
 
   const visibilityOptions = [
     { value: false, icon: Lock, title: t("access.privateTitle"), description: t("access.privateDescription") },
@@ -165,108 +253,64 @@ export function CollectionAccessSheet({ open, onOpenChange, collection }: Collec
           </div>
         </section>
 
-        <section className="space-y-2">
-          <h3 className="text-sm font-semibold">{t("access.whoTitle")}</h3>
-          <p className="text-xs text-muted-foreground">{t("access.levelsHint")}</p>
-
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t("access.addLabel")}
-              aria-label={t("access.addLabel")}
-              className="pl-8"
-            />
-          </div>
-          {(roleResults.length > 0 || personResults.length > 0) && (
-            <div className="max-h-64 overflow-y-auto rounded-md border bg-background">
-              {roleResults.length > 0 && (
-                <div className="p-1">
-                  <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {t("access.rolesGroup")}
-                  </p>
-                  {roleResults.map((role) => (
-                    <button
-                      key={role.id}
-                      type="button"
-                      onClick={() => addPrincipal({ role_id: role.id })}
-                      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:cursor-pointer hover:bg-muted"
-                    >
-                      <Shield className="size-4 text-muted-foreground" />
-                      <span className="flex-1 truncate">{role.name}</span>
-                      <Plus className="size-4 text-muted-foreground" />
-                    </button>
-                  ))}
-                </div>
-              )}
-              {personResults.length > 0 && (
-                <div className="border-t p-1">
-                  <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {t("access.peopleGroup")}
-                  </p>
-                  {personResults.map((member) => (
-                    <button
-                      key={member.id}
-                      type="button"
-                      onClick={() => addPrincipal({ user_id: member.id })}
-                      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:cursor-pointer hover:bg-muted"
-                    >
-                      <UserIcon className="size-4 text-muted-foreground" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate">
-                          {[member.name, member.last_name].filter(Boolean).join(" ") || member.email}
-                        </span>
-                        <span className="block truncate text-xs text-muted-foreground">{member.email}</span>
-                      </span>
-                      <Plus className="size-4 text-muted-foreground" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {isLoading ? (
+        {!isPublic &&
+          (isLoading ? (
             <div className="space-y-2">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
           ) : (
-            <ul className="divide-y rounded-md border">
-              <li className="flex items-center gap-3 px-3 py-2">
-                <Crown className="size-4 shrink-0 text-amber-600" />
-                <span className="min-w-0 flex-1 truncate text-sm">{creatorName ?? t("access.creatorUnknown")}</span>
-                <span className="text-xs text-muted-foreground">{t("access.creator")}</span>
-              </li>
-              {draft.map((access) => (
-                <li key={access.key} className="flex items-center gap-3 px-3 py-2">
-                  {access.role_id ? (
-                    <Shield className="size-4 shrink-0 text-muted-foreground" aria-label={t("access.rolesGroup")} />
-                  ) : (
-                    <UserIcon className="size-4 shrink-0 text-muted-foreground" aria-label={t("access.peopleGroup")} />
+            <>
+              <p className="text-xs text-muted-foreground">{t("access.levelsHint")}</p>
+              {block(
+                t("access.rolesTitle"),
+                <PrincipalSearch
+                  placeholder={t("access.searchRole")}
+                  value={roleQuery}
+                  onChange={setRoleQuery}
+                  options={roleOptions}
+                  icon={Shield}
+                  onPick={(id) => addPrincipal({ role_id: id })}
+                />,
+                roleGrants.map((access) =>
+                  grantRow(
+                    access,
+                    roleNames.get(access.role_id!) ?? t("access.unknownRole", { id: access.role_id!.slice(0, 8) }),
+                    Shield,
+                  ),
+                ),
+                t("access.noRoles"),
+                roleGrants.length > 0,
+              )}
+              {block(
+                t("access.peopleTitle"),
+                <PrincipalSearch
+                  placeholder={t("access.searchPerson")}
+                  value={personQuery}
+                  onChange={setPersonQuery}
+                  options={personOptions}
+                  icon={UserIcon}
+                  onPick={(id) => addPrincipal({ user_id: id })}
+                />,
+                <>
+                  <li className="flex items-center gap-3 px-3 py-2">
+                    <Crown className="size-4 shrink-0 text-amber-600" />
+                    <span className="min-w-0 flex-1 truncate text-sm">{creatorName ?? t("access.creatorUnknown")}</span>
+                    <span className="text-xs text-muted-foreground">{t("access.creator")}</span>
+                  </li>
+                  {personGrants.map((access) =>
+                    grantRow(
+                      access,
+                      memberNames.get(access.user_id!) ?? t("access.unknownUser", { id: access.user_id!.slice(0, 8) }),
+                      UserIcon,
+                    ),
                   )}
-                  <span className="min-w-0 flex-1 truncate text-sm">{label(access)}</span>
-                  <Select value={access.access_level} onValueChange={(level) => setLevel(access.key, level as CollectionAccessLevel)}>
-                    <SelectTrigger className="h-8 w-40" aria-label={t("access.level")}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="read">{t("access.read")}</SelectItem>
-                      <SelectItem value="admin">{t("access.admin")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button variant="ghost" size="icon" onClick={() => remove(access.key)} aria-label={t("access.remove")}>
-                    <Trash2 className="size-4" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {!isLoading && draft.length === 0 && (
-            <p className="text-xs text-muted-foreground">{isPublic ? t("access.publicNote") : t("access.none")}</p>
-          )}
-        </section>
+                </>,
+                t("access.noPeople"),
+                true,
+              )}
+            </>
+          ))}
       </div>
     </HuemulSheet>
   )

@@ -523,6 +523,8 @@ export interface LibraryContentProps {
   onOpenFullscreen?: () => void;
   /** Vuelve de fullscreen a /asset. Solo lo pasa la página fullscreen. */
   onExitFullscreen?: () => void;
+  /** Arranca con el panel derecho (índice, campos, archivos) colapsado. Lo usa el detalle de una colección. */
+  defaultDetailPanelCollapsed?: boolean;
 }
 
 // ========================================

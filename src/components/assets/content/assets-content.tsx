@@ -187,6 +187,7 @@ export function AssetContent({
   variant = "panel",
   onOpenFullscreen,
   onExitFullscreen,
+  defaultDetailPanelCollapsed = false,
 }: LibraryContentProps) {
   // "panel": columna derecha de /asset (default). "fullscreen": vista dedicada sin
   // header/nav/árbol (pages/asset-fullscreen.tsx) — ver
@@ -587,7 +588,7 @@ export function AssetContent({
 
   // Sidebar and sheets — rail Índice/Campos/Archivos/Vínculos del panel de detalle.
   const [activeTab, setActiveTab] = useState<AssetDetailPanelTab>('index');
-  const [isDetailPanelCollapsed, setIsDetailPanelCollapsed] = useState(false);
+  const [isDetailPanelCollapsed, setIsDetailPanelCollapsed] = useState(defaultDetailPanelCollapsed);
   const detailPanelRef = useRef<ImperativePanelHandle>(null);
   // Los custom fields son un recurso propio (custom_fields), no del asset: el tab
   // y su query exigen el permiso de listarlos.
@@ -3696,7 +3697,8 @@ export function AssetContent({
           <ResizableHandle/>
           <ResizablePanel
             ref={detailPanelRef}
-            defaultSize={22}
+            // Colapsado arranca en el mismo tamaño que `collapsedSize`, para que coincida con el flag.
+            defaultSize={defaultDetailPanelCollapsed ? 4 : 22}
             minSize={16}
             collapsible
             collapsedSize={4}

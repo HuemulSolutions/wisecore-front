@@ -91,6 +91,21 @@ describe('CollectionFormSheet', () => {
     })
   })
 
+  it('el identificador sigue al nombre hasta que se edita a mano', async () => {
+    const { user } = renderWithProviders(
+      <CollectionFormSheet open onOpenChange={() => {}} collection={null} canManageAgentCollections />,
+    )
+    const name = screen.getByPlaceholderText(/Onboarding for new analysts/)
+    await user.click(screen.getByRole('radio', { name: /AI agents/ }))
+    await user.type(name, 'Guía Backend')
+    const slug = screen.getByDisplayValue('guia-backend')
+
+    await user.clear(slug)
+    await user.type(slug, 'backend')
+    await user.type(name, ' v2')
+    expect(screen.getByDisplayValue('backend')).toBeInTheDocument()
+  })
+
   it('sin el permiso de agentes la opción queda deshabilitada y se explica', () => {
     renderWithProviders(
       <CollectionFormSheet open onOpenChange={() => {}} collection={null} canManageAgentCollections={false} />,

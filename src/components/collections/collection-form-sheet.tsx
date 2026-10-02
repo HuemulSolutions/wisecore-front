@@ -88,16 +88,26 @@ export function CollectionFormSheet({
   const [errors, setErrors] = useState<Partial<Record<keyof CollectionFormData, string>>>({})
   const { createCollection, updateCollection } = useCollectionMutations()
   const isEdit = !!collection
+  // El identificador sigue al nombre hasta que el usuario lo edita a mano. Una
+  // colección que ya tiene identificador no se toca: los agentes ya la piden así.
+  const [slugTouched, setSlugTouched] = useState(() => !!collection?.agent_slug)
 
   useEffect(() => {
     if (open) {
       setFormData(toFormData(collection))
       setErrors({})
+      setSlugTouched(!!collection?.agent_slug)
     }
   }, [open, collection])
 
   const handleChange = <K extends keyof CollectionFormData>(field: K, value: CollectionFormData[K]) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value }
+      if (field === "name" && prev.for_agent && !slugTouched) {
+        next.agent_slug = suggestAgentIdentifier(String(value))
+      }
+      return next
+    })
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }))
   }
 
@@ -107,7 +117,7 @@ export function CollectionFormSheet({
       ...prev,
       for_agent: forAgent,
       // Al pasar a agentes se sugiere el identificador desde el nombre si está vacío.
-      agent_slug: forAgent && !prev.agent_slug ? suggestAgentIdentifier(prev.name) : prev.agent_slug,
+      agent_slug: forAgent && !slugTouched ? suggestAgentIdentifier(prev.name) : prev.agent_slug,
     }))
   }
 
@@ -258,16 +268,14 @@ export function CollectionFormSheet({
               label={t("form.slug")}
               name="agent_slug"
               value={formData.agent_slug}
-              onChange={(value) => handleChange("agent_slug", value as string)}
+              onChange={(value) => {
+                setSlugTouched(true)
+                handleChange("agent_slug", value as string)
+              }}
               placeholder={t("form.slugPlaceholder")}
               description={t("form.slugHint")}
               error={errors.agent_slug}
               maxLength={AGENT_SLUG_MAX_LENGTH}
-              labelAction={{
-                icon: Plus,
-                tooltip: t("form.slugSuggest"),
-                onClick: () => handleChange("agent_slug", suggestAgentIdentifier(formData.name)),
-              }}
               disabled={agentLocked}
               required
             />

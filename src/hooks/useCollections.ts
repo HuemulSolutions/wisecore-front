@@ -125,7 +125,7 @@ export function useCollectionMutations() {
   const addItemMutation = useMutation({
     mutationFn: ({ collectionId, data }: { collectionId: string; data: AddCollectionItemRequest }) =>
       addCollectionItem(collectionId, data),
-    meta: { successMessage: t('mutations.itemAdded') },
+    // Sin toast: el selector queda abierto para elegir varios y cada activo aparece en el índice.
     onSuccess: (_data, { collectionId }) => invalidateDetail(collectionId),
   })
 

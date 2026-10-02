@@ -62,7 +62,8 @@ export interface CollectionIndexProps {
   onRenameGroup: (group: CollectionGroup, name: string) => void
   onMoveGroup: (group: CollectionGroup, delta: -1 | 1) => void
   onDeleteGroup: (group: CollectionGroup) => void
-  onAddItems: () => void
+  /** `null` = sin grupo. */
+  onAddItems: (groupId: string | null) => void
 }
 
 function ItemRow({
@@ -223,6 +224,10 @@ function GroupRow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => props.onAddItems(group.id)}>
+              <FilePlus2 className="size-4" />
+              {t("detail.addItemsHere")}
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setRenaming(true)}>
               <Pencil className="size-4" />
               {t("detail.renameGroup")}
@@ -335,7 +340,7 @@ export function CollectionIndex(props: CollectionIndexProps) {
             />
           ) : (
             <div className="flex flex-col gap-1">
-              <Button variant="outline" size="sm" className="w-full justify-start" onClick={props.onAddItems}>
+              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => props.onAddItems(null)}>
                 <FilePlus2 className="size-4" />
                 {t("detail.addItems")}
               </Button>

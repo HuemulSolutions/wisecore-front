@@ -2,9 +2,19 @@ import { useCallback, useMemo, useState } from "react"
 import { useParams, useSearchParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { useQueryClient } from "@tanstack/react-query"
-import { Bot, BookOpen, Compass, FilePlus2, Globe, Library, Lock, Pencil, Trash2, Users } from "lucide-react"
+import { ArrowLeft, Bot, BookOpen, Compass, FilePlus2, Globe, Library, Lock, MoreHorizontal, Pencil, ShieldCheck, Trash2, Users } from "lucide-react"
 import { AssetContent } from "@/components/assets"
-import { CollectionAccessSheet, CollectionAddItemsSheet, CollectionFormSheet, CollectionIndex } from "@/components/collections"
+import { CollectionAccessSheet, CollectionFormSheet, CollectionIndex } from "@/components/collections"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { HuemulAssetTreePickerDialog } from "@/huemul/components/huemul-asset-tree-picker"
+import { useOrganization } from "@/contexts/organization-context"
 import { applyOrder, moveGroup } from "@/components/collections/collection-order"
 import { Badge } from "@/components/ui/badge"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
@@ -12,7 +22,6 @@ import { HuemulAccessDenied } from "@/huemul/components/huemul-access-denied"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
-import { PageHeader } from "@/huemul/components/huemul-page-header"
 import { useCollection, useCollectionAccess, useCollectionMutations, collectionsQueryKeys } from "@/hooks/useCollections"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { usePageAccess } from "@/hooks/usePageAccess"
@@ -44,7 +53,9 @@ export default function CollectionDetailPage() {
 
   const [editing, setEditing] = useState(false)
   const [sharing, setSharing] = useState(false)
-  const [addingItems, setAddingItems] = useState(false)
+  // Grupo destino del selector de activos abierto (`undefined` = cerrado, `null` = sin grupo).
+  const [addingToGroup, setAddingToGroup] = useState<string | null | undefined>(undefined)
+  const { selectedOrganizationId } = useOrganization()
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null)
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
@@ -181,7 +192,7 @@ export default function CollectionDetailPage() {
         <div className="flex flex-col items-start gap-2 rounded-lg border border-dashed p-4">
           <p className="text-sm text-muted-foreground">{t("detail.emptyIndex")}</p>
           {canManage && (
-            <HuemulButton icon={FilePlus2} label={t("detail.addItems")} onClick={() => setAddingItems(true)} />
+            <HuemulButton icon={FilePlus2} label={t("detail.addItems")} onClick={() => setAddingToGroup(null)} />
           )}
         </div>
       )}
@@ -191,30 +202,74 @@ export default function CollectionDetailPage() {
   return (
     <>
       <HuemulPageLayout
-        headerClassName="p-4 md:p-6 pb-0 md:pb-0"
         header={
-          <PageHeader
-            icon={Library}
-            title={detail.name}
-            backAction={{ label: t("detail.back"), onClick: () => navigate("/collections") }}
-            additionalActions={[
-              ...(canManage
-                ? [
-                    { label: t("detail.addItems"), icon: FilePlus2, variant: "default" as const, onClick: () => setAddingItems(true) },
-                    {
-                      label: t("detail.share"),
-                      icon: detail.is_public ? Globe : Lock,
-                      variant: "outline" as const,
-                      onClick: () => setSharing(true),
-                    },
-                    { label: t("detail.edit"), icon: Pencil, variant: "outline" as const, onClick: () => setEditing(true) },
-                  ]
-                : []),
-              ...(canDelete
-                ? [{ label: t("detail.delete"), icon: Trash2, variant: "ghost" as const, onClick: () => setPendingDelete({ kind: "collection" }) }]
-                : []),
-            ]}
-          />
+          <div className="flex h-12 items-center gap-2 border-b px-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={() => navigate("/collections")}
+              aria-label={t("detail.back")}
+              title={t("detail.back")}
+            >
+              <ArrowLeft className="size-4" />
+            </Button>
+            <Library className="size-4 shrink-0 text-muted-foreground" />
+            <h1 className="min-w-0 truncate text-base font-semibold">{detail.name}</h1>
+            <div className="hidden items-center gap-1 sm:flex">
+              {detail.for_agent ? (
+                <>
+                  <Badge variant="secondary" className="gap-1 px-1.5 py-0 text-[11px]">
+                    <Bot className="size-3" />
+                    {t("card.agent")}
+                  </Badge>
+                  <Badge variant="outline" className="gap-1 px-1.5 py-0 text-[11px]">
+                    <KindIcon className="size-3" />
+                    {detail.agent_kind === "behavior" ? t("card.behavior") : t("card.knowledge")}
+                  </Badge>
+                </>
+              ) : (
+                <Badge variant="secondary" className="gap-1 px-1.5 py-0 text-[11px]">
+                  <Users className="size-3" />
+                  {t("card.human")}
+                </Badge>
+              )}
+              <Badge variant="outline" className="gap-1 px-1.5 py-0 text-[11px]">
+                {detail.is_public ? <Globe className="size-3" /> : <Lock className="size-3" />}
+                {detail.is_public ? t("card.public") : t("card.private")}
+              </Badge>
+            </div>
+            {(canManage || canDelete) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="ml-auto size-8" aria-label={t("detail.moreActions")}>
+                    <MoreHorizontal className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {canManage && (
+                    <>
+                      <DropdownMenuItem onSelect={() => setEditing(true)}>
+                        <Pencil className="size-4" />
+                        {t("detail.edit")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setSharing(true)}>
+                        <ShieldCheck className="size-4" />
+                        {t("detail.share")}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {canManage && canDelete && <DropdownMenuSeparator />}
+                  {canDelete && (
+                    <DropdownMenuItem className="text-destructive" onSelect={() => setPendingDelete({ kind: "collection" })}>
+                      <Trash2 className="size-4" />
+                      {t("detail.delete")}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         }
         columns={[
           {
@@ -242,7 +297,7 @@ export default function CollectionDetailPage() {
                   if (groupIds) mutations.reorderGroups.mutate({ collectionId, groupIds })
                 }}
                 onDeleteGroup={(group) => setPendingDelete({ kind: "group", group })}
-                onAddItems={() => setAddingItems(true)}
+                onAddItems={(groupId) => setAddingToGroup(groupId)}
               />
             ),
             defaultSize: 22,
@@ -268,6 +323,7 @@ export default function CollectionDetailPage() {
                 }}
                 isSidebarOpen={false}
                 onToggleSidebar={() => {}}
+                defaultDetailPanelCollapsed
                 onOpenFullscreen={() =>
                   navigate(
                     `/asset/full/${selectedFile.id}${selectedExecutionId ? `?execution=${selectedExecutionId}` : ""}`,
@@ -289,7 +345,25 @@ export default function CollectionDetailPage() {
         canManageAgentCollections={can("updateAgentCollection")}
       />
       <CollectionAccessSheet open={sharing} onOpenChange={setSharing} collection={detail} />
-      {canManage && <CollectionAddItemsSheet open={addingItems} onOpenChange={setAddingItems} detail={detail} />}
+      {canManage && selectedOrganizationId && (
+        <HuemulAssetTreePickerDialog
+          open={addingToGroup !== undefined}
+          onOpenChange={(open) => !open && setAddingToGroup(undefined)}
+          organizationId={selectedOrganizationId}
+          mode="document"
+          keepOpenOnSelect
+          disabledIds={detail.items.map((item) => item.document_id)}
+          disabledHint={t("addItems.alreadyIn")}
+          title={t("addItems.pickerTitle")}
+          description={t("addItems.pickerDescription")}
+          onSelect={(documentId) =>
+            mutations.addItem.mutate({
+              collectionId,
+              data: { document_id: documentId, group_id: addingToGroup ?? null },
+            })
+          }
+        />
+      )}
       <HuemulAlertDialog
         open={!!pendingDelete}
         onOpenChange={(open) => !open && setPendingDelete(null)}
