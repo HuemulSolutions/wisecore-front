@@ -19,7 +19,6 @@ import {
 import { useLifecycleProgress } from "@/hooks/useLifecycleProgress"
 import { useMissingRequiredCustomFields } from "@/hooks/useCustomFieldDocuments"
 import { executionLifecycleQueryKeys } from "@/hooks/useExecutionLifecycle"
-import { getDocumentTypeById } from "@/services/document-types"
 import {
   completeExecutionLifecycleStep,
   rejectExecutionLifecycle,
@@ -70,6 +69,7 @@ export function useLifecycleActions({
   executionId,
   organizationId,
   documentTypeId,
+  finalLifecycleStage: finalLifecycleStageOption,
   lifecycleStatus,
   lifecyclePermissions,
   rbac,
@@ -86,14 +86,8 @@ export function useLifecycleActions({
   const { t } = useTranslation(["assets", "common"])
   const queryClient = useQueryClient()
 
-  // Misma query key que el tab General del tipo de activo
-  // (assets-types-general-form.tsx) — comparte cache, sin fetch extra.
-  const { data: documentTypeData } = useQuery({
-    queryKey: ["document-type", documentTypeId],
-    queryFn: () => getDocumentTypeById(documentTypeId!),
-    enabled: !!documentTypeId,
-  })
-  const finalLifecycleStage = documentTypeData?.data?.final_lifecycle_stage ?? "publish"
+  // Viene en el contenido del activo: pedir el tipo exigiría `asset_type:r`.
+  const finalLifecycleStage = finalLifecycleStageOption ?? "publish"
 
   const [isCheckDialogOpen, setIsCheckDialogOpenState] = useState(false)
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)

@@ -1,6 +1,7 @@
 // Asset-related types extracted from components/assets
 
 import type { LibraryContentFolderType } from "@/types/folders";
+import type { FinalLifecycleStage } from "@/types/document-types";
 
 // ========================================
 // Core Asset Types
@@ -13,6 +14,9 @@ export interface DocumentType {
   id: string;
   name: string;
   color: string;
+  /** Hasta dónde llega el ciclo de vida del tipo. Lo trae el contenido del activo, para no pedir el
+   * tipo (`GET /document_types/{id}` exige `asset_type:r`, que quien ve el activo puede no tener). */
+  final_lifecycle_stage?: FinalLifecycleStage;
 }
 
 /**

@@ -7,6 +7,7 @@ import { useOrganization } from '@/contexts/organization-context';
 import i18n from '@/i18n';
 import { parseApiDate } from '@/lib/utils';
 import { useMembers } from '@/hooks/useUsers';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import {
   listDiscussions,
   createDiscussionWithComment,
@@ -112,11 +113,14 @@ export function useDiscussions(
   const { user } = useAuth();
   const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
+  // Sin `discussion:l` no se pide nada: el backend respondería 403 (y el toast global lo mostraría)
+  // a quien solo puede ver el activo. Lo decide el hook para que ningún llamador se lo salte.
+  const { canList } = useUserPermissions();
+  const canListDiscussions = canList('discussion');
 
   // Directorio de la organización para resolver nombre y avatar (cualquier miembro lo ve).
-  // Solo si hay documento (sin permiso de discusiones el caller pasa `undefined`).
   const { data: usersResponse } = useMembers(
-    !!selectedOrganizationId && !!documentId,
+    !!selectedOrganizationId && !!documentId && canListDiscussions,
     selectedOrganizationId ?? undefined,
     1,
     1000,
@@ -159,7 +163,7 @@ export function useDiscussions(
         { document_id: documentId!, include_comments: true, page_size: 500 },
         selectedOrganizationId ?? undefined,
       ),
-    enabled: !!documentId && !!selectedOrganizationId,
+    enabled: !!documentId && !!selectedOrganizationId && canListDiscussions,
     staleTime: 30_000,
     // Swallow permission errors (e.g. 403) silently – the editor should
     // still render without discussions rather than crash.
